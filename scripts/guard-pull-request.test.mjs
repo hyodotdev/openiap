@@ -95,6 +95,7 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "curl -f https://api.github.com/repos/o/r/pulls",
     'curl -sf "https://api.github.com/repos/o/r/pulls?state=open"',
     "grep -rn createPullRequest src",
+    "gh api graphql -f query='mutation { createPullRequestReview(input: {}) { clientMutationId } }'",
     "grep -rn -e 'gh api graphql' -e createPullRequest scripts",
     "git commit -F - <<'EOF'\ndocs: say why `gh pr create` asks first\nEOF",
     'gh pr comment 500 --body "run `gh pr create` only when asked"',
@@ -209,7 +210,7 @@ test("long commands are read in linear time", () => {
     performance.now() - heredocStarted < 500,
     "a long heredoc must not be rescanned per line",
   );
-  for (const unit of ["$(", "\n", "sh -a;", "a;"]) {
+  for (const unit of ["$(", "\n", "sh -a;", "a;", "$(a)", "gh api graphql;"]) {
     const input = unit.repeat(Math.ceil(40000 / unit.length));
     const unitStarted = performance.now();
     assert.equal(shell(input), false);

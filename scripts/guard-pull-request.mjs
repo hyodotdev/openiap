@@ -14,7 +14,7 @@ export const reason =
 // A new command starts after a separator. Backticks are left alone: commit
 // messages quote commands in them far more often than agents run them.
 const commandStart = /\n|;|&&|\|\|?|&|\$\(/gu;
-const substitution = /\$\(([^()]*)\)/u;
+const substitution = /\$\(([^()]*)\)/gu;
 // Shell keywords, assignments, wrappers with their options, a timeout's
 // duration, and `sh -c "` before the command word. An option never takes a PR
 // client, a wrapper, or a shell as its value, so `env -i gh` and
@@ -59,14 +59,16 @@ const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 const writeFlag =
   /(?:-X\s*|--method[=\s]+|--request[=\s]+)POST\b|\s-d\s*\S|\s-[fF]\s*["']?[\w.[\]-]+=|--(?:raw-)?field\b|--data\b|--json\b|--form\b|--input\b/u;
 const explicitGet = /(?:-X\s*|--method[=\s]+|--request[=\s]+)GET\b/u;
-const graphqlCreate = new RegExp(
-  String.raw`^${dir}gh\s+api\s+graphql\b[\s\S]*\bcreatePullRequest\b`,
-  "u",
-);
+const graphqlCommand = new RegExp(String.raw`^${dir}gh\s+api\s+graphql\b`, "u");
+const createPullRequest = /\bcreatePullRequest\b/gu;
 // Assigning Copilot to an issue ends in a pull request Copilot opens.
 const mcpCreate = /^mcp__.+__(?:create_pull_request|assign_copilot_to_issue)/u;
 
 function opensPullRequestIn(command) {
+  // A GraphQL query often spans lines, so a mutation anywhere after the command counts.
+  let lastCreate = -1;
+  for (const match of command.matchAll(createPullRequest))
+    lastCreate = match.index;
   const starts = [
     0,
     ...Array.from(command.matchAll(commandStart), (m) => m.index + m[0].length),
@@ -75,7 +77,7 @@ function opensPullRequestIn(command) {
     const tail = command.slice(start);
     const segment = tail.split(commandStart, 1)[0];
     const words = segment.replace(commandPrefix, "");
-    const rest = tail.slice(segment.length - words.length);
+    const wordsAt = start + segment.length - words.length;
     return (
       ghPrCreate.test(words) ||
       hubPullRequest.test(words) ||
@@ -85,8 +87,7 @@ function opensPullRequestIn(command) {
         pullsEndpoint.test(words) &&
         writeFlag.test(words) &&
         !explicitGet.test(words)) ||
-      // A GraphQL query often spans lines, so it is read to the end.
-      graphqlCreate.test(rest)
+      (graphqlCommand.test(words) && lastCreate > wordsAt)
     );
   });
 }
@@ -96,13 +97,14 @@ function shellOpensPullRequest(command) {
   let outer = command.replace(/\\\r?\n/gu, " ");
   // Each $(…) is a command of its own, and the one around it reads on past it.
   const commands = [];
-  for (
-    let found = substitution.exec(outer);
-    found;
-    found = substitution.exec(outer)
-  ) {
-    commands.push(found[1]);
-    outer = `${outer.slice(0, found.index)}x${outer.slice(found.index + found[0].length)}`;
+  // Innermost first, one pass per nesting level; deeper ones still split at $(.
+  for (let depth = 0; depth < 16; depth++) {
+    const collapsed = outer.replace(substitution, (_, inner) => {
+      commands.push(inner);
+      return "x";
+    });
+    if (collapsed === outer) break;
+    outer = collapsed;
   }
   return [...commands, outer].some(opensPullRequestIn);
 }
