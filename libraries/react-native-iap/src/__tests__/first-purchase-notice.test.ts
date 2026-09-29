@@ -9,7 +9,7 @@ import {
 
 const mockNative = {
   finishTransaction: jest.fn<Promise<boolean>, [unknown]>(),
-  claimFirstPurchaseNotice: jest.fn<Promise<boolean>, []>(),
+  claimFirstPurchaseNotice: jest.fn<boolean, []>(),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -34,11 +34,11 @@ const purchase = (purchaseState: PurchaseState): PurchaseIOS => ({
 const flush = (): Promise<void> =>
   new Promise((resolve) => setImmediate(resolve));
 
-let claim: jest.Mock<Promise<boolean>, []>;
+let claim: jest.Mock<boolean, []>;
 let log: jest.Mock<void, [string]>;
 
 beforeEach(() => {
-  claim = jest.fn(async () => true);
+  claim = jest.fn(() => true);
   log = jest.fn();
 });
 
@@ -100,7 +100,7 @@ describe('createFirstPurchaseNotice', () => {
   });
 
   it('stays silent when the install already showed it', async () => {
-    claim.mockResolvedValue(false);
+    claim.mockReturnValue(false);
     notice()(purchase('purchased'));
     await flush();
 
@@ -120,17 +120,13 @@ describe('createFirstPurchaseNotice', () => {
     expect(log).toHaveBeenCalledTimes(1);
   });
 
-  it('swallows a flag that rejects or throws', async () => {
-    claim.mockRejectedValueOnce(new Error('preferences unavailable'));
-    expect(() => notice()(purchase('purchased'))).not.toThrow();
-
+  it('swallows a flag that throws', () => {
     claim.mockImplementationOnce(() => {
       throw new Error('native method missing');
     });
     expect(() => notice()(purchase('purchased'))).not.toThrow();
 
-    await flush();
-    expect(claim).toHaveBeenCalledTimes(2);
+    expect(claim).toHaveBeenCalledTimes(1);
     expect(log).not.toHaveBeenCalled();
   });
 });
@@ -193,7 +189,7 @@ describe('finishTransaction', () => {
     consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
     mockNative.finishTransaction.mockReset().mockResolvedValue(true);
-    mockNative.claimFirstPurchaseNotice.mockReset().mockResolvedValue(true);
+    mockNative.claimFirstPurchaseNotice.mockReset().mockReturnValue(true);
     // A fresh module per test, so the in-memory guard starts unset.
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -249,28 +245,22 @@ describe('finishTransaction', () => {
     expect(consoleLog).not.toHaveBeenCalled();
   });
 
-  it('never waits for or fails on the native flag', async () => {
-    mockNative.claimFirstPurchaseNotice.mockReturnValueOnce(
-      new Promise<boolean>(() => {}),
-    );
-    await expect(
-      finishTransaction({purchase: purchase('purchased')}),
-    ).resolves.toBeUndefined();
-
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      ({finishTransaction} = require('../index'));
+  it('never fails a finish on the native flag', async () => {
+    mockNative.claimFirstPurchaseNotice.mockImplementationOnce(() => {
+      throw new Error('preferences unavailable');
     });
-    mockNative.claimFirstPurchaseNotice.mockRejectedValueOnce(
-      new Error('preferences unavailable'),
-    );
     await expect(
       finishTransaction({purchase: purchase('purchased')}),
     ).resolves.toBeUndefined();
-    await flush();
 
-    expect(mockNative.claimFirstPurchaseNotice).toHaveBeenCalledTimes(2);
+    expect(mockNative.claimFirstPurchaseNotice).toHaveBeenCalledTimes(1);
     expect(consoleLog).not.toHaveBeenCalled();
+  });
+
+  it('prints in the same turn as the finish, with nothing left to settle', async () => {
+    await finishTransaction({purchase: purchase('purchased')});
+
+    expect(consoleLog.mock.calls).toEqual([[NOTICE]]);
   });
 
   it('keeps the native flag out of the exported types', () => {

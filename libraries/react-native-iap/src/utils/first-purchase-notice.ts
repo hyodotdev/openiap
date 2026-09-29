@@ -34,28 +34,27 @@ const appSignals: FirstPurchaseNoticeSignals = {
  * install (`claim` owns the native flag), and never throws.
  */
 export const createFirstPurchaseNotice = (
-  claim: () => Promise<boolean>,
+  claim: () => boolean,
   signals: FirstPurchaseNoticeSignals = appSignals,
 ): ((purchase: Purchase) => void) => {
   let tried = false;
 
-  const show = async (purchase: Purchase): Promise<void> => {
-    if (tried || purchase.purchaseState !== 'purchased') return;
-    if (
-      !signals.isDebugBuild() ||
-      signals.isTestRunner() ||
-      signals.isVegaOS()
-    ) {
-      return;
-    }
-    // Set before the await so later finishes skip the native call.
-    tried = true;
-    if (await claim()) {
-      signals.log(FIRST_PURCHASE_NOTICE.join('\n'));
-    }
-  };
-
   return (purchase) => {
-    show(purchase).catch(() => {});
+    try {
+      if (tried || purchase.purchaseState !== 'purchased') return;
+      if (
+        !signals.isDebugBuild() ||
+        signals.isTestRunner() ||
+        signals.isVegaOS()
+      ) {
+        return;
+      }
+      tried = true;
+      if (claim()) {
+        signals.log(FIRST_PURCHASE_NOTICE.join('\n'));
+      }
+    } catch {
+      // The notice never changes the finish result.
+    }
   };
 };

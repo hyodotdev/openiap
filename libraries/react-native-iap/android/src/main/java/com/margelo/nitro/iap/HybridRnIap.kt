@@ -997,9 +997,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     // Internal to react-native-iap's first-purchase notice; not app API.
-    override fun claimFirstPurchaseNotice(): Promise<Boolean> {
-        return Promise.async { OpenIapFirstPurchaseNotice.claim(context) }
-    }
+    override fun claimFirstPurchaseNotice(): Boolean = OpenIapFirstPurchaseNotice.claim(context)
 
     override fun getStorefront(): Promise<String> {
         return Promise.async {

@@ -759,8 +759,10 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   /**
    * Internal to react-native-iap, not app API: claims the once-per-install flag
    * for the first-purchase notice. True only the first time on this install.
+   * Synchronous: it only flips one flag, and on an iPhone the promise form set
+   * the flag but never delivered the answer.
    */
-  claimFirstPurchaseNotice(): Promise<boolean>;
+  claimFirstPurchaseNotice(): boolean;
 
   // Event listener methods
 
