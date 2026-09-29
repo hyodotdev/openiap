@@ -87,6 +87,17 @@ test("the minimum and current Godot versions coexist without a finding", () => {
   assert.deepEqual(failures, []);
 });
 
+test("the Godot CI job for the minimum editor is read as 4.3 and must stay 4.3", () => {
+  // setup-godot needs 4.3.0, which the registry reads as Godot's own 4.3.
+  const failures = auditFacts(
+    overlaying(".github/workflows/ci-godot-iap.yml", (text) =>
+      text.replace("version: 4.3.0", "version: 4.2.0"),
+    ),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /godot\.version: .*ci-godot-iap.*"4\.2"/u);
+});
+
 test("catches a mirror that has been deleted", () => {
   // A mirror republishes a fact for readers and is excluded from the
   // "value still occurs" requirement on purpose, so nothing else notices when
