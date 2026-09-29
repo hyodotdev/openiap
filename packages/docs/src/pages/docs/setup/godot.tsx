@@ -733,7 +733,7 @@ func _on_purchase_error(error):
               Cannot assign a value of type types.gd.IapStore to variable
               &quot;store&quot;
             </code>{' '}
-            in godot-iap 3.6.x and earlier. Update godot-iap; later releases
+            in godot-iap 3.6.1 and earlier. Update godot-iap; later releases
             load beside it.
           </li>
           <li>
@@ -775,12 +775,12 @@ func _on_purchase_error(error):
             Release export: leaving res://iapkit.cfg out of the bundle
           </code>
           . If your game ships its publishable key in that file, update
-          godot-iap; later releases export it again. On 3.6.x, move the key to
-          another file, such as <code>res://iapkit_publishable.cfg</code>, add
-          that file to the preset's non-resource filter (Export › Resources ›
-          Filters to export non-resource files), and read it from there. The
-          export bundles that file, so keep only a publishable <code>pk_</code>{' '}
-          key in it.
+          godot-iap; later releases export it again. On 3.6.0 or 3.6.1, move the
+          key to another file, such as <code>res://iapkit_publishable.cfg</code>
+          , add that file to the preset's non-resource filter (Export ›
+          Resources › Filters to export non-resource files), and read it from
+          there. The export bundles that file, so keep only a publishable{' '}
+          <code>pk_</code> key in it.
         </p>
 
         <h3 id="android-gradle-failure" className="anchor-heading">

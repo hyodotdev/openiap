@@ -239,9 +239,12 @@ const scheduledRemovals = [
       ],
       [
         'EXPO_IAP_FIREOS=1',
-        'modules.amazon.fireOS, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
+        'modules.amazon.fireOS, which also turns Vega auto-detection off, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
       ],
-      ['EXPO_IAP_VEGA=1', 'modules.amazon.vegaOS, or a root manifest.toml'],
+      [
+        'EXPO_IAP_VEGA=1',
+        'modules.amazon.vegaOS, or a root manifest.toml when Fire OS is not declared',
+      ],
       ['EXPO_IAP_ONSIDE=1', 'modules.onside'],
     ],
   },

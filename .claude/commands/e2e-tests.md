@@ -719,8 +719,8 @@ Normal Android build and launch smoke:
 cd libraries/flutter_inapp_purchase/example
 flutter pub get
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
-# Without -v, Flutter runs Gradle with -q, which hides the store line.
-build_log="$(flutter build apk --debug -v)"
+# The store line is logged quietly, so it shows even under Flutter's -q.
+build_log="$(flutter build apk --debug)"
 printf '%s\n' "$build_log" | grep -F 'openiap: store=play (source=device;'
 # Build-only regression can stop here.
 adb -s "$ANDROID_SERIAL" install -r build/app/outputs/flutter-apk/app-debug.apk
@@ -732,7 +732,7 @@ FireOS/Amazon Android build and launch smoke:
 ```bash
 cd libraries/flutter_inapp_purchase/example
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
-build_log="$(ANDROID_SERIAL="$FIREOS_SERIAL" flutter build apk --debug -v)"
+build_log="$(ANDROID_SERIAL="$FIREOS_SERIAL" flutter build apk --debug)"
 printf '%s\n' "$build_log" | grep -F 'openiap: store=amazon (source=device;'
 # Build-only regression can stop here.
 adb -s "$FIREOS_SERIAL" install -r build/app/outputs/flutter-apk/app-debug.apk
@@ -744,7 +744,7 @@ Horizon Android build and optional device path:
 ```bash
 cd libraries/flutter_inapp_purchase/example
 : "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
-build_log="$(ANDROID_SERIAL="$HORIZON_SERIAL" flutter build apk --debug -v)"
+build_log="$(ANDROID_SERIAL="$HORIZON_SERIAL" flutter build apk --debug)"
 printf '%s\n' "$build_log" | grep -F 'openiap: store=horizon (source=device;'
 # Build-only regression can stop here.
 adb -s "$HORIZON_SERIAL" install -r build/app/outputs/flutter-apk/app-debug.apk

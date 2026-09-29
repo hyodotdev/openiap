@@ -491,13 +491,16 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-apple 3.6.1</strong> and{' '}
-              <strong>openiap-google 3.6.2</strong> remember, once per install,
+              <strong>openiap-apple 3.6.1</strong> remembers, once per install,
               that the framework library showed its first-purchase notice.
             </li>
             <li>
               <strong>openiap-google 3.6.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Remembers, once per install, that the framework library showed
+                  its first-purchase notice.
+                </li>
                 <li>
                   Amazon plans report their price in{' '}
                   <code>priceAmountMicros</code> instead of <code>0</code>,
@@ -528,9 +531,9 @@ function Releases() {
                 </li>
                 <li>
                   <code>fireOsEnabled=true</code> is no longer deprecated in
-                  openiap-google, react-native-iap, expo-iap, and
-                  flutter_inapp_purchase; it declares a Fire OS build and wins
-                  over the connected debug device.
+                  openiap-google, react-native-iap, and flutter_inapp_purchase;
+                  it declares a Fire OS build and wins over the connected debug
+                  device.
                 </li>
               </ul>
             </li>
@@ -574,7 +577,8 @@ function Releases() {
                   <code>NitroProduct</code> type, which{' '}
                   <code>fetchProducts</code> already drops, are deprecated for
                   removal in the next major release; read{' '}
-                  <code>subscriptionOffers</code> instead.
+                  <code>subscriptionOffers</code> or <code>discountOffers</code>{' '}
+                  instead.
                 </li>
               </ul>
             </li>
@@ -595,8 +599,9 @@ function Releases() {
                   for each replacement.
                 </li>
                 <li>
-                  <code>modules.amazon.fireOS</code> is no longer deprecated,
-                  and it turns off Vega auto-detection.
+                  <code>modules.amazon.fireOS</code> is no longer deprecated. A
+                  Fire OS declaration, from it or from{' '}
+                  <code>EXPO_IAP_FIREOS=1</code>, turns off Vega auto-detection.
                 </li>
                 <li>
                   A hand-written root <code>manifest.toml</code> no longer draws
