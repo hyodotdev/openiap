@@ -209,6 +209,15 @@ test("long commands are read in linear time", () => {
     performance.now() - heredocStarted < 500,
     "a long heredoc must not be rescanned per line",
   );
+  for (const unit of ["$(", "\n", "sh -a;", "a;"]) {
+    const input = unit.repeat(Math.ceil(40000 / unit.length));
+    const unitStarted = performance.now();
+    assert.equal(shell(input), false);
+    assert.ok(
+      performance.now() - unitStarted < 500,
+      `${JSON.stringify(unit)} repeated must stay fast`,
+    );
+  }
   const separators = "a;".repeat(20000);
   const separatorsStarted = performance.now();
   assert.equal(shell(separators), false);

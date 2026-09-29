@@ -21,7 +21,7 @@ const substitution = /\$\(([^()]*)\)/u;
 // `sudo -E bash -c` still reach the command.
 // A path or value never runs past a separator, so each command start is
 // scanned only to the end of its own command.
-const dir = String.raw`(?:[^\s;&|]*/)?`;
+const dir = String.raw`(?:[^\s;&|(]*/)?`;
 const client = String.raw`${dir}(?:gh|hub|curl)\b`;
 const keyword = String.raw`(?:if|elif|while|until|then|do|else)\b`;
 const wrapper = String.raw`${dir}(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
@@ -72,8 +72,10 @@ function opensPullRequestIn(command) {
     ...Array.from(command.matchAll(commandStart), (m) => m.index + m[0].length),
   ];
   return starts.some((start) => {
-    const rest = command.slice(start).replace(commandPrefix, "");
-    const words = rest.split(commandStart, 1)[0];
+    const tail = command.slice(start);
+    const segment = tail.split(commandStart, 1)[0];
+    const words = segment.replace(commandPrefix, "");
+    const rest = tail.slice(segment.length - words.length);
     return (
       ghPrCreate.test(words) ||
       hubPullRequest.test(words) ||
