@@ -29,6 +29,8 @@ test("published source changes need the release card", () => {
       "libraries/react-native-iap/android/CMakeLists.txt",
       "libraries/expo-iap/onside/index.js",
       "libraries/kmp-iap/library/consumer-rules-non-play.pro",
+      "libraries/godot-iap/android/settings.gradle.kts",
+      "libraries/maui-iap/android/build.gradle.kts",
     ]),
     [
       "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
@@ -47,6 +49,8 @@ test("published source changes need the release card", () => {
       "libraries/react-native-iap/android/CMakeLists.txt",
       "libraries/expo-iap/onside/index.js",
       "libraries/kmp-iap/library/consumer-rules-non-play.pro",
+      "libraries/godot-iap/android/settings.gradle.kts",
+      "libraries/maui-iap/android/build.gradle.kts",
     ],
   );
 });

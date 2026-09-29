@@ -381,13 +381,16 @@ export const publishedSources = {
   ],
   godot: [
     /^libraries\/godot-iap\/(addons\/godot-iap|android\/src\/main|ios-gdextension)\//,
-    /^libraries\/godot-iap\/android\/build\.gradle\.kts$/,
+    /^libraries\/godot-iap\/android\/[^/]+\.gradle\.kts$/,
   ],
   kmp: [
     /^libraries\/kmp-iap\/library\/src\/(commonMain|androidMain|iosMain)\//,
     /^libraries\/kmp-iap\/library\/(build\.gradle\.kts|consumer-rules[\w-]*\.pro)$/,
   ],
-  maui: [/^libraries\/maui-iap\/(src|android\/openiap)\//],
+  maui: [
+    /^libraries\/maui-iap\/(src|android\/openiap)\//,
+    /^libraries\/maui-iap\/android\/[^/]+\.gradle\.kts$/,
+  ],
 };
 
 const isTest = (file) =>
