@@ -27,8 +27,8 @@ export type AmazonPlatformOptions = {
   /**
    * Declares a Fire OS build: pins the Amazon store over the connected device
    * and turns off Vega auto-detection. A static `true` applies to every build,
-   * so a root that also builds Vega sets `EXPO_IAP_FIREOS=1` in the Fire
-   * profile's `env` instead.
+   * Vega included; `EXPO_IAP_FIREOS=1` in one EAS profile's `env` declares
+   * only that build.
    * @platform android
    */
   fireOS?: boolean;

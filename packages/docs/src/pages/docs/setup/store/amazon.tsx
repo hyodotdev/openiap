@@ -300,11 +300,12 @@ dependencies {
           Only <code>EXPO_IAP_FIREOS=1</code> and{' '}
           <code>modules.amazon.fireOS</code> declare Fire OS to the plugin,
           which turns off <a href="#expo-vega-os">Vega auto-detection</a>;{' '}
-          <code>ORG_GRADLE_PROJECT_openiapStore</code> only picks the store. A
-          root that also builds Vega sets <code>EXPO_IAP_FIREOS=1</code> in the
-          Fire profile&apos;s <code>env</code>: a static{' '}
-          <code>modules.amazon.fireOS: true</code> applies to every build, so it
-          would turn detection off for the Vega build too.
+          <code>ORG_GRADLE_PROJECT_openiapStore</code> only picks the store.
+          Vega files generated in a Fire build are harmless, but a root that
+          also builds Vega can keep them out by using{' '}
+          <code>EXPO_IAP_FIREOS=1</code> as the Fire profile&apos;s store line.
+          A static <code>modules.amazon.fireOS: true</code> applies to every
+          build, so it would turn detection off for the Vega build too.
         </p>
         <CodeBlock language="json">{`{
   "build": {
@@ -435,8 +436,7 @@ dependencies {
           checkout with a committed manifest needs no flag. Declaring{' '}
           <a href="#expo-fire-os">Fire OS</a> with{' '}
           <code>EXPO_IAP_FIREOS=1</code> or <code>modules.amazon.fireOS</code>{' '}
-          turns detection off for that build, so a root that builds both sets{' '}
-          <code>EXPO_IAP_FIREOS=1</code> in the Fire profile. Set{' '}
+          turns detection off for that build. Set{' '}
           <code>modules.amazon.vegaOS</code> explicitly only to force generation
           on for a first run or off for every build. The Fire OS build is a
           separate artifact that the Android build picks like any other store.
