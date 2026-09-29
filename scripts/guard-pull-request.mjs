@@ -19,30 +19,33 @@ const substitution = /\$\(([^()]*)\)/u;
 // duration, and `sh -c "` before the command word. An option never takes a PR
 // client, a wrapper, or a shell as its value, so `env -i gh` and
 // `sudo -E bash -c` still reach the command.
-const client = String.raw`(?:\S*/)?(?:gh|hub|curl)\b`;
+// A path or value never runs past a separator, so each command start is
+// scanned only to the end of its own command.
+const dir = String.raw`(?:[^\s;&|]*/)?`;
+const client = String.raw`${dir}(?:gh|hub|curl)\b`;
 const keyword = String.raw`(?:if|elif|while|until|then|do|else)\b`;
-const wrapper = String.raw`(?:\S*/)?(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
-const timeout = String.raw`(?:\S*/)?g?timeout\b`;
-const shell = String.raw`(?:\S*/)?(?:ba|z)?sh\b`;
+const wrapper = String.raw`${dir}(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
+const timeout = String.raw`${dir}g?timeout\b`;
+const shell = String.raw`${dir}(?:ba|z)?sh\b`;
 const wrapperOption = String.raw`\s+-[\w-]\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
-  String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client}|${wrapper}|${timeout}|${shell})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
+  String.raw`^(?:[\s({!]+|\w+=[^\s;&|]*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client}|${wrapper}|${timeout}|${shell})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
   "u",
 );
 // One way to read each option, so a long line cannot backtrack for seconds.
 const flags = String.raw`(?:\s+-[\w-][^\s=]*(?:[=\s]+[^\s-]\S*)?)*`;
 const ghPrCreate = new RegExp(
-  String.raw`^(?:\S*/)?gh${flags}\s+pr${flags}\s+(?:create|new)\b`,
+  String.raw`^${dir}gh${flags}\s+pr${flags}\s+(?:create|new)\b`,
   "u",
 );
 const hubPullRequest = /^(?:\S*\/)?hub\s+pull-request\b/u;
 // Copilot opens the pull request itself once it has a task or an issue.
 const copilotTask = new RegExp(
-  String.raw`^(?:\S*/)?gh${flags}\s+agent(?:s|-tasks?)?${flags}\s+create\b`,
+  String.raw`^${dir}gh${flags}\s+agent(?:s|-tasks?)?${flags}\s+create\b`,
   "u",
 );
 const issueWrite = new RegExp(
-  String.raw`^(?:\S*/)?gh${flags}\s+issue${flags}\s+(?:create|new|edit)\b`,
+  String.raw`^${dir}gh${flags}\s+issue${flags}\s+(?:create|new|edit)\b`,
   "u",
 );
 // gh matches @copilot in any case.
@@ -56,8 +59,10 @@ const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 const writeFlag =
   /(?:-X\s*|--method[=\s]+|--request[=\s]+)POST\b|\s-d\s*\S|\s-[fF]\s*["']?[\w.[\]-]+=|--(?:raw-)?field\b|--data\b|--json\b|--form\b|--input\b/u;
 const explicitGet = /(?:-X\s*|--method[=\s]+|--request[=\s]+)GET\b/u;
-const graphqlCreate =
-  /^(?:\S*\/)?gh\s+api\s+graphql\b[\s\S]*\bcreatePullRequest\b/u;
+const graphqlCreate = new RegExp(
+  String.raw`^${dir}gh\s+api\s+graphql\b[\s\S]*\bcreatePullRequest\b`,
+  "u",
+);
 // Assigning Copilot to an issue ends in a pull request Copilot opens.
 const mcpCreate = /^mcp__.+__(?:create_pull_request|assign_copilot_to_issue)/u;
 
