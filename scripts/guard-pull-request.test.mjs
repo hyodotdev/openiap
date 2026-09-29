@@ -84,6 +84,9 @@ test("REST and GraphQL calls that create a pull request need approval", () => {
     `curl --json '{"title":"x"}' https://api.github.com/repos/o/r/pulls`,
     "gh api graphql -f query='mutation { createPullRequest(input: {}) { pullRequest { url } } }'",
     "gh api graphql -f query='\n  mutation {\n    createPullRequest(input: {}) { pullRequest { url } }\n  }'",
+    "gh api agents/repos/o/r/tasks -F create_pull_request=true",
+    "gh api -X POST agents/repos/$REPO/tasks --input task.json",
+    "curl -X POST https://api.githubcopilot.com/agents/repos/o/r/tasks -d '{}'",
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -115,11 +118,21 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "if gh pr view 1; then echo open; fi",
     "gh issue edit 12 --add-assignee @me",
     "gh agent-task list",
+    "gh api agents/repos/o/r/tasks --paginate",
+    "gh api -X GET agents/repos/o/r/tasks/42 -F per_page=1",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
     'eval "$(ssh-agent -s)"',
   ]) {
     assert.equal(shell(command), false, command);
   }
+});
+
+test("a command run through the Monitor tool is read like a Bash command", () => {
+  const monitor = (command) =>
+    opensPullRequest({ tool_name: "Monitor", tool_input: { command } });
+  assert.equal(monitor("gh pr create --fill"), true);
+  assert.equal(monitor("until gh pr view 1; do sleep 5; done; gh pr new"), true);
+  assert.equal(monitor("gh pr view 500 --json title"), false);
 });
 
 test("GitHub MCP tools that create a pull request need approval", () => {
@@ -171,17 +184,23 @@ test("the hook asks for approval and stays silent otherwise", () => {
 });
 
 // Claude Code reads .claude/settings.json only in the folder a session starts in.
-test("every folder with its own .claude/ runs the guard before shell and GitHub MCP tools", () => {
+test("every folder with its own .claude/ or CLAUDE.md runs the guard before shell and GitHub MCP tools", () => {
+  const tracked = (pathspec) =>
+    execFileSync("git", ["ls-files", "--", pathspec], {
+      cwd: root,
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter(Boolean);
   const folders = [
-    ...new Set(
-      execFileSync("git", ["ls-files", "--", ":(glob)**/.claude/**"], {
-        cwd: root,
-        encoding: "utf8",
-      })
-        .split("\n")
-        .filter(Boolean)
-        .map((file) => file.slice(0, file.indexOf(".claude/"))),
-    ),
+    ...new Set([
+      ...tracked(":(glob)**/.claude/**").map((file) =>
+        file.slice(0, file.indexOf(".claude/")),
+      ),
+      ...tracked(":(glob)**/CLAUDE.md").map((file) =>
+        file.slice(0, file.lastIndexOf("CLAUDE.md")),
+      ),
+    ]),
   ];
   assert.ok(folders.includes("") && folders.length > 1, folders.join(", "));
   for (const folder of folders) {
@@ -199,6 +218,7 @@ test("every folder with its own .claude/ runs the guard before shell and GitHub 
     const matcher = new RegExp(`^(?:${entries[0].matcher})$`, "u");
     for (const tool of [
       "Bash",
+      "Monitor",
       "mcp__github__create_pull_request",
       "mcp__github__assign_copilot_to_issue",
     ]) {

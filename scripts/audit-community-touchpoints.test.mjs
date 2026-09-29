@@ -124,6 +124,17 @@ test("a notice whose lines are reordered or merged fails", () => {
   });
 });
 
+test("a notice whose literals lose their comma fails, since Dart joins adjacent strings", () => {
+  withFixture((root) => {
+    const file = noticeFile("expo-iap");
+    const adjacent = consoleNotice.map((line) => `"${line}"`).join("\n  ");
+    write(root, file, `export const NOTICE = [\n  ${adjacent}\n];\n`);
+    assert.deepEqual(collectCommunityTouchpointFailures(root), [
+      `${file}: notice lines must be separate literals in the order of ${touchpointsPath}`,
+    ]);
+  });
+});
+
 test("a notice with a line added before, between, or after the four fails", () => {
   withFixture((root) => {
     for (const [library, render] of [

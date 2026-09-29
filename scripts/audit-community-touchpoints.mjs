@@ -94,7 +94,8 @@ function filesContaining(root, roots, needle) {
 // after the previous one, so none can be reordered, merged, or joined by an
 // extra line. `'\n',` is the separator of C#'s string.Join.
 const listOpening = /(?:[[({]|'\\n',)\s*["']$/u;
-const lineGap = /^["'][\s,]*["']$/u;
+// A comma is required between the literals: Dart joins adjacent ones.
+const lineGap = /^["']\s*,\s*["']$/u;
 const listClosing = /^["'][\s,]*[\])}]/u;
 
 function listsLinesInOrder(source, lines) {

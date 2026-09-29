@@ -54,6 +54,8 @@ const copilotAssignee =
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 // `repos/$REPO/pulls` names owner and repository in one segment.
 const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
+// Copilot's task endpoint: a task ends in a pull request Copilot opens.
+const agentTasksEndpoint = /\bagents\/repos\/(?:[^\s/"']+\/){1,2}tasks(?=$|[\s"'?])/u;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
 // curl's -f is --fail, so only a key= field counts.
 const writeFlag =
@@ -86,7 +88,7 @@ function opensPullRequestIn(command) {
       copilotTask.test(words) ||
       (issueWrite.test(words) && copilotAssignee.test(words)) ||
       (restClient.test(words) &&
-        pullsEndpoint.test(words) &&
+        (pullsEndpoint.test(words) || agentTasksEndpoint.test(words)) &&
         writeFlag.test(words) &&
         !explicitGet.test(words)) ||
       (graphqlCommand.test(words) && lastCreate > wordsAt)
@@ -115,7 +117,7 @@ export function opensPullRequest({
   tool_name: tool = "",
   tool_input: input = {},
 }) {
-  if (tool === "Bash")
+  if (tool === "Bash" || tool === "Monitor")
     return shellOpensPullRequest(String(input.command ?? ""));
   return mcpCreate.test(tool);
 }
