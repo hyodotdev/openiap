@@ -189,6 +189,13 @@ describe("generated GDScript type references", () => {
     expect(bareTypeReferences(nullableEnumListFixture)).toEqual([]);
   });
 
+  it("tells the reader to keep the file name its self-preload uses", () => {
+    expect(generated).toContain("# Keep the file named types.gd: the preload finds it by that name.");
+    expect(nullableEnumListFixture).toContain(
+      "# Keep the file named generated_nullable_enum_list_types.gd: the preload finds it by that name.",
+    );
+  });
+
   it("the scan catches a bare type annotation", () => {
     expect(
       bareTypeReferences("enum IapStore {\n}\nclass Purchase:\n\tvar store: IapStore = IapStore.APPLE\n"),

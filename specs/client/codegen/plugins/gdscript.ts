@@ -283,9 +283,11 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('#        var store: Types.IapStore = Types.IapStore.APPLE');
     this.emit('# ============================================================================');
     this.emit('');
+    const fileName = basename(this.getOutputPath());
     this.emit('# Annotations below name this file\'s types through its own preload, so a');
     this.emit('# project autoload or class_name with the same name cannot replace them.');
-    this.emit(`const ${SELF_ALIAS} = preload("${basename(this.getOutputPath())}")`);
+    this.emit(`# Keep the file named ${fileName}: the preload finds it by that name.`);
+    this.emit(`const ${SELF_ALIAS} = preload("${fileName}")`);
     this.emit('');
   }
 

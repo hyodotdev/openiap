@@ -9,6 +9,7 @@
 
 # Annotations below name this file's types through its own preload, so a
 # project autoload or class_name with the same name cannot replace them.
+# Keep the file named types.gd: the preload finds it by that name.
 const _Types = preload("types.gd")
 
 # ============================================================================
