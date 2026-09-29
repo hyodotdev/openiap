@@ -175,14 +175,15 @@ Train rules (mistake guards):
   (an Expo release once shipped 93 minutes before the natives it needed). Set
   `allow_unreleased_native` only for a library fix that must not wait for an
   unrelated native change.
-- **A major that removes scheduled deprecations.** `audit:parity` keeps each
-  key in the migration guide's next-major table until its packages pass their
-  majors, then fails until the key goes. Remove it in the PR that bumps every
-  package that carries it to the new major, drop its migration rows and rule
-  there, and release each package with `version=current`; a `version=major`
-  run would ship the key and turn `main` red. A key several packages share,
-  such as the Gradle store flags, goes in one major of all of them; if one
-  goes major alone, the audit asks you to raise its `major` in the rule.
+- **A major and scheduled deprecations.** `audit:parity` keeps each key in the
+  migration guide's next-major table until its packages pass the major their
+  rule names, then fails until the key goes. A package that goes major and
+  keeps a key raises its `major` in the rule first. To drop a key, remove it,
+  its migration rows, and its rule in the PR that bumps each library carrying
+  it to the new major, and release those with `version=current`. openiap-google
+  is never bumped by hand: release it with `version=major`, first. A key several
+  packages share, such as the Gradle store flags, goes in one such major of all
+  of them.
 - **Release notes ship in the PR.** The consolidated card in
   `packages/docs/src/pages/docs/updates/releases.tsx` merged with the change,
   written ahead of the release (see `generate-doc`). After every package in the

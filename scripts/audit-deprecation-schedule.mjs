@@ -310,10 +310,11 @@ const NEXT_MAJOR_NOTICE = /removed in the next major release/i;
 const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
 
 // Deprecated keys that every patch and minor keeps, with a warning, until the
-// next major of each package that ships them. `major` is the package's major
-// when the key was deprecated. A key several packages share goes in one major
-// of all of them: a library that took the new openiap-google in a later minor
-// would otherwise lose the key in that minor.
+// next major of each package that ships them. `major` is the last major that
+// keeps the key; a package that goes major and still keeps it raises its entry
+// first. A key several packages share goes in one major of all of them: a
+// library that took the new openiap-google in a later minor would otherwise
+// lose the key in that minor.
 export const scheduledRemovalRules = [
   {
     label: "legacy Gradle store flags",
@@ -450,7 +451,7 @@ export const collectScheduledRemovalFailures = (
         failures.push(`${pkg.file}: cannot read the ${pkg.name} version`);
       } else if (major > pkg.major) {
         due.push(`${pkg.name} ${version}`);
-      } else if (major < pkg.major) {
+      } else if (major < pkg.major - 1) {
         failures.push(
           `${pkg.file}: ${rule.label} names ${pkg.name} major ${pkg.major}, but the package is ${version}`,
         );

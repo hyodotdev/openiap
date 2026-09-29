@@ -352,11 +352,22 @@ test("a scheduled removal needs its migration row", () => {
   assert.match(failures[0], /no migration row for "legacyFlag=true"/);
 });
 
-test("a scheduled removal rejects a major that the package never reached", () => {
+test("a scheduled removal may name the major a package is about to ship", () => {
+  // A package that goes major and keeps the key raises its entry beforehand.
+  for (const version of ["2.9.0", "3.0.0"]) {
+    assert.deepEqual(
+      collectScheduledRemovalFailures([scheduledRule], scheduledFiles({ "version.txt": version })),
+      [],
+      version,
+    );
+  }
+});
+
+test("a scheduled removal rejects a major further ahead than the next one", () => {
   const failures = collectScheduledRemovalFailures(
     [scheduledRule],
-    scheduledFiles({ "version.txt": "2.9.0" }),
+    scheduledFiles({ "version.txt": "1.9.0" }),
   );
   assert.equal(failures.length, 1);
-  assert.match(failures[0], /names lib major 3, but the package is 2\.9\.0/);
+  assert.match(failures[0], /names lib major 3, but the package is 1\.9\.0/);
 });
