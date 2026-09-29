@@ -572,11 +572,16 @@ export function nativeGateSkipReason(
   if (versionMode !== "current") return null;
   // version=current without its tag is a first release, so it is gated too.
   const tag = releaseTag(versionSources[library].read(root));
+  return hasReleaseTag(tag, { root, git }) ? `${tag} exists, so this republishes it` : null;
+}
+
+// Needs a checkout that fetched tags; a shallow one reads every tag as missing.
+export function hasReleaseTag(tag, { root = repoRoot, git = runGit } = {}) {
   try {
     git(["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`], root);
-    return `${tag} exists, so this republishes it`;
+    return true;
   } catch {
-    return null;
+    return false;
   }
 }
 

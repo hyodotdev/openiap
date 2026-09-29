@@ -7,16 +7,17 @@
 // library that took the new openiap-google in a later minor would otherwise
 // lose the key in that minor. The PR that removes a key marks its rule
 // `dropped`, and every release workflow then runs `release-gate` so each of
-// those packages ships that major. Node built-ins only, so release jobs run it
-// without installing anything.
+// those packages ships that major. It and release-branch-policy.mjs use node
+// built-ins only, so release jobs run the gate without installing anything.
 
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  hasReleaseTag,
   libraryReleaseTags,
   nativeReleaseGates,
+  versionSources,
 } from "./release-branch-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -141,33 +142,21 @@ export const scheduledRemovalRules = [
   },
 ];
 
-// The tag each package's release cuts; version=current republishes it.
-const releaseTags = {
-  "openiap-google": nativeReleaseGates.google.tag,
-  "react-native-iap": libraryReleaseTags["react-native"],
-  "expo-iap": libraryReleaseTags.expo,
-  flutter_inapp_purchase: libraryReleaseTags.flutter,
-  "godot-iap": libraryReleaseTags.godot,
-  "kmp-iap": libraryReleaseTags.kmp,
-  "OpenIap.Maui": libraryReleaseTags.maui,
-};
+// The tag each package's release cuts, by package name; version=current
+// republishes it.
+const releaseTags = Object.fromEntries(
+  Object.entries({
+    google: nativeReleaseGates.google.tag,
+    ...libraryReleaseTags,
+  }).map(([id, tag]) => [versionSources[id].label, tag]),
+);
 
 export const releaseTagOf = (packageName, version) =>
   releaseTags[packageName]?.(version);
 
-const hasReleaseTag = (packageName, version) => {
+const isReleased = (packageName, version) => {
   const tag = releaseTagOf(packageName, version);
-  if (!tag) return false;
-  try {
-    execFileSync(
-      "git",
-      ["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`],
-      { cwd: root, stdio: "ignore" },
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  return tag !== undefined && hasReleaseTag(tag);
 };
 
 const readRepoFile = (file) => {
@@ -259,7 +248,7 @@ export function releaseGateFailure(
   versionMode,
   rules = scheduledRemovalRules,
   readFile = readRepoFile,
-  isTagged = hasReleaseTag,
+  isTagged = isReleased,
 ) {
   for (const rule of rules) {
     const pkg = rule.packages.find(
