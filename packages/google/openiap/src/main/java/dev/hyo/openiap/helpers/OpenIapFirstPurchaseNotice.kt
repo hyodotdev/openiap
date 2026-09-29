@@ -1,7 +1,6 @@
 package dev.hyo.openiap.helpers
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 
 /**
  * Remembers, once per app install, that a framework library printed its
@@ -21,9 +20,4 @@ object OpenIapFirstPurchaseNotice {
         if (preferences.getBoolean(SHOWN, false)) return false
         return preferences.edit().putBoolean(SHOWN, true).commit()
     }
-
-    /** Whether the host app is a debug build; this library always ships compiled in release. */
-    @JvmStatic
-    fun isHostDebuggable(context: Context): Boolean =
-        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 }

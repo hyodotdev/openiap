@@ -3,7 +3,6 @@ package dev.hyo.openiap.helpers
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.SharedPreferences
-import android.content.pm.ApplicationInfo
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -71,13 +70,5 @@ class OpenIapFirstPurchaseNoticeTest {
         val stored = context.getSharedPreferences("dev.hyo.openiap", Context.MODE_PRIVATE)
         assertTrue(stored.getBoolean("first_purchase_notice_shown", false))
         assertFalse(OpenIapFirstPurchaseNotice.claim(context))
-    }
-
-    @Test
-    fun `debuggable follows the host app flag`() {
-        context.applicationInfo.flags = context.applicationInfo.flags or ApplicationInfo.FLAG_DEBUGGABLE
-        assertTrue(OpenIapFirstPurchaseNotice.isHostDebuggable(context))
-        context.applicationInfo.flags = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE.inv()
-        assertFalse(OpenIapFirstPurchaseNotice.isHostDebuggable(context))
     }
 }

@@ -2,6 +2,7 @@ package io.github.hyochan.kmpiap
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ApplicationInfo
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import dev.hyo.openiap.MutationFinishTransactionHandler
 import dev.hyo.openiap.OpenIapError
@@ -131,11 +132,32 @@ class FirstPurchaseNoticeTest {
     }
 
     @Test
+    fun `the default debug check reads the host app's debuggable flag`() {
+        fun host(flags: Int) = object : ContextWrapper(null) {
+            override fun getApplicationInfo() = ApplicationInfo().also { it.flags = flags }
+        }
+        fun defaultCheck() = FirstPurchaseNotice(
+            isTestRunner = { false },
+            claim = { true },
+            log = { logs += it },
+            runInBackground = { work -> work() },
+        )
+
+        defaultCheck().onTransactionFinished(purchase(), host(0))
+        assertTrue(logs.isEmpty())
+
+        defaultCheck().onTransactionFinished(purchase(), host(ApplicationInfo.FLAG_DEBUGGABLE))
+        assertEquals(listOf(FIRST_PURCHASE_NOTICE), logs)
+    }
+
+    @Test
     fun `a failing debug check never reaches the caller`() {
+        // ContextWrapper(null) has no ApplicationInfo, so the default check throws.
         FirstPurchaseNotice(
             isTestRunner = { false },
-            isHostDebuggable = { throw NoClassDefFoundError("dev/hyo/openiap/helpers/OpenIapFirstPurchaseNotice") },
+            claim = { true },
             log = { logs += it },
+            runInBackground = { work -> work() },
         ).onTransactionFinished(purchase(), appContext)
 
         assertTrue(logs.isEmpty())
@@ -143,16 +165,23 @@ class FirstPurchaseNoticeTest {
 
     @Test
     fun `a failing claim never escapes the background work`() {
-        var escaped: Throwable? = null
-        FirstPurchaseNotice(
-            isTestRunner = { false },
-            isHostDebuggable = { true },
-            claim = { throw IllegalStateException("disk full") },
-            log = { logs += it },
-            runInBackground = { work -> escaped = runCatching(work).exceptionOrNull() },
-        ).onTransactionFinished(purchase(), appContext)
+        val failures = listOf(
+            IllegalStateException("disk full"),
+            // An openiap-google older than the helper.
+            NoClassDefFoundError("dev/hyo/openiap/helpers/OpenIapFirstPurchaseNotice"),
+        )
+        for (failure in failures) {
+            var escaped: Throwable? = null
+            FirstPurchaseNotice(
+                isTestRunner = { false },
+                isHostDebuggable = { true },
+                claim = { throw failure },
+                log = { logs += it },
+                runInBackground = { work -> escaped = runCatching(work).exceptionOrNull() },
+            ).onTransactionFinished(purchase(), appContext)
 
-        assertNull(escaped)
+            assertNull(escaped, failure.toString())
+        }
         assertTrue(logs.isEmpty())
     }
 

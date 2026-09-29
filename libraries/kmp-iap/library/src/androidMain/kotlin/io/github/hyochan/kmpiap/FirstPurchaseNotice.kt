@@ -1,6 +1,7 @@
 package io.github.hyochan.kmpiap
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.util.Log
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import io.github.hyochan.kmpiap.openiap.Purchase
@@ -26,8 +27,11 @@ internal fun isJUnitOnClasspath(): Boolean =
  */
 internal class FirstPurchaseNotice(
     private val isTestRunner: () -> Boolean = ::isJUnitOnClasspath,
-    // Lambdas, not bound references, so an openiap-google without the helper fails only inside the notice.
-    private val isHostDebuggable: (Context) -> Boolean = { OpenIapFirstPurchaseNotice.isHostDebuggable(it) },
+    // kmp-iap always ships compiled in release, so ask the host app.
+    private val isHostDebuggable: (Context) -> Boolean = {
+        it.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    },
+    // A lambda, not a bound reference, so an openiap-google without the helper fails only inside the notice.
     private val claim: (Context) -> Boolean = { OpenIapFirstPurchaseNotice.claim(it) },
     private val log: (String) -> Unit = { Log.i("OpenIAP", it) },
     private val runInBackground: (() -> Unit) -> Unit = { work -> thread { work() } },
