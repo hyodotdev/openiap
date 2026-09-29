@@ -50,6 +50,9 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     'gh agent create "fix the flaky test"',
     'gh agents create "fix the flaky test"',
     "gh issue new -t x -a @copilot",
+    "gh issue edit 12 --add-assignee @Copilot",
+    "timeout --signal=KILL 60 bash -c 'gh pr create --fill'",
+    "timeout -v 60 env -i gh pr create --fill",
     "gh issue create --title x --assignee monalisa,@copilot",
     "bash -o pipefail -c 'gh pr create --fill'",
     "bash -euo pipefail -c 'gh pr create'",
@@ -189,7 +192,7 @@ test("every folder with its own .claude/ runs the guard before shell and GitHub 
   }
 });
 
-test("a long line of shell options is read at once", () => {
+test("long commands are read in linear time", () => {
   const options =
     "--noprofile --norc --verbose --login --posix --restricted --debugger";
   const started = performance.now();
@@ -198,5 +201,19 @@ test("a long line of shell options is read at once", () => {
   assert.ok(
     performance.now() - started < 500,
     "the guard must not backtrack for seconds",
+  );
+  const heredoc = `git commit -F - <<'EOF'\n${"a line of release notes\n".repeat(20000)}EOF`;
+  const heredocStarted = performance.now();
+  assert.equal(shell(heredoc), false);
+  assert.ok(
+    performance.now() - heredocStarted < 500,
+    "a long heredoc must not be rescanned per line",
+  );
+  const assignees = `gh${" -a issue -a edit".repeat(400)}`;
+  const assigneesStarted = performance.now();
+  assert.equal(shell(assignees), false);
+  assert.ok(
+    performance.now() - assigneesStarted < 500,
+    "a long flag list must be read once",
   );
 });

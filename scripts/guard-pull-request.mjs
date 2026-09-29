@@ -26,7 +26,7 @@ const timeout = String.raw`(?:\S*/)?g?timeout\b`;
 const shell = String.raw`(?:\S*/)?(?:ba|z)?sh\b`;
 const wrapperOption = String.raw`\s+-[\w-]\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
-  String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
+  String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client}|${wrapper}|${timeout}|${shell})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
   "u",
 );
 // One way to read each option, so a long line cannot backtrack for seconds.
@@ -41,10 +41,13 @@ const copilotTask = new RegExp(
   String.raw`^(?:\S*/)?gh${flags}\s+agent(?:s|-tasks?)?${flags}\s+create\b`,
   "u",
 );
-const copilotAssignee = new RegExp(
-  String.raw`^(?:\S*/)?gh${flags}\s+issue${flags}\s+(?:create|new|edit)\b.*\s(?:--add-assignee|--assignee|-a)[=\s]+["']?[^\s"']*@copilot\b`,
+const issueWrite = new RegExp(
+  String.raw`^(?:\S*/)?gh${flags}\s+issue${flags}\s+(?:create|new|edit)\b`,
   "u",
 );
+// gh matches @copilot in any case.
+const copilotAssignee =
+  /\s(?:--add-assignee|--assignee|-a)[=\s]+["']?[^\s"']*@copilot\b/iu;
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 // `repos/$REPO/pulls` names owner and repository in one segment.
 const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
@@ -65,12 +68,12 @@ function opensPullRequestIn(command) {
   ];
   return starts.some((start) => {
     const rest = command.slice(start).replace(commandPrefix, "");
-    const words = rest.split(commandStart)[0];
+    const words = rest.split(commandStart, 1)[0];
     return (
       ghPrCreate.test(words) ||
       hubPullRequest.test(words) ||
       copilotTask.test(words) ||
-      copilotAssignee.test(words) ||
+      (issueWrite.test(words) && copilotAssignee.test(words)) ||
       (restClient.test(words) &&
         pullsEndpoint.test(words) &&
         writeFlag.test(words) &&
