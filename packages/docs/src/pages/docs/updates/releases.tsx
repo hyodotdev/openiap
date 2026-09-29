@@ -499,10 +499,15 @@ function Releases() {
               <strong>openiap-google 3.7.0</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
-                  An Amazon plan&apos;s pricing phase carries its price in{' '}
-                  <code>priceAmountMicros</code>. It reported <code>0</code>, so
-                  a zero-price trial check read every paid Amazon plan as a free
-                  trial.
+                  Amazon plans report their price in{' '}
+                  <code>priceAmountMicros</code> instead of <code>0</code>,
+                  which made a zero-price trial check read every paid plan as a
+                  free trial.
+                </li>
+                <li>
+                  Amazon prices with a decimal comma, such as{' '}
+                  <code>9,99 €</code>, no longer read as 999 on a device set to
+                  English.
                 </li>
                 <li>
                   The Gradle plugin links a flavor&apos;s store into its
@@ -516,8 +521,8 @@ function Releases() {
                 </li>
                 <li>
                   <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
-                  <code>openiapPlatform=none</code> warn that they are removed
-                  in the next major release; see{' '}
+                  <code>openiapPlatform=none</code> warn, in Flutter builds too,
+                  that the next major release removes them; see{' '}
                   <Link to="/docs/updates/migration#next-major">Migration</Link>
                   .
                 </li>
@@ -533,13 +538,14 @@ function Releases() {
           </p>
           <p style={{ fontSize: '0.9rem' }}>
             In a debug build, the first purchase that finishes prints a short
-            thank-you in the console you are already watching, with a link to
-            star the repository and an invitation to list your app on the{' '}
+            thank-you to the debug console (React Native DevTools for
+            react-native-iap), with a link to star the repository and an
+            invitation to list your app on the{' '}
             <Link to="/showcase">showcase</Link>. It prints once per install,
             never in a release build or a test run, and nothing leaves the
             device. kmp-iap and maui-iap print it on Android only: their iOS
-            side has no reliable sign that the app is a debug build. godot-iap
-            prints it on Android only in this release.
+            side has no reliable sign that the app is a debug build. Nothing
+            prints on Vega OS, which has no store for the once-per-install flag.
           </p>
           <ul
             style={{
@@ -549,41 +555,74 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.8.0</strong> - Vega OS subscriptions
-              report their billing period and, when the customer is eligible, a{' '}
-              <code>free-trial</code> offer, as Fire OS does. Seven legacy
-              Android price fields on the raw <code>NitroProduct</code> type,
-              which <code>fetchProducts</code> never returned, are deprecated;
-              the next major release removes them.
+              <strong>react-native-iap 16.8.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Vega OS subscriptions report their billing period and, when
+                  the customer is eligible, a <code>free-trial</code> offer, as
+                  Fire OS does.
+                </li>
+                <li>
+                  Seven legacy Android fields on the raw{' '}
+                  <code>NitroProduct</code> type, which{' '}
+                  <code>fetchProducts</code> already drops, are deprecated for
+                  removal in the next major release; read{' '}
+                  <code>subscriptionOffers</code> instead.
+                </li>
+              </ul>
             </li>
             <li>
-              <strong>expo-iap 5.9.0</strong> - the same Vega OS offers.{' '}
-              <code>modules.horizon</code> and{' '}
-              <code>modules.amazon.fireOS</code> warn that they are removed in
-              the next major release, and a hand-written root{' '}
-              <code>manifest.toml</code> no longer draws a warning on every
-              prebuild.
+              <strong>expo-iap 5.9.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Vega OS subscriptions report their billing period and
+                  free-trial offer, as in react-native-iap.
+                </li>
+                <li>
+                  <code>modules.horizon</code> and{' '}
+                  <code>modules.amazon.fireOS</code> warn that the next major
+                  release removes them.
+                </li>
+                <li>
+                  A hand-written root <code>manifest.toml</code> no longer draws
+                  a warning on every prebuild.
+                </li>
+              </ul>
             </li>
             <li>
-              <strong>maui-iap 2.7.0</strong> - <code>OpenIapAndroidStore</code>{' '}
-              warns (<code>OPENIAP0001</code>) that it is removed in the next
-              major release, and a value that disagrees with{' '}
-              <code>OpenIapStore</code> fails the build, as a legacy flag does
-              in Gradle. <code>OpenIapStore=auto</code> now leaves the choice to
-              it.
+              <strong>maui-iap 2.7.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  <code>OpenIapAndroidStore</code> warns (
+                  <code>OPENIAP0001</code>) that the next major release removes
+                  it.
+                </li>
+                <li>
+                  An <code>OpenIapAndroidStore</code> value that disagrees with{' '}
+                  <code>OpenIapStore</code> fails the build, as a legacy flag
+                  does in Gradle; <code>OpenIapStore=auto</code> defers to it
+                  instead.
+                </li>
+              </ul>
             </li>
             <li>
-              <strong>godot-iap 3.7.0</strong> - release exports carry{' '}
-              <code>res://iapkit.cfg</code> again; 3.6.0 and 3.6.1 left it out.{' '}
-              <code>types.gd</code> loads beside a project autoload or{' '}
-              <code>class_name</code> that reuses one of its enum names, such as{' '}
-              <code>IapStore</code>. An Apple restore waits five minutes instead
-              of two, like Apple&apos;s other system sheets, because{' '}
-              <code>AppStore.sync()</code> can ask the player to sign in.
-            </li>
-            <li>
-              <strong>flutter_inapp_purchase 10.8.0</strong> and{' '}
-              <strong>kmp-iap 3.7.0</strong> - the openiap-google 3.7.0 fixes.
+              <strong>godot-iap 3.7.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Release exports carry <code>res://iapkit.cfg</code> again;
+                  3.6.0 and 3.6.1 left it out.
+                </li>
+                <li>
+                  <code>types.gd</code> loads beside a project autoload or{' '}
+                  <code>class_name</code> that reuses one of its enum names,
+                  such as <code>IapStore</code>.
+                </li>
+                <li>
+                  An Apple restore waits five minutes instead of two, like
+                  Apple&apos;s other system sheets, because{' '}
+                  <code>AppStore.sync()</code> can ask the player to sign in.
+                </li>
+              </ul>
             </li>
           </ul>
 
@@ -596,13 +635,23 @@ function Releases() {
             }}
           >
             <li>
-              <strong>@hyodotdev/openiap 0.2.0</strong> - <code>doctor</code>{' '}
-              reads <code>openiapStore</code> pins and their aliases alongside
-              the legacy flags, reports store values the build would reject, and
-              no longer suggests the deprecated flags as a fix. The{' '}
-              <code>init</code> brief ends with a note that lets your coding
-              assistant mention the showcase and feedback channels once, and
-              never act on your behalf.
+              <strong>@hyodotdev/openiap 0.2.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  <code>doctor</code> reads <code>openiapStore</code> pins and
+                  their aliases alongside the legacy flags, and reports store
+                  values the build would reject.
+                </li>
+                <li>
+                  Its fixes name <code>openiapStore</code> instead of the
+                  deprecated flags.
+                </li>
+                <li>
+                  The <code>init</code> brief ends with a note that lets your
+                  coding assistant mention the showcase and feedback channels
+                  once, and not star, post, or submit anything unless you ask.
+                </li>
+              </ul>
             </li>
           </ul>
 
