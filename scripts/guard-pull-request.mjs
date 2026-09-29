@@ -16,12 +16,15 @@ export const reason =
 const commandStart = /\n|;|&&|\|\|?|&|\$\(/gu;
 const substitution = /\$\(([^()]*)\)/u;
 // Assignments, wrappers with their options, a timeout's duration, and
-// `sh -c "` before the command word. An option never takes a PR client as its
-// value, so `env -i gh` still reaches gh.
+// `sh -c "` before the command word. An option never takes a PR client, a
+// wrapper, or a shell as its value, so `env -i gh` and `sudo -E bash -c` still
+// reach the command.
 const client = String.raw`(?:\S*/)?(?:gh|hub|curl)\b`;
-const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client})\S+)?`;
+const wrapper = String.raw`(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
+const shell = String.raw`(?:ba|z)?sh\b`;
+const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client}|${wrapper}|timeout\b|${shell})\S+)?`;
 const commandPrefix = new RegExp(
-  String.raw`^(?:[\s({!]+|\w+=\S*\s+|\d+(?:\.\d+)?[smhd]?\s+|(?:command|exec|sudo|env|nice|nohup|time|timeout|xargs|then|do|else)(?:${wrapperOption})*\s+|(?:ba|z)?sh\s+(?:-\w+\s+)*?-\w*c\s+["']?)*`,
+  String.raw`^(?:[\s({!]+|\w+=\S*\s+|(?:${wrapper}|then\b|do\b|else\b)(?:${wrapperOption})*\s+|timeout(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}\s+(?:-\w+\s+)*?-\w*c\s+["']?)*`,
   "u",
 );
 const flags = String.raw`(?:\s+-{1,2}[\w-]+(?:[=\s]+[^\s-]\S*)?)*`;
