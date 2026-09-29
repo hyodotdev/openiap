@@ -33,6 +33,12 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     "xargs -I{} sh -c 'gh pr create --head {} --fill'",
     "sudo -E bash -c 'gh pr create'",
     "env -i bash -c 'gh pr create --fill'",
+    "if gh pr create --fill; then echo opened; fi",
+    "until gh pr create --fill; do sleep 5; done",
+    "/bin/bash -c 'gh pr create --fill'",
+    "bash --login -c 'gh pr create'",
+    "gtimeout 60 gh pr create",
+    "/usr/bin/env gh pr create --fill",
     "env -u GITHUB_TOKEN gh pr create --fill",
     "env -i gh pr create --fill",
     "sudo -u x gh pr create --fill",
@@ -84,6 +90,7 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "sudo -u x gh pr view 1",
     'git commit -m "fix\n2 gh pr create cases"',
     "env -i gh pr list",
+    "if gh pr view 1; then echo open; fi",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
   ]) {
     assert.equal(shell(command), false, command);

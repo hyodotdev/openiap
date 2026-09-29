@@ -15,16 +15,18 @@ export const reason =
 // messages quote commands in them far more often than agents run them.
 const commandStart = /\n|;|&&|\|\|?|&|\$\(/gu;
 const substitution = /\$\(([^()]*)\)/u;
-// Assignments, wrappers with their options, a timeout's duration, and
-// `sh -c "` before the command word. An option never takes a PR client, a
-// wrapper, or a shell as its value, so `env -i gh` and `sudo -E bash -c` still
-// reach the command.
+// Shell keywords, assignments, wrappers with their options, a timeout's
+// duration, and `sh -c "` before the command word. An option never takes a PR
+// client, a wrapper, or a shell as its value, so `env -i gh` and
+// `sudo -E bash -c` still reach the command.
 const client = String.raw`(?:\S*/)?(?:gh|hub|curl)\b`;
-const wrapper = String.raw`(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
-const shell = String.raw`(?:ba|z)?sh\b`;
-const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client}|${wrapper}|timeout\b|${shell})\S+)?`;
+const keyword = String.raw`(?:if|elif|while|until|then|do|else)\b`;
+const wrapper = String.raw`(?:\S*/)?(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
+const timeout = String.raw`(?:\S*/)?g?timeout\b`;
+const shell = String.raw`(?:\S*/)?(?:ba|z)?sh\b`;
+const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
-  String.raw`^(?:[\s({!]+|\w+=\S*\s+|(?:${wrapper}|then\b|do\b|else\b)(?:${wrapperOption})*\s+|timeout(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}\s+(?:-\w+\s+)*?-\w*c\s+["']?)*`,
+  String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}\s+(?:-{1,2}[\w-]+\s+)*?-\w*c\s+["']?)*`,
   "u",
 );
 const flags = String.raw`(?:\s+-{1,2}[\w-]+(?:[=\s]+[^\s-]\S*)?)*`;
