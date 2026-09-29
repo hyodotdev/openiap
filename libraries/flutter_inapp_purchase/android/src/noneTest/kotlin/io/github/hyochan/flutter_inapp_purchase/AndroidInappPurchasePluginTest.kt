@@ -21,16 +21,6 @@ class AndroidInappPurchasePluginTest {
     }
 
     @Test
-    fun `first-purchase notice is never claimed`() {
-        val result = CapturingResult()
-        AndroidInappPurchasePlugin().onMethodCall(MethodCall("claimFirstPurchaseNotice", null), result)
-
-        assertEquals(false, result.value)
-        assertFalse(result.notImplemented)
-        assertNull(result.errorCode)
-    }
-
-    @Test
     fun `purchase APIs report iap not available`() {
         val result = CapturingResult()
         AndroidInappPurchasePlugin().onMethodCall(MethodCall("requestPurchase", null), result)

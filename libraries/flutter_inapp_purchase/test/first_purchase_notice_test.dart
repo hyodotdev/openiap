@@ -119,6 +119,21 @@ void main() {
     expect(notices(), isEmpty);
   });
 
+  test('stays silent when the consume fails', () async {
+    responses['consumePurchaseAndroid'] =
+        PlatformException(code: 'service-error');
+
+    await expectLater(
+      app('android')
+          .finishTransaction(purchase: _android(), isConsumable: true),
+      throwsA(isA<PlatformException>()),
+    );
+    await settle();
+
+    expect(claims(), 0);
+    expect(notices(), isEmpty);
+  });
+
   test('stays silent when the acknowledgement is not confirmed', () async {
     responses['acknowledgePurchaseAndroid'] = null;
 
