@@ -43,11 +43,24 @@ class AmazonPriceParserTest {
     }
 
     @Test
-    fun readsTheDecimalSeparatorWhateverTheDeviceLocale() {
-        for (locale in listOf(Locale.US, Locale.GERMANY)) {
+    fun readsThePriceWhateverTheDeviceLocale() {
+        // The store formats a price for its marketplace, not for the device.
+        val locales = listOf("en-US", "de-DE", "es-CL", "en-IE").map(Locale::forLanguageTag)
+        for (locale in locales) {
             Locale.setDefault(locale)
-            assertEquals("$locale 9,99 €", 9.99, AmazonPriceParser.toPriceAmount("9,99 €"), 0.0001)
-            assertEquals("$locale 12.50", 12.5, AmazonPriceParser.toPriceAmount("12.50"), 0.0001)
+            for ((displayPrice, expected) in mapOf(
+                "9,99 €" to 9.99,
+                "€9,99" to 9.99,
+                "\$9.99" to 9.99,
+                "12.50" to 12.5,
+            )) {
+                assertEquals(
+                    "$locale $displayPrice",
+                    expected,
+                    AmazonPriceParser.toPriceAmount(displayPrice),
+                    0.0001
+                )
+            }
         }
     }
 }

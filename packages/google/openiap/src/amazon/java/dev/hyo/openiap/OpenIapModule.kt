@@ -276,10 +276,10 @@ internal object AmazonPriceParser {
         val value = displayPrice?.trim().orEmpty()
         if (value.isEmpty()) return 0.0
 
-        parseLocalizedPrice(value)?.let { return it }
-
+        // The store formats a price for its marketplace, not for the device, so the
+        // separators decide. Only a price with no ASCII digits needs the device's format.
         val numeric = value.replace(Regex("[^0-9,.-]"), "")
-        if (numeric.isBlank()) return 0.0
+        if (numeric.none { it in '0'..'9' }) return parseLocalizedPrice(value) ?: 0.0
 
         val lastDot = numeric.lastIndexOf('.')
         val lastComma = numeric.lastIndexOf(',')
@@ -305,8 +305,8 @@ internal object AmazonPriceParser {
         return normalized.toDoubleOrNull() ?: 0.0
     }
 
-    // Only the currency format: a plain number format in an English locale
-    // reads "9,99 €" as 999, so every other price goes to the separator rules.
+    // A price in non-ASCII digits, such as Arabic-Indic ones, which only the device's
+    // currency format can read.
     private fun parseLocalizedPrice(value: String): Double? {
         val position = ParsePosition(0)
         val parsed = NumberFormat.getCurrencyInstance(Locale.getDefault()).parse(value, position)
