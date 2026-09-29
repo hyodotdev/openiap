@@ -1088,7 +1088,7 @@ internal class InAppPurchaseAndroid(
             }
 
             if (subscriptionProductReplacementParams != null &&
-                BuildConfig.OPENIAP_STORE.lowercase() != "play"
+                BuildConfig.OPENIAP_STORE != "play"
             ) {
                 failWith(
                     PurchaseError(
