@@ -310,6 +310,29 @@ test("a scheduled removal is due once the package ships its next major", () => {
   assert.match(failures[0], /lib 4\.0\.0 is past the major that deprecated them/);
 });
 
+test("a scheduled removal shared by several packages waits for all of them", () => {
+  const shared = {
+    ...scheduledRule,
+    packages: [
+      ...scheduledRule.packages,
+      { name: "other", major: 5, file: "other.txt", pattern: /^(\S+)$/ },
+    ],
+  };
+  assert.deepEqual(
+    collectScheduledRemovalFailures(
+      [shared],
+      scheduledFiles({ "version.txt": "4.0.0", "other.txt": "5.2.0" }),
+    ),
+    [],
+  );
+  const failures = collectScheduledRemovalFailures(
+    [shared],
+    scheduledFiles({ "version.txt": "4.0.0", "other.txt": "6.0.0" }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /lib 4\.0\.0, other 6\.0\.0 is past the major that deprecated them/);
+});
+
 test("a scheduled removal needs its migration row", () => {
   const failures = collectScheduledRemovalFailures(
     [scheduledRule],

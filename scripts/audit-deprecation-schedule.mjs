@@ -311,7 +311,8 @@ const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
 
 // Deprecated keys that every patch and minor keeps, with a warning, until the
 // next major of each package that ships them. `major` is the package's major
-// when the key was deprecated; a rule is due once any package moves past it.
+// when the key was deprecated. A rule is due once every listed package has
+// moved past it: a shared source cannot drop a key one package still ships.
 export const scheduledRemovalRules = [
   {
     label: "legacy Gradle store flags",
@@ -454,7 +455,7 @@ export const collectScheduledRemovalFailures = (
         );
       }
     }
-    if (due.length > 0) {
+    if (due.length === rule.packages.length) {
       failures.push(
         `${rule.label}: ${due.join(", ")} is past the major that deprecated them; remove them there, with their catalog rows and this rule`,
       );
