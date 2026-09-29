@@ -46,7 +46,7 @@ export type VegaProjectOptions = {
   /**
    * Whether to generate the Vega target. `true` forces it on, `false` forces
    * it off, and an unset value auto-detects from the project: a root
-   * manifest.toml means Vega.
+   * manifest.toml means Vega, unless Fire OS is declared.
    */
   enabled?: boolean;
 };

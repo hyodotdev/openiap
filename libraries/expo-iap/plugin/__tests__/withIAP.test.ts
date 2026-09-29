@@ -148,7 +148,7 @@ describe('android configuration', () => {
     ).toBe('horizon');
   });
 
-  it('warns that a module pin is deprecated but still applies it', () => {
+  it('warns that the Horizon pin is deprecated but still applies it', () => {
     // Dropping the pin silently would move an existing Quest release to Play.
     const warn = WarningAggregator.addWarningAndroid as jest.Mock;
     warn.mockClear();
@@ -162,6 +162,22 @@ describe('android configuration', () => {
         /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated and will be removed in the next major release\..*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
       ),
     );
+  });
+
+  it('pins a Fire OS declaration without a warning', () => {
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: true,
+        isHorizonEnabled: false,
+      }),
+    ).toBe('amazon');
+    const warn = WarningAggregator.addWarningAndroid as jest.Mock;
+    warn.mockClear();
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+      modules: {amazon: {fireOS: true}},
+    });
+
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('does not warn when nothing pins the store', () => {
@@ -476,6 +492,36 @@ describe('android configuration', () => {
       isHorizonEnabled: false,
       isOnsideEnabled: false,
     });
+  });
+
+  it('lets a Fire OS declaration turn Vega auto-detection off', () => {
+    expect(
+      resolveAmazonPlatformFlags({modules: {amazon: {fireOS: true}}}),
+    ).toEqual({
+      isFireOsEnabled: true,
+      vegaOverride: false,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+    // An explicit Vega setting still wins, so one prebuild can declare both.
+    expect(
+      resolveAmazonPlatformFlags({
+        modules: {amazon: {fireOS: true}},
+        android: {amazon: {vegaOS: {enabled: true}}},
+      }).vegaOverride,
+    ).toBe(true);
+
+    const previous = process.env.EXPO_IAP_FIREOS;
+    process.env.EXPO_IAP_FIREOS = '1';
+    try {
+      expect(resolveAmazonPlatformFlags(undefined).vegaOverride).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_FIREOS;
+      } else {
+        process.env.EXPO_IAP_FIREOS = previous;
+      }
+    }
   });
 
   it('keeps Onside and Horizon under modules', () => {
@@ -1400,6 +1446,50 @@ describe('vega project generation', () => {
       }
     });
 
+    it('skips the manifest guess when Fire OS is declared', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        fs.writeFileSync(
+          path.join(projectRoot, 'manifest.toml'),
+          'schema-version = 1\n',
+          'utf8',
+        );
+        await prebuildAndroid(projectRoot, {
+          modules: {amazon: {fireOS: true}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(false);
+        expect(fs.existsSync(path.join(projectRoot, 'app.json'))).toBe(false);
+        expect(
+          fs.readFileSync(
+            path.join(projectRoot, 'android', 'gradle.properties'),
+            'utf8',
+          ),
+        ).toContain('openiapStore=amazon');
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('builds both targets when Fire OS and Vega are both declared', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {
+          modules: {amazon: {fireOS: true, vegaOS: true}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(true);
+        expect(
+          fs.readFileSync(
+            path.join(projectRoot, 'android', 'gradle.properties'),
+            'utf8',
+          ),
+        ).toContain('openiapStore=amazon');
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
     it('treats EXPO_IAP_VEGA as an explicit on-switch', async () => {
       const previous = process.env.EXPO_IAP_VEGA;
       process.env.EXPO_IAP_VEGA = '1';
@@ -1454,6 +1544,29 @@ describe('vega project generation', () => {
 });
 
 describe('plugin logging', () => {
+  it('logs the Vega decision a Fire OS declaration made', () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      // A unique app id, since logOnce prints each message once per process.
+      plugin(
+        {name: 'app', slug: 'app'},
+        {
+          android: {horizon: {appId: 'fire-os-log'}},
+          modules: {amazon: {fireOS: true}},
+        },
+      );
+      expect(
+        error.mock.calls.some(([message]) =>
+          /horizonAppId=fire-os-log, pinnedStore=amazon, .*vega=false/u.test(
+            String(message),
+          ),
+        ),
+      ).toBe(true);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('keeps stdout clean so config can be read as JSON', () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
     const error = jest.spyOn(console, 'error').mockImplementation(() => {});

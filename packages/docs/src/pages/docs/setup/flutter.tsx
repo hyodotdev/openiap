@@ -222,10 +222,10 @@ function FlutterSetup() {
           <Link to="/docs/setup/store#selection">Store Setup</Link>); the legacy{' '}
           <code>openiapPlatform=none</code> spelling still works with a
           deprecation warning. Do not pin a store while the opt-out is set, or
-          keep a legacy <code>horizonEnabled</code>/<code>fireOsEnabled</code>{' '}
-          flag alongside a pin — the build fails rather than guess which one you
-          meant. <code>openiapStore=auto</code> is the exception: it means
-          &quot;no pin&quot;, so the opt-out beside it still applies.
+          keep a <code>horizonEnabled</code>/<code>fireOsEnabled</code> flag
+          alongside a different pin — the build fails rather than guess which
+          one you meant. <code>openiapStore=auto</code> is the exception: it
+          means &quot;no pin&quot;, so the opt-out beside it still applies.
         </p>
 
         <h4>R8 and ProGuard</h4>

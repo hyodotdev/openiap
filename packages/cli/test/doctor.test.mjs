@@ -166,6 +166,23 @@ test("the store the flags selected is the line cited as evidence", () => {
   );
 });
 
+test("only the Horizon flag is called a deprecated pin", () => {
+  for (const [flag, deprecated] of [
+    ["fireOsEnabled", false],
+    ["horizonEnabled", true],
+  ]) {
+    withProject(
+      { ...EXPO, "android/gradle.properties": `${flag}=true\n` },
+      (root) => {
+        const { fix } = doctor(root).findings.find(
+          (one) => one.id === "android-store-not-play",
+        );
+        assert.equal(/deprecated/u.test(fix), deprecated, flag);
+      },
+    );
+  }
+});
+
 test("an openiapStore pin selects the store and is the evidence line", () => {
   withProject(
     {
@@ -238,7 +255,7 @@ test("openiapStore=auto pins nothing", () => {
   );
 });
 
-test("a pin that disagrees with a legacy flag is a conflict", () => {
+test("a pin that disagrees with a store flag is a conflict", () => {
   withProject(
     {
       ...EXPO,
@@ -250,11 +267,16 @@ test("a pin that disagrees with a legacy flag is a conflict", () => {
       );
       assert.equal(conflict.level, "error");
       assert.equal(conflict.line, 1);
+      // Both are supported Fire OS keys, so the fix ranks neither.
+      assert.match(
+        conflict.fix,
+        /Keep one of openiapStore=play and fireOsEnabled\./u,
+      );
     },
   );
 });
 
-test("an opt-out beside a legacy flag points to openiapStore", () => {
+test("an opt-out beside a store flag points to openiapStore", () => {
   withProject(
     {
       ...FLUTTER,
@@ -270,7 +292,7 @@ test("an opt-out beside a legacy flag points to openiapStore", () => {
       );
       assert.match(
         conflict.fix,
-        /Replace both with openiapStore=none \(flutter_inapp_purchase only\)/u,
+        /Replace both with openiapStore=none \(flutter_inapp_purchase only\), or delete openiapPlatform=none to keep fireOsEnabled\./u,
       );
     },
   );

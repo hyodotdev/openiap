@@ -25,17 +25,17 @@ export type ExpoIapModuleOverrides = {
 
 export type AmazonPlatformOptions = {
   /**
-   * @deprecated Removed in the next major release. A debug build follows the
-   * connected Fire device; pin EAS and release builds with
-   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in the profile's `env`. Still
-   * pins, with a warning.
+   * Declares a Fire OS build: pins the Amazon store over the connected device
+   * and turns off Vega auto-detection. A static `true` applies to every build,
+   * so a root that also builds Vega sets `EXPO_IAP_FIREOS=1` in the Fire
+   * profile's `env` instead.
    * @platform android
    */
   fireOS?: boolean;
   /**
    * Vega OS project generation for Amazon's Kepler runtime. Unset means
-   * auto-detect: a root manifest.toml turns generation on. Set explicitly
-   * to force it on or off.
+   * auto-detect: a root manifest.toml turns generation on unless Fire OS is
+   * declared. Set explicitly to force it on or off.
    * This prepares Vega metadata and build scripts; it does not select an
    * Android Gradle flavor.
    * @default auto-detect

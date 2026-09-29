@@ -676,11 +676,16 @@ export function resolveAmazonPlatformFlags(
     ? moduleAmazon?.fireOS === true
     : isEnvFlagEnabled('EXPO_IAP_FIREOS');
   // Most specific first: the module flag, then android.amazon.vegaOS.enabled,
-  // then EXPO_IAP_VEGA, which can only turn it on.
+  // then EXPO_IAP_VEGA, which can only turn it on. A Fire OS declaration
+  // outranks the manifest.toml guess, so Vega stays off unless declared too.
   const vegaOverride = hasOwnKey(moduleAmazon, 'vegaOS')
     ? moduleAmazon?.vegaOS === true
     : resolveVegaProjectOptions(options)?.enabled ??
-      (isEnvFlagEnabled('EXPO_IAP_VEGA') ? true : undefined);
+      (isEnvFlagEnabled('EXPO_IAP_VEGA')
+        ? true
+        : isFireOsEnabled
+        ? false
+        : undefined);
   const modules = options?.modules;
   // Both flags are reported so resolvePinnedAndroidStore can refuse the pair.
   const isHorizonEnabled = hasOwnKey(modules, 'horizon')
@@ -711,7 +716,7 @@ export function resolveAmazonAppstoreKey(
 }
 
 // A module flag pins the store for every build; without one, Gradle picks it.
-// The flags are deprecated but still pin, so a Quest or Fire release keeps its store.
+// The Horizon flag is deprecated but still pins, so a Quest release keeps its store.
 export function resolvePinnedAndroidStore(
   flags: Pick<AmazonPlatformFlags, 'isFireOsEnabled' | 'isHorizonEnabled'>,
 ): AndroidStorePin {
@@ -729,19 +734,11 @@ export function resolvePinnedAndroidStore(
     : null;
 }
 
-export function deprecatedStorePinWarning(store: 'horizon' | 'amazon'): string {
-  const key =
-    store === 'horizon'
-      ? 'modules.horizon (or EXPO_IAP_HORIZON)'
-      : 'modules.amazon.fireOS (or EXPO_IAP_FIREOS)';
-  const device = store === 'horizon' ? 'Quest' : 'Fire device';
-  return (
-    `${key} is deprecated and will be removed in the next major release. ` +
-    `A local debug build already follows the connected ${device}; pin EAS and release builds ` +
-    `that must target it with ORG_GRADLE_PROJECT_openiapStore=${store} in the build profile env. ` +
-    `While ${key} is set, it pins every build of this prebuild.`
-  );
-}
+const DEPRECATED_HORIZON_PIN =
+  'modules.horizon (or EXPO_IAP_HORIZON) is deprecated and will be removed in the next major release. ' +
+  'A local debug build already follows the connected Quest; pin EAS and release builds ' +
+  'that must target it with ORG_GRADLE_PROJECT_openiapStore=horizon in the build profile env. ' +
+  'While modules.horizon (or EXPO_IAP_HORIZON) is set, it pins every build of this prebuild.';
 
 export function resolveAlternativeBillingIOS(
   options?: ExpoIapPluginOptions | void,
@@ -820,11 +817,8 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 
     const horizonAppId = resolveHorizonAppId(options);
     const amazonAppstoreKey = resolveAmazonAppstoreKey(options);
-    if (pinnedStore) {
-      WarningAggregator.addWarningAndroid(
-        'expo-iap',
-        deprecatedStorePinWarning(pinnedStore),
-      );
+    if (pinnedStore === 'horizon') {
+      WarningAggregator.addWarningAndroid('expo-iap', DEPRECATED_HORIZON_PIN);
     }
     const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
 

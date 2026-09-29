@@ -51,10 +51,11 @@ function StoreSetup() {
             <code>openiapStore=play|horizon|amazon</code> as a Gradle property:{' '}
             <code>-PopeniapStore=horizon</code>,{' '}
             <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in an EAS
-            profile, or <code>gradle.properties</code>. <code>auto</code> means
-            no pin. The legacy <code>horizonEnabled</code> and{' '}
-            <code>fireOsEnabled</code> still pin with a deprecation warning and
-            are removed in the next major release. Only{' '}
+            profile, or <code>gradle.properties</code>.{' '}
+            <code>fireOsEnabled=true</code> declares a Fire OS build as{' '}
+            <code>openiapStore=amazon</code> does. <code>auto</code> means no
+            pin. The legacy <code>horizonEnabled</code> still pins with a
+            deprecation warning and is removed in the next major release. Only{' '}
             <code>flutter_inapp_purchase</code> accepts{' '}
             <code>openiapStore=none</code> (or the legacy{' '}
             <code>openiapPlatform=none</code>) to build without a store SDK.
@@ -96,15 +97,16 @@ function StoreSetup() {
           The decision is logged once per build as{' '}
           <code>openiap: store=horizon (source=device; ...)</code>. A store pin
           against a different task flavor, two flavors in one invocation, and a
-          pin against a legacy flag each fail the build, so a pinned release
-          train cannot quietly ship the wrong billing SDK. The device is a
-          fallback rather than a competing signal: a pin or a flavor simply
-          outranks it. The device step also works with the configuration cache:
-          plugging in a different device reconfigures the build. The aliases{' '}
-          <code>google</code>/<code>gplay</code>/<code>googleplay</code>/
-          <code>google-play</code>/<code>gms</code>, <code>meta</code>/
-          <code>quest</code>, and <code>fire</code>/<code>fireos</code>/
-          <code>fire-os</code> normalize to the three store ids.
+          pin against a store flag or <code>openiapPlatform=none</code> each
+          fail the build, so a pinned release train cannot quietly ship the
+          wrong billing SDK. The device is a fallback rather than a competing
+          signal: a pin or a flavor simply outranks it. The device step also
+          works with the configuration cache: plugging in a different device
+          reconfigures the build. The aliases <code>google</code>/
+          <code>gplay</code>/<code>googleplay</code>/<code>google-play</code>/
+          <code>gms</code>, <code>meta</code>/<code>quest</code>, and{' '}
+          <code>fire</code>/<code>fireos</code>/<code>fire-os</code> normalize
+          to the three store ids.
         </p>
         <Callout
           kind="warning"

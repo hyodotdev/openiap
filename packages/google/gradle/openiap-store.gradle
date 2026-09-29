@@ -4,9 +4,9 @@
 // where the library can build without a store SDK.
 //
 // First match wins:
-//   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
-//                The legacy horizonEnabled, fireOsEnabled and openiapPlatform=none still pin
-//                until the next major release.
+//   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties),
+//                or fireOsEnabled=true. The legacy horizonEnabled and openiapPlatform=none
+//                still pin until the next major release.
 //   2. variant   a requested task names a store flavor (assembleHorizonRelease).
 //   3. device    debug builds only: the Quest or Fire device that ANDROID_SERIAL
 //                names, or the only one connected.
@@ -58,12 +58,13 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
     throw new GradleException("${label}: horizonEnabled and fireOsEnabled cannot both be true")
   }
   if (platform == 'none' && (horizon || fireOs)) {
-    throw new GradleException("${label}: openiapPlatform=none conflicts with legacy store flags")
+    throw new GradleException("${label}: openiapPlatform=none conflicts with ${fireOs ? 'fireOsEnabled' : 'horizonEnabled'}=true")
   }
   def (legacyKey, legacy) = platform == 'none' ? ['openiapPlatform=none', 'none']
       : fireOs ? ['fireOsEnabled=true', 'amazon']
       : horizon ? ['horizonEnabled=true', 'horizon'] : [null, null]
-  if (legacy != null) {
+  // fireOsEnabled=true is a supported Fire OS declaration, so it does not warn.
+  if (legacy != null && !fireOs) {
     // Quiet, like every openiap line here: Flutter runs Gradle with -q.
     logger.quiet("${label}: ${legacyKey} is deprecated and will be removed in the next major release; use openiapStore=${legacy}")
   }
@@ -348,7 +349,7 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   }
   def resolution = null
   if (explicit != null) {
-    resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a legacy flag']
+    resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a store flag']
   } else if (variant != null) {
     resolution = [store: variant, source: 'variant', reason: "task ${openIapRequestedTasks().join(' ')}"]
   } else if (openIapDebugBuild()) {

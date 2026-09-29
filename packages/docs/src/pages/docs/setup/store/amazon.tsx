@@ -177,29 +177,35 @@ function AmazonStoreSetup() {
               <td>Native Android</td>
               <td>
                 The OpenIAP Gradle plugin: a connected Fire device on a debug
-                build; <code>openiapStore=amazon</code> pins it.
+                build; <code>openiapStore=amazon</code> or{' '}
+                <code>fireOsEnabled=true</code> pins it.
               </td>
               <td>Not a Kepler target.</td>
             </tr>
             <tr>
               <td>Expo</td>
               <td>
-                Resolved at build time; an EAS profile pins a release with{' '}
-                <code>ORG_GRADLE_PROJECT_openiapStore=amazon</code>.{' '}
+                A debug build follows the connected Fire device.{' '}
+                <code>modules.amazon.fireOS</code> or{' '}
+                <code>EXPO_IAP_FIREOS=1</code> declares Fire OS, and{' '}
+                <code>ORG_GRADLE_PROJECT_openiapStore=amazon</code> pins it;
+                each wins over the device.{' '}
                 <code>android.amazon.appstoreKey</code> supplies the public key.
               </td>
               <td>
                 Auto-detected from the <code>manifest.toml</code> Vega target
-                marker; <code>modules.amazon.vegaOS</code> forces it on or off,
-                with optional <code>android.amazon.vegaOS</code> metadata
-                overrides.
+                marker unless <code>modules.amazon.fireOS</code> or{' '}
+                <code>EXPO_IAP_FIREOS=1</code> declares Fire OS;{' '}
+                <code>modules.amazon.vegaOS</code> forces it on or off, with
+                optional <code>android.amazon.vegaOS</code> metadata overrides.
               </td>
             </tr>
             <tr>
               <td>React Native</td>
               <td>
                 Resolved at build time by the shared Gradle resolver;{' '}
-                <code>openiapStore=amazon</code> pins it.
+                <code>openiapStore=amazon</code> or{' '}
+                <code>fireOsEnabled=true</code> pins it.
               </td>
               <td>
                 Separate React Native for Vega target with Kepler dependencies
@@ -210,7 +216,8 @@ function AmazonStoreSetup() {
               <td>Flutter</td>
               <td>
                 Resolved at build time by the shared Gradle resolver;{' '}
-                <code>openiapStore=amazon</code> pins it.
+                <code>openiapStore=amazon</code> or{' '}
+                <code>fireOsEnabled=true</code> pins it.
               </td>
               <td>No Vega runtime target.</td>
             </tr>
@@ -262,7 +269,8 @@ function AmazonStoreSetup() {
           Depend on <code>openiap-google</code> and apply the OpenIAP Gradle
           plugin; it links <code>openiap-google-amazon</code> instead when a
           debug build finds a Fire device, or when{' '}
-          <code>openiapStore=amazon</code> pins a release.
+          <code>openiapStore=amazon</code> or <code>fireOsEnabled=true</code>{' '}
+          pins a release.
         </p>
         <CodeBlock language="kotlin">{`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
@@ -280,9 +288,23 @@ dependencies {
         <p>
           Expo apps keep the Amazon public key in the config plugin; the plugin
           copies it into <code>android/app/src/main/assets</code> on every
-          prebuild and the Gradle build picks the store. An EAS build has no
-          Fire device to follow and a release build never looks, so pin every
-          EAS profile that must target Fire OS in its <code>env</code>.
+          prebuild. A local debug build follows the connected Fire device. An
+          EAS build has no device to follow and a release build never looks, so
+          target Fire OS in every EAS profile that builds for it:{' '}
+          <code>ORG_GRADLE_PROJECT_openiapStore=amazon</code> or{' '}
+          <code>EXPO_IAP_FIREOS=1</code> in its <code>env</code>, or{' '}
+          <code>modules.amazon.fireOS: true</code> in the plugin config. Each
+          wins over the connected device.
+        </p>
+        <p>
+          Only <code>EXPO_IAP_FIREOS=1</code> and{' '}
+          <code>modules.amazon.fireOS</code> declare Fire OS to the plugin,
+          which turns off <a href="#expo-vega-os">Vega auto-detection</a>;{' '}
+          <code>ORG_GRADLE_PROJECT_openiapStore</code> only picks the store. A
+          root that also builds Vega sets <code>EXPO_IAP_FIREOS=1</code> in the
+          Fire profile&apos;s <code>env</code>: a static{' '}
+          <code>modules.amazon.fireOS: true</code> applies to every build, so it
+          would turn detection off for the Vega build too.
         </p>
         <CodeBlock language="json">{`{
   "build": {
@@ -312,8 +334,9 @@ dependencies {
           so the app only needs the key: place{' '}
           <code>AppstoreAuthenticationKey.pem</code> in{' '}
           <code>android/app/src/main/assets</code>. A connected Fire device on a
-          debug build, an <code>amazon</code> flavor, or{' '}
-          <code>-PopeniapStore=amazon</code> then selects Amazon, exactly as for{' '}
+          debug build, an <code>amazon</code> flavor,{' '}
+          <code>-PopeniapStore=amazon</code>, or{' '}
+          <code>-PfireOsEnabled=true</code> then selects Amazon, exactly as for{' '}
           <Link to="/docs/setup/store/horizon">Horizon OS</Link>.
         </p>
 
@@ -324,7 +347,8 @@ dependencies {
           <code>flutter_inapp_purchase</code> picks the store itself, so the app
           only needs the key in <code>android/app/src/main/assets</code>; pin a
           release build with{' '}
-          <code>ORG_GRADLE_PROJECT_openiapStore=amazon flutter build apk</code>.
+          <code>ORG_GRADLE_PROJECT_openiapStore=amazon flutter build apk</code>,
+          or with <code>fireOsEnabled=true</code>.
         </p>
 
         <AnchorLink id="kmp-maui-fire-os" level="h3">
@@ -408,11 +432,14 @@ dependencies {
         <p>
           Expo recognizes a Vega target on its own: a root{' '}
           <code>manifest.toml</code> turns Vega file generation on, so a fresh
-          checkout with a committed manifest needs no flag. Set{' '}
+          checkout with a committed manifest needs no flag. Declaring{' '}
+          <a href="#expo-fire-os">Fire OS</a> with{' '}
+          <code>EXPO_IAP_FIREOS=1</code> or <code>modules.amazon.fireOS</code>{' '}
+          turns detection off for that build, so a root that builds both sets{' '}
+          <code>EXPO_IAP_FIREOS=1</code> in the Fire profile. Set{' '}
           <code>modules.amazon.vegaOS</code> explicitly only to force generation
-          on for a first run or off for a multi-target root. The Fire OS build
-          is a separate artifact that the Android build picks like any other
-          store.
+          on for a first run or off for every build. The Fire OS build is a
+          separate artifact that the Android build picks like any other store.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [

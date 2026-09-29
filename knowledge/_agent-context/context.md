@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-29T05:02:15.041Z
+> Last updated: 2026-09-29T12:20:54.703Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1389,9 +1389,9 @@ file to switch. Credentials (the Horizon app id, the Amazon
 on the other stores; they never select anything.
 
 ```text
-1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties
-             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read with a
-             warning until the next major release; `bun audit:deprecations` holds that boundary)
+1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties,
+             or fireOsEnabled=true (legacy horizonEnabled, openiapPlatform=none: still read
+             with a warning until the next major release; `bun audit:deprecations` holds that boundary)
 2. variant   a requested task carries a store flavor: assembleHorizonRelease, installAmazonDebug
 3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the single
              attached one -> Quest = horizon, Fire = amazon
@@ -1399,9 +1399,9 @@ on the other stores; they never select anything.
 ```
 
 A store pin against a different task flavor, two store flavors named by the
-requested tasks, and a pin against a legacy flag each fail the build. Opting out
+requested tasks, and a pin against a store flag or `openiapPlatform=none` each fail the build. Opting out
 with `openiapStore=none` never conflicts with a task flavor, because it links
-nothing; it does still conflict with a legacy flag that names a store. An anchor
+nothing; it does still conflict with a store flag that names a store. An anchor
 task that builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
 openiap-google — is not that case and is allowed. The device is a fallback, not a
 competing signal — a pin or a flavor outranks it without complaint. A release
@@ -1429,15 +1429,15 @@ link, and `dart pub publish` follows the link. The OpenIAP Gradle plugin
 (`packages/google/gradle-plugin`, id `io.github.hyochan.openiap`) packs the same
 file into its jar at build time. Every other build system reads the same names:
 
-| Consumer                            | Input                                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                  |
-| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` pin, with a warning          |
-| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                    |
-| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store        |
-| maui-iap                            | package targets at app build: `OpenIapStore` (deprecated `OpenIapAndroidStore`), Debug device, play  |
-| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
-| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
+| Consumer                            | Input                                                                                               |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                 |
+| expo-iap config plugin              | `modules.amazon.fireOS` / `EXPO_IAP_FIREOS` pin amazon; deprecated `modules.horizon` still pins     |
+| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                   |
+| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store       |
+| maui-iap                            | package targets at app build: `OpenIapStore` (deprecated `OpenIapAndroidStore`), Debug device, play |
+| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
 `bun audit:parity` compares all five alias tables — the resolver, the doctor,
 the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
@@ -1458,7 +1458,7 @@ It applies the real resolver to the fixture in
 network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
 reports whatever device the case declares. Each case asserts a resolved
 `store/source` pair, or that the build fails with a named message. The suite
-covers pins and their aliases, the legacy flags and their conflicts, the
+covers pins and their aliases, the store flags and their conflicts, the
 `none` opt-out, task flavors, every conflict that must fail, device selection
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.

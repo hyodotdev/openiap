@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-28T18:25:42.513Z
+> Generated: 2026-09-29T11:44:42.969Z
 
 ## Reading instructions for coding assistants
 
@@ -255,8 +255,8 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   and platform-suffixed iOS/Android APIs.
 - Android builds resolve the store at build time: an `openiapStore` pin, the
   store flavor in the requested task, or on debug builds the connected device.
-  `horizonEnabled` and `fireOsEnabled` are deprecated and removed in the
-  next major release. Vega OS uses a separate React Native for Vega target that resolves the `kepler` JavaScript adapter before
+  `fireOsEnabled=true` also pins Amazon; the deprecated `horizonEnabled`
+  is removed in the next major release. Vega OS uses a separate React Native for Vega target that resolves the `kepler` JavaScript adapter before
   creating the Nitro HybridObject.
 - Onside is not supported in `react-native-iap`; use `expo-iap` for Onside.
 - Example app: `libraries/react-native-iap/example`.
@@ -268,12 +268,14 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   shape as `react-native-iap`, adapted for Expo managed/bare workflows.
 - The Android store is resolved at build time: the connected device on a
   local debug build, `ORG_GRADLE_PROJECT_openiapStore` in the EAS profile
-  env for EAS and release builds, which have no device to follow. The config plugin carries store values only:
+  env for EAS and release builds, which have no device to follow. A Fire OS
+  declaration (`modules.amazon.fireOS` or `EXPO_IAP_FIREOS=1`) also pins
+  Amazon, ahead of the device. The config plugin otherwise carries store values only:
   `android.horizon.appId`, `android.amazon.appstoreKey`, the opt-in
   `modules.onside`, and optional `android.amazon.vegaOS` metadata. A
-  root `manifest.toml` turns the Vega target on; `modules.amazon.vegaOS`
-  only forces it on or off. `modules.horizon` / `modules.amazon.fireOS`
-  are deprecated pins, removed in the next major release.
+  root `manifest.toml` turns the Vega target on unless Fire OS is declared;
+  `modules.amazon.vegaOS` forces it on or off. `modules.horizon` is a
+  deprecated pin, removed in the next major release.
 - Example app: `libraries/expo-iap/example`.
 
 ### flutter_inapp_purchase

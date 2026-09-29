@@ -7524,7 +7524,7 @@ function checkFrameworkDependencyHygiene() {
       expectNotIncludes(
         app,
         ["findProperty('horizonEnabled')", "findProperty('fireOsEnabled')"],
-        "Example apps must not read the legacy store flags themselves",
+        "Example apps must not read the store flags themselves",
       );
     }
     expectIncludes(

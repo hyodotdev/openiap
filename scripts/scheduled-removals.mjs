@@ -57,14 +57,10 @@ export const scheduledRemovalRules = [
     sources: [
       {
         file: "packages/google/gradle/openiap-store.gradle",
-        tokens: ["horizonEnabled", "fireOsEnabled", "openiapPlatform"],
+        tokens: ["horizonEnabled", "openiapPlatform"],
       },
     ],
-    catalog: [
-      "horizonEnabled=true",
-      "fireOsEnabled=true",
-      "openiapPlatform=none",
-    ],
+    catalog: ["horizonEnabled=true", "openiapPlatform=none"],
   },
   {
     label: "expo-iap store pin options",
@@ -79,22 +75,14 @@ export const scheduledRemovalRules = [
     sources: [
       {
         file: "libraries/expo-iap/plugin/src/withIAP.ts",
-        tokens: [
-          "modules.horizon",
-          "modules.amazon.fireOS",
-          "EXPO_IAP_HORIZON",
-          "EXPO_IAP_FIREOS",
-        ],
+        tokens: ["modules.horizon", "EXPO_IAP_HORIZON"],
       },
       {
         file: "libraries/expo-iap/plugin/src/expoConfig.augmentation.d.ts",
-        tokens: ["horizon?: boolean", "fireOS?: boolean"],
+        tokens: ["horizon?: boolean"],
       },
     ],
-    catalog: [
-      "modules.horizon / EXPO_IAP_HORIZON=1",
-      "modules.amazon.fireOS / EXPO_IAP_FIREOS=1",
-    ],
+    catalog: ["modules.horizon / EXPO_IAP_HORIZON=1"],
   },
   {
     label: "OpenIap.Maui store alias",

@@ -520,11 +520,17 @@ function Releases() {
                   <code>--name=value</code>).
                 </li>
                 <li>
-                  <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
+                  <code>horizonEnabled</code> and{' '}
                   <code>openiapPlatform=none</code> warn, in Flutter builds too,
                   that the next major release removes them; see{' '}
                   <Link to="/docs/updates/migration#next-major">Migration</Link>
                   .
+                </li>
+                <li>
+                  <code>fireOsEnabled=true</code> is no longer deprecated in
+                  openiap-google, react-native-iap, expo-iap, and
+                  flutter_inapp_purchase; it declares a Fire OS build and wins
+                  over the connected debug device.
                 </li>
               </ul>
             </li>
@@ -580,9 +586,14 @@ function Releases() {
                   free-trial offer, as in react-native-iap.
                 </li>
                 <li>
-                  <code>modules.horizon</code> and{' '}
-                  <code>modules.amazon.fireOS</code> warn that the next major
-                  release removes them.
+                  <code>modules.horizon</code> warns that the next major release
+                  removes it.
+                </li>
+                <li>
+                  <code>modules.amazon.fireOS</code> and{' '}
+                  <code>EXPO_IAP_FIREOS</code> are no longer deprecated, and a
+                  Fire OS declaration turns off Vega auto-detection for that
+                  build.
                 </li>
                 <li>
                   A hand-written root <code>manifest.toml</code> no longer draws
@@ -641,7 +652,7 @@ function Releases() {
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   <code>doctor</code> reads <code>openiapStore</code> pins and
-                  their aliases alongside the legacy flags, and reports store
+                  their aliases alongside the store flags, and reports store
                   values the build would reject.
                 </li>
                 <li>

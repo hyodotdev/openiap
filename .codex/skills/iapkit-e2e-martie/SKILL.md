@@ -273,15 +273,15 @@ output for `openiap: store=<store> (source=device;` (see
 `## Android Store Selection` in `.claude/commands/e2e-tests.md`). A pin left
 behind (`ORG_GRADLE_PROJECT_openiapStore` still exported, `EXPO_IAP_HORIZON` or
 `EXPO_IAP_FIREOS` still exported, or an `openiapStore` line written by the
-deprecated `modules.horizon` / `modules.amazon.fireOS` options) turns that line
+`modules.horizon` / `modules.amazon.fireOS` options) turns that line
 into `source=explicit` and makes a later Play run link the wrong
 `openiap-google` flavor, so the example sits on `Connecting to Store...` with
 `initConnection failed: Failed to initialize connection` and
 `getStorefront failed: Billing client not ready`. Unset those variables, re-run
 `bunx expo prebuild --platform android --clean` before the Play row, then
 confirm `android/gradle.properties` carries no
-`openiapStore` pin (and none of the legacy `horizonEnabled` / `fireOsEnabled`
-flags) and that `android/app/build.gradle` has no fixed
+`openiapStore` pin (and no `horizonEnabled` / `fireOsEnabled` flag) and
+that `android/app/build.gradle` has no fixed
 `missingDimensionStrategy`; the Gradle build then resolves the store from the
 device `ANDROID_SERIAL` names.
 

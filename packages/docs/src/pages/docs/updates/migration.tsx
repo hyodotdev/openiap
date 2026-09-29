@@ -227,10 +227,6 @@ const scheduledRemovals = [
         'horizonEnabled=true',
         'openiapStore=horizon, or no pin: a debug build follows the connected Quest',
       ],
-      [
-        'fireOsEnabled=true',
-        'openiapStore=amazon, or no pin: a debug build follows the connected Fire device',
-      ],
       ['openiapPlatform=none (flutter_inapp_purchase)', 'openiapStore=none'],
     ],
   },
@@ -240,10 +236,6 @@ const scheduledRemovals = [
       [
         'modules.horizon / EXPO_IAP_HORIZON=1',
         'ORG_GRADLE_PROJECT_openiapStore=horizon in the EAS profile env; a local debug build follows the connected Quest',
-      ],
-      [
-        'modules.amazon.fireOS / EXPO_IAP_FIREOS=1',
-        'ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env; a local debug build follows the connected Fire device',
       ],
     ],
   },
@@ -422,7 +414,7 @@ const packageCompatibilityMigrations = [
       ],
       [
         'config.android.amazon.fireOS / boolean config.android.amazon.vegaOS',
-        'ORG_GRADLE_PROJECT_openiapStore=amazon / a root manifest.toml, or config.modules.amazon.vegaOS to force Vega',
+        'config.modules.amazon.fireOS / config.modules.amazon.vegaOS',
       ],
     ],
   },

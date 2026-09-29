@@ -283,8 +283,10 @@ cd ios && pod install`}
           (Fire OS devices and the Vega OS runtime). Android store selection
           happens when Gradle runs — a store flavor, a connected Quest or Fire
           device on a local debug build, or an <code>openiapStore</code> pin —
-          so keep the store credentials in the config; a build that must target
-          one store is pinned in its EAS profile, not in the config.
+          so keep the store credentials in the config and pin a build that must
+          target one store in its EAS profile. A Fire OS build can also declare
+          itself with <code>modules.amazon.fireOS</code> or{' '}
+          <code>EXPO_IAP_FIREOS=1</code>.
         </p>
         <CodeBlock language="json">
           {`{
@@ -321,9 +323,9 @@ cd ios && pod install`}
           <code>ios</code>; <code>modules</code> holds opt-ins, and{' '}
           <code>modules.onside</code> links the Onside SDK. Vega OS needs no
           option: the plugin generates the Vega target when the project has a
-          root <code>manifest.toml</code>, and{' '}
-          <code>modules.amazon.vegaOS</code> only forces it on or off. The
-          Android store needs no option either: a local debug build follows the
+          root <code>manifest.toml</code> and no Fire OS declaration, and{' '}
+          <code>modules.amazon.vegaOS</code> forces it on or off. The Android
+          store needs no option either: a local debug build follows the
           connected Quest or Fire device. An EAS cloud build has no device to
           follow and a release build never looks at one, so pin them with{' '}
           <code>ORG_GRADLE_PROJECT_openiapStore</code> in the EAS profile&apos;s{' '}

@@ -411,7 +411,7 @@ store, and expects `source=explicit` instead: prefix the build with
 `ORG_GRADLE_PROJECT_openiapStore=<store>`, replacing any `ANDROID_SERIAL=...`
 prefix (MAUI: `-p:OpenIapStore=<store>`; Godot: `openiap/android_store`).
 `source=explicit` on a device row means a leftover pin, such as an exported
-`ORG_GRADLE_PROJECT_openiapStore`, or an `openiapStore` line or legacy
+`ORG_GRADLE_PROJECT_openiapStore`, or an `openiapStore` line or
 `horizonEnabled` / `fireOsEnabled` flag in a reused `android/gradle.properties`.
 Remove it and rebuild. KMP and the `packages/google` Example take the store
 from the flavor in the task name, such as `assembleAmazonDebug`, and print no

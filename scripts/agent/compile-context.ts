@@ -529,8 +529,8 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   and platform-suffixed iOS/Android APIs.
 - Android builds resolve the store at build time: an \`openiapStore\` pin, the
   store flavor in the requested task, or on debug builds the connected device.
-  \`horizonEnabled\` and \`fireOsEnabled\` are deprecated and removed in the
-  next major release. Vega OS uses a separate React Native for Vega target that resolves the \`kepler\` JavaScript adapter before
+  \`fireOsEnabled=true\` also pins Amazon; the deprecated \`horizonEnabled\`
+  is removed in the next major release. Vega OS uses a separate React Native for Vega target that resolves the \`kepler\` JavaScript adapter before
   creating the Nitro HybridObject.
 - Onside is not supported in \`react-native-iap\`; use \`expo-iap\` for Onside.
 - Example app: \`libraries/react-native-iap/example\`.
@@ -542,12 +542,14 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
 - The Android store is resolved at build time: the connected device on a
   local debug build, \`ORG_GRADLE_PROJECT_openiapStore\` in the EAS profile
-  env for EAS and release builds, which have no device to follow. The config plugin carries store values only:
+  env for EAS and release builds, which have no device to follow. A Fire OS
+  declaration (\`modules.amazon.fireOS\` or \`EXPO_IAP_FIREOS=1\`) also pins
+  Amazon, ahead of the device. The config plugin otherwise carries store values only:
   \`android.horizon.appId\`, \`android.amazon.appstoreKey\`, the opt-in
   \`modules.onside\`, and optional \`android.amazon.vegaOS\` metadata. A
-  root \`manifest.toml\` turns the Vega target on; \`modules.amazon.vegaOS\`
-  only forces it on or off. \`modules.horizon\` / \`modules.amazon.fireOS\`
-  are deprecated pins, removed in the next major release.
+  root \`manifest.toml\` turns the Vega target on unless Fire OS is declared;
+  \`modules.amazon.vegaOS\` forces it on or off. \`modules.horizon\` is a
+  deprecated pin, removed in the next major release.
 - Example app: \`libraries/expo-iap/example\`.
 
 ### flutter_inapp_purchase

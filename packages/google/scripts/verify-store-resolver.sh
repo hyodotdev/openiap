@@ -64,6 +64,19 @@ warns() {
     report "$name" "$needle" "$actual"
 }
 
+# silent <name> <substring that must not appear> <gradle args...>
+silent() {
+    local name="$1" needle="$2"
+    shift 2
+    local output status=0
+    output=$(cd "$fixture" && "$gradlew" --quiet --project-cache-dir "$fake_sdk/cache" "$@" 2>&1) || status=$?
+    local actual="exit=$status ${output//$'\n'/ }"
+    if [[ $status -eq 0 && "$output" != *"$needle"* ]]; then
+        actual="no $needle"
+    fi
+    report "$name" "no $needle" "$actual"
+}
+
 report() {
     local name="$1" expected="$2" actual="$3"
     if [[ "$actual" == "$expected" ]]; then
@@ -102,17 +115,18 @@ run "alias googleplay"                     play/explicit    assembleDebug -Popen
 run "auto is not a pin"                    play/default     assembleDebug -PopeniapStore=auto
 run "a value that names no store fails"    "fail:unknown openiapStore" assembleDebug -PopeniapStore=bogus
 
-echo "legacy flags"
+echo "store flags"
 run "horizonEnabled=true"                  horizon/explicit assembleDebug -PhorizonEnabled=true
 run "fireOsEnabled=true"                   amazon/explicit  assembleDebug -PfireOsEnabled=true
-run "both legacy flags fail"               "fail:cannot both be true" assembleDebug -PhorizonEnabled=true -PfireOsEnabled=true
-run "pin against a legacy flag fails"      "fail:conflicts with fireOsEnabled=true" assembleDebug -PopeniapStore=play -PfireOsEnabled=true
+run "both store flags fail"                "fail:cannot both be true" assembleDebug -PhorizonEnabled=true -PfireOsEnabled=true
+run "a pin against a store flag fails"     "fail:conflicts with fireOsEnabled=true" assembleDebug -PopeniapStore=play -PfireOsEnabled=true
+run "an opt-out beside a store flag fails" "fail:openiapPlatform=none conflicts with fireOsEnabled=true" assembleDebug -PopeniapPlatform=none -PfireOsEnabled=true -PfixtureAllowNone=true
 run "openiapPlatform only takes none"      "fail:only supports the opt-out" assembleDebug -PopeniapPlatform=horizon
 run "none needs the opt-out to be allowed" "fail:is not supported by this library" assembleDebug -PopeniapStore=none
 run "none where it is supported"           none/explicit    assembleDebug -PopeniapStore=none -PfixtureAllowNone=true
 run "a legacy flag that agrees is kept"    horizon/explicit assembleDebug -PopeniapStore=horizon -PhorizonEnabled=true
 warns "a legacy flag names its removal"    "fixture: horizonEnabled=true is deprecated and will be removed in the next major release; use openiapStore=horizon" assembleDebug -PhorizonEnabled=true
-warns "and names the flag that was set"    "fixture: fireOsEnabled=true is deprecated and will be removed in the next major release; use openiapStore=amazon" assembleDebug -PfireOsEnabled=true
+silent "fireOsEnabled=true is not deprecated" "deprecated" assembleDebug -PfireOsEnabled=true
 warns "the legacy opt-out warns too"       "fixture: openiapPlatform=none is deprecated and will be removed in the next major release; use openiapStore=none" assembleDebug -PopeniapPlatform=none -PfixtureAllowNone=true
 # Opting out links nothing, so a store flavor kept for packaging is no conflict.
 run "none beside a store flavor"           none/explicit    assembleAmazonRelease -PopeniapStore=none -PfixtureAllowNone=true
