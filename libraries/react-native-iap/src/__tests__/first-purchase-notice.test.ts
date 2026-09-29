@@ -30,10 +30,6 @@ const purchase = (purchaseState: PurchaseState): PurchaseIOS => ({
   transactionId: '2000000000000001',
 });
 
-// Lets the notice's promise chain settle.
-const flush = (): Promise<void> =>
-  new Promise((resolve) => setImmediate(resolve));
-
 let claim: jest.Mock<boolean, []>;
 let log: jest.Mock<void, [string]>;
 
@@ -54,67 +50,58 @@ describe('createFirstPurchaseNotice', () => {
       ...overrides,
     });
 
-  it('prints the four lines as one log after a purchased finish in a debug build', async () => {
+  it('prints the four lines as one log after a purchased finish in a debug build', () => {
     notice()(purchase('purchased'));
-    await flush();
 
     expect(FIRST_PURCHASE_NOTICE).toHaveLength(4);
     expect(claim).toHaveBeenCalledTimes(1);
     expect(log.mock.calls).toEqual([[NOTICE]]);
   });
 
-  it('stays silent in a release build', async () => {
+  it('stays silent in a release build', () => {
     notice({isDebugBuild: () => false})(purchase('purchased'));
-    await flush();
 
     expect(claim).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
   });
 
-  it('stays silent under a test runner', async () => {
+  it('stays silent under a test runner', () => {
     notice({isTestRunner: () => true})(purchase('purchased'));
-    await flush();
 
     expect(claim).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
   });
 
-  it('never claims on Vega OS, which has no native flag', async () => {
+  it('never claims on Vega OS, which has no native flag', () => {
     notice({isVegaOS: () => true})(purchase('purchased'));
-    await flush();
 
     expect(claim).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
   });
 
-  it('skips a pending purchase and still claims for a later purchased one', async () => {
+  it('skips a pending purchase and still claims for a later purchased one', () => {
     const show = notice();
     show(purchase('pending'));
-    await flush();
     expect(claim).not.toHaveBeenCalled();
 
     show(purchase('purchased'));
-    await flush();
     expect(claim).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledTimes(1);
   });
 
-  it('stays silent when the install already showed it', async () => {
+  it('stays silent when the install already showed it', () => {
     claim.mockReturnValue(false);
     notice()(purchase('purchased'));
-    await flush();
 
     expect(claim).toHaveBeenCalledTimes(1);
     expect(log).not.toHaveBeenCalled();
   });
 
-  it('calls the native flag once per process, even for overlapping finishes', async () => {
+  it('calls the native flag once per process', () => {
     const show = notice();
     show(purchase('purchased'));
     show(purchase('purchased'));
-    await flush();
     show(purchase('purchased'));
-    await flush();
 
     expect(claim).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledTimes(1);
@@ -148,33 +135,29 @@ describe('the app signals', () => {
     consoleLog.mockRestore();
   });
 
-  it('print to the console in a debug build', async () => {
+  it('print to the console in a debug build', () => {
     createFirstPurchaseNotice(claim)(purchase('purchased'));
-    await flush();
 
     expect(consoleLog.mock.calls).toEqual([[NOTICE]]);
   });
 
-  it('detect Jest from JEST_WORKER_ID', async () => {
+  it('detect Jest from JEST_WORKER_ID', () => {
     process.env.JEST_WORKER_ID = jestWorkerId;
     createFirstPurchaseNotice(claim)(purchase('purchased'));
-    await flush();
 
     expect(claim).not.toHaveBeenCalled();
   });
 
-  it('detect a release build from __DEV__', async () => {
+  it('detect a release build from __DEV__', () => {
     Reflect.set(globalThis, '__DEV__', false);
     createFirstPurchaseNotice(claim)(purchase('purchased'));
-    await flush();
 
     expect(claim).not.toHaveBeenCalled();
   });
 
-  it('detect Vega OS from the platform', async () => {
+  it('detect Vega OS from the platform', () => {
     Object.assign(Platform, {OS: 'kepler'});
     createFirstPurchaseNotice(claim)(purchase('purchased'));
-    await flush();
 
     expect(claim).not.toHaveBeenCalled();
   });
@@ -205,7 +188,6 @@ describe('finishTransaction', () => {
   it('prints once, after the first successful finish of a purchased purchase', async () => {
     await finishTransaction({purchase: purchase('purchased')});
     await finishTransaction({purchase: purchase('purchased')});
-    await flush();
 
     expect(mockNative.claimFirstPurchaseNotice).toHaveBeenCalledTimes(1);
     expect(consoleLog.mock.calls).toEqual([[NOTICE]]);
@@ -219,7 +201,6 @@ describe('finishTransaction', () => {
     await expect(
       finishTransaction({purchase: purchase('purchased')}),
     ).rejects.toMatchObject({message: 'offline'});
-    await flush();
 
     expect(mockNative.claimFirstPurchaseNotice).not.toHaveBeenCalled();
     expect(consoleLog).not.toHaveBeenCalled();
@@ -231,7 +212,6 @@ describe('finishTransaction', () => {
     await expect(
       finishTransaction({purchase: purchase('purchased')}),
     ).rejects.toThrow('Failed to finish transaction');
-    await flush();
 
     expect(mockNative.claimFirstPurchaseNotice).not.toHaveBeenCalled();
     expect(consoleLog).not.toHaveBeenCalled();
@@ -239,7 +219,6 @@ describe('finishTransaction', () => {
 
   it('stays silent for a pending purchase', async () => {
     await finishTransaction({purchase: purchase('pending')});
-    await flush();
 
     expect(mockNative.claimFirstPurchaseNotice).not.toHaveBeenCalled();
     expect(consoleLog).not.toHaveBeenCalled();
