@@ -31,6 +31,8 @@ test("published source changes need the release card", () => {
       "libraries/kmp-iap/library/consumer-rules-non-play.pro",
       "libraries/godot-iap/android/settings.gradle.kts",
       "libraries/maui-iap/android/build.gradle.kts",
+      "libraries/godot-iap/scripts/fix_ios_embed.sh",
+      "libraries/godot-iap/scripts/write-gdap.sh",
     ]),
     [
       "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
@@ -51,6 +53,8 @@ test("published source changes need the release card", () => {
       "libraries/kmp-iap/library/consumer-rules-non-play.pro",
       "libraries/godot-iap/android/settings.gradle.kts",
       "libraries/maui-iap/android/build.gradle.kts",
+      "libraries/godot-iap/scripts/fix_ios_embed.sh",
+      "libraries/godot-iap/scripts/write-gdap.sh",
     ],
   );
 });
@@ -81,6 +85,7 @@ test("tests, examples, docs, and manifests need no release card", () => {
       "libraries/react-native-iap/android/gradle.properties",
       "libraries/kmp-iap/library/library.podspec",
       "packages/google/openiap/proguard-rules.pro",
+      "libraries/godot-iap/ios-gdextension/Tests/GodotIapTests/GodotIapHelperTests.swift",
     ]),
     [],
   );

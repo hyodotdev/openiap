@@ -382,6 +382,8 @@ export const publishedSources = {
   godot: [
     /^libraries\/godot-iap\/(addons\/godot-iap|android\/src\/main|ios-gdextension)\//,
     /^libraries\/godot-iap\/android\/[^/]+\.gradle\.kts$/,
+    // The release zip carries the embed fix, and the .gdap is written from this script.
+    /^libraries\/godot-iap\/scripts\/(fix_ios_embed|write-gdap)\.sh$/,
   ],
   kmp: [
     /^libraries\/kmp-iap\/library\/src\/(commonMain|androidMain|iosMain)\//,
@@ -394,7 +396,7 @@ export const publishedSources = {
 };
 
 const isTest = (file) =>
-  /(^|\/)(__tests__|__mocks__|tests?)\//.test(file) ||
+  /(^|\/)(__tests__|__mocks__|[Tt]ests?)\//.test(file) ||
   /\.(test|spec)\.[^./]+$/.test(file);
 
 export function shipsIn(packageId, file) {
