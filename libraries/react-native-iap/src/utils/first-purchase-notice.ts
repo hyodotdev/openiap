@@ -20,7 +20,10 @@ export interface FirstPurchaseNoticeSignals {
 
 const appSignals: FirstPurchaseNoticeSignals = {
   isDebugBuild: () => __DEV__,
-  isTestRunner: () => process.env.JEST_WORKER_ID !== undefined,
+  // Through globalThis: consumers type-check without Node types.
+  isTestRunner: () =>
+    (globalThis as {process?: {env?: Record<string, string | undefined>}})
+      .process?.env?.JEST_WORKER_ID !== undefined,
   isVegaOS,
   log: (message) => console.log(message),
 };
