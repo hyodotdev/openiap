@@ -8,6 +8,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
       - "packages/google/compatibility/store-resolver/fake-adb"
       - "specs/client/codegen/plugins/gdscript.ts"
       - "specs/client/src/generated/types.gd"
@@ -20,6 +22,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
       - "packages/google/compatibility/store-resolver/fake-adb"
       - "specs/client/codegen/plugins/gdscript.ts"
       - "specs/client/src/generated/types.gd"
@@ -186,6 +190,8 @@ jobs:
             apple:
               - '.github/workflows/ci-godot-iap.yml'
               - 'libraries/godot-iap/ios-gdextension/**'
+              - 'packages/apple/Sources/**'
+              - 'packages/apple/Package.swift'
               - 'libraries/godot-iap/Makefile'
               - 'libraries/godot-iap/scripts/install_apple_framework.sh'
               - 'libraries/godot-iap/scripts/verify-ios-toolchain.sh'

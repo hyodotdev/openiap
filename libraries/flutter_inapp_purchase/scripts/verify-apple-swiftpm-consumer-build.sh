@@ -39,7 +39,7 @@ use_local_openiap() {
   local before
   before="$(shasum -a 256 "$manifest" | awk '{print $1}')"
   perl -0pi -e \
-    's#\.package\(url: "https://github\.com/hyodotdev/openiap\.git", from: "3\.0\.0"\),#.package(name: "OpenIAP", path: "../../../../packages/apple"),#' \
+    's#\.package\(url: "https://github\.com/hyodotdev/openiap\.git", from: "[^"]+"\),#.package(name: "OpenIAP", path: "../../../../packages/apple"),#' \
     "$manifest"
   if [ "$before" = "$(shasum -a 256 "$manifest" | awk '{print $1}')" ]; then
     echo "Failed to select the local OpenIAP Apple package in $manifest" >&2

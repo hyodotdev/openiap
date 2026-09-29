@@ -169,10 +169,12 @@ Train rules (mistake guards):
   native release (Apple, Google) is registry-verified (CocoaPods trunk /
   Maven Central POMs publicly fetchable) and its package metadata is
   synchronized on `main`. Workflow success is not deployment; poll the
-  registry. Each library workflow enforces this with
+  registry. Each library workflow enforces the ordering with
   `release-branch-policy.mjs native-gate`, which refuses a stable release while
-  openiap-google or openiap-apple has source commits after its release tag
-  (an Expo release once shipped 93 minutes before the natives it needed). Set
+  openiap-google or openiap-apple has source commits after its release tag (an
+  Expo release once shipped 93 minutes before the natives it needed). The gate
+  reads tags, not registries, so a native release that tagged but failed to
+  publish passes it: verify the registry before every dispatch. Set
   `allow_unreleased_native` only for a library fix that must not wait for an
   unrelated native change.
 - **A major and scheduled deprecations.** `scripts/scheduled-removals.mjs`
