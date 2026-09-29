@@ -8,7 +8,8 @@ import { opensPullRequest, reason } from "./guard-pull-request.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const guard = path.join(root, "scripts/guard-pull-request.mjs");
-const shell = (command) => opensPullRequest({ tool_name: "Bash", tool_input: { command } });
+const shell = (command) =>
+  opensPullRequest({ tool_name: "Bash", tool_input: { command } });
 
 test("gh pr create and gh pr new need approval wherever the command starts", () => {
   for (const command of [
@@ -26,6 +27,12 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     "gh pr \\\n  create --fill",
     "GH_TOKEN=$(gh auth token) gh pr create --fill",
     "timeout 120 gh pr create --fill",
+    "timeout -s KILL 60 gh pr create --fill",
+    "env -u GITHUB_TOKEN gh pr create --fill",
+    "env -i gh pr create --fill",
+    "sudo -u x gh pr create --fill",
+    "xargs -I{} gh pr create --fill",
+    "nice -n 10 gh pr create --fill",
     "hub pull-request -m x",
   ]) {
     assert.equal(shell(command), true, command);
@@ -69,6 +76,8 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "git commit -F - <<'EOF'\ndocs: say why `gh pr create` asks first\nEOF",
     'gh pr comment 500 --body "run `gh pr create` only when asked"',
     "GH_TOKEN=$(gh auth token) gh pr view 500",
+    "sudo -u x gh pr view 1",
+    "env -i gh pr list",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
   ]) {
     assert.equal(shell(command), false, command);
@@ -76,15 +85,29 @@ test("reading, editing, or mentioning pull requests does not", () => {
 });
 
 test("GitHub MCP tools that create a pull request need approval", () => {
-  assert.equal(opensPullRequest({ tool_name: "mcp__github__create_pull_request" }), true);
   assert.equal(
-    opensPullRequest({ tool_name: "mcp__37f72c69__create_pull_request_with_copilot" }),
+    opensPullRequest({ tool_name: "mcp__github__create_pull_request" }),
     true,
   );
-  assert.equal(opensPullRequest({ tool_name: "mcp__github__assign_copilot_to_issue" }), true);
-  assert.equal(opensPullRequest({ tool_name: "mcp__github__list_pull_requests" }), false);
   assert.equal(
-    opensPullRequest({ tool_name: "Read", tool_input: { file_path: "gh pr create" } }),
+    opensPullRequest({
+      tool_name: "mcp__37f72c69__create_pull_request_with_copilot",
+    }),
+    true,
+  );
+  assert.equal(
+    opensPullRequest({ tool_name: "mcp__github__assign_copilot_to_issue" }),
+    true,
+  );
+  assert.equal(
+    opensPullRequest({ tool_name: "mcp__github__list_pull_requests" }),
+    false,
+  );
+  assert.equal(
+    opensPullRequest({
+      tool_name: "Read",
+      tool_input: { file_path: "gh pr create" },
+    }),
     false,
   );
 });
@@ -109,7 +132,10 @@ test("the hook asks for approval and stays silent otherwise", () => {
 test("every folder with its own .claude/ runs the guard before shell and GitHub MCP tools", () => {
   const folders = [
     ...new Set(
-      execFileSync("git", ["ls-files", "--", ":(glob)**/.claude/**"], { cwd: root, encoding: "utf8" })
+      execFileSync("git", ["ls-files", "--", ":(glob)**/.claude/**"], {
+        cwd: root,
+        encoding: "utf8",
+      })
         .split("\n")
         .filter(Boolean)
         .map((file) => file.slice(0, file.indexOf(".claude/"))),
@@ -120,14 +146,20 @@ test("every folder with its own .claude/ runs the guard before shell and GitHub 
     const settingsPath = path.join(root, folder, ".claude/settings.json");
     const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
     const entries = (settings.hooks?.PreToolUse ?? []).filter((entry) =>
-      entry.hooks.some((hook) => hook.command.includes("guard-pull-request.mjs")),
+      entry.hooks.some((hook) =>
+        hook.command.includes("guard-pull-request.mjs"),
+      ),
     );
     assert.equal(entries.length, 1, settingsPath);
     const [command] = entries[0].hooks.map((hook) => hook.command);
     const script = /"\$CLAUDE_PROJECT_DIR\/([^"]+)"/u.exec(command)?.[1];
     assert.equal(path.resolve(root, folder, script ?? ""), guard, settingsPath);
     const matcher = new RegExp(`^(?:${entries[0].matcher})$`, "u");
-    for (const tool of ["Bash", "mcp__github__create_pull_request", "mcp__github__assign_copilot_to_issue"]) {
+    for (const tool of [
+      "Bash",
+      "mcp__github__create_pull_request",
+      "mcp__github__assign_copilot_to_issue",
+    ]) {
       assert.equal(matcher.test(tool), true, `${settingsPath} ${tool}`);
     }
   }

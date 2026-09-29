@@ -15,11 +15,20 @@ export const reason =
 // messages quote commands in them far more often than agents run them.
 const commandStart = /\n|;|&&|\|\|?|&|\$\(/gu;
 const substitution = /\$\(([^()]*)\)/u;
-// Assignments, wrappers, and `sh -c "` that sit before the command word.
-const commandPrefix =
-  /^(?:[\s({!]+|\w+=\S*\s+|(?:command|exec|sudo|env|nohup|time|xargs|then|do|else)\s+|timeout\s+\S+\s+|(?:ba|z)?sh\s+(?:-\w+\s+)*?-\w*c\s+["']?)*/u;
+// Assignments, wrappers with their options, a timeout's duration, and
+// `sh -c "` before the command word. An option never takes a PR client as its
+// value, so `env -i gh` still reaches gh.
+const client = String.raw`(?:\S*/)?(?:gh|hub|curl)\b`;
+const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client})\S+)?`;
+const commandPrefix = new RegExp(
+  String.raw`^(?:[\s({!]+|\w+=\S*\s+|\d+(?:\.\d+)?[smhd]?\s+|(?:command|exec|sudo|env|nice|nohup|time|timeout|xargs|then|do|else)(?:${wrapperOption})*\s+|(?:ba|z)?sh\s+(?:-\w+\s+)*?-\w*c\s+["']?)*`,
+  "u",
+);
 const flags = String.raw`(?:\s+-{1,2}[\w-]+(?:[=\s]+[^\s-]\S*)?)*`;
-const ghPrCreate = new RegExp(String.raw`^(?:\S*/)?gh${flags}\s+pr${flags}\s+(?:create|new)\b`, "u");
+const ghPrCreate = new RegExp(
+  String.raw`^(?:\S*/)?gh${flags}\s+pr${flags}\s+(?:create|new)\b`,
+  "u",
+);
 const hubPullRequest = /^(?:\S*\/)?hub\s+pull-request\b/u;
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 // `repos/$REPO/pulls` names owner and repository in one segment.
@@ -29,12 +38,16 @@ const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 const writeFlag =
   /(?:-X\s*|--method[=\s]+|--request[=\s]+)POST\b|\s-d\s*\S|\s-[fF]\s*[\w.[\]-]+=|--(?:raw-)?field\b|--data\b|--json\b|--form\b|--input\b/u;
 const explicitGet = /(?:-X\s*|--method[=\s]+|--request[=\s]+)GET\b/u;
-const graphqlCreate = /^(?:\S*\/)?gh\s+api\s+graphql\b[\s\S]*\bcreatePullRequest\b/u;
+const graphqlCreate =
+  /^(?:\S*\/)?gh\s+api\s+graphql\b[\s\S]*\bcreatePullRequest\b/u;
 // Assigning Copilot to an issue ends in a pull request Copilot opens.
 const mcpCreate = /^mcp__.+__(?:create_pull_request|assign_copilot_to_issue)/u;
 
 function opensPullRequestIn(command) {
-  const starts = [0, ...Array.from(command.matchAll(commandStart), (m) => m.index + m[0].length)];
+  const starts = [
+    0,
+    ...Array.from(command.matchAll(commandStart), (m) => m.index + m[0].length),
+  ];
   return starts.some((start) => {
     const rest = command.slice(start).replace(commandPrefix, "");
     const words = rest.split(commandStart)[0];
@@ -56,15 +69,23 @@ function shellOpensPullRequest(command) {
   let outer = command.replace(/\\\r?\n/gu, " ");
   // Each $(…) is a command of its own, and the one around it reads on past it.
   const commands = [];
-  for (let found = substitution.exec(outer); found; found = substitution.exec(outer)) {
+  for (
+    let found = substitution.exec(outer);
+    found;
+    found = substitution.exec(outer)
+  ) {
     commands.push(found[1]);
     outer = `${outer.slice(0, found.index)}x${outer.slice(found.index + found[0].length)}`;
   }
   return [...commands, outer].some(opensPullRequestIn);
 }
 
-export function opensPullRequest({ tool_name: tool = "", tool_input: input = {} }) {
-  if (tool === "Bash") return shellOpensPullRequest(String(input.command ?? ""));
+export function opensPullRequest({
+  tool_name: tool = "",
+  tool_input: input = {},
+}) {
+  if (tool === "Bash")
+    return shellOpensPullRequest(String(input.command ?? ""));
   return mcpCreate.test(tool);
 }
 
