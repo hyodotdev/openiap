@@ -701,6 +701,7 @@ func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
 	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
 	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
 	_assert_false(late.success, "An unanswered iOS restore should fail")
+	_assert_true(waited_ms >= 40, "An iOS restore should wait for the system-sheet timeout, not fail at once")
 	_assert_true(waited_ms < 5000, "An iOS restore should stop at the system-sheet timeout")
 	_uninstall_fake()
 
