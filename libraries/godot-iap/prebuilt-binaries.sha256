@@ -1,15 +1,16 @@
 # SHA-256 of the prebuilt frameworks committed under addons/godot-iap/bin/.
-# They are built locally by the maintainer (`make ios` / `make macos`), not
-# compiled by CI. `bun run audit:godot-binaries` verifies the committed files
-# against this manifest — the release runs it as a deploy gate
+# CI builds them with Xcode 26.6 (job `apple-frameworks` in ci-godot-iap.yml)
+# and uploads them as an artifact; the maintainer commits that artifact.
+# `bun run audit:godot-binaries` verifies the committed files against this
+# manifest — the release runs it as a deploy gate
 # (release-godot.yml validate-ios) and CI re-runs it on main/next pushes and
 # PRs to fail earlier. macOS digests pin pre-signing bytes: notarized
 # releases re-sign those frameworks before zipping, so shipped macOS bytes
 # differ by design.
 #
 # Regenerate after an intentional rebuild:
-#   bun run audit:godot-binaries --write
-0e9914201189d1409ad294228986b6751e1f4cb9a2bdd2192b98da8852214dd9  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
-89a1f9306992f6b83be0432c9bdec83454d6cf1393e19b6f4c2b2422bd9253b3  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
-cfdb4e4b0ddaab250e609e29467c37b21162e5a71212f6177a8a246e9b3ceb28  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
-66585c71f205ef0b4c5b663ca9082535a42f447f0a23e033e1e0e01d2db0709a  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime
+#   node scripts/audit-godot-binary-digests.mjs --write
+09f0b88788d5a3ae94fd3f63d3de6593c2fa0c3565b005b49a883a815056a3b0  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+fe3b751f75f651b4a666a7dff9cf539f877fd7bfe1c957be5e0693fbcd1f33d2  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
+9df585948eb5eb99f2e97356e8ae7e117e83e92d8ea31b83872de90b75b9a0b2  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
+fe9cd929e06e8e3e641a8c76acef9948125a0af0ede5a4bc76f5fea5fe81733d  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime
