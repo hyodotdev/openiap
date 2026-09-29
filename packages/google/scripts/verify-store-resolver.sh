@@ -50,12 +50,13 @@ run() {
 }
 
 # warns <name> <substring of the warning> <gradle args...>
-# The build has to succeed; --quiet would drop the warning, so this runs at --warn.
+# The build has to succeed, and the warning has to survive --quiet, which
+# Flutter passes to Gradle unless --verbose is set.
 warns() {
     local name="$1" needle="$2"
     shift 2
     local output status=0
-    output=$(cd "$fixture" && "$gradlew" --warn --project-cache-dir "$fake_sdk/cache" "$@" 2>&1) || status=$?
+    output=$(cd "$fixture" && "$gradlew" --quiet --project-cache-dir "$fake_sdk/cache" "$@" 2>&1) || status=$?
     local actual="exit=$status ${output//$'\n'/ }"
     if [[ $status -eq 0 && "$output" == *"$needle"* ]]; then
         actual="$needle"

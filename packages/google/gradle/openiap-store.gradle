@@ -64,7 +64,8 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
       : fireOs ? ['fireOsEnabled=true', 'amazon']
       : horizon ? ['horizonEnabled=true', 'horizon'] : [null, null]
   if (legacy != null) {
-    logger.warn("${label}: ${legacyKey} is deprecated and will be removed in the next major release; use openiapStore=${legacy}")
+    // Quiet, not warn: Flutter runs Gradle with -q, which hides warnings.
+    logger.quiet("${label}: ${legacyKey} is deprecated and will be removed in the next major release; use openiapStore=${legacy}")
   }
   def pin = explicit == 'auto' ? null : explicit
   if (pin != null && legacy != null && legacy != pin) {
