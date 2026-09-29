@@ -409,14 +409,20 @@ func test_apple_async_timeout_and_late_callback() -> void:
 	GodotIapPlugin.products_fetched.disconnect(capture)
 
 
+# A void coroutine can start without await; the plugin's own coroutine cannot.
+func _collect_apple_wait(results: Dictionary, key: String, method: String, request_id: String, timeout: float) -> void:
+	results[key] = await GodotIapPlugin._await_products_fetched_for(method, request_id, timeout)
+
+
 func test_apple_async_disconnect_and_concurrency() -> void:
 	GodotIapPlugin._apple_async_results.clear()
 	GodotIapPlugin._apple_async_waiters.clear()
 	GodotIapPlugin._apple_async_terminal_keys.clear()
 	GodotIapPlugin._apple_async_terminal_order.clear()
 
-	var first_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "first", 1.0)
-	var second_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "second", 1.0)
+	var results := {}
+	_collect_apple_wait(results, "first", "syncIOS", "first", 1.0)
+	_collect_apple_wait(results, "second", "syncIOS", "second", 1.0)
 	await process_frame
 	GodotIapPlugin._on_products_fetched({
 		"method": "syncIOS",
@@ -425,19 +431,19 @@ func test_apple_async_disconnect_and_concurrency() -> void:
 		"value": 2,
 	})
 	GodotIapPlugin._on_disconnected()
+	await process_frame
 
-	var first = await first_state
-	var second = await second_state
+	var first = results.get("first", {})
+	var second = results.get("second", {})
 	_assert_equal(first.get("code"), "service-disconnected", "Disconnect should cancel every pending request")
 	_assert_equal(second.get("value"), 2, "Concurrent completions should resolve only their requestId")
 	_assert_equal(GodotIapPlugin._apple_async_waiters.size(), 0, "Disconnect should leave no pending waiters")
 
-	var tree_exit_state = GodotIapPlugin._await_products_fetched_for(
-		"getAvailablePurchases", "tree-exit", 1.0
-	)
+	_collect_apple_wait(results, "tree_exit", "getAvailablePurchases", "tree-exit", 1.0)
 	await process_frame
 	GodotIapPlugin._exit_tree()
-	var tree_exit_result = await tree_exit_state
+	await process_frame
+	var tree_exit_result = results.get("tree_exit", {})
 	_assert_equal(
 		tree_exit_result.get("code"),
 		"service-disconnected",

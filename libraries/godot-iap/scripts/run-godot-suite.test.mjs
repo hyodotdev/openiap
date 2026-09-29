@@ -16,9 +16,8 @@ printf '%s\\n' "$*" >> "$FAKE_GODOT_LOG"
 case "$suite" in
   *parse_error*) echo 'SCRIPT ERROR: Parse Error: Expected parameter name.' ;;
   *preload_error*) echo 'ERROR: Failed to load script "res://addons/godot-iap/types.gd" with error "Parse error".' ;;
-  *runtime_noise*)
-    echo 'ERROR: Parse JSON failed. Error at line 0: Unknown error getting token'
-    echo 'SCRIPT ERROR: Trying to call an async function without "await".' ;;
+  *runtime_noise*) echo 'ERROR: Parse JSON failed. Error at line 0: Unknown error getting token' ;;
+  *script_error*) echo 'SCRIPT ERROR: Trying to call an async function without "await".' ;;
   *failing*) echo 'FAIL: nothing worked'; exit 3 ;;
   *) echo "PASS $suite" ;;
 esac
@@ -72,7 +71,15 @@ test("fails a suite that did not parse even though the engine exits 0", () => {
   }
 });
 
-test("ignores error output that is not a load failure", () => {
+test("fails a suite whose test hit a script error even though the engine exits 0", () => {
+  const result = run("test_script_error", "test_after");
+
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /::error::test_script_error hit a script error/u);
+  assert.equal(result.calls.length, 1);
+});
+
+test("ignores error output that is not a script error", () => {
   const result = run("test_runtime_noise");
 
   assert.equal(result.status, 0);

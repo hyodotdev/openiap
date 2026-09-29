@@ -405,6 +405,49 @@ describe('Amazon Vega adapter', () => {
     },
   );
 
+  it.each([
+    ['P1W', {unit: 'week', value: 1}, ['weekly', 'week', '1 week']],
+    [
+      'P2W',
+      {unit: 'week', value: 2},
+      ['biweekly', 'BI-WEEKLY', 'bi weekly', '2 week', '2 weeks'],
+    ],
+    ['P1M', {unit: 'month', value: 1}, ['monthly', 'month', '1 month']],
+    [
+      'P2M',
+      {unit: 'month', value: 2},
+      ['bi-monthly', 'bimonthly', '2 month', '2 months'],
+    ],
+    ['P3M', {unit: 'month', value: 3}, ['quarterly', 'quarter', '3 months']],
+    [
+      'P6M',
+      {unit: 'month', value: 6},
+      [
+        'semiannual',
+        'semiannually',
+        'semi-annual',
+        'semi-annually',
+        '6 months',
+      ],
+    ],
+    [
+      'P1Y',
+      {unit: 'year', value: 1},
+      ['annual', 'annually', 'yearly', 'year', '1 year'],
+    ],
+  ])('reads every word for %s', async (billingPeriod, period, words) => {
+    for (const word of words) {
+      const [baseOffer] =
+        (await fetchPremiumOffers({subscriptionPeriod: word})) ?? [];
+
+      expect([
+        word,
+        baseOffer?.pricingPhasesAndroid?.pricingPhaseList?.[0]?.billingPeriod,
+        baseOffer?.period,
+      ]).toEqual([word, billingPeriod, period]);
+    }
+  });
+
   it('keeps an unknown subscription period without parsing it', async () => {
     const [baseOffer] =
       (await fetchPremiumOffers({subscriptionPeriod: 'Fortnightly'})) ?? [];

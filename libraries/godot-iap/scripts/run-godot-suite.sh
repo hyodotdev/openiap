@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run headless GDScript suites from Example/. Godot exits 0 when a script fails
-# to parse, so the output is checked for that too.
+# to parse or a test hits a script error, so the output is checked for both.
 
 set -euo pipefail
 
@@ -24,6 +24,10 @@ for suite in "$@"; do
   fi
   if grep -qE 'SCRIPT ERROR: Parse Error|Failed to load script' "$output"; then
     echo "::error::$suite did not load; Godot exits 0 on a parse error"
+    exit 1
+  fi
+  if grep -q 'SCRIPT ERROR' "$output"; then
+    echo "::error::$suite hit a script error, which ends its test without a result; Godot exits 0 on it"
     exit 1
   fi
 done
