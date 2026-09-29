@@ -24,12 +24,13 @@ const keyword = String.raw`(?:if|elif|while|until|then|do|else)\b`;
 const wrapper = String.raw`(?:\S*/)?(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
 const timeout = String.raw`(?:\S*/)?g?timeout\b`;
 const shell = String.raw`(?:\S*/)?(?:ba|z)?sh\b`;
-const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
+const wrapperOption = String.raw`\s+-[\w-]\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
   String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
   "u",
 );
-const flags = String.raw`(?:\s+-{1,2}[\w-]+(?:[=\s]+[^\s-]\S*)?)*`;
+// One way to read each option, so a long line cannot backtrack for seconds.
+const flags = String.raw`(?:\s+-[\w-][^\s=]*(?:[=\s]+[^\s-]\S*)?)*`;
 const ghPrCreate = new RegExp(
   String.raw`^(?:\S*/)?gh${flags}\s+pr${flags}\s+(?:create|new)\b`,
   "u",
@@ -37,11 +38,11 @@ const ghPrCreate = new RegExp(
 const hubPullRequest = /^(?:\S*\/)?hub\s+pull-request\b/u;
 // Copilot opens the pull request itself once it has a task or an issue.
 const copilotTask = new RegExp(
-  String.raw`^(?:\S*/)?gh${flags}\s+agent-task${flags}\s+create\b`,
+  String.raw`^(?:\S*/)?gh${flags}\s+agent(?:s|-tasks?)?${flags}\s+create\b`,
   "u",
 );
 const copilotAssignee = new RegExp(
-  String.raw`^(?:\S*/)?gh${flags}\s+issue${flags}\s+(?:create|edit)\b.*\s(?:--add-assignee|--assignee|-a)[=\s]+["']?[^\s"']*@copilot\b`,
+  String.raw`^(?:\S*/)?gh${flags}\s+issue${flags}\s+(?:create|new|edit)\b.*\s(?:--add-assignee|--assignee|-a)[=\s]+["']?[^\s"']*@copilot\b`,
   "u",
 );
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;

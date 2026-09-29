@@ -47,6 +47,9 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     "hub pull-request -m x",
     'gh agent-task create "fix the flaky test"',
     "gh issue edit 12 --add-assignee @copilot",
+    'gh agent create "fix the flaky test"',
+    'gh agents create "fix the flaky test"',
+    "gh issue new -t x -a @copilot",
     "gh issue create --title x --assignee monalisa,@copilot",
     "bash -o pipefail -c 'gh pr create --fill'",
     "bash -euo pipefail -c 'gh pr create'",
@@ -184,4 +187,16 @@ test("every folder with its own .claude/ runs the guard before shell and GitHub 
       assert.equal(matcher.test(tool), true, `${settingsPath} ${tool}`);
     }
   }
+});
+
+test("a long line of shell options is read at once", () => {
+  const options =
+    "--noprofile --norc --verbose --login --posix --restricted --debugger";
+  const started = performance.now();
+  assert.equal(shell(`bash ${options} x.sh`), false);
+  assert.equal(shell(`bash ${options} x.sh; gh pr create --fill`), true);
+  assert.ok(
+    performance.now() - started < 500,
+    "the guard must not backtrack for seconds",
+  );
 });
