@@ -23,6 +23,9 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     'bash -lc "gh pr create --fill"',
     "if true; then gh pr create --fill; fi",
     "git push -u origin HEAD\ngh pr create --fill",
+    "gh pr \\\n  create --fill",
+    "GH_TOKEN=$(gh auth token) gh pr create --fill",
+    "timeout 120 gh pr create --fill",
     "hub pull-request -m x",
   ]) {
     assert.equal(shell(command), true, command);
@@ -34,7 +37,14 @@ test("REST and GraphQL calls that create a pull request need approval", () => {
     "gh api repos/hyodotdev/openiap/pulls -f title=x -f head=b -f base=main",
     "gh api -X POST repos/hyodotdev/openiap/pulls --input body.json",
     "curl -X POST https://api.github.com/repos/o/r/pulls -d '{}'",
+    "curl -d'{}' https://api.github.com/repos/o/r/pulls",
+    'curl -H "Authorization: token $(gh auth token)" -X POST https://api.github.com/repos/o/r/pulls -d @body.json',
+    "curl --form title=x https://api.github.com/repos/o/r/pulls",
+    "gh api repos/$REPO/pulls -f title=x -f head=b -f base=main",
+    "gh api repos/o/r/pulls \\\n  -f title=x \\\n  -f head=b -f base=main",
+    `curl --json '{"title":"x"}' https://api.github.com/repos/o/r/pulls`,
     "gh api graphql -f query='mutation { createPullRequest(input: {}) { pullRequest { url } } }'",
+    "gh api graphql -f query='\n  mutation {\n    createPullRequest(input: {}) { pullRequest { url } }\n  }'",
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -52,7 +62,13 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "gh api repos/o/r/pulls --paginate",
     "gh api -X GET repos/o/r/pulls -F per_page=100",
     "gh api repos/o/r/pulls/500/comments -f body=x",
+    "curl -f https://api.github.com/repos/o/r/pulls",
+    'curl -sf "https://api.github.com/repos/o/r/pulls?state=open"',
     "grep -rn createPullRequest src",
+    "grep -rn -e 'gh api graphql' -e createPullRequest scripts",
+    "git commit -F - <<'EOF'\ndocs: say why `gh pr create` asks first\nEOF",
+    'gh pr comment 500 --body "run `gh pr create` only when asked"',
+    "GH_TOKEN=$(gh auth token) gh pr view 500",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
   ]) {
     assert.equal(shell(command), false, command);
@@ -65,6 +81,7 @@ test("GitHub MCP tools that create a pull request need approval", () => {
     opensPullRequest({ tool_name: "mcp__37f72c69__create_pull_request_with_copilot" }),
     true,
   );
+  assert.equal(opensPullRequest({ tool_name: "mcp__github__assign_copilot_to_issue" }), true);
   assert.equal(opensPullRequest({ tool_name: "mcp__github__list_pull_requests" }), false);
   assert.equal(
     opensPullRequest({ tool_name: "Read", tool_input: { file_path: "gh pr create" } }),
@@ -88,13 +105,30 @@ test("the hook asks for approval and stays silent otherwise", () => {
   assert.equal(run("gh pr view 500"), "");
 });
 
-test("Claude Code runs the guard before shell commands and GitHub MCP tools", () => {
-  const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"));
-  const entries = settings.hooks.PreToolUse.filter((entry) =>
-    entry.hooks.some((hook) => hook.command.includes("scripts/guard-pull-request.mjs")),
-  );
-  assert.equal(entries.length, 1);
-  const matcher = new RegExp(`^(?:${entries[0].matcher})$`, "u");
-  assert.equal(matcher.test("Bash"), true);
-  assert.equal(matcher.test("mcp__github__create_pull_request"), true);
+// Claude Code reads .claude/settings.json only in the folder a session starts in.
+test("every folder with its own .claude/ runs the guard before shell and GitHub MCP tools", () => {
+  const folders = [
+    ...new Set(
+      execFileSync("git", ["ls-files", "--", ":(glob)**/.claude/**"], { cwd: root, encoding: "utf8" })
+        .split("\n")
+        .filter(Boolean)
+        .map((file) => file.slice(0, file.indexOf(".claude/"))),
+    ),
+  ];
+  assert.ok(folders.includes("") && folders.length > 1, folders.join(", "));
+  for (const folder of folders) {
+    const settingsPath = path.join(root, folder, ".claude/settings.json");
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    const entries = (settings.hooks?.PreToolUse ?? []).filter((entry) =>
+      entry.hooks.some((hook) => hook.command.includes("guard-pull-request.mjs")),
+    );
+    assert.equal(entries.length, 1, settingsPath);
+    const [command] = entries[0].hooks.map((hook) => hook.command);
+    const script = /"\$CLAUDE_PROJECT_DIR\/([^"]+)"/u.exec(command)?.[1];
+    assert.equal(path.resolve(root, folder, script ?? ""), guard, settingsPath);
+    const matcher = new RegExp(`^(?:${entries[0].matcher})$`, "u");
+    for (const tool of ["Bash", "mcp__github__create_pull_request", "mcp__github__assign_copilot_to_issue"]) {
+      assert.equal(matcher.test(tool), true, `${settingsPath} ${tool}`);
+    }
+  }
 });

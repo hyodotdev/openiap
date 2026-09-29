@@ -1,9 +1,4 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(awk:*)"
-    ]
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -11,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/guard-pull-request.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/../../scripts/guard-pull-request.mjs\""
           }
         ]
       }

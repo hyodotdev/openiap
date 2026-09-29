@@ -149,8 +149,9 @@ investigation narrative, no thanking-and-summarising. Canonical rules in
 Open a pull request only when the maintainer asked for one in this
 conversation. Work found while a PR is open goes into that PR; a small docs fix
 with no open PR is a one-line question about committing straight to `main`.
-Claude Code holds every PR creation for approval
-(`scripts/guard-pull-request.mjs`). Canonical rule in
+Claude Code holds PR creation for approval in sessions started at the root or
+in a folder with its own `.claude/` (`scripts/guard-pull-request.mjs`).
+Canonical rule in
 [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#opening-pull-requests).
 
 ### Platform Function Naming

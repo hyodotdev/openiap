@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-29T02:28:30.597Z
+> Last updated: 2026-09-29T02:52:01.026Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2452,12 +2452,13 @@ for the maintainer, not a PR.
 - A small docs fix with no open PR (a guide sentence, a snippet, a link) gets
   no PR at all: ask in one line whether to commit it straight to `main`.
 
-Claude Code enforces this: `scripts/guard-pull-request.mjs`, wired in
-`.claude/settings.json`, holds `gh pr create`, `gh pr new`, and the REST,
-GraphQL, and GitHub MCP create calls until the maintainer approves, in
-bypass-permissions mode too. A run with no one to approve, such as `claude -p`
-or a routine, is refused. Other agents have no hook, so this section is their
-guard.
+Claude Code enforces this: `scripts/guard-pull-request.mjs` holds `gh pr
+create`, `gh pr new`, the REST and GraphQL create calls, and GitHub MCP tools
+that open a PR until the maintainer approves, in bypass-permissions mode too.
+Claude Code reads `.claude/settings.json` only in the folder a session starts
+in, so the root and every folder with its own `.claude/` wire the hook. A run
+with no one to approve, such as `claude -p` or a routine, is refused. Other
+agents have no hook, so this section is their guard.
 
 ## Git Commit Message Format
 

@@ -85,6 +85,10 @@ git checkout -b feat/<feature-name>
 
 **If on another semantic feature branch** → Proceed with commits directly.
 
+**Exception:** a small docs fix the maintainer approved for `main` is committed
+on `main` directly, with no branch or PR
+(`knowledge/internal/06-git-deployment.md#opening-pull-requests`).
+
 **Branch naming conventions:**
 
 - **Do not use generic agent/tool prefixes** such as `codex/`, `claude/`, or

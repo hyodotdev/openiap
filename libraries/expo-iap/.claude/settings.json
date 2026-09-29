@@ -5,5 +5,18 @@
       "Write"
     ],
     "deny": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__.*__(create_pull_request.*|assign_copilot_to_issue)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/../../scripts/guard-pull-request.mjs\""
+          }
+        ]
+      }
+    ]
   }
 }
