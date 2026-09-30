@@ -50,6 +50,8 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     'gh agent create "fix the flaky test"',
     'gh agents create "fix the flaky test"',
     "gh issue new -t x -a @copilot",
+    "gh issue create -t x -a@copilot",
+    "gh issue edit 12 -a=@Copilot",
     "gh issue edit 12 --add-assignee @Copilot",
     "timeout --signal=KILL 60 bash -c 'gh pr create --fill'",
     "timeout -v 60 env -i gh pr create --fill",
@@ -181,6 +183,8 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "env -i gh pr list",
     "if gh pr view 1; then echo open; fi",
     "gh issue edit 12 --add-assignee @me",
+    "gh issue create -t x -a@me",
+    "gh issue edit 12 --remove-assignee @copilot",
     "gh agent-task list",
     "gh api agents/repos/o/r/tasks --paginate",
     "gh api -X GET agents/repos/o/r/tasks/42 -F per_page=1",
@@ -220,6 +224,12 @@ test("GitHub MCP tools that create a pull request need approval", () => {
   );
   assert.equal(
     opensPullRequest({ tool_name: "mcp__github__assign_copilot_to_issue" }),
+    true,
+  );
+  assert.equal(
+    opensPullRequest({
+      tool_name: "mcp__github__assign_copilot_to_issue_with_intent",
+    }),
     true,
   );
   const issueWrite = (assignees) =>
@@ -309,6 +319,7 @@ test("every folder with its own .claude/ or CLAUDE.md runs the guard before shel
       "Monitor",
       "mcp__github__create_pull_request",
       "mcp__github__assign_copilot_to_issue",
+      "mcp__github__assign_copilot_to_issue_with_intent",
       "mcp__github__issue_write",
     ]) {
       assert.equal(matcher.test(tool), true, `${settingsPath} ${tool}`);
@@ -357,6 +368,8 @@ test("long commands are read in linear time", () => {
     `echo copilot; gh api x -f assignees=${"a,".repeat(40000)}z`,
     `echo copilot '${"assignees=x,".repeat(30000)}'; done`,
     `echo copilot; gh api x -H ${"GraphQL-Features:".repeat(8000)}`,
+    `gh issue create --assignee${"=".repeat(60000)}`,
+    `gh issue create -a${"=".repeat(60000)}`,
   ]) {
     const started = performance.now();
     assert.equal(shell(input), false);

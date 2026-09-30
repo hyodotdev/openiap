@@ -49,8 +49,9 @@ const issueWrite = new RegExp(
   "u",
 );
 // gh matches @copilot in any case.
+// pflag binds a short flag's value without a space, so `-a@copilot` is `-a @copilot`.
 const copilotAssignee =
-  /\s(?:--add-assignee|--assignee|-a)[=\s]+["']?[^\s"']*@copilot\b/iu;
+  /\s(?:(?:--add-assignee|--assignee)[=\s]+|-a[=\s]*)["']?[^\s"'=]*@copilot\b/iu;
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 // `repos/$REPO/pulls` names owner and repository in one segment.
 const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
