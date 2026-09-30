@@ -1124,7 +1124,7 @@ class OpenIapModule(
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseToken)
+                            .setOldPurchaseToken(requireNotNull(androidArgs.purchaseToken))
 
                         // Set replacement mode - this is critical for upgrades
                         updateParamsBuilder.setSubscriptionReplacementMode(5)

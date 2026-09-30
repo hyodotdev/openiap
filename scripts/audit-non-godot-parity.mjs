@@ -315,6 +315,20 @@ function checkNoReflectionIntoOpenIap() {
   for (const source of sources) {
     for (const file of listTrackedFiles(source)) {
       if (!/\.(?:kt|java)$/.test(file) || /\/(?:[a-z]+Test|test)[A-Za-z]*\//.test(file)) continue;
+      if (file === "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapProvider.kt") {
+        expectIncludes(file, [
+          'const val METADATA_KEY = "dev.hyo.openiap.PROVIDER"',
+          'Class.forName(className, true, context.classLoader)',
+          'OpenIapProviderFactory::class.java.isAssignableFrom(type)',
+          'type.getConstructor().newInstance() as OpenIapProviderFactory',
+          'catch (error: LinkageError)',
+          'validate(factory.storeId, factory.coreVersion)',
+        ], "Provider discovery must validate the manifest factory and core compatibility");
+        expectIncludes("packages/google/core/consumer-rules.pro", [
+          '-keep class * implements dev.hyo.openiap.OpenIapProviderFactory { public <init>(); }',
+        ], "Manifest factories must survive R8 in any package");
+        continue;
+      }
       if (reflective.test(read(file))) {
         fail(
           `${file} looks up code by reflection, which R8 removes from release builds; call openiap directly`,

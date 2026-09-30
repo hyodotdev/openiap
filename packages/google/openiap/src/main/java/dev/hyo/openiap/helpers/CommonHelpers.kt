@@ -23,7 +23,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * Suspend function to wait for a purchase update via listener.
  * Shared between Play and Horizon flavors.
  */
-internal suspend fun onPurchaseUpdated(
+suspend fun onPurchaseUpdated(
     addListener: (OpenIapPurchaseUpdateListener) -> Unit,
     removeListener: (OpenIapPurchaseUpdateListener) -> Unit
 ): Purchase = suspendCancellableCoroutine { continuation ->
@@ -43,7 +43,7 @@ internal suspend fun onPurchaseUpdated(
  * Suspend function to wait for a purchase error via listener.
  * Shared between Play and Horizon flavors.
  */
-internal suspend fun onPurchaseError(
+suspend fun onPurchaseError(
     addListener: (OpenIapPurchaseErrorListener) -> Unit,
     removeListener: (OpenIapPurchaseErrorListener) -> Unit
 ): PurchaseError = suspendCancellableCoroutine { continuation ->
@@ -63,7 +63,7 @@ internal suspend fun onPurchaseError(
  * Suspend function to wait for a subscription billing-issue event via listener.
  * Shared between Play and Horizon flavors (Horizon never fires).
  */
-internal suspend fun onSubscriptionBillingIssue(
+suspend fun onSubscriptionBillingIssue(
     addListener: (OpenIapSubscriptionBillingIssueListener) -> Unit,
     removeListener: (OpenIapSubscriptionBillingIssueListener) -> Unit
 ): Purchase = suspendCancellableCoroutine { continuation ->
@@ -82,7 +82,7 @@ internal suspend fun onSubscriptionBillingIssue(
 /**
  * Suspend function to wait for a User Choice Billing selection.
  */
-internal suspend fun onUserChoiceBilling(
+suspend fun onUserChoiceBilling(
     addListener: (OpenIapUserChoiceBillingListener) -> Unit,
     removeListener: (OpenIapUserChoiceBillingListener) -> Unit
 ): UserChoiceBillingDetails = suspendCancellableCoroutine { continuation ->
@@ -100,7 +100,7 @@ internal suspend fun onUserChoiceBilling(
 /**
  * Suspend function to wait for a Developer Provided Billing selection.
  */
-internal suspend fun onDeveloperProvidedBilling(
+suspend fun onDeveloperProvidedBilling(
     addListener: (OpenIapDeveloperProvidedBillingListener) -> Unit,
     removeListener: (OpenIapDeveloperProvidedBillingListener) -> Unit
 ): DeveloperProvidedBillingDetailsAndroid = suspendCancellableCoroutine { continuation ->
@@ -119,7 +119,7 @@ internal suspend fun onDeveloperProvidedBilling(
  * Data class representing parsed Android purchase arguments.
  * Shared between Play and Horizon flavors.
  */
-internal data class AndroidPurchaseArgs(
+data class AndroidPurchaseArgs(
     val skus: List<String>,
     val isOfferPersonalized: Boolean?,
     val obfuscatedAccountId: String?,
@@ -138,18 +138,18 @@ internal data class AndroidPurchaseArgs(
  * Applying that object to multiple target products is ambiguous because Play
  * Billing associates replacement parameters with each ProductDetails entry.
  */
-internal fun isSubscriptionReplacementTargetCountValid(
+fun isSubscriptionReplacementTargetCountValid(
     targetSkuCount: Int,
     hasProductLevelReplacementParams: Boolean,
 ): Boolean = !hasProductLevelReplacementParams || targetSkuCount == 1
 
-internal fun subscriptionUpdateSourceCount(
+fun subscriptionUpdateSourceCount(
     purchaseToken: String?,
     originalExternalTransactionId: String?,
 ): Int = listOf(purchaseToken, originalExternalTransactionId)
     .count { !it.isNullOrBlank() }
 
-internal fun requireAuthoritativeStorefrontCountry(countryCode: String?): String =
+fun requireAuthoritativeStorefrontCountry(countryCode: String?): String =
     countryCode
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
@@ -157,7 +157,7 @@ internal fun requireAuthoritativeStorefrontCountry(countryCode: String?): String
             "Store returned no authoritative storefront country code"
         )
 
-internal fun emitFailureAndThrow(
+fun emitFailureAndThrow(
     error: OpenIapError,
     emitError: (OpenIapError) -> Unit,
 ): Nothing {
@@ -169,7 +169,7 @@ internal fun emitFailureAndThrow(
  * Complete an asynchronous storefront query exactly once and publish only the
  * failure that wins the callback race.
  */
-internal suspend fun awaitAuthoritativeStorefrontCountry(
+suspend fun awaitAuthoritativeStorefrontCountry(
     emitError: (OpenIapError) -> Unit,
     onRequestFailure: (Exception) -> Unit = {},
     request: (
@@ -204,14 +204,14 @@ internal suspend fun awaitAuthoritativeStorefrontCountry(
     }
 }
 
-internal fun isConnectionAttemptCurrent(
+fun isConnectionAttemptCurrent(
     currentGeneration: Long,
     attemptGeneration: Long,
     ownsAttempt: Boolean,
     ownsClient: Boolean,
 ): Boolean = currentGeneration == attemptGeneration && ownsAttempt && ownsClient
 
-internal fun <T> connectionClientToClose(
+fun <T> connectionClientToClose(
     ownsAttempt: Boolean,
     connected: Boolean,
     currentClient: T?,
@@ -227,7 +227,7 @@ internal fun <T> connectionClientToClose(
  * Correlate a store purchase update with the request that launched the billing
  * UI. Purchase updates can also be delivered for out-of-band or older flows.
  */
-internal fun isPurchaseForPendingRequest(
+fun isPurchaseForPendingRequest(
     transactionDateMillis: Double,
     productIds: Collection<String>,
     requestedSkus: Set<String>,
@@ -235,7 +235,7 @@ internal fun isPurchaseForPendingRequest(
 ): Boolean = transactionDateMillis >= launchStartedAtMillis &&
     productIds.any { it in requestedSkus }
 
-internal fun resolveBillingProgramsForConnection(
+fun resolveBillingProgramsForConnection(
     pendingPrograms: Set<BillingProgramAndroid>,
     configuredProgram: BillingProgramAndroid?,
 ): Set<BillingProgramAndroid> = buildSet {
@@ -249,7 +249,7 @@ internal fun resolveBillingProgramsForConnection(
  * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs.
  * Shared between Play and Horizon flavors.
  */
-internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
+fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     return when (val payload = request) {
         is RequestPurchaseProps.Request.Purchase -> {
             val params = payload.value.google
@@ -297,7 +297,7 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
  * Extension function to convert OpenIapError to PurchaseError.
  * Shared between Play and Horizon flavors.
  */
-internal fun OpenIapError.toPurchaseError(): PurchaseError {
+fun OpenIapError.toPurchaseError(): PurchaseError {
     val code = runCatching { ErrorCode.fromJson(this.code) }.getOrElse { ErrorCode.Unknown }
     val queryProductError = this as? OpenIapError.QueryProduct
     val productId = when (this) {

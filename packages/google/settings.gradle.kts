@@ -25,4 +25,6 @@ dependencyResolutionManagement {
 rootProject.name = "openiap-google"
 
 include(":openiap")
+include(":openiap-core")
+project(":openiap-core").projectDir = file("core")
 include(":Example")

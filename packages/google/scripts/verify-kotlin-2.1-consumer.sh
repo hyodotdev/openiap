@@ -19,6 +19,8 @@ openiap_version=$(node -e \
 local_repository="$consumer_temp/repository"
 
 cd "$google_root"
+./gradlew :openiap-core:publishMavenPublicationToMavenLocal \
+    -Dmaven.repo.local="$local_repository" --no-daemon
 for target in \
     "play:openiap-google" \
     "horizon:openiap-google-horizon" \

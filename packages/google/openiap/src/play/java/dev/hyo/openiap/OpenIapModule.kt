@@ -1814,7 +1814,7 @@ class OpenIapModule(
                                 return
                             }
 
-                            builder.setOfferToken(androidArgs.offerToken)
+                            builder.setOfferToken(requireNotNull(androidArgs.offerToken))
                         }
 
                         paramsList += builder.build()

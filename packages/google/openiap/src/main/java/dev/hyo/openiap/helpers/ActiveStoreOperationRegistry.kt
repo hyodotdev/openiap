@@ -4,13 +4,13 @@ import dev.hyo.openiap.OpenIapError
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.atomic.AtomicReference
 
-internal data class ActiveStoreConnection<Client : Any>(
+data class ActiveStoreConnection<Client : Any>(
     val client: Client?,
     val generation: Long,
 )
 
 /** Owns callbacks registered for the lifetime of one store connection. */
-internal class ActiveStoreListenerOwner<Client : Any>(
+class ActiveStoreListenerOwner<Client : Any>(
     private val lock: Any,
     private val current: () -> ActiveStoreConnection<Client>,
     private val source: () -> Client?,
@@ -34,7 +34,7 @@ internal class ActiveStoreListenerOwner<Client : Any>(
 }
 
 /** Resets state derived from the previous client at a connection transition. */
-internal inline fun <Client : Any> transitionStoreConnection(
+inline fun <Client : Any> transitionStoreConnection(
     current: Client?,
     next: Client?,
     resetDerivedState: () -> Unit,
@@ -43,7 +43,7 @@ internal inline fun <Client : Any> transitionStoreConnection(
     return next
 }
 
-internal class ActiveStoreOperationCompletion<T> internal constructor(
+class ActiveStoreOperationCompletion<T> constructor(
     private val onIsActive: () -> Boolean,
     private val onSuccess: (T, () -> Unit) -> Unit,
     private val onFailure: (Throwable, () -> Unit) -> Unit,
@@ -57,7 +57,7 @@ internal class ActiveStoreOperationCompletion<T> internal constructor(
 }
 
 /** Tracks callback operations owned by one BillingClient generation. */
-internal class ActiveStoreOperationRegistry<Client : Any>(
+class ActiveStoreOperationRegistry<Client : Any>(
     private val lock: Any,
     private val current: () -> ActiveStoreConnection<Client>,
 ) {
@@ -134,7 +134,7 @@ internal class ActiveStoreOperationRegistry<Client : Any>(
             .map { owner -> { owner.disconnect(error()) } }
     }
 
-    internal fun size(): Int = synchronized(lock) { owners.size }
+    fun size(): Int = synchronized(lock) { owners.size }
 
     private fun register(
         client: Client,

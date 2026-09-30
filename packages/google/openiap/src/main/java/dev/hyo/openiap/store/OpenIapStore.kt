@@ -49,7 +49,7 @@ import android.content.Context
 import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderResult
@@ -791,7 +791,7 @@ private val storeAliases = mapOf(
  * compatibility and otherwise unused.
  */
 private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
-    val linked = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE.lowercase(java.util.Locale.ROOT)
+    val linked = OpenIapProvider.factory(context).storeId
     val requested = store?.trim()?.lowercase(java.util.Locale.ROOT)?.let { storeAliases[it] ?: it }
     if (requested != null && requested != linked) {
         OpenIapLog.warn(
@@ -802,6 +802,6 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     if (appId != null) {
         OpenIapLog.debug("Horizon app id comes from AndroidManifest meta-data; constructor value ignored", "OpenIapStore")
     }
-    OpenIapLog.info("BuildConfig.OPENIAP_STORE = $linked", "OpenIapStore")
-    return OpenIapModule(context)
+    OpenIapLog.info("Linked Android store = $linked", "OpenIapStore")
+    return OpenIapProvider.create(context)
 }

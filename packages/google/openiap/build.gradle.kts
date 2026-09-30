@@ -87,6 +87,7 @@ android {
 
     defaultConfig {
         minSdk = 23
+        buildConfigField("String", "OPENIAP_CORE_VERSION", "\"$openIapVersion\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -139,7 +140,7 @@ android {
     // Explicit source set configuration for shared code
     sourceSets {
         named("main") {
-            java.srcDirs("src/main/java")
+            java.setSrcDirs(emptyList<String>())
         }
         named("play") {
             java.srcDirs("src/play/java")
@@ -180,6 +181,7 @@ extensions.configure<KotlinAndroidProjectExtension> {
 }
 
 dependencies {
+    api(project(":openiap-core"))
     val playBillingVersion = "9.1.0"
     val coroutinesVersion = "1.11.0"
     val horizonBillingCompatibilityVersion = "2.0.0"

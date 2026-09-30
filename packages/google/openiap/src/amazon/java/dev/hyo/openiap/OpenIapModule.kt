@@ -1274,12 +1274,12 @@ class OpenIapModule(
             ensureRegistered()
             issueAmazonRequest(
                 operation = "getUserData",
-                missingRequestError = { OpenIapError.InitConnection },
+                missingRequestError = { OpenIapError.StoreConnectionFailure("amazon") },
                 expectedGeneration = operationGeneration,
             ) {
                 runCatching { PurchasingService.getUserData() }
                     .getOrElse {
-                    throw OpenIapError.InitConnection
+                    throw OpenIapError.StoreConnectionFailure("amazon")
                 }
             }
         }
