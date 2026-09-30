@@ -5551,7 +5551,7 @@ function checkFrameworkDependencyHygiene() {
       "release:",
       "runs-on: ubuntu-latest",
       "./gradlew :openiap:assembleRelease --no-daemon --stacktrace",
-      "artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar)",
+      "artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar core/build/outputs/aar/*.aar ../conformance/android/build/outputs/aar/*.aar)",
       "No Google release artifacts found",
       'cp "${artifacts[@]}" release-artifacts/',
       "Checkout release tag (current version)",

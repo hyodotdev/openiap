@@ -76,6 +76,7 @@ jobs:
           scripts/audit-release-notes.test.mjs
           scripts/release-openiap.test.mjs
           scripts/audit-release-sync-script.test.mjs
+          scripts/provider-release-preflight.test.mjs
           scripts/npm-publish-authorization.test.mjs
           scripts/verify-npm-release-provenance.test.mjs
           scripts/generate-sbom.test.mjs
@@ -228,6 +229,7 @@ jobs:
               - '!**/*.md'
             android:
               - 'packages/google/**'
+              - 'packages/conformance/**'
               - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
@@ -584,7 +586,7 @@ jobs:
       - name: Run tests
         working-directory: packages/google
         run: |
-          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:test
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap-core:test :openiap:test
 
       - name: Build Play flavor
         working-directory: packages/google
@@ -611,6 +613,10 @@ jobs:
         working-directory: packages/google
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleAmazonDebug
+
+      - name: Verify independent community provider and minified host
+        working-directory: packages/google
+        run: bash scripts/verify-community-provider.sh
 
       - name: Verify Kotlin 2.1 consumer compatibility
         working-directory: packages/google

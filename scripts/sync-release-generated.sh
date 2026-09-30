@@ -17,6 +17,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$REPO_ROOT"
 
 ./scripts/sync-versions.sh
+node scripts/generate-store-registry.mjs
 
 (cd packages/conformance && bun run generate:ids)
 
@@ -27,6 +28,8 @@ git add \
   packages/docs/openiap-versions.json \
   packages/apple/Sources/OpenIapGeneratedVersion.swift \
   packages/conformance/src/spec/generated-spec.mjs \
+  packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt \
+  packages/docs/src/generated/store-registry.json \
   packages/docs/src/generated/version-metadata.json \
   packages/docs/public/llms.txt \
   packages/docs/public/llms-full.txt \
