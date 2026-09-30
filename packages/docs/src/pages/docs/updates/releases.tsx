@@ -529,8 +529,8 @@ function Releases() {
                 </li>
                 <li>
                   <code>horizonEnabled</code> and{' '}
-                  <code>openiapPlatform=none</code> warn, in Flutter builds too,
-                  that the next major release removes them; see{' '}
+                  <code>openiapPlatform=none</code> warn that the next major
+                  release removes them; see{' '}
                   <Link to="/docs/updates/migration#next-major">Migration</Link>
                   .
                 </li>
