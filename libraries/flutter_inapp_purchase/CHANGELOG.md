@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.7.2 (2026-09-30)
+
+- fix: close the 3.6 train gaps, guard releases, and add community touchpoints (#500)
+- fix: tighten the docs deploy guard and settle the #490 review notes (#491)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-10.7.2
+
+
 ## 10.7.1 (2026-09-26)
 
 - chore(release): openiap-google@3.6.1
