@@ -375,7 +375,9 @@ claude plugin install openiap@openiap
 `plugins/openiap` is dual-manifest: `.codex-plugin/plugin.json` (Codex, MCP
 config at `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (Claude
 Code, inline MCP config). The `skills/` folder is shared by both agents, so
-keep its wording agent-neutral.
+keep its wording agent-neutral. Bump both manifests' `version` whenever
+`skills/` changes: an installed plugin stays on its manifest version, so an edit
+alone never reaches existing installs.
 
 ## Cursor Compatibility
 
