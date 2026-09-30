@@ -178,8 +178,21 @@ function Purchase() {
                 <code>store</code>
               </td>
               <td>
-                Store discriminator: <code>"apple"</code>, <code>"google"</code>
-                , or <code>"horizon"</code>
+                Fixed store discriminator: <code>"apple"</code>,{' '}
+                <code>"google"</code>, <code>"horizon"</code>,{' '}
+                <code>"amazon"</code>, or <code>"unknown"</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>storeId</code>
+              </td>
+              <td>
+                Required stable store id: apple, play, horizon, amazon, or the
+                community provider id.{' '}
+                <Link to="/docs/guides/android-providers#identity">
+                  Store identity
+                </Link>
               </td>
             </tr>
             <tr>

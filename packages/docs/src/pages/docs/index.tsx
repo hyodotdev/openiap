@@ -123,6 +123,7 @@ import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
 import Testing from './guides/testing';
+import AndroidProviders from './guides/android-providers';
 import SecurityOverview from './security/overview';
 import SecuritySbom from './security/sbom';
 import SecurityCompliance from './security/compliance';
@@ -602,6 +603,15 @@ function Docs() {
                 onClick={closeSidebar}
               >
                 AI Assistants
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/docs/guides/android-providers"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Android Providers
               </NavLink>
             </li>
             <li>
@@ -1367,6 +1377,7 @@ function Docs() {
           }
         />
         <Route path="guides/testing" element={<Testing />} />
+        <Route path="guides/android-providers" element={<AndroidProviders />} />
         <Route path="security/overview" element={<SecurityOverview />} />
         <Route path="security/sbom" element={<SecuritySbom />} />
         <Route path="security/compliance" element={<SecurityCompliance />} />

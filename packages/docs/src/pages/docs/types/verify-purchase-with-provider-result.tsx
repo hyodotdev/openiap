@@ -138,7 +138,22 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 The store that processed the purchase: <code>'apple'</code>,{' '}
                 <code>'google'</code>, <code>'horizon'</code>, or{' '}
-                <code>'amazon'</code>.
+                <code>'amazon'</code>, or <code>'unknown'</code> for an external
+                Android provider.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>storeId</code>
+              </td>
+              <td>
+                <code>string</code>
+              </td>
+              <td>
+                Required stable store id.{' '}
+                <Link to="/docs/guides/android-providers#identity">
+                  Preserve it when routing verification results.
+                </Link>
               </td>
             </tr>
             <tr>

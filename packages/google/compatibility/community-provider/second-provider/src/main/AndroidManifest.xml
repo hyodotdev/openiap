@@ -1,0 +1,1 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application><meta-data android:name="dev.hyo.openiap.PROVIDER" android:value="community.other.SecondFactory" /></application></manifest>
