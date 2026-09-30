@@ -100,6 +100,7 @@ test("REST and GraphQL calls that create a pull request or hand work to Copilot 
     "gh api repos/o/r/issues/12/assignees -f 'assignees[]=monalisa' -f 'assignees[]=copilot-swe-agent[bot]'",
     `gh api graphql -H 'GraphQL-Features: issues_copilot_assignment_api_support,coding_agent_model_selection' -f query='mutation { replaceActorsForAssignable(input: {assignableId: "I_1", actorIds: ["BOT_1"]}) { clientMutationId } }'`,
     `curl -H "GraphQL-Features: issues_copilot_assignment_api_support" -d @mutation.json https://api.github.com/graphql`,
+    `curl -H "graphql-features:issues_copilot_assignment_api_support" -d @mutation.json https://api.github.com/graphql`,
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -349,12 +350,13 @@ test("long commands are read in linear time", () => {
       `${JSON.stringify(unit)} repeated must stay fast`,
     );
   }
+  // Each names Copilot, or the guard would skip the patterns under test.
   for (const input of [
-    `echo assignees=${"[".repeat(40000)}`,
-    `echo ${'"assignees:[x"'.repeat(4000)}`,
-    `gh api x -f assignees=${"a,".repeat(40000)}z`,
-    `echo '${"assignees=x,".repeat(30000)}'; done`,
-    `gh api x -H ${"GraphQL-Features:".repeat(8000)}`,
+    `echo copilot assignees=${"[".repeat(40000)}`,
+    `echo copilot ${'"assignees:[x"'.repeat(4000)}`,
+    `echo copilot; gh api x -f assignees=${"a,".repeat(40000)}z`,
+    `echo copilot '${"assignees=x,".repeat(30000)}'; done`,
+    `echo copilot; gh api x -H ${"GraphQL-Features:".repeat(8000)}`,
   ]) {
     const started = performance.now();
     assert.equal(shell(input), false);
