@@ -2,7 +2,7 @@
 // Do not edit.
 
 enum OpenIapGeneratedVersion {
-    static let clientProtocol = "0.1.0"
+    static let clientProtocol = "0.1.1"
     static let apple = "3.6.1"
     static let google = "3.6.2"
 }
