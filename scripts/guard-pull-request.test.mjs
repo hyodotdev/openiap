@@ -130,6 +130,7 @@ test("a Copilot assignment whose body or query spans lines needs approval", () =
     ),
     `curl -X PATCH https://api.github.com/repos/o/r/issues/1 -d @- <<'EOF'\n{\n  "assignees": ["monalisa", "copilot-swe-agent[bot]"]\n}\nEOF`,
     `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{\n"assignees": ["copilot-swe-agent[bot]"]\n}'`,
+    `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{"assignees": ["dependabot[bot]", "copilot-swe-agent[bot]"]}'`,
     `curl --json '{\n  "assignees": ["copilot-swe-agent[bot]"]\n}' https://api.github.com/repos/o/r/issues/12/assignees`,
     `gh api graphql -f query='\n  mutation {\n    replaceActorsForAssignable(input: {assignableId: "I_1", actorIds: ["BOT_1"]}) { clientMutationId }\n  }' \\\n  -H 'GraphQL-Features: issues_copilot_assignment_api_support,coding_agent_model_selection'`,
     `gh api graphql -f query='\nmutation {\n  createIssue(input: {repositoryId: "R_1", title: "x", assigneeIds: ["BOT_1"]}) { issue { id } }\n}' -H 'GraphQL-Features: issues_copilot_assignment_api_support'`,
@@ -137,6 +138,15 @@ test("a Copilot assignment whose body or query spans lines needs approval", () =
     assert.equal(shell(command), true, command);
   }
   for (const command of [
+    `echo '"assignees":["copilot"]' > notes.md; gh api -X PATCH repos/o/r/issues/1 --input - <<< '{"assignees":["copilot-swe-agent[bot]"]}'`,
+    `echo 'GraphQL-Features: issues_copilot_assignment_api_support' > h.txt; gh api graphql -f query='mutation { x }' -H 'GraphQL-Features: issues_copilot_assignment_api_support'`,
+  ]) {
+    assert.equal(shell(command), true, command);
+  }
+  for (const command of [
+    `echo '"assignees":["copilot"]' > notes.md; gh api -X PATCH repos/o/r/issues/1 --input - <<< '{"assignees":["monalisa"]}'`,
+    `echo 'GraphQL-Features: issues_copilot_assignment_api_support' > h.txt; gh api graphql -f query='{ viewer { login } }'`,
+    `gh api repos/o/r/issues/1 --jq .title\ngrep -rn issues_copilot_assignment_api_support scripts`,
     body("PATCH", "/repos/OWNER/REPO/issues/ISSUE_NUMBER", '{\n  "assignees": ["monalisa"]\n}'),
     `gh api graphql -f query='\n  mutation {\n    addReaction(input: {subjectId: "I_1", content: HEART}) { clientMutationId }\n  }'`,
     `gh api repos/o/r/issues/1 --jq '.title'\necho done`,
@@ -337,6 +347,20 @@ test("long commands are read in linear time", () => {
     assert.ok(
       performance.now() - unitStarted < 500,
       `${JSON.stringify(unit)} repeated must stay fast`,
+    );
+  }
+  for (const input of [
+    `echo assignees=${"[".repeat(40000)}`,
+    `echo ${'"assignees:[x"'.repeat(4000)}`,
+    `gh api x -f assignees=${"a,".repeat(40000)}z`,
+    `echo '${"assignees=x,".repeat(30000)}'; done`,
+    `gh api x -H ${"GraphQL-Features:".repeat(8000)}`,
+  ]) {
+    const started = performance.now();
+    assert.equal(shell(input), false);
+    assert.ok(
+      performance.now() - started < 500,
+      `${input.slice(0, 40)}… must stay fast`,
     );
   }
   const separators = "a;".repeat(20000);

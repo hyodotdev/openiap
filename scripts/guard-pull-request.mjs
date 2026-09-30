@@ -58,10 +58,13 @@ const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 const agentTasksEndpoint = /\bagents\/repos\/(?:[^\s/"']+\/){1,2}tasks(?=$|[\s"'?])/u;
 // REST takes Copilot's bot login, `copilot-swe-agent[bot]`, as an assignee in a
 // field (`assignees[]=…`) or a JSON body (`"assignees":["…"]`), after any others.
+// A login never holds `[`, `=`, or `:` (a `[bot]` suffix apart), so the skipped
+// logins and the opening brackets cannot overlap and the scan stays linear.
 const copilotAssigneeField =
-  /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*(?:[^\s"',\]]+["']?\s*,\s*["']?)*copilot/giu;
+  /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*(?:[^\s"',\[\]=:]+(?:\[bot\])?["']?\s*,\s*["']?)*copilot/giu;
 // GraphQL assigns Copilot only with this feature header, whichever mutation it uses.
-const copilotGraphqlFeature = /\bissues_copilot_assignment_api_support\b/gu;
+const copilotGraphqlFeature =
+  /GraphQL-Features:[^\n"']{0,120}\bissues_copilot_assignment_api_support\b/giu;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
 // curl's -f is --fail, so only a key= field counts.
 const writeFlag =
@@ -87,8 +90,14 @@ function lastMatchAt(pattern, text) {
 function opensPullRequestIn(command) {
   // A query or body often spans lines, so a marker anywhere after the command counts.
   const lastCreate = lastMatchAt(createPullRequest, command);
-  const lastCopilotField = lastMatchAt(copilotAssigneeField, command);
-  const lastCopilotFeature = lastMatchAt(copilotGraphqlFeature, command);
+  // Both markers name Copilot, and almost no command does.
+  const namesCopilotAnywhere = /copilot/iu.test(command);
+  const lastCopilotField = namesCopilotAnywhere
+    ? lastMatchAt(copilotAssigneeField, command)
+    : -1;
+  const lastCopilotFeature = namesCopilotAnywhere
+    ? lastMatchAt(copilotGraphqlFeature, command)
+    : -1;
   const starts = [
     0,
     ...Array.from(command.matchAll(commandStart), (m) => m.index + m[0].length),
