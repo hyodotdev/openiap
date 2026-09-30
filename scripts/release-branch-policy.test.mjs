@@ -166,7 +166,7 @@ test("React Native Ruby dependencies are locked and installed frozen", () => {
     const install = extractNamedStep(workflow, installStep).source;
     assert.match(
       setup,
-      /ruby\/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1/u,
+      /ruby\/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1/u,
     );
     assert.match(setup, /ruby-version: "3\.3"/u);
     assert.match(
