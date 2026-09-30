@@ -54,7 +54,7 @@ export function capabilityLevel(behavior, store) {
     },
   },
   kotlin: {
-    path: 'packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/ConformanceBehaviors.kt',
+    path: 'packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt',
     render: () => {
       const constants = BEHAVIORS.map(
         (behavior) => `    const val ${symbol(behavior.id)} = "${behavior.id}"`,
@@ -76,6 +76,7 @@ export function capabilityLevel(behavior, store) {
 
 object ConformanceBehaviors {
     const val SUITE_VERSION = "${SUITE_VERSION}"
+    const val CLIENT_PROTOCOL_VERSION = "${JSON.parse(readFileSync(new URL('specs/client/package.json', ROOT), 'utf8')).version}"
 
 ${constants}
 

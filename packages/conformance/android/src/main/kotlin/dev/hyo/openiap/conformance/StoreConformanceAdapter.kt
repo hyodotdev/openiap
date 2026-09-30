@@ -10,15 +10,15 @@ import dev.hyo.openiap.PurchaseAndroid
  * Capabilities a store may or may not provide, so "this store cannot do X" is
  * data rather than a missing test file.
  */
-enum class StoreCapability {
+enum class StoreCapability(val id: String) {
     /** Store reports a distinct PENDING purchase state (deferred payment). */
-    PendingPurchases,
+    PendingPurchases("pendingPurchases"),
 
     /** Store reports subscription billing-issue / suspension signals. */
-    SubscriptionBillingIssue,
+    SubscriptionBillingIssue("subscriptionBillingIssue"),
 
     /** Store exposes an offer-code redemption entry point. */
-    OfferCodeRedemption,
+    OfferCodeRedemption("offerCodeRedemption"),
 }
 
 data class StoreErrorCase(

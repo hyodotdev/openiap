@@ -37,6 +37,37 @@ passing runs may fail), **minor** when a capability-gated behavior is added,
 Behavior ids are permanent public identifiers. Renaming one is a breaking change
 — retire it and add a new id instead.
 
+## Android provider AAR
+
+`io.github.hyochan.openiap:openiap-conformance:4.0.0` exposes the Kotlin suite
+for independent provider repositories. Add it to `testImplementation` and
+extend `ProviderConformanceSuite`. Supply a fresh provider, its factory, a
+`StoreConformanceAdapter` bound to your production mappers, and a purchasable
+`testProductId` in an isolated sandbox user. Run Android JVM tests with
+Robolectric or device instrumentation when the provider needs Android services.
+
+The suite checks product lookup, purchase events and identity, owned purchases,
+stable tokens, idempotent completion, entitlement mapping and normalized errors.
+Declare optional capabilities on the factory and adapter using
+`pendingPurchases`, `subscriptionBillingIssue`, and `offerCodeRedemption`.
+`triggerCapability` drives the store sandbox after listeners are attached;
+a declared capability with no trigger or matching event fails.
+
+Set the test JVM property `openiap.conformanceReport` to an output file, such as
+`build/reports/openiap/{storeId}.json`. The report records executed assertions,
+`suiteVersion`, `clientProtocolVersion`, capabilities and required behaviors.
+A missing required result or any failing assertion makes `conformant` false.
+Upload the JSON together with a successful test run in the provider's CI.
+
+`scope.kind = android-provider` is the registry's provider verification profile.
+It does not claim server lifecycle or the complete JavaScript behavior inventory.
+`StoreConformanceSuite` alone checks the original mapping profile
+(`android-mapping`); that smaller report cannot promote a community provider.
+Official stores retain their existing requirements in `capability-matrix.mjs`.
+
+The source module is `packages/conformance/android`; its AAR depends only on
+core, JUnit and store-neutral tooling. It ships separately from billing SDKs.
+
 ## Running the suite
 
 The package is private to this repository; it is not published to npm.
@@ -169,7 +200,7 @@ node packages/conformance/scripts/generate-behavior-ids.mjs --check  # CI drift 
 
 | Language | Generated file                                                                                         |
 | -------- | ------------------------------------------------------------------------------------------------------ |
-| Kotlin   | `packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/ConformanceBehaviors.kt` |
+| Kotlin   | `packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt` |
 | Swift    | `packages/apple/Tests/OpenIapTests/ConformanceBehaviors.swift`                                         |
 
 ## Current coverage

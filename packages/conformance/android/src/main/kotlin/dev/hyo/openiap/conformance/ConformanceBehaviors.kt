@@ -5,7 +5,8 @@ package dev.hyo.openiap.conformance
 // packages/conformance/src/spec/behaviors.mjs.
 
 object ConformanceBehaviors {
-    const val SUITE_VERSION = "3.0.0"
+    const val SUITE_VERSION = "4.0.0"
+    const val CLIENT_PROTOCOL_VERSION = "0.1.1"
 
     const val PRODUCTS_FETCH_RETURNS_REQUESTED_SKUS = "products.fetch-returns-requested-skus"
     const val PRODUCTS_FETCH_NORMALIZES_REQUIRED_FIELDS = "products.fetch-normalizes-required-fields"

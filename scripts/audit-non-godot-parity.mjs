@@ -1924,10 +1924,10 @@ function checkConformanceNotPublished() {
 // adapter or an unwired srcDir silently drops that store's coverage.
 function checkGoogleStoreConformanceSuite() {
   expectFile(
-    "packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+    "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
   );
   expectFile(
-    "packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceAdapter.kt",
+    "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceAdapter.kt",
   );
 
   const gradle = read("packages/google/openiap/build.gradle.kts");
@@ -1948,10 +1948,11 @@ function checkGoogleStoreConformanceSuite() {
     const block = new RegExp(
       `named\\("${sourceSet}"\\)\\s*\\{([\\s\\S]*?)\\n\\s{8}\\}`,
     ).exec(gradle)?.[1];
-    if (!block?.includes(CONFORMANCE_SUITE_DIR)) {
-      fail(
-        `packages/google/openiap/build.gradle.kts: ${sourceSet} must include "${CONFORMANCE_SUITE_DIR}" so the shared conformance suite runs for that flavor`,
-      );
+    if (!block?.includes(`src/${sourceSet}/java`)) {
+      fail(`packages/google/openiap/build.gradle.kts: ${sourceSet} must compile its conformance adapter`);
+    }
+    if (!gradle.includes('testImplementation(project(":openiap-conformance"))')) {
+      fail('Every Google flavor must depend on the published conformance module in tests');
     }
   }
 }
