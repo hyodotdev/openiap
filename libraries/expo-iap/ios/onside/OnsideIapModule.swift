@@ -98,6 +98,11 @@ public final class ExpoIapOnsideModule: Module {
             return true
         }
 
+        // Internal: backs the JS first-purchase notice; not app API.
+        AsyncFunction("claimFirstPurchaseNotice") { () -> Bool in
+            OpenIapFirstPurchaseNotice.claim()
+        }
+
         AsyncFunction("setPurchaseUpdatedListenerOptions") { (_: [String: Any]?) async throws -> Void in
             // OnsideKit does not replay StoreKit 2 transactions through OpenIAP,
             // so the StoreKit dedupe option is intentionally a no-op here.

@@ -2421,6 +2421,7 @@ function checkFlutter() {
       "throw IapException.from(error)",
       "code: .purchaseVerificationFailed",
       "try await OpenIapModule.shared.getStorefront()",
+      'AsyncFunction("claimFirstPurchaseNotice")',
     ],
     "Expo iOS error/storefront bridge",
   );
@@ -2428,6 +2429,7 @@ function checkFlutter() {
     "libraries/expo-iap/ios/onside/OnsideIapModule.swift",
     [
       'AsyncFunction("setPurchaseUpdatedListenerOptions")',
+      'AsyncFunction("claimFirstPurchaseNotice")',
       'AsyncFunction("getAvailableItems") { (alsoPublish: Bool, onlyIncludeActive: Bool)',
       'AsyncFunction("getStorefront")',
       "getOnsideStorefront()",
