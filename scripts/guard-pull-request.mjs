@@ -59,9 +59,9 @@ const agentTasksEndpoint = /\bagents\/repos\/(?:[^\s/"']+\/){1,2}tasks(?=$|[\s"'
 // REST takes Copilot's bot login, `copilot-swe-agent[bot]`, as an assignee in a
 // field (`assignees[]=…`) or a JSON body (`"assignees":["…"]`), after any others.
 const copilotAssigneeField =
-  /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*(?:[^\s"',\]]+["']?\s*,\s*["']?)*copilot/iu;
+  /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*(?:[^\s"',\]]+["']?\s*,\s*["']?)*copilot/giu;
 // GraphQL assigns Copilot only with this feature header, whichever mutation it uses.
-const copilotGraphqlFeature = /\bissues_copilot_assignment_api_support\b/u;
+const copilotGraphqlFeature = /\bissues_copilot_assignment_api_support\b/gu;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
 // curl's -f is --fail, so only a key= field counts.
 const writeFlag =
@@ -78,11 +78,17 @@ const mcpIssueWrite = /^mcp__.+__issue_write$/u;
 const namesCopilot = (assignees) =>
   [assignees ?? []].flat().some((login) => /copilot/iu.test(String(login)));
 
+function lastMatchAt(pattern, text) {
+  let last = -1;
+  for (const match of text.matchAll(pattern)) last = match.index;
+  return last;
+}
+
 function opensPullRequestIn(command) {
-  // A GraphQL query often spans lines, so a mutation anywhere after the command counts.
-  let lastCreate = -1;
-  for (const match of command.matchAll(createPullRequest))
-    lastCreate = match.index;
+  // A query or body often spans lines, so a marker anywhere after the command counts.
+  const lastCreate = lastMatchAt(createPullRequest, command);
+  const lastCopilotField = lastMatchAt(copilotAssigneeField, command);
+  const lastCopilotFeature = lastMatchAt(copilotGraphqlFeature, command);
   const starts = [
     0,
     ...Array.from(command.matchAll(commandStart), (m) => m.index + m[0].length),
@@ -97,11 +103,11 @@ function opensPullRequestIn(command) {
       hubPullRequest.test(words) ||
       copilotTask.test(words) ||
       (issueWrite.test(words) && copilotAssignee.test(words)) ||
-      (restClient.test(words) && copilotGraphqlFeature.test(words)) ||
+      (restClient.test(words) && lastCopilotFeature > wordsAt) ||
       (restClient.test(words) &&
         (pullsEndpoint.test(words) ||
           agentTasksEndpoint.test(words) ||
-          copilotAssigneeField.test(words)) &&
+          lastCopilotField > wordsAt) &&
         writeFlag.test(words) &&
         !explicitGet.test(words)) ||
       (graphqlCommand.test(words) && lastCreate > wordsAt)

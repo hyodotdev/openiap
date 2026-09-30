@@ -105,6 +105,46 @@ test("REST and GraphQL calls that create a pull request or hand work to Copilot 
   }
 });
 
+test("a Copilot assignment whose body or query spans lines needs approval", () => {
+  const body = (method, endpoint, json) =>
+    String.raw`gh api \
+  --method ${method} \
+  -H "Accept: application/vnd.github+json" \
+  ${endpoint} \
+  --input - <<< '${json}'`;
+  for (const command of [
+    body(
+      "POST",
+      "/repos/OWNER/REPO/issues/ISSUE_NUMBER/assignees",
+      '{\n  "assignees": ["copilot-swe-agent[bot]"],\n  "agent_assignment": {\n    "base_branch": "main"\n  }\n}',
+    ),
+    body(
+      "POST",
+      "/repos/OWNER/REPO/issues",
+      '{\n  "title": "Issue title",\n  "assignees": ["copilot-swe-agent[bot]"]\n}',
+    ),
+    body(
+      "PATCH",
+      "/repos/OWNER/REPO/issues/ISSUE_NUMBER",
+      '{\n  "assignees": ["copilot-swe-agent[bot]"]\n}',
+    ),
+    `curl -X PATCH https://api.github.com/repos/o/r/issues/1 -d @- <<'EOF'\n{\n  "assignees": ["monalisa", "copilot-swe-agent[bot]"]\n}\nEOF`,
+    `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{\n"assignees": ["copilot-swe-agent[bot]"]\n}'`,
+    `curl --json '{\n  "assignees": ["copilot-swe-agent[bot]"]\n}' https://api.github.com/repos/o/r/issues/12/assignees`,
+    `gh api graphql -f query='\n  mutation {\n    replaceActorsForAssignable(input: {assignableId: "I_1", actorIds: ["BOT_1"]}) { clientMutationId }\n  }' \\\n  -H 'GraphQL-Features: issues_copilot_assignment_api_support,coding_agent_model_selection'`,
+    `gh api graphql -f query='\nmutation {\n  createIssue(input: {repositoryId: "R_1", title: "x", assigneeIds: ["BOT_1"]}) { issue { id } }\n}' -H 'GraphQL-Features: issues_copilot_assignment_api_support'`,
+  ]) {
+    assert.equal(shell(command), true, command);
+  }
+  for (const command of [
+    body("PATCH", "/repos/OWNER/REPO/issues/ISSUE_NUMBER", '{\n  "assignees": ["monalisa"]\n}'),
+    `gh api graphql -f query='\n  mutation {\n    addReaction(input: {subjectId: "I_1", content: HEART}) { clientMutationId }\n  }'`,
+    `gh api repos/o/r/issues/1 --jq '.title'\necho done`,
+  ]) {
+    assert.equal(shell(command), false, command);
+  }
+});
+
 test("reading, editing, or mentioning pull requests does not", () => {
   for (const command of [
     "gh pr view 500 --json title",
@@ -177,6 +217,13 @@ test("GitHub MCP tools that create a pull request need approval", () => {
       tool_input: { method: "update", issue_number: 12, assignees },
     });
   assert.equal(issueWrite(["copilot-swe-agent[bot]"]), true);
+  assert.equal(
+    opensPullRequest({
+      tool_name: "mcp__37f72c69__issue_write",
+      tool_input: { method: "create", assignees: ["copilot-swe-agent[bot]"] },
+    }),
+    true,
+  );
   assert.equal(issueWrite(["monalisa", "Copilot"]), true);
   assert.equal(issueWrite(["monalisa"]), false);
   assert.equal(issueWrite(undefined), false);
