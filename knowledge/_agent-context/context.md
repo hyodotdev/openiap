@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-29T15:40:45.029Z
+> Last updated: 2026-09-30T12:11:48.065Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2209,6 +2209,46 @@ deploy docs earlier, use `-f` or `--force` as described in
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).
 If a train will not resume, trim its card to the packages that published.
 
+### Release Note Completeness Gate
+
+Run this gate before opening or updating a PR into `main`, declaring a review
+clean, merging, or starting a stable release. Repeat it after a review fix or
+release-plan change expands the affected packages or behavior.
+
+1. Inspect the complete base-to-head diff and staged, unstaged, and untracked
+   work. For a release train, also inspect each selected package's changes
+   since its last published tag, including earlier merged but unreleased work.
+   A PR title, latest commit, or native version manifest is not the inventory.
+2. Identify every artifact the change will publish, including indirect native
+   dependency and generated-type updates. Check `specs/client`,
+   `specs/commerce-protocol`, `packages/cli`, the native packages, and framework
+   libraries when affected. Client Protocol, Commerce
+   Protocol, and CLI releases are independent; a native/framework list alone
+   is incomplete. Include hosted IAPKit/MCP behavior without inventing a
+   versioned package entry.
+3. Compare that inventory with the train's card in
+   `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
+   versioned package needs its expected version, GitHub Release link, and tag
+   alias/anchor. Every user-visible change needs a concise behavior or migration
+   note; packages that only pick up shared behavior need only a `Package
+   Releases` entry. Resolve targets through the Release Package Version
+   Verification section below and `$generate-doc`.
+4. Fill gaps in the current PR and update the existing unreleased card for the
+   same train. Do not defer missing packages or explanations to a separate
+   post-release docs commit. If the release scope grows after merge, reconcile
+   the card before dispatching any added package's workflow.
+5. Run `bun run audit:docs`, `bun run audit:release-state`, and the checks
+   required by the touched paths. CI's release-note audit detects an unchanged
+   `releases.tsx`; a touched file or green audit does not prove that every
+   package and behavior is covered. Review that coverage before calling the
+   result clean.
+
+Tests, CI, internal agent rules, and behavior-neutral refactors that need no
+new publication do not require a release card. Record the reason briefly in
+the PR description when applicable; use the documented `፦ refactor` label
+when CI requires it. Dependency-only releases still need package entries.
+RC/`next` work follows the stable-promotion rule below.
+
 ### Release Note Writing Limits
 
 Apply the project-wide Reader-First Writing Standard above. Release notes are a
@@ -2301,18 +2341,10 @@ const allNotes: Note[] = [
 ### Release Package Version Verification
 
 Release note package lists must never be guessed from memory or inferred from a
-previous block. Verify each version from the package's real source of truth:
-
-| Package                | Source of Truth                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| openiap-apple          | `openiap-versions.json` field `apple`, or GitHub release tag `{version}`         |
-| openiap-google         | `openiap-versions.json` field `google`, or GitHub release tag `google-{version}` |
-| react-native-iap       | `libraries/react-native-iap/package.json`                                        |
-| expo-iap               | `libraries/expo-iap/package.json`                                                |
-| flutter_inapp_purchase | `libraries/flutter_inapp_purchase/pubspec.yaml`                                  |
-| godot-iap              | `libraries/godot-iap/addons/godot-iap/plugin.cfg`                                |
-| kmp-iap                | `libraries/kmp-iap/gradle.properties` field `libraryVersion`                     |
-| maui-iap               | `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj` field `PackageVersion` |
+previous block. Use the canonical metadata paths and tag formats in
+[`Release Docs Version Guard`](./06-git-deployment.md#release-docs-version-guard),
+including the independently versioned Client Protocol, Commerce Protocol, and
+CLI packages.
 
 Before adding or editing a `Package Releases` list:
 
@@ -2831,6 +2863,9 @@ Use these checks before writing a release list:
 
 | Package      | Metadata / Tag Check                                                                                              |
 | ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Client Protocol | `jq -r '.version' specs/client/package.json`; tag `openiap-client-protocol-{version}` |
+| Commerce Protocol | `jq -r '.version' specs/commerce-protocol/package.json`; tag `hyodotdev-openiap-commerce-protocol-{version}` |
+| CLI | `jq -r '.version' packages/cli/package.json`; tag `openiap-{version}` |
 | Apple        | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
 | Google       | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
 | React Native | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |

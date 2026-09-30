@@ -104,6 +104,8 @@ appropriate labels before merging.
 - For release-note package lists, verify versions from package metadata and
   GitHub release tags; never infer framework versions from `openiap-versions.json`
   or from a nearby release block.
+- Before creating or updating a PR, declaring review clean, or releasing, apply
+  `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`.
 - Treat `main` as stable-only and `next` as an on-demand prerelease branch.
   Never run an RC/next release from `main`, a stable release from `next`, or a
   production docs deploy from `next`. Run `bun run audit:release-state` before

@@ -32,7 +32,9 @@ paths. Never mutate production Convex data.
 
 1. Confirm the PR is approved, required CI is successful on its exact head,
    review threads are clear, and any required device gate has passed or has an
-   explicit recorded waiver.
+   explicit recorded waiver. Apply
+   `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`
+   before merging; fix missing coverage in that PR and revalidate its head.
 2. Merge with the repository-supported method, then fast-forward local `main`.
 3. Require a clean worktree and verify `HEAD` equals `origin/main`.
 4. Classify affected packages from the merged diff. Release only packages with
@@ -43,17 +45,9 @@ paths. Never mutate production Convex data.
 
 ## 2. Publish packages sequentially
 
-Release one affected package at a time in the canonical dependency order:
-
-1. Apple
-2. Google
-3. React Native
-4. Expo
-5. Flutter
-6. Godot
-7. KMP
-8. MAUI
-9. Conformance, only when affected
+Release one affected package at a time in the canonical dependency order in
+`.claude/commands/release.md#stable-release`, including the affected protocol
+and CLI packages. Reapply the completeness gate if the release scope changes.
 
 For each package:
 
@@ -86,7 +80,8 @@ every package version and public URL is known:
 
 - Compare each version and link on the card with current package metadata and
   the published tags, and correct any that differ.
-- If the PR carried no card, add it with `generate-doc` and report the gap.
+- Missing package or behavior coverage must have been fixed before publication
+  through the completeness gate; this step verifies the published results.
 - Lead with user-visible behavior, include required migration or platform
   caveats once, and omit version-bump mechanics.
 - Add no versioned IAPKit entry; it is a service.

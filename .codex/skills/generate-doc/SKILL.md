@@ -27,6 +27,10 @@ A PR into `main` writes its release card before the release, as already
 published; "Docs Ship With The Change" in
 `knowledge/internal/05-docs-patterns.md` is the canonical rule.
 
+Use `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`
+to inventory the full PR and selected release train. Complete the gate after
+writing or updating the card, including after scope changes.
+
 RC and npm `next` releases live on the on-demand `next` branch and do not get a
 release-history entry. Gather their changes as source material, but add the
 consolidated docs entry only when the train is promoted to a stable release on
@@ -71,32 +75,10 @@ Before adding a release card, inspect the newest entries and package tags.
 ## Version Sources
 
 Never infer framework versions from adjacent release notes or from
-`openiap-versions.json`. Use the release docs version guard in
-`knowledge/internal/06-git-deployment.md`.
-
-Common source checks:
-
-```bash
-jq -r '.apple' openiap-versions.json
-jq -r '.google' openiap-versions.json
-jq -r '.version' libraries/react-native-iap/package.json
-jq -r '.version' libraries/expo-iap/package.json
-awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml
-sed -n 's/^version="\([^"]*\)"/\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg
-sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties
-sed -n -E 's|.*<PackageVersion>([^<]+)</PackageVersion>.*|\1|p' libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
-```
-
-Tag formats:
-
-- Apple: `{version}`
-- Google: `google-{version}`
-- React Native: `react-native-iap-{version}`
-- Expo: `expo-iap-{version}`
-- Flutter: `flutter-iap-{version}`
-- Godot: `godot-iap-{version}`
-- KMP: `kmp-iap-{version}`
-- MAUI: `maui-iap-{version}`
+`openiap-versions.json`. Read the metadata paths and tag formats from
+`knowledge/internal/06-git-deployment.md#release-docs-version-guard`, including
+the independently versioned Client Protocol, Commerce Protocol, and CLI. Do
+not derive their versions from native or framework releases.
 
 When workflows will bump versions after the docs are written, resolve expected
 versions in this order:
@@ -210,8 +192,8 @@ project decision recorded from issue #206.
   the latest target branch, then include the current PR diff. Do not derive the
   release contents only from the PR title or its latest commits.
 - Group notable changes under the affected platform package or framework
-  library (Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and
-  MAUI). Omit groups with no user-facing change.
+  library, and the independently released protocols, CLI, or hosted service
+  when affected. Omit groups with no user-facing change.
 - Apply the Reader-First Writing Standard above. State the behavior users gain
   or the regression that was fixed; do not list commit mechanics,
   version-bump-only commits, generated files, or repeated cross-framework

@@ -192,8 +192,11 @@ Train rules (mistake guards):
   Nobody bumps a version by hand for this.
 - **Release notes ship in the PR.** The consolidated card in
   `packages/docs/src/pages/docs/updates/releases.tsx` merged with the change,
-  written ahead of the release (see `generate-doc`). After every package in the
-  train is registry-verified, check the card's versions and links against the
+  written ahead of the release (see `generate-doc`). Before dispatching, apply
+  `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`
+  to the complete selected train, including earlier unreleased package changes.
+  After every package in the train is registry-verified, check the card's
+  versions and links against the
   published releases and correct any that differ; if that needs an edit,
   commit it directly to `main` together with any release-process doc updates,
   and do not open a PR for that post-release docs-only commit. Run the docs

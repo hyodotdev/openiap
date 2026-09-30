@@ -129,8 +129,11 @@ including its stricter release-note limits.
 
 A PR into `main` that changes a published package also updates the guides it
 affects and the release card for the next version, written as already
-published; after the release, only verify the versions and deploy. Canonical
-rule in
+published. Before creating or updating a PR, declaring review clean, or
+releasing, apply the
+[`Release Note Completeness Gate`](knowledge/internal/05-docs-patterns.md#release-note-completeness-gate),
+including both protocols and the CLI when affected. After the release, verify
+the versions and deploy. Canonical rule in
 [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#docs-ship-with-the-change).
 
 ### GitHub Writing Style

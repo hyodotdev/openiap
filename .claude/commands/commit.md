@@ -127,6 +127,10 @@ git diff --name-only
 
 ### 3. Stage Changes
 
+Before staging a PR creation or update batch, apply
+`knowledge/internal/05-docs-patterns.md#release-note-completeness-gate` to the
+complete change. Include any missing release-note work in this batch.
+
 **GQL schema only (FIRST COMMIT):**
 
 ```bash

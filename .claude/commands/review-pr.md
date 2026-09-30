@@ -29,6 +29,12 @@ label the original set does not cover.
 
 ## Project-Specific Build Commands
 
+Every round also applies
+`knowledge/internal/05-docs-patterns.md#release-note-completeness-gate` to the
+complete PR diff, including the current fix batch. Fix missing package entries
+or behavior notes in this PR before pushing or declaring the head clean.
+Use the merge-base rules when the PR edits its governing instructions.
+
 Based on changed files, run these checks BEFORE committing:
 
 | Package            | Commands                                                                                                                                                         |
@@ -226,13 +232,14 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
    and schedule another 5-minute wake-up.
 3. If CodeRabbit is unavailable for the current head → run or reuse the
    head-specific Codex fallback above.
-4. If no unresolved threads exist, the PR carries labels, CI is terminal and
+4. If no unresolved threads exist, release-note coverage passes the completeness
+   gate, the PR carries labels, CI is terminal and
    successful, and unavailable CodeRabbit coverage has a clean fallback for the
    current head → the PR is clean. Clean up temporary review automation comments, including
    terminal skip/unavailable notices, end the loop, and report completion to
    the user.
 
-Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call only when the whole gate in item 4 holds for the current head — no unresolved threads, labels present, CI terminal and successful, CodeRabbit clean or covered by the fallback. Resolved threads alone are not the gate.
+Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call only when the whole gate in item 4 holds for the current head — no unresolved threads, complete release-note coverage, labels present, CI terminal and successful, CodeRabbit clean or covered by the fallback. Resolved threads alone are not the gate.
 
 On a surface with no scheduler, finish the current round, say plainly that
 automatic re-entry could not be scheduled, and hand the next poll back to the

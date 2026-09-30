@@ -69,7 +69,9 @@ Implement the requested scope and run the checks required by each touched path.
 Keep generated files, documentation, previews, and knowledge context in sync
 through their canonical workflows. A change to a published package also updates
 the guides it affects and the release card for the next version, written as
-already published with `$generate-doc`. Do not proceed while the working diff
+already published with `$generate-doc`. Apply
+`knowledge/internal/05-docs-patterns.md#release-note-completeness-gate` before
+opening the PR and after scope changes. Do not proceed while the working diff
 has a known failing required check.
 
 Once it works, clean it up before review: apply "Clean Up Once It Works" in

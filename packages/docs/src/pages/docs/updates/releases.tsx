@@ -94,6 +94,11 @@ const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
     version: '0.1.1',
     tag: 'openiap-client-protocol-0.1.1',
   },
+  {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.3.1',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.3.1',
+  },
   { name: '@hyodotdev/openiap', version: '0.1.1', tag: 'openiap-0.1.1' },
 ];
 
@@ -654,6 +659,38 @@ function Releases() {
                   <code>sync_ios()</code> wait up to five minutes, as
                   Apple&apos;s other system sheets do, because{' '}
                   <code>AppStore.sync()</code> can ask the player to sign in.
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Protocols</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>@hyodotdev/openiap-commerce-protocol 0.3.1</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Providers answer <code>UNSUPPORTED_PROFILE</code> for an
+                  operation outside their declared profiles, and{' '}
+                  <code>bindPurchase</code> answers{' '}
+                  <code>UNSUPPORTED_STORE</code> for a store they do not
+                  integrate instead of <code>bound: false</code>.
+                </li>
+                <li>
+                  Removes the <code>PURCHASE_NOT_FOUND</code> and{' '}
+                  <code>CONFLICT</code> error codes, which no operation
+                  declared.
+                </li>
+                <li>
+                  <code>active</code> now means a currently entitling
+                  subscription; access granted without one appears only in{' '}
+                  <code>entitlements</code>.
                 </li>
               </ul>
             </li>

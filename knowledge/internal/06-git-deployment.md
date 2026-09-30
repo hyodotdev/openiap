@@ -482,6 +482,9 @@ Use these checks before writing a release list:
 
 | Package      | Metadata / Tag Check                                                                                              |
 | ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Client Protocol | `jq -r '.version' specs/client/package.json`; tag `openiap-client-protocol-{version}` |
+| Commerce Protocol | `jq -r '.version' specs/commerce-protocol/package.json`; tag `hyodotdev-openiap-commerce-protocol-{version}` |
+| CLI | `jq -r '.version' packages/cli/package.json`; tag `openiap-{version}` |
 | Apple        | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
 | Google       | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
 | React Native | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |

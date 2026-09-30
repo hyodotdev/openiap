@@ -53,7 +53,8 @@ result is stable.
      cross-package or SDK parity;
    - missing or weak tests, documentation, examples, migrations, and operational
      safeguards required by the change, including, for a published package,
-     the guides it affects and its release card for the next version;
+     the guides it affects and its release card for the next version, checked
+     with `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`;
    - the canonical KISS/SSOT release rules in
      `knowledge/internal/03-coding-style.md`;
    - code smells in the diff, the code it touches, and any code read during
