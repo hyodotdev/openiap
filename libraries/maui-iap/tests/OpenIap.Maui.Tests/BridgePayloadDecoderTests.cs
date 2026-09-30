@@ -16,6 +16,7 @@ public class BridgePayloadDecoderTests
           "purchaseToken": "token-1",
           "quantity": 1,
           "store": "google",
+          "storeId": "play",
           "transactionDate": 1720000000000
         }
         """;
@@ -29,6 +30,7 @@ public class BridgePayloadDecoderTests
           "purchaseState": "purchased",
           "quantity": 1,
           "store": "apple",
+          "storeId": "apple",
           "transactionDate": 1720000000000,
           "transactionId": "transaction-1"
         }
@@ -154,6 +156,29 @@ public class BridgePayloadDecoderTests
                 foreignAndroid,
                 "getAvailablePurchases"));
         Assert.Equal(ErrorCode.BillingResponseJsonParseError, androidError.Error.Code);
+    }
+
+    [Fact]
+    public void CommunityPurchasePreservesItsStoreId()
+    {
+        var item = JsonNode.Parse(PurchaseJson)!;
+        item["store"] = "unknown";
+        item["storeId"] = "community-fixture";
+        var decoded = BridgePayloadDecoder.DecodeRequiredArray<Purchase>(new JsonArray(item), "getAvailablePurchases");
+        Assert.Equal("community-fixture", Assert.Single(decoded).StoreId);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("play")]
+    [InlineData("unknown")]
+    [InlineData("Bad Store")]
+    public void CommunityPurchaseRequiresAValidIndependentId(string storeId)
+    {
+        var item = JsonNode.Parse(PurchaseJson)!;
+        item["store"] = "unknown";
+        item["storeId"] = storeId;
+        Assert.Throws<OpenIapException>(() => BridgePayloadDecoder.DecodeRequiredArray<Purchase>(new JsonArray(item), "getAvailablePurchases"));
     }
 
     [Fact]

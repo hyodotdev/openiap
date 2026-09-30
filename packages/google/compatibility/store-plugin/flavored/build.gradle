@@ -15,6 +15,9 @@ android {
     play { dimension 'platform' }
     horizon { dimension 'platform' }
     amazon { dimension 'platform' }
+    if (project.findProperty('fixtureCommunityRepository')) {
+      provider { dimension 'platform' }
+    }
   }
 }
 
@@ -27,7 +30,12 @@ dependencies {
     horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.6.1'
     amazonImplementation 'io.github.hyochan.openiap:openiap-google-amazon:3.6.1'
   }
-  implementation 'io.github.hyochan:kmp-iap:3.6.1'
+  if (project.findProperty('fixtureCommunityRepository')) {
+    providerImplementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
+  }
+  if (!project.findProperty('fixtureCommunityRepository') || project.findProperty('fixtureKmpVersion')) {
+    implementation "io.github.hyochan:kmp-iap:${project.findProperty('fixtureKmpVersion') ?: '3.6.1'}"
+  }
 }
 
 apply from: rootProject.file('print-stores.gradle')
@@ -35,3 +43,6 @@ apply from: rootProject.file('print-stores.gradle')
 openIapFixturePrint('printFlavorStores', 'horizonDebugRuntimeClasspath')
 // Unit tests resolve a classpath of their own, which must link the same store.
 openIapFixturePrint('printFlavorUnitTestStores', 'horizonDebugUnitTestRuntimeClasspath')
+if (project.findProperty('fixtureCommunityRepository')) {
+  openIapFixturePrint('printProviderStores', 'providerDebugRuntimeClasspath')
+}

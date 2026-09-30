@@ -103,6 +103,7 @@ unset FAKE_ADB_DEVICES
 run "own platform flavors are left alone"   "flavored:horizonDebugRuntimeClasspath=kmp-iap-android-horizon,openiap-google-horizon" :flavored:printFlavorStores -PopeniapStore=amazon
 # One plain dependency there still links each flavor's own store.
 run "a plain dependency follows each flavor" "flavored:horizonDebugRuntimeClasspath=kmp-iap-android-horizon,openiap-google-horizon" :flavored:printFlavorStores -PfixturePlainDependency=true
+run "a pin still leaves a plain flavor alone" "flavored:horizonDebugRuntimeClasspath=kmp-iap-android-horizon,openiap-google-horizon" :flavored:printFlavorStores -PfixturePlainDependency=true -PopeniapStore=amazon
 run "and so do that flavor's unit tests"   "flavored:horizonDebugUnitTestRuntimeClasspath=kmp-iap-android-horizon,openiap-google-horizon" :flavored:printFlavorUnitTestStores -PfixturePlainDependency=true
 
 # So is a platform the app requests itself, which the plugin must not replace.

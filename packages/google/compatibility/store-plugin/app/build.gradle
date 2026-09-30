@@ -29,7 +29,9 @@ android {
 
 dependencies {
   implementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
-  implementation 'io.github.hyochan:kmp-iap:3.6.1'
+  if (!project.findProperty('fixtureCommunityRepository') || project.findProperty('fixtureKmpVersion')) {
+    implementation "io.github.hyochan:kmp-iap:${project.findProperty('fixtureKmpVersion') ?: '3.6.1'}"
+  }
 }
 
 apply from: rootProject.file('print-stores.gradle')

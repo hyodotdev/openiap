@@ -28,8 +28,9 @@ static func normalize(value: Variant, provider: String = "") -> String:
 	var key := str(value).strip_edges().to_lower()
 	if key.is_empty():
 		return "auto"
-	if ALIASES.has(key):
-		return ALIASES[key] if provider.is_empty() else ""
+	key = ALIASES.get(key, key)
+	if key in ["auto", "play", "horizon", "amazon"]:
+		return key if provider.is_empty() else ""
 	if key in ["apple", "none", "unknown"] or not valid_provider(provider):
 		return ""
 	return key if RegEx.create_from_string("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$").search(key) else ""

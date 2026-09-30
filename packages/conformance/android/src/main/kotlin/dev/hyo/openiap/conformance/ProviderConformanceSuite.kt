@@ -161,7 +161,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
         try {
             provider.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
                 "type" to "in-app",
-                "requestPurchase" to mapOf("android" to mapOf("skus" to listOf(testProductId))),
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf(testProductId))),
             )))
             return withTimeout(timeoutMillis) { received.await() }
         } finally { provider.removePurchaseUpdateListener(listener) }

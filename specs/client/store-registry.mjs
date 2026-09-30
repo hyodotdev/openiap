@@ -49,9 +49,9 @@ export function validateStoreRegistry(registry) {
   const names = new Set(['auto', 'none', 'unknown']);
   const members = new Set();
   for (const store of registry.stores) {
-    requireThat(STORE_ID_PATTERN.test(store.id) && !names.has(store.id), `Invalid or duplicate store id: ${store.id}`);
+    requireThat(typeof store.id === 'string' && STORE_ID_PATTERN.test(store.id) && !names.has(store.id), `Invalid or duplicate store id: ${store.id}`);
     const member = store.id.split(/[._-]/).map((part) => part[0].toUpperCase() + part.slice(1)).join('');
-    requireThat(!members.has(member) && !['StoreIds', 'Self', 'Class', 'Enum', 'Extension', 'Factory', 'Get', 'Set', 'Static', 'Const', 'Final', 'Var', 'Void', 'Null', 'True', 'False', 'This', 'Super', 'Switch', 'Case', 'Default', 'Return', 'If', 'Else', 'For', 'While', 'Do', 'Break', 'Continue', 'Try', 'Catch', 'Throw', 'Rethrow', 'Assert', 'New', 'In', 'Is', 'As', 'With', 'Implements', 'Interface', 'Mixin', 'On', 'Import', 'Export', 'Part', 'Library', 'Abstract', 'Covariant', 'External', 'Late', 'Required', 'Await', 'Yield', 'Async', 'Sync'].includes(member), `Store constants collide or are reserved: ${store.id}`);
+    requireThat(!members.has(member) && !['StoreIds', 'Self', 'Class', 'Enum', 'Extension', 'Factory', 'Get', 'Set', 'Static', 'Const', 'Final', 'Var', 'Void', 'Null', 'True', 'False', 'This', 'Super', 'Switch', 'Case', 'Default', 'Return', 'If', 'Else', 'For', 'While', 'Do', 'Break', 'Continue', 'Try', 'Catch', 'Throw', 'Rethrow', 'Assert', 'New', 'In', 'Is', 'As', 'With', 'Implements', 'Interface', 'Mixin', 'On', 'Import', 'Export', 'Part', 'Library', 'Abstract', 'Covariant', 'External', 'Late', 'Required', 'Await', 'Yield', 'Async', 'Sync', 'ToString', 'GetHashCode', 'Equals', 'GetType', 'ReferenceEquals', 'MemberwiseClone', 'Finalize'].includes(member), `Store constants collide or are reserved: ${store.id}`);
     members.add(member);
     names.add(store.id);
     requireThat(['android', 'ios'].includes(store.platform), `Invalid platform: ${store.id}`);
@@ -61,7 +61,7 @@ export function validateStoreRegistry(registry) {
     requireThat(typeof store.repo === 'string' && /^https:\/\/[^\s]+$/.test(store.repo), `Missing public repository: ${store.id}`);
     requireThat(Array.isArray(store.aliases), `Missing aliases: ${store.id}`);
     for (const alias of store.aliases) {
-      requireThat(STORE_ID_PATTERN.test(alias) && !names.has(alias), `Invalid or duplicate alias: ${alias}`);
+      requireThat(typeof alias === 'string' && STORE_ID_PATTERN.test(alias) && !names.has(alias), `Invalid or duplicate alias: ${alias}`);
       names.add(alias);
     }
     requireThat(Array.isArray(store.capabilities) && sameSet(store.capabilities, [...new Set(store.capabilities)]) && store.capabilities.every((item) => capabilities.includes(item)), `Invalid capabilities: ${store.id}`);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { format, resolveConfig } from 'prettier';
+import { SUITE_VERSION, SUITE_MAJOR_RELEASE_DATE } from '../packages/conformance/src/spec/suite-version.mjs';
 import { validateStoreRegistry, maintenanceStatus } from '../specs/client/store-registry.mjs';
 
 const root = new URL('../', import.meta.url);
@@ -54,7 +55,9 @@ const data = registry.stores.map((store) => ({
 }));
 const docsPath = 'packages/docs/src/generated/store-registry.json';
 const docsFile = new URL(docsPath, root);
-const docs = JSON.stringify(data, null, 2) + '\n';
+const docs = await format(JSON.stringify({suiteVersion: SUITE_VERSION, maintenanceWindowDays: registry.maintenanceWindowDays, suiteMajorAdoptionDate: SUITE_MAJOR_RELEASE_DATE, stores: data}), {
+  ...await resolveConfig(docsFile.pathname), parser: 'json',
+});
 let previous = '';
 try { previous = readFileSync(docsFile, 'utf8'); } catch {}
 if (previous !== docs) {

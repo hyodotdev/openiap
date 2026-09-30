@@ -182,7 +182,7 @@ dependencies {
     if (findProject(":openiap-conformance") != null) {
         testImplementation(project(":openiap-conformance"))
     } else {
-        val suiteSource = versionsFile.parentFile.resolve("packages/conformance/src/spec/suite-version.mjs").readText()
+        val suiteSource = projectDir.resolve("../../conformance/src/spec/suite-version.mjs").readText()
         val suiteVersion = Regex("SUITE_VERSION = '([^']+)'").find(suiteSource)?.groupValues?.get(1)
             ?: error("Missing conformance suite version")
         testImplementation("io.github.hyochan.openiap:openiap-conformance:$suiteVersion")

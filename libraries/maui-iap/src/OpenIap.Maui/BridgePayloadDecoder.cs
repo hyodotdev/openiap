@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using OpenIap;
 
 namespace OpenIap.Maui;
@@ -81,15 +82,26 @@ internal static class BridgePayloadDecoder
             purchase.Ids?.Any(string.IsNullOrWhiteSpace) == true ||
             decoded is PurchaseIOS ios &&
                 (string.IsNullOrWhiteSpace(ios.TransactionId) ||
-                 ios.Store is not IapStore.Apple) ||
+                 ios.Store is not IapStore.Apple || ios.StoreId != StoreIds.Apple) ||
             decoded is PurchaseAndroid android &&
-                android.Store != IapStore.Google &&
-                android.Store != IapStore.Amazon &&
-                android.Store != IapStore.Horizon)
+                !ValidAndroidStore(android))
         {
             throw Malformed(operation, $"returned a purchase with invalid identity at index {index}");
         }
     }
+
+    private static bool ValidAndroidStore(PurchaseAndroid purchase) => purchase.Store switch
+    {
+        IapStore.Google => purchase.StoreId == StoreIds.Play,
+        IapStore.Horizon => purchase.StoreId == StoreIds.Horizon,
+        IapStore.Amazon => purchase.StoreId == StoreIds.Amazon,
+        IapStore.Unknown => purchase.StoreId is not null &&
+            Regex.IsMatch(purchase.StoreId, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$") &&
+            purchase.StoreId is not ("auto" or "none" or "unknown") &&
+            purchase.StoreId != StoreIds.Apple && purchase.StoreId != StoreIds.Play &&
+            purchase.StoreId != StoreIds.Horizon && purchase.StoreId != StoreIds.Amazon,
+        _ => false,
+    };
 
     private static OpenIapException Malformed(string operation, string reason)
         => OpenIapErrorMapper.Wrap(

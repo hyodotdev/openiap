@@ -154,6 +154,7 @@ public class RecordJsonTests
           "quantity": 1,
           "signatureAndroid": "signature-abc",
           "store": "google",
+          "storeId": "play",
           "transactionDate": 1720000000000,
           "transactionId": "GPA.1234-5678",
           "userIdAmazon": "amazon-user-1",
@@ -174,6 +175,7 @@ public class RecordJsonTests
           "purchaseToken": "amazon-receipt-1",
           "quantity": 1,
           "store": "amazon",
+          "storeId": "amazon",
           "transactionDate": 1720000000000,
           "transactionId": "amazon-receipt-1",
           "userIdAmazon": "amazon-user-1",
@@ -278,6 +280,7 @@ public class RecordJsonTests
           "revocationReasonIOS": "REFUNDED",
           "revocationTypeIOS": "assignmentRevocation",
           "store": "apple",
+          "storeId": "apple",
           "storefrontCountryCodeIOS": "USA",
           "subscriptionGroupIdIOS": "group.premium",
           "transactionDate": 1720000000000,
@@ -393,6 +396,7 @@ public class RecordJsonTests
             PurchaseState = PurchaseState.Purchased,
             Quantity = 1,
             Store = IapStore.Apple,
+            StoreId = StoreIds.Apple,
             TransactionDate = 1720000000000,
             TransactionId = "2000000123",
         };
@@ -420,6 +424,7 @@ public class RecordJsonTests
               "purchaseState": "purchased",
               "quantity": 1,
               "store": "google",
+              "storeId": "play",
               "transactionDate": 1720000000000
             }
             """;
@@ -507,6 +512,7 @@ public class RecordJsonTests
               "productId": "premium.monthly",
               "state": "entitled",
               "store": "apple",
+              "storeId": "apple",
               "clientPayload": {
                 "format": "toml",
                 "body": "tier = \"gold\"",
@@ -549,6 +555,7 @@ public class RecordJsonTests
             ProductId = "dev.hyo.martie.10bulbs",
             State = IapkitPurchaseState.ReadyToConsume,
             Store = IapStore.Amazon,
+            StoreId = StoreIds.Amazon,
         };
 
         var restoredProps = JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitAmazonProps>(

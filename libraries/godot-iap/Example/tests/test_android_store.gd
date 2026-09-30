@@ -27,6 +27,12 @@ func _run() -> void:
 	_check("community coordinates must be fixed", AndroidStore.normalize("fixture", "dev.example:provider:+") == "")
 	_check("community exports link core", AndroidStore.artifact("io.github.hyochan.openiap:openiap-google:3.6.2", "fixture", "dev.example:provider:1.0.0") == "io.github.hyochan.openiap:openiap-core:3.6.2")
 
+	var registered := GDScript.new()
+	registered.source_code = FileAccess.get_file_as_string("res://addons/godot-iap/android_store.gd").replace("const ALIASES := {", "const ALIASES := {\n\t\"registered-fixture\": \"fixture\",")
+	_check("registered alias table compiles", registered.reload() == OK)
+	_check("registered community aliases still require coordinates", registered.normalize("registered-fixture") == "")
+	_check("registered community aliases preserve the id", registered.normalize("registered-fixture", "dev.example:provider:1.0.0") == "fixture")
+
 	var play := "io.github.hyochan.openiap:openiap-google:3.5.2"
 	_check("auto exports the Play artifact", AndroidStore.artifact(play, "auto") == play)
 	_check(

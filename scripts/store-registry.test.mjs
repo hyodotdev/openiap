@@ -35,9 +35,12 @@ test('registered aliases and generated member names cannot collide', () => {
     (store) => { store.id = 'play'; },
     (store) => { store.aliases = ['google']; },
     (store) => { store.aliases = ['fixture', 'fixture']; },
+    (store) => { store.id = undefined; },
+    (store) => { store.aliases = [undefined]; },
+    (store) => { store.id = 'to-string'; },
   ]) {
     const data = registry(); const store = community(); mutate(store); data.stores.push(store);
-    assert.throws(() => validateStoreRegistry(data), /duplicate|collide/);
+    assert.throws(() => validateStoreRegistry(data), /Invalid|duplicate|collide/);
   }
   const data = registry(); data.stores.push(community(), {...community(), id: 'community.fixture', aliases: []});
   assert.throws(() => validateStoreRegistry(data), /constants collide/);

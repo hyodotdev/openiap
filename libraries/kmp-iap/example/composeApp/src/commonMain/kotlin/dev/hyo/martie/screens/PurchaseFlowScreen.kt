@@ -119,6 +119,7 @@ fun PurchaseFlowScreen(navController: NavController) {
             .toLocalDateTime(TimeZone.currentSystemDefault())
         purchaseResult = """
     ✅ Purchase successful (${purchase.store})
+    Store ID: ${purchase.storeId}
     Product: ${purchase.productId}
     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
     Date: $dateText

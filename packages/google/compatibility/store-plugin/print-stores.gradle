@@ -22,7 +22,7 @@ ext.openIapFixturePrint = { String taskName, String configurationName ->
         .collect { it.id }
         .findAll { it instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier }
         .collect { it.module }
-        .findAll { it.startsWith('openiap-google') || it.startsWith('kmp-iap-android') }
+        .findAll { it.startsWith('openiap-google') || it.startsWith('kmp-iap-android') || it == 'openiap-core' || it == project.findProperty('openiapProvider')?.toString()?.split(':')?.getAt(1) }
         .sort()
     }
     doLast { println("FIXTURE ${label}=${modules.get().join(',')}") }

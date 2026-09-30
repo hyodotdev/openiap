@@ -21,7 +21,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Suspend function to wait for a purchase update via listener.
- * Shared between Play and Horizon flavors.
  */
 suspend fun onPurchaseUpdated(
     addListener: (OpenIapPurchaseUpdateListener) -> Unit,
@@ -41,7 +40,6 @@ suspend fun onPurchaseUpdated(
 
 /**
  * Suspend function to wait for a purchase error via listener.
- * Shared between Play and Horizon flavors.
  */
 suspend fun onPurchaseError(
     addListener: (OpenIapPurchaseErrorListener) -> Unit,
@@ -61,7 +59,6 @@ suspend fun onPurchaseError(
 
 /**
  * Suspend function to wait for a subscription billing-issue event via listener.
- * Shared between Play and Horizon flavors (Horizon never fires).
  */
 suspend fun onSubscriptionBillingIssue(
     addListener: (OpenIapSubscriptionBillingIssueListener) -> Unit,
@@ -117,7 +114,6 @@ suspend fun onDeveloperProvidedBilling(
 
 /**
  * Data class representing parsed Android purchase arguments.
- * Shared between Play and Horizon flavors.
  */
 data class AndroidPurchaseArgs(
     val skus: List<String>,
@@ -247,7 +243,6 @@ fun resolveBillingProgramsForConnection(
 
 /**
  * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs.
- * Shared between Play and Horizon flavors.
  */
 fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     return when (val payload = request) {
@@ -295,7 +290,6 @@ fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
 
 /**
  * Extension function to convert OpenIapError to PurchaseError.
- * Shared between Play and Horizon flavors.
  */
 fun OpenIapError.toPurchaseError(): PurchaseError {
     val code = runCatching { ErrorCode.fromJson(this.code) }.getOrElse { ErrorCode.Unknown }
