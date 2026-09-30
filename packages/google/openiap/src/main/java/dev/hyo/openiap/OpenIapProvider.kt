@@ -43,8 +43,10 @@ object OpenIapProvider {
         }
     }
 
-    fun create(context: Context): OpenIapProtocol {
-        val factory = factory(context)
+    fun create(context: Context): OpenIapProtocol = create(context, factory(context))
+
+    fun create(context: Context, factory: OpenIapProviderFactory): OpenIapProtocol {
+        validate(factory.storeId, factory.coreVersion)
         try {
             return factory.create(context)
         } catch (error: OpenIapError) {
@@ -55,7 +57,7 @@ object OpenIapProvider {
     }
 
     fun validate(storeId: String, providerCoreVersion: String, runtimeCoreVersion: String = coreVersion) {
-        if (!storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) || storeId in setOf("auto", "none", "apple")) {
+        if (!storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) || storeId in setOf("auto", "none", "apple", "unknown")) {
             throw OpenIapError.ProviderConfiguration("Invalid Android provider storeId '$storeId'. Use a lowercase stable store id.")
         }
         val version = Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?")

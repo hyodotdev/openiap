@@ -8,5 +8,5 @@
  */
 export const SUITE_VERSION = '4.0.0';
 
-/** Current major's release date; starts the registry maintenance grace window. */
+/** Current major's adoption date; starts the registry maintenance grace window. */
 export const SUITE_MAJOR_RELEASE_DATE = '2026-10-01';

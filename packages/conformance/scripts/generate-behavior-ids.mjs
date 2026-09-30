@@ -11,6 +11,7 @@ import {
   CAPABILITY_MATRIX,
   CAPABILITY_STORES,
 } from '../../../specs/client/src/capability-matrix.mjs';
+import { ANDROID_PROVIDER_PROFILE } from '../src/spec/android-provider-profile.mjs';
 import { BEHAVIORS } from '../src/spec/behaviors.mjs';
 import { SUITE_VERSION } from '../src/spec/suite-version.mjs';
 
@@ -77,6 +78,11 @@ export function capabilityLevel(behavior, store) {
 object ConformanceBehaviors {
     const val SUITE_VERSION = "${SUITE_VERSION}"
     const val CLIENT_PROTOCOL_VERSION = "${JSON.parse(readFileSync(new URL('specs/client/package.json', ROOT), 'utf8')).version}"
+    const val ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "${ANDROID_PROVIDER_PROFILE.capabilities.subscriptionBillingIssue}"
+    const val ANDROID_PROVIDER_OFFER_CODE_REDEMPTION = "${ANDROID_PROVIDER_PROFILE.capabilities.offerCodeRedemption}"
+    val ANDROID_MAPPING_BEHAVIORS = setOf(${ANDROID_PROVIDER_PROFILE.mapping.map(JSON.stringify).join(', ')})
+    val ANDROID_PROVIDER_BEHAVIORS = setOf(${ANDROID_PROVIDER_PROFILE.runtime.map(JSON.stringify).join(', ')})
+    val PROVIDER_CAPABILITY_BEHAVIORS = mapOf(${Object.entries(ANDROID_PROVIDER_PROFILE.capabilities).map(([key, value]) => `${JSON.stringify(key)} to ${JSON.stringify(value)}`).join(', ')})
 
 ${constants}
 

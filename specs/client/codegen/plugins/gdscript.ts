@@ -5,6 +5,7 @@
  * Uses the IR (Intermediate Representation) for maintainable code generation.
  */
 
+import { renderStoreIds } from '../core/store-ids.js';
 import { basename } from 'node:path';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
@@ -187,6 +188,7 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.lines = [];
     this.generateHeader();
+    this.emit(renderStoreIds('gdscript'));
 
     // Enums
     this.emit('# ============================================================================');

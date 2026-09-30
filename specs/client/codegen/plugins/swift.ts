@@ -4,6 +4,7 @@
  * Generates Swift types with Codable conformance from GraphQL schema.
  */
 
+import { renderStoreIds } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -566,6 +567,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Header
     this.generateHeader();
+    this.emit(renderStoreIds('swift'));
 
     // Enums
     if (schema.enums.length > 0) {

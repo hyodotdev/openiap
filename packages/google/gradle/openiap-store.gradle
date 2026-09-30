@@ -16,10 +16,21 @@
 // builds another store (an abbreviation such as aHR) fails once the graph is ready.
 
 ext.openIapStoreAliases = [
-  play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
-  horizon: 'horizon', meta: 'horizon', quest: 'horizon',
-  amazon: 'amazon', fire: 'amazon', fireos: 'amazon', 'fire-os': 'amazon',
-  none: 'none', auto: 'auto',
+  'play': 'play',
+  'google': 'play',
+  'gplay': 'play',
+  'googleplay': 'play',
+  'google-play': 'play',
+  'gms': 'play',
+  'horizon': 'horizon',
+  'meta': 'horizon',
+  'quest': 'horizon',
+  'amazon': 'amazon',
+  'fire': 'amazon',
+  'fireos': 'amazon',
+  'fire-os': 'amazon',
+  'auto': 'auto',
+  'none': 'none',
 ]
 
 ext.openIapNormalizeStore = { Object value, String label ->
@@ -29,7 +40,7 @@ ext.openIapNormalizeStore = { Object value, String label ->
   }
   def store = openIapStoreAliases[key]
   if (store != null) return store
-  if (key ==~ /[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*/ && project.findProperty('openiapProvider')) return key
+  if (key ==~ /[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*/ && !(key in ['apple', 'unknown']) && project.findProperty('openiapProvider')) return key
   throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, auto, or none where the library allows it, or supply openiapProvider for a lowercase community store id")
 }
 

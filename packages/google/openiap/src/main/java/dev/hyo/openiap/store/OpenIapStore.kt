@@ -779,10 +779,16 @@ sealed class IapOperationResult {
 }
 
 private val storeAliases = mapOf(
-    "google" to "play", "gplay" to "play", "googleplay" to "play",
-    "google-play" to "play", "gms" to "play",
-    "meta" to "horizon", "quest" to "horizon",
-    "fire" to "amazon", "fireos" to "amazon", "fire-os" to "amazon",
+    "google" to "play",
+    "gplay" to "play",
+    "googleplay" to "play",
+    "google-play" to "play",
+    "gms" to "play",
+    "meta" to "horizon",
+    "quest" to "horizon",
+    "fire" to "amazon",
+    "fireos" to "amazon",
+    "fire-os" to "amazon",
 )
 
 /**
@@ -791,7 +797,8 @@ private val storeAliases = mapOf(
  * compatibility and otherwise unused.
  */
 private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
-    val linked = OpenIapProvider.factory(context).storeId
+    val factory = OpenIapProvider.factory(context)
+    val linked = factory.storeId
     val requested = store?.trim()?.lowercase(java.util.Locale.ROOT)?.let { storeAliases[it] ?: it }
     if (requested != null && requested != linked) {
         OpenIapLog.warn(
@@ -803,5 +810,5 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
         OpenIapLog.debug("Horizon app id comes from AndroidManifest meta-data; constructor value ignored", "OpenIapStore")
     }
     OpenIapLog.info("Linked Android store = $linked", "OpenIapStore")
-    return OpenIapProvider.create(context)
+    return OpenIapProvider.create(context, factory)
 }

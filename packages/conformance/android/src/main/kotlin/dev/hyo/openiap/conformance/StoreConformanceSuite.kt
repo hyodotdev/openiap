@@ -22,7 +22,7 @@ abstract class StoreConformanceSuite {
     protected abstract val adapter: StoreConformanceAdapter
     internal val reportAdapter get() = adapter
     open val reportScope: String get() = "android-mapping"
-    open val requiredReportBehaviors: Set<String> get() = (coveredBehaviors + unsupportedStoreBehaviors).toSet()
+    open val requiredReportBehaviors: Set<String> get() = ConformanceBehaviors.ANDROID_MAPPING_BEHAVIORS
     @get:Rule val conformanceReport = ConformanceReports.watcher(this)
 
     // --- Spec binding ------------------------------------------------------

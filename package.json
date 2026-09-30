@@ -47,7 +47,9 @@
     "licenses:inventory": "node scripts/generate-third-party-notices.mjs godot --inventory",
     "audit:horizon-app-id": "node --test scripts/audit-horizon-example-app-id.test.mjs scripts/verify-horizon-merged-manifest.test.mjs && node scripts/audit-horizon-example-app-id.mjs",
     "audit:orphan-tags": "node --test scripts/audit-orphan-tags.test.mjs && node scripts/audit-orphan-tags.mjs",
-    "audit:release-notes": "node --test scripts/audit-release-notes.test.mjs && node scripts/audit-release-notes.mjs origin/main"
+    "audit:release-notes": "node --test scripts/audit-release-notes.test.mjs && node scripts/audit-release-notes.mjs origin/main",
+    "stores:generate": "node scripts/generate-store-registry.mjs",
+    "audit:stores": "node --test scripts/store-registry.test.mjs && node scripts/generate-store-registry.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

@@ -7,6 +7,13 @@
 
 import 'dart:async';
 
+abstract final class StoreIds {
+  static const String apple = 'apple';
+  static const String play = 'play';
+  static const String horizon = 'horizon';
+  static const String amazon = 'amazon';
+}
+
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)

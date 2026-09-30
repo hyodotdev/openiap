@@ -125,6 +125,14 @@ public sealed class StrictNullableEnumListJsonConverter<TEnum, TConverter> : Jso
     }
 }
 
+public static class StoreIds
+{
+    public const string Apple = "apple";
+    public const string Play = "play";
+    public const string Horizon = "horizon";
+    public const string Amazon = "amazon";
+}
+
 // ============================================================================
 // Enums
 // ============================================================================

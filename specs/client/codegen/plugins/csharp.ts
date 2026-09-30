@@ -19,6 +19,7 @@
  *     mirroring the Kotlin sealed-interface pattern.
  */
 
+import { renderStoreIds } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -200,6 +201,7 @@ export class CSharpPlugin extends CodegenPlugin {
     }
 
     this.generateHeader();
+    this.emit(renderStoreIds('csharp'));
 
     if (schema.enums.length > 0) {
       this.addSection('Enums');

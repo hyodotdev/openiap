@@ -169,19 +169,10 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
 
     companion object {
         const val PENDING_BEHAVIOR = ConformanceBehaviors.PURCHASES_PENDING_PURCHASE_IS_NOT_DELIVERED_AS_PURCHASED
-        const val BILLING_ISSUE_BEHAVIOR = "android-provider.subscription-billing-issue"
-        const val REDEMPTION_BEHAVIOR = "android-provider.offer-code-redemption"
-        val REQUIRED_BEHAVIORS = setOf(
-            ConformanceBehaviors.PRODUCTS_FETCH_RETURNS_REQUESTED_SKUS,
-            ConformanceBehaviors.PURCHASES_REQUEST_EMITS_PURCHASE_UPDATED_ON_SUCCESS,
-            ConformanceBehaviors.RESTORATION_AVAILABLE_PURCHASES_RETURNS_OWNED_ITEMS,
-            ConformanceBehaviors.IDENTIFIERS_PURCHASE_TOKEN_IS_STABLE_ACROSS_READS,
-            ConformanceBehaviors.COMPLETION_FINISH_IS_IDEMPOTENT,
-        )
-        fun capabilityBehavior(capability: StoreCapability): String = when (capability) {
-            StoreCapability.PendingPurchases -> PENDING_BEHAVIOR
-            StoreCapability.SubscriptionBillingIssue -> BILLING_ISSUE_BEHAVIOR
-            StoreCapability.OfferCodeRedemption -> REDEMPTION_BEHAVIOR
-        }
+        const val BILLING_ISSUE_BEHAVIOR = ConformanceBehaviors.ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE
+        const val REDEMPTION_BEHAVIOR = ConformanceBehaviors.ANDROID_PROVIDER_OFFER_CODE_REDEMPTION
+        val REQUIRED_BEHAVIORS = ConformanceBehaviors.ANDROID_PROVIDER_BEHAVIORS
+        fun capabilityBehavior(capability: StoreCapability): String =
+            ConformanceBehaviors.PROVIDER_CAPABILITY_BEHAVIORS.getValue(capability.id)
     }
 }

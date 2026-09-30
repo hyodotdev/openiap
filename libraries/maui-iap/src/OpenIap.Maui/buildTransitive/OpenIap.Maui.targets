@@ -29,8 +29,8 @@
       <_OpenIapAliasValue>$([MSBuild]::ValueOrDefault('$(OpenIapAndroidStore.Trim())', 'auto'))</_OpenIapAliasValue>
       <_OpenIapPinStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapPinValue)')->Metadata('Store'))</_OpenIapPinStore>
       <_OpenIapAliasStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapAliasValue)')->Metadata('Store'))</_OpenIapAliasStore>
-      <_OpenIapCommunity Condition="'$(_OpenIapPinStore)' == '' and '$(OpenIapProvider.Trim())' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(_OpenIapPinValue)', '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')) and '$(_OpenIapPinValue)' != 'apple' and '$(_OpenIapPinValue)' != 'none'">true</_OpenIapCommunity>
-      <_OpenIapPinStore Condition="'$(_OpenIapCommunity)' == 'true'">$(_OpenIapPinValue)</_OpenIapPinStore>
+      <_OpenIapCommunity Condition="'$(_OpenIapPinStore)' != 'auto' and '$(_OpenIapPinStore)' != 'play' and '$(_OpenIapPinStore)' != 'horizon' and '$(_OpenIapPinStore)' != 'amazon' and '$(OpenIapProvider.Trim())' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(_OpenIapPinValue)', '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')) and '$(_OpenIapPinValue)' != 'apple' and '$(_OpenIapPinValue)' != 'none' and '$(_OpenIapPinValue)' != 'unknown'">true</_OpenIapCommunity>
+      <_OpenIapPinStore Condition="'$(_OpenIapCommunity)' == 'true' and '$(_OpenIapPinStore)' == ''">$(_OpenIapPinValue)</_OpenIapPinStore>
       <_OpenIapUnknownStore Condition="'$(_OpenIapAliasStore)' == ''">OpenIapAndroidStore='$(OpenIapAndroidStore)'</_OpenIapUnknownStore>
       <_OpenIapUnknownStore Condition="'$(_OpenIapPinStore)' == ''">OpenIapStore='$(OpenIapStore)'</_OpenIapUnknownStore>
     </PropertyGroup>

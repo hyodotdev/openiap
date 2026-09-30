@@ -1752,6 +1752,12 @@ const GOOGLE_CONFORMANCE_ADAPTERS = {
 // behavior ids that appear in published reports, so losing one silently would
 // invalidate every claim made against it.
 function checkConformanceSuite() {
+  try {
+    execFileSync(process.execPath, [path.resolve(root, "scripts/generate-store-registry.mjs"), "--check"], {stdio: "pipe"});
+  } catch (error) {
+    fail(`Store registry audit failed: ${[error?.stdout, error?.stderr].filter(Boolean).map((output) => output.toString().trim()).join(" ")}`);
+  }
+
   for (const relativePath of [
     "packages/conformance/package.json",
     "packages/conformance/README.md",
@@ -7415,7 +7421,7 @@ function checkFrameworkDependencyHygiene() {
       "packages/google/gradle/openiap-store.gradle": (text) => {
         const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z]+)'/g)].map(
+          ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z][a-z0-9._-]*)'/g)].map(
               (one) => [one[1], one[2]],
             )
           : null;
@@ -7423,7 +7429,7 @@ function checkFrameworkDependencyHygiene() {
       "packages/cli/src/checks.mjs": (text) => {
         const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z]+)"/g)].map(
+          ? [...block.matchAll(/"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z][a-z0-9._-]*)"/g)].map(
               (one) => [one[1], one[2]],
             )
           : null;
@@ -7437,7 +7443,7 @@ function checkFrameworkDependencyHygiene() {
         return block
           ? [
               ...block.matchAll(
-                /"([A-Za-z0-9._-]+)"\s*to\s*"([a-z]+)"/g,
+                /"([A-Za-z0-9._-]+)"\s*to\s*"([a-z][a-z0-9._-]*)"/g,
               ),
             ].map((one) => [one[1], one[2]])
           : null;
@@ -7445,14 +7451,14 @@ function checkFrameworkDependencyHygiene() {
       "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
         const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
+          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z][a-z0-9._-]*)"/g)].map((one) => [
               one[1],
               one[2],
             ])
           : null;
       },
       "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets": (text) =>
-        [...text.matchAll(/<_OpenIapStoreName Include="([^"]+)" Store="([a-z]+)"/g)].flatMap(
+        [...text.matchAll(/<_OpenIapStoreName Include="([^"]+)" Store="([a-z][a-z0-9._-]*)"/g)].flatMap(
           (one) => one[1].split(";").map((alias) => [alias, one[2]]),
         ),
     };
@@ -7474,7 +7480,7 @@ function checkFrameworkDependencyHygiene() {
     // not keys there, and it has no device so `auto` never reaches it.
     const facadeFile =
       "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt";
-    const facadeSkips = new Set(["play", "horizon", "amazon", "auto", "none"]);
+    const facadeSkips = new Set(["auto", "none", ...JSON.parse(read("specs/client/src/store-registry.json")).stores.filter((store) => store.platform === "android").map((store) => store.id)]);
     const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
     if (reference) {
       for (const [file, table] of Object.entries(parsedAliases)) {

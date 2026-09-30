@@ -8,6 +8,13 @@
 
 package io.github.hyochan.kmpiap.openiap
 
+public object StoreIds {
+    const val Apple = "apple"
+    const val Play = "play"
+    const val Horizon = "horizon"
+    const val Amazon = "amazon"
+}
+
 // MARK: - Enums
 
 /**
@@ -3645,7 +3652,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     /**
      * Stable store id: apple, play, horizon, amazon, or an Android provider id.
      */
-    var storeId: String = when (store) { IapStore.Apple -> "apple"; IapStore.Google -> "play"; IapStore.Horizon -> "horizon"; IapStore.Amazon -> "amazon"; IapStore.Unknown -> "unknown" }
+    var storeId: String = when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> "unknown" }
         private set
 
     constructor(

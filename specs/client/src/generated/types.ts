@@ -3,6 +3,13 @@
 // Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
+export const StoreIds = {
+  Apple: 'apple',
+  Play: 'play',
+  Horizon: 'horizon',
+  Amazon: 'amazon',
+} as const;
+
 export interface ActiveSubscription {
   autoRenewingAndroid?: (boolean | null);
   basePlanIdAndroid?: (string | null);

@@ -64,21 +64,21 @@ const APP_BUILD_FILES = [
 
 // Same table as packages/google/gradle/openiap-store.gradle.
 export const STORE_ALIASES = {
-  play: "play",
-  google: "play",
-  gplay: "play",
-  googleplay: "play",
+  "play": "play",
+  "google": "play",
+  "gplay": "play",
+  "googleplay": "play",
   "google-play": "play",
-  gms: "play",
-  horizon: "horizon",
-  meta: "horizon",
-  quest: "horizon",
-  amazon: "amazon",
-  fire: "amazon",
-  fireos: "amazon",
+  "gms": "play",
+  "horizon": "horizon",
+  "meta": "horizon",
+  "quest": "horizon",
+  "amazon": "amazon",
+  "fire": "amazon",
+  "fireos": "amazon",
   "fire-os": "amazon",
-  none: "none",
-  auto: "auto",
+  "auto": "auto",
+  "none": "none",
 };
 
 /**
@@ -102,13 +102,13 @@ export function androidStoreChecks(root, framework) {
   const fireOs = enabled("fireOsEnabled");
   const storeEntry = properties?.get("openiapStore");
   const storeValue = storeEntry?.value.trim().toLowerCase() ?? "";
-  // openIapNormalizeStore: a blank value is absent, and only an alias is a store.
-  const explicit =
-    storeValue === ""
-      ? null
-      : Object.hasOwn(STORE_ALIASES, storeValue)
-        ? STORE_ALIASES[storeValue]
-        : "unknown";
+  const providerEntry = properties?.get("openiapProvider");
+  const provider = providerEntry?.value.trim() ?? "";
+  const validCommunityId = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(storeValue) &&
+    !["apple", "unknown"].includes(storeValue);
+  const explicit = storeValue === "" ? null : Object.hasOwn(STORE_ALIASES, storeValue)
+    ? STORE_ALIASES[storeValue] : validCommunityId && provider ? storeValue : "unknown";
+
   const pinned =
     explicit !== null && explicit !== "auto" && explicit !== "unknown";
   // Flags pin too: fireOsEnabled picks amazon, and the deprecated
@@ -143,6 +143,18 @@ export function androidStoreChecks(root, framework) {
       ),
     );
   }
+  const community = explicit && !["play", "horizon", "amazon", "auto", "none", "unknown"].includes(explicit);
+  if ((community && !provider) || (provider && (!community ||
+      !/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider) ||
+      provider.startsWith("io.github.hyochan.openiap:openiap-")))) {
+    findings.push(finding(
+      "android-store-unknown", "error", "android/gradle.properties",
+      "Community provider selection is incomplete or invalid.",
+      "Pair a lowercase community openiapStore id with fixed openiapProvider=group:artifact:version coordinates.",
+      {line: providerEntry?.line ?? storeEntry?.line},
+    ));
+  }
+
   if (platformEntry && !optOut) {
     findings.push(
       finding(

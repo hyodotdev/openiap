@@ -4,7 +4,6 @@ extends RefCounted
 
 const STORES: PackedStringArray = ["auto", "play", "horizon", "amazon"]
 const ALIASES := {
-	"auto": "auto",
 	"play": "play",
 	"google": "play",
 	"gplay": "play",
@@ -18,6 +17,7 @@ const ALIASES := {
 	"fire": "amazon",
 	"fireos": "amazon",
 	"fire-os": "amazon",
+	"auto": "auto",
 }
 
 
@@ -30,7 +30,7 @@ static func normalize(value: Variant, provider: String = "") -> String:
 		return "auto"
 	if ALIASES.has(key):
 		return ALIASES[key] if provider.is_empty() else ""
-	if key in ["apple", "none"] or not valid_provider(provider):
+	if key in ["apple", "none", "unknown"] or not valid_provider(provider):
 		return ""
 	return key if RegEx.create_from_string("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$").search(key) else ""
 

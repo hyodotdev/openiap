@@ -4,6 +4,7 @@
  * Generates Kotlin data classes with JSON serialization from GraphQL schema.
  */
 
+import { renderStoreIds } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from "./base-plugin.js";
 import { generatedFileHeader } from "../core/generated-header.js";
 import type {
@@ -135,6 +136,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     // Header
     this.generateHeader();
+    this.emit(renderStoreIds('kotlin'));
 
     // Enums
     if (schema.enums.length > 0) {
@@ -451,7 +453,7 @@ export class KotlinPlugin extends CodegenPlugin {
       this.generateDeprecationAnnotation(value.description, "    ");
       const initialValue =
         value.name === "storeId"
-          ? 'when (store) { IapStore.Apple -> "apple"; IapStore.Google -> "play"; IapStore.Horizon -> "horizon"; IapStore.Amazon -> "amazon"; IapStore.Unknown -> "unknown" }'
+          ? 'when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> "unknown" }'
           : "null";
       this.emit(
         `    var ${value.name}: ${this.getPropertyType(value.type)} = ${initialValue}`,

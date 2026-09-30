@@ -7,6 +7,11 @@ package dev.hyo.openiap.conformance
 object ConformanceBehaviors {
     const val SUITE_VERSION = "4.0.0"
     const val CLIENT_PROTOCOL_VERSION = "0.1.1"
+    const val ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "android-provider.subscription-billing-issue"
+    const val ANDROID_PROVIDER_OFFER_CODE_REDEMPTION = "android-provider.offer-code-redemption"
+    val ANDROID_MAPPING_BEHAVIORS = setOf("subscriptions.active-subscription-is-reported-active", "subscriptions.pending-subscription-is-not-active", "subscriptions.unknown-state-subscription-is-not-active", "subscriptions.groups-keep-independent-identifiers", "errors.store-codes-normalize-to-spec-error-codes", "errors.unrecognized-store-code-normalizes-to-unknown", "identifiers.purchase-carries-a-concrete-store", "capabilities.declared-capabilities-match-the-matrix", "capabilities.unsupported-operations-degrade-predictably")
+    val ANDROID_PROVIDER_BEHAVIORS = setOf("products.fetch-returns-requested-skus", "purchases.request-emits-purchase-updated-on-success", "restoration.available-purchases-returns-owned-items", "identifiers.purchase-token-is-stable-across-reads", "completion.finish-is-idempotent")
+    val PROVIDER_CAPABILITY_BEHAVIORS = mapOf("pendingPurchases" to "purchases.pending-purchase-is-not-delivered-as-purchased", "subscriptionBillingIssue" to "android-provider.subscription-billing-issue", "offerCodeRedemption" to "android-provider.offer-code-redemption")
 
     const val PRODUCTS_FETCH_RETURNS_REQUESTED_SKUS = "products.fetch-returns-requested-skus"
     const val PRODUCTS_FETCH_NORMALIZES_REQUIRED_FIELDS = "products.fetch-normalizes-required-fields"

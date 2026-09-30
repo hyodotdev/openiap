@@ -12,6 +12,12 @@
 # Keep the file named types.gd: the preload finds it by that name.
 const _Types = preload("types.gd")
 
+class StoreIds:
+	const APPLE = "apple"
+	const PLAY = "play"
+	const HORIZON = "horizon"
+	const AMAZON = "amazon"
+
 # ============================================================================
 # Enums
 # ============================================================================

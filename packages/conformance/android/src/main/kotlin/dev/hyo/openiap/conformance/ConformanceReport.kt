@@ -39,7 +39,7 @@ internal object ConformanceReports {
             "store" to adapter.store.rawValue,
             "capabilities" to adapter.capabilities.map { it.id }.sorted(),
             "scope" to mapOf("kind" to suite.reportScope, "requiredBehaviors" to required.sorted(),
-                "complete" to required.all { results[it] == "pass" }),
+                "complete" to required.all { results.containsKey(it) }),
             "conformant" to (required.all { results[it] == "pass" } && results.values.none { it == "fail" }),
             "results" to results.toSortedMap().map { (behavior, verdict) -> mapOf("id" to behavior, "outcome" to verdict) },
         )

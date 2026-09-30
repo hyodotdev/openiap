@@ -2864,3 +2864,21 @@ test("store flags use Groovy boolean values for both Android stores", () => {
     (root) => assert.ok(ids(root).includes("android-store-flavor-conflict")),
   );
 });
+
+test("an unregistered community provider needs only a fixed coordinate pair", () => {
+  withProject({...EXPO, "android/gradle.properties": "openiapStore=community-fixture\nopeniapProvider=dev.example:provider:1.0.0\n"}, (root) => {
+    assert.ok(!ids(root).includes("android-store-unknown"));
+    assert.ok(!ids(root).includes("android-store-flavor-mismatch"));
+  });
+});
+
+test("doctor rejects incomplete or conflicting provider coordinates", () => {
+  for (const properties of [
+    "openiapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=community-fixture\n",
+    "openiapStore=play\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=community-fixture\nopeniapProvider=dev.example:provider:+\n",
+    "openiapStore=community-fixture\nopeniapProvider=io.github.hyochan.openiap:openiap-google:3.6.2\n",
+    "openiapStore=unknown\nopeniapProvider=dev.example:provider:1.0.0\n",
+  ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => assert.ok(ids(root).includes("android-store-unknown")));
+});

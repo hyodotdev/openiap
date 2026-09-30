@@ -5,6 +5,13 @@
 
 import Foundation
 
+public enum StoreIds {
+    public static let Apple = "apple"
+    public static let Play = "play"
+    public static let Horizon = "horizon"
+    public static let Amazon = "amazon"
+}
+
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)

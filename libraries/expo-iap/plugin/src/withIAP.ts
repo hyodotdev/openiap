@@ -837,7 +837,8 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   }
   if (
     requestedStore &&
-    (!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(requestedStore) ||
+    (['apple', 'none', 'unknown'].includes(requestedStore) ||
+      !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(requestedStore) ||
       (!official.includes(requestedStore) && !provider))
   ) {
     throw new Error(
@@ -846,7 +847,8 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   }
   if (
     provider &&
-    !/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider)
+    (!/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider) ||
+      provider.startsWith('io.github.hyochan.openiap:openiap-'))
   ) {
     throw new Error(
       'expo-iap: android.provider must be fixed group:artifact:version coordinates',

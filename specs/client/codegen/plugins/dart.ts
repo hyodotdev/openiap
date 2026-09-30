@@ -5,6 +5,7 @@
  * Uses the IR (Intermediate Representation) for maintainable code generation.
  */
 
+import { renderStoreIds } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -73,6 +74,7 @@ export class DartPlugin extends CodegenPlugin {
 
     this.lines = [];
     this.generateHeader();
+    this.emit(renderStoreIds('dart'));
 
     // Enums
     if (schema.enums.length > 0) {
