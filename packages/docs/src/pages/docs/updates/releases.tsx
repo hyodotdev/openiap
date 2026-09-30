@@ -89,6 +89,11 @@ const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '3.6.2', tag: 'godot-iap-3.6.2' },
   { name: 'kmp-iap', version: '3.6.2', tag: 'kmp-iap-3.6.2' },
   { name: 'maui-iap', version: '2.6.2', tag: 'maui-iap-2.6.2' },
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '0.1.1',
+    tag: 'openiap-client-protocol-0.1.1',
+  },
   { name: '@hyodotdev/openiap', version: '0.1.1', tag: 'openiap-0.1.1' },
 ];
 
@@ -482,7 +487,9 @@ function Releases() {
             .
           </p>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
           <ul
             style={{
               marginBottom: '1rem',
@@ -490,6 +497,13 @@ function Releases() {
               fontSize: '0.9rem',
             }}
           >
+            <li>
+              <strong>@hyodotdev/openiap-client-protocol 0.1.1</strong>{' '}
+              generates <code>types.gd</code> so it loads beside a project
+              autoload or <code>class_name</code> that reuses one of its enum
+              names, such as <code>IapStore</code>. Keep the file named{' '}
+              <code>types.gd</code>.
+            </li>
             <li>
               <strong>openiap-apple 3.6.1</strong> remembers, once per install,
               that the framework library showed its first-purchase notice.
