@@ -57,8 +57,9 @@ const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 // Copilot's task endpoint: a task ends in a pull request Copilot opens.
 const agentTasksEndpoint = /\bagents\/repos\/(?:[^\s/"']+\/){1,2}tasks(?=$|[\s"'?])/u;
 // REST takes Copilot's bot login, `copilot-swe-agent[bot]`, as an assignee in a
-// field (`assignees[]=…`) or a JSON body (`"assignees":["…"]`).
-const copilotAssigneeField = /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*copilot/iu;
+// field (`assignees[]=…`) or a JSON body (`"assignees":["…"]`), after any others.
+const copilotAssigneeField =
+  /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*(?:[^\s"',\]]+["']?\s*,\s*["']?)*copilot/iu;
 // GraphQL assigns Copilot only with this feature header, whichever mutation it uses.
 const copilotGraphqlFeature = /\bissues_copilot_assignment_api_support\b/u;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
