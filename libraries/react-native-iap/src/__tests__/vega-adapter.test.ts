@@ -448,6 +448,16 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
+  it('reads a subscription period padded with whitespace', async () => {
+    const [baseOffer] =
+      (await fetchPremiumOffers({subscriptionPeriod: ' Monthly '})) ?? [];
+
+    expect(
+      baseOffer?.pricingPhasesAndroid?.pricingPhaseList?.[0]?.billingPeriod,
+    ).toBe('P1M');
+    expect(baseOffer?.period).toEqual({unit: 'month', value: 1});
+  });
+
   it('keeps an unknown subscription period without parsing it', async () => {
     const [baseOffer] =
       (await fetchPremiumOffers({subscriptionPeriod: 'Fortnightly'})) ?? [];
