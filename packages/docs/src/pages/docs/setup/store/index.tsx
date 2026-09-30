@@ -95,18 +95,19 @@ function StoreSetup() {
         </ol>
         <p>
           The decision is logged once per build as{' '}
-          <code>openiap: store=horizon (source=device; ...)</code>. A store pin
-          against a different task flavor, two flavors in one invocation, and a
-          pin against a store flag or <code>openiapPlatform=none</code> each
-          fail the build, so a pinned release train cannot quietly ship the
-          wrong billing SDK. The device is a fallback rather than a competing
-          signal: a pin or a flavor simply outranks it. The device step also
-          works with the configuration cache: plugging in a different device
-          reconfigures the build. The aliases <code>google</code>/
-          <code>gplay</code>/<code>googleplay</code>/<code>google-play</code>/
-          <code>gms</code>, <code>meta</code>/<code>quest</code>, and{' '}
-          <code>fire</code>/<code>fireos</code>/<code>fire-os</code> normalize
-          to the three store ids.
+          <code>openiap: store=horizon (source=device; ...)</code>, at
+          Gradle&apos;s quiet level, so <code>-q</code> runs show it too. A
+          store pin against a different task flavor, two flavors in one
+          invocation, and a pin against a store flag or{' '}
+          <code>openiapPlatform=none</code> each fail the build, so a pinned
+          release train cannot quietly ship the wrong billing SDK. The device is
+          a fallback rather than a competing signal: a pin or a flavor simply
+          outranks it. The device step also works with the configuration cache:
+          plugging in a different device reconfigures the build. The aliases{' '}
+          <code>google</code>/<code>gplay</code>/<code>googleplay</code>/
+          <code>google-play</code>/<code>gms</code>, <code>meta</code>/
+          <code>quest</code>, and <code>fire</code>/<code>fireos</code>/
+          <code>fire-os</code> normalize to the three store ids.
         </p>
         <Callout
           kind="warning"

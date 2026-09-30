@@ -487,9 +487,7 @@ function Releases() {
             .
           </p>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Protocols and native packages
-          </h5>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
           <ul
             style={{
               marginBottom: '1rem',
@@ -497,13 +495,6 @@ function Releases() {
               fontSize: '0.9rem',
             }}
           >
-            <li>
-              <strong>@hyodotdev/openiap-client-protocol 0.1.1</strong>{' '}
-              generates <code>types.gd</code> so it loads beside a project
-              autoload or <code>class_name</code> that reuses one of its enum
-              names, such as <code>IapStore</code>. Keep the file named{' '}
-              <code>types.gd</code>.
-            </li>
             <li>
               <strong>openiap-apple 3.6.1</strong> remembers, once per install,
               that the framework library showed its first-purchase notice.
@@ -542,6 +533,12 @@ function Releases() {
                   that the next major release removes them; see{' '}
                   <Link to="/docs/updates/migration#next-major">Migration</Link>
                   .
+                </li>
+                <li>
+                  The <code>openiap: store=…</code> line and the deprecation
+                  warnings print at Gradle&apos;s quiet level, so Flutter&apos;s{' '}
+                  <code>-q</code> builds show them, and a script that captures{' '}
+                  <code>./gradlew -q</code> output sees them too.
                 </li>
                 <li>
                   <code>fireOsEnabled=true</code> is no longer deprecated in
@@ -613,9 +610,9 @@ function Releases() {
                   for each replacement.
                 </li>
                 <li>
-                  <code>modules.amazon.fireOS</code> is no longer deprecated. A
-                  Fire OS declaration, from it or from{' '}
-                  <code>EXPO_IAP_FIREOS=1</code>, turns off Vega auto-detection.
+                  <code>modules.amazon.fireOS</code> is no longer deprecated,
+                  and declaring Fire OS with it or{' '}
+                  <code>EXPO_IAP_FIREOS=1</code> turns off Vega auto-detection.
                 </li>
                 <li>
                   A hand-written root <code>manifest.toml</code> no longer draws
@@ -647,9 +644,10 @@ function Releases() {
                   3.6.0 and 3.6.1 left it out.
                 </li>
                 <li>
-                  <code>types.gd</code> loads beside a project autoload or{' '}
-                  <code>class_name</code> that reuses one of its enum names,
-                  such as <code>IapStore</code>.
+                  <code>types.gd</code>, regenerated in{' '}
+                  @hyodotdev/openiap-client-protocol 0.1.1, loads beside a
+                  project autoload or <code>class_name</code> that reuses one of
+                  its enum names, such as <code>IapStore</code>.
                 </li>
                 <li>
                   On Apple, <code>restore_purchases()</code> and{' '}

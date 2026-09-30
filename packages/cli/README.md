@@ -51,9 +51,9 @@ it does not analyze or migrate the existing purchase flow.
 When the command exits, copy the full document beginning with
 `# OpenIAP implementation brief`. Open the same project in your coding assistant
 (for example, Codex or Claude Code) and paste it into the assistant's **chat
-input**. Append your desired outcome below it, such as adding Premium while
-keeping your current login, paywall, and purchase integration. Send both as one
-message. The AI then inspects and edits the project, runs it, and reports tests.
+input**. Append your desired outcome below it, starting with
+`Desired outcome:`, such as adding Premium while keeping your current login,
+paywall, and purchase integration. Send both as one message. The AI then inspects and edits the project, runs it, and reports tests.
 At the end of `init` alone, your files are unchanged and no AI or server is running.
 
 Follow the [AI handoff](https://openiap.dev/docs/guides/ai-assistants#commerce-ai-request),
