@@ -3,5 +3,18 @@
     "allow": [
       "Bash(awk:*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Monitor|mcp__.*__(create_pull_request.*|assign_copilot_to_issue.*|issue_write)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/guard-pull-request.mjs\""
+          }
+        ]
+      }
+    ]
   }
 }

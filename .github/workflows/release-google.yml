@@ -38,6 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Enforce stable and prerelease branches
@@ -48,6 +49,11 @@ jobs:
           node scripts/release-branch-policy.mjs guard google
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
+
+      - name: Require a major for dropped deprecations
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+        run: node scripts/scheduled-removals.mjs release-gate openiap-google "$VERSION_TYPE"
 
   validate-android:
     needs: [release-branch]
@@ -447,7 +453,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## OpenIAP Google $VERSION
 
-          Native Android library for the OpenIAP specification (Play + Horizon + Fire OS flavors).
+          Native Android library implementing the OpenIAP Client Protocol (Play + Horizon + Fire OS flavors).
 
           ### What's Changed
 
@@ -455,65 +461,12 @@ jobs:
 
           ### Installation
 
-          #### Google Play Store (Play flavor)
-
-          **Gradle (Kotlin DSL):**
-
-          \`\`\`kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
-          }
-          \`\`\`
-
-          **Gradle (Groovy):**
-
-          \`\`\`groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
-          }
-          \`\`\`
-
-          #### Meta Quest / Horizon Store (Horizon flavor)
-
-          **Gradle (Kotlin DSL):**
-
-          \`\`\`kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
-          }
-          \`\`\`
-
-          **Gradle (Groovy):**
-
-          \`\`\`groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
-          }
-          \`\`\`
-
-          #### Fire OS (Amazon flavor)
-
-          **Gradle (Kotlin DSL):**
-
-          \`\`\`kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")
-          }
-          \`\`\`
-
-          **Gradle (Groovy):**
-
-          \`\`\`groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google-amazon:$VERSION'
-          }
-          \`\`\`
-
-          #### Pick the store automatically
+          #### With the OpenIAP Gradle plugin (recommended)
 
           Apply the plugin in settings.gradle.kts and depend on openiap-google: a
           connected Quest or Fire device selects its store on a debug build, and
-          \`openiapStore\` pins release builds.
+          \`openiapStore\` pins release builds. The plugin swaps in the store's
+          artifact, so do not declare a store artifact yourself.
 
           \`\`\`kotlin
           // settings.gradle.kts: the plugin is on Maven Central, not the Gradle Plugin Portal
@@ -531,6 +484,18 @@ jobs:
           // app/build.gradle.kts
           dependencies {
               implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+          }
+          \`\`\`
+
+          #### Without the plugin
+
+          Depend on the one artifact for your store.
+
+          \`\`\`kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")          // Google Play
+              // implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION") // Meta Horizon
+              // implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")  // Amazon Fire OS
           }
           \`\`\`
 

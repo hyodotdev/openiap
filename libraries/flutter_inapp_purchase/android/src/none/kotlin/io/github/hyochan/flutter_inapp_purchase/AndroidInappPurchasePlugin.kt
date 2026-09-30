@@ -19,7 +19,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "getStore" -> result.success("none")
             "initConnection", "endConnection", "isReady" -> result.success(false)
             "setPurchaseUpdatedListenerOptions" -> result.success(null)
             else -> result.error(

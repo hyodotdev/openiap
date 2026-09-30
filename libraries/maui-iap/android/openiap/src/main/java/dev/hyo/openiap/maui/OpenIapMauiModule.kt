@@ -28,6 +28,7 @@ import dev.hyo.openiap.RequestPurchaseResultPurchase
 import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
+import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -53,7 +54,7 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * Mirrors the role of `packages/apple/Sources/OpenIapModule+ObjC.swift` on iOS.
  */
-class OpenIapMauiModule(context: Context) {
+class OpenIapMauiModule(private val context: Context) {
 
     private val module = OpenIapModule(context)
     private val gson = Gson()
@@ -248,6 +249,13 @@ class OpenIapMauiModule(context: Context) {
             )
         wrapBool(handler())
     }
+
+    // -----------------------------------------------------------------
+    // First-purchase notice (internal to OpenIap.Maui, not app API)
+    // -----------------------------------------------------------------
+
+    /** True only the first time on this install. */
+    fun claimFirstPurchaseNotice(): Boolean = OpenIapFirstPurchaseNotice.claim(context)
 
     // -----------------------------------------------------------------
     // Listeners

@@ -1,4 +1,3 @@
-import java.util.Locale
 import groovy.json.JsonSlurper
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -67,19 +66,19 @@ val mauiAndroidMinSdk = readMauiAndroidMinSdk()
 val googleCoreVersion = readGoogleDependencyVersion("androidx.core:core")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
 // One facade AAR serves every store: it ships compiled against Play, and CI
-// also compiles it against Horizon and Amazon with -PopeniapStore.
+// also compiles it against Horizon and Amazon with -PopeniapCompileStore, a
+// property of its own so an app's openiapStore pin never applies here.
 for (legacy in listOf("openIapAndroidStore", "OpenIapAndroidStore")) {
   if (providers.gradleProperty(legacy).isPresent) {
-    error("'$legacy' was replaced by -PopeniapStore=<play|horizon|amazon>; remove the legacy flag.")
+    error("'$legacy' was replaced by -PopeniapCompileStore=<play|horizon|amazon>; remove the legacy flag.")
   }
 }
-val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull?.trim()?.lowercase(Locale.ROOT)
+val requestedOpenIapStore = providers.gradleProperty("openiapCompileStore").orNull
 val openIapStore = when (requestedOpenIapStore) {
-  null -> "play"
-  "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
-  "horizon", "meta", "quest" -> "horizon"
-  "amazon", "fire", "fireos", "fire-os" -> "amazon"
-  else -> error("Unsupported -PopeniapStore='$requestedOpenIapStore'. Use play, horizon, or amazon (default: play).")
+  null, "play" -> "play"
+  "horizon" -> "horizon"
+  "amazon" -> "amazon"
+  else -> error("Unsupported -PopeniapCompileStore='$requestedOpenIapStore'. Use play, horizon, or amazon (default: play).")
 }
 val openIapGoogleArtifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"
 

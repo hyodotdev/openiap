@@ -1,29 +1,51 @@
 <Project>
   <!--
     Links one Android store into an app, by the rule every OpenIAP build shares:
-    OpenIapStore (alias OpenIapAndroidStore), then on a Debug build the adb
-    device AdbTarget or ANDROID_SERIAL names, or the single attached one, then
-    Play. NuGet dependencies are fixed at restore, so what any store needs from
-    NuGet (Play Services for Billing, kotlinx.serialization for Horizon) is in
-    every build; only the store's own AAR and SDKs are chosen here.
+    OpenIapStore (the deprecated OpenIapAndroidStore still pins, and must agree
+    with it), then on a Debug build the adb device AdbTarget or ANDROID_SERIAL
+    names, or the single attached one, then Play. NuGet dependencies are fixed
+    at restore, so what any store needs from NuGet (Play Services for Billing,
+    kotlinx.serialization for Horizon) is in every build; only the store's own
+    AAR and SDKs are chosen here.
   -->
   <!-- NuGet imports the props itself; a project reference imports only this file. -->
   <Import Project="$(MSBuildThisFileDirectory)OpenIap.Maui.props" Condition="'$(_OpenIapMauiPropsImported)' != 'true'" />
 
   <PropertyGroup>
-    <!-- OpenIapStore wins over the alias, as openiapStore does in Gradle. A new
-         property, since a -p value on the alias cannot be reassigned. -->
-    <_OpenIapStoreInput>$(OpenIapAndroidStore)</_OpenIapStoreInput>
-    <_OpenIapStoreInputName>OpenIapAndroidStore</_OpenIapStoreInputName>
-    <_OpenIapStoreInput Condition="'$(OpenIapStore.Trim())' != ''">$(OpenIapStore)</_OpenIapStoreInput>
-    <_OpenIapStoreInputName Condition="'$(OpenIapStore.Trim())' != ''">OpenIapStore</_OpenIapStoreInputName>
-    <OpenIapStoreKey>$(_OpenIapStoreInput.Trim().ToLowerInvariant())</OpenIapStoreKey>
-    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == '' or '$(OpenIapStoreKey)' == 'auto'">auto</OpenIapStorePin>
-    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == 'play' or '$(OpenIapStoreKey)' == 'google' or '$(OpenIapStoreKey)' == 'gplay' or '$(OpenIapStoreKey)' == 'googleplay' or '$(OpenIapStoreKey)' == 'google-play' or '$(OpenIapStoreKey)' == 'gms'">play</OpenIapStorePin>
-    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == 'horizon' or '$(OpenIapStoreKey)' == 'meta' or '$(OpenIapStoreKey)' == 'quest'">horizon</OpenIapStorePin>
-    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == 'amazon' or '$(OpenIapStoreKey)' == 'fire' or '$(OpenIapStoreKey)' == 'fireos' or '$(OpenIapStoreKey)' == 'fire-os'">amazon</OpenIapStorePin>
     <OpenIapGoogleAarDirectory Condition="'$(OpenIapGoogleAarDirectory)' == ''">$(MSBuildThisFileDirectory)..\android\</OpenIapGoogleAarDirectory>
   </PropertyGroup>
+
+  <Target Name="_OpenIapResolveStorePin">
+    <ItemGroup>
+      <!-- The values both store properties accept, as in openiap-store.gradle. -->
+      <_OpenIapStoreName Include="auto" Store="auto" />
+      <_OpenIapStoreName Include="play;google;gplay;googleplay;google-play;gms" Store="play" />
+      <_OpenIapStoreName Include="horizon;meta;quest" Store="horizon" />
+      <_OpenIapStoreName Include="amazon;fire;fireos;fire-os" Store="amazon" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_OpenIapPinValue>$([MSBuild]::ValueOrDefault('$(OpenIapStore.Trim())', 'auto'))</_OpenIapPinValue>
+      <_OpenIapAliasValue>$([MSBuild]::ValueOrDefault('$(OpenIapAndroidStore.Trim())', 'auto'))</_OpenIapAliasValue>
+      <_OpenIapPinStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapPinValue)')->Metadata('Store'))</_OpenIapPinStore>
+      <_OpenIapAliasStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapAliasValue)')->Metadata('Store'))</_OpenIapAliasStore>
+      <_OpenIapUnknownStore Condition="'$(_OpenIapAliasStore)' == ''">OpenIapAndroidStore='$(OpenIapAndroidStore)'</_OpenIapUnknownStore>
+      <_OpenIapUnknownStore Condition="'$(_OpenIapPinStore)' == ''">OpenIapStore='$(OpenIapStore)'</_OpenIapUnknownStore>
+    </PropertyGroup>
+    <Error Condition="'$(_OpenIapUnknownStore)' != ''"
+           Text="$(_OpenIapUnknownStore) is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os)." />
+    <Warning Condition="'$(OpenIapAndroidStore.Trim())' != '' and '$(DesignTimeBuild)' != 'true'"
+             Code="OPENIAP0001"
+             Text="openiap: OpenIapAndroidStore is deprecated and will be removed in the next major release; use OpenIapStore=$(_OpenIapAliasStore)" />
+    <!-- auto is no pin, as in Gradle: it conflicts with nothing and defers to the alias. -->
+    <Error Condition="'$(_OpenIapPinStore)' != 'auto' and '$(_OpenIapAliasStore)' != 'auto' and '$(_OpenIapPinStore)' != '$(_OpenIapAliasStore)' and '$(DesignTimeBuild)' != 'true'"
+           Text="openiap: OpenIapStore=$(OpenIapStore.Trim()) conflicts with OpenIapAndroidStore=$(OpenIapAndroidStore.Trim())" />
+    <PropertyGroup>
+      <OpenIapStorePin>$(_OpenIapPinStore)</OpenIapStorePin>
+      <_OpenIapPinReason>OpenIapStore=$(OpenIapStore.Trim())</_OpenIapPinReason>
+      <OpenIapStorePin Condition="'$(_OpenIapPinStore)' == 'auto'">$(_OpenIapAliasStore)</OpenIapStorePin>
+      <_OpenIapPinReason Condition="'$(_OpenIapPinStore)' == 'auto'">OpenIapAndroidStore=$(OpenIapAndroidStore.Trim())</_OpenIapPinReason>
+    </PropertyGroup>
+  </Target>
 
   <!-- A release build never looks at a device, so its SDK cannot depend on what is plugged in. -->
   <Target Name="_OpenIapProbeAndroidDevice"
@@ -81,15 +103,13 @@
   </Target>
 
   <Target Name="_OpenIapLinkAndroidStore"
-          DependsOnTargets="_OpenIapProbeAndroidDevice"
+          DependsOnTargets="_OpenIapResolveStorePin;_OpenIapProbeAndroidDevice"
           BeforeTargets="_CreatePropertiesCache;_MavenRestore;_CategorizeAndroidLibraries"
           Condition="'$(AndroidApplication)' == 'true'">
-    <Error Condition="'$(OpenIapStorePin)' == ''"
-           Text="$(_OpenIapStoreInputName)='$(_OpenIapStoreInput)' is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os)." />
     <PropertyGroup>
       <OpenIapLinkedStore>$(OpenIapStorePin)</OpenIapLinkedStore>
       <_OpenIapSource>explicit</_OpenIapSource>
-      <_OpenIapReason>$(_OpenIapStoreInputName)=$(_OpenIapStoreInput.Trim())</_OpenIapReason>
+      <_OpenIapReason>$(_OpenIapPinReason)</_OpenIapReason>
     </PropertyGroup>
     <PropertyGroup Condition="'$(OpenIapStorePin)' == 'auto'">
       <OpenIapLinkedStore>play</OpenIapLinkedStore>

@@ -41,6 +41,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import java.text.ParsePosition
 import java.util.Currency
@@ -274,10 +276,10 @@ internal object AmazonPriceParser {
         val value = displayPrice?.trim().orEmpty()
         if (value.isEmpty()) return 0.0
 
-        parseLocalizedPrice(value)?.let { return it }
-
+        // The store formats a price for its marketplace, not for the device, so the
+        // separators decide. Only a price with no ASCII digits needs the device's format.
         val numeric = value.replace(Regex("[^0-9,.-]"), "")
-        if (numeric.isBlank()) return 0.0
+        if (numeric.none { it in '0'..'9' }) return parseLocalizedPrice(value) ?: 0.0
 
         val lastDot = numeric.lastIndexOf('.')
         val lastComma = numeric.lastIndexOf(',')
@@ -303,23 +305,19 @@ internal object AmazonPriceParser {
         return normalized.toDoubleOrNull() ?: 0.0
     }
 
+    // A price in non-ASCII digits, such as Arabic-Indic ones, which only the device's
+    // currency format can read.
     private fun parseLocalizedPrice(value: String): Double? {
-        val locale = Locale.getDefault()
-        return listOf(
-            NumberFormat.getCurrencyInstance(locale),
-            NumberFormat.getNumberInstance(locale)
-        ).firstNotNullOfOrNull { format ->
-            val position = ParsePosition(0)
-            val parsed = format.parse(value, position)
-            if (
-                parsed != null &&
-                position.index > 0 &&
-                !value.hasUnparsedPriceCharacters(position.index)
-            ) {
-                parsed.toDouble()
-            } else {
-                null
-            }
+        val position = ParsePosition(0)
+        val parsed = NumberFormat.getCurrencyInstance(Locale.getDefault()).parse(value, position)
+        return if (
+            parsed != null &&
+            position.index > 0 &&
+            !value.hasUnparsedPriceCharacters(position.index)
+        ) {
+            parsed.toDouble()
+        } else {
+            null
         }
     }
 
@@ -447,7 +445,9 @@ internal fun buildAmazonSubscriptionProduct(
         billingCycleCount = 0,
         billingPeriod = billingPeriod,
         formattedPrice = price.orEmpty(),
-        priceAmountMicros = "0",
+        // Cross-platform trial checks read zero micros as free, so carry the real price.
+        priceAmountMicros = BigDecimal.valueOf(priceAmount).movePointRight(6)
+            .setScale(0, RoundingMode.HALF_UP).toPlainString(),
         priceCurrencyCode = "",
         recurrenceMode = 1
     )

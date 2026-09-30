@@ -1,7 +1,7 @@
 {
   "name": "openiap",
   "displayName": "OpenIAP",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Inspect and implement in-app purchase flows with OpenIAP and IAPKit.",
   "author": {
     "name": "OpenIAP",

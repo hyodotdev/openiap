@@ -151,9 +151,9 @@ Press F5 or click **Start Debugging** - works out of the box!
 
 - **Google Play**: test on any Android device with the Play Store (default)
 - **Meta Horizon**: plug in a Quest, or set `openiapStore=horizon`
-- **Fire OS**: plug in a Fire device, or set `openiapStore=amazon`, and test
-  with Amazon App Tester
+- **Fire OS**: plug in a Fire device, or set `openiapStore=amazon` or
+  `fireOsEnabled=true`, and test with Amazon App Tester
 
-`horizonEnabled` and `fireOsEnabled` are deprecated but still read, with a
-warning, so a stale one still selects a store and fails the build if it
-disagrees with `openiapStore`. Delete them rather than leaving them set.
+The deprecated `horizonEnabled` is still read, with a warning, so a stale one
+still selects Horizon. It and `fireOsEnabled` fail the build when they disagree
+with `openiapStore`.

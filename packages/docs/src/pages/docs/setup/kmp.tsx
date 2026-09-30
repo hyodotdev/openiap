@@ -245,7 +245,10 @@ openiapStore=horizon`}
           ). A module that declares its own <code>platform</code> flavors keeps
           choosing per flavor. See{' '}
           <a href="/docs/setup/store#selection">How the Store Is Selected</a>{' '}
-          for the full rule.
+          for the full rule. At runtime, <code>getStore()</code> reports the
+          linked store: <code>Store.HORIZON</code> on a Horizon build,{' '}
+          <code>Store.AMAZON</code> on an Amazon build, and{' '}
+          <code>Store.PLAY_STORE</code> otherwise.
         </p>
 
         <h4>R8 and ProGuard</h4>

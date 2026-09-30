@@ -174,7 +174,11 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             FlutterIapLog.error("finishTransaction called without transaction info")
             let code: ErrorCode = .developerError
             result(FlutterError(code: code.rawValue, message: "transactionId required", details: nil))
-            
+
+        // Internal to the Dart first-purchase notice; not app API.
+        case "claimFirstPurchaseNotice":
+            result(OpenIapFirstPurchaseNotice.claim())
+
         case "getStorefront":
             getStorefront(result: result)
 

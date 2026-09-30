@@ -138,16 +138,13 @@ android {
     productFlavors {
         create("play") {
             dimension = "platform"
-            buildConfigField("String", "OPENIAP_STORE", "\"play\"")
             isDefault = true
         }
         create("horizon") {
             dimension = "platform"
-            buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
         }
         create("amazon") {
             dimension = "platform"
-            buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
         }
     }
 

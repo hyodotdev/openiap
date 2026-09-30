@@ -1,43 +1,5 @@
 module.exports = function (api) {
-  // Bundler configs stay env-gated: auto-detection lives in the config plugin,
-  // which is the only place that can honor an explicit vegaOS: false.
-  const isVega = process.env.EXPO_IAP_VEGA === '1';
-  api.cache.using(() => (isVega ? 'vega' : 'expo'));
-
-  if (isVega) {
-    const path = require('path');
-
-    return {
-      presets: [
-        ['module:@react-native/babel-preset'],
-        'module:@amazon-devices/kepler-module-resolver-preset',
-      ],
-      plugins: [
-        [
-          'module-resolver',
-          {
-            alias: {
-              '^react-native$': path.resolve(
-                __dirname,
-                'node_modules',
-                '@amazon-devices',
-                'react-native-kepler',
-                'index',
-              ),
-              '^react-native/(.+)': path.resolve(
-                __dirname,
-                'node_modules',
-                '@amazon-devices',
-                'react-native-kepler',
-                '\\1',
-              ),
-            },
-          },
-        ],
-      ],
-    };
-  }
-
+  api.cache(true);
   return {
     presets: ['babel-preset-expo'],
   };

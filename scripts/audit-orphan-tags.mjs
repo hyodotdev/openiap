@@ -11,7 +11,7 @@ export const KNOWN_ORPHAN_TAGS = [
   {
     tag: "3.5.0",
     reason:
-      "openiap-apple 3.5.0 trunk preflight failed; the tag stays as the pod source",
+      "openiap-apple 3.5.0 reached CocoaPods before its release run failed and main was rewound; the tag stays as the pod source",
   },
 ];
 

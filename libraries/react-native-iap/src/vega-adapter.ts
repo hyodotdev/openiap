@@ -10,7 +10,13 @@ import type {
   RnIap,
 } from './specs/RnIap.nitro';
 import {ErrorCode} from './types';
-import type {SubResponseCodeAndroid} from './types';
+import type {
+  PricingPhaseAndroid,
+  SubResponseCodeAndroid,
+  SubscriptionOffer,
+  SubscriptionPeriod,
+  SubscriptionPeriodUnit,
+} from './types';
 
 type ResponseOperation =
   | 'product-data'
@@ -485,32 +491,12 @@ function toTimestamp(value: unknown): number {
   return 0;
 }
 
-function priceNumberToMicros(value: number): number {
-  return Math.trunc(Math.abs(value) < 10_000 ? value * 1_000_000 : value);
-}
-
-function toPriceAmountMicros(value: unknown): string {
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.trunc(value).toString();
-  }
-  if (typeof value === 'string' && value.length > 0) return value;
-  return '0';
-}
-
 function getPriceObject(product: VegaProduct): VegaPrice {
   return product.price != null &&
     typeof product.price === 'object' &&
     !Array.isArray(product.price)
     ? product.price
     : {};
-}
-
-function getPriceAmountMicros(product: VegaProduct): unknown {
-  if (typeof product.price === 'number' && Number.isFinite(product.price)) {
-    return priceNumberToMicros(product.price);
-  }
-  return getPriceObject(product).valueInMicros;
 }
 
 function microsToPrice(value: unknown): number | null {
@@ -563,15 +549,51 @@ function getProductType(product: VegaProduct): unknown {
   return product.productType ?? product.itemType;
 }
 
-function getSubscriptionPeriod(product: VegaProduct): string {
-  if (product.subscriptionPeriod) return product.subscriptionPeriod;
+// Amazon reports periods as duration words such as "Monthly".
+const ISO_BILLING_PERIOD_WORDS: [string, string[]][] = [
+  ['P1W', ['weekly', 'week', '1 week']],
+  ['P2W', ['biweekly', 'bi-weekly', 'bi weekly', '2 week', '2 weeks']],
+  ['P1M', ['monthly', 'month', '1 month']],
+  ['P2M', ['bi-monthly', 'bimonthly', '2 month', '2 months']],
+  ['P3M', ['quarterly', 'quarter', '3 months']],
+  [
+    'P6M',
+    ['semiannual', 'semiannually', 'semi-annual', 'semi-annually', '6 months'],
+  ],
+  ['P1Y', ['annual', 'annually', 'yearly', 'year', '1 year']],
+];
+const ISO_BILLING_PERIOD = /^P(\d+)([DWMY])$/;
+const SUBSCRIPTION_PERIOD_UNITS: Record<string, SubscriptionPeriodUnit> = {
+  D: 'day',
+  W: 'week',
+  M: 'month',
+  Y: 'year',
+};
 
-  const term = product.term?.toLowerCase() ?? '';
-  if (term.includes('year')) return 'P1Y';
-  if (term.includes('month')) return 'P1M';
-  if (term.includes('week')) return 'P1W';
-  if (term.includes('day')) return 'P1D';
-  return '';
+function toIsoBillingPeriod(period: string | null | undefined): string {
+  const value = period?.trim() ?? '';
+  if (value.length === 0 || value.startsWith('P')) return value;
+
+  const word = value.toLowerCase();
+  const match = ISO_BILLING_PERIOD_WORDS.find(([, words]) =>
+    words.includes(word),
+  );
+  return match?.[0] ?? value;
+}
+
+function toSubscriptionPeriod(
+  billingPeriod: string,
+): SubscriptionPeriod | null {
+  const [, value, unitCode] = ISO_BILLING_PERIOD.exec(billingPeriod) ?? [];
+  const unit = unitCode ? SUBSCRIPTION_PERIOD_UNITS[unitCode] : undefined;
+  return unit ? {unit, value: Number(value)} : null;
+}
+
+// App Tester catalogs name the period `term`.
+function getSubscriptionPeriod(product: VegaProduct): string {
+  return toIsoBillingPeriod(
+    nonBlankString(product.subscriptionPeriod) ?? product.term,
+  );
 }
 
 function nonBlankString(value: unknown): string | null {
@@ -639,21 +661,22 @@ function malformedVegaResponse(error: unknown, operation: string): Error {
   );
 }
 
-function createPricingPhase(product: VegaProduct) {
+function createPricingPhase(product: VegaProduct): PricingPhaseAndroid {
   return {
     billingCycleCount: 0,
     billingPeriod: getSubscriptionPeriod(product),
     formattedPrice: getDisplayPrice(product),
-    priceAmountMicros: toPriceAmountMicros(getPriceAmountMicros(product)),
+    // Cross-platform trial checks read zero micros as free, so carry the real price.
+    priceAmountMicros: String(Math.round((getPrice(product) ?? 0) * 1_000_000)),
     priceCurrencyCode: getCurrency(product),
     recurrenceMode: 1,
   };
 }
 
-function createStandardizedSubscriptionOffer(product: VegaProduct) {
+function createSubscriptionOffers(product: VegaProduct): SubscriptionOffer[] {
   const pricingPhase = createPricingPhase(product);
   const sku = product.sku ?? '';
-  return {
+  const baseOffer: SubscriptionOffer = {
     basePlanIdAndroid: sku,
     currency: getCurrency(product),
     displayPrice: getDisplayPrice(product),
@@ -661,20 +684,39 @@ function createStandardizedSubscriptionOffer(product: VegaProduct) {
     offerTagsAndroid: [],
     offerTokenAndroid: '',
     paymentMode: 'pay-as-you-go',
-    period: null,
+    period: toSubscriptionPeriod(pricingPhase.billingPeriod),
     price: getPrice(product) ?? 0,
     pricingPhasesAndroid: {
       pricingPhaseList: [pricingPhase],
     },
     type: 'introductory',
   };
+  // Amazon documents freeTrialPeriod as returned only when the customer is eligible.
+  const trialPeriod = toSubscriptionPeriod(
+    toIsoBillingPeriod(product.freeTrialPeriod),
+  );
+  if (!trialPeriod) return [baseOffer];
+
+  return [
+    baseOffer,
+    {
+      basePlanIdAndroid: sku,
+      currency: '',
+      displayPrice: '',
+      // Amazon names no offer; matches the iOS introductory offer.
+      id: '',
+      paymentMode: 'free-trial',
+      period: trialPeriod,
+      periodCount: 1,
+      price: 0,
+      type: 'introductory',
+    },
+  ];
 }
 
 function mapProduct(product: VegaProduct): NitroProduct {
   const sku = product.sku ?? '';
   const type = productTypeToOpenIap(getProductType(product));
-  const subscriptionOffers =
-    type === 'subs' ? [createStandardizedSubscriptionOffer(product)] : null;
 
   return {
     id: sku,
@@ -689,10 +731,9 @@ function mapProduct(product: VegaProduct): NitroProduct {
     introductoryPricePaymentModeIOS: 'empty',
     nameAndroid: product.title ?? sku,
     subscriptionPeriodAndroid: getSubscriptionPeriod(product) || null,
-    freeTrialPeriodAndroid: product.freeTrialPeriod ?? null,
-    subscriptionOffers: subscriptionOffers
-      ? stringifyJson(subscriptionOffers)
-      : null,
+    freeTrialPeriodAndroid: toIsoBillingPeriod(product.freeTrialPeriod) || null,
+    subscriptionOffers:
+      type === 'subs' ? stringifyJson(createSubscriptionOffers(product)) : null,
     productStatusAndroid: 'ok',
   };
 }

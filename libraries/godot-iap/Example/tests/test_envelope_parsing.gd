@@ -127,6 +127,9 @@ class FakeImmediateApplePlugin:
 	func getReceiptDataIOS() -> String:
 		return _respond("getReceiptDataIOS", "0")
 
+	func syncIOS() -> String:
+		return _respond("syncIOS", JSON.stringify({"success": true}))
+
 	func getStorefront() -> String:
 		return _respond("getStorefront", "0")
 
@@ -214,6 +217,8 @@ func _run_all_tests() -> void:
 	await test_apple_async_timeout_and_late_callback()
 	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
+	await test_ios_restore_waits_for_a_sign_in_sheet()
+	await test_ios_sync_waits_for_a_sign_in_sheet()
 	test_android_signal_handlers_parse_json()
 
 	# Android JSON envelopes
@@ -404,14 +409,20 @@ func test_apple_async_timeout_and_late_callback() -> void:
 	GodotIapPlugin.products_fetched.disconnect(capture)
 
 
+# A void coroutine can start without await; the plugin's own coroutine cannot.
+func _collect_apple_wait(results: Dictionary, key: String, method: String, request_id: String, timeout: float) -> void:
+	results[key] = await GodotIapPlugin._await_products_fetched_for(method, request_id, timeout)
+
+
 func test_apple_async_disconnect_and_concurrency() -> void:
 	GodotIapPlugin._apple_async_results.clear()
 	GodotIapPlugin._apple_async_waiters.clear()
 	GodotIapPlugin._apple_async_terminal_keys.clear()
 	GodotIapPlugin._apple_async_terminal_order.clear()
 
-	var first_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "first", 1.0)
-	var second_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "second", 1.0)
+	var results := {}
+	_collect_apple_wait(results, "first", "syncIOS", "first", 1.0)
+	_collect_apple_wait(results, "second", "syncIOS", "second", 1.0)
 	await process_frame
 	GodotIapPlugin._on_products_fetched({
 		"method": "syncIOS",
@@ -420,19 +431,19 @@ func test_apple_async_disconnect_and_concurrency() -> void:
 		"value": 2,
 	})
 	GodotIapPlugin._on_disconnected()
+	await process_frame
 
-	var first = await first_state
-	var second = await second_state
+	var first = results.get("first", {})
+	var second = results.get("second", {})
 	_assert_equal(first.get("code"), "service-disconnected", "Disconnect should cancel every pending request")
 	_assert_equal(second.get("value"), 2, "Concurrent completions should resolve only their requestId")
 	_assert_equal(GodotIapPlugin._apple_async_waiters.size(), 0, "Disconnect should leave no pending waiters")
 
-	var tree_exit_state = GodotIapPlugin._await_products_fetched_for(
-		"getAvailablePurchases", "tree-exit", 1.0
-	)
+	_collect_apple_wait(results, "tree_exit", "getAvailablePurchases", "tree-exit", 1.0)
 	await process_frame
 	GodotIapPlugin._exit_tree()
-	var tree_exit_result = await tree_exit_state
+	await process_frame
+	var tree_exit_result = results.get("tree_exit", {})
 	_assert_equal(
 		tree_exit_result.get("code"),
 		"service-disconnected",
@@ -666,6 +677,70 @@ func test_ios_restore_failure_emits_purchase_error() -> void:
 	GodotIapPlugin._platform = previous_platform
 	GodotIapPlugin._native_plugin = previous_plugin
 
+
+func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_waiters.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
+	var fake = _install_ios_fake()
+	fake.responses["restorePurchases"] = JSON.stringify({"status": "pending", "requestId": "restore-sheet"})
+	var plain_timeout: float = GodotIapPlugin._apple_async_timeout_seconds
+	var sheet_timeout: float = GodotIapPlugin._apple_async_ui_timeout_seconds
+	# The restore completes after the plain timeout but inside the system-sheet one.
+	GodotIapPlugin._apple_async_timeout_seconds = 0.05
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 2.0
+	create_timer(0.3).timeout.connect(func() -> void:
+		GodotIapPlugin._on_products_fetched({
+			"method": "restorePurchases",
+			"requestId": "restore-sheet",
+			"success": true,
+		}))
+
+	var result = await GodotIapPlugin.restore_purchases()
+	_assert_true(result.success, "An iOS restore should outlast the plain timeout")
+
+	# It stops at the system-sheet timeout, not at a separate, longer one.
+	fake.responses["restorePurchases"] = JSON.stringify({"status": "pending", "requestId": "restore-late"})
+	GodotIapPlugin._apple_async_timeout_seconds = 30.0
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 0.5
+	var started := Time.get_ticks_msec()
+	var late = await GodotIapPlugin.restore_purchases()
+	var waited_ms := Time.get_ticks_msec() - started
+
+	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
+	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
+	_assert_false(late.success, "An unanswered iOS restore should fail")
+	# Timers run on frame deltas and can fire a frame early, so the lower bound is loose.
+	_assert_true(waited_ms >= 250, "An iOS restore should wait for the system-sheet timeout, not fail at once")
+	_assert_true(waited_ms < 5000, "An iOS restore should stop at the system-sheet timeout")
+	_uninstall_fake()
+
+func test_ios_sync_waits_for_a_sign_in_sheet() -> void:
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_waiters.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
+	var fake = _install_ios_fake()
+	fake.responses["syncIOS"] = JSON.stringify({"status": "pending", "requestId": "sync-sheet"})
+	var plain_timeout: float = GodotIapPlugin._apple_async_timeout_seconds
+	var sheet_timeout: float = GodotIapPlugin._apple_async_ui_timeout_seconds
+	# The sync completes after the plain timeout but inside the system-sheet one.
+	GodotIapPlugin._apple_async_timeout_seconds = 0.05
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 2.0
+	create_timer(0.3).timeout.connect(func() -> void:
+		GodotIapPlugin._on_products_fetched({
+			"method": "syncIOS",
+			"requestId": "sync-sheet",
+			"success": true,
+		}))
+
+	var synced = await GodotIapPlugin.sync_ios()
+
+	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
+	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
+	_assert_true(synced, "An iOS sync should outlast the plain timeout while a sign-in sheet is up")
+	_uninstall_fake()
 
 func test_android_request_purchase_error_envelope() -> void:
 	var fake = _install_android_fake()

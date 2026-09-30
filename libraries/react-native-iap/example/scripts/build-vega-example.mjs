@@ -190,7 +190,6 @@ const run = (command, args, cwd = tempRoot) => {
     env: {
       ...process.env,
       RN_IAP_DEV_MODE: 'true',
-      RN_IAP_VEGA: '1',
     },
     stdio: 'inherit',
   });

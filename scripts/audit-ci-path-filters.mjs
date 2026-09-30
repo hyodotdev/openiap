@@ -151,6 +151,7 @@ export const cases = Object.freeze([
     jobs: [
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
+      "ci-godot-iap.yml",
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
@@ -164,6 +165,7 @@ export const cases = Object.freeze([
     jobs: [
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
+      "ci-godot-iap.yml",
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
@@ -177,6 +179,7 @@ export const cases = Object.freeze([
     jobs: [
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
+      "ci-godot-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",

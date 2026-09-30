@@ -42,10 +42,10 @@ describe('RequestPurchaseProps generated invariants', () => {
   it('provides safe GDScript factories and rejects ambiguous dictionaries', () => {
     const gdscript = generated('types.gd');
     expect(gdscript).toContain(
-      'static func in_app(platforms: RequestPurchasePropsByPlatforms',
+      'static func in_app(platforms: _Types.RequestPurchasePropsByPlatforms',
     );
     expect(gdscript).toContain(
-      'static func subs(platforms: RequestSubscriptionPropsByPlatforms',
+      'static func subs(platforms: _Types.RequestSubscriptionPropsByPlatforms',
     );
     expect(gdscript).toContain('if has_purchase == has_subscription:');
     expect(gdscript).toContain(

@@ -32,6 +32,7 @@ import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -44,6 +45,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -270,8 +272,16 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
         // Quick methods that do not depend on billing readiness
         when (call.method) {
-            "getStore" -> {
-                safe.success(FlutterInappPurchasePlugin.getStore())
+            // Internal to the Dart first-purchase notice; not app API.
+            "claimFirstPurchaseNotice" -> {
+                val appContext = context
+                // The flag's SharedPreferences write blocks, so keep it off the main thread.
+                scope.launch {
+                    val claimed = appContext != null && withContext(Dispatchers.IO) {
+                        runCatching { OpenIapFirstPurchaseNotice.claim(appContext) }.getOrDefault(false)
+                    }
+                    safe.success(claimed)
+                }
                 return
             }
             "manageSubscription" -> {

@@ -86,7 +86,14 @@ Horizon offer, the trial offer sets `basePlanIdAndroid` to the SKU; it leaves
 the remaining Play-only fields (offer token, tags, pricing phases) null
 because Amazon reports none. The base offer keeps its earlier shape:
 `basePlanIdAndroid` is the SKU, `offerTokenAndroid` is `""`, and
-`pricingPhasesAndroid` holds one synthetic recurring phase.
+`pricingPhasesAndroid` holds one synthetic recurring phase whose
+`priceAmountMicros` is the parsed price, so a zero-price check does not read
+a paid plan as a free trial.
+
+The Vega OS adapters in `react-native-iap` and `expo-iap` map Kepler's
+`subscriptionPeriod` and `freeTrialPeriod` the same way, so one listing shows
+the same offers on Fire OS and Vega OS. Kepler prices carry a currency code,
+so the Vega base offer keeps it where Fire OS leaves `currency` empty.
 
 After purchase the RVS receipt reports `freeTrialEndDate` while the
 subscription is in its trial.

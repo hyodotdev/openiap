@@ -715,6 +715,40 @@ func _on_purchase_error(error):
           <a href="#folder-structure">Required Folder Structure</a>.
         </p>
 
+        <h3 id="types-name-clash" className="anchor-heading">
+          types.gd fails to parse
+          <a href="#types-name-clash" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          Godot stops loading <code>addons/godot-iap/types.gd</code> when an
+          autoload or <code>class_name</code> in your project reuses one of its
+          names:
+        </p>
+        <ul>
+          <li>
+            An enum name, such as <code>IapStore</code>, gives{' '}
+            <code>
+              Cannot assign a value of type types.gd.IapStore to variable
+              &quot;store&quot;
+            </code>{' '}
+            in godot-iap 3.6.1 and earlier. Update godot-iap; later releases
+            load beside it.
+          </li>
+          <li>
+            A class name, such as <code>PurchaseAndroid</code>, gives{' '}
+            <code>
+              Class &quot;PurchaseAndroid&quot; hides an autoload singleton
+            </code>{' '}
+            or <code>hides a global script class</code> in every version. Rename
+            your script, for example to <code>Shop</code>.
+          </li>
+        </ul>
+        <p>
+          Editing <code>types.gd</code> does not survive an update.
+        </p>
+
         <h3 id="missing-export-checkbox" className="anchor-heading">
           GodotIap is missing from the export Plugins list
           <a href="#missing-export-checkbox" className="anchor-link">
@@ -726,6 +760,27 @@ func _on_purchase_error(error):
           <code>addons/godot-iap/android/</code>. Put it back and restart the
           Godot editor; the plugin list is built when the project loads, not
           when the export dialog opens.
+        </p>
+
+        <h3 id="iapkit-cfg-release-export" className="anchor-heading">
+          IAPKit key missing from a release build
+          <a href="#iapkit-cfg-release-export" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          godot-iap 3.6.0 and 3.6.1 leave <code>res://iapkit.cfg</code> out of
+          every release export and log{' '}
+          <code>
+            Release export: leaving res://iapkit.cfg out of the bundle
+          </code>
+          . If your game ships its publishable key in that file, update
+          godot-iap; later releases export it again. On 3.6.0 or 3.6.1, move the
+          key to another file, such as <code>res://iapkit_publishable.cfg</code>
+          , add that file to the preset's non-resource filter (Export ›
+          Resources › Filters to export non-resource files), and read it from
+          there. The export bundles that file, so keep only a publishable{' '}
+          <code>pk_</code> key in it.
         </p>
 
         <h3 id="android-gradle-failure" className="anchor-heading">
@@ -759,6 +814,61 @@ func _on_purchase_error(error):
           means the frameworks were not embedded — see{' '}
           <a href="#ios-xcode">iOS: Xcode Framework Embedding</a> and run{' '}
           <code>fix_ios_embed.sh</code>.
+        </p>
+
+        <h3 id="other-swiftgodot-plugin" className="anchor-heading">
+          iOS build or launch fails beside another SwiftGodot plugin
+          <a href="#other-swiftgodot-plugin" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          godot-iap and other SwiftGodot-based plugins, such as
+          GodotApplePlugins, each embed a runtime that installs as{' '}
+          <code>SwiftGodotRuntime.framework</code>, and an app loads only one.
+        </p>
+        <ul>
+          <li>
+            Xcode stops with{' '}
+            <code>
+              Multiple commands produce ... SwiftGodotRuntime.framework
+            </code>
+            : run <code>fix_ios_embed.sh</code> from godot-iap 3.5.2 or later on
+            the exported project. It keeps the other plugin&apos;s runtime and
+            drops its own.
+          </li>
+          <li>
+            The app aborts at launch with <code>Symbol not found</code>: the
+            runtime that stayed was built against a different SwiftGodot than
+            one of the plugins needs. godot-iap builds against SwiftGodot
+            v0.79.0; use a build of the other plugin made against the same
+            release.
+          </li>
+        </ul>
+        <p>
+          From 3.5.2, each run prints one <code>Runtime embed check</code> line:
+        </p>
+        <ul>
+          <li>
+            <code>no conflict among the embeds we could read</code> - one
+            runtime; the line lists what it saw.
+          </li>
+          <li>
+            <code>
+              Another addon already embeds ...; using ... instead of our copy
+            </code>{' '}
+            - two runtimes, and godot-iap&apos;s copy was dropped.
+          </li>
+          <li>
+            <code>could not read ...</code> - an <code>.xcframework</code> it
+            could not inspect; if Xcode lists the same framework twice under
+            Embed Frameworks, delete one copy.
+          </li>
+        </ul>
+        <p>
+          No line means the script stopped earlier; read the error it printed.
+          An export outside your Godot project needs <code>IOS_EXPORT_DIR</code>
+          , as in <a href="#ios-xcode">iOS: Xcode Framework Embedding</a>.
         </p>
 
         <h3 id="gdextension-non-apple-editor" className="anchor-heading">
@@ -841,7 +951,8 @@ func _on_purchase_error(error):
             <a href="/docs/setup/store">Store Setup</a> — ship to{' '}
             <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) or{' '}
             <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon) with the{' '}
-            <code>openiap/android_store</code> export option
+            <code>openiap/android_store</code> export option;{' '}
+            <code>get_store()</code> reports the store an export linked
           </li>
           <li>
             <a

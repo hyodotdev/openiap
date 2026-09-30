@@ -17,6 +17,20 @@
     "url": "git+https://github.com/hyodotdev/openiap.git",
     "directory": "packages/cli"
   },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/hyodotdev"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/openiap"
+    },
+    {
+      "type": "paypal",
+      "url": "https://www.paypal.me/dooboolab"
+    }
+  ],
   "bin": {
     "openiap": "bin/openiap.mjs"
   },

@@ -30,7 +30,7 @@ describe("generated GDScript list decoding", () => {
     );
     expect(purchaseError).toContain("if sub_response_code_android != null:");
     expect(purchaseError).not.toContain(
-      "\n\tvar sub_response_code_android: SubResponseCodeAndroid\n",
+      "\n\tvar sub_response_code_android: _Types.SubResponseCodeAndroid\n",
     );
   });
 
@@ -48,10 +48,10 @@ describe("generated GDScript list decoding", () => {
     expect(operation).toContain("var developer_billing_type: Variant = null");
     expect(operation).toContain("if developer_billing_type != null:");
     expect(operation).not.toContain(
-      "\n\t\t\tvar developer_billing_type: DeveloperBillingTypeAndroid\n",
+      "\n\t\t\tvar developer_billing_type: _Types.DeveloperBillingTypeAndroid\n",
     );
     expect(generated).toContain(
-      "static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null)",
+      "static func create_billing_program_reporting_details_android_args(program: _Types.BillingProgramAndroid, developer_billing_type: Variant = null)",
     );
     expect(generated).toContain("if developer_billing_type != null:");
     expect(generated).toContain(
@@ -73,16 +73,16 @@ describe("generated GDScript list decoding", () => {
   it("builds typed nested model arrays before assignment", () => {
     const source = classSource("ProductIOS", "ProductSubscriptionAndroid");
 
-    expect(source).toContain("var arr: Array[SubscriptionOffer] = []");
+    expect(source).toContain("var arr: Array[_Types.SubscriptionOffer] = []");
     expect(source).toContain(
       "var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)",
     );
     expect(source).toContain("if decoded_subscription_offer == null:");
     expect(source).toContain("return null");
     expect(source).toContain("arr.append(decoded_subscription_offer)");
-    expect(source).toContain("elif item is SubscriptionOffer:");
+    expect(source).toContain("elif item is _Types.SubscriptionOffer:");
     expect(source).toContain(
-      "var arr: Array[SubscriptionPricingTermsIOS] = []",
+      "var arr: Array[_Types.SubscriptionPricingTermsIOS] = []",
     );
   });
 
@@ -148,5 +148,57 @@ describe("generated GDScript list decoding", () => {
     expect(source).toContain(
       'if data["nullableLabels"] is Array:\n\t\t\t\tvar arr: Array[Variant] = []',
     );
+  });
+});
+
+// Godot resolves a type annotation against a project's autoloads and
+// class_name scripts first; a bare name here lets one of them replace it.
+const typePositions = [
+  /:\s*([A-Za-z_]\w*)\s*(?:=|$|\)|,)/g,
+  /->\s*([A-Za-z_]\w*)\s*:/g,
+  /Array\[([A-Za-z_]\w*)\]/g,
+  /\bis\s+([A-Za-z_]\w*)\b/g,
+  /\bas\s+([A-Za-z_]\w*)\b/g,
+];
+
+function bareTypeReferences(source: string): string[] {
+  const ownTypes = new Set(
+    [...source.matchAll(/^\t*(?:enum|class) (\w+)/gm)].map((match) => match[1]),
+  );
+  return source
+    .split("\n")
+    .filter((line) => !/^\s*(?:enum|class) /.test(line))
+    .flatMap((line) => {
+      const code = line.split("#")[0];
+      return typePositions.flatMap((pattern) =>
+        [...code.matchAll(pattern)]
+          .map((match) => match[1])
+          .filter((name) => ownTypes.has(name))
+          .map((name) => `${name}: ${line.trim()}`),
+      );
+    });
+}
+
+describe("generated GDScript type references", () => {
+  it("names its own types through its self-preload in every type position", () => {
+    expect(generated).toContain('const _Types = preload("types.gd")');
+    expect(bareTypeReferences(generated)).toEqual([]);
+    expect(nullableEnumListFixture).toContain(
+      'const _Types = preload("generated_nullable_enum_list_types.gd")',
+    );
+    expect(bareTypeReferences(nullableEnumListFixture)).toEqual([]);
+  });
+
+  it("tells the reader to keep the file name its self-preload uses", () => {
+    expect(generated).toContain("# Keep the file named types.gd: the preload finds it by that name.");
+    expect(nullableEnumListFixture).toContain(
+      "# Keep the file named generated_nullable_enum_list_types.gd: the preload finds it by that name.",
+    );
+  });
+
+  it("the scan catches a bare type annotation", () => {
+    expect(
+      bareTypeReferences("enum IapStore {\n}\nclass Purchase:\n\tvar store: IapStore = IapStore.APPLE\n"),
+    ).toEqual(["IapStore: var store: IapStore = IapStore.APPLE"]);
   });
 });

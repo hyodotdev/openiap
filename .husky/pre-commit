@@ -60,7 +60,7 @@ bun run audit:layout
 # Sponsor and funding mirrors are generated from packages/docs/sponsor-registry.json.
 echo "💛 sponsor surface audit…"
 if git diff --cached --name-only --diff-filter=ACMRD \
-  | grep -qE '^(packages/docs/sponsor-registry\.json|scripts/sync-sponsors(\.test)?\.mjs|\.github/FUNDING\.yml|(.+/)?README\.md)$'; then
+  | grep -qE '^(packages/docs/(sponsor-registry|community-touchpoints)\.json|scripts/sync-sponsors(\.test)?\.mjs|\.github/FUNDING\.yml|(.+/)?(README\.md|package\.json|pubspec\.yaml))$'; then
   if ! git diff --quiet -- scripts/sync-sponsors.mjs; then
     echo "❌ sync-sponsors.mjs has unstaged changes; stage it before committing sponsor surfaces."
     exit 1

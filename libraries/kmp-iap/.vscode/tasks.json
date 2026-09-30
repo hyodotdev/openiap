@@ -46,7 +46,7 @@
 			"type": "shell",
 			"command": "./gradlew",
 			"args": [
-				"composeApp:installDebug"
+				"composeApp:installPlayDebug"
 			],
 			"group": "build",
 			"isBackground": false,

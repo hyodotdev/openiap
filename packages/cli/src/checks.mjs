@@ -82,7 +82,7 @@ export const STORE_ALIASES = {
 };
 
 /**
- * Reports the store gradle.properties pins (openiapStore or a legacy flag) and
+ * Reports the store gradle.properties pins (openiapStore or a store flag) and
  * a leftover platform strategy in app/build.gradle that disagrees with it.
  * Without a pin Gradle picks the store per build, which no file records.
  */
@@ -111,8 +111,8 @@ export function androidStoreChecks(root, framework) {
         : "unknown";
   const pinned =
     explicit !== null && explicit !== "auto" && explicit !== "unknown";
-  // The legacy keys still pin, with a deprecation warning: openiapPlatform=none
-  // opts out, and fireOsEnabled or horizonEnabled picks a store.
+  // Flags pin too: fireOsEnabled picks amazon, and the deprecated
+  // horizonEnabled and openiapPlatform=none pick horizon or opt out.
   const platformEntry = properties?.get("openiapPlatform");
   const platformValue = platformEntry?.value.trim().toLowerCase() ?? "";
   const optOut = platformEntry !== undefined && platformValue === "none";
@@ -162,7 +162,7 @@ export function androidStoreChecks(root, framework) {
         "error",
         "android/gradle.properties",
         "horizonEnabled and fireOsEnabled are both true.",
-        "Leave one store enabled and regenerate the Android project.",
+        "Keep one: fireOsEnabled for Fire OS, or openiapStore=horizon in place of the deprecated horizonEnabled.",
         { line: properties.get("horizonEnabled")?.line },
       ),
     );
@@ -173,7 +173,9 @@ export function androidStoreChecks(root, framework) {
         "error",
         "android/gradle.properties",
         `openiapPlatform=none conflicts with ${fireOs ? "fireOsEnabled" : "horizonEnabled"}=true.`,
-        "Drop the legacy store flag, or drop the opt-out.",
+        fireOs
+          ? "Replace both with openiapStore=none (flutter_inapp_purchase only), or delete openiapPlatform=none to keep fireOsEnabled."
+          : "Replace both with openiapStore=none (flutter_inapp_purchase only), or delete both and pin with openiapStore only where a build must target one store.",
         { line: platformEntry?.line },
       ),
     );
@@ -186,7 +188,9 @@ export function androidStoreChecks(root, framework) {
         `openiapStore=${explicit} disagrees with ${legacyKey}.`,
         optOut
           ? "Keep openiapStore; openiapPlatform is the legacy spelling of the opt-out."
-          : "Keep the openiapStore pin and delete the legacy flags.",
+          : legacy === "amazon"
+            ? `Keep one of openiapStore=${explicit} and fireOsEnabled.`
+            : `Keep the openiapStore pin and delete ${legacyName}.`,
         { line: (optOut ? platformEntry : storeEntry)?.line },
       ),
     );
@@ -256,8 +260,8 @@ export function androidStoreChecks(root, framework) {
         "android-store-flavor-mismatch",
         "error",
         app.file,
-        `The project links ${stores.join(" and ")} while gradle.properties selects ${selects}.`,
-        "Regenerate the Android project so both come from one run.",
+        `${app.file} sets the ${stores.join(" and ")} flavor while gradle.properties selects ${selects}.`,
+        "Remove the missingDimensionStrategy line; the build resolves the store itself. In Expo, run npx expo prebuild --clean.",
         { line, expected: selects, actual: stores.join(",") },
       ),
     );
@@ -280,7 +284,12 @@ export function androidStoreChecks(root, framework) {
       message = computed
         ? `gradle.properties selects the ${store} store (${pinKey}), and the build computes its flavor from it.`
         : `This Android project is pinned to the ${store} store (${pinKey}).`;
-      fix = `Google Play billing will not connect from this build. Remove ${pinned ? "the openiapStore pin" : `${pinKey}, a deprecated pin,`} before testing on a Play device; without a pin, the task flavor or the connected debug device selects the store.`;
+      const pin = pinned
+        ? "the openiapStore pin"
+        : legacy === "horizon"
+          ? `${pinKey}, a deprecated pin,`
+          : pinKey;
+      fix = `Google Play billing will not connect from this build. Remove ${pin} before testing on a Play device; without a pin, the task flavor or the connected debug device selects the store.`;
     }
     findings.push(
       finding(

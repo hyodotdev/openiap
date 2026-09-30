@@ -78,7 +78,7 @@ function SetupIndex() {
           </li>
           <li>
             <Link to="/docs/android-setup">Android Setup</Link> — Play Console
-            account, license testers, billing permission
+            account, license testers, test track
           </li>
           <li>
             <Link to="/docs/setup/store">Store Setup</Link> — Horizon OS, Fire

@@ -41,4 +41,26 @@ class AmazonPriceParserTest {
             )
         }
     }
+
+    @Test
+    fun readsThePriceWhateverTheDeviceLocale() {
+        // The store formats a price for its marketplace, not for the device.
+        val locales = listOf("en-US", "de-DE", "es-CL", "en-IE").map(Locale::forLanguageTag)
+        for (locale in locales) {
+            Locale.setDefault(locale)
+            for ((displayPrice, expected) in mapOf(
+                "9,99 €" to 9.99,
+                "€9,99" to 9.99,
+                "\$9.99" to 9.99,
+                "12.50" to 12.5,
+            )) {
+                assertEquals(
+                    "$locale $displayPrice",
+                    expected,
+                    AmazonPriceParser.toPriceAmount(displayPrice),
+                    0.0001
+                )
+            }
+        }
+    }
 }

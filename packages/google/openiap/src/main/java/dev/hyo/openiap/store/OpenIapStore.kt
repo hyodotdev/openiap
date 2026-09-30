@@ -106,8 +106,6 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         setActivity(context.findActivity())
     }
 
-    // Play-specific alternative billing constructors moved to play/store/OpenIapStoreExtensions.kt
-
     // Coroutine scope for background operations
     private val storeScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 

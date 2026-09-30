@@ -46,6 +46,10 @@ const EXPO = {
 const RN = {
   "package.json": JSON.stringify({ dependencies: { "react-native-iap": "1" } }),
 };
+const FLUTTER = {
+  "pubspec.yaml":
+    "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+};
 const SECRET_KEY = `openiap-kit_sk_${"4f2a9c1e".repeat(8)}`;
 
 test("a Play project with nothing else set reports nothing", () => {
@@ -162,6 +166,23 @@ test("the store the flags selected is the line cited as evidence", () => {
   );
 });
 
+test("only the Horizon flag is called a deprecated pin", () => {
+  for (const [flag, deprecated] of [
+    ["fireOsEnabled", false],
+    ["horizonEnabled", true],
+  ]) {
+    withProject(
+      { ...EXPO, "android/gradle.properties": `${flag}=true\n` },
+      (root) => {
+        const { fix } = doctor(root).findings.find(
+          (one) => one.id === "android-store-not-play",
+        );
+        assert.equal(/deprecated/u.test(fix), deprecated, flag);
+      },
+    );
+  }
+});
+
 test("an openiapStore pin selects the store and is the evidence line", () => {
   withProject(
     {
@@ -234,7 +255,7 @@ test("openiapStore=auto pins nothing", () => {
   );
 });
 
-test("a pin that disagrees with a legacy flag is a conflict", () => {
+test("a pin that disagrees with a store flag is a conflict", () => {
   withProject(
     {
       ...EXPO,
@@ -246,6 +267,33 @@ test("a pin that disagrees with a legacy flag is a conflict", () => {
       );
       assert.equal(conflict.level, "error");
       assert.equal(conflict.line, 1);
+      // Both are supported Fire OS keys, so the fix ranks neither.
+      assert.match(
+        conflict.fix,
+        /Keep one of openiapStore=play and fireOsEnabled\./u,
+      );
+    },
+  );
+});
+
+test("an opt-out beside a store flag points to openiapStore", () => {
+  withProject(
+    {
+      ...FLUTTER,
+      "android/gradle.properties": "openiapPlatform=none\nfireOsEnabled=true\n",
+    },
+    (root) => {
+      const conflict = doctor(root).findings.find(
+        (one) => one.id === "android-store-flavor-conflict",
+      );
+      assert.match(
+        conflict.message,
+        /openiapPlatform=none conflicts with fireOsEnabled=true/u,
+      );
+      assert.match(
+        conflict.fix,
+        /Replace both with openiapStore=none \(flutter_inapp_purchase only\), or delete openiapPlatform=none to keep fireOsEnabled\./u,
+      );
     },
   );
 });
@@ -413,10 +461,6 @@ test("the legacy opt-out key is read, and only accepts none", () => {
 
 // Each row matches what the resolver fixture does with the same gradle.properties.
 test("gradle.properties is judged the way Gradle judges it", () => {
-  const FLUTTER = {
-    "pubspec.yaml":
-      "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
-  };
   for (const [framework, properties, expected, message] of [
     [
       RN,

@@ -30,9 +30,6 @@ func _exit_tree() -> void:
 class GodotIapExportPlugin extends EditorExportPlugin:
 	const PLUGIN_NAME = "GodotIap"
 	const ANDROID_GDAP_PATH = "res://addons/godot-iap/android/GodotIap.gdap"
-	# Untracked developer settings. The example includes it so a debug export can
-	# reach a local IAPKit server; a release export must never carry the key.
-	const LOCAL_SETTINGS_PATH = "res://iapkit.cfg"
 	const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
 	const ANDROID_STORE_OPTION = "openiap/android_store"
 	const HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"
@@ -51,11 +48,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 			return true
 		return false
 
-	var _debug_export := false
-
-	func _export_begin(features: PackedStringArray, is_debug: bool, _path: String, _flags: int) -> void:
-		_debug_export = is_debug
-
+	func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, _flags: int) -> void:
 		if not _is_ios_export(features):
 			return
 
@@ -64,11 +57,6 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 				push_warning("[GodotIap] Missing iOS framework: %s" % framework_path)
 				continue
 			_add_ios_embedded_framework(framework_path)
-
-	func _export_file(path: String, _type: String, _features: PackedStringArray) -> void:
-		if path == LOCAL_SETTINGS_PATH and not _debug_export:
-			push_warning("[GodotIap] Release export: leaving %s out of the bundle" % path)
-			skip()
 
 	func _is_ios_export(features: PackedStringArray) -> bool:
 		var platform = get_export_platform()

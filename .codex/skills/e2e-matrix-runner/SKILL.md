@@ -29,9 +29,7 @@ Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
 | VegaOS       | react-native-iap and expo-iap only | Vega device       | build + install + launch; purchase attempt when device input allows |
 
 That is 7 iOS + 21 Android/Horizon + 2 VegaOS cells. Do not silently drop a
-cell. Known exceptions, reported as `UNSUPPORTED` with the reason, never
-omitted: Godot has no Horizon flavor in its Android plugin, so the
-Godot/Horizon cell cannot build.
+cell.
 
 ## Standing approvals for E2E runs
 
@@ -71,7 +69,11 @@ purchase, and move to the next framework strictly one at a time.
 
 **Android.** `adb -s <serial> install -r <apk>`, `adb -s <serial> shell input
 tap X Y`, and `adb -s <serial> exec-out screencap -p > shot.png`. Read the
-screenshot before every tap; do not tap coordinates from memory.
+screenshot before every tap; do not tap coordinates from memory. With several
+devices attached, a debug build follows only the device `ANDROID_SERIAL` names
+and otherwise links Play, so build each cell with it set to that cell's device
+and check the store line before installing, as the
+`## Android Store Selection` section of `.claude/commands/e2e-tests.md` shows.
 
 **Quest.** `screencap` returns black because Quest blocks capture of the VR
 compositor. Do not conclude the device is undriveable. Drive the display-0 VR
@@ -113,10 +115,11 @@ do not burn the run re-proving it.
 Consequences: drive each Horizon app as install + launch + navigate + tap to
 the purchase gate. The `com.oculus.store` checkout dialog renders its full
 text into the dump (product, total, payment method, Confirm), so the
-test/sandbox gate stays enforceable without screenshots. Frameworks without
-a Horizon commerce module fail earlier with their own store error (RN-IAP:
-`initConnection failed ... responseCode -1`, no Play Store on Horizon OS) —
-report that exact error, not a generic input block. Horizon purchase cells
+test/sandbox gate stays enforceable without screenshots. A build that linked
+Play instead of Horizon fails earlier with Play's own error (RN-IAP:
+`initConnection failed ... responseCode -1`, no Play Store on Horizon OS); its
+store line says `store=play`, so rebuild for the Quest. Report any other store
+error exactly, not as a generic input block. Horizon purchase cells
 are `BLOCKED` by default (real-money Confirm, or no store connection), never
 guessed.
 

@@ -14,7 +14,7 @@
     "lint:kt": "sh -c 'command -v ktlint >/dev/null 2>&1 && ktlint --format ./android || { echo \"ktlint not installed; skipping\"; exit 0; }'",
     "lint:ci": "bun run lint:tsc && bun run lint:eslint && bun run lint:prettier && bun run lint:kt",
     "test": "jest && bun run test:plugin",
-    "test:plugin": "cd plugin && bunx jest",
+    "test:plugin": "cd plugin && tsc -p tsconfig.test.json && bunx jest",
     "test:coverage": "jest --coverage",
     "verify:consumer-install": "bun run prepublishOnly && node ../../scripts/verify-npm-consumer-install.mjs --package . --package-name expo-iap --required openiap-versions.json --required build/index.js --required build/index.d.ts --required android/build.gradle --required android/openiap-store.gradle --required ios/ExpoIap.podspec --required app.plugin.js --required plugin/build/withIAP.js",
     "prepare": "bun run build:plugin && sh -c 'command -v husky >/dev/null 2>&1 && husky || { echo \"husky setup unavailable; skipping\"; exit 0; }'",
@@ -50,6 +50,20 @@
   "author": "hyochan <hyochan.dev@gmail.com> (https://github.com/hyochan)",
   "license": "MIT",
   "homepage": "https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap#readme",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/hyodotdev"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/openiap"
+    },
+    {
+      "type": "paypal",
+      "url": "https://www.paypal.me/dooboolab"
+    }
+  ],
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.14",

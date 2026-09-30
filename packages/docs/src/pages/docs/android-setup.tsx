@@ -198,23 +198,16 @@ function AndroidSetup() {
           value.
         </p>
 
-        <h3 id="add-billing-permission" className="anchor-heading">
-          2. Add Billing Permission
-          <a href="#add-billing-permission" className="anchor-link">
-            #
-          </a>
-        </h3>
-        <p>In your AndroidManifest.xml:</p>
-        <pre className="code-block">{`<uses-permission android:name="com.android.vending.BILLING" />
-<uses-permission android:name="android.permission.INTERNET" />`}</pre>
-
         <h3 id="update-build-gradle" className="anchor-heading">
-          3. Update build.gradle
+          2. Update build.gradle
           <a href="#update-build-gradle" className="anchor-link">
             #
           </a>
         </h3>
-        <p>Add the OpenIAP Android dependency:</p>
+        <p>
+          Add the OpenIAP Android dependency. Its manifest already declares the
+          billing and internet permissions, so your app adds neither.
+        </p>
         <pre className="code-block">{`// build.gradle.kts
 dependencies {
     implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
@@ -243,7 +236,7 @@ dependencies {
         </p>
 
         <h3 id="configure-proguard" className="anchor-heading">
-          4. R8 and ProGuard
+          3. R8 and ProGuard
           <a href="#configure-proguard" className="anchor-link">
             #
           </a>

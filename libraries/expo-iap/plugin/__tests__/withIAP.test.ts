@@ -55,16 +55,6 @@ const typedPluginOptions: ExpoIapPluginOptions = {
   },
 };
 
-const typedLegacyAmazonOptions: ExpoIapPluginOptions = {
-  module: 'auto',
-  android: {
-    amazon: {
-      fireOS: true,
-      vegaOS: false,
-    },
-  },
-};
-
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
   module: 'onside',
 };
@@ -72,12 +62,24 @@ const explicitModeOptions: ExpoIapPluginCommonOptions = {
 const invalidExplicitOptions: ExpoIapPluginCommonOptions = {
   modules: {onside: false},
 };
+
+const explicitModeWithPlatformModules: ExpoIapPluginCommonOptions = {
+  module: 'expo-iap',
+  modules: {horizon: true, amazon: {fireOS: true, vegaOS: false}},
+};
+
+// @ts-expect-error the module choice already selects Onside
+const explicitOnsideWithOnsideModule: ExpoIapPluginCommonOptions = {
+  module: 'onside',
+  modules: {onside: true},
+};
 void autoModeOptions;
 void groupedAmazonOptions;
 void typedPluginOptions;
-void typedLegacyAmazonOptions;
 void explicitModeOptions;
 void invalidExplicitOptions;
+void explicitModeWithPlatformModules;
+void explicitOnsideWithOnsideModule;
 
 jest.mock('expo/config-plugins', () => {
   const plugins = jest.requireActual('expo/config-plugins');
@@ -87,6 +89,18 @@ jest.mock('expo/config-plugins', () => {
     WarningAggregator: {addWarningAndroid: jest.fn(), addWarningIOS: jest.fn()},
   };
 });
+
+// The plugin rewrites the tracked expo-module.config.json to match the modules
+// a test selects; restore it so a failing test cannot leave the checkout dirty.
+const restoreAutolinkingConfig = (() => {
+  const fs = jest.requireActual('fs') as typeof import('fs');
+  const path = jest.requireActual('path') as typeof import('path');
+  const file = path.resolve(__dirname, '../../expo-module.config.json');
+  const original = fs.readFileSync(file, 'utf8');
+  return () => fs.writeFileSync(file, original, 'utf8');
+})();
+
+afterAll(restoreAutolinkingConfig);
 
 describe('android configuration', () => {
   it('leaves an app build file without OpenIAP lines untouched', () => {
@@ -148,7 +162,7 @@ describe('android configuration', () => {
     ).toBe('horizon');
   });
 
-  it('warns that a module pin is deprecated but still applies it', () => {
+  it('warns that the Horizon pin is deprecated but still applies it', () => {
     // Dropping the pin silently would move an existing Quest release to Play.
     const warn = WarningAggregator.addWarningAndroid as jest.Mock;
     warn.mockClear();
@@ -159,9 +173,191 @@ describe('android configuration', () => {
     expect(warn).toHaveBeenCalledWith(
       'expo-iap',
       expect.stringMatching(
-        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated.*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
+        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated and will be removed in the next major release \(expo-iap \d+\.0\.0\)\..*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
       ),
     );
+  });
+
+  it('pins a Fire OS declaration without a warning', () => {
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: true,
+        isHorizonEnabled: false,
+      }),
+    ).toBe('amazon');
+    const warn = WarningAggregator.addWarningAndroid as jest.Mock;
+    warn.mockClear();
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+      modules: {amazon: {fireOS: true}},
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns that the EXPO_IAP_* flags are deprecated when one decides a value', () => {
+    const {version} = jest.requireActual<{version: string}>(
+      '../../package.json',
+    );
+    const nextMajor = Number(version.split('.')[0]) + 1;
+    const flags = {
+      EXPO_IAP_FIREOS: 'modules.amazon.fireOS',
+      EXPO_IAP_VEGA: 'modules.amazon.vegaOS',
+      EXPO_IAP_ONSIDE: 'modules.onside',
+    };
+    const previous = Object.keys(flags).map(
+      (name) => [name, process.env[name]] as const,
+    );
+    const android = WarningAggregator.addWarningAndroid as jest.Mock;
+    const ios = WarningAggregator.addWarningIOS as jest.Mock;
+    const flagsWarned = (...lists: jest.Mock[]) =>
+      lists
+        .flatMap((list) => list.mock.calls)
+        .map(([, message]) => String(message))
+        .filter((message) => message.startsWith('EXPO_IAP_'))
+        .map((message) => message.split('=')[0])
+        .sort();
+    const warnedFlags = (
+      config: Partial<ExpoConfig>,
+      options: ExpoIapPluginOptions,
+    ) => {
+      android.mockClear();
+      ios.mockClear();
+      plugin({name: 'app', slug: 'app', ...config} as ExpoConfig, options);
+      return flagsWarned(android, ios);
+    };
+    try {
+      // Only the value 1 turns a flag on.
+      for (const value of ['0', 'true']) {
+        for (const name of Object.keys(flags)) process.env[name] = value;
+        expect(warnedFlags({}, {})).toEqual([]);
+      }
+
+      for (const name of Object.keys(flags)) process.env[name] = '1';
+      android.mockClear();
+      ios.mockClear();
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {});
+      const messages = [...android.mock.calls, ...ios.mock.calls].map(
+        ([, message]) => String(message),
+      );
+      for (const [name, replacement] of Object.entries(flags)) {
+        expect(
+          messages.filter((message) =>
+            message.startsWith(
+              `${name}=1 is deprecated and will be removed in the next major release (expo-iap ${nextMajor}.0.0); set ${replacement}`,
+            ),
+          ),
+        ).toHaveLength(1);
+      }
+      // Onside is iOS only, so its warning goes to the iOS list.
+      expect(flagsWarned(android)).toEqual([
+        'EXPO_IAP_FIREOS',
+        'EXPO_IAP_VEGA',
+      ]);
+      expect(flagsWarned(ios)).toEqual(['EXPO_IAP_ONSIDE']);
+
+      // A source that outranks a flag decides its value, so that flag is not
+      // reported while the other flags still are. A null Amazon key decides
+      // too, as null does for modules.horizon.
+      const outranked: Array<{
+        flag: string;
+        config?: Partial<ExpoConfig>;
+        options: ExpoIapPluginOptions;
+      }> = [
+        {
+          flag: 'EXPO_IAP_FIREOS',
+          options: {modules: {amazon: {fireOS: false}}},
+        },
+        {
+          flag: 'EXPO_IAP_FIREOS',
+          options: {modules: {amazon: {fireOS: true}}},
+        },
+        {
+          flag: 'EXPO_IAP_FIREOS',
+          // @ts-expect-error app.json can hold null where the type allows only a boolean
+          options: {modules: {amazon: {fireOS: null}}},
+        },
+        {flag: 'EXPO_IAP_VEGA', options: {modules: {amazon: {vegaOS: false}}}},
+        {flag: 'EXPO_IAP_VEGA', options: {modules: {amazon: {vegaOS: true}}}},
+        {
+          flag: 'EXPO_IAP_VEGA',
+          // @ts-expect-error app.json can hold null where the type allows only a boolean
+          options: {modules: {amazon: {vegaOS: null}}},
+        },
+        {
+          flag: 'EXPO_IAP_VEGA',
+          options: {android: {amazon: {vegaOS: {enabled: false}}}},
+        },
+        {
+          flag: 'EXPO_IAP_VEGA',
+          options: {android: {amazon: {vegaOS: {enabled: true}}}},
+        },
+        {flag: 'EXPO_IAP_ONSIDE', options: {modules: {onside: false}}},
+        {flag: 'EXPO_IAP_ONSIDE', options: {modules: {onside: true}}},
+        {flag: 'EXPO_IAP_ONSIDE', options: {module: 'expo-iap'}},
+        {flag: 'EXPO_IAP_ONSIDE', options: {module: 'onside'}},
+        {
+          flag: 'EXPO_IAP_ONSIDE',
+          config: {ios: {onside: {enabled: false}}},
+          options: {},
+        },
+        {
+          flag: 'EXPO_IAP_ONSIDE',
+          config: {ios: {onside: {enabled: true}}},
+          options: {},
+        },
+      ];
+      for (const {flag, config = {}, options} of outranked) {
+        const expected = Object.keys(flags)
+          .filter((name) => name !== flag)
+          .sort();
+        expect([flag, config, options, warnedFlags(config, options)]).toEqual([
+          flag,
+          config,
+          options,
+          expected,
+        ]);
+      }
+
+      // These leave the value open, so every flag still decides and is
+      // reported. Unlike a null Amazon key, a null modules.onside is unset.
+      const undecided: Array<{
+        config?: Partial<ExpoConfig>;
+        options: ExpoIapPluginOptions;
+      }> = [
+        {options: {module: 'auto'}},
+        {options: {modules: {onside: undefined}}},
+        {
+          // @ts-expect-error app.json can hold null where the type allows only a boolean
+          options: {modules: {onside: null}},
+        },
+        {config: {ios: {onside: {}}}, options: {}},
+        {
+          options: {
+            android: {amazon: {vegaOS: {packageId: 'dev.example.vega'}}},
+          },
+        },
+      ];
+      for (const {config = {}, options} of undecided) {
+        expect([config, options, warnedFlags(config, options)]).toEqual([
+          config,
+          options,
+          Object.keys(flags).sort(),
+        ]);
+      }
+
+      // With every flag outranked, nothing is reported.
+      expect(
+        warnedFlags(
+          {},
+          {modules: {onside: false, amazon: {fireOS: false, vegaOS: false}}},
+        ),
+      ).toEqual([]);
+    } finally {
+      for (const [name, value] of previous) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
   });
 
   it('does not warn when nothing pins the store', () => {
@@ -472,22 +668,49 @@ describe('android configuration', () => {
       }),
     ).toEqual({
       isFireOsEnabled: true,
-      isVegaEnabled: true,
+      vegaOverride: true,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
   });
 
-  it('keeps Onside and Horizon under modules', () => {
+  it('lets a Fire OS declaration turn Vega auto-detection off', () => {
+    expect(
+      resolveAmazonPlatformFlags({modules: {amazon: {fireOS: true}}}),
+    ).toEqual({
+      isFireOsEnabled: true,
+      vegaOverride: false,
+      isHorizonEnabled: false,
+    });
+    // An explicit Vega setting still wins, so one prebuild can declare both.
     expect(
       resolveAmazonPlatformFlags({
-        modules: {horizon: true, onside: true},
+        modules: {amazon: {fireOS: true}},
+        android: {amazon: {vegaOS: {enabled: true}}},
+      }).vegaOverride,
+    ).toBe(true);
+
+    const previous = process.env.EXPO_IAP_FIREOS;
+    process.env.EXPO_IAP_FIREOS = '1';
+    try {
+      expect(resolveAmazonPlatformFlags(undefined).vegaOverride).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_FIREOS;
+      } else {
+        process.env.EXPO_IAP_FIREOS = previous;
+      }
+    }
+  });
+
+  it('keeps Horizon under modules', () => {
+    expect(
+      resolveAmazonPlatformFlags({
+        modules: {horizon: true},
       }),
     ).toEqual({
       isFireOsEnabled: false,
-      isVegaEnabled: false,
+      vegaOverride: undefined,
       isHorizonEnabled: true,
-      isOnsideEnabled: true,
     });
   });
 
@@ -501,9 +724,8 @@ describe('android configuration', () => {
 
     expect(flags).toEqual({
       isFireOsEnabled: true,
-      isVegaEnabled: false,
+      vegaOverride: false,
       isHorizonEnabled: true,
-      isOnsideEnabled: false,
     });
     // Gradle and the doctor both fail this combination; silently preferring
     // Fire OS here would ship a store the config never asked for.
@@ -515,20 +737,17 @@ describe('android configuration', () => {
       fireOS: process.env.EXPO_IAP_FIREOS,
       vega: process.env.EXPO_IAP_VEGA,
       horizon: process.env.EXPO_IAP_HORIZON,
-      onside: process.env.EXPO_IAP_ONSIDE,
     };
 
     process.env.EXPO_IAP_FIREOS = '1';
     process.env.EXPO_IAP_VEGA = '1';
     process.env.EXPO_IAP_HORIZON = '1';
-    process.env.EXPO_IAP_ONSIDE = '1';
 
     try {
       expect(resolveAmazonPlatformFlags(undefined)).toEqual({
         isFireOsEnabled: true,
-        isVegaEnabled: true,
+        vegaOverride: true,
         isHorizonEnabled: true,
-        isOnsideEnabled: true,
       });
     } finally {
       if (previous.fireOS === undefined) {
@@ -546,11 +765,6 @@ describe('android configuration', () => {
       } else {
         process.env.EXPO_IAP_HORIZON = previous.horizon;
       }
-      if (previous.onside === undefined) {
-        delete process.env.EXPO_IAP_ONSIDE;
-      } else {
-        process.env.EXPO_IAP_ONSIDE = previous.onside;
-      }
     }
   });
 
@@ -565,9 +779,8 @@ describe('android configuration', () => {
         }),
       ).toEqual({
         isFireOsEnabled: false,
-        isVegaEnabled: false,
+        vegaOverride: undefined,
         isHorizonEnabled: false,
-        isOnsideEnabled: false,
       });
     } finally {
       if (previous === undefined) {
@@ -578,35 +791,25 @@ describe('android configuration', () => {
     }
   });
 
-  it('keeps explicit null module flags ahead of Expo IAP platform env flags', () => {
-    const previous = {
-      horizon: process.env.EXPO_IAP_HORIZON,
-      onside: process.env.EXPO_IAP_ONSIDE,
-    };
+  it('keeps an explicit null Horizon flag ahead of the Expo IAP platform env flag', () => {
+    const previous = process.env.EXPO_IAP_HORIZON;
     process.env.EXPO_IAP_HORIZON = '1';
-    process.env.EXPO_IAP_ONSIDE = '1';
 
     try {
       const options = {
-        modules: {horizon: null, onside: null},
+        modules: {horizon: null},
       } as unknown as ExpoIapPluginOptions;
 
       expect(resolveAmazonPlatformFlags(options)).toEqual({
         isFireOsEnabled: false,
-        isVegaEnabled: false,
+        vegaOverride: undefined,
         isHorizonEnabled: false,
-        isOnsideEnabled: false,
       });
     } finally {
-      if (previous.horizon === undefined) {
+      if (previous === undefined) {
         delete process.env.EXPO_IAP_HORIZON;
       } else {
-        process.env.EXPO_IAP_HORIZON = previous.horizon;
-      }
-      if (previous.onside === undefined) {
-        delete process.env.EXPO_IAP_ONSIDE;
-      } else {
-        process.env.EXPO_IAP_ONSIDE = previous.onside;
+        process.env.EXPO_IAP_HORIZON = previous;
       }
     }
   });
@@ -618,9 +821,8 @@ describe('android configuration', () => {
 
     expect(resolveAmazonPlatformFlags(options)).toEqual({
       isFireOsEnabled: false,
-      isVegaEnabled: false,
+      vegaOverride: undefined,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
   });
 
@@ -637,9 +839,8 @@ describe('android configuration', () => {
       }),
     ).toEqual({
       isFireOsEnabled: false,
-      isVegaEnabled: false,
+      vegaOverride: undefined,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
   });
 
@@ -753,7 +954,9 @@ describe('android configuration', () => {
   });
 
   it('adds Horizon App ID metadata whenever an app id is configured', () => {
-    const manifest = {manifest: {}};
+    const manifest: Parameters<typeof syncHorizonAppIdMetaData>[0] = {
+      manifest: {},
+    };
 
     expect(syncHorizonAppIdMetaData(manifest, undefined)).toBe('unchanged');
     expect(manifest.manifest).not.toHaveProperty('application');
@@ -983,6 +1186,30 @@ describe('ios module selection', () => {
       includeExpoIap: true,
       includeOnside: false,
     });
+  });
+
+  it('treats a null modules.onside as unset, so ios config and then the env decide', () => {
+    const options: ExpoIapPluginCommonOptions = {
+      // @ts-expect-error app.json can hold null where the type allows only a boolean
+      modules: {onside: null},
+    };
+    const includeOnside = (ios?: ExpoConfig['ios']) =>
+      resolveModuleSelection(createConfig(ios), options).includeOnside;
+    const previous = process.env.EXPO_IAP_ONSIDE;
+    process.env.EXPO_IAP_ONSIDE = '1';
+
+    try {
+      expect(includeOnside()).toBe(true);
+      expect(includeOnside({onside: {enabled: false}})).toBe(false);
+      delete process.env.EXPO_IAP_ONSIDE;
+      expect(includeOnside({onside: {enabled: true}})).toBe(true);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous;
+      }
+    }
   });
 
   describe('autolinking computation', () => {
@@ -1331,6 +1558,7 @@ describe('vega project generation', () => {
           marker,
           'utf8',
         );
+        (WarningAggregator.addWarningAndroid as jest.Mock).mockClear();
         await prebuildAndroid(projectRoot, {});
         expect(
           fs.readFileSync(path.join(projectRoot, 'index.js'), 'utf8'),
@@ -1340,10 +1568,16 @@ describe('vega project generation', () => {
             fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'),
           ),
         ).toMatchObject({expoIapGenerated: true});
-        // A marker the plugin did not write is still the user's file.
+        // A marker the plugin did not write is still the user's file, and
+        // keeping it is not worth a warning on every prebuild.
         expect(
           fs.readFileSync(path.join(projectRoot, 'manifest.toml'), 'utf8'),
         ).toBe(marker);
+        expect(
+          (WarningAggregator.addWarningAndroid as jest.Mock).mock.calls.some(
+            ([, message]) => String(message).includes('manifest.toml'),
+          ),
+        ).toBe(false);
       } finally {
         fs.rmSync(projectRoot, {recursive: true, force: true});
       }
@@ -1390,6 +1624,50 @@ describe('vega project generation', () => {
         expect(fs.existsSync(path.join(plainRoot, 'index.js'))).toBe(true);
       } finally {
         fs.rmSync(plainRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('skips the manifest guess when Fire OS is declared', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        fs.writeFileSync(
+          path.join(projectRoot, 'manifest.toml'),
+          'schema-version = 1\n',
+          'utf8',
+        );
+        await prebuildAndroid(projectRoot, {
+          modules: {amazon: {fireOS: true}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(false);
+        expect(fs.existsSync(path.join(projectRoot, 'app.json'))).toBe(false);
+        expect(
+          fs.readFileSync(
+            path.join(projectRoot, 'android', 'gradle.properties'),
+            'utf8',
+          ),
+        ).toContain('openiapStore=amazon');
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('builds both targets when Fire OS and Vega are both declared', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {
+          modules: {amazon: {fireOS: true, vegaOS: true}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(true);
+        expect(
+          fs.readFileSync(
+            path.join(projectRoot, 'android', 'gradle.properties'),
+            'utf8',
+          ),
+        ).toContain('openiapStore=amazon');
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
       }
     });
 
@@ -1447,6 +1725,62 @@ describe('vega project generation', () => {
 });
 
 describe('plugin logging', () => {
+  it('logs the Vega decision a Fire OS declaration made', () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      // A unique app id, since logOnce prints each message once per process.
+      plugin(
+        {name: 'app', slug: 'app'},
+        {
+          android: {horizon: {appId: 'fire-os-log'}},
+          modules: {amazon: {fireOS: true}},
+        },
+      );
+      expect(
+        error.mock.calls.some(([message]) =>
+          /horizonAppId=fire-os-log, pinnedStore=amazon, .*vega=false/u.test(
+            String(message),
+          ),
+        ),
+      ).toBe(true);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('logs the Onside decision the plugin acts on', () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const previous = process.env.EXPO_IAP_ONSIDE;
+    const logged = (appId: string) =>
+      error.mock.calls
+        .map(([message]) => String(message))
+        .find((message) => message.includes(`horizonAppId=${appId}`));
+
+    try {
+      // Unique app ids, since logOnce prints each message once per process.
+      delete process.env.EXPO_IAP_ONSIDE;
+      plugin(
+        {name: 'app', slug: 'app'},
+        {module: 'onside', android: {horizon: {appId: 'onside-forced'}}},
+      );
+      expect(logged('onside-forced')).toMatch(/onside=true$/u);
+
+      process.env.EXPO_IAP_ONSIDE = '1';
+      plugin(
+        {name: 'app', slug: 'app'},
+        {module: 'expo-iap', android: {horizon: {appId: 'onside-excluded'}}},
+      );
+      expect(logged('onside-excluded')).toMatch(/onside=false$/u);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous;
+      }
+      error.mockRestore();
+    }
+  });
+
   it('keeps stdout clean so config can be read as JSON', () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
     const error = jest.spyOn(console, 'error').mockImplementation(() => {});

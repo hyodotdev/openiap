@@ -18,10 +18,10 @@ function ReactNativeSetup() {
         <code>react-native-iap</code> provides in-app purchase support for React
         Native apps using Nitro Modules, a high-performance native bridging
         layer for React Native. It supports StoreKit 2 on iOS and Google Play
-        Billing {GOOGLE_PLAY_BILLING.version}+ on Android by default, with
-        optional build flavors for{' '}
-        <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) and{' '}
-        <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon Appstore).
+        Billing {GOOGLE_PLAY_BILLING.version}+ on Android by default, and it
+        also builds for <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta
+        Quest) and <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon
+        Appstore), picking the store when Gradle runs.
       </p>
 
       <p>
@@ -139,10 +139,11 @@ npm install react-native-iap react-native-nitro-modules`}
             Store-specific Android targets —{' '}
             <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) and{' '}
             <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon Appstore) —
-            ship as separate build flavors. Complete the setup on this page
-            first, then follow <a href="/docs/setup/store">Store Setup</a> for
-            target-specific Gradle, manifest, and runtime details. Vega OS is
-            not an Android flavor — see <a href="#vega-os">Vega OS</a> below.
+            ship as separate builds, and the store is picked when Gradle runs.
+            Complete the setup on this page first, then follow{' '}
+            <a href="/docs/setup/store">Store Setup</a> for target-specific
+            manifest and runtime details. Vega OS is not an Android build — see{' '}
+            <a href="#vega-os">Vega OS</a> below.
           </li>
         </ul>
 

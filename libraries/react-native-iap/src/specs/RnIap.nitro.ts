@@ -655,12 +655,20 @@ export interface NitroProduct {
   discountOffers?: string | null;
   // Android specific fields
   nameAndroid?: string | null;
+  // Legacy fields: fetchProducts drops them, and the offers carry the same data.
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers` or `discountOffers`. */
   originalPriceAndroid?: string | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers` or `discountOffers`. */
   originalPriceAmountMicrosAndroid?: number | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
   introductoryPriceCyclesAndroid?: number | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
   introductoryPricePeriodAndroid?: string | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
   introductoryPriceValueAndroid?: number | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
   subscriptionPeriodAndroid?: string | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
   freeTrialPeriodAndroid?: string | null;
   /**
    * Product fetch status (Play Billing 8.0.0+): OK, NOT_FOUND (SKU doesn't
@@ -747,6 +755,13 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   finishTransaction(
     params: NitroFinishTransactionParams,
   ): Promise<NitroPurchaseResult | boolean>;
+
+  /**
+   * Internal to react-native-iap, not app API: claims the once-per-install flag
+   * for the first-purchase notice. True only the first time on this install.
+   * Synchronous: it only flips one flag.
+   */
+  claimFirstPurchaseNotice(): boolean;
 
   // Event listener methods
 

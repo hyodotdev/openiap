@@ -73,7 +73,6 @@ var _apple_async_terminal_keys: Dictionary = {}
 var _apple_async_terminal_order: Array[String] = []
 var _apple_async_cancellation_generation := 0
 var _apple_async_timeout_seconds := 30.0
-var _apple_async_restore_timeout_seconds := 120.0
 var _apple_async_ui_timeout_seconds := 300.0
 
 # Platform detection
@@ -779,7 +778,9 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 ## See: https://openiap.dev/docs/apis/finish-transaction
 func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
 	print("[GodotIap] finish_transaction called, consumable: ", is_consumable)
-	var result = await _finish_transaction_raw(purchase.to_dict(), is_consumable)
+	var purchase_dict: Dictionary = purchase.to_dict()
+	var result = await _finish_transaction_raw(purchase_dict, is_consumable)
+	_print_first_purchase_notice.call_deferred(purchase_dict, result)
 	return Types.VoidResult.from_dict(result)
 
 ## Finish transaction with raw Dictionary (convenience method).
@@ -790,6 +791,7 @@ func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
 func finish_transaction_dict(purchase: Dictionary, is_consumable: bool = false) -> Variant:
 	print("[GodotIap] finish_transaction_dict called, consumable: ", is_consumable)
 	var result = await _finish_transaction_raw(purchase, is_consumable)
+	_print_first_purchase_notice.call_deferred(purchase, result)
 	return Types.VoidResult.from_dict(result)
 
 ## Internal: Finish transaction with raw Dictionary
@@ -825,6 +827,43 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 
 	return { "success": true }
 
+# ==========================================
+# First-Purchase Notice (internal)
+# ==========================================
+
+# Byte-identical to consoleNotice in packages/docs/community-touchpoints.json.
+const _FIRST_PURCHASE_NOTICE: PackedStringArray = [
+	"[OpenIAP] First purchase finished in this app 🎉",
+	"If OpenIAP saved you time, a star helps: https://github.com/hyodotdev/openiap",
+	"When your app ships, list it for free: https://openiap.dev/showcase",
+	"(Shown once, debug builds only.)",
+]
+
+## OS.is_debug_build and DisplayServer.get_name, swappable in tests.
+var _is_debug_build: Callable = Callable(OS, "is_debug_build")
+var _display_server_name: Callable = Callable(DisplayServer, "get_name")
+var _first_purchase_notice_tried := false
+
+
+## Prints the notice once per install after a purchase finishes in a debug
+## build. Callers defer it, so it never delays or changes the finish.
+func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> void:
+	if _first_purchase_notice_tried or _native_plugin == null:
+		return
+	# A headless display server is a test runner or CI, not a developer's console.
+	if not _is_debug_build.call() or _display_server_name.call() == "headless":
+		return
+	if not result.get("success", false) or purchase.get("purchaseState") != "purchased":
+		return
+	_first_purchase_notice_tried = true
+	# A prebuilt Apple binary from before this script lacks the method.
+	if _is_apple() and not _native_plugin.has_method("claimFirstPurchaseNotice"):
+		return
+	# Android's JNI bridge returns a Kotlin Boolean as int (1/0), and null on a failed call.
+	var claimed: Variant = _native_plugin.call("claimFirstPurchaseNotice")
+	if claimed != null and bool(claimed):
+		print("\n".join(_FIRST_PURCHASE_NOTICE))
+
 ## Restore completed transactions.
 ## Apple platforms: Performs a lightweight sync then fetches available purchases.
 ## Android: Simply fetches available purchases.
@@ -835,10 +874,11 @@ func restore_purchases() -> Variant:
 	print("[GodotIap] restore_purchases called")
 
 	if _is_apple() and _native_plugin:
+		# AppStore.sync() can show a sign-in sheet, so restore gets the system-sheet timeout.
 		var payload = await _call_apple_async(
 			"restorePurchases",
 			[],
-			_apple_async_restore_timeout_seconds
+			_apple_async_ui_timeout_seconds
 		)
 		var apple_result = Types.VoidResult.new()
 		apple_result.success = payload.get("success", false)
@@ -1399,7 +1439,8 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 func sync_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
-	var payload = await _call_apple_async("syncIOS")
+	# AppStore.sync() can show a sign-in sheet, as in restore_purchases().
+	var payload = await _call_apple_async("syncIOS", [], _apple_async_ui_timeout_seconds)
 	return payload.get("success", false)
 
 ## Clear pending transactions from the StoreKit payment queue (iOS only).

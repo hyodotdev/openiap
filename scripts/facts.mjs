@@ -91,8 +91,10 @@ export const FACTS = Object.freeze([
         pattern: /\b(\d+\.\d+(?:\.\d+)?)-stable\b/g,
       },
       {
+        // setup-godot demands a patch number (4.3.0); Godot's own tags drop a
+        // zero patch (4.3-stable), so 4.3.0 reads as 4.3.
         files: [".github/workflows/ci-godot-iap.yml"],
-        pattern: /^\s*version:\s*([\d.]+)\s*$/gm,
+        pattern: /^\s*version:\s*(\d+\.\d+(?:\.[1-9]\d*)?)(?:\.0)?\s*$/gm,
       },
       {
         files: ["libraries/godot-iap/Makefile"],

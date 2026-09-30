@@ -28,7 +28,6 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import com.google.gson.Gson
 import dev.hyo.openiap.helpers.ActiveStoreConnection
 import dev.hyo.openiap.helpers.ActiveStoreListenerOwner
 import dev.hyo.openiap.helpers.ActiveStoreOperationRegistry
@@ -277,7 +276,6 @@ class OpenIapModule(
     private var currentActivityRef: WeakReference<Activity>? = null
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val productManager = ProductManager()
-    private val gson = Gson()
     private val fallbackActivity: Activity? = if (context is Activity) context else null
 
     private val purchaseUpdateListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseUpdateListener>()

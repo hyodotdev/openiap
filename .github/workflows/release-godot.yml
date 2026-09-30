@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      allow_unreleased_native:
+        description: "Release although openiap-google or openiap-apple has unreleased source changes"
+        required: false
+        default: false
+        type: boolean
       notarize_macos:
         description: "Include notarized macOS runtime frameworks"
         required: false
@@ -43,6 +48,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # The native gate compares with the native release tags.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Enforce stable and prerelease branches
@@ -53,6 +60,20 @@ jobs:
           node scripts/release-branch-policy.mjs guard godot
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
+
+      - name: Require a major for dropped deprecations
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+        run: node scripts/scheduled-removals.mjs release-gate godot-iap "$VERSION_TYPE"
+
+      - name: Require released native packages
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          OPENIAP_ALLOW_UNRELEASED_NATIVE: ${{ inputs.allow_unreleased_native }}
+        run: >-
+          node scripts/release-branch-policy.mjs native-gate godot
+          "$VERSION_TYPE" "$IS_PRERELEASE"
 
   validate-android:
     needs: [release-branch]
@@ -567,7 +588,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## godot-iap $VERSION
 
-          Godot 4.x addon for the OpenIAP specification (iOS GDExtension + Android AAR plugin).
+          Godot 4.x addon implementing the OpenIAP Client Protocol (iOS GDExtension + Android AAR plugin).
 
           ### What's Changed
 

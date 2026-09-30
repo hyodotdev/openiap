@@ -38,6 +38,7 @@ class AmazonSubscriptionProductMappingTest {
         assertEquals(PaymentMode.PayAsYouGo, base.paymentMode)
         assertEquals(SubscriptionPeriod(SubscriptionPeriodUnit.Month, 1), base.period)
         assertEquals("P1M", base.pricingPhasesAndroid?.pricingPhaseList?.single()?.billingPeriod)
+        assertEquals("9990000", base.pricingPhasesAndroid?.pricingPhaseList?.single()?.priceAmountMicros)
         assertEquals("\$9.99", base.displayPrice)
         assertEquals(9.99, base.price, 0.0001)
 

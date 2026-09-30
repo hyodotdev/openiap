@@ -6,6 +6,7 @@
 
 __mocks__
 __tests__
+plugin/tsconfig.test.json
 
 /babel.config.js
 /android/src/androidTest/

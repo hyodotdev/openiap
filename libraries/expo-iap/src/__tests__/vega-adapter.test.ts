@@ -3,6 +3,7 @@ import {
   type VegaPurchasingService,
 } from '../vega-adapter';
 import {ErrorCode} from '../types';
+import type {SubscriptionOffer} from '../types';
 
 const createService = (): jest.Mocked<VegaPurchasingService> =>
   ({
@@ -66,6 +67,38 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
       responseCode: 1,
     })),
   } as unknown as jest.Mocked<VegaPurchasingService>);
+
+const fetchPremiumOffers = async (periods: {
+  freeTrialPeriod?: string;
+  subscriptionPeriod?: string;
+}): Promise<SubscriptionOffer[] | null | undefined> => {
+  const service = createService();
+  service.getProductData.mockResolvedValueOnce({
+    responseCode: 1,
+    productData: new Map([
+      [
+        'dev.hyo.martie.premium',
+        {
+          sku: 'dev.hyo.martie.premium',
+          title: 'Premium',
+          description: 'All features',
+          productType: 3,
+          price: {
+            priceCurrencyCode: 'USD',
+            priceStr: '$9.99',
+            valueInMicros: 9_990_000n,
+          },
+          ...periods,
+        },
+      ],
+    ]),
+  });
+  const [product] = await createExpoIapVegaModule(service).fetchProducts(
+    'subs',
+    ['dev.hyo.martie.premium'],
+  );
+  return product?.subscriptionOffers;
+};
 
 describe('Amazon Vega Expo adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
@@ -202,7 +235,8 @@ describe('Amazon Vega Expo adapter', () => {
         },
         'dev.hyo.martie.premium': {
           itemType: 'SUBSCRIPTION',
-          price: 4.99,
+          // 4.1 * 1_000_000 is 4099999.9999999995 in floating point.
+          price: 4.1,
           term: 'Monthly',
           title: 'Premium Monthly',
           description: 'Monthly premium access',
@@ -226,10 +260,148 @@ describe('Amazon Vega Expo adapter', () => {
         expect.objectContaining({
           id: 'dev.hyo.martie.premium',
           type: 'subs',
-          price: 4.99,
+          price: 4.1,
+          subscriptionOffers: [
+            expect.objectContaining({
+              period: {unit: 'month', value: 1},
+              pricingPhasesAndroid: {
+                pricingPhaseList: [
+                  expect.objectContaining({
+                    billingPeriod: 'P1M',
+                    priceAmountMicros: '4100000',
+                  }),
+                ],
+              },
+            }),
+          ],
         }),
       ]),
     );
+  });
+
+  it('reports the base offer first, then the eligible free trial', async () => {
+    await expect(
+      fetchPremiumOffers({
+        subscriptionPeriod: 'Monthly',
+        freeTrialPeriod: 'Weekly',
+      }),
+    ).resolves.toEqual([
+      {
+        basePlanIdAndroid: 'dev.hyo.martie.premium',
+        currency: 'USD',
+        displayPrice: '$9.99',
+        id: 'dev.hyo.martie.premium',
+        offerTagsAndroid: [],
+        offerTokenAndroid: '',
+        paymentMode: 'pay-as-you-go',
+        period: {unit: 'month', value: 1},
+        price: 9.99,
+        pricingPhasesAndroid: {
+          pricingPhaseList: [
+            {
+              billingCycleCount: 0,
+              billingPeriod: 'P1M',
+              formattedPrice: '$9.99',
+              priceAmountMicros: '9990000',
+              priceCurrencyCode: 'USD',
+              recurrenceMode: 1,
+            },
+          ],
+        },
+        type: 'introductory',
+      },
+      {
+        basePlanIdAndroid: 'dev.hyo.martie.premium',
+        currency: '',
+        displayPrice: '',
+        id: '',
+        paymentMode: 'free-trial',
+        period: {unit: 'week', value: 1},
+        periodCount: 1,
+        price: 0,
+        type: 'introductory',
+      },
+    ]);
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['unparseable', 'Fortnightly'],
+  ])(
+    'reports the base offer only when freeTrialPeriod is %s',
+    async (_label, freeTrialPeriod) => {
+      await expect(
+        fetchPremiumOffers({subscriptionPeriod: 'Annual', freeTrialPeriod}),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          paymentMode: 'pay-as-you-go',
+          period: {unit: 'year', value: 1},
+        }),
+      ]);
+    },
+  );
+
+  it.each([
+    ['P1W', {unit: 'week', value: 1}, ['weekly', 'week', '1 week']],
+    [
+      'P2W',
+      {unit: 'week', value: 2},
+      ['biweekly', 'BI-WEEKLY', 'bi weekly', '2 week', '2 weeks'],
+    ],
+    ['P1M', {unit: 'month', value: 1}, ['monthly', 'month', '1 month']],
+    [
+      'P2M',
+      {unit: 'month', value: 2},
+      ['bi-monthly', 'bimonthly', '2 month', '2 months'],
+    ],
+    ['P3M', {unit: 'month', value: 3}, ['quarterly', 'quarter', '3 months']],
+    [
+      'P6M',
+      {unit: 'month', value: 6},
+      [
+        'semiannual',
+        'semiannually',
+        'semi-annual',
+        'semi-annually',
+        '6 months',
+      ],
+    ],
+    [
+      'P1Y',
+      {unit: 'year', value: 1},
+      ['annual', 'annually', 'yearly', 'year', '1 year'],
+    ],
+  ])('reads every word for %s', async (billingPeriod, period, words) => {
+    for (const word of words) {
+      const [baseOffer] =
+        (await fetchPremiumOffers({subscriptionPeriod: word})) ?? [];
+
+      expect([
+        word,
+        baseOffer?.pricingPhasesAndroid?.pricingPhaseList?.[0]?.billingPeriod,
+        baseOffer?.period,
+      ]).toEqual([word, billingPeriod, period]);
+    }
+  });
+
+  it('reads a subscription period padded with whitespace', async () => {
+    const [baseOffer] =
+      (await fetchPremiumOffers({subscriptionPeriod: ' Monthly '})) ?? [];
+
+    expect(
+      baseOffer?.pricingPhasesAndroid?.pricingPhaseList?.[0]?.billingPeriod,
+    ).toBe('P1M');
+    expect(baseOffer?.period).toEqual({unit: 'month', value: 1});
+  });
+
+  it('keeps an unknown subscription period without parsing it', async () => {
+    const [baseOffer] =
+      (await fetchPremiumOffers({subscriptionPeriod: 'Fortnightly'})) ?? [];
+
+    expect(baseOffer?.period).toBeNull();
+    expect(baseOffer?.pricingPhasesAndroid?.pricingPhaseList).toEqual([
+      expect.objectContaining({billingPeriod: 'Fortnightly'}),
+    ]);
   });
 
   it('emits purchase updates and acknowledges receipts', async () => {

@@ -216,6 +216,53 @@ const flutterCustomWireMigrations = [
   ['numeric-indexed iOS SKU maps', '{ skus: [...] }'],
 ] as const;
 
+// scripts/scheduled-removals.mjs keeps this list, the deprecation
+// notices, and the package majors in step.
+const scheduledRemovals = [
+  {
+    title:
+      'react-native-iap, expo-iap, flutter_inapp_purchase, and the openiap-google Gradle plugin',
+    rows: [
+      [
+        'horizonEnabled=true',
+        'openiapStore=horizon, or no pin: a debug build follows the connected Quest',
+      ],
+      ['openiapPlatform=none (flutter_inapp_purchase)', 'openiapStore=none'],
+    ],
+  },
+  {
+    title: 'expo-iap',
+    rows: [
+      [
+        'modules.horizon / EXPO_IAP_HORIZON=1',
+        'ORG_GRADLE_PROJECT_openiapStore=horizon in the EAS profile env; a local debug build follows the connected Quest',
+      ],
+      [
+        'EXPO_IAP_FIREOS=1',
+        'modules.amazon.fireOS, which also turns Vega auto-detection off, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
+      ],
+      [
+        'EXPO_IAP_VEGA=1',
+        'modules.amazon.vegaOS, or a root manifest.toml when Fire OS is not declared',
+      ],
+      ['EXPO_IAP_ONSIDE=1', 'modules.onside'],
+    ],
+  },
+  {
+    title: 'OpenIap.Maui',
+    rows: [['OpenIapAndroidStore', 'OpenIapStore']],
+  },
+  {
+    title: 'react-native-iap',
+    rows: [
+      [
+        'NitroProduct.originalPriceAndroid, originalPriceAmountMicrosAndroid, introductoryPriceValueAndroid, introductoryPriceCyclesAndroid, introductoryPricePeriodAndroid, subscriptionPeriodAndroid, freeTrialPeriodAndroid',
+        'subscriptionOffers and discountOffers on the product that fetchProducts returns',
+      ],
+    ],
+  },
+] as const;
+
 const packageCompatibilityMigrations = [
   {
     title: 'openiap-apple (OpenIAP 3.0)',
@@ -244,7 +291,7 @@ const packageCompatibilityMigrations = [
       ['OpenIapStore.deepLinkToSubscriptionsIOS', 'deepLinkToSubscriptions'],
       [
         'OpenIapVersion.gqlVersion / OpenIapVersionInfo.gqlVersion',
-        'OpenIapVersion.clientProtocolVersion (openiap-apple 3.5.0; specVersion stays as a deprecated alias until client protocol 1.0.0)',
+        'OpenIapVersion.clientProtocolVersion (openiap-apple 3.6.0; specVersion stays as a deprecated alias until client protocol 1.0.0)',
       ],
     ],
   },
@@ -495,6 +542,46 @@ function Migration() {
         that drop the previously deprecated, OpenIAP-owned compatibility surface
         and the canonical call to use instead.
       </p>
+
+      <section>
+        <AnchorLink id="next-major" level="h2">
+          Scheduled for the next major release
+        </AnchorLink>
+        <p>
+          These keys and fields are deprecated. Every patch and minor release
+          keeps them working, and the store keys print a build warning. Each
+          goes in the next major release of the package that carries it; the
+          Gradle store keys, which several packages read, go in one major
+          release of all of them. The store rule itself is in{' '}
+          <Link to="/docs/setup/store#selection">
+            How the Store Is Selected
+          </Link>
+          .
+        </p>
+        {scheduledRemovals.map((group) => (
+          <div key={group.title}>
+            <h4>{group.title}</h4>
+            <table className="doc-table">
+              <thead>
+                <tr>
+                  <th>Deprecated key</th>
+                  <th>Migrate to</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.rows.map(([deprecated, replacement]) => (
+                  <tr key={deprecated}>
+                    <td>
+                      <code>{deprecated}</code>
+                    </td>
+                    <td>{replacement}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </section>
 
       {/* ---------------------------------------------------------------
           Migration train: 2.x -> 3.0

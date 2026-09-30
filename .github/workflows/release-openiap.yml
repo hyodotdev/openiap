@@ -579,8 +579,8 @@ jobs:
         run: |
           VERIFIED=false
           # npm can expose package metadata before its attestation endpoint is
-          # ready. Allow five minutes for the immutable provenance to propagate.
-          for _attempt in {1..30}; do
+          # ready; expo-iap 5.8.1 took over five minutes. Allow fifteen.
+          for _ in {1..90}; do
             if node scripts/verify-npm-release-provenance.mjs \
               "$PACKAGE_NAME" "$VERSION" "$GITHUB_SHA" \
               "$TAG_PREFIX-$VERSION" release-openiap.yml; then

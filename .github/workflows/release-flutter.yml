@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      allow_unreleased_native:
+        description: "Release although openiap-google or openiap-apple has unreleased source changes"
+        required: false
+        default: false
+        type: boolean
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -37,6 +42,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # The native gate compares with the native release tags.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Enforce stable and prerelease branches
@@ -47,6 +54,20 @@ jobs:
           node scripts/release-branch-policy.mjs guard flutter
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
+
+      - name: Require a major for dropped deprecations
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+        run: node scripts/scheduled-removals.mjs release-gate flutter_inapp_purchase "$VERSION_TYPE"
+
+      - name: Require released native packages
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          OPENIAP_ALLOW_UNRELEASED_NATIVE: ${{ inputs.allow_unreleased_native }}
+        run: >-
+          node scripts/release-branch-policy.mjs native-gate flutter
+          "$VERSION_TYPE" "$IS_PRERELEASE"
 
   validate-android:
     needs: [release-branch]
@@ -338,19 +359,10 @@ jobs:
           done
 
           if [ -n "$PREV_TAG" ]; then
-            PR_LINES=$(git log "${PREV_TAG}..HEAD" --merges --pretty=format:"%s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | \
-              sed -n 's/^Merge pull request #\([0-9]*\) from .*/\1/p')
-            for PR_NUM in $PR_LINES; do
-              PR_TITLE=$(git log --all --grep="Merge pull request #${PR_NUM}" --pretty=format:"%s" | head -1 | sed "s|Merge pull request #${PR_NUM} from [^ ]* ||")
-              if [ -n "$PR_TITLE" ]; then
-                CHANGES="${CHANGES}- ${PR_TITLE} (#${PR_NUM})\n"
-              fi
-            done
-            if [ -z "$CHANGES" ]; then
-              LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
-              if [ -n "$LOG_LINES" ]; then
-                CHANGES="${LOG_LINES}\n"
-              fi
+            # PRs are squash-merged, so each commit subject already names its PR.
+            LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --invert-grep --grep='^chore(release):' --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
+            if [ -n "$LOG_LINES" ]; then
+              CHANGES="${LOG_LINES}\n"
             fi
           fi
           if [ -z "$CHANGES" ]; then
@@ -540,7 +552,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## flutter_inapp_purchase $VERSION
 
-          Flutter plugin for the OpenIAP specification.
+          Flutter plugin implementing the OpenIAP Client Protocol.
 
           ### What's Changed
 

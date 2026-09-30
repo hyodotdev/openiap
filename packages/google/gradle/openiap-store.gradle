@@ -4,15 +4,16 @@
 // where the library can build without a store SDK.
 //
 // First match wins:
-//   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
-//                The legacy horizonEnabled, fireOsEnabled and openiapPlatform=none still work.
+//   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties),
+//                or fireOsEnabled=true. The legacy horizonEnabled and openiapPlatform=none
+//                still pin until the next major release.
 //   2. variant   a requested task names a store flavor (assembleHorizonRelease).
 //   3. device    debug builds only: the Quest or Fire device that ANDROID_SERIAL
 //                names, or the only one connected.
 //   4. play
-// Two signals naming different stores fail the build. Only spelled-out task names
-// are read; a task that builds another store (an abbreviation such as aHR) fails
-// once the task graph is ready.
+// A pin and a task flavor naming different stores fail the build; the device is
+// read only when neither is set. Only spelled-out task names are read; a task that
+// builds another store (an abbreviation such as aHR) fails once the graph is ready.
 
 ext.openIapStoreAliases = [
   play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
@@ -57,13 +58,15 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
     throw new GradleException("${label}: horizonEnabled and fireOsEnabled cannot both be true")
   }
   if (platform == 'none' && (horizon || fireOs)) {
-    throw new GradleException("${label}: openiapPlatform=none conflicts with legacy store flags")
+    throw new GradleException("${label}: openiapPlatform=none conflicts with ${fireOs ? 'fireOsEnabled' : 'horizonEnabled'}=true")
   }
   def (legacyKey, legacy) = platform == 'none' ? ['openiapPlatform=none', 'none']
       : fireOs ? ['fireOsEnabled=true', 'amazon']
       : horizon ? ['horizonEnabled=true', 'horizon'] : [null, null]
-  if (legacy != null) {
-    logger.warn("${label}: horizonEnabled, fireOsEnabled, and openiapPlatform are deprecated; use openiapStore=${legacy}")
+  // fireOsEnabled=true is a supported Fire OS declaration, so it does not warn.
+  if (legacy != null && !fireOs) {
+    // Quiet, like every openiap line here: Flutter runs Gradle with -q.
+    logger.quiet("${label}: ${legacyKey} is deprecated and will be removed in the next major release; use openiapStore=${legacy}")
   }
   def pin = explicit == 'auto' ? null : explicit
   if (pin != null && legacy != null && legacy != pin) {
@@ -125,7 +128,7 @@ ext.openIapTaskStore = { String label ->
       .findAll { it in ['play', 'horizon', 'amazon'] } as LinkedHashSet
   // Two stores in one build: refuse rather than guess.
   if (named.size() > 1) {
-    throw new GradleException("${label}: cannot tell which store the requested tasks '${openIapRequestedTasks().join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
+    throw new GradleException("${label}: the requested tasks '${openIapRequestedTasks().join(' ')}' name more than one store (${named.join(', ')}); build one store per invocation")
   }
   return named ? named.first() : null
 }
@@ -210,12 +213,12 @@ ext.openIapVerifyTaskGraph = { String label, Map resolution ->
     if (!named) {
       // The store came from something that is not a task, such as an option's value.
       if (resolution.source == 'variant') {
-        throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but no task it runs names a store; set openiapStore")
+        throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but no task it runs names a store; pass option values inline (--name=value)")
       }
       return
     }
     if (named.size() > 1) {
-      throw new GradleException("${label}: the requested tasks build more than one store (${named.join(', ')}) but a build links one; build one store per invocation or set openiapStore")
+      throw new GradleException("${label}: the requested tasks build more than one store (${named.join(', ')}) but a build links one; build one store per invocation")
     }
     def actual = named.first()
     if (actual != resolved) {
@@ -297,7 +300,7 @@ ext.openIapDeviceStore = {
   def serial
   if (requested) {
     if (!serials.contains(requested)) {
-      logger.warn("openiap: ANDROID_SERIAL=${requested} is not attached; not selecting a store from a device")
+      logger.quiet("openiap: ANDROID_SERIAL=${requested} is not attached; not selecting a store from a device")
       return null
     }
     serial = requested
@@ -310,7 +313,7 @@ ext.openIapDeviceStore = {
   def manufacturerText = openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer'])
   // A device that dropped after the listing answers with nothing; that is not Play.
   if (!features?.trim() && !manufacturerText?.trim()) {
-    logger.warn("openiap: ${serial} stopped responding; not selecting a store from a device")
+    logger.quiet("openiap: ${serial} stopped responding; not selecting a store from a device")
     return null
   }
   features = features ?: ''
@@ -346,7 +349,7 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   }
   def resolution = null
   if (explicit != null) {
-    resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a legacy flag']
+    resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a store flag']
   } else if (variant != null) {
     resolution = [store: variant, source: 'variant', reason: "task ${openIapRequestedTasks().join(' ')}"]
   } else if (openIapDebugBuild()) {
@@ -359,7 +362,7 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
     resolution = [store: 'play', source: 'default', reason: 'no store signal']
   }
   rootProject.ext.openIapStoreResolution = resolution
-  logger.lifecycle("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
+  logger.quiet("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
   openIapVerifyTaskGraph(label, resolution)
   return resolution
 }

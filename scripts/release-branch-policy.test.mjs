@@ -17,6 +17,10 @@ import { isolateGitEnvironment } from "./git-test-environment.mjs";
 import {
   allowsPrereleaseMetadata,
   assertClientProtocol,
+  assertNativesReleased,
+  findUnreleasedNativeChanges,
+  libraryReleaseTags,
+  nativeGateSkipReason,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
@@ -1153,12 +1157,9 @@ test("framework release workflows refuse stale dispatch heads", () => {
       ).source;
       assert.match(
         publishedProvenanceStep,
-        /Allow five minutes for the immutable provenance to propagate/,
+        /expo-iap 5\.8\.1 took over five minutes\. Allow fifteen\./,
       );
-      assert.match(
-        publishedProvenanceStep,
-        /^\s*for attempt in \{1\.\.30\}; do\s*$/mu,
-      );
+      assert.match(publishedProvenanceStep, /^\s*for _ in \{1\.\.90\}; do\s*$/mu);
       assert.match(publishedProvenanceStep, /^\s*sleep 10\s*$/mu);
     }
   }
@@ -1341,7 +1342,10 @@ test("the docs site deploys without a version of its own", () => {
     "the docs release workflow must not come back",
   );
 
-  assert.match(deployScript, /release-branch-policy\.mjs assert-client-protocol/);
+  assert.match(
+    deployScript,
+    /release-branch-policy\.mjs assert-client-protocol/,
+  );
   assert.match(deployScript, /must deploy from the stable main branch/);
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /is missing; update this check/);
@@ -1369,10 +1373,7 @@ test("the docs site deploys without a version of its own", () => {
     deployScript,
     /Vercel CLI returned no ready production deployment/,
   );
-  assert.doesNotMatch(
-    deployScript,
-    /(?:git commit|git push origin HEAD:main)/,
-  );
+  assert.doesNotMatch(deployScript, /(?:git commit|git push origin HEAD:main)/);
   assert.doesNotMatch(deployScript, /continue anyway/);
   assert.ok(
     deployScript.indexOf("release-branch-policy.mjs assert-client-protocol") <
@@ -1487,7 +1488,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
       ),
       [
         "const RELEASES = [{ name: 'openiap-google', version: '9.9.9', tag: 'google-9.9.9' }];",
-        'const OLD = "https://github.com/hyodotdev/openiap/releases/tag/google-3.5.3";',
+        'const OLD = "https://github.com/hyodotdev/openiap/releases/tag/2.1.6";',
         'const NEW = "https://github.com/hyodotdev/openiap/releases/tag/expo-iap-9.9.9";',
         "",
       ].join("\n"),
@@ -1541,15 +1542,11 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
     assert.match(unpublished.stdout, /google-9\.9\.9/);
     assert.match(unpublished.stdout, /expo-iap-9\.9\.9/);
-    assert.doesNotMatch(unpublished.stdout, /google-3\.5\.3/);
+    assert.doesNotMatch(unpublished.stdout, /\b2\.1\.6\b/);
     assert.doesNotMatch(unpublished.stdout, /Successfully deployed to Vercel/);
     assert.match(unpublished.stdout, /npm run deploy --force/);
 
-    for (const args of [
-      ["--unknown"],
-      ["3.6.1"],
-      ["--force", "3.6.1"],
-    ]) {
+    for (const args of [["--unknown"], ["3.6.1"], ["--force", "3.6.1"]]) {
       const invalidArguments = runDeploy("", {}, args);
       assert.notEqual(invalidArguments.status, 0);
       assert.match(invalidArguments.stdout, /Unsupported argument/);
@@ -1625,7 +1622,10 @@ test("production docs require a verified Vercel deployment result", (context) =>
         input: "y\n",
       });
       assert.equal(npmEarly.status, 0, npmEarly.stderr || npmEarly.stdout);
-      assert.match(npmEarly.stdout, /Proceeding with unpublished release links/);
+      assert.match(
+        npmEarly.stdout,
+        /Proceeding with unpublished release links/,
+      );
       assert.match(npmEarly.stdout, /Successfully deployed to Vercel/);
     }
 
@@ -1693,7 +1693,10 @@ test("production docs require a verified Vercel deployment result", (context) =>
     commitPage("drop releases page");
     const missingPage = runDeploy(readyOutput);
     assert.notEqual(missingPage.status, 0);
-    assert.match(missingPage.stdout, /releases\.tsx is missing; update this check/);
+    assert.match(
+      missingPage.stdout,
+      /releases\.tsx is missing; update this check/,
+    );
     assert.doesNotMatch(missingPage.stdout, /Successfully deployed to Vercel/);
 
     writeFileSync(releasesPage, "export const notes: string[] = [];\n");
@@ -1711,7 +1714,10 @@ test("production docs require a verified Vercel deployment result", (context) =>
       if (args.length === 0) {
         assert.notEqual(syncDirty.status, 0);
         assert.match(syncDirty.stdout, /Version metadata was not synchronized/);
-        assert.doesNotMatch(syncDirty.stdout, /Successfully deployed to Vercel/);
+        assert.doesNotMatch(
+          syncDirty.stdout,
+          /Successfully deployed to Vercel/,
+        );
       } else {
         assert.equal(syncDirty.status, 0, syncDirty.stderr || syncDirty.stdout);
         assert.match(syncDirty.stdout, /Successfully deployed to Vercel/);
@@ -1726,8 +1732,14 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.match(dirty.stdout, /requires a clean worktree/);
     assert.doesNotMatch(dirty.stdout, /Successfully deployed to Vercel/);
     for (const flag of ["-f", "--force"]) {
-      const dirtyEarly = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [flag]);
-      assert.equal(dirtyEarly.status, 0, dirtyEarly.stderr || dirtyEarly.stdout);
+      const dirtyEarly = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [
+        flag,
+      ]);
+      assert.equal(
+        dirtyEarly.status,
+        0,
+        dirtyEarly.stderr || dirtyEarly.stdout,
+      );
       assert.match(dirtyEarly.stdout, /Deploying local uncommitted changes/);
       assert.match(dirtyEarly.stdout, /Successfully deployed to Vercel/);
       assert.equal(readFileSync(localWork, "utf8"), "local work\n");
@@ -1741,7 +1753,11 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.notEqual(ahead.status, 0);
     assert.match(ahead.stdout, /Local main must exactly match origin\/main/);
     const forcedAhead = runDeploy(readyOutput, {}, ["--force"]);
-    assert.equal(forcedAhead.status, 0, forcedAhead.stderr || forcedAhead.stdout);
+    assert.equal(
+      forcedAhead.status,
+      0,
+      forcedAhead.stderr || forcedAhead.stdout,
+    );
     assert.match(forcedAhead.stdout, /Deploying local main, which differs/);
     assert.match(forcedAhead.stdout, /Successfully deployed to Vercel/);
   } finally {
@@ -1836,12 +1852,9 @@ test("OpenIAP npm publication binds the exact source run attempt", () => {
   assert.ok(authorizationGuard < publish);
   assert.match(
     publishedProvenanceStep,
-    /Allow five minutes for the immutable provenance to propagate/u,
+    /expo-iap 5\.8\.1 took over five minutes\. Allow fifteen\./u,
   );
-  assert.match(
-    publishedProvenanceStep,
-    /^\s*for _attempt in \{1\.\.30\}; do\s*$/mu,
-  );
+  assert.match(publishedProvenanceStep, /^\s*for _ in \{1\.\.90\}; do\s*$/mu);
   assert.match(
     publishedProvenanceStep,
     /if node scripts\/verify-npm-release-provenance\.mjs \\\n\s+"\$PACKAGE_NAME" "\$VERSION" "\$GITHUB_SHA"/u,
@@ -2035,4 +2048,125 @@ test("Commerce Protocol current retries cannot reuse an unscoped npm release", (
     readWorkflow("release-openiap.yml"),
     /"\$PACKAGE_ID" "\$RELEASE_BRANCH" "\$TAG" "\$VERSION" \\\n\s+"\$PACKAGE_NAME"/,
   );
+});
+
+const nativeVersions = { google: "3.6.1", apple: "3.6.0" };
+// One `git log --format=%x00%h %s --name-only` entry.
+const logEntry = (subject, ...files) => `\0${subject}\n\n${files.join("\n")}\n`;
+const rangeOf = (args) => args.find((arg) => arg.endsWith("..HEAD"));
+const googleSource = "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapModule.kt";
+
+test("the native gate lists source commits since each native release tag", () => {
+  const ranges = [];
+  const git = (args) => {
+    ranges.push(rangeOf(args));
+    return rangeOf(args) === "google-3.6.1..HEAD"
+      ? logEntry("abc1234 fix(google): a store fix", googleSource) +
+          logEntry("def5678 chore(release): openiap-google@3.6.1", googleSource)
+      : logEntry("0123abc chore(release): openiap-apple@3.6.0", "Package.swift");
+  };
+  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
+    {
+      label: "openiap-google",
+      tag: "google-3.6.1",
+      commits: ["abc1234 fix(google): a store fix"],
+    },
+  ]);
+  assert.deepEqual(ranges, ["google-3.6.1..HEAD", "3.6.0..HEAD"]);
+});
+
+test("the native gate counts only what the native packages ship", () => {
+  const git = (args) =>
+    rangeOf(args) === "google-3.6.1..HEAD"
+      ? logEntry("1111111 test(google): a test", "packages/google/openiap/src/testPlay/java/X.kt") +
+        logEntry("2222222 docs(google): the example", "packages/google/Example/app/build.gradle.kts") +
+        logEntry("3333333 fix(google): keep rules", "packages/google/openiap/consumer-rules.pro")
+      : logEntry("4444444 fix(apple): the SwiftPM manifest", "Package.swift") +
+        logEntry("5555555 test(apple): a test", "packages/apple/Tests/OpenIapTests/X.swift");
+  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
+    {
+      label: "openiap-google",
+      tag: "google-3.6.1",
+      commits: ["3333333 fix(google): keep rules"],
+    },
+    {
+      label: "openiap-apple",
+      tag: "3.6.0",
+      commits: ["4444444 fix(apple): the SwiftPM manifest"],
+    },
+  ]);
+});
+
+test("the native gate refuses a library release while a native change is unreleased", () => {
+  const git = (args) =>
+    rangeOf(args) === "3.6.0..HEAD"
+      ? logEntry("abc1234 feat(apple): a new API", "packages/apple/Sources/OpenIapModule.swift")
+      : "";
+  assert.throws(
+    () => assertNativesReleased(nativeVersions, { git }),
+    /Native gate: release the native packages first.*openiap-apple since 3\.6\.0: abc1234 feat\(apple\): a new API/,
+  );
+  assert.doesNotThrow(() => assertNativesReleased(nativeVersions, { git: () => "" }));
+});
+
+test("the native gate asks for full history when a release tag is missing", () => {
+  const git = () => {
+    throw new Error("fatal: bad revision");
+  };
+  assert.throws(
+    () => findUnreleasedNativeChanges(nativeVersions, { git }),
+    /Cannot compare with release tag 'google-3\.6\.1'.*fetch-depth: 0/,
+  );
+});
+
+test("a library release skips the native gate only for a prerelease or a retry", () => {
+  const refs = [];
+  const git = (tagExists) => (args) => {
+    refs.push(args.at(-1));
+    if (!tagExists) throw new Error("exit 1");
+    return "";
+  };
+  const tag = `refs/tags/react-native-iap-${versionSources["react-native"].read(repoRoot)}`;
+  assert.match(nativeGateSkipReason("react-native", "rc-bump", "false", { git: git(false) }), /prerelease/);
+  assert.match(nativeGateSkipReason("react-native", "patch", "true", { git: git(false) }), /prerelease/);
+  assert.equal(nativeGateSkipReason("react-native", "patch", "false", { git: git(true) }), null);
+  assert.equal(nativeGateSkipReason("react-native", "current", "false", { git: git(false) }), null);
+  assert.ok(
+    nativeGateSkipReason("react-native", "current", "false", { git: git(true) }).includes(
+      `${tag.slice("refs/tags/".length)} exists`,
+    ),
+  );
+  assert.deepEqual(refs, [tag, tag]);
+  assert.throws(() => nativeGateSkipReason("google", "patch", "false"), /Unknown framework library 'google'/);
+});
+
+test("the native gate knows the tag each library release cuts", () => {
+  for (const [library, releaseTag] of Object.entries(libraryReleaseTags)) {
+    assert.match(
+      readWorkflow(`release-${library}.yml`),
+      new RegExp(`RELEASE_TAG="${releaseTag("")}\\$\\{?(NEW_)?VERSION`),
+      library,
+    );
+  }
+});
+
+test("every framework library release runs the native gate from full history", () => {
+  for (const library of Object.keys(libraryReleaseTags)) {
+    const filename = `release-${library}.yml`;
+    const workflow = readFileSync(
+      resolve(repoRoot, ".github/workflows", filename),
+      "utf8",
+    );
+    const start = workflow.indexOf("  release-branch:\n");
+    const job = workflow.slice(start, workflow.indexOf("\n\n  validate", start));
+    assert.match(job, /fetch-depth: 0/, `${filename} release-branch checkout`);
+    assert.match(
+      job,
+      new RegExp(
+        String.raw`OPENIAP_ALLOW_UNRELEASED_NATIVE: \$\{\{ inputs\.allow_unreleased_native \}\}\n\s+run: >-\n\s+node scripts/release-branch-policy\.mjs native-gate ${library}\n`,
+      ),
+      `${filename} runs the native gate`,
+    );
+    assert.match(workflow, /\n      allow_unreleased_native:\n/, `${filename} input`);
+  }
 });

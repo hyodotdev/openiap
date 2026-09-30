@@ -137,7 +137,7 @@ jobs:
             # store's openiap-google API, not only the Play one it ships with.
             for store in horizon amazon; do
               "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-                ../../../packages/google/gradlew :openiap:compileReleaseKotlin -PopeniapStore="$store"
+                ../../../packages/google/gradlew :openiap:compileReleaseKotlin -PopeniapCompileStore="$store"
             done
             "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
               ../../../packages/google/gradlew :openiap:assembleRelease

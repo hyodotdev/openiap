@@ -10,31 +10,33 @@ export type ExpoIapModuleOverrides = {
    */
   onside?: boolean;
   /**
-   * @deprecated A debug build follows the connected Quest. Pin EAS and release
-   * builds with `ORG_GRADLE_PROJECT_openiapStore=horizon` in the profile's `env`.
-   * Still pins, with a warning.
+   * @deprecated Removed in the next major release. A debug build follows the
+   * connected Quest; pin EAS and release builds with
+   * `ORG_GRADLE_PROJECT_openiapStore=horizon` in the profile's `env`. Still
+   * pins, with a warning.
    * @platform android
    */
   horizon?: boolean;
   /**
-   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
-   * same config, but they still produce separate build artifacts.
+   * Amazon targets. Fire OS and Vega OS are separate build artifacts.
    */
   amazon?: AmazonPlatformOptions;
 };
 
 export type AmazonPlatformOptions = {
   /**
-   * @deprecated A debug build follows the connected Fire device. Pin EAS and
-   * release builds with `ORG_GRADLE_PROJECT_openiapStore=amazon` in the
-   * profile's `env`. Still pins, with a warning.
+   * Declares a Fire OS build: pins the Amazon store over the connected device
+   * and turns off Vega auto-detection. It applies to every build of the
+   * config; to pin one EAS profile only, set
+   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in its `env`, and in a root that
+   * also builds Vega, set `fireOS` from that value in `app.config.js`.
    * @platform android
    */
   fireOS?: boolean;
   /**
    * Vega OS project generation for Amazon's Kepler runtime. Unset means
-   * auto-detect: a root manifest.toml turns generation on. Set explicitly
-   * to force it on or off.
+   * auto-detect: a root manifest.toml turns generation on unless Fire OS is
+   * declared. Set explicitly to force it on or off.
    * This prepares Vega metadata and build scripts; it does not select an
    * Android Gradle flavor.
    * @default auto-detect
@@ -103,7 +105,8 @@ type AutoModuleOptions = BaseExpoIapOptions & {
 
 type ExplicitModuleOptions = BaseExpoIapOptions & {
   module: 'expo-iap' | 'onside';
-  modules?: never;
+  // The module choice replaces modules.onside; the platform modules stay.
+  modules?: Omit<ExpoIapModuleOverrides, 'onside'> & {onside?: never};
 };
 
 export type ExpoIapPluginCommonOptions =

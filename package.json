@@ -46,7 +46,8 @@
     "audit:godot-binaries": "node --test scripts/audit-godot-binary-digests.test.mjs && node scripts/audit-godot-binary-digests.mjs",
     "licenses:inventory": "node scripts/generate-third-party-notices.mjs godot --inventory",
     "audit:horizon-app-id": "node --test scripts/audit-horizon-example-app-id.test.mjs scripts/verify-horizon-merged-manifest.test.mjs && node scripts/audit-horizon-example-app-id.mjs",
-    "audit:orphan-tags": "node --test scripts/audit-orphan-tags.test.mjs && node scripts/audit-orphan-tags.mjs"
+    "audit:orphan-tags": "node --test scripts/audit-orphan-tags.test.mjs && node scripts/audit-orphan-tags.mjs",
+    "audit:release-notes": "node --test scripts/audit-release-notes.test.mjs && node scripts/audit-release-notes.mjs origin/main"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -58,12 +59,13 @@
     "csstype": "3.2.3",
     "fast-uri": "$fast-uri",
     "hono": "4.13.5",
-    "ip-address": "10.5.0",
-    "qs": "$qs"
+    "ip-address": "10.7.2",
+    "qs": "$qs",
+    "undici": "7.30.0"
   },
   "packageManager": "bun@1.3.13",
   "dependencies": {
-    "fast-uri": "^3.1.7",
+    "fast-uri": "^3.1.8",
     "qs": "^6.16.0"
   }
 }

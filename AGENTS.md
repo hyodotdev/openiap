@@ -16,6 +16,7 @@ This document provides an overview for AI agents working across the OpenIAP mono
 | Git & Deployment            | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                       |
 | Docs Consistency / SSOT     | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                          |
 | Fact Graph (Declared Facts) | [`knowledge/internal/08-fact-graph.md`](knowledge/internal/08-fact-graph.md) (run `bun audit:facts` after bumping a tool version or runner image)                          |
+| Community Touchpoints       | [`knowledge/internal/09-community-touchpoints.md`](knowledge/internal/09-community-touchpoints.md) (first-purchase notice, assistant note, README section; one source of truth) |
 | Research References         | [`knowledge/research/README.md`](knowledge/research/README.md) (paper registry and evidence-backed engineering backlog)                                                    |
 
 ## Monorepo Structure
@@ -142,6 +143,16 @@ paragraphs, thirty lines at the outside;
 a review reply is one to three sentences, outcome first. No preamble, no
 investigation narrative, no thanking-and-summarising. Canonical rules in
 [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-style).
+
+### Opening Pull Requests
+
+Open a pull request only when the maintainer asked for one in this
+conversation. Work found while a PR is open goes into that PR; a small docs fix
+with no open PR is a one-line question about committing straight to `main`.
+Claude Code holds PR creation for approval in sessions started at the root or
+in a folder with its own `.claude/` (`scripts/guard-pull-request.mjs`).
+Canonical rule in
+[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#opening-pull-requests).
 
 ### Platform Function Naming
 
@@ -364,7 +375,9 @@ claude plugin install openiap@openiap
 `plugins/openiap` is dual-manifest: `.codex-plugin/plugin.json` (Codex, MCP
 config at `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (Claude
 Code, inline MCP config). The `skills/` folder is shared by both agents, so
-keep its wording agent-neutral.
+keep its wording agent-neutral. Bump both manifests' `version` whenever
+`skills/` changes: an installed plugin stays on its manifest version, so an edit
+alone never reaches existing installs.
 
 ## Cursor Compatibility
 
@@ -437,3 +450,4 @@ All comprehensive rules are documented in [`knowledge/internal/`](knowledge/inte
 6. **06-git-deployment.md** - Commit format, deployment workflows
 7. **07-docs-consistency.md** - Docs/API/type consistency audits
 8. **08-fact-graph.md** - Declared-fact registry and drift audit
+9. **09-community-touchpoints.md** - First-purchase notice, assistant note, and README section

@@ -46,6 +46,39 @@ run() {
         fi
     fi
 
+    report "$name" "$expected" "$actual"
+}
+
+# warns <name> <substring of the warning> <gradle args...>
+# The build has to succeed, and the warning has to survive --quiet, which
+# Flutter passes to Gradle unless --verbose is set.
+warns() {
+    local name="$1" needle="$2"
+    shift 2
+    local output status=0
+    output=$(cd "$fixture" && "$gradlew" --quiet --project-cache-dir "$fake_sdk/cache" "$@" 2>&1) || status=$?
+    local actual="exit=$status ${output//$'\n'/ }"
+    if [[ $status -eq 0 && "$output" == *"$needle"* ]]; then
+        actual="$needle"
+    fi
+    report "$name" "$needle" "$actual"
+}
+
+# silent <name> <substring that must not appear> <gradle args...>
+silent() {
+    local name="$1" needle="$2"
+    shift 2
+    local output status=0
+    output=$(cd "$fixture" && "$gradlew" --quiet --project-cache-dir "$fake_sdk/cache" "$@" 2>&1) || status=$?
+    local actual="exit=$status ${output//$'\n'/ }"
+    if [[ $status -eq 0 && "$output" != *"$needle"* ]]; then
+        actual="no $needle"
+    fi
+    report "$name" "no $needle" "$actual"
+}
+
+report() {
+    local name="$1" expected="$2" actual="$3"
     if [[ "$actual" == "$expected" ]]; then
         printf '  ok   %-58s %s\n' "$name" "$expected"
         passed=$((passed + 1))
@@ -82,15 +115,19 @@ run "alias googleplay"                     play/explicit    assembleDebug -Popen
 run "auto is not a pin"                    play/default     assembleDebug -PopeniapStore=auto
 run "a value that names no store fails"    "fail:unknown openiapStore" assembleDebug -PopeniapStore=bogus
 
-echo "legacy flags"
+echo "store flags"
 run "horizonEnabled=true"                  horizon/explicit assembleDebug -PhorizonEnabled=true
 run "fireOsEnabled=true"                   amazon/explicit  assembleDebug -PfireOsEnabled=true
-run "both legacy flags fail"               "fail:cannot both be true" assembleDebug -PhorizonEnabled=true -PfireOsEnabled=true
-run "pin against a legacy flag fails"      "fail:conflicts with fireOsEnabled=true" assembleDebug -PopeniapStore=play -PfireOsEnabled=true
+run "both store flags fail"                "fail:cannot both be true" assembleDebug -PhorizonEnabled=true -PfireOsEnabled=true
+run "a pin against a store flag fails"     "fail:conflicts with fireOsEnabled=true" assembleDebug -PopeniapStore=play -PfireOsEnabled=true
+run "an opt-out beside a store flag fails" "fail:openiapPlatform=none conflicts with fireOsEnabled=true" assembleDebug -PopeniapPlatform=none -PfireOsEnabled=true -PfixtureAllowNone=true
 run "openiapPlatform only takes none"      "fail:only supports the opt-out" assembleDebug -PopeniapPlatform=horizon
 run "none needs the opt-out to be allowed" "fail:is not supported by this library" assembleDebug -PopeniapStore=none
 run "none where it is supported"           none/explicit    assembleDebug -PopeniapStore=none -PfixtureAllowNone=true
 run "a legacy flag that agrees is kept"    horizon/explicit assembleDebug -PopeniapStore=horizon -PhorizonEnabled=true
+warns "a legacy flag names its removal"    "fixture: horizonEnabled=true is deprecated and will be removed in the next major release; use openiapStore=horizon" assembleDebug -PhorizonEnabled=true
+silent "fireOsEnabled=true is not deprecated" "deprecated" assembleDebug -PfireOsEnabled=true
+warns "the legacy opt-out warns too"       "fixture: openiapPlatform=none is deprecated and will be removed in the next major release; use openiapStore=none" assembleDebug -PopeniapPlatform=none -PfixtureAllowNone=true
 # Opting out links nothing, so a store flavor kept for packaging is no conflict.
 run "none beside a store flavor"           none/explicit    assembleAmazonRelease -PopeniapStore=none -PfixtureAllowNone=true
 run "the legacy opt-out beside one too"    none/explicit    assembleAmazonRelease -PopeniapPlatform=none -PfixtureAllowNone=true
@@ -105,7 +142,9 @@ echo "task flavor"
 run "assembleHorizonRelease"               horizon/variant  assembleHorizonRelease
 run "assembleAmazonDebug"                  amazon/variant   assembleAmazonDebug
 run "installPlayDebug"                     play/variant     installPlayDebug
-run "two flavors in one invocation fail"   "fail:cannot tell which store" assembleHorizonRelease assembleAmazonDebug
+run "two flavors in one invocation fail"   "fail:name more than one store (horizon, amazon); build one store per invocation" assembleHorizonRelease assembleAmazonDebug
+# The hint has to hold: a pin still meets both flavors.
+run "and a pin does not settle them"       "fail:name more than one store (horizon, amazon); build one store per invocation" assembleHorizonRelease assembleAmazonDebug -PopeniapStore=horizon
 run "a pin against another flavor fails"   "fail:conflicts with the horizon flavor" assembleHorizonRelease -PopeniapStore=play
 run "a pin that agrees is kept"            horizon/explicit assembleHorizonRelease -PopeniapStore=horizon
 run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
@@ -121,8 +160,8 @@ run "aH too"                               "fail:but the requested tasks build h
 run "one that agrees builds"               play/default     aPD
 run "aD names no flavor"                   play/default     aD
 run "AGP own segments are not stores"      play/default     cAT
-run "exact plus abbreviated fails"         "fail:build more than one store" assembleHorizonRelease aAR
-run "abbreviated plus exact fails"         "fail:build more than one store" aHR assembleAmazonDebug
+run "exact plus abbreviated fails"         "fail:build more than one store (horizon, amazon) but a build links one; build one store per invocation" assembleHorizonRelease aAR
+run "abbreviated plus exact fails"         "fail:build more than one store (horizon, amazon) but a build links one; build one store per invocation" aHR assembleAmazonDebug
 run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
 
 echo "task graph"
@@ -163,7 +202,8 @@ run "an inline option value"               horizon/variant  testDebugUnitTest --
 run "an option value spelling a store"     play/default     properties --property amazon
 run "the same value after an anchor"       play/default     assemble properties --property amazon
 # An unlisted option's value is read as a task, and no task it runs confirms it.
-run "an unlisted option's value fails"     "fail:no task it runs names a store" testDebugUnitTest --suite amazon
+run "an unlisted option's value fails"     "fail:no task it runs names a store; pass option values inline (--name=value)" testDebugUnitTest --suite amazon
+run "and the inline form the hint names"   play/default     testDebugUnitTest --suite=amazon
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
@@ -195,6 +235,8 @@ export FAKE_ADB_QUEST1_MANUFACTURER=Oculus
 run "two devices select nothing"           play/default     assembleDebug
 ANDROID_SERIAL=QUEST1 run "ANDROID_SERIAL picks one of them" horizon/device assembleDebug
 ANDROID_SERIAL=ABSENT run "an absent serial selects nothing" play/default   assembleDebug
+ANDROID_SERIAL=ABSENT warns "and says so under --quiet"     "openiap: ANDROID_SERIAL=ABSENT is not attached; not selecting a store from a device" assembleDebug
+warns "the store decision shows under --quiet"             "openiap: store=play (source=default; " assembleDebug
 clear_device
 run "no adb at all"                        play/default     assembleDebug
 

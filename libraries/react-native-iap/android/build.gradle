@@ -161,7 +161,7 @@ android {
     // Ship consumer keep rules so Nitro HybridObjects aren't stripped in app release builds
     consumerProguardFiles 'consumer-rules.pro'
 
-    // Use explicit store flags to determine platform flavor
+    // Matches the local :openiap project's platform flavor to the resolved store
     missingDimensionStrategy "platform", openiapFlavor
 
     externalNativeBuild {

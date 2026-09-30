@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The godot-iap addon ships native frameworks that are committed to the
-// repository rather than compiled by CI, so nothing in the release pipeline
-// otherwise records or verifies the bytes users execute. This audit pins them.
+// repository, and the release does not rebuild them, so nothing in the release
+// pipeline otherwise records or verifies the bytes users execute. This audit
+// pins them.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -207,7 +208,7 @@ if (
   if (failures.length > 0) {
     console.error(
       "\nIf the change was intentional, rebuild and run:\n" +
-        "  bun run audit:godot-binaries --write",
+        "  node scripts/audit-godot-binary-digests.mjs --write",
     );
     process.exit(1);
   }

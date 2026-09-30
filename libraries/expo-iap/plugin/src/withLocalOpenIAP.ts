@@ -13,6 +13,7 @@ import {
   type IOSAlternativeBillingConfig,
 } from './withIosAlternativeBilling';
 import {ensureOnsidePodIOS} from './onsidePodfile';
+import {logOnce} from './logOnce';
 
 /** Adds the local OpenIAP pod dependency; for local openiap-apple development only. */
 export type LocalPathOption = string | {ios?: string; android?: string};
@@ -87,18 +88,6 @@ const resolveAndroidGradlePluginVersions = (
 
   return {kotlin, vanniktechMavenPublish};
 };
-
-// Log a message only once per Node process
-const logOnce = (() => {
-  const printed = new Set<string>();
-  return (msg: string) => {
-    if (!printed.has(msg)) {
-      // stderr, so tools that read the config as JSON from stdout stay intact
-      console.error(msg);
-      printed.add(msg);
-    }
-  };
-})();
 
 const LOCAL_OPENIAP_FLAVOR_BLOCK_START =
   '// Added by expo-iap (local openiap-google flavor selection)';
@@ -325,7 +314,7 @@ const withLocalOpenIAP: ConfigPlugin<
         if (updatedContent !== podfileContent) {
           podfileContent = updatedContent;
           podfileChanged = true;
-          logOnce('📦 expo-iap: Enabled OnsideKit (EXPO_IAP_ONSIDE=1)');
+          logOnce('📦 expo-iap: Enabled OnsideKit');
         }
       }
 

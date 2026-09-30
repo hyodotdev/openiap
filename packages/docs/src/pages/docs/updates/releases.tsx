@@ -72,6 +72,31 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '3.6.1', tag: '3.6.1' },
+  { name: 'openiap-google', version: '3.6.2', tag: 'google-3.6.2' },
+  {
+    name: 'react-native-iap',
+    version: '16.7.2',
+    tag: 'react-native-iap-16.7.2',
+  },
+  { name: 'expo-iap', version: '5.8.2', tag: 'expo-iap-5.8.2' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.7.2',
+    tag: 'flutter-iap-10.7.2',
+  },
+  { name: 'godot-iap', version: '3.6.2', tag: 'godot-iap-3.6.2' },
+  { name: 'kmp-iap', version: '3.6.2', tag: 'kmp-iap-3.6.2' },
+  { name: 'maui-iap', version: '2.6.2', tag: 'maui-iap-2.6.2' },
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '0.1.1',
+    tag: 'openiap-client-protocol-0.1.1',
+  },
+  { name: '@hyodotdev/openiap', version: '0.1.1', tag: 'openiap-0.1.1' },
+];
+
 const MINIFIED_RELEASE_BUILD_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.6.1', tag: 'google-3.6.1' },
   {
@@ -123,18 +148,6 @@ const COMMERCE_RENAME_RELEASES: readonly ReleaseMetadata[] = [
     version: '0.3.0',
     tag: 'hyodotdev-openiap-commerce-protocol-0.3.0',
   },
-];
-
-const PROTOCOL_SPLIT_RELEASES: readonly ReleaseMetadata[] = [
-  { name: 'openiap-apple', version: '3.5.0', tag: '3.5.0' },
-  { name: 'openiap-google', version: '3.5.3', tag: 'google-3.5.3' },
-  {
-    name: 'flutter_inapp_purchase',
-    version: '10.6.2',
-    tag: 'flutter-iap-10.6.2',
-  },
-  { name: 'kmp-iap', version: '3.5.2', tag: 'kmp-iap-3.5.2' },
-  { name: 'maui-iap', version: '2.5.1', tag: 'maui-iap-2.5.1' },
 ];
 
 const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
@@ -446,6 +459,261 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'amazon-subscription-offers-2026-09-30',
+      aliases: AMAZON_OFFER_FIX_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-30'),
+      element: (
+        <div key="amazon-subscription-offers-2026-09-30" style={noteCardStyle}>
+          {AMAZON_OFFER_FIX_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="amazon-subscription-offers-2026-09-30" level="h4">
+            September 30, 2026 - Amazon subscriptions report real prices and
+            trials
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Paid Amazon plans no longer read as free trials, Vega OS reports the
+            same offers as Fire OS, store-selection errors and deprecation
+            warnings say what to do, and a debug build says thanks once after
+            its first purchase. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/500"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #500
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-apple 3.6.1</strong> remembers, once per install,
+              that the framework library showed its first-purchase notice.
+            </li>
+            <li>
+              <strong>openiap-google 3.6.2</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Remembers, once per install, that the framework library showed
+                  its first-purchase notice.
+                </li>
+                <li>
+                  Amazon plans report their price in{' '}
+                  <code>priceAmountMicros</code> instead of <code>0</code>,
+                  which made a zero-price trial check read every paid plan as a
+                  free trial.
+                </li>
+                <li>
+                  Amazon prices with a decimal comma, such as{' '}
+                  <code>9,99 €</code>, no longer read as 999 on a device set to
+                  English.
+                </li>
+                <li>
+                  The Gradle plugin links a flavor&apos;s store into its
+                  unit-test and instrumented-test classpaths too; a Horizon test
+                  run got the Play artifact next to the Horizon one.
+                </li>
+                <li>
+                  Store-selection errors name a fix that works: build one store
+                  per invocation, or pass an option&apos;s value inline (
+                  <code>--name=value</code>).
+                </li>
+                <li>
+                  <code>horizonEnabled</code> and{' '}
+                  <code>openiapPlatform=none</code> warn that the next major
+                  release removes them; see{' '}
+                  <Link to="/docs/updates/migration#next-major">Migration</Link>
+                  .
+                </li>
+                <li>
+                  The <code>openiap: store=…</code> line and the deprecation
+                  warnings print at Gradle&apos;s quiet level, so Flutter&apos;s{' '}
+                  <code>-q</code> builds show them, and a script that captures{' '}
+                  <code>./gradlew -q</code> output sees them too.
+                </li>
+                <li>
+                  <code>fireOsEnabled=true</code> is no longer deprecated in
+                  openiap-google, react-native-iap, and flutter_inapp_purchase;
+                  it declares a Fire OS build and wins over the connected debug
+                  device.
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <p style={{ fontSize: '0.9rem' }}>
+            Every library below ships openiap-google 3.6.2 and openiap-apple
+            3.6.1. React Native, Expo, and Flutter also ship
+            openiap-google&apos;s store resolver, with the same errors and
+            warnings.
+          </p>
+          <p style={{ fontSize: '0.9rem' }}>
+            In a debug build, the first purchase that finishes prints a short
+            thank-you to the debug console (React Native DevTools for
+            react-native-iap), with a link to star the repository and an
+            invitation to list your app on the{' '}
+            <Link to="/showcase">showcase</Link>. It prints once per install,
+            never in a release build or a test run, and nothing leaves the
+            device. kmp-iap and maui-iap print it on Android only: their iOS
+            side has no reliable sign that the app is a debug build. Nothing
+            prints on Vega OS, which has no store for the once-per-install flag.
+          </p>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.7.2</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Vega OS subscriptions report their billing period and, when
+                  the customer is eligible, a <code>free-trial</code> offer, as
+                  Fire OS does.
+                </li>
+                <li>
+                  Seven legacy Android fields on the raw{' '}
+                  <code>NitroProduct</code> type, which{' '}
+                  <code>fetchProducts</code> already drops, are deprecated for
+                  removal in the next major release; read{' '}
+                  <code>subscriptionOffers</code> or <code>discountOffers</code>{' '}
+                  instead.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>expo-iap 5.8.2</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Vega OS subscriptions report their billing period and
+                  free-trial offer, as in react-native-iap.
+                </li>
+                <li>
+                  <code>modules.horizon</code> and the{' '}
+                  <code>EXPO_IAP_FIREOS</code>, <code>EXPO_IAP_VEGA</code>,{' '}
+                  <code>EXPO_IAP_ONSIDE</code>, and{' '}
+                  <code>EXPO_IAP_HORIZON</code> environment flags warn that
+                  expo-iap 6.0.0 removes them; see{' '}
+                  <Link to="/docs/updates/migration#next-major">Migration</Link>{' '}
+                  for each replacement.
+                </li>
+                <li>
+                  <code>modules.amazon.fireOS</code> is no longer deprecated,
+                  and declaring Fire OS with it or{' '}
+                  <code>EXPO_IAP_FIREOS=1</code> turns off Vega auto-detection.
+                </li>
+                <li>
+                  A hand-written root <code>manifest.toml</code> no longer draws
+                  a warning on every prebuild.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>maui-iap 2.6.2</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  <code>OpenIapAndroidStore</code> warns (
+                  <code>OPENIAP0001</code>) that the next major release removes
+                  it.
+                </li>
+                <li>
+                  An <code>OpenIapAndroidStore</code> value that disagrees with{' '}
+                  <code>OpenIapStore</code> fails the build, as a legacy flag
+                  does in Gradle; <code>OpenIapStore=auto</code> defers to it
+                  instead.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>godot-iap 3.6.2</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Release exports carry <code>res://iapkit.cfg</code> again;
+                  3.6.0 and 3.6.1 left it out.
+                </li>
+                <li>
+                  <code>types.gd</code>, regenerated in{' '}
+                  @hyodotdev/openiap-client-protocol 0.1.1, loads beside a
+                  project autoload or <code>class_name</code> that reuses one of
+                  its enum names, such as <code>IapStore</code>.
+                </li>
+                <li>
+                  On Apple, <code>restore_purchases()</code> and{' '}
+                  <code>sync_ios()</code> wait up to five minutes, as
+                  Apple&apos;s other system sheets do, because{' '}
+                  <code>AppStore.sync()</code> can ask the player to sign in.
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Tooling</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>@hyodotdev/openiap 0.1.1</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  <code>doctor</code> reads <code>openiapStore</code> pins and
+                  their aliases alongside the store flags, and reports store
+                  values the build would reject.
+                </li>
+                <li>
+                  Its fixes name <code>openiapStore</code> instead of the
+                  deprecated flags.
+                </li>
+                <li>
+                  The <code>init</code> brief ends with a note that lets your
+                  coding assistant mention the showcase and feedback channels
+                  once, and not star, post, or submit anything unless you ask.
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul>
+              {AMAZON_OFFER_FIX_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'minified-release-builds-2026-09-26',
       aliases: MINIFIED_RELEASE_BUILD_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-26'),
@@ -599,16 +867,31 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 3.6.0</strong> - ships the shared{' '}
-              <code>openiap-store.gradle</code> resolver and the{' '}
-              <code>io.github.hyochan.openiap</code> Gradle plugin. Horizon
-              purchases from the durable cache survive{' '}
-              <code>SERVICE_UNAVAILABLE</code>, and errors name the actual
-              store.
+              <strong>openiap-google 3.6.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Ships the shared <code>openiap-store.gradle</code> resolver
+                  and the <code>io.github.hyochan.openiap</code> Gradle plugin.
+                </li>
+                <li>
+                  Amazon subscriptions add a free-trial offer when the customer
+                  is eligible for one.
+                </li>
+                <li>
+                  Horizon purchases from the durable cache survive{' '}
+                  <code>SERVICE_UNAVAILABLE</code>, and errors name the actual
+                  store.
+                </li>
+                <li>
+                  Drops <code>BuildConfig.OPENIAP_SPEC_VERSION</code>.
+                </li>
+              </ul>
             </li>
             <li>
-              <strong>openiap-apple 3.4.0 → 3.6.0</strong> - picks up the shared
-              client protocol changes behind this release.
+              <strong>openiap-apple 3.6.0</strong> - adds{' '}
+              <code>OpenIapVersion.clientProtocolVersion</code>;{' '}
+              <code>specVersion</code> stays as a deprecated alias until client
+              protocol 1.0.0.
             </li>
           </ul>
 
@@ -631,37 +914,46 @@ function Releases() {
               move the pin to <code>ORG_GRADLE_PROJECT_openiapStore</code>.
             </li>
             <li>
+              <strong>expo-iap 5.8.0</strong> - also recognizes a Vega project
+              without an enable flag, and the config plugin logs to stderr, so
+              tools that print the Expo config as JSON get clean output.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.7.0</strong> - also stops
+              logging Android purchase tokens.
+            </li>
+            <li>
               <strong>kmp-iap 3.6.0</strong> - gains a{' '}
-              <code>Store.HORIZON</code> entry, so add the branch if you switch
-              exhaustively over <code>Store</code>.
+              <code>Store.HORIZON</code> entry, which Horizon builds now report
+              instead of <code>PLAY_STORE</code>, so add the branch if you
+              switch exhaustively over <code>Store</code>.
             </li>
             <li>
               <strong>godot-iap 3.6.0</strong> - adds the{' '}
               <code>openiap/android_store</code> export option (
               <code>auto</code> follows the debug device) and{' '}
-              <code>openiap/horizon_app_id</code>.
+              <code>openiap/horizon_app_id</code>. Release exports leave{' '}
+              <code>res://iapkit.cfg</code> out of the bundle, so a game that
+              ships its IAPKit key there loses it;{' '}
+              <Link to="/docs/setup/godot#iapkit-cfg-release-export">
+                see the fix
+              </Link>
+              .
             </li>
             <li>
-              <strong>maui-iap 2.6.0</strong> - links one store&apos;s AAR per
-              build. NuGet resolves dependencies at restore time, so every build
-              also carries Play Services, DataTransport, and
-              kotlinx-serialization-json regardless of store.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Verified</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              CI resolver, Gradle plugin, MAUI packaging, and Godot store
-              suites, plus flag-free debug builds on a Pixel, a Quest, a Fire
-              tablet, and a Vega TV with live sandbox purchases on Play, Amazon,
-              and Vega.
+              <strong>maui-iap 2.6.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Links one store&apos;s AAR per build. NuGet resolves
+                  dependencies at restore time, so every build also carries Play
+                  Services, DataTransport, and kotlinx-serialization-json
+                  regardless of store.
+                </li>
+                <li>
+                  Fixes duplicate <code>androidx.fragment</code> classes when an
+                  app also references current Google Play Services bindings.
+                </li>
+              </ul>
             </li>
           </ul>
 
@@ -1148,16 +1440,12 @@ function Releases() {
     },
     {
       id: 'spec-splits-into-two-protocols-2026-09-15',
-      aliases: PROTOCOL_SPLIT_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-15'),
       element: (
         <div
           key="spec-splits-into-two-protocols-2026-09-15"
           style={noteCardStyle}
         >
-          {PROTOCOL_SPLIT_RELEASES.map((release) => (
-            <span key={release.tag} id={release.tag} aria-hidden="true" />
-          ))}
           <AnchorLink id="spec-splits-into-two-protocols-2026-09-15" level="h4">
             September 15, 2026 - &quot;Spec&quot; splits into the Client
             Protocol and the Commerce Protocol
@@ -1222,26 +1510,21 @@ function Releases() {
             <p style={{ margin: 0 }}>
               The <code>X-OpenIAP-Spec</code> request header is removed. It was
               optional telemetry that IAPKit only wrote to a log line, and
-              nothing ever branched on it, so verification is unaffected. With
-              it go the symbols that fed it:{' '}
-              <strong>openiap-apple 3.5.0</strong> renames{' '}
+              nothing ever branched on it, so verification is unaffected. The
+              package side shipped in the{' '}
+              <Link to="/docs/updates/releases#build-time-store-resolution-2026-09-26">
+                September 26 releases
+              </Link>
+              : <strong>openiap-apple 3.6.0</strong> renames{' '}
               <code>OpenIapVersion.specVersion</code> to{' '}
               <code>OpenIapVersion.clientProtocolVersion</code> and keeps{' '}
               <code>specVersion</code> as a deprecated alias until client
-              protocol 1.0.0, and <strong>openiap-google 3.5.3</strong> drops{' '}
+              protocol 1.0.0, and <strong>openiap-google 3.6.0</strong> drops{' '}
               <code>BuildConfig.OPENIAP_SPEC_VERSION</code>.{' '}
-              <strong>flutter_inapp_purchase 10.6.2</strong>,{' '}
-              <strong>kmp-iap 3.5.2</strong>, and{' '}
-              <strong>maui-iap 2.5.1</strong> carry the regenerated deprecation
+              <strong>flutter_inapp_purchase 10.7.0</strong>,{' '}
+              <strong>kmp-iap 3.6.0</strong>, and{' '}
+              <strong>maui-iap 2.6.0</strong> carry the regenerated deprecation
               messages that name the client protocol 1.0.0 removal train.
-            </p>
-            <p style={{ margin: '0.5rem 0 0 0' }}>
-              <strong>kmp-iap 3.5.2</strong> also adds{' '}
-              <code>Store.HORIZON</code>, and Horizon builds now report it from{' '}
-              <code>getStore()</code> instead of <code>Store.PLAY_STORE</code>.
-              A new enum case makes an exhaustive <code>when</code> over{' '}
-              <code>Store</code> fail to compile, so add a Horizon branch or an{' '}
-              <code>else</code>.
             </p>
           </Callout>
 
@@ -1251,21 +1534,6 @@ function Releases() {
             and the server-side contract has its own{' '}
             <Link to="/commerce-protocol">Commerce Protocol</Link> section.
           </p>
-
-          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
-          <ul>
-            {PROTOCOL_SPLIT_RELEASES.map((release) => (
-              <li key={release.tag}>
-                <a
-                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <strong>{getReleaseLabel(release)}</strong>
-                </a>
-              </li>
-            ))}
-          </ul>
         </div>
       ),
     },
@@ -7543,11 +7811,11 @@ function Releases() {
             >
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.2"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.3"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  openiap-apple 2.2.2
+                  openiap-apple 2.2.3
                 </a>
               </li>
               <li>
@@ -8688,14 +8956,14 @@ function Releases() {
       ),
     },
 
-    // May 8, 2026 — maui-iap 1.0.1 namespace corrective release
+    // May 8, 2026 — maui-iap 1.0.2 namespace corrective release
     {
       id: 'maui-iap-1-0-1-openiap-namespace',
       date: new Date('2026-05-08'),
       element: (
         <div key="maui-iap-1-0-1-openiap-namespace" style={noteCardStyle}>
           <AnchorLink id="maui-iap-1-0-1-openiap-namespace" level="h4">
-            May 8, 2026 — maui-iap v1.0.1 OpenIap namespace update
+            May 8, 2026 — maui-iap v1.0.2 OpenIap namespace update
           </AnchorLink>
 
           <p
@@ -8704,7 +8972,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes a corrective <strong>maui-iap 1.0.1</strong> patch so the
+            Publishes a corrective <strong>maui-iap 1.0.2</strong> patch so the
             public C# namespace matches the package name and documentation.
             Generated OpenIAP types now live under <code>OpenIap</code>. Apps
             import <code>OpenIap.Maui</code> and access the MAUI facade as{' '}
@@ -8762,15 +9030,15 @@ function Releases() {
             >
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.1"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.2"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  maui-iap 1.0.1
+                  maui-iap 1.0.2
                 </a>{' '}
                 (
                 <a
-                  href="https://www.nuget.org/packages/OpenIap.Maui/1.0.1"
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.0.2"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="external-link"
@@ -10151,7 +10419,7 @@ function Releases() {
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
               <a
-                href="https://github.com/hyodotdev/openiap/releases/tag/apple-2.0.0"
+                href="https://github.com/hyodotdev/openiap/releases/tag/2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >

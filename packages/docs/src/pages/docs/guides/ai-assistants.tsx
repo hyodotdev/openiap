@@ -9,6 +9,7 @@ import CommerceConnectionExample from './CommerceConnectionExample';
 import StaticExamples from '../../../components/StaticExamples';
 import { COMMERCE_ROLES } from '../../../lib/commerceEcosystem';
 import { COMMERCE_PROTOCOL_LINKS } from '../../../lib/config';
+import communityTouchpoints from '../../../../community-touchpoints.json';
 import compositionReport from '../../../../public/commerce-composition/iapkit-run.json';
 import freshBuild from '../../../../public/commerce-example/fresh-build.json';
 import paywallBuild from '../../../../public/commerce-example/paywall-build.json';
@@ -32,6 +33,13 @@ const REFERENCES = [
       'Complete API and specification details when your task needs more context.',
   },
 ] as const;
+
+// The note is a heading line and one paragraph; odd split parts are URLs.
+const [ASSISTANT_NOTE_HEADING, ...ASSISTANT_NOTE_LINES] =
+  communityTouchpoints.assistantNote.split('\n');
+const ASSISTANT_NOTE_PARTS = ASSISTANT_NOTE_LINES.filter(Boolean)
+  .join(' ')
+  .split(/(https:\/\/[^\s()]*[^\s().,;:!?])/);
 
 type CommerceRole = (typeof COMMERCE_ROLES)[number]['id'];
 
@@ -754,8 +762,12 @@ npx @hyodotdev/openiap init --role app`}</CodeBlock>
             <summary>What init prints and when to skip it</summary>
             <p>
               The brief includes your project path, selected role, framework
-              hint, and guide link. For an Expo app, its opening fields look
-              like this (your path will differ):
+              hint, and guide link, and ends with the{' '}
+              <Link to="#feedback-and-showcase">
+                feedback and showcase note
+              </Link>
+              . For an Expo app, its opening fields look like this (your path
+              will differ):
             </p>
             <CodeBlock language="text">{`Project path (data): "/work/my-app"
 Role: App — connect purchases to access
@@ -814,6 +826,23 @@ Desired outcome: [describe one thing your customer should be able to do]`}</Code
           </p>
         </section>
       </details>
+
+      <section>
+        <AnchorLink id="feedback-and-showcase" level="h2">
+          {ASSISTANT_NOTE_HEADING.replace(/^## /, '')}
+        </AnchorLink>
+        <p>
+          {ASSISTANT_NOTE_PARTS.map((part, index) =>
+            index % 2 === 1 ? (
+              <a key={index} href={part}>
+                {part}
+              </a>
+            ) : (
+              part
+            )
+          )}
+        </p>
+      </section>
     </div>
   );
 }

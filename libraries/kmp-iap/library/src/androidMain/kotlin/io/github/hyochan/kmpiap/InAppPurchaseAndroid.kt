@@ -330,6 +330,7 @@ private fun com.android.billingclient.api.UserChoiceDetails.toOpenIapDetails(): 
 internal class InAppPurchaseAndroid(
     private val applicationContextProvider: () -> Context? = ::tryGetApplicationContext,
     private val redeemFlowLauncher: ((Context) -> Boolean)? = null,
+    private val firstPurchaseNotice: FirstPurchaseNotice = FirstPurchaseNotice.shared,
 ) : KmpInAppPurchase {
 
     private data class ConnectionAttempt(
@@ -1087,7 +1088,7 @@ internal class InAppPurchaseAndroid(
             }
 
             if (subscriptionProductReplacementParams != null &&
-                BuildConfig.OPENIAP_STORE.lowercase() != "play"
+                BuildConfig.OPENIAP_STORE != "play"
             ) {
                 failWith(
                     PurchaseError(
@@ -1670,6 +1671,7 @@ internal class InAppPurchaseAndroid(
      */
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
         finishTransactionHandler(purchase, isConsumable)
+        firstPurchaseNotice.onTransactionFinished(purchase, context)
     }
 
     /**

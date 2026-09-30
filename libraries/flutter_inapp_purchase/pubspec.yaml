@@ -5,6 +5,10 @@ description: In App Purchase plugin for flutter. This project has been forked by
 version: 10.7.1
 homepage: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 repository: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
+funding:
+  - https://github.com/sponsors/hyodotdev
+  - https://opencollective.com/openiap
+  - https://www.paypal.me/dooboolab
 environment:
   sdk: ">=3.0.0 <4.0.0"
   flutter: ">=3.10.0"

@@ -51,10 +51,14 @@ function StoreSetup() {
             <code>openiapStore=play|horizon|amazon</code> as a Gradle property:{' '}
             <code>-PopeniapStore=horizon</code>,{' '}
             <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in an EAS
-            profile, or <code>gradle.properties</code>. The legacy{' '}
-            <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
-            <code>openiapPlatform=none</code> still work with a deprecation
-            warning.
+            profile, or <code>gradle.properties</code>.{' '}
+            <code>fireOsEnabled=true</code> declares a Fire OS build as{' '}
+            <code>openiapStore=amazon</code> does. <code>auto</code> means no
+            pin. The legacy <code>horizonEnabled</code> still pins with a
+            deprecation warning and is removed in the next major release. Only{' '}
+            <code>flutter_inapp_purchase</code> accepts{' '}
+            <code>openiapStore=none</code> (or the legacy{' '}
+            <code>openiapPlatform=none</code>) to build without a store SDK.
           </li>
           <li>
             <strong>Variant</strong> — the requested task names a store flavor:{' '}
@@ -79,7 +83,11 @@ function StoreSetup() {
             (for MAUI, the IDE&apos;s <code>AdbTarget</code> first), or the
             single attached one, is a Quest or a Fire device. Release builds
             never look at a device, and several attached devices select nothing
-            unless <code>ANDROID_SERIAL</code> picks one.
+            unless <code>ANDROID_SERIAL</code> picks one. The device pickers in{' '}
+            <code>flutter run -d</code>, <code>expo run:android --device</code>,
+            and <code>react-native run-android --deviceId</code> are not passed
+            to Gradle, so export <code>ANDROID_SERIAL</code> yourself when
+            several devices are attached.
           </li>
           <li>
             <strong>Play</strong> otherwise.
@@ -87,11 +95,13 @@ function StoreSetup() {
         </ol>
         <p>
           The decision is logged once per build as{' '}
-          <code>openiap: store=horizon (source=device; ...)</code>. A store pin
-          against a different task flavor, two flavors in one invocation, and a
-          pin against a legacy flag each fail the build, so a pinned release
-          train cannot quietly ship the wrong billing SDK. The device is a
-          fallback rather than a competing signal: a pin or a flavor simply
+          <code>openiap: store=horizon (source=device; ...)</code>, at
+          Gradle&apos;s quiet level, so <code>-q</code> runs show it too. A
+          store pin against a different task flavor, two flavors in one
+          invocation, and a pin against a store flag or{' '}
+          <code>openiapPlatform=none</code> each fail the build, so a pinned
+          release train cannot quietly ship the wrong billing SDK. The device is
+          a fallback rather than a competing signal: a pin or a flavor simply
           outranks it. The device step also works with the configuration cache:
           plugging in a different device reconfigures the build. The aliases{' '}
           <code>google</code>/<code>gplay</code>/<code>googleplay</code>/
@@ -122,7 +132,7 @@ function StoreSetup() {
           kmp-iap matches each flavor, and one <code>openiap-google</code>{' '}
           dependency links each flavor&apos;s store.
         </p>
-        <CodeBlock language="kotlin">{`// settings.gradle.kts
+        <CodeBlock language="kotlin">{`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
     id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }`}</CodeBlock>

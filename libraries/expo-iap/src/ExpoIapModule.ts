@@ -98,6 +98,8 @@ export type ExpoIapNativeModule = NativeEventModule &
       purchase: PurchaseInput,
       isConsumable: boolean | null,
     ): Promise<boolean>;
+    /** Internal: the once-per-install flag behind the first-purchase notice. */
+    claimFirstPurchaseNotice(): Promise<boolean>;
     acknowledgePurchaseAndroid(purchaseToken: string): Promise<unknown>;
     consumePurchaseAndroid(purchaseToken: string): Promise<unknown>;
     createBillingProgramReportingDetailsAndroid(

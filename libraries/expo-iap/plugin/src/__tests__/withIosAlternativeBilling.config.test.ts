@@ -95,8 +95,8 @@ describe('iOS Alternative Billing Configuration Validation', () => {
       };
 
       expect(config.multiLinks).toBeDefined();
-      expect(config.multiLinks?.de.length).toBe(5);
-      expect(config.multiLinks?.de.length).toBeLessThanOrEqual(5);
+      expect(config.multiLinks?.de?.length).toBe(5);
+      expect(config.multiLinks?.de?.length).toBeLessThanOrEqual(5);
     });
 
     it('should accept single link in multiLinks', () => {
@@ -107,7 +107,7 @@ describe('iOS Alternative Billing Configuration Validation', () => {
         },
       };
 
-      expect(config.multiLinks?.fr.length).toBe(1);
+      expect(config.multiLinks?.fr?.length).toBe(1);
     });
 
     it('should handle multiple countries with different link counts', () => {
@@ -124,9 +124,9 @@ describe('iOS Alternative Billing Configuration Validation', () => {
         },
       };
 
-      expect(config.multiLinks?.de.length).toBe(2);
-      expect(config.multiLinks?.fr.length).toBe(1);
-      expect(config.multiLinks?.it.length).toBe(3);
+      expect(config.multiLinks?.de?.length).toBe(2);
+      expect(config.multiLinks?.fr?.length).toBe(1);
+      expect(config.multiLinks?.it?.length).toBe(3);
     });
   });
 

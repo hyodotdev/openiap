@@ -113,6 +113,17 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/verify-horizon-merged-manifest.mjs" \
             build/app/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
 
+      # Flutter shrinks release builds with R8 by default, and the setup guide
+      # says apps add no rules, so every store's release build has to shrink.
+      - name: Build minified release APKs per store
+        working-directory: libraries/flutter_inapp_purchase/example
+        run: |
+          for store in play horizon amazon; do
+            ORG_GRADLE_PROJECT_openiapStore="$store" \
+              "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+              flutter build apk --release --target-platform android-arm64
+          done
+
   apple-xcode-27:
     name: Apple examples (Flutter 3.44 + Xcode 27)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository

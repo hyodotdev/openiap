@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { extractSchemaDeprecations } from "../specs/client/schema-deprecations.mjs";
 import { SCHEMA_FILE_NAMES } from "../specs/client/schema-files.mjs";
 import { validateVersion } from "./release-branch-policy.mjs";
+import {
+  collectScheduledRemovalFailures,
+  scheduledRemovalRules,
+} from "./scheduled-removals.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -554,7 +558,10 @@ export const collectCompletedRemovalFailures = () => {
 };
 
 export const runAudit = () => {
-  const failures = collectCompletedRemovalFailures();
+  const failures = [
+    ...collectCompletedRemovalFailures(),
+    ...collectScheduledRemovalFailures(),
+  ];
   if (failures.length > 0) {
     console.error("Deprecated API removal audit failed:\n");
     for (const failure of failures) console.error(`- ${failure}`);
@@ -562,7 +569,7 @@ export const runAudit = () => {
   }
 
   console.log(
-    `Deprecated API removal audit passed (${completedRemovalRules.length} source groups, ${activeDocsForbiddenTokens.length} active-doc tokens).`,
+    `Deprecated API removal audit passed (${completedRemovalRules.length} source groups, ${activeDocsForbiddenTokens.length} active-doc tokens, ${scheduledRemovalRules.length} scheduled removals).`,
   );
   return true;
 };

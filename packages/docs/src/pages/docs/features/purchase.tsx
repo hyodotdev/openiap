@@ -891,7 +891,6 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           {{
             typescript: (
               <CodeBlock language="typescript">{`// expo-iap
-import { Platform } from 'react-native';
 import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
 // Same API in react-native-iap:
 // import { verifyPurchaseWithProvider, type Purchase } from 'react-native-iap';
@@ -899,27 +898,27 @@ import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
 const amazonSandbox =
   process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX === 'true';
 
-const iapkitPayloadFor = async (purchase: Purchase) => {
+// purchase.store names the store that sold it, so a build that follows the
+// connected device needs no store flag here.
+const iapkitPayloadFor = (purchase: Purchase) => {
   const token = purchase.purchaseToken ?? '';
-  const runtimeOS = Platform.OS as string;
-  const isFireOSBuild = process.env.EXPO_PUBLIC_STORE === 'amazon';
-  const isAmazonRuntime = runtimeOS === 'kepler' || isFireOSBuild;
 
-  if (Platform.OS === 'ios') {
-    return { apple: { jws: token } };
+  switch (purchase.store) {
+    case 'apple':
+      return { apple: { jws: token } };
+    case 'amazon': // Fire OS and Vega OS
+      return {
+        amazon: {
+          expectedProductId: purchase.productId,
+          receiptId: token,
+          sandbox: amazonSandbox,
+        },
+      };
+    case 'horizon':
+      return { horizon: { sku: purchase.productId } };
+    default:
+      return { google: { purchaseToken: token } };
   }
-
-  if (isAmazonRuntime) {
-    return {
-      amazon: {
-        expectedProductId: purchase.productId,
-        receiptId: token,
-        sandbox: amazonSandbox,
-      },
-    };
-  }
-
-  return { google: { purchaseToken: token } };
 };
 
 const verifyWithIapkit = async (purchase: Purchase) => {
@@ -929,7 +928,7 @@ const verifyWithIapkit = async (purchase: Purchase) => {
       // Use an openiap-kit_pk_ key. Optional when configured via app config,
       // Info.plist, or AndroidManifest.
       apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
-      ...(await iapkitPayloadFor(purchase)),
+      ...iapkitPayloadFor(purchase),
     },
   });
 
@@ -963,7 +962,7 @@ function PurchaseScreen() {
           provider: 'iapkit',
           iapkit: {
             apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
-            ...(await iapkitPayloadFor(purchase)),
+            ...iapkitPayloadFor(purchase),
           },
         });
         const verified = result.iapkit;
@@ -1033,6 +1032,7 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                     // Fire OS: replace google with amazon(expectedProductId,
                     // userId, receiptId, sandbox). App Tester needs project opt-in;
                     // handled Amazon results expose environment.
+                    // Horizon: replace google with horizon(sku = purchase.productId).
                 )
             )
         )
@@ -1071,6 +1071,7 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                     // Fire OS builds use amazon(expectedProductId, userId,
                     // receiptId, sandbox). App Tester needs project opt-in;
                     // handled Amazon results expose environment.
+                    // Horizon builds use horizon(sku = purchase.productId).
                 )
             )
         )
@@ -1117,6 +1118,7 @@ Future<bool> verifyWithIapkit(Purchase purchase) async {
         // Fire OS builds can pass amazon with expectedProductId, userId,
         // receiptId, and sandbox. App Tester needs project opt-in;
         // handled Amazon results expose environment.
+        // Horizon builds pass horizon with the product id as sku.
       ),
     );
 

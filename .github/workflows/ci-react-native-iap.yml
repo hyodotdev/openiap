@@ -82,6 +82,11 @@ jobs:
       - name: Type check
         run: yarn lint:tsc
 
+      # Apps resolve the library from source (customConditions: react-native),
+      # so a Node-only global that the library tsconfig allows breaks them.
+      - name: Type check the example against the library source
+        run: yarn tsc --noEmit -p example/tsconfig.json
+
   test:
     name: Test
     runs-on: ubuntu-latest

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T18:35:25.842Z
+> Last updated: 2026-09-29T15:40:45.029Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1389,8 +1389,9 @@ file to switch. Credentials (the Horizon app id, the Amazon
 on the other stores; they never select anything.
 
 ```text
-1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties
-             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read, deprecation warning)
+1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties,
+             or fireOsEnabled=true (legacy horizonEnabled, openiapPlatform=none: still read
+             with a warning until the next major release; `bun audit:deprecations` holds that boundary)
 2. variant   a requested task carries a store flavor: assembleHorizonRelease, installAmazonDebug
 3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the single
              attached one -> Quest = horizon, Fire = amazon
@@ -1398,11 +1399,10 @@ on the other stores; they never select anything.
 ```
 
 A store pin against a different task flavor, two store flavors named by the
-requested tasks, and a pin against a legacy flag each fail the build. Opting out
+requested tasks, and a pin against a store flag or `openiapPlatform=none` each fail the build. Opting out
 with `openiapStore=none` never conflicts with a task flavor, because it links
-nothing; it does still conflict with a legacy flag that names a store. An anchor
-task that
-builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
+nothing; it does still conflict with a store flag that names a store. An anchor
+task that builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
 openiap-google — is not that case and is allowed. The device is a fallback, not a
 competing signal — a pin or a flavor outranks it without complaint. A release
 build never consults a device, and several attached devices select nothing
@@ -1429,15 +1429,15 @@ link, and `dart pub publish` follows the link. The OpenIAP Gradle plugin
 (`packages/google/gradle-plugin`, id `io.github.hyochan.openiap`) packs the same
 file into its jar at build time. Every other build system reads the same names:
 
-| Consumer                            | Input                                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                  |
-| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` still pin, with a warning    |
-| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                    |
-| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store        |
-| maui-iap                            | package targets at app build: `OpenIapStore` (alias `OpenIapAndroidStore`), Debug-build device, play |
-| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
-| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
+| Consumer                            | Input                                                                                               |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                 |
+| expo-iap config plugin              | `modules.amazon.fireOS` pins amazon; deprecated `modules.horizon` still pins                        |
+| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                   |
+| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store       |
+| maui-iap                            | package targets at app build: `OpenIapStore` (deprecated `OpenIapAndroidStore`), Debug device, play |
+| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
 `bun audit:parity` compares all five alias tables — the resolver, the doctor,
 the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
@@ -1458,7 +1458,7 @@ It applies the real resolver to the fixture in
 network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
 reports whatever device the case declares. Each case asserts a resolved
 `store/source` pair, or that the build fails with a named message. The suite
-covers pins and their aliases, the legacy flags and their conflicts, the
+covers pins and their aliases, the store flags and their conflicts, the
 `none` opt-out, task flavors, every conflict that must fail, device selection
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.
@@ -2440,6 +2440,27 @@ attribute fell through to the "declares none" branch. Now it matches through
 attributes and throws when the element is present but unreadable.
 ```
 
+## Opening Pull Requests
+
+Open a pull request only when the maintainer asked for one in this
+conversation, directly or through a workflow they started (`/commit --pr`,
+`$loop-review`, `/resolve-issue`). A PR that would merely help is a question
+for the maintainer, not a PR.
+
+- Work found while a PR is open goes into that PR, small docs fixes included.
+  Never open a side PR for it.
+- A small docs fix with no open PR (a guide sentence, a snippet, a link) gets
+  no PR at all: ask in one line whether to commit it straight to `main`.
+
+Claude Code enforces this: `scripts/guard-pull-request.mjs` holds `gh pr
+create`, `gh pr new`, the REST and GraphQL create calls, GitHub MCP tools that
+open a PR, and handing an issue or task to Copilot until the maintainer
+approves, in bypass-permissions mode too.
+Claude Code reads `.claude/settings.json` only in the folder a session starts
+in, so the root and every folder with its own `.claude/` wire the hook. A run
+with no one to approve, such as `claude -p` or a routine, is refused. Other
+agents have no hook, so this section is their guard.
+
 ## Git Commit Message Format
 
 ### Rules
@@ -3378,6 +3399,78 @@ scanner in the same change.
 
 ---
 
+<!-- Source: internal/09-community-touchpoints.md -->
+
+# Community Touchpoints
+
+Coding assistants now install and integrate the SDKs, so developers rarely read
+install output or READMEs. Three small touchpoints reach them where they already
+look, and each offers something (a free showcase listing) instead of only
+asking.
+
+## Rules
+
+- **One source of truth.** `packages/docs/community-touchpoints.json` holds the
+  console notice, the note for coding assistants, and the README section.
+  Every copy must match it. `bun audit:parity` checks the notice and note copies
+  and MAUI's Android wiring (`scripts/audit-community-touchpoints.mjs`);
+  `bun audit:sponsors` checks the README section and funding.
+- **First-purchase notice.** Printed once, after the first `finishTransaction`
+  that resolves for a purchase in the `purchased` state. Never on install,
+  connection, product fetch, or a pending, failed or cancelled purchase.
+- **Debug builds of the host app only.** Libraries ship compiled in release, so
+  `BuildConfig.DEBUG` or `#if DEBUG` inside a library is always false. Use the
+  host's signal from the table; where a platform has none, print nothing.
+  Never print under a test runner.
+- **Once per install.** openiap-google (`SharedPreferences`) and openiap-apple
+  (`UserDefaults`) persist the flag behind `OpenIapFirstPurchaseNotice.claim`.
+  It is internal to the framework libraries, not part of the Client Protocol,
+  and not documented as app API.
+- **Console only.** The framework's normal dev log, nothing else: no UI, no
+  network call, no telemetry or counter, and no opt-out API.
+
+| Library                | Finish point                                             | Debug signal                                   | Test runner                      | Flag                                      | Console                                  |
+| ---------------------- | -------------------------------------------------------- | ---------------------------------------------- | -------------------------------- | ----------------------------------------- | ---------------------------------------- |
+| react-native-iap       | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Nitro `claimFirstPurchaseNotice`          | `console.log` (DevTools, Logcat, Xcode)  |
+| expo-iap               | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Expo module `claimFirstPurchaseNotice`    | `console.log` (Expo CLI terminal)        |
+| flutter_inapp_purchase | `finishTransaction` in `lib/flutter_inapp_purchase.dart` | `kDebugMode`                                   | `FLUTTER_TEST` environment       | method channel `claimFirstPurchaseNotice` | `debugPrint` (`flutter run`)             |
+| godot-iap              | `finish_transaction` in `godot_iap.gd`                   | `OS.is_debug_build()`                          | headless display server          | plugin method `claimFirstPurchaseNotice`  | `print` (Godot output)                   |
+| kmp-iap                | Android `finishTransaction`                              | host `FLAG_DEBUGGABLE`; iOS none, so no notice | JUnit on the classpath           | openiap-google helper                     | `Log.i` (Logcat)                         |
+| maui-iap               | Android `FinishTransactionAsync`                         | host `FLAG_DEBUGGABLE`; iOS none, so no notice | a test framework assembly loaded | openiap-google helper                     | `Console.WriteLine` (Logcat, IDE output) |
+
+Vega OS runs the JavaScript adapters with no native flag store, so it prints
+nothing.
+
+React Native's CLI no longer forwards `console.log` to the Metro terminal
+(`--client-logs` is deprecated and off), so the line shows in React Native
+DevTools, Logcat (`ReactNativeJS`), and the Xcode console; Expo CLI prints it
+in its terminal. Keep `console.log`: `console.warn` opens LogBox, which is UI.
+
+kmp-iap and maui-iap print nothing on iOS. Kotlin/Native's only build signal,
+`Platform.isDebugBinary`, is experimental and describes the shared framework,
+which teams often ship prebuilt in release. .NET's closest one, the entry
+assembly's `DebuggableAttribute`, is unverified on iOS.
+
+## Where each text appears
+
+- **Console notice:** the six libraries above, from their own constant.
+- **Note for coding assistants:** `llms.txt` and `llms-full.txt` (generated by
+  `scripts/agent/compile-context.ts`), the AI assistants guide, the end of every
+  `openiap init` brief, and the wrap-up of `plugins/openiap/skills/openiap`.
+  Never in this repository's `AGENTS.md` files, `.claude/`, or `.codex/`, which
+  serve contributors, and never in IAPKit MCP responses.
+- **README section:** the six library READMEs and the CLI README, with the
+  package name substituted.
+- **Funding:** `bun run sponsors:sync` writes npm `funding` and pubspec
+  `funding:` from `packages/docs/sponsor-registry.json`, as it does for
+  `.github/FUNDING.yml`.
+
+Every touchpoint links to https://openiap.dev/showcase, which must make the
+submission path in `packages/docs/SHOWCASE.md` obvious.
+
+
+---
+
 <!-- Source: internal/sandbox-subscription-billing-issue.md -->
 
 ---
@@ -3624,7 +3717,14 @@ Horizon offer, the trial offer sets `basePlanIdAndroid` to the SKU; it leaves
 the remaining Play-only fields (offer token, tags, pricing phases) null
 because Amazon reports none. The base offer keeps its earlier shape:
 `basePlanIdAndroid` is the SKU, `offerTokenAndroid` is `""`, and
-`pricingPhasesAndroid` holds one synthetic recurring phase.
+`pricingPhasesAndroid` holds one synthetic recurring phase whose
+`priceAmountMicros` is the parsed price, so a zero-price check does not read
+a paid plan as a free trial.
+
+The Vega OS adapters in `react-native-iap` and `expo-iap` map Kepler's
+`subscriptionPeriod` and `freeTrialPeriod` the same way, so one listing shows
+the same offers on Fire OS and Vega OS. Kepler prices carry a currency code,
+so the Vega base offer keeps it where Fire OS leaves `currency` empty.
 
 After purchase the RVS receipt reports `freeTrialEndDate` while the
 subscription is in its trial.

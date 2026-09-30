@@ -369,6 +369,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
+    /// Internal: the once-per-install flag behind godot_iap.gd's first-purchase notice; not app API.
+    @Callable
+    public func claimFirstPurchaseNotice() -> Bool {
+        OpenIapFirstPurchaseNotice.claim()
+    }
+
     @Callable
     public func restorePurchases() -> String {
         GodotIapLog.payload("Restoring purchases", payload: nil)

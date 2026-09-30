@@ -28,8 +28,8 @@ android {
 }
 
 dependencies {
-  implementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
-  implementation 'io.github.hyochan:kmp-iap:3.5.1'
+  implementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
+  implementation 'io.github.hyochan:kmp-iap:3.6.1'
 }
 
 apply from: rootProject.file('print-stores.gradle')

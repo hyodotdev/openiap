@@ -8,6 +8,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
       - "packages/google/compatibility/store-resolver/fake-adb"
       - "specs/client/codegen/plugins/gdscript.ts"
       - "specs/client/src/generated/types.gd"
@@ -20,6 +22,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
       - "packages/google/compatibility/store-resolver/fake-adb"
       - "specs/client/codegen/plugins/gdscript.ts"
       - "specs/client/src/generated/types.gd"
@@ -113,20 +117,121 @@ jobs:
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
             ./gradlew --no-daemon clean assembleDebug testDebugUnitTest
 
+      # Quest and Fire exports swap in that store's openiap-google, so the one
+      # AAR must compile against each store's API, not only Play's.
+      - name: Compile Android plugin against Horizon and Amazon
+        run: |
+          cd android
+          for store in horizon amazon; do
+            "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+              ./gradlew --no-daemon compileDebugKotlin -PopeniapCompileStore="$store"
+          done
+
+      # Godot exits 0 on a script parse error; the runner turns that into a failure.
+      - name: Test the suite runner
+        run: node --test scripts/run-godot-suite.test.mjs
+
       - name: Test generated types
-        run: godot --headless --path Example --script res://tests/test_types_only.gd
+        run: bash scripts/run-godot-suite.sh test_types_only
 
       - name: Test API surface parity
-        run: godot --headless --path Example --script res://tests/test_api_surface.gd
+        run: bash scripts/run-godot-suite.sh test_api_surface
 
       - name: Test native envelope parsing
-        run: godot --headless --path Example --script res://tests/test_envelope_parsing.gd
+        run: bash scripts/run-godot-suite.sh test_envelope_parsing
 
       - name: Test wrapper mapping
-        run: godot --headless --path Example --script res://tests/test_godot_iap.gd
+        run: bash scripts/run-godot-suite.sh test_godot_iap
 
       - name: Test export store mapping
-        run: godot --headless --path Example --script res://tests/test_android_store.gd
+        run: bash scripts/run-godot-suite.sh test_android_store
+
+  verify-minimum-godot:
+    name: Verify on Godot 4.3
+    # The addon supports Godot 4.3+; Verify runs the latest release.
+    # test_godot_iap.gd captures logs through Logger, which needs Godot 4.5.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@c233594225991af5aec714e52457cc76d6df8fa2 # v2.4.2
+        with:
+          version: 4.3.0
+          use-dotnet: false
+
+      - name: Test generated types, API surface, envelopes, and export store mapping
+        run: >
+          bash scripts/run-godot-suite.sh
+          test_types_only test_api_surface test_envelope_parsing test_android_store
+
+  apple-changes:
+    name: Detect Apple framework sources
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      apple: ${{ steps.filter.outputs.apple }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Check for changes
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          filters: |
+            apple:
+              - '.github/workflows/ci-godot-iap.yml'
+              - 'libraries/godot-iap/ios-gdextension/**'
+              - 'packages/apple/Sources/**'
+              - 'packages/apple/Package.swift'
+              - 'libraries/godot-iap/Makefile'
+              - 'libraries/godot-iap/scripts/install_apple_framework.sh'
+              - 'libraries/godot-iap/scripts/verify-ios-toolchain.sh'
+
+  apple-frameworks:
+    name: Build Apple frameworks (Xcode 26.6)
+    # App Store submissions need the iOS 26.5 SDK, and the release ZIP ships the
+    # committed frameworks. Build them with that toolchain whenever their
+    # sources change, and upload them to commit.
+    needs: apple-changes
+    if: needs.apple-changes.outputs.apple == 'true'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "26.6"
+
+      - name: Build iOS and macOS frameworks
+        run: make ios macos
+
+      - name: Verify the App Store toolchain
+        run: bash scripts/verify-ios-toolchain.sh
+
+      - name: Upload frameworks
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: godot-iap-apple-frameworks
+          path: |
+            libraries/godot-iap/addons/godot-iap/bin/ios
+            libraries/godot-iap/addons/godot-iap/bin/macos
+            libraries/godot-iap/addons/godot-iap/bin/godot_iap.gdextension
+          if-no-files-found: error
+          retention-days: 14
 
   swift-test:
     name: Swift Test

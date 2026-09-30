@@ -173,9 +173,6 @@ function FlutterSetup() {
     defaultConfig {
         minSdkVersion ${ANDROID_SDK.minSdk}  // Required minimum
         targetSdkVersion ${ANDROID_SDK.targetSdk}
-
-        // Required for v7.1.14+: Select Google Play platform
-        missingDimensionStrategy 'platform', 'play'
     }
 }`}
         </CodeBlock>
@@ -189,22 +186,18 @@ function FlutterSetup() {
     defaultConfig {
         minSdk = ${ANDROID_SDK.minSdk}  // Required minimum
         targetSdk = ${ANDROID_SDK.targetSdk}
-
-        // Required for v7.1.14+: Select Google Play platform
-        missingDimensionStrategy("platform", "play")
     }
 }`}
         </CodeBlock>
 
         <Callout kind="note">
-          The <code>missingDimensionStrategy</code> line is required since
-          v7.1.14 because the Android library ships product flavors for
-          alternative stores — Meta Horizon OS (Quest headsets) and Amazon Fire
-          OS. Apps shipping to Google Play always select the <code>play</code>{' '}
-          flavor shown above. Targeting Meta Quest or Amazon devices instead?
-          See <a href="/docs/setup/store/horizon">Horizon Store Setup</a> or{' '}
-          <a href="/docs/setup/store/amazon">Amazon Store Setup</a> for the
-          flavor to select there.
+          The plugin picks the Android store when Gradle runs, so the app needs
+          no store line: a debug build follows the connected Quest or Fire
+          device, and a release build links Google Play unless you pin another
+          store. See{' '}
+          <a href="/docs/setup/store#selection">How the Store Is Selected</a>.
+          Older guides added <code>missingDimensionStrategy</code> here; it no
+          longer does anything and can be removed.
         </Callout>
 
         <h4 id="disable-android-iap" className="anchor-heading">
@@ -229,10 +222,10 @@ function FlutterSetup() {
           <Link to="/docs/setup/store#selection">Store Setup</Link>); the legacy{' '}
           <code>openiapPlatform=none</code> spelling still works with a
           deprecation warning. Do not pin a store while the opt-out is set, or
-          keep a legacy <code>horizonEnabled</code>/<code>fireOsEnabled</code>{' '}
-          flag alongside a pin — the build fails rather than guess which one you
-          meant. <code>openiapStore=auto</code> is the exception: it means
-          &quot;no pin&quot;, so the opt-out beside it still applies.
+          keep a <code>horizonEnabled</code>/<code>fireOsEnabled</code> flag
+          alongside a different pin — the build fails rather than guess which
+          one you meant. <code>openiapStore=auto</code> is the exception: it
+          means &quot;no pin&quot;, so the opt-out beside it still applies.
         </p>
 
         <h4>R8 and ProGuard</h4>
@@ -496,16 +489,6 @@ final allPurchases = await iap.getAvailablePurchases(
             #
           </a>
         </h2>
-
-        <h3>Build failed: Could not determine dependencies (v7.1.14+)</h3>
-        <p>
-          If Gradle fails with an error about ambiguous variants (
-          <code>horizonReleaseRuntimeElements</code> /{' '}
-          <code>playReleaseRuntimeElements</code>), add{' '}
-          <code>missingDimensionStrategy</code> to your{' '}
-          <code>build.gradle</code>. See the{' '}
-          <a href="#android-config">Android Configuration</a> section above.
-        </p>
 
         <h3>Products not found</h3>
         <ul>

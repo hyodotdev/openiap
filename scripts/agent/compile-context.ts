@@ -21,6 +21,7 @@ import { glob } from "glob";
 import chalk from "chalk";
 import {
   CONTEXT_COMPATIBILITY_SYMLINKS,
+  CONTEXT_DIRECT_INPUTS,
   CONTEXT_OUTPUTS,
   CONTEXT_SOURCES,
   ROOT_LLMS_SYMLINKS,
@@ -237,6 +238,9 @@ export function ensureSymlink(linkPath: string, targetPath: string): void {
 async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   console.log(chalk.blue("\n🤖 Generating llms.txt files...\n"));
   const versions = readInstallationVersions();
+  const { assistantNote } = readJsonFile<{ assistantNote: string }>(
+    CONTEXT_DIRECT_INPUTS.communityTouchpoints,
+  );
   const generatedAt = new Date().toISOString();
   const implementationEntryPoints = `## Reading instructions for coding assistants
 
@@ -511,7 +515,7 @@ dotnet add package ${versions.mauiPackageId}
 
 Current NuGet package version: ${versions.maui}
 
-Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
+Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
 ---
 
@@ -525,8 +529,8 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   and platform-suffixed iOS/Android APIs.
 - Android builds resolve the store at build time: an \`openiapStore\` pin, the
   store flavor in the requested task, or on debug builds the connected device.
-  \`horizonEnabled\` and \`fireOsEnabled\` are deprecated. Vega OS uses a separate React Native
-  for Vega target that resolves the \`kepler\` JavaScript adapter before
+  \`fireOsEnabled=true\` also pins Amazon; the deprecated \`horizonEnabled\`
+  is removed in the next major release. Vega OS uses a separate React Native for Vega target that resolves the \`kepler\` JavaScript adapter before
   creating the Nitro HybridObject.
 - Onside is not supported in \`react-native-iap\`; use \`expo-iap\` for Onside.
 - Example app: \`libraries/react-native-iap/example\`.
@@ -538,11 +542,16 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
 - The Android store is resolved at build time: the connected device on a
   local debug build, \`ORG_GRADLE_PROJECT_openiapStore\` in the EAS profile
-  env for EAS and release builds, which have no device to follow. The config plugin carries store values only:
-  \`android.horizon.appId\`, \`android.amazon.appstoreKey\`, and opt-ins
-  \`modules.amazon.vegaOS\` (optional \`android.amazon.vegaOS\` metadata)
-  and \`modules.onside\`. \`modules.horizon\` / \`modules.amazon.fireOS\`
-  are deprecated pins.
+  env for EAS and release builds, which have no device to follow.
+  \`modules.amazon.fireOS\` also pins Amazon, ahead of the device. The
+  \`EXPO_IAP_*\` environment flags are deprecated and removed in expo-iap
+  6.0.0; an \`app.config.js\` can read the EAS profile env and set the plugin
+  option instead. The config plugin otherwise carries store values only:
+  \`android.horizon.appId\`, \`android.amazon.appstoreKey\`, the opt-in
+  \`modules.onside\`, and optional \`android.amazon.vegaOS\` metadata. A
+  root \`manifest.toml\` turns the Vega target on unless Fire OS is declared;
+  \`modules.amazon.vegaOS\` forces it on or off. \`modules.horizon\` is a
+  deprecated pin, removed in the next major release.
 - Example app: \`libraries/expo-iap/example\`.
 
 ### flutter_inapp_purchase
@@ -611,8 +620,9 @@ Canonical setup docs live under \`/docs/setup/store\`:
   or pins \`openiap/android_store=horizon\`.
   Required values: Horizon app id from Meta Horizon Developer Hub
   (Expo: \`android.horizon.appId\`; Godot: the \`openiap/horizon_app_id\` export
-  option; bare RN/Flutter examples commonly pass a
-  Gradle property named \`horizonAppId\` into manifest meta-data), product SKUs,
+  option; bare React Native passes a Gradle property named \`horizonAppId\`
+  into manifest meta-data, and Flutter reads \`HORIZON_APP_ID\` from
+  \`local.properties\`), product SKUs,
   and verification
   values such as \`horizon.sku\`, \`horizon.userId\`, and
   \`horizon.accessToken\` when validating Horizon purchases.
@@ -634,7 +644,7 @@ Canonical setup docs live under \`/docs/setup/store\`:
 - Vega OS: not an Android flavor. Target React Native for Vega and compatible
   Expo Vega targets only, using Amazon's JavaScript IAP API through the
   runtime-selected \`kepler\` adapter at the same runtime integration layer as
-  Onside. In Expo config plugin options, use \`modules.amazon.vegaOS=true\`.
+  Onside. In Expo, a root \`manifest.toml\` turns the Vega target on.
   Bare React Native Vega targets
   provide their own \`manifest.toml\`, Kepler package metadata, and runtime
   dependencies.
@@ -667,10 +677,9 @@ Fire OS maps OpenIAP calls to the Amazon Appstore SDK:
 
 ### Vega OS Runtime
 
-Vega OS is not Fire OS and is not selected with \`fireOsEnabled=true\`; that
-flag is only for Android Fire OS builds. Use \`modules.amazon.vegaOS=true\`
-for the Vega runtime target in Expo; the Fire OS Android artifact is picked by
-the store rule like any other store. Bare React Native uses the same rule for
+Vega OS is not Fire OS and is not an Android build. Expo detects a Vega project
+from its root \`manifest.toml\`; the Fire OS Android artifact is picked by the
+store rule like any other store. Bare React Native uses the same rule for
 Fire OS and a separate Kepler target for Vega. Install
 \`@amazon-devices/keplerscript-appstore-iap-lib\` and let \`react-native-iap\`
 / \`expo-iap\` select the \`kepler\` adapter at runtime, similar to how Onside
@@ -825,6 +834,8 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
   fullContent += commerceProtocolSpec.trimEnd();
   fullContent += "\n\n---\n\n";
   fullContent += deprecationMigrationReference.trimEnd();
+  fullContent += "\n\n---\n\n";
+  fullContent += assistantNote;
   fullContent += "\n\n---\n\n";
 
   // Add links section
@@ -1163,6 +1174,8 @@ https://openiap.dev/commerce-composition/iapkit-run.json.
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
+
+${assistantNote}
 
 ## Links
 

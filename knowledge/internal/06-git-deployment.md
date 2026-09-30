@@ -91,6 +91,27 @@ attribute fell through to the "declares none" branch. Now it matches through
 attributes and throws when the element is present but unreadable.
 ```
 
+## Opening Pull Requests
+
+Open a pull request only when the maintainer asked for one in this
+conversation, directly or through a workflow they started (`/commit --pr`,
+`$loop-review`, `/resolve-issue`). A PR that would merely help is a question
+for the maintainer, not a PR.
+
+- Work found while a PR is open goes into that PR, small docs fixes included.
+  Never open a side PR for it.
+- A small docs fix with no open PR (a guide sentence, a snippet, a link) gets
+  no PR at all: ask in one line whether to commit it straight to `main`.
+
+Claude Code enforces this: `scripts/guard-pull-request.mjs` holds `gh pr
+create`, `gh pr new`, the REST and GraphQL create calls, GitHub MCP tools that
+open a PR, and handing an issue or task to Copilot until the maintainer
+approves, in bypass-permissions mode too.
+Claude Code reads `.claude/settings.json` only in the folder a session starts
+in, so the root and every folder with its own `.claude/` wire the hook. A run
+with no one to approve, such as `claude -p` or a routine, is refused. Other
+agents have no hook, so this section is their guard.
+
 ## Git Commit Message Format
 
 ### Rules
