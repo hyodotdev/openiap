@@ -35,7 +35,7 @@ run() {
         fi
     else
         actual=$(printf '%s\n' "$output" \
-            | sed -n 's/.*FIXTURE store=\([a-z]*\) source=\([a-z]*\).*/\1\/\2/p' \
+            | sed -n 's/.*FIXTURE store=\([a-z0-9._-]*\) source=\([a-z]*\).*/\1\/\2/p' \
             | tail -1)
         if [[ -z "$actual" ]]; then
             actual="no resolution (exit=$status): ${output//$'\n'/ }"
@@ -103,6 +103,16 @@ clear_device() {
 }
 
 echo "Store resolver regression suite"
+
+echo "community provider"
+clear_device
+run "external store id" fixture-store/explicit assembleDebug -PopeniapStore=fixture-store -PopeniapProvider=community.store:fake:1.0.0
+run "unregistered id" another/explicit assembleRelease -PopeniapStore=another -PopeniapProvider=community.store:fake:1.0.0
+run "external without provider" "fail:unknown openiapStore" assembleDebug -PopeniapStore=fixture
+run "provider without id" "fail:requires an explicit community" assembleDebug -PopeniapProvider=community.store:fake:1.0.0
+run "provider with official" "fail:requires an explicit community" assembleDebug -PopeniapStore=play -PopeniapProvider=community.store:fake:1.0.0
+run "dynamic provider" "fail:fixed version" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.+
+run "wrong store task" "fail:conflicts with" assembleHorizonRelease -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0
 
 echo "explicit pin"
 clear_device
