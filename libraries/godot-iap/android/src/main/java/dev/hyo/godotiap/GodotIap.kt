@@ -1,7 +1,8 @@
 package dev.hyo.godotiap
 
 import dev.hyo.openiap.*
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
@@ -33,7 +34,7 @@ import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalL
  */
 class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
-    private lateinit var openIap: OpenIapModule
+    private lateinit var openIap: OpenIapProtocol
     private lateinit var store: OpenIapStore
     private val connectionLifecycle = GodotIapConnectionLifecycle()
     private val isInitialized: Boolean
@@ -133,7 +134,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 },
                 connect = {
                     runBlocking {
-                        val candidateModule = OpenIapModule(activity)
+                        val candidateModule = OpenIapProvider.create(activity)
                         val candidateStore = OpenIapStore(candidateModule)
                         attachListeners(candidateModule, candidateStore)
                         try {
@@ -191,7 +192,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return result.success
     }
 
-    private fun attachListeners(module: OpenIapModule, targetStore: OpenIapStore): Unit {
+    private fun attachListeners(module: OpenIapProtocol, targetStore: OpenIapStore): Unit {
         targetStore.addPurchaseUpdateListener(purchaseUpdateListener)
         targetStore.addPurchaseErrorListener(purchaseErrorListener)
         targetStore.addUserChoiceBillingListener(userChoiceBillingListener)
@@ -199,7 +200,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         module.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
     }
 
-    private fun detachListeners(module: OpenIapModule, targetStore: OpenIapStore): Unit {
+    private fun detachListeners(module: OpenIapProtocol, targetStore: OpenIapStore): Unit {
         targetStore.removePurchaseUpdateListener(purchaseUpdateListener)
         targetStore.removePurchaseErrorListener(purchaseErrorListener)
         targetStore.removeUserChoiceBillingListener(userChoiceBillingListener)
@@ -940,7 +941,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return try {
             val redemptionStore =
-                if (isInitialized) store else OpenIapStore(OpenIapModule(activity))
+                if (isInitialized) store else OpenIapStore(OpenIapProvider.create(activity))
             val launched = runBlocking { redemptionStore.openRedeemOfferCode(activity) }
             GodotIapLog.result("openRedeemOfferCodeAndroid", launched)
             JSONObject().apply {

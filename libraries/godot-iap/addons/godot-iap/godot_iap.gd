@@ -2204,6 +2204,8 @@ func is_stub_mode() -> bool:
 ## Returns Types.IapStore enum value
 func get_store() -> Variant:
 	if _platform == "Android":
+		if _has_feature.call("openiap_store_provider"):
+			return Types.IapStore.UNKNOWN
 		# Every store is an Android build; the export tags the one it linked.
 		if _has_feature.call(AndroidStore.store_feature("horizon")):
 			return Types.IapStore.HORIZON

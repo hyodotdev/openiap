@@ -207,10 +207,11 @@ export const modifyAppBuildGradle = (
   return modified;
 };
 
-export type AndroidStorePin = 'horizon' | 'amazon' | null;
+export type AndroidStorePin = string | null;
 
 const STORE_PROPERTY_KEYS = [
   'openiapStore',
+  'openiapProvider',
   'openiapPlatform',
   'horizonEnabled',
   'fireOsEnabled',
@@ -222,6 +223,7 @@ type GradleProperty = {type: string; key?: string; value?: string};
 export function storeGradleProperties<T extends GradleProperty>(
   properties: T[],
   pinnedStore: AndroidStorePin,
+  provider?: string,
 ): T[] {
   const kept = properties.filter(
     (item) =>
@@ -249,6 +251,9 @@ export function storeGradleProperties<T extends GradleProperty>(
     ? [
         ...kept,
         {type: 'property', key: 'openiapStore', value: pinnedStore} as T,
+        ...(provider
+          ? [{type: 'property', key: 'openiapProvider', value: provider} as T]
+          : []),
       ]
     : kept;
 }
@@ -298,6 +303,7 @@ const withIapAndroid: ConfigPlugin<
   {
     horizonAppId?: string;
     pinnedStore?: AndroidStorePin;
+    provider?: string;
     amazonAppstoreKey?: string;
   } | void
 > = (config, props) => {
@@ -323,7 +329,11 @@ const withIapAndroid: ConfigPlugin<
   });
 
   config = withGradleProperties(config, (config) => {
-    config.modResults = storeGradleProperties(config.modResults, pinnedStore);
+    config.modResults = storeGradleProperties(
+      config.modResults,
+      pinnedStore,
+      props?.provider,
+    );
     logOnce(
       pinnedStore
         ? `✅ expo-iap: Set openiapStore=${pinnedStore} in gradle.properties`
@@ -683,12 +693,12 @@ export function resolveAmazonPlatformFlags(
   // outranks the manifest.toml guess, so Vega stays off unless declared too.
   const vegaOverride = hasOwnKey(moduleAmazon, 'vegaOS')
     ? moduleAmazon?.vegaOS === true
-    : resolveVegaProjectOptions(options)?.enabled ??
+    : (resolveVegaProjectOptions(options)?.enabled ??
       (readEnvFlag('EXPO_IAP_VEGA', envFlagsUsed)
         ? true
         : isFireOsEnabled
-        ? false
-        : undefined);
+          ? false
+          : undefined));
   const modules = options?.modules;
   // Both flags are reported so resolvePinnedAndroidStore can refuse the pair.
   const isHorizonEnabled = hasOwnKey(modules, 'horizon')
@@ -725,8 +735,8 @@ export function resolvePinnedAndroidStore(
   return flags.isFireOsEnabled
     ? 'amazon'
     : flags.isHorizonEnabled
-    ? 'horizon'
-    : null;
+      ? 'horizon'
+      : null;
 }
 
 const REMOVED_IN = `removed in the next major release (expo-iap ${
@@ -777,8 +787,7 @@ export function resolveModuleSelection(
   envFlagsUsed: string[] = [],
 ): ModuleSelectionResult {
   const normalizedOptions = (options ?? undefined) as
-    | ExpoIapPluginCommonOptions
-    | undefined;
+    ExpoIapPluginCommonOptions | undefined;
 
   const selection = normalizedOptions?.module ?? 'auto';
 
@@ -814,10 +823,42 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   const {isFireOsEnabled, vegaOverride, isHorizonEnabled} =
     resolveAmazonPlatformFlags(options, envFlagsUsed);
   // Outside the try, whose catch would turn this error into a warning.
-  const pinnedStore = resolvePinnedAndroidStore({
+  const legacyPin = resolvePinnedAndroidStore({
     isFireOsEnabled,
     isHorizonEnabled,
   });
+  const requestedStore = options?.android?.store?.trim().toLowerCase();
+  const provider = options?.android?.provider?.trim();
+  const official = ['play', 'horizon', 'amazon', 'auto'];
+  if (provider && (!requestedStore || official.includes(requestedStore))) {
+    throw new Error(
+      'expo-iap: android.provider requires a community android.store id',
+    );
+  }
+  if (
+    requestedStore &&
+    (!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(requestedStore) ||
+      (!official.includes(requestedStore) && !provider))
+  ) {
+    throw new Error(
+      'expo-iap: a community android.store requires android.provider coordinates',
+    );
+  }
+  if (
+    provider &&
+    !/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider)
+  ) {
+    throw new Error(
+      'expo-iap: android.provider must be fixed group:artifact:version coordinates',
+    );
+  }
+  const pinnedStore =
+    requestedStore && requestedStore !== 'auto' ? requestedStore : legacyPin;
+  if (legacyPin && pinnedStore !== legacyPin) {
+    throw new Error(
+      `expo-iap: android.store=${pinnedStore} conflicts with the ${legacyPin} module pin`,
+    );
+  }
 
   try {
     // Add iapkitApiKey to extra if provided
@@ -883,6 +924,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     let result = withIapAndroid(config, {
       horizonAppId,
       pinnedStore,
+      provider,
       amazonAppstoreKey,
     });
 

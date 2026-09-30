@@ -857,7 +857,7 @@ class OpenIapModule(
         RequestPurchaseResultPurchases(purchases)
     }
 
-    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+    override suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
         requestPurchaseUpdates(reset = true).filter { purchase ->
             val receiptId = purchase.purchaseToken ?: purchase.id
             val productType = purchaseTypeByReceiptId[receiptId]
@@ -1019,7 +1019,7 @@ class OpenIapModule(
         userChoiceBillingAndroid = userChoiceBillingAndroid,
     )
 
-    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         try {
             val response = requestUserData()
             when (response.requestStatus) {

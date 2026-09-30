@@ -18,7 +18,7 @@ import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
 import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.PurchaseInput
 import dev.hyo.openiap.PurchaseOptions
@@ -41,36 +41,17 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * Java-friendly facade over [OpenIapModule] for the .NET MAUI binding (`OpenIap.Maui`).
- *
- * The C# Xamarin.Android binding generator chokes on Kotlin `suspend` functions,
- * Kotlin lambda types (`Function1`/`Function2`), default-arg synthetic methods (`*$default`),
- * and on the transitive `com.android.billingclient` dependency that `OpenIapModule`
- * pulls in. This class re-exposes the full Android-side resolver surface as plain Java
- * methods that take JSON strings, return JSON strings via a `Callback`, and emit
- * listener events through a `EventCallback` interface — keeping `OpenIapModule`
- * itself untouched so the existing kmp-iap / RN / Flutter / Godot wiring is unaffected.
- *
- * Mirrors the role of `packages/apple/Sources/OpenIapModule+ObjC.swift` on iOS.
- */
+/** Java-friendly JSON facade over the selected provider for the .NET binding. */
 class OpenIapMauiModule(private val context: Context) {
 
-    private val module = OpenIapModule(context)
+    private val module = OpenIapProvider.create(context)
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // OpenIapModule.currentActivityRef is private; mirror it here so the Android-only
-    // mutations such as launchExternalLinkAndroid that need an Activity can
-    // throw a typed error if the host app forgot to call setActivity().
+    // Android UI mutations need the host activity.
     private var currentActivity: Activity? = null
 
-    /**
-     * Token-keyed listener registry. Listener objects come back from
-     * [OpenIapModule.addPurchaseUpdateListener] etc. as opaque references; the C#
-     * binding holds the [Long] token instead of the listener instance so it
-     * doesn't have to cross the JNI boundary with a generic type parameter.
-     */
+    // JNI callers hold tokens rather than Kotlin listener objects.
     private val listeners = ConcurrentHashMap<Long, ListenerEntry>()
     private val nextListenerToken = AtomicLong(1)
 

@@ -34,6 +34,12 @@ interface OpenIapProtocol {
     val mutationHandlers: MutationHandlers
     val subscriptionHandlers: SubscriptionHandlers
 
+    suspend fun getStorefront(): String = queryHandlers.getStorefront?.invoke()
+        ?: throw OpenIapError.FeatureNotSupported("Storefront query is unavailable")
+
+    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> =
+        throw OpenIapError.FeatureNotSupported("Use getAvailablePurchases without a product-type filter")
+
     fun setActivity(activity: Activity?)
 
     fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener)

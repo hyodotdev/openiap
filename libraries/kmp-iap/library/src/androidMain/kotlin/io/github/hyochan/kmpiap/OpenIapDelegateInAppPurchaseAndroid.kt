@@ -10,10 +10,11 @@ import android.app.Application
 import android.content.Context
 import android.os.Bundle
 import dev.hyo.openiap.OpenIapError as AndroidOpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.OpenIapProtocol as AndroidOpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.AppTransaction
@@ -109,10 +110,13 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     override val promotedProductListener: Flow<String?> =
         MutableSharedFlow<String?>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST).asSharedFlow()
 
-    override val subscriptionBillingIssueListener: Flow<Purchase> = emptyFlow()
+    private val billingIssues = MutableSharedFlow<Purchase>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val subscriptionBillingIssueListener: Flow<Purchase> =
+        if (store == Store.UNKNOWN) billingIssues.asSharedFlow() else emptyFlow()
 
     private var updateListener: OpenIapPurchaseUpdateListener? = null
     private var errorListener: OpenIapPurchaseErrorListener? = null
+    private var billingIssueListener: OpenIapSubscriptionBillingIssueListener? = null
 
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
         connectionMutex.withLock {
@@ -233,6 +237,14 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         }
 
     override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult {
+        if (store == Store.UNKNOWN) {
+            return withMappedOpenIapError {
+                val result = requireModule().verifyPurchaseWithProvider(
+                    requireNotNull(dev.hyo.openiap.VerifyPurchaseWithProviderProps.fromJson(options.toJson()))
+                )
+                VerifyPurchaseWithProviderResult.fromJson(result.toJson())
+            }
+        }
         if (options.provider != PurchaseVerificationProvider.Iapkit) {
             failUnsupported("Verification provider ${options.provider.rawValue} is not supported on Android")
         }
@@ -296,15 +308,22 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean = false
-    // Amazon and Horizon have no offer-code redemption surface; resolve null without launching.
-    override suspend fun openRedeemOfferCode(): Purchase? = null
-    override suspend fun openRedeemOfferCodeAndroid(): Boolean = false
+    override suspend fun openRedeemOfferCode(): Purchase? {
+        if (store == Store.UNKNOWN) openRedeemOfferCodeAndroid()
+        return null
+    }
+    override suspend fun openRedeemOfferCodeAndroid(): Boolean =
+        if (store == Store.UNKNOWN) withMappedOpenIapError {
+            val activity = currentActivity ?: failUnsupported("Offer redemption requires an activity")
+            requireModule().openRedeemOfferCode(activity)
+        } else false
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails =
         failUnsupported("User Choice Billing is unavailable on $storeName.")
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid =
         failUnsupported("Developer-provided billing is unavailable on $storeName.")
     override suspend fun subscriptionBillingIssue(): Purchase =
-        failUnsupported("Subscription billing-issue events are unavailable on $storeName.")
+        if (store == Store.UNKNOWN) subscriptionBillingIssueListener.first()
+        else failUnsupported("Subscription billing-issue events are unavailable on $storeName.")
     override suspend fun purchaseUpdated(options: PurchaseUpdatedListenerOptions?): Purchase = purchaseUpdatedListener(options).first()
     override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
     override suspend fun promotedProductIOS(): String = ""
@@ -377,7 +396,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     private fun requireModule(): AndroidOpenIapProtocol =
         module ?: failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "$storeName billing module not initialized"))
 
-    private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol = OpenIapModule(ctx)
+    private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol = OpenIapProvider.create(ctx)
 
     private fun registerListeners(openModule: AndroidOpenIapProtocol) {
         val purchaseUpdate = OpenIapPurchaseUpdateListener { purchase ->
@@ -388,6 +407,11 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         }
         openModule.addPurchaseUpdateListener(purchaseUpdate)
         openModule.addPurchaseErrorListener(purchaseError)
+        if (store == Store.UNKNOWN) {
+            val issue = OpenIapSubscriptionBillingIssueListener { purchase -> billingIssues.tryEmit(purchase.toKmp()) }
+            openModule.addSubscriptionBillingIssueListener(issue)
+            billingIssueListener = issue
+        }
 
         updateListener = purchaseUpdate
         errorListener = purchaseError
@@ -396,8 +420,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     private fun unregisterListeners(openModule: AndroidOpenIapProtocol) {
         updateListener?.let(openModule::removePurchaseUpdateListener)
         errorListener?.let(openModule::removePurchaseErrorListener)
+        billingIssueListener?.let(openModule::removeSubscriptionBillingIssueListener)
         updateListener = null
         errorListener = null
+        billingIssueListener = null
     }
 
     private suspend fun <T> withMappedOpenIapError(block: suspend () -> T): T =

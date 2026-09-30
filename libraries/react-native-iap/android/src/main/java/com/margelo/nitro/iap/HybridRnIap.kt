@@ -11,7 +11,8 @@ import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
@@ -202,7 +203,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     // OpenIAP backend + local cache for product types
-    private val openIap: OpenIapModule by lazy { OpenIapModule(context) }
+    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
     private val productTypeBySku = mutableMapOf<String, String>()
 
     // Event listeners

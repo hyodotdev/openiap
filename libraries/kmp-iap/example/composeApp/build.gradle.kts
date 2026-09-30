@@ -146,6 +146,9 @@ android {
         create("amazon") {
             dimension = "platform"
         }
+        create("provider") {
+            dimension = "platform"
+        }
     }
 
     buildFeatures {

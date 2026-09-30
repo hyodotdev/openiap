@@ -32,7 +32,7 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
 
     expect(result).toContain(`apply from: "${scriptPath}"`);
     expect(result).toContain(
-      'def openIapStore = openIapResolveStore("expo-iap").store',
+      'def openIapStore = openIapResolveStore("expo-iap").platform',
     );
     expect(result).toContain('subprojects { subproject ->');
     // The app module is an application, not a library, and needs the strategy too.
@@ -87,7 +87,7 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     // the root computed.
     const groovy = appStoreLines('../x/openiap-store.gradle', 'groovy');
     expect(groovy.apply).toBe('apply from: "../x/openiap-store.gradle"');
-    expect(groovy.strategy).toContain('openIapResolveStore("app").store');
+    expect(groovy.strategy).toContain('openIapResolveStore("app").platform');
     expect(groovy.strategy).not.toContain('rootProject');
 
     const kotlin = appStoreLines('../x/openiap-store.gradle', 'kt');

@@ -121,13 +121,13 @@ export const appStoreLines = (
     ? {
         // defaultConfig's receiver is DefaultConfig, not the script, so read
         // extra at the top level where the script scope applies.
-        apply: `apply(from = "${storeScriptPath}")\nval openIapStore = ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("app") as Map<*, *>)["store"] as String`,
+        apply: `apply(from = "${storeScriptPath}")\nval openIapStore = ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("app") as Map<*, *>)["platform"] as String`,
         strategy: '        missingDimensionStrategy("platform", openIapStore)',
       }
     : {
         apply: `apply from: "${storeScriptPath}"`,
         strategy:
-          '        missingDimensionStrategy "platform", openIapResolveStore("app").store',
+          '        missingDimensionStrategy "platform", openIapResolveStore("app").platform',
       };
 
 // Each removal also takes the blank line written beside the line, so a switch
@@ -148,18 +148,18 @@ export const removeLocalOpenIapFlavorStrategy = (contents: string): string =>
 export const removeLocalOpenIapSettings = (contents: string): string =>
   contents
     .replace(
-      /(?:^[ \t]*\n)?^[ \t]*include[ \t]*\(?[ \t]*["']:openiap-google["'][ \t]*\)?[ \t]*\n?/gm,
+      /(?:^[ \t]*\n)?^[ \t]*include[ \t]*\(?[ \t]*["']:openiap-(?:google|core)["'][ \t]*\)?[ \t]*\n?/gm,
       '',
     )
     .replace(
-      /^[ \t]*project\(["']:openiap-google["']\)\.projectDir[ \t]*=.*\n?/gm,
+      /^[ \t]*project\(["']:openiap-(?:google|core)["']\)\.projectDir[ \t]*=.*\n?/gm,
       '',
     );
 
 export const removeLocalOpenIapAppWiring = (contents: string): string =>
   contents
     .replace(
-      /^[ \t]*implementation[ \t]*\(?[ \t]*project\([ \t]*["']:openiap-google["'][ \t]*\)[ \t]*\)?[ \t]*\n?/gm,
+      /^[ \t]*(?:if \(!project\.hasProperty\(["']openiapProvider["']\)\) )?implementation[ \t]*\(?[ \t]*project\([ \t]*["']:openiap-(?:google|core)["'][ \t]*\)[ \t]*\)?[ \t]*\n?/gm,
       '',
     )
     .replace(
@@ -197,7 +197,7 @@ export const ensureLocalOpenIapFlavorStrategy = (
     language === 'kt'
       ? `apply(from = "${storeScriptPath}")
 val openIapStore =
-  ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["store"] as String
+  ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["platform"] as String
 
 project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
@@ -215,7 +215,7 @@ ${LOCAL_STRATEGY_LINE_KOTLIN}
   }
 }`
       : `apply from: "${storeScriptPath}"
-def openIapStore = openIapResolveStore("expo-iap").store
+def openIapStore = openIapResolveStore("expo-iap").platform
 
 project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
@@ -479,6 +479,25 @@ const withLocalOpenIAP: ConfigPlugin<
     } else if (!contents.includes(projectDirLine)) {
       contents += `${projectDirLine}\n`;
     }
+    const corePath = path.posix.join(relativeAndroidModulePath, '..', 'core');
+    const coreInclude =
+      settingsLanguage === 'kt'
+        ? 'include(":openiap-core")'
+        : "include ':openiap-core'";
+    const coreProject =
+      settingsLanguage === 'kt'
+        ? `project(":openiap-core").projectDir = File(settingsDir, "${corePath}")`
+        : `project(':openiap-core').projectDir = new File(settingsDir, '${corePath}')`;
+    contents = contents
+      .replace(
+        /^\s*include[ \t]*(?:\([ \t]*)?["']:openiap-core["'][ \t]*\)?[ \t]*\n?/gm,
+        '',
+      )
+      .replace(
+        /^\s*project\(["']:openiap-core["']\)\.projectDir[^\n]*\n?/gm,
+        '',
+      );
+    contents += `\n${coreInclude}\n${coreProject}\n`;
     settings.contents = contents;
     logOnce(`✅ Linked local Android module at: ${androidModulePath}`);
     return config;
@@ -497,8 +516,8 @@ const withLocalOpenIAP: ConfigPlugin<
     const appLanguage = gradle.language;
     const dependencyLine =
       appLanguage === 'kt'
-        ? `    implementation(project(":openiap-google"))`
-        : `    implementation project(':openiap-google')`;
+        ? `    if (!project.hasProperty("openiapProvider")) implementation(project(":openiap-google"))`
+        : `    if (!project.hasProperty('openiapProvider')) implementation project(':openiap-google')`;
     let contents = gradle.contents;
 
     // `:app` runs before the root build file, so it applies the resolver itself.

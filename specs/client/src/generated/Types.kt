@@ -3682,9 +3682,9 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         isValid: Boolean,
         state: IapkitPurchaseState,
         store: IapStore,
-        clientPayload: IapkitProductClientPayload?,
-        productId: String?,
-        environment: String?,
+        clientPayload: IapkitProductClientPayload? = null,
+        productId: String? = null,
+        environment: String? = null,
         storeId: String,
     ) : this(
         isValid = isValid,

@@ -843,7 +843,7 @@ class OpenIapModule(
      * Get available items by product type (Play-compatible API for Horizon)
      * Used by react-native-iap when type filter is specified
      */
-    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+    override suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         val billingType = if (type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
         queryPurchasesHorizon(client, activeOperations, billingType)
@@ -1566,7 +1566,7 @@ class OpenIapModule(
         }
     }
 
-    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         val client = billingClient ?: emitFailureAndThrow(
             OpenIapError.NotPrepared,
             ::emitPurchaseError,

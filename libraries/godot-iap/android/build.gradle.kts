@@ -95,12 +95,11 @@ kotlin {
 }
 
 dependencies {
-    // In monorepo: use local packages/google source if available
-    val localGoogleProject = findProject(":openiap")
-    if (localGoogleProject != null) {
-        implementation(project(":openiap"))
+    val localCoreProject = findProject(":openiap-core")
+    if (localCoreProject != null) {
+        implementation(project(":openiap-core"))
     } else {
-        implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
+        implementation("io.github.hyochan.openiap:openiap-core:$openiapGoogleVersion")
     }
 
     // Godot Android library

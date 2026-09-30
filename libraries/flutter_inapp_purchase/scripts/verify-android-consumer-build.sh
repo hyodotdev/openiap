@@ -79,6 +79,8 @@ if [ -f "$consumer_app/android/settings.gradle.kts" ]; then
 
 include(":openiap")
 project(":openiap").projectDir = file("../../packages/google/openiap")
+include(":openiap-core")
+project(":openiap-core").projectDir = file("../../packages/google/core")
 EOF
 elif [ -f "$consumer_app/android/settings.gradle" ]; then
   settings_file="$consumer_app/android/settings.gradle"
@@ -87,6 +89,8 @@ elif [ -f "$consumer_app/android/settings.gradle" ]; then
 
 include ':openiap'
 project(':openiap').projectDir = file('../../packages/google/openiap')
+include ':openiap-core'
+project(':openiap-core').projectDir = file('../../packages/google/core')
 EOF
 else
   echo "Failed to locate generated Android settings.gradle(.kts) in $consumer_app/android" >&2

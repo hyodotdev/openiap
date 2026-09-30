@@ -7,7 +7,8 @@ import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.Purchase
@@ -118,7 +119,7 @@ class ExpoIapModule : Module() {
     private val currentActivity
         get() = appContext.activityProvider?.currentActivity ?: throw Exceptions.MissingActivity()
 
-    private val openIap: OpenIapModule by lazy { OpenIapModule(context) }
+    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
 
     // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }

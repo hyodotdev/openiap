@@ -25,7 +25,8 @@ import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.Purchase
@@ -69,7 +70,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     private var listenersAttached = false
     private val connectionMutex = Mutex()
     // OpenIAP module instance
-    private var openIap: OpenIapModule? = null
+    private var openIap: OpenIapProtocol? = null
 
     private fun parseQueryType(raw: String?): ProductQueryType {
         return when (val normalized = raw?.trim()?.lowercase(Locale.ROOT)) {
@@ -211,7 +212,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     fun setContext(context: Context?) {
         this.context = context
         if (context != null && openIap == null) {
-            openIap = OpenIapModule(context)
+            openIap = OpenIapProvider.create(context)
         }
     }
 

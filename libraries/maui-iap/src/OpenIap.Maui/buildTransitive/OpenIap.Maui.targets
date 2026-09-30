@@ -13,6 +13,7 @@
 
   <PropertyGroup>
     <OpenIapGoogleAarDirectory Condition="'$(OpenIapGoogleAarDirectory)' == ''">$(MSBuildThisFileDirectory)..\android\</OpenIapGoogleAarDirectory>
+    <OpenIapCoreAarDirectory Condition="'$(OpenIapCoreAarDirectory)' == ''">$(MSBuildThisFileDirectory)..\android\</OpenIapCoreAarDirectory>
   </PropertyGroup>
 
   <Target Name="_OpenIapResolveStorePin">
@@ -28,11 +29,19 @@
       <_OpenIapAliasValue>$([MSBuild]::ValueOrDefault('$(OpenIapAndroidStore.Trim())', 'auto'))</_OpenIapAliasValue>
       <_OpenIapPinStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapPinValue)')->Metadata('Store'))</_OpenIapPinStore>
       <_OpenIapAliasStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapAliasValue)')->Metadata('Store'))</_OpenIapAliasStore>
+      <_OpenIapCommunity Condition="'$(_OpenIapPinStore)' == '' and '$(OpenIapProvider.Trim())' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(_OpenIapPinValue)', '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')) and '$(_OpenIapPinValue)' != 'apple' and '$(_OpenIapPinValue)' != 'none'">true</_OpenIapCommunity>
+      <_OpenIapPinStore Condition="'$(_OpenIapCommunity)' == 'true'">$(_OpenIapPinValue)</_OpenIapPinStore>
       <_OpenIapUnknownStore Condition="'$(_OpenIapAliasStore)' == ''">OpenIapAndroidStore='$(OpenIapAndroidStore)'</_OpenIapUnknownStore>
       <_OpenIapUnknownStore Condition="'$(_OpenIapPinStore)' == ''">OpenIapStore='$(OpenIapStore)'</_OpenIapUnknownStore>
     </PropertyGroup>
     <Error Condition="'$(_OpenIapUnknownStore)' != ''"
            Text="$(_OpenIapUnknownStore) is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os)." />
+    <Error Condition="'$(OpenIapProvider.Trim())' != '' and '$(_OpenIapCommunity)' != 'true'"
+           Text="openiap: OpenIapProvider requires a community OpenIapStore id." />
+    <Error Condition="'$(_OpenIapCommunity)' == 'true' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(OpenIapProvider.Trim())', '^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$'))"
+           Text="openiap: OpenIapProvider must be fixed group:artifact:version coordinates." />
+    <Error Condition="'$(_OpenIapCommunity)' == 'true' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(OpenIapProvider.Trim())', '^io[.]github[.]hyochan[.]openiap:openiap-'))"
+           Text="openiap: OpenIapProvider must name a community artifact." />
     <Warning Condition="'$(OpenIapAndroidStore.Trim())' != '' and '$(DesignTimeBuild)' != 'true'"
              Code="OPENIAP0001"
              Text="openiap: OpenIapAndroidStore is deprecated and will be removed in the next major release; use OpenIapStore=$(_OpenIapAliasStore)" />
@@ -120,16 +129,25 @@
       <_OpenIapSource Condition="'$(_OpenIapDeviceStore)' != ''">device</_OpenIapSource>
     </PropertyGroup>
     <PropertyGroup>
-      <_OpenIapGoogleAar>$([System.IO.Path]::GetFullPath('$(OpenIapGoogleAarDirectory)openiap-$(OpenIapLinkedStore)-release.aar'))</_OpenIapGoogleAar>
+      <_OpenIapGoogleAar Condition="'$(_OpenIapCommunity)' != 'true'">$([System.IO.Path]::GetFullPath('$(OpenIapGoogleAarDirectory)openiap-$(OpenIapLinkedStore)-release.aar'))</_OpenIapGoogleAar>
     </PropertyGroup>
+    <PropertyGroup>
+      <_OpenIapCoreAar>$([System.IO.Path]::GetFullPath('$(OpenIapCoreAarDirectory)openiap-core-release.aar'))</_OpenIapCoreAar>
+      <_OpenIapProviderModule>$([System.Text.RegularExpressions.Regex]::Replace('$(OpenIapProvider.Trim())', '^([^:]+:[^:]+):([^:]+)$', '$1'))</_OpenIapProviderModule>
+      <_OpenIapProviderVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(OpenIapProvider.Trim())', '^([^:]+:[^:]+):([^:]+)$', '$2'))</_OpenIapProviderVersion>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_OpenIapCoreAar)')" Text="openiap: $(_OpenIapCoreAar) is missing." />
     <Message Importance="high" Text="openiap: store=$(OpenIapLinkedStore) (source=$(_OpenIapSource); $(_OpenIapReason))" />
-    <Error Condition="!Exists('$(_OpenIapGoogleAar)')" Text="openiap: $(_OpenIapGoogleAar) is missing, so the $(OpenIapLinkedStore) store cannot be linked." />
+    <Error Condition="'$(_OpenIapCommunity)' != 'true' and !Exists('$(_OpenIapGoogleAar)')" Text="openiap: $(_OpenIapGoogleAar) is missing, so the $(OpenIapLinkedStore) store cannot be linked." />
 
     <ItemGroup>
-      <AndroidLibrary Include="$(_OpenIapGoogleAar)" Bind="false" />
+      <AndroidLibrary Include="$(_OpenIapCoreAar)" Bind="false" />
+      <AndroidLibrary Include="$(_OpenIapGoogleAar)" Bind="false" Condition="'$(_OpenIapCommunity)' != 'true'" />
+      <AndroidMavenLibrary Include="$(_OpenIapProviderModule)" Version="$(_OpenIapProviderVersion)" Bind="false" Condition="'$(_OpenIapCommunity)' == 'true'" />
       <!-- MSBuild compares timestamps, and another store's AARs can be older than
            the last build, so a changed store must rewrite the properties cache. -->
       <_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />
+      <_PropertyCacheItems Include="OpenIapProvider=$(OpenIapProvider)" />
     </ItemGroup>
     <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'play'">
       <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />

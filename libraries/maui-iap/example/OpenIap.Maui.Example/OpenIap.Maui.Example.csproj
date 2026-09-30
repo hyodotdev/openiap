@@ -54,6 +54,7 @@
        reference does not, and the store AARs come from packages/google. -->
   <PropertyGroup>
     <OpenIapGoogleAarDirectory>$(MSBuildThisFileDirectory)..\..\..\..\packages\google\openiap\build\outputs\aar\</OpenIapGoogleAarDirectory>
+    <OpenIapCoreAarDirectory>$(MSBuildThisFileDirectory)..\..\..\..\packages\google\core\build\outputs\aar\</OpenIapCoreAarDirectory>
   </PropertyGroup>
   <Import Project="..\..\src\OpenIap.Maui\buildTransitive\OpenIap.Maui.targets" />
 

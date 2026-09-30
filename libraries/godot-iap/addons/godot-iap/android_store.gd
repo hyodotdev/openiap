@@ -22,13 +22,21 @@ const ALIASES := {
 
 
 ## Returns the store id, or "" when the value names no store.
-static func normalize(value: Variant) -> String:
+static func normalize(value: Variant, provider: String = "") -> String:
 	if value == null:
 		return "auto"
 	var key := str(value).strip_edges().to_lower()
 	if key.is_empty():
 		return "auto"
-	return ALIASES.get(key, "")
+	if ALIASES.has(key):
+		return ALIASES[key] if provider.is_empty() else ""
+	if key in ["apple", "none"] or not valid_provider(provider):
+		return ""
+	return key if RegEx.create_from_string("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$").search(key) else ""
+
+
+static func valid_provider(provider: String) -> bool:
+	return not provider.begins_with("io.github.hyochan.openiap:openiap-") and RegEx.create_from_string("^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$").search(provider) != null
 
 
 const HORIZON_APP_ID_META_DATA := "com.meta.horizon.platform.HORIZON_APP_ID"
@@ -36,7 +44,9 @@ const HORIZON_APP_ID_META_DATA := "com.meta.horizon.platform.HORIZON_APP_ID"
 ## Export feature tag for the store an Android export linked, which get_store()
 ## reads at runtime. Play is the untagged default.
 static func store_feature(store: String) -> String:
-	return "openiap_store_" + store if store in ["horizon", "amazon"] else ""
+	if store in ["horizon", "amazon"]:
+		return "openiap_store_" + store
+	return "openiap_store_provider" if not store in ["auto", "play", ""] else ""
 
 
 ## The manifest entry the Horizon SDK reads the app id from, or "" unless the
@@ -49,7 +59,9 @@ static func horizon_app_id_meta_data(app_id: Variant) -> String:
 
 
 ## Rewrites the openiap-google coordinate for the store; other coordinates pass through.
-static func artifact(coordinate: String, store: String) -> String:
+static func artifact(coordinate: String, store: String, provider: String = "") -> String:
+	if not provider.is_empty():
+		return coordinate.replace(":openiap-google:", ":openiap-core:")
 	var resolved := "play" if store == "auto" else store
 	var suffix := "" if resolved == "play" else "-" + resolved
 	return coordinate.replace(":openiap-google:", ":openiap-google" + suffix + ":")

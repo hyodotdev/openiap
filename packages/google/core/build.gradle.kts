@@ -53,7 +53,7 @@ val isStandaloneGoogleBuild =
     gradle.parent == null &&
         rootProject.projectDir.canonicalFile == projectDir.parentFile.canonicalFile
 if (!isStandaloneGoogleBuild) {
-    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-core"))
     tasks.configureEach {
         // The same source project is embedded by hosts that intentionally use
         // different AGP/Kotlin versions. Gradle's shared build cache can restore

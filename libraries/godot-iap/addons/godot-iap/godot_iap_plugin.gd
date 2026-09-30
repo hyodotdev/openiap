@@ -32,6 +32,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	const ANDROID_GDAP_PATH = "res://addons/godot-iap/android/GodotIap.gdap"
 	const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
 	const ANDROID_STORE_OPTION = "openiap/android_store"
+	const ANDROID_PROVIDER_OPTION = "openiap/android_provider"
 	const HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"
 	const IOS_FRAMEWORKS: Array[String] = [
 		"res://addons/godot-iap/bin/ios/GodotIap.framework",
@@ -91,10 +92,16 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 			"option": {
 				"name": ANDROID_STORE_OPTION,
 				"type": TYPE_STRING,
-				"hint": PROPERTY_HINT_ENUM,
+				"hint": PROPERTY_HINT_ENUM_SUGGESTION,
 				"hint_string": ",".join(AndroidStore.STORES),
 			},
 			"default_value": "auto",
+		}, {
+			"option": {
+				"name": ANDROID_PROVIDER_OPTION,
+				"type": TYPE_STRING,
+			},
+			"default_value": "",
 		}, {
 			"option": {
 				"name": HORIZON_APP_ID_OPTION,
@@ -123,10 +130,11 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	## The store this Android export links, or "" when the option names none.
 	func _android_store(debug: bool) -> String:
 		var option = get_option(ANDROID_STORE_OPTION)
-		var key := "%s|%s" % [debug, option]
+		var provider := str(get_option(ANDROID_PROVIDER_OPTION)).strip_edges()
+		var key := "%s|%s|%s" % [debug, option, provider]
 		if _android_stores.has(key):
 			return _android_stores[key]
-		var store := AndroidStore.normalize(option)
+		var store := AndroidStore.normalize(option, provider)
 		if store == "auto":
 			var resolution := AndroidStore.resolve_auto(debug, _adb_path() if debug else "")
 			store = resolution.store
@@ -144,14 +152,20 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		var store := _android_store(debug)
+		var provider := str(get_option(ANDROID_PROVIDER_OPTION)).strip_edges()
 		if store.is_empty():
+			if not provider.is_empty():
+				push_error("[GodotIap] A community store requires its id and fixed group:artifact:version provider coordinates")
+				return PackedStringArray(["openiap.invalid:provider-selection:0"])
 			# Godot's export API cannot abort here, so fall back to Play (the
 			# untagged default) instead of shipping the AAR without OpenIAP classes.
 			push_error("[GodotIap] %s must be one of: %s; falling back to Play" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
 			store = "play"
 		var dependencies := PackedStringArray()
 		for dependency in _read_android_remote_dependencies():
-			dependencies.append(AndroidStore.artifact(dependency, store))
+			dependencies.append(AndroidStore.artifact(dependency, store, provider))
+		if not provider.is_empty():
+			dependencies.append(provider)
 		return dependencies
 
 	# The editor's SDK setting first, then the Gradle resolver's fallbacks.

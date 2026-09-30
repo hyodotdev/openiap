@@ -120,10 +120,12 @@
     <_OpenIapGoogleAarOutputs>..\..\..\..\packages\google\openiap\build\outputs\aar\</_OpenIapGoogleAarOutputs>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\packages\google\core\build\outputs\aar\openiap-core-release.aar" Pack="true" PackagePath="android" Visible="false" />
     <None Include="$(_OpenIapGoogleAarOutputs)openiap-play-release.aar;$(_OpenIapGoogleAarOutputs)openiap-horizon-release.aar;$(_OpenIapGoogleAarOutputs)openiap-amazon-release.aar" Pack="true" PackagePath="android" Visible="false" />
     <None Include="buildTransitive\OpenIap.Maui.props;buildTransitive\OpenIap.Maui.targets" Pack="true" PackagePath="buildTransitive" />
   </ItemGroup>
   <Target Name="_OpenIapRequireStoreAars" BeforeTargets="GenerateNuspec">
+    <Error Condition="!Exists('..\..\..\..\packages\google\core\build\outputs\aar\openiap-core-release.aar')" Text="Build :openiap-core:assembleRelease before packing." />
     <Error Condition="!Exists('$(_OpenIapGoogleAarOutputs)openiap-play-release.aar') or !Exists('$(_OpenIapGoogleAarOutputs)openiap-horizon-release.aar') or !Exists('$(_OpenIapGoogleAarOutputs)openiap-amazon-release.aar')"
            Text="Build all three openiap-google release AARs before packing (packages/google: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease)." />
     <!-- IncludeBindingsInNuPkg skips a missing facade, which would only show as a
