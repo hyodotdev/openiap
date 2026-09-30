@@ -87,6 +87,13 @@ test("REST and GraphQL calls that create a pull request need approval", () => {
     "gh api agents/repos/o/r/tasks -F create_pull_request=true",
     "gh api -X POST agents/repos/$REPO/tasks --input task.json",
     "curl -X POST https://api.githubcopilot.com/agents/repos/o/r/tasks -d '{}'",
+    "gh api repos/o/r/issues/12/assignees -f 'assignees[]=copilot-swe-agent[bot]'",
+    'gh api -X POST repos/$REPO/issues/12/assignees -f "assignees[]=Copilot"',
+    "gh api -X PATCH repos/o/r/issues/12 -f 'assignees[]=copilot-swe-agent[bot]'",
+    "gh api repos/o/r/issues -f title=x -f 'assignees[]=copilot-swe-agent[bot]'",
+    `gh api repos/o/r/issues/12/assignees --field assignees='["copilot-swe-agent[bot]"]'`,
+    `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{"assignees":["copilot-swe-agent[bot]"]}'`,
+    `curl --json '{"assignees": [ "Copilot" ]}' https://api.github.com/repos/o/r/issues`,
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -120,6 +127,10 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "gh agent-task list",
     "gh api agents/repos/o/r/tasks --paginate",
     "gh api -X GET agents/repos/o/r/tasks/42 -F per_page=1",
+    "gh api repos/o/r/issues/12/assignees -f 'assignees[]=monalisa'",
+    `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{"assignees":["monalisa"]}'`,
+    `gh api repos/o/r/issues --jq '.[] | select(.assignees[].login == "copilot-swe-agent[bot]")'`,
+    "gh api repos/o/r/issues/12/comments -f body='ask copilot to look'",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
     'eval "$(ssh-agent -s)"',
   ]) {
@@ -150,6 +161,15 @@ test("GitHub MCP tools that create a pull request need approval", () => {
     opensPullRequest({ tool_name: "mcp__github__assign_copilot_to_issue" }),
     true,
   );
+  const issueWrite = (assignees) =>
+    opensPullRequest({
+      tool_name: "mcp__github__issue_write",
+      tool_input: { method: "update", issue_number: 12, assignees },
+    });
+  assert.equal(issueWrite(["copilot-swe-agent[bot]"]), true);
+  assert.equal(issueWrite(["monalisa", "Copilot"]), true);
+  assert.equal(issueWrite(["monalisa"]), false);
+  assert.equal(issueWrite(undefined), false);
   assert.equal(
     opensPullRequest({ tool_name: "mcp__github__list_pull_requests" }),
     false,
@@ -221,6 +241,7 @@ test("every folder with its own .claude/ or CLAUDE.md runs the guard before shel
       "Monitor",
       "mcp__github__create_pull_request",
       "mcp__github__assign_copilot_to_issue",
+      "mcp__github__issue_write",
     ]) {
       assert.equal(matcher.test(tool), true, `${settingsPath} ${tool}`);
     }

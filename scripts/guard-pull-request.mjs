@@ -56,6 +56,9 @@ const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 // Copilot's task endpoint: a task ends in a pull request Copilot opens.
 const agentTasksEndpoint = /\bagents\/repos\/(?:[^\s/"']+\/){1,2}tasks(?=$|[\s"'?])/u;
+// REST takes Copilot's bot login, `copilot-swe-agent[bot]`, as an assignee in a
+// field (`assignees[]=…`) or a JSON body (`"assignees":["…"]`).
+const copilotAssigneeField = /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*copilot/iu;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
 // curl's -f is --fail, so only a key= field counts.
 const writeFlag =
@@ -67,6 +70,10 @@ const createPullRequest = /\bcreatePullRequest\b/gu;
 // of an existing pull request does not open one.
 const mcpCreate =
   /^mcp__.+__(?:create_pull_request(?!_review)|assign_copilot_to_issue)/u;
+// An issue write is held only when it hands the issue to Copilot.
+const mcpIssueWrite = /^mcp__.+__issue_write$/u;
+const namesCopilot = (assignees) =>
+  [assignees ?? []].flat().some((login) => /copilot/iu.test(String(login)));
 
 function opensPullRequestIn(command) {
   // A GraphQL query often spans lines, so a mutation anywhere after the command counts.
@@ -88,7 +95,9 @@ function opensPullRequestIn(command) {
       copilotTask.test(words) ||
       (issueWrite.test(words) && copilotAssignee.test(words)) ||
       (restClient.test(words) &&
-        (pullsEndpoint.test(words) || agentTasksEndpoint.test(words)) &&
+        (pullsEndpoint.test(words) ||
+          agentTasksEndpoint.test(words) ||
+          copilotAssigneeField.test(words)) &&
         writeFlag.test(words) &&
         !explicitGet.test(words)) ||
       (graphqlCommand.test(words) && lastCreate > wordsAt)
@@ -119,7 +128,10 @@ export function opensPullRequest({
 }) {
   if (tool === "Bash" || tool === "Monitor")
     return shellOpensPullRequest(String(input.command ?? ""));
-  return mcpCreate.test(tool);
+  return (
+    mcpCreate.test(tool) ||
+    (mcpIssueWrite.test(tool) && namesCopilot(input.assignees))
+  );
 }
 
 const isMain =
