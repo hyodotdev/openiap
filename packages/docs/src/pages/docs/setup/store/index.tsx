@@ -131,7 +131,7 @@ function StoreSetup() {
           kmp-iap matches each flavor, and one <code>openiap-google</code>{' '}
           dependency links each flavor&apos;s store.
         </p>
-        <CodeBlock language="kotlin">{`// settings.gradle.kts
+        <CodeBlock language="kotlin">{`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
     id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }`}</CodeBlock>
