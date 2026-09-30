@@ -59,6 +59,8 @@ const agentTasksEndpoint = /\bagents\/repos\/(?:[^\s/"']+\/){1,2}tasks(?=$|[\s"'
 // REST takes Copilot's bot login, `copilot-swe-agent[bot]`, as an assignee in a
 // field (`assignees[]=…`) or a JSON body (`"assignees":["…"]`).
 const copilotAssigneeField = /assignees(?:\[\])?["']?\s*[=:][\s"'\[]*copilot/iu;
+// GraphQL assigns Copilot only with this feature header, whichever mutation it uses.
+const copilotGraphqlFeature = /\bissues_copilot_assignment_api_support\b/u;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
 // curl's -f is --fail, so only a key= field counts.
 const writeFlag =
@@ -94,6 +96,7 @@ function opensPullRequestIn(command) {
       hubPullRequest.test(words) ||
       copilotTask.test(words) ||
       (issueWrite.test(words) && copilotAssignee.test(words)) ||
+      (restClient.test(words) && copilotGraphqlFeature.test(words)) ||
       (restClient.test(words) &&
         (pullsEndpoint.test(words) ||
           agentTasksEndpoint.test(words) ||

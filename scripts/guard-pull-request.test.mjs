@@ -70,7 +70,7 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
   }
 });
 
-test("REST and GraphQL calls that create a pull request need approval", () => {
+test("REST and GraphQL calls that create a pull request or hand work to Copilot need approval", () => {
   for (const command of [
     "gh api repos/hyodotdev/openiap/pulls -f title=x -f head=b -f base=main",
     "gh api -X POST repos/hyodotdev/openiap/pulls --input body.json",
@@ -94,6 +94,8 @@ test("REST and GraphQL calls that create a pull request need approval", () => {
     `gh api repos/o/r/issues/12/assignees --field assignees='["copilot-swe-agent[bot]"]'`,
     `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{"assignees":["copilot-swe-agent[bot]"]}'`,
     `curl --json '{"assignees": [ "Copilot" ]}' https://api.github.com/repos/o/r/issues`,
+    `gh api graphql -H 'GraphQL-Features: issues_copilot_assignment_api_support,coding_agent_model_selection' -f query='mutation { replaceActorsForAssignable(input: {assignableId: "I_1", actorIds: ["BOT_1"]}) { clientMutationId } }'`,
+    `curl -H "GraphQL-Features: issues_copilot_assignment_api_support" -d @mutation.json https://api.github.com/graphql`,
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -131,6 +133,8 @@ test("reading, editing, or mentioning pull requests does not", () => {
     `curl -X PATCH https://api.github.com/repos/o/r/issues/12 -d '{"assignees":["monalisa"]}'`,
     `gh api repos/o/r/issues --jq '.[] | select(.assignees[].login == "copilot-swe-agent[bot]")'`,
     "gh api repos/o/r/issues/12/comments -f body='ask copilot to look'",
+    "gh api graphql -f query='{ viewer { login } }'",
+    "grep -rn issues_copilot_assignment_api_support scripts",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
     'eval "$(ssh-agent -s)"',
   ]) {
