@@ -459,16 +459,16 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'amazon-subscription-offers-2026-09-29',
+      id: 'amazon-subscription-offers-2026-09-30',
       aliases: AMAZON_OFFER_FIX_RELEASES.map((release) => release.tag),
-      date: new Date('2026-09-29'),
+      date: new Date('2026-09-30'),
       element: (
-        <div key="amazon-subscription-offers-2026-09-29" style={noteCardStyle}>
+        <div key="amazon-subscription-offers-2026-09-30" style={noteCardStyle}>
           {AMAZON_OFFER_FIX_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="amazon-subscription-offers-2026-09-29" level="h4">
-            September 29, 2026 - Amazon subscriptions report real prices and
+          <AnchorLink id="amazon-subscription-offers-2026-09-30" level="h4">
+            September 30, 2026 - Amazon subscriptions report real prices and
             trials
           </AnchorLink>
 
