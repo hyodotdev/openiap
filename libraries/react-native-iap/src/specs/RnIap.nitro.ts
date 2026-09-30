@@ -471,6 +471,7 @@ export interface NitroVerifyPurchaseWithIapkitResult {
   productId?: string | null;
   state: IapkitPurchaseState;
   store: IapStore;
+  storeId: string;
 }
 
 export interface NitroIapkitProductClientPayload {
@@ -525,6 +526,7 @@ export interface NitroPurchase {
   ids?: PurchaseCommon['ids'];
   /** Store where purchase was made */
   store: IapStore;
+  storeId: string;
   quantity: PurchaseCommon['quantity'];
   purchaseState: PurchaseCommon['purchaseState'];
   isAutoRenewing: PurchaseCommon['isAutoRenewing'];

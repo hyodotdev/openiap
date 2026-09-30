@@ -803,6 +803,7 @@ enum IapPlatform {
   String toJson() => value;
 }
 
+/// Frozen legacy store discriminator. Use storeId for extensible store identity.
 enum IapStore {
   Unknown('unknown'),
   Apple('apple'),
@@ -1526,6 +1527,8 @@ abstract class PurchaseCommon {
   int get quantity;
   /// Store where purchase was made
   IapStore get store;
+  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  String get storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   double get transactionDate;
 }
@@ -3128,6 +3131,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     required this.quantity,
     this.signatureAndroid,
     required this.store,
+    required this.storeId,
     required this.transactionDate,
     this.transactionId,
     this.userIdAmazon,
@@ -3164,6 +3168,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? signatureAndroid;
   /// Store where purchase was made
   final IapStore store;
+  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  final String storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   final double transactionDate;
   final String? transactionId;
@@ -3197,6 +3203,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       quantity: json['quantity'] as int,
       signatureAndroid: json['signatureAndroid'] as String?,
       store: IapStore.fromJson(json['store'] as String),
+      storeId: json['storeId'] as String,
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String?,
       userIdAmazon: json['userIdAmazon'] as String?,
@@ -3228,6 +3235,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       'quantity': quantity,
       'signatureAndroid': signatureAndroid,
       'store': store.toJson(),
+      'storeId': storeId,
       'transactionDate': transactionDate,
       'transactionId': transactionId,
       'userIdAmazon': userIdAmazon,
@@ -3329,6 +3337,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.revocationTypeIOS,
     required this.store,
     this.storefrontCountryCodeIOS,
+    required this.storeId,
     this.subscriptionGroupIdIOS,
     required this.transactionDate,
     required this.transactionId,
@@ -3391,6 +3400,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   /// Store where purchase was made
   final IapStore store;
   final String? storefrontCountryCodeIOS;
+  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  final String storeId;
   final String? subscriptionGroupIdIOS;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   final double transactionDate;
@@ -3438,6 +3449,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       revocationTypeIOS: json['revocationTypeIOS'] as String?,
       store: IapStore.fromJson(json['store'] as String),
       storefrontCountryCodeIOS: json['storefrontCountryCodeIOS'] as String?,
+      storeId: json['storeId'] as String,
       subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String,
@@ -3488,6 +3500,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'revocationTypeIOS': revocationTypeIOS,
       'store': store.toJson(),
       'storefrontCountryCodeIOS': storefrontCountryCodeIOS,
+      'storeId': storeId,
       'subscriptionGroupIdIOS': subscriptionGroupIdIOS,
       'transactionDate': transactionDate,
       'transactionId': transactionId,
@@ -3750,6 +3763,7 @@ class RequestVerifyPurchaseWithIapkitResult {
     this.productId,
     required this.state,
     required this.store,
+    required this.storeId,
   });
 
   /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
@@ -3777,6 +3791,8 @@ class RequestVerifyPurchaseWithIapkitResult {
   /// The current state of the purchase.
   final IapkitPurchaseState state;
   final IapStore store;
+  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  final String storeId;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
@@ -3786,6 +3802,7 @@ class RequestVerifyPurchaseWithIapkitResult {
       productId: json['productId'] as String?,
       state: IapkitPurchaseState.fromJson(json['state'] as String),
       store: IapStore.fromJson(json['store'] as String),
+      storeId: json['storeId'] as String,
     );
   }
 
@@ -3798,6 +3815,7 @@ class RequestVerifyPurchaseWithIapkitResult {
       'productId': productId,
       'state': state.toJson(),
       'store': store.toJson(),
+      'storeId': storeId,
     };
   }
 }
@@ -5763,6 +5781,9 @@ sealed class Purchase implements PurchaseCommon {
   /// Store where purchase was made
   @override
   IapStore get store;
+  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  @override
+  String get storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   @override
   double get transactionDate;

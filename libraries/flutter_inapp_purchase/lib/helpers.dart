@@ -255,6 +255,8 @@ gentype.Purchase convertToPurchase(
       'id': purchaseId,
       'productId': productId,
       'store': storeValue,
+      'storeId': sourcePayload['storeId']?.toString() ??
+          (storeValue == 'google' ? 'play' : storeValue),
       'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': purchaseState,
       'quantity': quantity,
@@ -305,6 +307,7 @@ gentype.Purchase convertToPurchase(
       'id': purchaseId,
       'productId': productId,
       'store': storeValueIOS,
+      'storeId': sourcePayload['storeId']?.toString() ?? 'apple',
       'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': stateIOS,
       'quantity': quantity,
@@ -455,7 +458,11 @@ bool _isValidAuthoritativePurchaseMap(
   if (platformIsAndroid &&
       store != 'google' &&
       store != 'amazon' &&
-      store != 'horizon') {
+      store != 'horizon' &&
+      !(store == 'unknown' &&
+          value['storeId'] is String &&
+          RegExp(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')
+              .hasMatch(value['storeId'] as String))) {
     return false;
   }
   final quantity = value['quantity'];

@@ -665,7 +665,8 @@ class HybridRnIap: HybridRnIapSpec {
                         isValid: item.isValid,
                         productId: RnIapHelper.wrapString(item.productId),
                         state: IapkitPurchaseState(fromString: item.state.rawValue) ?? .unknown,
-                        store: IapStore(fromString: item.store.rawValue) ?? .unknown
+                        store: IapStore(fromString: item.store.rawValue) ?? .unknown,
+                        storeId: item.storeId
                     )
                 }
                 // Convert errors if present

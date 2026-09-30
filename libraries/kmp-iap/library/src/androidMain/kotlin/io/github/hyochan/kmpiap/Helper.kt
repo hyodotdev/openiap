@@ -505,6 +505,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         pendingPurchaseUpdateAndroid = pendingUpdate,
         productId = products.firstOrNull() ?: "",
         store = IapStore.Google,
+        storeId = "play",
         purchaseState = purchaseStateEnum,
         purchaseToken = purchaseToken,
         quantity = quantity,
@@ -807,5 +808,6 @@ internal fun AndroidRequestVerifyPurchaseWithIapkitResult.toKmpIapkitResult(): R
         }.getOrDefault(IapkitPurchaseState.Unknown),
         store = runCatching {
             IapStore.fromJson(store.toJson())
-        }.getOrDefault(IapStore.Unknown)
+        }.getOrDefault(IapStore.Unknown),
+        storeId = storeId
     )

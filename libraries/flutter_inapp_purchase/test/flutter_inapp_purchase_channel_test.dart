@@ -531,6 +531,7 @@ void main() {
             'isAutoRenewing': true,
             'platform': 'ios',
             'store': 'apple',
+            'storeId': 'apple',
           };
         }
         return null;
@@ -1670,6 +1671,7 @@ void main() {
                 <String, dynamic>{
                   'platform': 'ios',
                   'store': 'apple',
+                  'storeId': 'apple',
                   'id': 'txn-123',
                   'productId': 'iap.premium',
                   'transactionId': 'txn-123',
@@ -1680,6 +1682,7 @@ void main() {
                 <String, dynamic>{
                   'platform': 'ios',
                   'store': 'apple',
+                  'storeId': 'apple',
                   'productId': '',
                   'transactionId': null,
                 },
@@ -1858,6 +1861,7 @@ void main() {
               <String, dynamic>{
                 'platform': 'android',
                 'store': 'google',
+                'storeId': 'play',
                 'id': 'txn-android',
                 'productId': 'coins.100',
                 'transactionId': 'txn-android',
@@ -1874,6 +1878,7 @@ void main() {
               <String, dynamic>{
                 'platform': 'android',
                 'store': 'google',
+                'storeId': 'play',
                 'productId': '',
               },
             ];
@@ -1960,6 +1965,7 @@ void main() {
             jsonEncode(<String, dynamic>{
               'platform': 'android',
               'store': 'google',
+              'storeId': 'play',
               'id': 'txn-listener-android',
               'productId': 'premium_monthly',
               'transactionId': 'txn-listener-android',
@@ -2010,6 +2016,7 @@ void main() {
       final purchasePayload = <String, dynamic>{
         'platform': 'ios',
         'store': 'apple',
+        'storeId': 'apple',
         'id': 'txn-456',
         'productId': 'iap.premium',
         'transactionId': 'txn-456',
@@ -2068,6 +2075,7 @@ void main() {
         final purchasePayload = <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'storeId': 'apple',
           'id': 'txn-dedupe-replay',
           'productId': 'iap.premium',
           'transactionId': 'txn-dedupe-replay',
@@ -2189,6 +2197,7 @@ void main() {
         final purchasePayload = <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'storeId': 'apple',
           'id': 'txn-handler-dedupe-replay',
           'productId': 'iap.premium',
           'transactionId': 'txn-handler-dedupe-replay',
@@ -2661,6 +2670,7 @@ void main() {
                 'purchaseState': 'purchased',
                 'quantity': 1,
                 'store': 'apple',
+                'storeId': 'apple',
                 'transactionDate': 1705315800000.0,
                 'transactionId': 'ios-transaction-id',
               },
@@ -2924,6 +2934,7 @@ void main() {
                 'productId': 'premium.monthly',
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
                 'clientPayload': {
                   'format': 'toml',
                   'body': 'tier = "gold"',
@@ -2999,6 +3010,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             };
         }
@@ -3049,6 +3061,7 @@ void main() {
               'productId': 'premium.monthly',
               'state': 'entitled',
               'store': 'horizon',
+              'storeId': 'horizon',
             },
           };
         }
@@ -3103,6 +3116,7 @@ void main() {
                 'isValid': true,
                 'state': 'pending-acknowledgment',
                 'store': 'google',
+                'storeId': 'play',
               },
             });
         }
@@ -3167,6 +3181,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'amazon',
+                'storeId': 'amazon',
                 'environment': environment,
               },
             });
@@ -3319,6 +3334,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             };
         }
@@ -3364,6 +3380,7 @@ void main() {
                 'isValid': false,
                 'state': 'expired',
                 'store': 'apple',
+                'storeId': 'apple',
               },
               'errors': [
                 {
@@ -3459,6 +3476,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
                 'clientPayload': {
                   'format': 'toml',
                   'body': 'tier = "gold"',
@@ -3505,6 +3523,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'amazon',
+                'storeId': 'amazon',
               },
             };
         }
@@ -3544,6 +3563,7 @@ void main() {
                 'productId': 'premium.monthly',
                 'state': 'grace-period',
                 'store': 'apple',
+                'storeId': 'apple',
                 'environment': 'Xcode',
                 'clientPayload': {
                   'format': 'yaml',

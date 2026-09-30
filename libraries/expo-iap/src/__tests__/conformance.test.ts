@@ -42,6 +42,7 @@ function toPurchase(record: FakeRecord) {
     isAutoRenewing: record.type === 'subs' && record.state === 'purchased',
     quantity: 1,
     store: 'google',
+    storeId: 'play',
     platform: 'android',
     transactionDate: 1_700_000_000_000,
     transactionId: record.token,
@@ -65,6 +66,7 @@ const nativeModule: Record<string, unknown> = {
       isValid: record?.state === 'purchased',
       productId: record?.sku ?? '',
       store: 'google',
+      storeId: 'play',
     };
   }),
   initConnection: jest.fn(async () => true),

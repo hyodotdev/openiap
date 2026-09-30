@@ -828,6 +828,9 @@ public enum class IapPlatform(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Frozen legacy store discriminator. Use storeId for extensible store identity.
+ */
 public enum class IapStore(val rawValue: String) {
     Unknown("unknown"),
     Apple("apple"),
@@ -1502,6 +1505,10 @@ public interface PurchaseCommon {
      * Store where purchase was made
      */
     val store: IapStore
+    /**
+     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     */
+    val storeId: String
     /**
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
      */
@@ -3071,6 +3078,10 @@ public data class PurchaseAndroid(
      */
     override val store: IapStore,
     /**
+     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     */
+    override val storeId: String,
+    /**
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
      */
     override val transactionDate: Double,
@@ -3110,6 +3121,7 @@ public data class PurchaseAndroid(
                 quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
                 signatureAndroid = json["signatureAndroid"] as? String,
                 store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                storeId = json["storeId"] as? String ?: "",
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String,
                 userIdAmazon = json["userIdAmazon"] as? String,
@@ -3139,6 +3151,7 @@ public data class PurchaseAndroid(
         "quantity" to quantity,
         "signatureAndroid" to signatureAndroid,
         "store" to store.toJson(),
+        "storeId" to storeId,
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
         "userIdAmazon" to userIdAmazon,
@@ -3292,6 +3305,10 @@ public data class PurchaseIOS(
      */
     override val store: IapStore,
     val storefrontCountryCodeIOS: String? = null,
+    /**
+     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     */
+    override val storeId: String,
     val subscriptionGroupIdIOS: String? = null,
     /**
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
@@ -3342,6 +3359,7 @@ public data class PurchaseIOS(
                 revocationTypeIOS = json["revocationTypeIOS"] as? String,
                 store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
+                storeId = json["storeId"] as? String ?: "",
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String ?: "",
@@ -3390,6 +3408,7 @@ public data class PurchaseIOS(
         "revocationTypeIOS" to revocationTypeIOS,
         "store" to store.toJson(),
         "storefrontCountryCodeIOS" to storefrontCountryCodeIOS,
+        "storeId" to storeId,
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
@@ -3675,6 +3694,12 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     var environment: String? = null
         private set
 
+    /**
+     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     */
+    var storeId: String = when (store) { IapStore.Apple -> "apple"; IapStore.Google -> "play"; IapStore.Horizon -> "horizon"; IapStore.Amazon -> "amazon"; IapStore.Unknown -> "unknown" }
+        private set
+
     constructor(
         isValid: Boolean,
         state: IapkitPurchaseState,
@@ -3707,6 +3732,25 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         this.environment = environment
     }
 
+    constructor(
+        isValid: Boolean,
+        state: IapkitPurchaseState,
+        store: IapStore,
+        clientPayload: IapkitProductClientPayload?,
+        productId: String?,
+        environment: String?,
+        storeId: String,
+    ) : this(
+        isValid = isValid,
+        state = state,
+        store = store,
+    ) {
+        this.clientPayload = clientPayload
+        this.productId = productId
+        this.environment = environment
+        this.storeId = storeId
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
             return RequestVerifyPurchaseWithIapkitResult(
@@ -3716,6 +3760,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
                 clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { runCatching { IapkitProductClientPayload.fromJson(it) }.getOrNull() },
                 productId = json["productId"] as? String,
                 environment = json["environment"] as? String,
+                storeId = json["storeId"] as? String ?: "",
             )
         }
     }
@@ -3723,6 +3768,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RequestVerifyPurchaseWithIapkitResult",
         "store" to store.toJson(),
+        "storeId" to storeId,
         "environment" to environment,
         "isValid" to isValid,
         "state" to state.toJson(),

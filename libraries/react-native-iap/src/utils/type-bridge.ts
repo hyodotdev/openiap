@@ -420,6 +420,7 @@ export function convertNitroPurchaseToPurchase(
       transactionDate: nitroPurchase.transactionDate ?? Date.now(),
       purchaseToken: nitroPurchase.purchaseToken ?? null,
       store,
+      storeId: nitroPurchase.storeId ?? (store === 'google' ? 'play' : store),
       quantity: nitroPurchase.quantity ?? 1,
       purchaseState,
       isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
@@ -524,6 +525,7 @@ export function convertNitroPurchaseToPurchase(
     purchaseToken:
       nitroPurchase.purchaseToken ?? nitroPurchase.purchaseTokenAndroid ?? null,
     store,
+    storeId: nitroPurchase.storeId ?? (store === 'google' ? 'play' : store),
     quantity: nitroPurchase.quantity ?? 1,
     purchaseState,
     isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),

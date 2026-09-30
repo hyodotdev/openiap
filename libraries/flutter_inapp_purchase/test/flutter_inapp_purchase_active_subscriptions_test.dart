@@ -19,6 +19,7 @@ void main() {
         <String, dynamic>{
           'platform': 'android',
           'store': 'google',
+          'storeId': 'play',
           'purchaseStateAndroid': 1,
         },
       ],
@@ -46,6 +47,7 @@ void main() {
             'purchaseStateAndroid': 1,
             'purchaseToken': 'secret-canonical-token',
             'store': 'google',
+            'storeId': 'play',
           },
         ],
         platformIsAndroid: true,

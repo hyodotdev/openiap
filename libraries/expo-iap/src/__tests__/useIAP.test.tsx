@@ -712,6 +712,7 @@ describe('useIAP hook', () => {
             purchaseState: 'purchased',
             quantity: 1,
             store: 'apple',
+            storeId: 'apple',
             transactionDate: 1720000000000,
           },
         });

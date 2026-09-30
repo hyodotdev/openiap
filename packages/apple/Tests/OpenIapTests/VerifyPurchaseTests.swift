@@ -278,6 +278,7 @@ final class VerifyPurchaseTests: XCTestCase {
             purchaseState: .purchased,
             quantity: 1,
             store: .apple,
+            storeId: "apple",
             transactionDate: 1,
             transactionId: id
         )

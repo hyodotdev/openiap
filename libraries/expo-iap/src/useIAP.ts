@@ -262,16 +262,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const toPurchaseInput = useCallback(
     (purchase: Purchase): PurchaseInput => ({
-      id: purchase.id,
+      ...purchase,
       ids: purchase.ids ?? undefined,
-      isAutoRenewing: purchase.isAutoRenewing,
-      productId: purchase.productId,
-      purchaseState: purchase.purchaseState,
-      purchaseToken: purchase.purchaseToken ?? null,
-      quantity: purchase.quantity,
-      store: purchase.store,
-      transactionDate: purchase.transactionDate,
-      transactionId: purchase.transactionId,
     }),
     [],
   );

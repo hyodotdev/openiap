@@ -3,6 +3,25 @@ import 'package:flutter_inapp_purchase/types.dart' as types;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('preserves a community store identity in an Android purchase', () {
+    final purchase = convertToPurchase(
+        {
+          'id': 'fixture-token',
+          'productId': 'premium',
+          'transactionDate': 1,
+          'store': 'unknown',
+          'storeId': 'community-fixture',
+          'quantity': 1,
+          'purchaseState': 'purchased',
+          'isAutoRenewing': false,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{});
+    expect(purchase.store, types.IapStore.Unknown);
+    expect(purchase.storeId, 'community-fixture');
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('product helpers', () {
@@ -133,6 +152,7 @@ void main() {
         <String, dynamic>{
           'platform': 'android',
           'store': 'google',
+          'storeId': 'play',
           'id': 'purchase-id',
           'productId': 'coins.pack',
           'transactionId': 'GPA.1234',
@@ -160,6 +180,7 @@ void main() {
         <String, dynamic>{
           'platform': 'android',
           'store': 'amazon',
+          'storeId': 'amazon',
           'id': 'receipt-id',
           'productId': 'coins.pack',
           'purchaseState': 'purchased',
@@ -179,6 +200,7 @@ void main() {
         <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'storeId': 'apple',
           'id': 'transaction-id',
           'productId': 'premium.monthly',
           'transactionId': 'transaction-id',
@@ -217,6 +239,7 @@ void main() {
           <Object?, Object?>{
             'platform': 'android',
             'store': 'google',
+            'storeId': 'play',
             'id': 'purchase-id',
             'productId': 'coins.pack',
             'transactionId': 'GPA.1234',

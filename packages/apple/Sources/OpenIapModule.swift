@@ -1088,7 +1088,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 isValid: isValid,
                 productId: productId,
                 state: parsedState,
-                store: parsedStore
+                store: parsedStore,
+                storeId: parsedStore == .google ? "play" : parsedStore.rawValue,
             )
         }
         try await ensureConnection()

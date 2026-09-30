@@ -1114,7 +1114,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         isValid = isValid,
                         productId = productId,
                         state = state,
-                        store = store
+                        store = store,
+                        storeId = map["storeId"] as? String ?: "apple"
                     )
 
                     continuation.resumeIfActive(

@@ -147,6 +147,7 @@ internal object HorizonBillingConverters {
             quantity = quantity,
             signatureAndroid = signature,
             store = IapStore.Horizon,
+            storeId = "horizon",
             transactionDate = purchaseTime.toDouble(),
             transactionId = orderId?.takeIf { it.isNotBlank() } ?: token,
             // Amazon-flavor-only fields; Horizon purchases never carry them.

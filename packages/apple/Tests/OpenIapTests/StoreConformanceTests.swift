@@ -114,6 +114,7 @@ final class StoreConformanceTests: XCTestCase {
           "purchaseState": "purchased",
           "quantity": 1,
           "store": "apple",
+            "storeId": "apple",
           "transactionDate": 1700000000000,
           "transactionId": "txn-1"
         }

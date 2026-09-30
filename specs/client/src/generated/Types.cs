@@ -1365,6 +1365,7 @@ public static class IapPlatformExtensions
     public static IapPlatform FromJson(string value) => IapPlatformJsonConverter.FromRawString(value);
 }
 
+/// <summary>Frozen legacy store discriminator. Use storeId for extensible store identity.</summary>
 [JsonConverter(typeof(IapStoreJsonConverter))]
 public enum IapStore
 {
@@ -2486,6 +2487,8 @@ public interface PurchaseCommon
     int Quantity { get; }
     /// <summary>Store where purchase was made</summary>
     IapStore Store { get; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    string StoreId { get; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     double TransactionDate { get; }
 }
@@ -2564,6 +2567,8 @@ public abstract record Purchase : PurchaseCommon
     public abstract int Quantity { get; init; }
     /// <summary>Store where purchase was made</summary>
     public abstract IapStore Store { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    public abstract string StoreId { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     public abstract double TransactionDate { get; init; }
 }
@@ -3517,6 +3522,9 @@ public sealed record PurchaseAndroid : Purchase
     /// <summary>Store where purchase was made</summary>
     [JsonPropertyName("store")]
     public override required IapStore Store { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    [JsonPropertyName("storeId")]
+    public override required string StoreId { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     [JsonPropertyName("transactionDate")]
     public override required double TransactionDate { get; init; }
@@ -3660,6 +3668,9 @@ public sealed record PurchaseIOS : Purchase
     public override required IapStore Store { get; init; }
     [JsonPropertyName("storefrontCountryCodeIOS")]
     public string? StorefrontCountryCodeIOS { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    [JsonPropertyName("storeId")]
+    public override required string StoreId { get; init; }
     [JsonPropertyName("subscriptionGroupIdIOS")]
     public string? SubscriptionGroupIdIOS { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
@@ -3850,6 +3861,9 @@ public sealed record RequestVerifyPurchaseWithIapkitResult
     public required IapkitPurchaseState State { get; init; }
     [JsonPropertyName("store")]
     public required IapStore Store { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    [JsonPropertyName("storeId")]
+    public required string StoreId { get; init; }
 }
 
 public sealed record SubscriptionCommitmentInfoIOS

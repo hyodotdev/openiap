@@ -2004,6 +2004,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   productId: productIdValue as String?,
                   state: parseState(),
                   store: gentype.IapStore.fromJson(store.toString()),
+                  storeId: itemMap['storeId'] as String? ??
+                      (store.toString() == 'google'
+                          ? 'play'
+                          : store.toString()),
                 );
               }
 

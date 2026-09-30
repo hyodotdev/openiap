@@ -31,6 +31,7 @@ interface CompatibleDataClassShape {
   primaryFields: string[];
   extraFields: string[];
   legacyExtraFieldCounts?: number[];
+  legacyRequiredExtraFieldCounts?: number[];
 }
 
 const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
@@ -44,8 +45,9 @@ const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
   },
   RequestVerifyPurchaseWithIapkitResult: {
     primaryFields: ['isValid', 'state', 'store'],
-    extraFields: ['clientPayload', 'productId', 'environment'],
-    legacyExtraFieldCounts: [2],
+    extraFields: ['clientPayload', 'productId', 'environment', 'storeId'],
+    legacyExtraFieldCounts: [2, 3],
+    legacyRequiredExtraFieldCounts: [3],
   },
 };
 
@@ -383,7 +385,7 @@ export class KotlinPlugin extends CodegenPlugin {
     if (primaryFields.length + extraFields.length !== irObject.fields.length) {
       throw new Error(`${irObject.name} compatibility shape is incomplete`);
     }
-    if (extraFields.some((value) => !value.type.nullable)) {
+    if (extraFields.some((value) => !value.type.nullable && value.name !== 'storeId')) {
       throw new Error(`${irObject.name} compatibility fields must be nullable`);
     }
 
@@ -403,7 +405,10 @@ export class KotlinPlugin extends CodegenPlugin {
     for (const value of extraFields) {
       this.generateDocComment(value.description, '    ');
       this.generateDeprecationAnnotation(value.description, '    ');
-      this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = null`);
+      const initialValue = value.name === 'storeId'
+        ? 'when (store) { IapStore.Apple -> "apple"; IapStore.Google -> "play"; IapStore.Horizon -> "horizon"; IapStore.Amazon -> "amazon"; IapStore.Unknown -> "unknown" }'
+        : 'null';
+      this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = ${initialValue}`);
       this.emit('        private set');
       this.emit('');
     }
@@ -424,7 +429,7 @@ export class KotlinPlugin extends CodegenPlugin {
         this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
       }
       constructorExtraFields.forEach((value, index) => {
-        const defaultValue = index === 0 || (isCurrentConstructor && hasLegacyConstructor) ? '' : ' = null';
+        const defaultValue = index === 0 || (isCurrentConstructor && hasLegacyConstructor) || shape.legacyRequiredExtraFieldCounts?.includes(extraFieldCount) || !value.type.nullable ? '' : ' = null';
         this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
       });
       this.emit('    ) : this(');

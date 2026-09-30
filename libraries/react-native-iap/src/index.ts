@@ -2351,6 +2351,7 @@ export const verifyPurchaseWithProvider: MutationField<
               : {productId: result.iapkit.productId}),
             state: result.iapkit.state,
             store: result.iapkit.store,
+            storeId: result.iapkit.storeId,
           }
         : null,
       errors: result.errors ?? null,

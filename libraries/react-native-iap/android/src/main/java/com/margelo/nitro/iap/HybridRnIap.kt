@@ -1368,6 +1368,7 @@ class HybridRnIap : HybridRnIapSpec() {
             currentPlanId = purchase.currentPlanId.wrapVariant(),
             ids = purchase.ids.wrapVariant(),
             store = mapIapStore(purchase.store),
+            storeId = purchase.storeId,
             quantity = purchase.quantity.toDouble(),
             purchaseState = mapPurchaseState(purchase.purchaseState),
             isAutoRenewing = purchase.isAutoRenewing,
@@ -1711,7 +1712,8 @@ class HybridRnIap : HybridRnIapSpec() {
                         // mappers match separator-delimited spellings, so
                         // multi-word states would otherwise degrade to UNKNOWN.
                         state = mapIapkitPurchaseState(item.state.rawValue),
-                        store = mapIapkitStore(item.store.rawValue)
+                        store = mapIapkitStore(item.store.rawValue),
+                        storeId = item.storeId
                     )
                 }
 

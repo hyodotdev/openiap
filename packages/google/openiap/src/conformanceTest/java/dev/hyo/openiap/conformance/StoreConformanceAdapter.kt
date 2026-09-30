@@ -35,6 +35,7 @@ data class StoreErrorCase(
 interface StoreConformanceAdapter {
     /** The store discriminator this implementation must stamp on purchases. */
     val store: IapStore
+    val storeId: String get() = if (store == IapStore.Google) "play" else store.rawValue
 
     /** Behaviors this store supports. See [StoreCapability]. */
     val capabilities: Set<StoreCapability>

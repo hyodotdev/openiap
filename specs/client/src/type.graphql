@@ -47,6 +47,7 @@ enum PurchaseVerificationProvider {
   Iapkit
 }
 
+"""Frozen legacy store discriminator. Use storeId for extensible store identity."""
 enum IapStore {
   Unknown
   Apple
@@ -86,6 +87,8 @@ interface PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
+  """Stable store id: apple, play, horizon, amazon, or an Android provider id."""
+  storeId: String!
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -447,6 +450,8 @@ type IapkitProductClientPayload {
 
 type RequestVerifyPurchaseWithIapkitResult {
   store: IapStore!
+  """Stable store id: apple, play, horizon, amazon, or an Android provider id."""
+  storeId: String!
   """
   Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
   Amazon RVS environment selected by IAPKit. Present as `Sandbox` or

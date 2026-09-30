@@ -82,6 +82,7 @@ const validPurchase = (id: string) => ({
   productId: 'premium',
   transactionDate: 1720000000000,
   store: 'apple',
+  storeId: 'apple',
   quantity: 1,
   purchaseState: 'purchased',
   isAutoRenewing: false,
@@ -499,6 +500,7 @@ describe('iOS Module Functions', () => {
         id: 'redeemed-transaction',
         productId: 'premium',
         store: 'apple',
+        storeId: 'apple',
       };
       (
         ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock

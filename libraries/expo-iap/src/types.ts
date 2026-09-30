@@ -586,6 +586,7 @@ export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product
 
 export type IapPlatform = 'ios' | 'android';
 
+/** Frozen legacy store discriminator. Use storeId for extensible store identity. */
 export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
 /** Serialization format of a public IAPKit product client payload. */
@@ -1236,6 +1237,8 @@ export interface PurchaseAndroid extends PurchaseCommon {
   signatureAndroid?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  storeId: string;
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
   transactionId?: (string | null);
@@ -1270,6 +1273,8 @@ export interface PurchaseCommon {
   quantity: number;
   /** Store where purchase was made */
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  storeId: string;
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
 }
@@ -1348,6 +1353,8 @@ export interface PurchaseIOS extends PurchaseCommon {
   revocationTypeIOS?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  storeId: string;
   storefrontCountryCodeIOS?: (string | null);
   subscriptionGroupIdIOS?: (string | null);
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
@@ -1905,6 +1912,8 @@ export interface RequestVerifyPurchaseWithIapkitResult {
   /** The current state of the purchase. */
   state: IapkitPurchaseState;
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  storeId: string;
 }
 
 /**

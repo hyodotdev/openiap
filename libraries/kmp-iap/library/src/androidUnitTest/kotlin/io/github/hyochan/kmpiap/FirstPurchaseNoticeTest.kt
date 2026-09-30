@@ -229,6 +229,7 @@ class FirstPurchaseNoticeTest {
             purchaseToken = "purchase-token",
             quantity = 1,
             store = IapStore.Google,
+            storeId = "play",
             transactionDate = 0.0,
         )
 

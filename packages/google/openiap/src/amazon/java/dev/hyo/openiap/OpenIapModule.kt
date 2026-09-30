@@ -378,6 +378,7 @@ internal fun buildAmazonPurchase(
         quantity = 1,
         signatureAndroid = null,
         store = IapStore.Amazon,
+        storeId = "amazon",
         transactionDate = purchaseDateMillis,
         transactionId = receiptId,
         userIdAmazon = userIdAmazon,

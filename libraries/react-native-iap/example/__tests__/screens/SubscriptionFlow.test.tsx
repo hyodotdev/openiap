@@ -62,6 +62,7 @@ describe('SubscriptionFlow Screen', () => {
           productId: 'dev.hyo.martie.premium',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       }),
     );
@@ -307,6 +308,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-restored-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const finishTransaction = jest.fn(
@@ -320,6 +322,7 @@ describe('SubscriptionFlow Screen', () => {
         productId: restoredPurchase.productId,
         state: 'pending-acknowledgment',
         store: 'google',
+        storeId: 'play',
       },
     };
     const refreshedVerification: VerifyPurchaseWithProviderResult = {
@@ -329,6 +332,7 @@ describe('SubscriptionFlow Screen', () => {
         productId: restoredPurchase.productId,
         state: 'entitled',
         store: 'google',
+        storeId: 'play',
       },
     };
     let verificationCallCount = 0;
@@ -392,6 +396,7 @@ describe('SubscriptionFlow Screen', () => {
           productId: 'dev.hyo.martie.premium',
           state: 'expired',
           store: 'google',
+          storeId: 'play',
         },
       } satisfies VerifyPurchaseWithProviderResult,
     },
@@ -406,6 +411,7 @@ describe('SubscriptionFlow Screen', () => {
           productId: 'dev.hyo.martie.premium_year',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       } satisfies VerifyPurchaseWithProviderResult,
     },
@@ -421,6 +427,7 @@ describe('SubscriptionFlow Screen', () => {
         purchaseToken: `google-sub-token-restored-${caseName}`,
         quantity: 1,
         store: 'google',
+        storeId: 'play',
         transactionDate: Date.now(),
       };
       const finishTransaction = jest.fn(
@@ -464,6 +471,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-restored-unmount-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const finishTransaction = jest.fn(
@@ -491,6 +499,7 @@ describe('SubscriptionFlow Screen', () => {
                 productId: restoredPurchase.productId,
                 state: 'entitled',
                 store: 'google',
+                storeId: 'play',
               },
             });
       },
@@ -523,6 +532,7 @@ describe('SubscriptionFlow Screen', () => {
           productId: restoredPurchase.productId,
           state: 'pending-acknowledgment',
           store: 'google',
+          storeId: 'play',
         },
       });
       await Promise.resolve();
@@ -554,6 +564,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-cancel-retry-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const finishTransaction = jest.fn(
@@ -571,6 +582,7 @@ describe('SubscriptionFlow Screen', () => {
             productId: purchase.productId,
             state: 'pending-acknowledgment',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );
@@ -632,6 +644,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-remount-pending-finish-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     let resolveFinish!: () => void;
@@ -652,6 +665,7 @@ describe('SubscriptionFlow Screen', () => {
             productId: purchase.productId,
             state: 'entitled',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );
@@ -724,6 +738,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-remount-after-owner-finish-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     let resolveFinish!: () => void;
@@ -745,6 +760,7 @@ describe('SubscriptionFlow Screen', () => {
             productId: purchase.productId,
             state: 'pending-acknowledgment',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );
@@ -833,6 +849,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-race-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -887,6 +904,7 @@ describe('SubscriptionFlow Screen', () => {
           productId: 'dev.hyo.martie.premium',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       });
       await purchasePromise;
@@ -913,6 +931,7 @@ describe('SubscriptionFlow Screen', () => {
       purchaseToken: 'google-sub-token-reconnect-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const finishTransaction = jest.fn(
@@ -933,6 +952,7 @@ describe('SubscriptionFlow Screen', () => {
         productId: purchase.productId,
         state: 'entitled',
         store: 'google',
+        storeId: 'play',
       },
     };
     let verificationCallCount = 0;
@@ -1001,6 +1021,7 @@ describe('SubscriptionFlow Screen', () => {
             productId: purchase.productId,
             state: 'pending-acknowledgment',
             store: 'google',
+            storeId: 'play',
           },
         });
         await purchasePromise;
@@ -1065,6 +1086,7 @@ describe('SubscriptionFlow Screen', () => {
       productId: 'dev.hyo.martie.premium',
       purchaseToken: 'google-sub-token-invalid-1',
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -1078,6 +1100,7 @@ describe('SubscriptionFlow Screen', () => {
             productId: 'dev.hyo.martie.premium',
             state: 'consumed',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );

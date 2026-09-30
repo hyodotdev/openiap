@@ -35,6 +35,7 @@ const purchase = (overrides: Partial<NitroPurchase> = {}): NitroPurchase => ({
   transactionDate: 123,
   purchaseToken: 'receipt',
   store: 'apple',
+  storeId: 'apple',
   quantity: 1,
   purchaseState: 'purchased',
   isAutoRenewing: false,
@@ -302,6 +303,7 @@ describe('type-bridge utilities', () => {
       expect(result).toEqual(
         expect.objectContaining({
           store: 'apple',
+          storeId: 'apple',
           transactionId: 'canonical-transaction-id',
           currentPlanId: 'premium-monthly',
           ids: ['com.example.product', 'addon'],
@@ -354,6 +356,7 @@ describe('type-bridge utilities', () => {
           purchaseToken: null,
           purchaseTokenAndroid: 'purchase-token',
           store: 'google',
+          storeId: 'play',
           purchaseState: 'unknown',
           purchaseStateAndroid: 1,
           isAutoRenewing: true,
@@ -363,6 +366,7 @@ describe('type-bridge utilities', () => {
       expect(result).toEqual(
         expect.objectContaining({
           store: 'google',
+          storeId: 'play',
           purchaseState: 'purchased',
           autoRenewingAndroid: true,
           transactionId: 'GPA.1234',
@@ -379,6 +383,7 @@ describe('type-bridge utilities', () => {
           purchaseToken: null,
           purchaseTokenAndroid: 'purchase-token',
           store: 'google',
+          storeId: 'play',
         }),
       ) as PurchaseAndroid;
 
@@ -406,6 +411,7 @@ describe('type-bridge utilities', () => {
       const result = convertNitroPurchaseToPurchase(
         purchase({
           store: 'google',
+          storeId: 'play',
           currentPlanId: 'premium-yearly',
           ids: ['premium-monthly', 'premium-yearly'],
           pendingPurchaseUpdateAndroid: {
@@ -425,6 +431,7 @@ describe('type-bridge utilities', () => {
       const purchased = convertNitroPurchaseToPurchase(
         purchase({
           store: 'google',
+          storeId: 'play',
           purchaseState: 1 as never,
           transactionId: null,
           isAutoRenewing: false,
@@ -571,4 +578,12 @@ describe('type-bridge utilities', () => {
   it('keeps type synchronization healthy', () => {
     expect(checkTypeSynchronization()).toEqual({isSync: true, issues: []});
   });
+});
+
+
+test('preserves a community provider storeId through the Nitro purchase bridge', () => {
+  const nativePurchase = purchase({store: 'unknown', storeId: 'community-fixture'});
+  const result = convertNitroPurchaseToPurchase(nativePurchase);
+  expect(result.store).toBe('unknown');
+  expect(result.storeId).toBe('community-fixture');
 });

@@ -203,6 +203,8 @@ type PurchaseIOS implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
+  """Stable store id: apple, play, horizon, amazon, or an Android provider id."""
+  storeId: String!
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!

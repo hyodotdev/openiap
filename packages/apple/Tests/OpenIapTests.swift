@@ -460,6 +460,8 @@ final class OpenIapTests: XCTestCase {
             revocationTypeIOS: "assignmentRevocation",
             store: .apple,
             storefrontCountryCodeIOS: "US",
+
+            storeId: "apple",
             subscriptionGroupIdIOS: "21686373",
             transactionDate: 1729083955000,
             transactionId: "2000001034753679",
@@ -1384,6 +1386,8 @@ final class OpenIapTests: XCTestCase {
             revocationTypeIOS: nil,
             store: .apple,
             storefrontCountryCodeIOS: "US",
+
+            storeId: "apple",
             subscriptionGroupIdIOS: "group",
             transactionDate: 2,
             transactionId: "transaction",
@@ -1422,6 +1426,8 @@ final class OpenIapTests: XCTestCase {
             revocationTypeIOS: nil,
             store: .apple,
             storefrontCountryCodeIOS: "US",
+
+            storeId: "apple",
             subscriptionGroupIdIOS: "21686373",
             transactionDate: 1729083955000,
             transactionId: "2000001034753679",

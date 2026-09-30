@@ -14,6 +14,7 @@ void main() {
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Apple,
+            storeId: 'apple',
             transactionDate: 1000.0,
             transactionId: 'txn-123',
           );
@@ -31,6 +32,7 @@ void main() {
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Apple,
+            storeId: 'apple',
             transactionDate: 1000.0,
             transactionId: '',
           );
@@ -48,6 +50,7 @@ void main() {
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Google,
+            storeId: 'play',
             transactionDate: 1000.0,
             transactionId: 'txn-456',
           );
@@ -65,6 +68,7 @@ void main() {
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Google,
+            storeId: 'play',
             transactionDate: 1000.0,
           );
           expect(purchase.transactionIdFor, isNull);
@@ -81,6 +85,7 @@ void main() {
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Google,
+            storeId: 'play',
             transactionDate: 1000.0,
             transactionId: '',
           );
@@ -98,6 +103,7 @@ void main() {
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Apple,
+            storeId: 'apple',
             transactionDate: 1000.0,
             transactionId: '',
           );
@@ -115,6 +121,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
         );
@@ -129,6 +136,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
         );
         expect(
@@ -145,6 +153,7 @@ void main() {
           purchaseState: PurchaseState.Pending,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
         );
         expect(
@@ -161,6 +170,7 @@ void main() {
           purchaseState: PurchaseState.Unknown,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
         );
         expect(
@@ -179,6 +189,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
         );
         expect(purchase.iosTransactionState, isNull);
@@ -192,6 +203,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
         );
@@ -209,6 +221,7 @@ void main() {
           purchaseState: PurchaseState.Pending,
           quantity: 1,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
         );
@@ -226,6 +239,7 @@ void main() {
           purchaseState: PurchaseState.Unknown,
           quantity: 1,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
         );
@@ -245,6 +259,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
         );
@@ -259,6 +274,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
           isAcknowledgedAndroid: true,
         );
@@ -275,6 +291,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
         );
         expect(purchase.iosQuantity, isNull);
@@ -289,6 +306,7 @@ void main() {
           quantity: 1,
           quantityIOS: 3,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
         );
@@ -305,6 +323,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Google,
+          storeId: 'play',
           transactionDate: 1000.0,
         );
         expect(purchase.iosOriginalTransactionId, isNull);
@@ -318,6 +337,7 @@ void main() {
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
           store: IapStore.Apple,
+          storeId: 'apple',
           transactionDate: 1000.0,
           transactionId: 'txn',
           originalTransactionIdentifierIOS: 'orig-txn-123',

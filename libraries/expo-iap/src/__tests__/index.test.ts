@@ -55,6 +55,7 @@ const nativePurchase = (
   productId: `product.${id}`,
   transactionDate: 1720000000000,
   store: 'google',
+  storeId: 'play',
   quantity: 1,
   purchaseState: 'purchased',
   isAutoRenewing: false,
@@ -419,6 +420,7 @@ describe('Public API (index.ts)', () => {
         id: 'billing-issue',
         productId: 'sub.monthly',
         store: 'apple',
+        storeId: 'apple',
       };
       registeredCallback?.(purchase);
 
@@ -1274,6 +1276,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('legacy', {
             store: 'apple',
+            storeId: 'apple',
             transactionId: 'txn-restore',
           }),
         ]);
@@ -1297,6 +1300,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('onside', {
             store: 'apple',
+            storeId: 'apple',
             transactionId: 'txn-onside',
           }),
         ]);
@@ -1333,6 +1337,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('foreign', {
             store: 'google',
+            storeId: 'play',
             transactionId: 'foreign',
           }),
         ]);
@@ -1349,6 +1354,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('foreign', {
             store: 'apple',
+            storeId: 'apple',
             transactionId: 'foreign',
           }),
         ]);
@@ -1385,6 +1391,7 @@ describe('Public API (index.ts)', () => {
       Object.assign(Platform, {OS: 'ios'});
       const basePurchase: PurchaseInput = {
         store: 'apple',
+        storeId: 'apple',
         productId: 'prod.ios',
         isAutoRenewing: false,
         purchaseState: 'purchased',
@@ -1426,6 +1433,7 @@ describe('Public API (index.ts)', () => {
 
       const basePurchase: PurchaseInput = {
         store: 'google',
+        storeId: 'play',
         productId: 'p',
         isAutoRenewing: false,
         purchaseState: 'purchased',
@@ -1455,6 +1463,7 @@ describe('Public API (index.ts)', () => {
       const p = finishTransaction({
         purchase: {
           store: 'google',
+          storeId: 'play',
           productId: 'p',
           isAutoRenewing: false,
           purchaseState: 'purchased',
@@ -1478,6 +1487,7 @@ describe('Public API (index.ts)', () => {
           purchase: {
             id: 'tid',
             store: 'unknown',
+            storeId: 'unknown',
             productId: 'prod.web',
             isAutoRenewing: false,
             purchaseState: 'purchased',
@@ -1996,6 +2006,7 @@ describe('Public API (index.ts)', () => {
           isValid: true,
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
           productId: 'premium.monthly',
           clientPayload: {
             format: 'toml',
@@ -2043,6 +2054,7 @@ describe('Public API (index.ts)', () => {
           productId: null,
           state: 'ready-to-consume',
           store: 'amazon',
+          storeId: 'amazon',
         },
       };
       (ExpoIapModule.verifyPurchaseWithProvider as jest.Mock) = jest
@@ -2073,6 +2085,7 @@ describe('Public API (index.ts)', () => {
         isValid: true,
         state: 'ready-to-consume',
         store: 'amazon',
+        storeId: 'amazon',
       });
       expect(result.iapkit?.store).toBe('amazon');
     });

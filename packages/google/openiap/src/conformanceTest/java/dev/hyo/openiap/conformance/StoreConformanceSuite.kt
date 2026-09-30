@@ -214,6 +214,7 @@ abstract class StoreConformanceSuite {
         quantity = 1,
         signatureAndroid = null,
         store = adapter.store,
+        storeId = adapter.storeId,
         transactionDate = 1_700_000_000_000.0,
         transactionId = token,
     )

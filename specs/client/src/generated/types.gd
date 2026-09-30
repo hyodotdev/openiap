@@ -208,6 +208,7 @@ enum IapPlatform {
 	ANDROID = 1,
 }
 
+## Frozen legacy store discriminator. Use storeId for extensible store identity.
 enum IapStore {
 	UNKNOWN = 0,
 	APPLE = 1,
@@ -2254,6 +2255,8 @@ class PurchaseAndroid:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: _Types.IapStore = IapStore.UNKNOWN
+	## Stable store id: apple, play, horizon, amazon, or an Android provider id.
+	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
 	var is_auto_renewing: bool = false
@@ -2302,6 +2305,8 @@ class PurchaseAndroid:
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
+		if data.has("storeId") and data["storeId"] != null:
+			obj.store_id = data["storeId"]
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
@@ -2359,6 +2364,7 @@ class PurchaseAndroid:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		dict["storeId"] = store_id
 		dict["quantity"] = quantity
 		if PURCHASE_STATE_VALUES.has(purchase_state):
 			dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
@@ -2479,6 +2485,8 @@ class PurchaseIOS:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: _Types.IapStore = IapStore.UNKNOWN
+	## Stable store id: apple, play, horizon, amazon, or an Android provider id.
+	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
 	var is_auto_renewing: bool = false
@@ -2552,6 +2560,8 @@ class PurchaseIOS:
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
+		if data.has("storeId") and data["storeId"] != null:
+			obj.store_id = data["storeId"]
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
@@ -2662,6 +2672,7 @@ class PurchaseIOS:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		dict["storeId"] = store_id
 		dict["quantity"] = quantity
 		if PURCHASE_STATE_VALUES.has(purchase_state):
 			dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
@@ -2973,6 +2984,8 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: _Types.IapStore = IapStore.UNKNOWN
+	## Stable store id: apple, play, horizon, amazon, or an Android provider id.
+	var store_id: String = ""
 	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
@@ -2994,6 +3007,8 @@ class RequestVerifyPurchaseWithIapkitResult:
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
+		if data.has("storeId") and data["storeId"] != null:
+			obj.store_id = data["storeId"]
 		if data.has("environment") and data["environment"] != null:
 			obj.environment = data["environment"]
 		if data.has("isValid") and data["isValid"] != null:
@@ -3019,6 +3034,7 @@ class RequestVerifyPurchaseWithIapkitResult:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		dict["storeId"] = store_id
 		if environment != null:
 			dict["environment"] = environment
 		dict["isValid"] = is_valid

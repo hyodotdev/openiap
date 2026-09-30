@@ -160,6 +160,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -172,6 +173,7 @@ describe('Public API (src/index.ts)', () => {
         expect.objectContaining({
           productId: 'p1',
           store: 'apple',
+          storeId: 'apple',
         }),
       );
 
@@ -202,6 +204,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -246,6 +249,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -280,6 +284,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -436,6 +441,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -467,6 +473,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p2',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -571,6 +578,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -659,6 +667,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -693,6 +702,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -735,6 +745,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1346,6 +1357,7 @@ describe('Public API (src/index.ts)', () => {
         productId: id,
         transactionDate: Date.now(),
         store: 'google',
+        storeId: 'play',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1370,6 +1382,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'valid',
         transactionDate: Date.now(),
         store: 'google',
+        storeId: 'play',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1408,6 +1421,7 @@ describe('Public API (src/index.ts)', () => {
           productId: 'premium',
           transactionDate: Date.now(),
           store: 'google',
+          storeId: 'play',
           quantity: 1,
           purchaseState: 'purchased',
           isAutoRenewing: false,
@@ -1428,6 +1442,7 @@ describe('Public API (src/index.ts)', () => {
             productId: 'premium',
             transactionDate: Date.now(),
             store: 'apple',
+            storeId: 'apple',
             quantity: 1,
             purchaseState: 'purchased',
             isAutoRenewing: false,
@@ -1462,6 +1477,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'premium_monthly',
         transactionDate: Date.now(),
         store: 'amazon',
+        storeId: 'amazon',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -1480,6 +1496,7 @@ describe('Public API (src/index.ts)', () => {
         expect.objectContaining({
           productId: 'premium_monthly',
           store: 'amazon',
+          storeId: 'amazon',
         }),
       ]);
     });
@@ -1672,6 +1689,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'premium',
         transactionDate: 1700000000000,
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -1680,6 +1698,7 @@ describe('Public API (src/index.ts)', () => {
         id: 'redeemed-transaction',
         productId: 'premium',
         store: 'apple',
+        storeId: 'apple',
       });
     });
 
@@ -1696,6 +1715,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1713,6 +1733,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p2',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1738,6 +1759,7 @@ describe('Public API (src/index.ts)', () => {
           productId: 'premium',
           transactionDate: Date.now(),
           store: 'apple',
+          storeId: 'apple',
           quantity: 1,
           purchaseState: 'purchased',
           isAutoRenewing: false,
@@ -1822,6 +1844,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p3',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -2290,6 +2313,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'premium',
         transactionDate: 1700000000000,
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -2298,6 +2322,7 @@ describe('Public API (src/index.ts)', () => {
         id: 'redeemed-transaction',
         productId: 'premium',
         store: 'apple',
+        storeId: 'apple',
       });
       expect(mockIap.presentCodeRedemptionSheetIOS).toHaveBeenCalledTimes(1);
     });
@@ -2574,6 +2599,7 @@ describe('Public API (src/index.ts)', () => {
           productId: 'premium.monthly',
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2619,6 +2645,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: true,
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2647,6 +2674,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: true,
           state: 'ready-to-consume',
           store: 'amazon',
+          storeId: 'amazon',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2707,6 +2735,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: false,
           state: 'expired',
           store: 'apple',
+          storeId: 'apple',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2842,6 +2871,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: true,
           state: 'pending-acknowledgment',
           store: 'google',
+          storeId: 'play',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -3704,6 +3734,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'google',
+        storeId: 'play',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -3783,6 +3814,7 @@ describe('Public API (src/index.ts)', () => {
       productId: 'premium',
       transactionDate: Date.now(),
       store: 'apple',
+      storeId: 'apple',
       quantity: 1,
       purchaseState: 'purchased',
       isAutoRenewing: false,

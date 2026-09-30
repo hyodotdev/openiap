@@ -47,6 +47,7 @@ const purchase = (overrides: Partial<PurchaseInput> = {}): PurchaseInput => ({
   purchaseToken: 'token',
   quantity: 1,
   store: 'apple',
+  storeId: 'apple',
   transactionDate: 1720000000000,
   ...overrides,
 });

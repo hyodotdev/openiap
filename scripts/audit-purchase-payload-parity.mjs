@@ -1466,6 +1466,9 @@ function checkReactNativePurchasePayloadContracts() {
           );
         }
         const allowedSources = new Set([field]);
+        if (field === "storeId") {
+          allowedSources.add("store");
+        }
         if (field === "purchaseState") {
           allowedSources.add("purchaseStateAndroid");
         }

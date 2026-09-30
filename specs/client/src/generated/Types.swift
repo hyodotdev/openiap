@@ -323,6 +323,7 @@ public enum IapPlatform: String, Codable, CaseIterable {
     case android = "android"
 }
 
+/// Frozen legacy store discriminator. Use storeId for extensible store identity.
 public enum IapStore: String, Codable, CaseIterable {
     case unknown = "unknown"
     case apple = "apple"
@@ -514,6 +515,8 @@ public protocol PurchaseCommon: Codable {
     var quantity: Int { get }
     /// Store where purchase was made
     var store: IapStore { get }
+    /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+    var storeId: String { get }
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     var transactionDate: Double { get }
 }
@@ -1066,6 +1069,8 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var signatureAndroid: String? = nil
     /// Store where purchase was made
     public var store: IapStore
+    /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+    public var storeId: String
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String? = nil
@@ -1145,6 +1150,8 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     /// Store where purchase was made
     public var store: IapStore
     public var storefrontCountryCodeIOS: String? = nil
+    /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+    public var storeId: String
     public var subscriptionGroupIdIOS: String? = nil
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
@@ -1257,6 +1264,8 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     /// The current state of the purchase.
     public var state: IapkitPurchaseState
     public var store: IapStore
+    /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+    public var storeId: String
 }
 
 public struct SubscriptionCommitmentInfoIOS: Codable {
@@ -2585,6 +2594,16 @@ public enum Purchase: Codable, PurchaseCommon {
             return value.store
         case let .purchaseIos(value):
             return value.store
+        }
+    }
+
+    /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+    public var storeId: String {
+        switch self {
+        case let .purchaseAndroid(value):
+            return value.storeId
+        case let .purchaseIos(value):
+            return value.storeId
         }
     }
 

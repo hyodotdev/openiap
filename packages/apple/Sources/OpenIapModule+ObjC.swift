@@ -377,6 +377,8 @@ import StoreKit
                     revocationReasonIOS: nil,
                     store: .apple,
                     storefrontCountryCodeIOS: nil,
+
+                    storeId: "apple",
                     subscriptionGroupIdIOS: nil,
                     transactionDate: Date().milliseconds,
                     transactionId: purchaseId,
