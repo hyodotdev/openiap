@@ -48,10 +48,10 @@ const issueWrite = new RegExp(
   String.raw`^${dir}gh${flags}\s+issue${flags}\s+(?:create|new|edit)\b`,
   "u",
 );
-// gh matches @copilot in any case.
+// gh matches @copilot in any case, and the bot login works as well.
 // pflag binds a short flag's value without a space, so `-a@copilot` is `-a @copilot`.
 const copilotAssignee =
-  /\s(?:(?:--add-assignee|--assignee)[=\s]+|-a[=\s]*)["']?[^\s"'=]*@copilot\b/iu;
+  /\s(?:(?:--add-assignee|--assignee)[=\s]+|-a[=\s]*)["']?[^\s"'=]*copilot\b/iu;
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 // `repos/$REPO/pulls` names owner and repository in one segment.
 const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;

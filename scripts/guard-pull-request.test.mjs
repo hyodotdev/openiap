@@ -51,6 +51,9 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     'gh agents create "fix the flaky test"',
     "gh issue new -t x -a @copilot",
     "gh issue create -t x -a@copilot",
+    "gh issue edit 12 --add-assignee copilot-swe-agent[bot]",
+    "gh issue create -t x --assignee copilot-swe-agent[bot]",
+    "gh issue create -t x -a copilot-swe-agent",
     "gh issue edit 12 -a=@Copilot",
     "gh issue edit 12 --add-assignee @Copilot",
     "timeout --signal=KILL 60 bash -c 'gh pr create --fill'",
@@ -184,6 +187,8 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "if gh pr view 1; then echo open; fi",
     "gh issue edit 12 --add-assignee @me",
     "gh issue create -t x -a@me",
+    "gh issue create -t x --assignee monalisa --label copilot",
+    "gh issue edit 12 --add-assignee monalisa -t 'ask copilot'",
     "gh issue edit 12 --remove-assignee @copilot",
     "gh agent-task list",
     "gh api agents/repos/o/r/tasks --paginate",
@@ -370,6 +375,7 @@ test("long commands are read in linear time", () => {
     `echo copilot; gh api x -H ${"GraphQL-Features:".repeat(8000)}`,
     `gh issue create --assignee${"=".repeat(60000)}`,
     `gh issue create -a${"=".repeat(60000)}`,
+    `gh issue create -a ${"x".repeat(60000)}`,
   ]) {
     const started = performance.now();
     assert.equal(shell(input), false);
