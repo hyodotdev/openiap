@@ -45,7 +45,7 @@ import type {
   RequestSubscriptionIosProps,
   UserChoiceBillingDetails,
 } from './types';
-import {ErrorCode} from './types';
+import {ErrorCode, resolveStoreId} from './types';
 import {
   createPurchaseError,
   createPurchaseErrorFromNativeException,
@@ -591,8 +591,8 @@ const invokeNativeWithPurchaseError = async <T>(
       typeof nativeError?.message === 'string'
         ? nativeError.message
         : typeof error === 'string'
-        ? error
-        : '';
+          ? error
+          : '';
     const hasCanonicalFields =
       nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
       nativeError?.code !== undefined ||
@@ -1383,9 +1383,8 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result = await ExpoIapModule.verifyPurchaseWithProvider(
-    resolvedOptions,
-  );
+  const result =
+    await ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
   if (result.iapkit == null) {
     return result;
   }
@@ -1395,6 +1394,7 @@ export const verifyPurchaseWithProvider: MutationField<
     ...result,
     iapkit: {
       ...iapkit,
+      storeId: resolveStoreId(iapkit.storeId, iapkit.store),
       ...(clientPayload == null ? {} : {clientPayload}),
       ...(productId == null ? {} : {productId}),
     },

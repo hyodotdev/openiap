@@ -170,6 +170,9 @@ android {
             androidIapDisabled ? 'src/noneTest/kotlin' : 'src/storeTest/kotlin',
         ])
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
     lint {
         disable 'InvalidPackage'
     }
@@ -198,6 +201,10 @@ dependencies {
     }
 
     testImplementation "junit:junit:${readRequiredAndroidGradleProperty(projectDir, 'openIapJunitVersion')}"
+
+    if (!androidIapDisabled) {
+        testImplementation "org.robolectric:robolectric:4.16.1"
+    }
 
     // Store SDK versions stay centralized in packages/google.
 }

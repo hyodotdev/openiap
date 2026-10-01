@@ -399,6 +399,7 @@ describe('type-bridge utilities', () => {
             transactionId: null,
             purchaseToken: `${store}-receipt`,
             store,
+            storeId: store,
           }),
         ) as PurchaseAndroid;
 
@@ -440,10 +441,14 @@ describe('type-bridge utilities', () => {
         }),
       ) as PurchaseAndroid;
       const pending = convertNitroPurchaseToPurchase(
-        purchase({store: 'google', purchaseState: 2 as never}),
+        purchase({store: 'google', storeId: 'play', purchaseState: 2 as never}),
       );
       const unknown = convertNitroPurchaseToPurchase(
-        purchase({store: 'other' as never, purchaseState: 99 as never}),
+        purchase({
+          store: 'other' as never,
+          storeId: 'future-store',
+          purchaseState: 99 as never,
+        }),
       );
 
       expect(purchased.purchaseState).toBe('purchased');
@@ -580,9 +585,11 @@ describe('type-bridge utilities', () => {
   });
 });
 
-
 test('preserves a community provider storeId through the Nitro purchase bridge', () => {
-  const nativePurchase = purchase({store: 'unknown', storeId: 'community-fixture'});
+  const nativePurchase = purchase({
+    store: 'unknown',
+    storeId: 'community-fixture',
+  });
   const result = convertNitroPurchaseToPurchase(nativePurchase);
   expect(result.store).toBe('unknown');
   expect(result.storeId).toBe('community-fixture');

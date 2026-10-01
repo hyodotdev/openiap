@@ -948,10 +948,14 @@ func get_available_purchases_result(options = null) -> Dictionary:
 	var purchases: Array = []
 
 	for purchase_dict in raw_purchases:
+		var purchase
 		if _platform == "Android":
-			purchases.append(Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(purchase_dict)))
+			purchase = Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(purchase_dict))
 		elif _is_apple():
-			purchases.append(Types.PurchaseIOS.from_dict(_normalize_purchase_dict(purchase_dict)))
+			purchase = Types.PurchaseIOS.from_dict(_normalize_purchase_dict(purchase_dict))
+		if purchase == null:
+			return {"success": false, "code": "billing-response-json-parse-error", "error": "Invalid purchase data"}
+		purchases.append(purchase)
 
 	return {
 		"success": true,
@@ -1078,7 +1082,9 @@ func _is_valid_purchase_dictionary(value) -> bool:
 	var store := String(value.get("store"))
 	if _is_apple() and store != "apple":
 		return false
-	if _platform == "Android" and store not in ["google", "amazon", "horizon"]:
+	if _platform == "Android" and store not in ["google", "amazon", "horizon"] and store != "unknown":
+		return false
+	if not Types.IAP_STORE_FROM_STRING.has(store) or Types.resolve_store_id(Types.IAP_STORE_FROM_STRING[store], value.get("storeId")) == null:
 		return false
 	var transaction_date = value.get("transactionDate")
 	if not transaction_date is float and not transaction_date is int:

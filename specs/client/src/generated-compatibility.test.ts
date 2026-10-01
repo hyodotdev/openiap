@@ -474,7 +474,7 @@ export interface WrongOwner {
       kotlin.indexOf('public data class PurchaseIOS('),
     );
     const iapkitResult = kotlin.slice(
-      kotlin.indexOf('public data class RequestVerifyPurchaseWithIapkitResult('),
+      kotlin.indexOf('public class RequestVerifyPurchaseWithIapkitResult('),
       kotlin.indexOf('public data class SubscriptionCommitmentInfoIOS('),
     );
     const iapkitAmazonProps = kotlin.slice(
@@ -499,7 +499,7 @@ export interface WrongOwner {
     expect(userChoice).toContain('private set');
     expect(purchaseError).toContain('private set');
     expect(iapkitResultPrimary).toContain(
-      'public data class RequestVerifyPurchaseWithIapkitResult( val isValid: Boolean, val state: IapkitPurchaseState, val store: IapStore ) {',
+      'public class RequestVerifyPurchaseWithIapkitResult( val isValid: Boolean, val state: IapkitPurchaseState, val store: IapStore ) {',
     );
     expect(iapkitResult).toContain('var clientPayload: IapkitProductClientPayload? = null');
     expect(iapkitResult).toContain('var productId: String? = null');

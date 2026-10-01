@@ -809,12 +809,18 @@ class ExpoIapModule : Module() {
             }
 
             OnDestroy {
-                ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
-                listenerHandles = null
-                connectionReady.set(false)
-                pendingEvents.clear()
-                PromiseUtils.rejectAllPendingPromises()
-                job.cancel()
+                try {
+                    listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }
+                } finally {
+                    listenerHandles = null
+                    connectionReady.set(false)
+                    pendingEvents.clear()
+                    try {
+                        PromiseUtils.rejectAllPendingPromises()
+                    } finally {
+                        job.cancel()
+                    }
+                }
             }
         }
 

@@ -1433,6 +1433,91 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
+    it.each([
+      ['ios', 'apple'],
+      ['android', 'google'],
+      ['android', 'horizon'],
+      ['android', 'amazon'],
+    ])('rejects contradictory %s %s identity', async (platform, store) => {
+      Object.assign(Platform, {OS: platform});
+      mockIap.getAvailablePurchases.mockResolvedValue([
+        {
+          id: 'txn',
+          transactionId: 'txn',
+          productId: 'sku',
+          transactionDate: 1,
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+          store,
+          storeId: 'other',
+        },
+      ]);
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('preserves community identity in Android ownership reads and restore', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.getAvailablePurchases.mockImplementation(
+        async (options: {android?: {type?: string}}) =>
+          options.android?.type === 'subs'
+            ? []
+            : [
+                {
+                  id: 'community',
+                  productId: 'premium',
+                  transactionDate: 1,
+                  store: 'unknown',
+                  storeId: 'community-fixture',
+                  quantity: 1,
+                  purchaseState: 'purchased',
+                  isAutoRenewing: false,
+                },
+              ],
+      );
+      await expect(IAP.getAvailablePurchases()).resolves.toEqual([
+        expect.objectContaining({
+          store: 'unknown',
+          storeId: 'community-fixture',
+        }),
+      ]);
+      await expect(IAP.restorePurchases()).resolves.toBeUndefined();
+    });
+
+    it.each([
+      undefined,
+      '',
+      'play',
+      'apple',
+      'google',
+      'horizon',
+      'amazon',
+      'auto',
+      'none',
+      'unknown',
+      'bad id',
+      'store\n',
+    ])('rejects invalid community ownership identity %s', async (storeId) => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.getAvailablePurchases.mockResolvedValue([
+        {
+          id: 'community',
+          productId: 'premium',
+          transactionDate: 1,
+          store: 'unknown',
+          storeId,
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+        },
+      ]);
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
     it('rejects a foreign store in an Android available-purchase list', async () => {
       Object.assign(Platform, {OS: 'android'});
       mockIap.getAvailablePurchases
@@ -2580,6 +2665,44 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('verifyPurchaseWithProvider', () => {
+    it.each([
+      ['google', undefined, 'play'],
+      ['apple', undefined, 'apple'],
+      ['horizon', undefined, 'horizon'],
+      ['amazon', undefined, 'amazon'],
+      ['unknown', 'community-store', 'community-store'],
+    ])(
+      'preserves verification identity for %s',
+      async (store, storeId, expected) => {
+        mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        const result = await IAP.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+        });
+        expect(result.iapkit?.storeId).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['unknown', undefined],
+      ['unknown', 'unknown'],
+      ['google', 'community-store'],
+      ['apple', 'play'],
+    ])(
+      'rejects contradictory verification identity for %s/%s',
+      async (store, storeId) => {
+        mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        await expect(
+          IAP.verifyPurchaseWithProvider({provider: 'iapkit'}),
+        ).rejects.toThrow(/store identity/);
+      },
+    );
+
     beforeEach(() => {
       mockIap.verifyPurchaseWithProvider = jest.fn();
     });
@@ -2773,7 +2896,7 @@ describe('Public API (src/index.ts)', () => {
       Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
-        iapkit: [],
+        iapkit: null,
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
 

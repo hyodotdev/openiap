@@ -33,7 +33,14 @@ static func normalize(value: Variant, provider: String = "") -> String:
 		return key if provider.is_empty() else ""
 	if key in ["apple", "none", "unknown"] or not valid_provider(provider):
 		return ""
-	return key if RegEx.create_from_string("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$").search(key) else ""
+	return key if valid_store_id(key) else ""
+
+
+static func valid_store_id(value: Variant) -> bool:
+	if not value is String or ALIASES.get(value, "") in ["auto", "none", "play", "horizon", "amazon"] or value in ["apple", "unknown"]:
+		return false
+	var match = RegEx.create_from_string("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$").search(value)
+	return match != null and match.get_string() == value
 
 
 static func valid_provider(provider: String) -> bool:

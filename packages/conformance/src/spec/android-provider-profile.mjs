@@ -1,5 +1,7 @@
+import {SUITE_VERSION} from './suite-version.mjs';
+
 /** Required assertions for the scoped Kotlin Android provider report. */
-export const ANDROID_PROVIDER_PROFILE = Object.freeze({
+const profileV4 = Object.freeze({
   mapping: [
     'subscriptions.active-subscription-is-reported-active',
     'subscriptions.pending-subscription-is-not-active',
@@ -25,12 +27,21 @@ export const ANDROID_PROVIDER_PROFILE = Object.freeze({
   },
 });
 
-export const requiredProviderBehaviors = (capabilities) => [
-  ...ANDROID_PROVIDER_PROFILE.mapping,
-  ...ANDROID_PROVIDER_PROFILE.runtime,
-  ...capabilities.map((capability) => {
-    const id = ANDROID_PROVIDER_PROFILE.capabilities[capability];
-    if (!id) throw new Error(`Unknown provider capability: ${capability}`);
-    return id;
-  }),
-];
+// Retain each published major's profile so historical reports remain verifiable.
+const profiles = new Map([[4, profileV4]]);
+export const ANDROID_PROVIDER_PROFILE = profiles.get(Number(SUITE_VERSION.split('.')[0]));
+if (!ANDROID_PROVIDER_PROFILE) throw new Error(`Missing Android provider profile for suite ${SUITE_VERSION}`);
+
+export const requiredProviderBehaviors = (capabilities, major = Number(SUITE_VERSION.split('.')[0])) => {
+  const profile = profiles.get(major);
+  if (!profile) throw new Error(`Unsupported Android provider suite major: ${major}`);
+  return [
+    ...profile.mapping,
+    ...profile.runtime,
+    ...capabilities.map((capability) => {
+      const id = profile.capabilities[capability];
+      if (!id) throw new Error(`Unknown provider capability: ${capability}`);
+      return id;
+    }),
+  ];
+};

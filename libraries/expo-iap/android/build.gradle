@@ -89,6 +89,9 @@ android {
     // When using local openiap-google with flavors, select the appropriate flavor
     missingDimensionStrategy "platform", openiapSelection.platform
   }
+  testOptions {
+    unitTests.includeAndroidResources = true
+  }
   lint {
     abortOnError = false
   }
@@ -107,6 +110,7 @@ kotlin {
 
 dependencies {
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.16.1"
     testImplementation "org.json:json:20260719"
 
     openIapAddStoreDependencies('api', googleVersionString, ':openiap-google')

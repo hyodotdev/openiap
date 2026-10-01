@@ -1022,6 +1022,32 @@ func test_android_available_purchases_envelope() -> void:
 	_assert_equal(structured.get("success"), true, "Structured available-purchases results should preserve success")
 	_assert_equal(structured.get("purchases", []).size(), 1, "Structured results should contain the typed purchases")
 
+	var community_purchase := {
+		"id": "community", "productId": "owned.sku", "store": "unknown",
+		"storeId": "community-fixture", "purchaseState": "purchased",
+		"transactionDate": 1.0, "quantity": 1, "isAutoRenewing": false,
+	}
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
+	var community_owned = await GodotIapPlugin.get_available_purchases()
+	_assert_equal(community_owned.size(), 1, "Community ownership should decode")
+	_assert_equal(community_owned[0].store_id, "community-fixture", "Community ownership should preserve store identity")
+	for store in ["google", "amazon", "horizon"]:
+		var mismatched = community_purchase.duplicate()
+		mismatched["store"] = store
+		fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [mismatched]})
+		var invalid_official = await GodotIapPlugin.get_available_purchases_result()
+		_assert_equal(invalid_official.get("success"), false, "Contradictory official identity should reject the batch")
+		_assert_equal(invalid_official.get("code"), "billing-response-json-parse-error", "Official identity mismatch should use the decode error code")
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
+	var community_restored = await GodotIapPlugin.restore_purchases()
+	_assert_equal(community_restored.success, true, "Community restore should succeed")
+	for invalid_id in [null, "", "play", "apple", "google", "horizon", "amazon", "auto", "none", "unknown", "bad id"]:
+		community_purchase["storeId"] = invalid_id
+		fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
+		var invalid_community = await GodotIapPlugin.get_available_purchases_result()
+		_assert_equal(invalid_community.get("success"), false, "Invalid community identity should reject the batch")
+		_assert_equal(invalid_community.get("code"), "billing-response-json-parse-error", "Invalid identity should use the decode error code")
+
 	fake.responses["getAvailablePurchasesResult"] = "{}"
 	var failed = await GodotIapPlugin.get_available_purchases_result()
 	_assert_equal(failed.get("success"), false, "Missing success must remain distinguishable from an empty store")

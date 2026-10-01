@@ -1997,18 +1997,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   }
                 }
 
-                return gentype.RequestVerifyPurchaseWithIapkitResult(
-                  clientPayload: clientPayload,
-                  environment: environment,
-                  isValid: isValid,
-                  productId: productIdValue as String?,
-                  state: parseState(),
-                  store: gentype.IapStore.fromJson(store.toString()),
-                  storeId: itemMap['storeId'] as String? ??
-                      (store.toString() == 'google'
-                          ? 'play'
-                          : store.toString()),
-                );
+                return gentype.RequestVerifyPurchaseWithIapkitResult.fromJson({
+                  ...itemMap,
+                  'clientPayload': clientPayload?.toJson(),
+                  'environment': environment,
+                  'isValid': isValid,
+                  'productId': productIdValue as String?,
+                  'state': parseState().toJson(),
+                  'store': store.toString(),
+                });
               }
 
               gentype.RequestVerifyPurchaseWithIapkitResult? iapkitResult;

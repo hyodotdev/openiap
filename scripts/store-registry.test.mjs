@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {DART_KEYWORDS} from '../specs/client/codegen/core/dart-keywords.mjs';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import {maintenanceStatus, validateProviderReport, validateStoreRegistry} from '../specs/client/store-registry.mjs';
@@ -78,12 +79,30 @@ test('a complete failed report remains experimental', () => {
 });
 test('declaring another capability makes its behavior mandatory', () => {
   const value = report(); value.capabilities.push('subscriptionBillingIssue');
-  assert.throws(() => validateProviderReport(value, value.capabilities), /required current-suite/);
+  assert.throws(() => validateProviderReport(value, value.capabilities), /required suite/);
+});
+test('historical reports must use a published provider profile and its actual behaviors', () => {
+  const value = report(); value.suiteVersion = '3.0.0';
+  assert.throws(() => validateProviderReport(value, value.capabilities), /Unsupported Android provider suite major/);
+  value.suiteVersion = SUITE_VERSION;
+  assert.equal(validateProviderReport(value, value.capabilities, {suiteVersion: '5.0.0'}), true);
+  value.scope.requiredBehaviors = ['bogus'];
+  value.results = [{id: 'bogus', outcome: 'pass'}];
+  assert.throws(() => validateProviderReport(value, value.capabilities, {suiteVersion: '5.0.0'}), /required suite/);
 });
 test('an older passing major becomes unmaintained after the grace window', () => {
-  const store = community(); store.latestReport.report.suiteVersion = '3.0.0';
-  assert.equal(maintenanceStatus(store, 90, {now: new Date('2026-10-15'), majorReleaseDate: '2026-10-01'}), 'outdated');
-  assert.equal(maintenanceStatus(store, 90, {now: new Date('2027-01-01'), majorReleaseDate: '2026-10-01'}), 'unmaintained');
-  store.latestReport.report.suiteVersion = SUITE_VERSION;
-  assert.equal(maintenanceStatus(store, 90, {now: new Date('2027-01-01')}), 'community');
+  const store = community();
+  const options = {suiteVersion: '5.0.0', majorReleaseDate: '2026-10-01'};
+  assert.equal(maintenanceStatus(store, 90, {...options, now: new Date('2026-10-15')}), 'outdated');
+  assert.equal(maintenanceStatus(store, 90, {...options, now: new Date('2027-01-01')}), 'unmaintained');
+  store.latestReport.report.suiteVersion = '5.0.0';
+  assert.equal(maintenanceStatus(store, 90, {...options, now: new Date('2027-01-01')}), 'community');
+});
+
+test('registered constants reject Dart keywords and Object members before generation', () => {
+  for (const id of [...DART_KEYWORDS].filter((name) => /^[a-z]+$/.test(name)).concat(['hash-code', 'runtime-type', 'no-such-method'])) {
+    const data = registry();
+    data.stores.push({...community(), id, tier: 'experimental', latestReport: null});
+    assert.throws(() => validateStoreRegistry(data), /Invalid or duplicate|constants collide or are reserved/, id);
+  }
 });

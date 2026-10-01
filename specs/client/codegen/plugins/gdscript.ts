@@ -5,7 +5,7 @@
  * Uses the IR (Intermediate Representation) for maintainable code generation.
  */
 
-import { renderStoreIds } from '../core/store-ids.js';
+import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { basename } from 'node:path';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
@@ -189,6 +189,7 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.lines = [];
     this.generateHeader();
     this.emit(renderStoreIds('gdscript'));
+    if (schema.enums.some(item => item.name === 'IapStore')) this.emit(renderStoreIdentityResolver('gdscript'));
 
     // Enums
     this.emit('# ============================================================================');
@@ -473,7 +474,13 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\tvar obj = ${irObject.name}.new()`);
       for (const field of fields) {
         const fieldName = this.getGdscriptFieldName(field.name, irObject.name);
-        this.generateFromDictField(field, fieldName);
+        if (!hasStoreIdentity(fields) || field.name !== 'storeId') this.generateFromDictField(field, fieldName);
+      }
+      if (hasStoreIdentity(fields)) {
+        this.emit('\t\tvar store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))');
+        this.emit('\t\tif store_id == null:');
+        this.emit('\t\t\treturn null');
+        this.emit('\t\tobj.store_id = store_id');
       }
       this.emit('\t\treturn obj');
 

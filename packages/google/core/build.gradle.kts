@@ -106,7 +106,7 @@ android {
 extensions.configure<KotlinAndroidProjectExtension> {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
-        freeCompilerArgs.add("-Xjvm-default=all")
+        freeCompilerArgs.add("-Xjvm-default=all-compatibility")
     }
 }
 

@@ -61,7 +61,8 @@ export const convertAndroidPurchasesOrThrow = (
 ): Purchase[] => {
   const decoded = convertAvailablePurchasesOrThrow(purchases);
   const invalidIndex = decoded.findIndex(
-    (purchase) => !ANDROID_STORES.has(purchase.store),
+    (purchase) =>
+      !ANDROID_STORES.has(purchase.store) && purchase.store !== 'unknown',
   );
   if (invalidIndex !== -1) {
     throw createPurchaseError({

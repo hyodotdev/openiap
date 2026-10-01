@@ -2805,7 +2805,8 @@ function checkIapkitAmazonContractWiring() {
     [
       "'expectedProductId':",
       "final environmentValue = itemMap['environment']",
-      "environment: environment,",
+      "RequestVerifyPurchaseWithIapkitResult.fromJson({",
+      "'environment': environment,",
     ],
     "Flutter IAPKit Amazon contract",
   );

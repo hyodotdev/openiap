@@ -3509,6 +3509,55 @@ void main() {
       expect(result.iapkit!.clientPayload, isNull);
     });
 
+    test('verification uses canonical official and community identities',
+        () async {
+      Map<String, dynamic> identity = {'store': 'google'};
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'verifyPurchaseWithProvider') {
+          return {
+            'provider': 'iapkit',
+            'iapkit': {
+              'isValid': true,
+              'state': 'entitled',
+              ...identity,
+            }
+          };
+        }
+        return null;
+      });
+      final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'));
+      await iap.initConnection();
+      Future<types.VerifyPurchaseWithProviderResult> verify() =>
+          iap.verifyPurchaseWithProvider(
+            provider: types.PurchaseVerificationProvider.Iapkit,
+            iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+              google: types.RequestVerifyPurchaseWithIapkitGoogleProps(
+                  purchaseToken: 'token'),
+            ),
+          );
+      expect((await verify()).iapkit!.storeId, 'play');
+      identity = {'store': 'unknown', 'storeId': 'community-store'};
+      expect((await verify()).iapkit!.storeId, 'community-store');
+      for (final invalid in [
+        {'store': 'unknown'},
+        {'store': 'unknown', 'storeId': 'unknown'},
+        {'store': 'google', 'storeId': 'community-store'},
+        {'store': 'apple', 'storeId': 'play'},
+      ]) {
+        identity = invalid;
+        await expectLater(
+            verify(),
+            throwsA(isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              types.ErrorCode.PurchaseVerificationFailed,
+            )));
+      }
+    });
+
     test('drops a non-string IAPKit environment', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {

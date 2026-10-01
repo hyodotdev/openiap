@@ -14,6 +14,21 @@ abstract final class StoreIds {
   static const String amazon = 'amazon';
 }
 
+String _resolveStoreId(IapStore store, dynamic value) {
+  final official = switch (store) {
+    IapStore.Apple => 'apple',
+    IapStore.Google => 'play',
+    IapStore.Horizon => 'horizon',
+    IapStore.Amazon => 'amazon',
+    IapStore.Unknown => null,
+  };
+  final id = value ?? official;
+  if (id is! String || (official != null ? id != official : RegExp(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$').firstMatch(id)?.end != id.length || const {'auto', 'none', 'unknown', 'apple', 'play', 'google', 'horizon', 'amazon'}.contains(id))) {
+    throw const FormatException('Invalid store identity');
+  }
+  return id;
+}
+
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)
@@ -3190,6 +3205,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final bool? isAlternativeBilling;
 
   factory PurchaseAndroid.fromJson(Map<String, dynamic> json) {
+    final store = IapStore.fromJson(json['store'] as String);
     return PurchaseAndroid(
       autoRenewingAndroid: json['autoRenewingAndroid'] as bool?,
       currentPlanId: json['currentPlanId'] as String?,
@@ -3209,8 +3225,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       purchaseToken: json['purchaseToken'] as String?,
       quantity: json['quantity'] as int,
       signatureAndroid: json['signatureAndroid'] as String?,
-      store: IapStore.fromJson(json['store'] as String),
-      storeId: json['storeId'] as String,
+      store: store,
+      storeId: _resolveStoreId(store, json['storeId']),
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String?,
       userIdAmazon: json['userIdAmazon'] as String?,
@@ -3418,6 +3434,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final bool? isAlternativeBilling;
 
   factory PurchaseIOS.fromJson(Map<String, dynamic> json) {
+    final store = IapStore.fromJson(json['store'] as String);
     return PurchaseIOS(
       advancedCommerceInfoIOS: json['advancedCommerceInfoIOS'] != null ? AdvancedCommerceInfoIOS.fromJson(json['advancedCommerceInfoIOS'] as Map<String, dynamic>) : null,
       appAccountToken: json['appAccountToken'] as String?,
@@ -3454,9 +3471,9 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       revocationDateIOS: (json['revocationDateIOS'] as num?)?.toDouble(),
       revocationReasonIOS: json['revocationReasonIOS'] as String?,
       revocationTypeIOS: json['revocationTypeIOS'] as String?,
-      store: IapStore.fromJson(json['store'] as String),
+      store: store,
       storefrontCountryCodeIOS: json['storefrontCountryCodeIOS'] as String?,
-      storeId: json['storeId'] as String,
+      storeId: _resolveStoreId(store, json['storeId']),
       subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String,
@@ -3802,14 +3819,15 @@ class RequestVerifyPurchaseWithIapkitResult {
   final String storeId;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
+    final store = IapStore.fromJson(json['store'] as String);
     return RequestVerifyPurchaseWithIapkitResult(
       clientPayload: json['clientPayload'] is Map<String, dynamic> ? IapkitProductClientPayload._tryFromJson(json['clientPayload'] as Map<String, dynamic>) : null,
       environment: json['environment'] as String?,
       isValid: json['isValid'] as bool,
       productId: json['productId'] as String?,
       state: IapkitPurchaseState.fromJson(json['state'] as String),
-      store: IapStore.fromJson(json['store'] as String),
-      storeId: json['storeId'] as String,
+      store: store,
+      storeId: _resolveStoreId(store, json['storeId']),
     );
   }
 

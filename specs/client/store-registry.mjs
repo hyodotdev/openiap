@@ -1,3 +1,4 @@
+import { DART_KEYWORDS } from './codegen/core/dart-keywords.mjs';
 import { CAPABILITY_MATRIX } from './src/capability-matrix.mjs';
 import { SUITE_VERSION, SUITE_MAJOR_RELEASE_DATE } from '../../packages/conformance/src/spec/suite-version.mjs';
 import { ANDROID_PROVIDER_PROFILE, requiredProviderBehaviors } from '../../packages/conformance/src/spec/android-provider-profile.mjs';
@@ -24,7 +25,7 @@ export function validateProviderReport(report, declaredCapabilities, {suiteVersi
   requireThat(report.scope?.kind === 'android-provider', 'Report must use the android-provider profile');
   const required = report.scope?.requiredBehaviors;
   requireThat(Array.isArray(required) && required.length > 0 && required.length === new Set(required).size, 'Missing or duplicate required behaviors');
-  if (major === current) requireThat(sameSet(required, requiredProviderBehaviors(declaredCapabilities)), 'Report omits required current-suite behaviors');
+  requireThat(sameSet(required, requiredProviderBehaviors(declaredCapabilities, major)), 'Report omits required suite behaviors');
   requireThat(Array.isArray(report.results) && report.results.length === new Set(report.results.map((result) => result.id)).size, 'Missing or duplicate report results');
   const outcomes = new Map(report.results.map((result) => [result.id, result.outcome]));
   requireThat(report.results.every((result) => typeof result.id === 'string' && ['pass', 'fail', 'not-applicable'].includes(result.outcome)), 'Invalid report result');
@@ -51,7 +52,8 @@ export function validateStoreRegistry(registry) {
   for (const store of registry.stores) {
     requireThat(typeof store.id === 'string' && STORE_ID_PATTERN.test(store.id) && !names.has(store.id), `Invalid or duplicate store id: ${store.id}`);
     const member = store.id.split(/[._-]/).map((part) => part[0].toUpperCase() + part.slice(1)).join('');
-    requireThat(!members.has(member) && !['StoreIds', 'Self', 'Class', 'Enum', 'Extension', 'Factory', 'Get', 'Set', 'Static', 'Const', 'Final', 'Var', 'Void', 'Null', 'True', 'False', 'This', 'Super', 'Switch', 'Case', 'Default', 'Return', 'If', 'Else', 'For', 'While', 'Do', 'Break', 'Continue', 'Try', 'Catch', 'Throw', 'Rethrow', 'Assert', 'New', 'In', 'Is', 'As', 'With', 'Implements', 'Interface', 'Mixin', 'On', 'Import', 'Export', 'Part', 'Library', 'Abstract', 'Covariant', 'External', 'Late', 'Required', 'Await', 'Yield', 'Async', 'Sync', 'ToString', 'GetHashCode', 'Equals', 'GetType', 'ReferenceEquals', 'MemberwiseClone', 'Finalize'].includes(member), `Store constants collide or are reserved: ${store.id}`);
+    const dartMember = member[0].toLowerCase() + member.slice(1);
+    requireThat(!members.has(member) && !DART_KEYWORDS.has(dartMember) && !['StoreIds', 'Self', 'ToString', 'HashCode', 'RuntimeType', 'NoSuchMethod', 'GetHashCode', 'Equals', 'GetType', 'ReferenceEquals', 'MemberwiseClone', 'Finalize'].includes(member), `Store constants collide or are reserved: ${store.id}`);
     members.add(member);
     names.add(store.id);
     requireThat(['android', 'ios'].includes(store.platform), `Invalid platform: ${store.id}`);

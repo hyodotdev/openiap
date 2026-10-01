@@ -4,8 +4,8 @@ import android.content.Context
 import android.os.Bundle
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -20,10 +20,34 @@ class OpenIapProviderTest {
     private fun metadata(className: String?) {
         val info = context.packageManager.getApplicationInfo(context.packageName, 0)
         info.metaData = Bundle().apply { className?.let { putString(OpenIapProvider.METADATA_KEY, it) } }
-        shadowOf(context.packageManager).installPackage(android.content.pm.PackageInfo().apply {
-            packageName = context.packageName
-            applicationInfo = info
-        })
+        shadowOf(context.packageManager).installPackage(
+            android.content.pm.PackageInfo().apply {
+                packageName = context.packageName
+                applicationInfo = info
+            },
+        )
+    }
+
+    @Test fun `published Kotlin default argument bridges remain linkable`() {
+        val defaults = Class.forName("dev.hyo.openiap.OpenIapProtocol\$DefaultImpls")
+        defaults.getDeclaredMethod(
+            "showInAppMessages\$default",
+            OpenIapProtocol::class.java,
+            android.app.Activity::class.java,
+            InAppMessageParamsAndroid::class.java,
+            kotlin.coroutines.Continuation::class.java,
+            Int::class.javaPrimitiveType,
+            Any::class.java,
+        )
+        defaults.getDeclaredMethod(
+            "createBillingProgramReportingDetails\$default",
+            OpenIapProtocol::class.java,
+            BillingProgramAndroid::class.java,
+            DeveloperBillingTypeAndroid::class.java,
+            kotlin.coroutines.Continuation::class.java,
+            Int::class.javaPrimitiveType,
+            Any::class.java,
+        )
     }
 
     @Test fun `stable provider works on newer core in its major`() {
@@ -33,13 +57,17 @@ class OpenIapProviderTest {
 
     @Test fun `invalid ids and incompatible cores fail with a developer error`() {
         for ((id, built, runtime) in listOf(
-            Triple("auto", "3.6.2", "3.6.2"), Triple("Bad Store", "3.6.2", "3.6.2"),
-            Triple("fake", "4.0.0", "3.6.2"), Triple("fake", "3.7.0", "3.6.2"),
-            Triple("fake", "bad", "3.6.2"), Triple("fake", "3.6.2-rc.1", "3.6.2"),
+            Triple("auto", "3.6.2", "3.6.2"),
+            Triple("Bad Store", "3.6.2", "3.6.2"),
+            Triple("fake", "4.0.0", "3.6.2"),
+            Triple("fake", "3.7.0", "3.6.2"),
+            Triple("fake", "bad", "3.6.2"),
+            Triple("fake", "3.6.2-rc.1", "3.6.2"),
         )) {
-            val error = assertThrows(OpenIapError.ProviderConfiguration::class.java) {
-                OpenIapProvider.validate(id, built, runtime)
-            }
+            val error =
+                assertThrows(OpenIapError.ProviderConfiguration::class.java) {
+                    OpenIapProvider.validate(id, built, runtime)
+                }
             assertEquals(ErrorCode.DeveloperError.rawValue, error.code)
         }
     }

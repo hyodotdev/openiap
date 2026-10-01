@@ -44,7 +44,8 @@ import java.util.concurrent.atomic.AtomicLong
 /** Java-friendly JSON facade over the selected provider for the .NET binding. */
 class OpenIapMauiModule(private val context: Context) {
 
-    private val module = OpenIapProvider.create(context)
+    private val provider = runCatching { OpenIapProvider.create(context) }
+    private val module get() = provider.getOrThrow()
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -78,7 +79,7 @@ class OpenIapMauiModule(private val context: Context) {
 
     fun setActivity(activity: Activity?) {
         currentActivity = activity
-        module.setActivity(activity)
+        provider.getOrNull()?.setActivity(activity)
     }
 
     // -----------------------------------------------------------------
@@ -106,8 +107,6 @@ class OpenIapMauiModule(private val context: Context) {
 
     fun getAvailablePurchases(optionsJson: String?, callback: ResultCallback) = run(callback) {
         val options = optionsJson?.let { PurchaseOptions.fromJson(parseMap(it)) }
-        // Module's getAvailablePurchases is the suspend handler; the protocol exposes
-        // the typealias as `val getAvailablePurchases: QueryGetAvailablePurchasesHandler`
         val purchases = module.getAvailablePurchases(options)
         encodePurchases(purchases)
     }
@@ -246,9 +245,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapPurchaseUpdateListener { purchase ->
             callback.onEvent(gson.toJson(purchase.toJson()))
         }
-        module.addPurchaseUpdateListener(listener)
+        provider.getOrNull()?.addPurchaseUpdateListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removePurchaseUpdateListener(listener)
+            override fun unregister() { provider.getOrNull()?.removePurchaseUpdateListener(listener) }
         })
     }
 
@@ -256,9 +255,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapPurchaseErrorListener { error ->
             callback.onEvent(gson.toJson(encodeError(error)))
         }
-        module.addPurchaseErrorListener(listener)
+        provider.getOrNull()?.addPurchaseErrorListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removePurchaseErrorListener(listener)
+            override fun unregister() { provider.getOrNull()?.removePurchaseErrorListener(listener) }
         })
     }
 
@@ -266,9 +265,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapSubscriptionBillingIssueListener { purchase ->
             callback.onEvent(gson.toJson(purchase.toJson()))
         }
-        module.addSubscriptionBillingIssueListener(listener)
+        provider.getOrNull()?.addSubscriptionBillingIssueListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removeSubscriptionBillingIssueListener(listener)
+            override fun unregister() { provider.getOrNull()?.removeSubscriptionBillingIssueListener(listener) }
         })
     }
 
@@ -276,9 +275,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapUserChoiceBillingListener { details ->
             callback.onEvent(gson.toJson(details.toJson()))
         }
-        module.addUserChoiceBillingListener(listener)
+        provider.getOrNull()?.addUserChoiceBillingListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removeUserChoiceBillingListener(listener)
+            override fun unregister() { provider.getOrNull()?.removeUserChoiceBillingListener(listener) }
         })
     }
 
@@ -286,9 +285,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapDeveloperProvidedBillingListener { details ->
             callback.onEvent(gson.toJson(details.toJson()))
         }
-        module.addDeveloperProvidedBillingListener(listener)
+        provider.getOrNull()?.addDeveloperProvidedBillingListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removeDeveloperProvidedBillingListener(listener)
+            override fun unregister() { provider.getOrNull()?.removeDeveloperProvidedBillingListener(listener) }
         })
     }
 

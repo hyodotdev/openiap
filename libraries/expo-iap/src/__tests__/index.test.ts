@@ -1347,6 +1347,66 @@ describe('Public API (index.ts)', () => {
       });
     });
 
+    it.each([
+      ['ios', 'apple'],
+      ['android', 'google'],
+      ['android', 'horizon'],
+      ['android', 'amazon'],
+    ])('rejects contradictory %s %s identity', async (platform, store) => {
+      Object.assign(Platform, {OS: platform});
+      jest
+        .mocked(ExpoIapModule.getAvailableItems)
+        .mockResolvedValue([nativePurchase({store, storeId: 'other'})]);
+      await expect(getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('getAvailablePurchases preserves community identity on Android', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      jest.mocked(ExpoIapModule.getAvailableItems).mockResolvedValue([
+        nativePurchase('community', {
+          store: 'unknown',
+          storeId: 'community-fixture',
+        }),
+      ]);
+      await expect(getAvailablePurchases()).resolves.toEqual([
+        expect.objectContaining({
+          store: 'unknown',
+          storeId: 'community-fixture',
+        }),
+      ]);
+      await expect(restorePurchases()).resolves.toBeUndefined();
+    });
+
+    it.each([
+      undefined,
+      '',
+      'play',
+      'apple',
+      'google',
+      'horizon',
+      'amazon',
+      'auto',
+      'none',
+      'unknown',
+      'bad id',
+      'store\n',
+    ])(
+      'getAvailablePurchases rejects invalid community identity %s',
+      async (storeId) => {
+        Object.assign(Platform, {OS: 'android'});
+        jest
+          .mocked(ExpoIapModule.getAvailableItems)
+          .mockResolvedValue([
+            nativePurchase('community', {store: 'unknown', storeId}),
+          ]);
+        await expect(getAvailablePurchases()).rejects.toMatchObject({
+          code: ErrorCode.BillingResponseJsonParseError,
+        });
+      },
+    );
+
     it('getAvailablePurchases rejects a foreign store on Android', async () => {
       Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
@@ -1994,6 +2054,46 @@ describe('Public API (index.ts)', () => {
   });
 
   describe('verifyPurchaseWithProvider', () => {
+    it.each([
+      ['google', undefined, 'play'],
+      ['apple', undefined, 'apple'],
+      ['horizon', undefined, 'horizon'],
+      ['amazon', undefined, 'amazon'],
+      ['unknown', 'community-store', 'community-store'],
+    ])(
+      'preserves verification identity for %s',
+      async (store, storeId, expected) => {
+        (
+          ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+        ).mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        const result = await verifyPurchaseWithProvider({provider: 'iapkit'});
+        expect(result.iapkit?.storeId).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['unknown', undefined],
+      ['unknown', 'unknown'],
+      ['google', 'community-store'],
+      ['apple', 'play'],
+    ])(
+      'rejects contradictory verification identity for %s/%s',
+      async (store, storeId) => {
+        (
+          ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+        ).mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        await expect(
+          verifyPurchaseWithProvider({provider: 'iapkit'}),
+        ).rejects.toThrow(/store identity/);
+      },
+    );
+
     beforeEach(() => {
       jest.clearAllMocks();
     });

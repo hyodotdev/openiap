@@ -2872,6 +2872,17 @@ test("an unregistered community provider needs only a fixed coordinate pair", ()
   });
 });
 
+test("a community store uses the neutral provider flavor and Play guidance removes the pair", () => {
+  withProject({...EXPO,
+    "android/gradle.properties": "openiapStore=community-fixture\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "android/app/build.gradle.kts": 'missingDimensionStrategy("platform", "provider")\n',
+  }, (root) => {
+    assert.ok(!ids(root).includes("android-store-flavor-mismatch"));
+    const warning = doctor(root).findings.find((one) => one.id === "android-store-not-play");
+    assert.match(warning.fix, /both openiapStore and openiapProvider/);
+  });
+});
+
 test("doctor rejects incomplete or conflicting provider coordinates", () => {
   for (const properties of [
     "openiapProvider=dev.example:provider:1.0.0\n",

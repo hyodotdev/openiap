@@ -18,6 +18,17 @@ class StoreIds:
 	const HORIZON = "horizon"
 	const AMAZON = "amazon"
 
+static func resolve_store_id(store: Variant, value: Variant) -> Variant:
+	var official: Variant = {IapStore.APPLE: "apple", IapStore.GOOGLE: "play", IapStore.HORIZON: "horizon", IapStore.AMAZON: "amazon"}.get(store)
+	var id: Variant = value if value != null else official
+	if not id is String:
+		return null
+	if official != null:
+		return id if id == official else null
+	var pattern = RegEx.new()
+	pattern.compile("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
+	return id if pattern.search(id) != null and pattern.search(id).get_string() == id and not id in ["auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon"] else null
+
 # ============================================================================
 # Enums
 # ============================================================================
@@ -2311,8 +2322,6 @@ class PurchaseAndroid:
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
-		if data.has("storeId") and data["storeId"] != null:
-			obj.store_id = data["storeId"]
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
@@ -2354,6 +2363,10 @@ class PurchaseAndroid:
 			obj.user_id_amazon = data["userIdAmazon"]
 		if data.has("userMarketplaceAmazon") and data["userMarketplaceAmazon"] != null:
 			obj.user_marketplace_amazon = data["userMarketplaceAmazon"]
+		var store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))
+		if store_id == null:
+			return null
+		obj.store_id = store_id
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2566,8 +2579,6 @@ class PurchaseIOS:
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
-		if data.has("storeId") and data["storeId"] != null:
-			obj.store_id = data["storeId"]
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
@@ -2664,6 +2675,10 @@ class PurchaseIOS:
 				obj.advanced_commerce_info_ios = AdvancedCommerceInfoIOS.from_dict(data["advancedCommerceInfoIOS"])
 			else:
 				obj.advanced_commerce_info_ios = data["advancedCommerceInfoIOS"]
+		var store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))
+		if store_id == null:
+			return null
+		obj.store_id = store_id
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3013,8 +3028,6 @@ class RequestVerifyPurchaseWithIapkitResult:
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
-		if data.has("storeId") and data["storeId"] != null:
-			obj.store_id = data["storeId"]
 		if data.has("environment") and data["environment"] != null:
 			obj.environment = data["environment"]
 		if data.has("isValid") and data["isValid"] != null:
@@ -3032,6 +3045,10 @@ class RequestVerifyPurchaseWithIapkitResult:
 		if data.has("clientPayload") and data["clientPayload"] != null:
 			if data["clientPayload"] is Dictionary:
 				obj.client_payload = IapkitProductClientPayload.from_dict_or_null(data["clientPayload"])
+		var store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))
+		if store_id == null:
+			return null
+		obj.store_id = store_id
 		return obj
 
 	func to_dict() -> Dictionary:

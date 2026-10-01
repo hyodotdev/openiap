@@ -4,7 +4,7 @@
  * Generates Swift types with Codable conformance from GraphQL schema.
  */
 
-import { renderStoreIds } from '../core/store-ids.js';
+import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -215,8 +215,35 @@ export class SwiftPlugin extends CodegenPlugin {
       this.emit('    public init() {}');
     }
 
+    if (hasStoreIdentity(sortedFields)) {
+      this.emit('    private enum CodingKeys: String, CodingKey {');
+      this.emit(`        case ${sortedFields.map(field => this.escapeKeyword(field.name)).join(', ')}`);
+      this.emit('    }');
+    }
     this.emit('}');
     this.emit('');
+    if (hasStoreIdentity(sortedFields)) {
+      this.emit(`extension ${irObject.name} {`);
+      this.emit('    public init(from decoder: Decoder) throws {');
+      this.emit('        let container = try decoder.container(keyedBy: CodingKeys.self)');
+      this.emit('        let store = try container.decode(IapStore.self, forKey: .store)');
+      for (const field of sortedFields) {
+        const name = this.escapeKeyword(field.name);
+        if (field.name === 'store') {
+          this.emit('        self.store = store');
+        } else if (field.name === 'storeId') {
+          this.emit('        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {');
+          this.emit('            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")');
+          this.emit('        }');
+          this.emit('        self.storeId = storeId');
+        } else {
+          this.emit(`        self.${name} = try container.${field.type.nullable ? 'decodeIfPresent' : 'decode'}(${this.mapType(field.type)}.self, forKey: .${name})`);
+        }
+      }
+      this.emit('    }');
+      this.emit('}');
+      this.emit('');
+    }
   }
 
   private generateResultUnionObject(irObject: IRObject): void {
@@ -568,6 +595,7 @@ export class SwiftPlugin extends CodegenPlugin {
     // Header
     this.generateHeader();
     this.emit(renderStoreIds('swift'));
+    if (schema.enums.some(item => item.name === 'IapStore')) this.emit(renderStoreIdentityResolver('swift'));
 
     // Enums
     if (schema.enums.length > 0) {

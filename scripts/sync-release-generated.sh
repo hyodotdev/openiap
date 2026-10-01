@@ -16,6 +16,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+bun install --frozen-lockfile --ignore-scripts
 ./scripts/sync-versions.sh
 node scripts/generate-store-registry.mjs
 

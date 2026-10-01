@@ -12,6 +12,22 @@ public enum StoreIds {
     public static let Amazon = "amazon"
 }
 
+private func resolveStoreId(_ store: IapStore, _ value: String?) -> String? {
+    let official: String?
+    switch store {
+    case .apple: official = "apple"
+    case .google: official = "play"
+    case .horizon: official = "horizon"
+    case .amazon: official = "amazon"
+    case .unknown: official = nil
+    }
+    guard let id = value ?? official else { return nil }
+    if let official { return id == official ? id : nil }
+    guard id.range(of: "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", options: .regularExpression) == id.startIndex..<id.endIndex,
+          !["auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon"].contains(id) else { return nil }
+    return id
+}
+
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)
@@ -1088,6 +1104,43 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     /// Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
     /// for example "US" or "FR". Only populated on the Amazon flavor.
     public var userMarketplaceAmazon: String? = nil
+    private enum CodingKeys: String, CodingKey {
+        case autoRenewingAndroid, currentPlanId, dataAndroid, developerPayloadAndroid, id, ids, isAcknowledgedAndroid, isAutoRenewing, isSuspendedAndroid, obfuscatedAccountIdAndroid, obfuscatedProfileIdAndroid, packageNameAndroid, pendingPurchaseUpdateAndroid, productId, purchaseState, purchaseToken, quantity, signatureAndroid, store, storeId, transactionDate, transactionId, userIdAmazon, userMarketplaceAmazon
+    }
+}
+
+extension PurchaseAndroid {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let store = try container.decode(IapStore.self, forKey: .store)
+        self.autoRenewingAndroid = try container.decodeIfPresent(Bool.self, forKey: .autoRenewingAndroid)
+        self.currentPlanId = try container.decodeIfPresent(String.self, forKey: .currentPlanId)
+        self.dataAndroid = try container.decodeIfPresent(String.self, forKey: .dataAndroid)
+        self.developerPayloadAndroid = try container.decodeIfPresent(String.self, forKey: .developerPayloadAndroid)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.ids = try container.decodeIfPresent([String].self, forKey: .ids)
+        self.isAcknowledgedAndroid = try container.decodeIfPresent(Bool.self, forKey: .isAcknowledgedAndroid)
+        self.isAutoRenewing = try container.decode(Bool.self, forKey: .isAutoRenewing)
+        self.isSuspendedAndroid = try container.decodeIfPresent(Bool.self, forKey: .isSuspendedAndroid)
+        self.obfuscatedAccountIdAndroid = try container.decodeIfPresent(String.self, forKey: .obfuscatedAccountIdAndroid)
+        self.obfuscatedProfileIdAndroid = try container.decodeIfPresent(String.self, forKey: .obfuscatedProfileIdAndroid)
+        self.packageNameAndroid = try container.decodeIfPresent(String.self, forKey: .packageNameAndroid)
+        self.pendingPurchaseUpdateAndroid = try container.decodeIfPresent(PendingPurchaseUpdateAndroid.self, forKey: .pendingPurchaseUpdateAndroid)
+        self.productId = try container.decode(String.self, forKey: .productId)
+        self.purchaseState = try container.decode(PurchaseState.self, forKey: .purchaseState)
+        self.purchaseToken = try container.decodeIfPresent(String.self, forKey: .purchaseToken)
+        self.quantity = try container.decode(Int.self, forKey: .quantity)
+        self.signatureAndroid = try container.decodeIfPresent(String.self, forKey: .signatureAndroid)
+        self.store = store
+        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {
+            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")
+        }
+        self.storeId = storeId
+        self.transactionDate = try container.decode(Double.self, forKey: .transactionDate)
+        self.transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId)
+        self.userIdAmazon = try container.decodeIfPresent(String.self, forKey: .userIdAmazon)
+        self.userMarketplaceAmazon = try container.decodeIfPresent(String.self, forKey: .userMarketplaceAmazon)
+    }
 }
 
 public struct PurchaseError: Codable {
@@ -1165,6 +1218,62 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var transactionId: String
     public var transactionReasonIOS: String? = nil
     public var webOrderLineItemIdIOS: String? = nil
+    private enum CodingKeys: String, CodingKey {
+        case advancedCommerceInfoIOS, appAccountToken, appBundleIdIOS, billingPlanTypeIOS, bundleOriginalTransactionIdIOS, bundleProductIdIOS, bundleSubscriptionGroupIdIOS, bundleTransactionIdIOS, commitmentInfoIOS, countryCodeIOS, currencyCodeIOS, currencySymbolIOS, currentPlanId, environmentIOS, expirationDateIOS, id, ids, isAutoRenewing, isUpgradedIOS, offerIOS, originalTransactionDateIOS, originalTransactionIdentifierIOS, ownershipTypeIOS, previousOriginalTransactionIdIOS, productId, purchaseState, purchaseToken, quantity, quantityIOS, reasonIOS, reasonStringRepresentationIOS, renewalInfoIOS, revocationDateIOS, revocationReasonIOS, revocationTypeIOS, store, storefrontCountryCodeIOS, storeId, subscriptionGroupIdIOS, transactionDate, transactionId, transactionReasonIOS, webOrderLineItemIdIOS
+    }
+}
+
+extension PurchaseIOS {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let store = try container.decode(IapStore.self, forKey: .store)
+        self.advancedCommerceInfoIOS = try container.decodeIfPresent(AdvancedCommerceInfoIOS.self, forKey: .advancedCommerceInfoIOS)
+        self.appAccountToken = try container.decodeIfPresent(String.self, forKey: .appAccountToken)
+        self.appBundleIdIOS = try container.decodeIfPresent(String.self, forKey: .appBundleIdIOS)
+        self.billingPlanTypeIOS = try container.decodeIfPresent(SubscriptionBillingPlanTypeIOS.self, forKey: .billingPlanTypeIOS)
+        self.bundleOriginalTransactionIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleOriginalTransactionIdIOS)
+        self.bundleProductIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleProductIdIOS)
+        self.bundleSubscriptionGroupIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleSubscriptionGroupIdIOS)
+        self.bundleTransactionIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleTransactionIdIOS)
+        self.commitmentInfoIOS = try container.decodeIfPresent(TransactionCommitmentInfoIOS.self, forKey: .commitmentInfoIOS)
+        self.countryCodeIOS = try container.decodeIfPresent(String.self, forKey: .countryCodeIOS)
+        self.currencyCodeIOS = try container.decodeIfPresent(String.self, forKey: .currencyCodeIOS)
+        self.currencySymbolIOS = try container.decodeIfPresent(String.self, forKey: .currencySymbolIOS)
+        self.currentPlanId = try container.decodeIfPresent(String.self, forKey: .currentPlanId)
+        self.environmentIOS = try container.decodeIfPresent(String.self, forKey: .environmentIOS)
+        self.expirationDateIOS = try container.decodeIfPresent(Double.self, forKey: .expirationDateIOS)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.ids = try container.decodeIfPresent([String].self, forKey: .ids)
+        self.isAutoRenewing = try container.decode(Bool.self, forKey: .isAutoRenewing)
+        self.isUpgradedIOS = try container.decodeIfPresent(Bool.self, forKey: .isUpgradedIOS)
+        self.offerIOS = try container.decodeIfPresent(PurchaseOfferIOS.self, forKey: .offerIOS)
+        self.originalTransactionDateIOS = try container.decodeIfPresent(Double.self, forKey: .originalTransactionDateIOS)
+        self.originalTransactionIdentifierIOS = try container.decodeIfPresent(String.self, forKey: .originalTransactionIdentifierIOS)
+        self.ownershipTypeIOS = try container.decodeIfPresent(String.self, forKey: .ownershipTypeIOS)
+        self.previousOriginalTransactionIdIOS = try container.decodeIfPresent(String.self, forKey: .previousOriginalTransactionIdIOS)
+        self.productId = try container.decode(String.self, forKey: .productId)
+        self.purchaseState = try container.decode(PurchaseState.self, forKey: .purchaseState)
+        self.purchaseToken = try container.decodeIfPresent(String.self, forKey: .purchaseToken)
+        self.quantity = try container.decode(Int.self, forKey: .quantity)
+        self.quantityIOS = try container.decodeIfPresent(Int.self, forKey: .quantityIOS)
+        self.reasonIOS = try container.decodeIfPresent(String.self, forKey: .reasonIOS)
+        self.reasonStringRepresentationIOS = try container.decodeIfPresent(String.self, forKey: .reasonStringRepresentationIOS)
+        self.renewalInfoIOS = try container.decodeIfPresent(RenewalInfoIOS.self, forKey: .renewalInfoIOS)
+        self.revocationDateIOS = try container.decodeIfPresent(Double.self, forKey: .revocationDateIOS)
+        self.revocationReasonIOS = try container.decodeIfPresent(String.self, forKey: .revocationReasonIOS)
+        self.revocationTypeIOS = try container.decodeIfPresent(String.self, forKey: .revocationTypeIOS)
+        self.store = store
+        self.storefrontCountryCodeIOS = try container.decodeIfPresent(String.self, forKey: .storefrontCountryCodeIOS)
+        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {
+            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")
+        }
+        self.storeId = storeId
+        self.subscriptionGroupIdIOS = try container.decodeIfPresent(String.self, forKey: .subscriptionGroupIdIOS)
+        self.transactionDate = try container.decode(Double.self, forKey: .transactionDate)
+        self.transactionId = try container.decode(String.self, forKey: .transactionId)
+        self.transactionReasonIOS = try container.decodeIfPresent(String.self, forKey: .transactionReasonIOS)
+        self.webOrderLineItemIdIOS = try container.decodeIfPresent(String.self, forKey: .webOrderLineItemIdIOS)
+    }
 }
 
 public struct PurchaseOfferIOS: Codable {
@@ -1273,6 +1382,26 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     public var store: IapStore
     /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
     public var storeId: String
+    private enum CodingKeys: String, CodingKey {
+        case clientPayload, environment, isValid, productId, state, store, storeId
+    }
+}
+
+extension RequestVerifyPurchaseWithIapkitResult {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let store = try container.decode(IapStore.self, forKey: .store)
+        self.clientPayload = try container.decodeIfPresent(IapkitProductClientPayload.self, forKey: .clientPayload)
+        self.environment = try container.decodeIfPresent(String.self, forKey: .environment)
+        self.isValid = try container.decode(Bool.self, forKey: .isValid)
+        self.productId = try container.decodeIfPresent(String.self, forKey: .productId)
+        self.state = try container.decode(IapkitPurchaseState.self, forKey: .state)
+        self.store = store
+        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {
+            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")
+        }
+        self.storeId = storeId
+    }
 }
 
 public struct SubscriptionCommitmentInfoIOS: Codable {

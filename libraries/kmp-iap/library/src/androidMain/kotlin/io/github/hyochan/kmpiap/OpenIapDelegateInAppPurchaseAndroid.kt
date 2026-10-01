@@ -218,8 +218,8 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
         withMappedOpenIapError {
-            options?.let {
-                requireModule().mutationHandlers.deepLinkToSubscriptions?.invoke(it.toOpenIap())
+            if (options != null || store == Store.UNKNOWN) {
+                requireModule().deepLinkToSubscriptions(options?.toOpenIap())
             }
         }
     }

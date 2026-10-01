@@ -139,9 +139,11 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
         <p>
           Use <code>purchase.storeId</code> when routing a purchase to your
           backend, and preserve it when finishing or verifying a purchase.
-          Registered ids have generated <code>StoreIds</code> constants.
-          Creating purchase or verification result objects manually now requires{' '}
-          <code>storeId</code>.
+          Registered ids have generated <code>StoreIds</code> constants. Include{' '}
+          <code>storeId</code> when creating purchase or verification result
+          objects manually. Previously saved official purchases without this
+          field decode to their official id; community purchases require a valid
+          explicit id.
         </p>
         <p>
           <Link to="/docs/types/purchase">Purchase fields</Link> ·{' '}

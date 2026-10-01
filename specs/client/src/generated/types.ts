@@ -10,6 +10,16 @@ export const StoreIds = {
   Amazon: 'amazon',
 } as const;
 
+export function resolveStoreId(value: unknown, store: IapStore): string {
+  const officialIds: Partial<Record<IapStore, string>> = {'apple': 'apple', 'google': 'play', 'horizon': 'horizon', 'amazon': 'amazon'};
+  const official = officialIds[store];
+  const id = value ?? official;
+  if (typeof id !== 'string' || (official != null ? id !== official : store !== 'unknown' || id.match(/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/)?.[0] !== id || ['auto', 'none', 'unknown', 'apple', 'play', 'google', 'horizon', 'amazon'].includes(id))) {
+    throw new Error('Invalid store identity');
+  }
+  return id;
+}
+
 export interface ActiveSubscription {
   autoRenewingAndroid?: (boolean | null);
   basePlanIdAndroid?: (string | null);

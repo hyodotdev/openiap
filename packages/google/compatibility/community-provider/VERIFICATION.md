@@ -3,7 +3,8 @@
 Implemented on `feat/google-pluggable-store-providers` from clean `main` at
 `69ab74bf`. The previous local main commits were preserved on
 `backup/main-before-store-providers-20260930`. The inventory and design were
-committed first in `12fa7b88`.
+committed first in `b66ed0ad`. The branch was rebased onto current `origin/main`
+at `64158e8e`; review policy was held at the original `69ab74bf` baseline.
 
 ## Result
 
@@ -32,16 +33,16 @@ registry that generates the alias tables, constants, and docs listing.
 | Gradle selection | 93 resolver cases; 22 plugin cases; external plain/flavored graphs pass and missing provider coordinates fail |
 | Google | Core and all three official unit-test variants pass; conformance AAR builds |
 | Official consumers | Kotlin 2.1 and minified release consumers pass for Play, Horizon, and Amazon |
-| React Native | 665 tests pass; all three official example APKs build |
-| Expo | 490 SDK/example tests and 116 plugin tests pass; all three official example APKs build |
-| Flutter | 385 tests and analysis pass; all three official example APKs build |
+| React Native | 691 tests and typecheck pass; initial builds of all three official example APKs pass |
+| Expo | 516 SDK tests, 116 plugin tests, and typecheck pass; three provider-destruction regressions pass; initial builds of all three official example APKs pass |
+| Flutter | 388 tests and analysis pass; two native provider-configuration regressions pass; initial builds of all three official example APKs pass |
 | KMP | Android tests and neutral build pass; all three official example APKs and iOS simulator compilation pass |
-| MAUI | 122 tests and 32 selection cases pass; all three official example APKs build |
-| Godot | Types 248, API 139, envelope 220, wrapper 223, and selection 46 assertions pass; Android plugin builds and unit tests pass |
-| Apple | 167 tests pass |
-| Client Protocol and CLI | 185 schema tests and canonical generation pass; 184 CLI tests pass |
+| MAUI | 139 tests and 32 selection cases pass; typed provider-init failure regression passes; initial builds of all three official example APKs pass |
+| Godot | Types 271, API 139, envelope 251, wrapper 223, and selection 46 assertions pass; Android plugin builds and unit tests pass |
+| Apple | 169 tests pass |
+| Client Protocol and CLI | 187 schema tests and canonical generation pass; 185 CLI tests pass |
 | JavaScript conformance | 40 tests pass |
-| Registry and release wiring | Registry validation/drift checks pass; release preflight and sync/policy tests pass; edited workflows parse as YAML and Bash |
+| Registry and release wiring | Registry validation/drift checks pass; 71 registry/preflight/sync/policy tests pass; fresh checkout dependency installation and release generation pass; edited workflows parse as YAML and Bash |
 | Repository and docs | Parity, layout, docs, release-state, CI path, and fact audits pass; docs build, lint, formatting, and discoverability pass |
 | Rendered docs | New guide checked on desktop and 390px mobile viewport; page has no horizontal overflow or browser warnings/errors |
 
@@ -49,6 +50,25 @@ Reproduce the provider checks with the command in [README.md](README.md).
 Local device evidence is in `build/reports/device/`; those build outputs are
 ignored by Git. The positive and negative reports are in
 `provider/build/reports/openiap/`.
+
+## Independent review
+
+Three read-only review scopes covered core/conformance/code generation,
+registry/CLI/release wiring, and all six SDKs. Their final snapshots reported
+no remaining actionable findings. Fixes include legacy official identity
+inference, malformed community identity rejection, verification-result identity
+validation, Kotlin JVM compatibility bridges, Swift/Dart constant collisions,
+C# record equality, typed initialization failures, and safe Expo destruction.
+
+KMP forwards default subscription options to community providers while retaining
+Amazon/Horizon's existing default no-op. Review fixes passed the full language
+suites and focused native tests listed above. Official APK builds and device
+purchases were executed during initial implementation; the complete official
+sandbox matrix was not rerun after review fixes.
+
+The PR release-note gate is still blocked on the maintainer-selected Client
+Protocol version. Remote CI, CodeRabbit, and the two scheduled clean snapshots
+have not run, so the full loop-review gate is not complete.
 
 ## Deviations from decisions
 
@@ -110,8 +130,8 @@ The card's behavior text is ready to use: select an independently maintained
 Android provider in any SDK without adding store code to OpenIAP; preserve
 `storeId` alongside the frozen `IapStore` discriminator; verify providers with
 the public conformance profile and register them optionally. Mention that
-manually constructed purchase and verification-result objects now require
-`storeId`, and that selecting a provider does not add IAPKit receipt-validation
+purchase and verification-result objects expose non-null `storeId`, official
+legacy decoders infer missing IDs, community objects require their explicit ID, and that selecting a provider does not add IAPKit receipt-validation
 support. Commerce Protocol and IAPKit have no publication in this change.
 
 The guide currently renders this checkout's version metadata. Its core and

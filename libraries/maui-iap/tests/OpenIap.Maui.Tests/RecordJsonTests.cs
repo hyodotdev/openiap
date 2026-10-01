@@ -10,6 +10,70 @@ namespace OpenIap.Maui.Tests;
 
 public class RecordJsonTests
 {
+    [Theory]
+    [InlineData("google", "play")]
+    [InlineData("apple", "apple")]
+    [InlineData("horizon", "horizon")]
+    [InlineData("amazon", "amazon")]
+    public void LegacyOfficialPurchasesInferIdentity(string store, string id)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(PurchaseAndroidJson)!.AsObject();
+        json.Remove("storeId");
+        json["store"] = store;
+        var concrete = JsonSerializer.Deserialize<PurchaseAndroid>(json.ToJsonString(), Options)!;
+        var union = JsonSerializer.Deserialize<Purchase>(json.ToJsonString(), Options)!;
+        Assert.Equal(id, concrete.StoreId);
+        Assert.Equal(id, union.StoreId);
+        Assert.Equal(id, JsonSerializer.Deserialize<Purchase>(JsonSerializer.Serialize(union, Options), Options)!.StoreId);
+        json.Remove("productId");
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Purchase>(json.ToJsonString(), Options));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("unknown")]
+    [InlineData("google")]
+    [InlineData("apple")]
+    [InlineData("play")]
+    [InlineData("amazon")]
+    [InlineData("horizon")]
+    [InlineData("auto")]
+    [InlineData("none")]
+    [InlineData("Bad id")]
+    [InlineData("store\n")]
+    public void MalformedCommunityIdentityFails(string? id)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(PurchaseAndroidJson)!.AsObject();
+        json["store"] = "unknown";
+        json["storeId"] = id;
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Purchase>(json.ToJsonString(), Options));
+    }
+
+    [Fact]
+    public void LegacyConstructedIdentityPreservesRecordEquality()
+    {
+        var result = new RequestVerifyPurchaseWithIapkitResult
+        {
+            IsValid = true, State = IapkitPurchaseState.Entitled, Store = IapStore.Google,
+        };
+        var roundTrip = JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitResult>(JsonSerializer.Serialize(result, Options), Options)!;
+        Assert.Equal("play", result.StoreId);
+        Assert.Equal(result, roundTrip);
+        Assert.Equal(result.GetHashCode(), roundTrip.GetHashCode());
+        Assert.NotEqual(result, roundTrip with { IsValid = false });
+        var legacy = new PurchaseAndroid
+        {
+            Id = "transaction", IsAutoRenewing = false, ProductId = "product",
+            PurchaseState = PurchaseState.Purchased, Quantity = 1,
+            Store = IapStore.Google, TransactionDate = 0,
+        };
+        var restored = JsonSerializer.Deserialize<PurchaseAndroid>(JsonSerializer.Serialize(legacy, Options), Options)!;
+        Assert.Equal(legacy, restored);
+        Assert.Equal(legacy.GetHashCode(), restored.GetHashCode());
+        Assert.NotEqual(legacy, restored with { ProductId = "another" });
+    }
+
     private static readonly JsonSerializerOptions Options = JsonOptions.Default;
 
     // ------------------------------------------------------------------

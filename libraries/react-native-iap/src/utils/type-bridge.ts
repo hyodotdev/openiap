@@ -28,6 +28,7 @@ import type {
   RenewalInfoIOS,
   SubscriptionStatusIOS,
 } from '../types';
+import {resolveStoreId} from '../types';
 import {RnIapConsole} from './debug';
 
 const PLATFORM_IOS: IapPlatform = 'ios';
@@ -420,7 +421,7 @@ export function convertNitroPurchaseToPurchase(
       transactionDate: nitroPurchase.transactionDate ?? Date.now(),
       purchaseToken: nitroPurchase.purchaseToken ?? null,
       store,
-      storeId: nitroPurchase.storeId ?? (store === 'google' ? 'play' : store),
+      storeId: resolveStoreId(nitroPurchase.storeId, store),
       quantity: nitroPurchase.quantity ?? 1,
       purchaseState,
       isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
@@ -525,7 +526,7 @@ export function convertNitroPurchaseToPurchase(
     purchaseToken:
       nitroPurchase.purchaseToken ?? nitroPurchase.purchaseTokenAndroid ?? null,
     store,
-    storeId: nitroPurchase.storeId ?? (store === 'google' ? 'play' : store),
+    storeId: resolveStoreId(nitroPurchase.storeId, store),
     quantity: nitroPurchase.quantity ?? 1,
     purchaseState,
     isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),

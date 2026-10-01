@@ -14,6 +14,20 @@ public object StoreIds {
     const val Amazon = "amazon"
 }
 
+private fun resolveStoreId(store: IapStore, value: Any?): String {
+    val official = when (store) {
+        IapStore.Apple -> "apple"
+        IapStore.Google -> "play"
+        IapStore.Horizon -> "horizon"
+        IapStore.Amazon -> "amazon"
+        IapStore.Unknown -> null
+    }
+    require(value == null || value is String) { "storeId must be a string" }
+    val id = value as String? ?: official
+    require(id != null && if (official != null) id == official else id.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) && id !in setOf("auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon")) { "Invalid store identity" }
+    return id
+}
+
 // MARK: - Enums
 
 /**
@@ -3108,6 +3122,7 @@ public data class PurchaseAndroid(
 
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseAndroid {
+            val store = IapStore.fromJson(json["store"] as? String ?: "")
             return PurchaseAndroid(
                 autoRenewingAndroid = json["autoRenewingAndroid"] as? Boolean,
                 currentPlanId = json["currentPlanId"] as? String,
@@ -3127,8 +3142,8 @@ public data class PurchaseAndroid(
                 purchaseToken = json["purchaseToken"] as? String,
                 quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
                 signatureAndroid = json["signatureAndroid"] as? String,
-                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
-                storeId = json["storeId"] as? String ?: "",
+                store = store,
+                storeId = resolveStoreId(store, json["storeId"]),
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String,
                 userIdAmazon = json["userIdAmazon"] as? String,
@@ -3328,6 +3343,7 @@ public data class PurchaseIOS(
 
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseIOS {
+            val store = IapStore.fromJson(json["store"] as? String ?: "")
             return PurchaseIOS(
                 advancedCommerceInfoIOS = (json["advancedCommerceInfoIOS"] as? Map<String, Any?>)?.let { AdvancedCommerceInfoIOS.fromJson(it) },
                 appAccountToken = json["appAccountToken"] as? String,
@@ -3364,9 +3380,9 @@ public data class PurchaseIOS(
                 revocationDateIOS = (json["revocationDateIOS"] as? Number)?.toDouble(),
                 revocationReasonIOS = json["revocationReasonIOS"] as? String,
                 revocationTypeIOS = json["revocationTypeIOS"] as? String,
-                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                store = store,
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
-                storeId = json["storeId"] as? String ?: "",
+                storeId = resolveStoreId(store, json["storeId"]),
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String ?: "",
@@ -3657,7 +3673,7 @@ public data class RequestPurchaseResultPurchase(val value: Purchase?) : RequestP
 
 public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : RequestPurchaseResult
 
-public data class RequestVerifyPurchaseWithIapkitResult(
+public class RequestVerifyPurchaseWithIapkitResult(
     /**
      * True when the purchase is valid and actionable.
      * Only entitled, pending-acknowledgment, or ready-to-consume return true.
@@ -3758,16 +3774,50 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         this.storeId = storeId
     }
 
+    operator fun component1(): Boolean = isValid
+    operator fun component2(): IapkitPurchaseState = state
+    operator fun component3(): IapStore = store
+
+    fun copy(
+        isValid: Boolean = this.isValid,
+        state: IapkitPurchaseState = this.state,
+        store: IapStore = this.store,
+    ): RequestVerifyPurchaseWithIapkitResult = RequestVerifyPurchaseWithIapkitResult(
+        isValid = isValid,
+        state = state,
+        store = store,
+        clientPayload = this.clientPayload,
+        productId = this.productId,
+        environment = this.environment,
+        storeId = this.storeId,
+    )
+
+    override fun equals(other: Any?): Boolean = other is RequestVerifyPurchaseWithIapkitResult &&
+        isValid == other.isValid && state == other.state && store == other.store && clientPayload == other.clientPayload && productId == other.productId && environment == other.environment && storeId == other.storeId
+    override fun hashCode(): Int {
+        var result = 1
+        result = 31 * result + isValid.hashCode()
+        result = 31 * result + state.hashCode()
+        result = 31 * result + store.hashCode()
+        result = 31 * result + (clientPayload?.hashCode() ?: 0)
+        result = 31 * result + (productId?.hashCode() ?: 0)
+        result = 31 * result + (environment?.hashCode() ?: 0)
+        result = 31 * result + storeId.hashCode()
+        return result
+    }
+    override fun toString(): String = "RequestVerifyPurchaseWithIapkitResult(isValid=$isValid, state=$state, store=$store, clientPayload=$clientPayload, productId=$productId, environment=$environment, storeId=$storeId)"
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
+            val store = IapStore.fromJson(json["store"] as? String ?: "")
             return RequestVerifyPurchaseWithIapkitResult(
                 isValid = json["isValid"] as? Boolean ?: false,
                 state = (json["state"] as? String)?.let { IapkitPurchaseState.fromJson(it) } ?: IapkitPurchaseState.Unknown,
-                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                store = store,
                 clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { runCatching { IapkitProductClientPayload.fromJson(it) }.getOrNull() },
                 productId = json["productId"] as? String,
                 environment = json["environment"] as? String,
-                storeId = json["storeId"] as? String ?: "",
+                storeId = resolveStoreId(store, json["storeId"]),
             )
         }
     }

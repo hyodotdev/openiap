@@ -1,4 +1,9 @@
-import {ErrorCode, type Purchase, type PurchaseIOS} from '../types';
+import {
+  resolveStoreId,
+  ErrorCode,
+  type Purchase,
+  type PurchaseIOS,
+} from '../types';
 import {createPurchaseError} from './errorMapping';
 
 const ANDROID_STORES = new Set(['google', 'amazon', 'horizon']);
@@ -73,7 +78,19 @@ export const decodeAvailablePurchases = (value: unknown): Purchase[] => {
     }
   });
 
-  return value as Purchase[];
+  return value.map((item, index) => {
+    const purchase = item as Purchase;
+    try {
+      return {
+        ...purchase,
+        storeId: resolveStoreId(purchase.storeId, purchase.store),
+      };
+    } catch {
+      throw malformedPurchaseError(
+        `Native bridge returned an invalid store identity at index ${index}`,
+      );
+    }
+  });
 };
 
 /** Decode an authoritative StoreKit list without filtering foreign entries. */
@@ -94,7 +111,8 @@ export const decodeApplePurchases = (value: unknown): PurchaseIOS[] => {
 export const decodeAndroidPurchases = (value: unknown): Purchase[] => {
   const decoded = decodeAvailablePurchases(value);
   const invalidIndex = decoded.findIndex(
-    (purchase) => !ANDROID_STORES.has(purchase.store),
+    (purchase) =>
+      !ANDROID_STORES.has(purchase.store) && purchase.store !== 'unknown',
   );
   if (invalidIndex !== -1) {
     throw malformedPurchaseError(

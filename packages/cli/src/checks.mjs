@@ -260,7 +260,7 @@ export function androidStoreChecks(root, framework) {
     selects !== "none" &&
     !computed &&
     stores.length > 0 &&
-    !stores.includes(selects);
+    !stores.includes(provider ? "provider" : selects);
   const declared = stores.length === 1 && !computed ? stores[0] : null;
   const line = strategies[0]?.number;
 
@@ -297,7 +297,7 @@ export function androidStoreChecks(root, framework) {
         ? `gradle.properties selects the ${store} store (${pinKey}), and the build computes its flavor from it.`
         : `This Android project is pinned to the ${store} store (${pinKey}).`;
       const pin = pinned
-        ? "the openiapStore pin"
+        ? provider ? "both openiapStore and openiapProvider" : "the openiapStore pin"
         : legacy === "horizon"
           ? `${pinKey}, a deprecated pin,`
           : pinKey;

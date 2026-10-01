@@ -14,7 +14,7 @@ import type {
   NitroSubscriptionStatus,
   RnIap,
 } from './specs/RnIap.nitro';
-import {ErrorCode} from './types';
+import {ErrorCode, resolveStoreId} from './types';
 import type {
   AppTransaction,
   AndroidSubscriptionOfferInput,
@@ -937,7 +937,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -2351,7 +2352,7 @@ export const verifyPurchaseWithProvider: MutationField<
               : {productId: result.iapkit.productId}),
             state: result.iapkit.state,
             store: result.iapkit.store,
-            storeId: result.iapkit.storeId,
+            storeId: resolveStoreId(result.iapkit.storeId, result.iapkit.store),
           }
         : null,
       errors: result.errors ?? null,
