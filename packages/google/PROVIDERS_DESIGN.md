@@ -1,4 +1,11 @@
-# Pluggable Android store providers
+# Pluggable store providers
+
+The Client Protocol provider contract applies to Apple and Android. Platform
+bindings share store identity, factory metadata, version compatibility,
+capabilities, lifecycle, listener delivery, completion and conformance rules.
+Android uses manifest metadata and Maven; Apple uses Info.plist metadata and
+Swift packages or linked frameworks. These are packaging bindings of one
+contract, not separate store protocols.
 
 An Android app selects one provider with `openiapStore=<id>` and, for a
 community provider, `openiapProvider=<group:artifact:version>`. A provider can
@@ -75,3 +82,28 @@ maintainer decision.
 Keep each step in a local commit. Use only local Maven/included builds for
 validation. Do not release, publish remotely or deploy. Record unavailable
 toolchains and any necessary deviations with evidence in the final report.
+
+## Apple binding
+
+Keep `OpenIapModule` and its Objective-C selectors as the public facade. Move
+StoreKit behavior into the official provider and select one factory before
+listeners are attached. An absent Info.plist selection uses the Apple factory;
+an invalid explicit selection fails with a developer error at connection or
+operation time. It never falls back to StoreKit or crashes singleton access.
+An external factory is a linked, named NSObject with a public no-argument
+initializer, the same metadata fields as Android, and an
+`OpenIapModuleProtocol` implementation. StoreKit-specific optional operations
+have predictable unsupported defaults.
+
+Community iOS purchases use `PurchaseIOS`, `store = unknown` and their concrete
+`storeId`. Native and SDK bridges preserve that shape and identity through
+events, reads, JSON and completion. Add a full-purchase Objective-C completion
+selector while retaining the old ID-only selector. Existing Expo Onside
+selection remains supported, with its concrete `onside` identity.
+
+Extend the existing conformance owner with a Swift package and independent
+Apple fixture. Both bindings derive their required behavior inventory from one
+provider profile and produce reports accepted by the same registry rules.
+Registry coordinates remain platform-specific. Validate a community Apple
+entry and complete fixture lifecycle, then rerun the seven Apple device flows
+and the existing Onside build. Recheck Android paths affected by shared changes.
