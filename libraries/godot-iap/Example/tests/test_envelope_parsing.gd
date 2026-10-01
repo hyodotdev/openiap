@@ -44,6 +44,10 @@ class FakeAndroidJsonPlugin:
 		last_args = []
 		return _respond("getAvailablePurchases", "[]")
 
+	func restorePurchases() -> String:
+		last_method = "restorePurchases"
+		return _respond("restorePurchases", JSON.stringify({"success": true}))
+
 	func getAvailablePurchasesResult() -> String:
 		last_args = []
 		return _respond(
@@ -218,6 +222,7 @@ func _run_all_tests() -> void:
 	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
 	await test_ios_restore_waits_for_a_sign_in_sheet()
+	await test_android_restore_uses_provider_operation()
 	await test_ios_sync_waits_for_a_sign_in_sheet()
 	test_android_signal_handlers_parse_json()
 
@@ -635,9 +640,30 @@ func test_android_request_purchase_success_envelope() -> void:
 	_uninstall_fake()
 
 
-## The non-iOS restore path reports failures through purchase_error. The iOS
-## path used to return success = false silently, so a caller listening only to
-## the signal saw Android restore failures but never iOS ones.
+func test_android_restore_uses_provider_operation() -> void:
+	var fake = _install_android_fake()
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": false})
+	var restored = await GodotIapPlugin.restore_purchases()
+	_assert_true(restored.success, "Provider restore should not be replaced by an ownership query")
+	_assert_equal(fake.last_method, "restorePurchases", "Android restore must reach the native provider")
+
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+	fake.responses["restorePurchases"] = JSON.stringify({"success": false, "code": "network-error", "error": "Restore offline"})
+	var failed = await GodotIapPlugin.restore_purchases()
+	_assert_false(failed.success, "Provider restore failure must be preserved")
+	_assert_equal(errors.size(), 1, "Restore failure should emit one error")
+	_assert_equal(errors[0].get("code"), "network-error", "Restore failure should preserve its code")
+	fake.responses["restorePurchases"] = "invalid json"
+	var malformed = await GodotIapPlugin.restore_purchases()
+	_assert_false(malformed.success, "Malformed restore responses must fail")
+	_assert_equal(errors[1].get("code"), "billing-response-json-parse-error", "Malformed restore should expose a parse failure")
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	_uninstall_fake()
+
+
 func test_ios_restore_failure_emits_purchase_error() -> void:
 	var previous_platform = GodotIapPlugin._platform
 	var previous_plugin = GodotIapPlugin._native_plugin
@@ -1088,14 +1114,6 @@ func test_android_available_purchases_envelope() -> void:
 	_assert_equal(foreign.get("success"), false, "Android results should reject foreign stores")
 	_assert_equal(foreign.get("code"), "billing-response-json-parse-error", "Foreign stores should use the decode error code")
 
-	var restore_errors: Array[Dictionary] = []
-	var capture_restore_error = func(error: Dictionary) -> void:
-		restore_errors.append(error)
-	GodotIapPlugin.purchase_error.connect(capture_restore_error)
-	var restored = await GodotIapPlugin.restore_purchases()
-	_assert_equal(restored.success, false, "Restore should fail when available purchases cannot be decoded")
-	_assert_equal(restore_errors.size(), 1, "Failed Android restore should emit exactly one purchase_error")
-	GodotIapPlugin.purchase_error.disconnect(capture_restore_error)
 	_uninstall_fake()
 
 

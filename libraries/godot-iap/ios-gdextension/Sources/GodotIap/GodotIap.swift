@@ -281,32 +281,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
         Task { [weak self] in
             do {
-                let result = try await self?.openIap.requestPurchase(purchaseProps)
-
-                switch result {
-                case .purchase(let purchase):
-                    if purchase == nil {
-                        await self?.emitPurchaseError(
-                            code: ErrorCode.userCancelled.rawValue,
-                            message: "Purchase was cancelled",
-                            productId: productId
-                        )
-                    }
-                case .purchases(let purchases):
-                    if purchases?.isEmpty ?? true {
-                        await self?.emitPurchaseError(
-                            code: ErrorCode.userCancelled.rawValue,
-                            message: "Purchase was cancelled",
-                            productId: productId
-                        )
-                    }
-                case .none:
-                    await self?.emitPurchaseError(
-                        code: ErrorCode.userCancelled.rawValue,
-                        message: "Purchase was cancelled",
-                        productId: productId
-                    )
-                }
+                // Providers may complete through listeners without returning a purchase.
+                _ = try await self?.openIap.requestPurchase(purchaseProps)
             } catch let error as PurchaseError {
                 // OpenIAP requestPurchase emits its canonical error exactly once
                 // through purchaseErrorListener before throwing.

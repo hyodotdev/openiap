@@ -865,42 +865,42 @@ func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> v
 		print("\n".join(_FIRST_PURCHASE_NOTICE))
 
 ## Restore completed transactions.
-## Apple platforms: Performs a lightweight sync then fetches available purchases.
-## Android: Simply fetches available purchases.
+## Uses the selected provider's restore operation.
 ## @return Types.VoidResult
 ##
 ## See: https://openiap.dev/docs/apis/restore-purchases
 func restore_purchases() -> Variant:
 	print("[GodotIap] restore_purchases called")
 
-	if _is_apple() and _native_plugin:
+	var payload: Dictionary
+	if not _native_plugin:
+		payload = {"success": false, "code": "not-prepared", "error": "Native plugin not available"}
+	elif _is_apple():
 		# AppStore.sync() can show a sign-in sheet, so restore gets the system-sheet timeout.
-		var payload = await _call_apple_async(
+		payload = await _call_apple_async(
 			"restorePurchases",
 			[],
 			_apple_async_ui_timeout_seconds
 		)
-		var apple_result = Types.VoidResult.new()
-		apple_result.success = payload.get("success", false)
-		# The non-Apple path below reports a failed restore through
-		# purchase_error. Emit it here too, otherwise a caller that only
-		# listens to the signal sees Android restore failures but not Apple ones.
-		if not apple_result.success:
-			_purchase_failure(
-				String(payload.get("code", "service-error")),
-				String(payload.get("error", "Failed to restore purchases")),
-				payload
-			)
-		return apple_result
-
-	var available_result := await get_available_purchases_result()
+	elif _platform == "Android":
+		var response = JSON.parse_string(_native_plugin.call("restorePurchases"))
+		if response is Dictionary:
+			payload = response
+		else:
+			payload = {
+				"success": false,
+				"code": "billing-response-json-parse-error",
+				"error": "Failed to parse the Android restore response",
+			}
+	else:
+		payload = {"success": false, "code": "feature-not-supported", "error": "Unsupported platform"}
 	var result = Types.VoidResult.new()
-	result.success = available_result.get("success", false)
+	result.success = payload.get("success", false)
 	if not result.success:
 		_purchase_failure(
-			String(available_result.get("code", "service-error")),
-			String(available_result.get("error", "Failed to restore purchases")),
-			available_result
+			String(payload.get("code", "service-error")),
+			String(payload.get("error", "Failed to restore purchases")),
+			payload
 		)
 	return result
 

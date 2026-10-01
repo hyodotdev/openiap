@@ -6807,7 +6807,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
     [
-      "ErrorCode.userCancelled.rawValue",
+      "openIap.purchaseErrorListener",
+      "Variant(error.code.rawValue)",
       "ErrorCode.developerError.rawValue",
       "ErrorCode.syncError.rawValue",
     ],
