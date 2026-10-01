@@ -141,6 +141,12 @@ jobs:
           bun run lint
           bun run test
 
+      - name: Check and bundle the synthetic Sites MCP pilot
+        working-directory: packages/mcp-server
+        run: |
+          bun run check:sites-pilot
+          bun run build:sites-pilot
+
       - name: Vite build
         env:
           VITE_KIT_CONVEX_URL: https://placeholder-build-1.convex.cloud
