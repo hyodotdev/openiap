@@ -13,7 +13,10 @@ this pilot is not ready for real development data or a production migration.
   error. Credential and upstream overrides returned 400.
 - All 74 MCP tests, package build, lint, and pilot typecheck passed. The default
   16-tool surface remains covered, including the original 65 tests.
-- All 13 Kit MCP, API contract, and server entrypoint tests passed.
+- All 1,984 Kit tests passed, including the 13 MCP, API contract, and server
+  entrypoint checks; one unrelated test was skipped.
+- All 73 shared agent tests passed. The dependency audit passed after updating
+  the existing Hono and transitive Axios pins to their advisory-fixed versions.
 - The compiled Kit server and dashboard passed API, authentication, removed-route,
   and browser smoke probes with a placeholder Convex URL.
 - Repository layout and SDK parity audits passed.
