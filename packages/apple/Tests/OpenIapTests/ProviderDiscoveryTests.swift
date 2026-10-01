@@ -1,0 +1,86 @@
+import Foundation
+import XCTest
+@testable import OpenIAP
+
+final class ProviderDiscoveryTests: XCTestCase {
+    func testNativeVersionCompatibility() throws {
+        for (built, runtime) in [("3.6.1", "3.6.2"), ("4.0.0", "4.1.0"), ("4.0.0-rc.1", "4.0.0-rc.1")] {
+            try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: built, runtimeCoreVersion: runtime)
+        }
+        for (built, runtime) in [("3.6.3", "3.6.2"), ("3.6.1", "4.0.0"), ("4.0.0-rc.1", "4.0.0"), ("4.0.0", "4.0.0-rc.1"), ("bad", "4.0.0"), ("4.0", "4.0.0")] {
+            XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: built, runtimeCoreVersion: runtime))
+        }
+        for id in ["", "unknown", "google", "play", "none", "auto", "amazon", "horizon", "Bad id", "store\n"] {
+            XCTAssertThrowsError(try OpenIapProvider.validate(storeId: id, providerCoreVersion: "4.0.0", runtimeCoreVersion: "4.0.0"))
+        }
+    }
+
+    func testDescriptorChecksBothContractsAndPlatform() throws {
+        let descriptor = OpenIapAppleProviderFactory().descriptor
+        XCTAssertEqual(descriptor.platform, .ios)
+        XCTAssertEqual(descriptor.clientProtocolVersion, "0.2.0")
+        try OpenIapProvider.validate(descriptor)
+        var invalid = descriptor
+        invalid.platform = .android
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid))
+        invalid = descriptor
+        invalid.clientProtocolVersion = "0.1.1"
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid))
+        invalid.clientProtocolVersion = "0.3.0"
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid))
+    }
+
+    func testOfficialCapabilitiesMatchAvailablePlatformFeatures() {
+        let capabilities = OpenIapAppleProviderFactory().capabilities
+        XCTAssertTrue(capabilities.contains("pendingPurchases"))
+        #if os(macOS) || os(tvOS) || os(watchOS)
+        XCTAssertEqual(capabilities, ["pendingPurchases"])
+        #else
+        #if targetEnvironment(macCatalyst)
+        #if compiler(>=6.4)
+        if #available(macCatalyst 27.0, *) { XCTAssertTrue(capabilities.contains("offerCodeRedemption")) }
+        else { XCTAssertFalse(capabilities.contains("offerCodeRedemption")) }
+        #else
+        XCTAssertFalse(capabilities.contains("offerCodeRedemption"))
+        #endif
+        #else
+        XCTAssertTrue(capabilities.contains("offerCodeRedemption"))
+        #endif
+        if #available(iOS 16.4, macCatalyst 16.4, visionOS 1.0, *) {
+            XCTAssertTrue(capabilities.contains("subscriptionBillingIssue"))
+        } else {
+            XCTAssertFalse(capabilities.contains("subscriptionBillingIssue"))
+        }
+        #endif
+    }
+
+    func testAbsentSelectionUsesOfficialFactory() throws {
+        try withBundle(value: nil) { bundle in
+            XCTAssertTrue(try OpenIapProvider.factory(bundle: bundle) is OpenIapAppleProviderFactory)
+        }
+    }
+
+    func testMalformedSelectionFailsAtConnectionWithoutFallback() async throws {
+        for value in ["", "MissingFactory", "NSObject", 123] as [Any] {
+            let selection = try withBundle(value: value) { OpenIapProvider.select(bundle: $0) }
+            let module = OpenIapModule(selection: selection)
+            let subscription = module.purchaseUpdatedListener({ _ in }, options: nil)
+            module.removeListener(subscription)
+            module.removeAllListeners()
+            XCTAssertNil(module.storeId)
+            do { _ = try await module.initConnection(); XCTFail("Invalid provider must not connect") }
+            catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+        }
+    }
+
+    private func withBundle<T>(value: Any?, operation: (Bundle) throws -> T) throws -> T {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".bundle")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: url) }
+        var info: [String: Any] = ["CFBundleIdentifier": "dev.hyo.provider-tests"]
+        info[OpenIapProvider.metadataKey] = value
+        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try data.write(to: url.appendingPathComponent("Info.plist"))
+        return try operation(XCTUnwrap(Bundle(url: url)))
+    }
+}

@@ -27,14 +27,14 @@ final class OpenIapTests: XCTestCase {
 
     func testTransactionVerificationFailureIsNotAnEmptyEntitlement() throws {
         XCTAssertEqual(
-            try OpenIapModule.shared.checkVerified(
+            try OpenIapStoreKitModule().checkVerified(
                 VerificationResult<Int>.verified(7)
             ),
             7
         )
 
         XCTAssertThrowsError(
-            try OpenIapModule.shared.checkVerified(
+            try OpenIapStoreKitModule().checkVerified(
                 VerificationResult<Int>.unverified(7, .invalidSignature)
             )
         ) { error in
@@ -874,7 +874,7 @@ final class OpenIapTests: XCTestCase {
             ))
         )
 
-        let resolved = try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+        let resolved = try OpenIapStoreKitModule().resolveIOSPurchaseProps(from: props)
 
         XCTAssertEqual(resolved.sku, "dev.hyo.apple")
     }
@@ -888,7 +888,7 @@ final class OpenIapTests: XCTestCase {
             ))
         )
 
-        let resolved = try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+        let resolved = try OpenIapStoreKitModule().resolveIOSPurchaseProps(from: props)
 
         XCTAssertEqual(resolved.sku, "dev.hyo.sub.apple")
     }
@@ -903,7 +903,7 @@ final class OpenIapTests: XCTestCase {
         props.type = .all
 
         XCTAssertThrowsError(
-            try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+            try OpenIapStoreKitModule().resolveIOSPurchaseProps(from: props)
         ) { error in
             XCTAssertEqual((error as? PurchaseError)?.code, .developerError)
         }

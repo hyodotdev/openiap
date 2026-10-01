@@ -253,7 +253,7 @@ final class VerifyPurchaseTests: XCTestCase {
         let currentChanged = makePurchase(id: "changed", isAutoRenewing: true)
         let added = makePurchase(id: "added")
 
-        let result = OpenIapModule.changedPurchasesIOS(
+        let result = OpenIapStoreKitModule.changedPurchasesIOS(
             [unchanged, currentChanged, added],
             comparedTo: [unchanged, previousChanged]
         )

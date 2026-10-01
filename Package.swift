@@ -7,16 +7,19 @@ let package = Package(
     platforms: [
         .iOS(.v15),
         .macOS(.v14),
-        .tvOS(.v15),
+        .tvOS(.v16),
         .watchOS(.v8)
     ],
     products: [
         .library(
             name: "OpenIAP",
             targets: ["OpenIAP"]),
+        .library(name: "OpenIapConformance", targets: ["OpenIapConformance"]),
     ],
     dependencies: [],
     targets: [
+        .target(name: "OpenIapConformance", dependencies: ["OpenIAP"],
+                path: "packages/conformance/apple/Sources"),
         .target(
             name: "OpenIAP",
             dependencies: [],

@@ -7,12 +7,12 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     func testIapkitVerificationURLUsesHostedDefaultForNilOrBlankBaseUrl() throws {
         let expectedUrl = "https://kit.openiap.dev/v1/purchase/verify"
 
-        XCTAssertEqual(expectedUrl, try OpenIapModule.iapkitVerificationURL(baseUrl: nil).absoluteString)
-        XCTAssertEqual(expectedUrl, try OpenIapModule.iapkitVerificationURL(baseUrl: " \n\t ").absoluteString)
+        XCTAssertEqual(expectedUrl, try OpenIapStoreKitModule.iapkitVerificationURL(baseUrl: nil).absoluteString)
+        XCTAssertEqual(expectedUrl, try OpenIapStoreKitModule.iapkitVerificationURL(baseUrl: " \n\t ").absoluteString)
     }
 
     func testIapkitVerificationURLTrimsOverrideAndTrailingSlashes() throws {
-        let url = try OpenIapModule.iapkitVerificationURL(
+        let url = try OpenIapStoreKitModule.iapkitVerificationURL(
             baseUrl: "  http://127.0.0.1:4174///\n"
         )
 
@@ -33,7 +33,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
 
         for invalidBaseUrl in invalidBaseUrls {
             XCTAssertThrowsError(
-                try OpenIapModule.iapkitVerificationURL(baseUrl: invalidBaseUrl),
+                try OpenIapStoreKitModule.iapkitVerificationURL(baseUrl: invalidBaseUrl),
                 "Expected \(invalidBaseUrl) to be rejected"
             ) { error in
                 guard let purchaseError = error as? PurchaseError else {
@@ -66,7 +66,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
 
     func testIapkitClientPayloadParsesAndDropsUnreadableValues() throws {
         let payload = try XCTUnwrap(
-            OpenIapModule.iapkitClientPayload(from: [
+            OpenIapStoreKitModule.iapkitClientPayload(from: [
                 "format": "toml",
                 "body": "tier = \"gold\"",
                 "version": 2,
@@ -77,11 +77,11 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual(.toml, payload.format)
         XCTAssertEqual("tier = \"gold\"", payload.body)
         XCTAssertEqual(2, payload.version)
-        XCTAssertNil(OpenIapModule.iapkitClientPayload(from: nil))
-        XCTAssertNil(OpenIapModule.iapkitClientPayload(from: NSNull()))
+        XCTAssertNil(OpenIapStoreKitModule.iapkitClientPayload(from: nil))
+        XCTAssertNil(OpenIapStoreKitModule.iapkitClientPayload(from: NSNull()))
         // A later format, and every structural defect, drop the payload.
         XCTAssertNil(
-            OpenIapModule.iapkitClientPayload(from: [
+            OpenIapStoreKitModule.iapkitClientPayload(from: [
                 "format": "yaml",
                 "body": "tier: gold",
                 "version": 1,
@@ -89,7 +89,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             ])
         )
         XCTAssertNil(
-            OpenIapModule.iapkitClientPayload(from: [
+            OpenIapStoreKitModule.iapkitClientPayload(from: [
                 "format": "TOML",
                 "body": "invalid format",
                 "version": 1,
@@ -97,7 +97,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             ])
         )
         XCTAssertNil(
-            OpenIapModule.iapkitClientPayload(from: [
+            OpenIapStoreKitModule.iapkitClientPayload(from: [
                 "format": "toml",
                 "body": "missing version",
                 "updatedAt": 1,
@@ -105,7 +105,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         )
         for invalidVersion: Any in [true, 0, 1.5] {
             XCTAssertNil(
-                OpenIapModule.iapkitClientPayload(from: [
+                OpenIapStoreKitModule.iapkitClientPayload(from: [
                     "format": "toml",
                     "body": "invalid version",
                     "version": invalidVersion,
@@ -114,7 +114,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             )
         }
         XCTAssertNil(
-            OpenIapModule.iapkitClientPayload(from: [
+            OpenIapStoreKitModule.iapkitClientPayload(from: [
                 "format": "toml",
                 "body": "invalid timestamp",
                 "version": 1,
@@ -124,36 +124,36 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     }
 
     func testIapkitBooleanRejectsNumericJsonValues() throws {
-        XCTAssertTrue(try OpenIapModule.iapkitBoolean(from: true))
-        XCTAssertFalse(try OpenIapModule.iapkitBoolean(from: false))
+        XCTAssertTrue(try OpenIapStoreKitModule.iapkitBoolean(from: true))
+        XCTAssertFalse(try OpenIapStoreKitModule.iapkitBoolean(from: false))
 
         for invalidValue: Any? in [nil, NSNull(), 0, 1, "true"] {
             XCTAssertThrowsError(
-                try OpenIapModule.iapkitBoolean(from: invalidValue)
+                try OpenIapStoreKitModule.iapkitBoolean(from: invalidValue)
             )
         }
     }
 
     func testIapkitEnvironmentForwardsAnyStringAndNeverFails() throws {
-        XCTAssertNil(OpenIapModule.iapkitEnvironment(from: nil))
-        XCTAssertNil(OpenIapModule.iapkitEnvironment(from: NSNull()))
-        XCTAssertEqual("Sandbox", OpenIapModule.iapkitEnvironment(from: "Sandbox"))
-        XCTAssertEqual("Production", OpenIapModule.iapkitEnvironment(from: "Production"))
+        XCTAssertNil(OpenIapStoreKitModule.iapkitEnvironment(from: nil))
+        XCTAssertNil(OpenIapStoreKitModule.iapkitEnvironment(from: NSNull()))
+        XCTAssertEqual("Sandbox", OpenIapStoreKitModule.iapkitEnvironment(from: "Sandbox"))
+        XCTAssertEqual("Production", OpenIapStoreKitModule.iapkitEnvironment(from: "Production"))
 
         // "Xcode" and "LocalTesting" are real App Store Server environments.
         for forwarded in ["sandbox", "Xcode", "LocalTesting", "Staging"] {
-            XCTAssertEqual(forwarded, OpenIapModule.iapkitEnvironment(from: forwarded))
+            XCTAssertEqual(forwarded, OpenIapStoreKitModule.iapkitEnvironment(from: forwarded))
         }
 
         // Only a non-string, or an empty string, has nothing to forward.
         for unreadableValue: Any in ["", 1, true, [:], []] {
-            XCTAssertNil(OpenIapModule.iapkitEnvironment(from: unreadableValue))
+            XCTAssertNil(OpenIapStoreKitModule.iapkitEnvironment(from: unreadableValue))
         }
     }
 
     func testIapkitRequestCarriesNoProtocolVersionHeader() throws {
         let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
-        let request = OpenIapModule.makeIapkitRequest(
+        let request = OpenIapStoreKitModule.makeIapkitRequest(
             url: url,
             apiKey: "  iapkit_pk_test  ",
             body: Data("{}".utf8)
@@ -191,7 +191,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
 
         for blank in [nil, "", "   "] as [String?] {
-            let request = OpenIapModule.makeIapkitRequest(
+            let request = OpenIapStoreKitModule.makeIapkitRequest(
                 url: url,
                 apiKey: blank,
                 body: Data()
@@ -201,7 +201,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     }
 
     func testIapkitAmazonPayloadForwardsExpectedProductId() throws {
-        let payload = try OpenIapModule.iapkitAmazonPayload(
+        let payload = try OpenIapStoreKitModule.iapkitAmazonPayload(
             from: RequestVerifyPurchaseWithIapkitAmazonProps(
                 expectedProductId: "premium.monthly",
                 receiptId: "  amzn1.receipt.ABC123456789  ",
@@ -226,7 +226,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     }
 
     func testIapkitHorizonPayloadForwardsUserAndSku() throws {
-        let payload = try OpenIapModule.iapkitHorizonPayload(
+        let payload = try OpenIapStoreKitModule.iapkitHorizonPayload(
             from: RequestVerifyPurchaseWithIapkitHorizonProps(
                 sku: "  premium.monthly  ",
                 userId: "  123456789  "

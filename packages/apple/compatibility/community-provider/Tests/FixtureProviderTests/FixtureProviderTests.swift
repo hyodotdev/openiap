@@ -1,0 +1,165 @@
+import Foundation
+import XCTest
+import OpenIAP
+import OpenIapConformance
+import FixtureProvider
+
+private struct Adapter: ProviderConformanceAdapter {
+    let factory: any OpenIapProviderFactory = FixtureFactory()
+    let module: FixtureModule
+    var omitCapability: String?
+    var provider: any OpenIapModuleProtocol { module }
+    var normativeErrorCases: [ProviderErrorCase] {
+        [ProviderErrorCase(expected: .userCancelled, actual: module.normalizeError("cancelled")),
+         ProviderErrorCase(expected: .skuNotFound, actual: module.normalizeError("missing-sku"))]
+    }
+    var unrecognizedError: PurchaseError { module.normalizeError("unknown-native-code") }
+    func toActiveSubscription(_ purchase: PurchaseIOS) -> ActiveSubscription { module.toActiveSubscription(purchase) }
+    func billingIssueRetainsEntitlement(_ purchase: PurchaseIOS) -> Bool { module.billingGracePeriod }
+    func triggerCapability(_ capability: String) async throws {
+        if capability != omitCapability { try module.trigger(capability) }
+    }
+}
+
+final class FixtureProviderTests: XCTestCase {
+    func testPublicConformancePassesEveryDeclaredBehavior() async throws {
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: FixtureModule())).run()
+        XCTAssertTrue(report.conformant)
+        XCTAssertTrue(report.scope.complete)
+        XCTAssertEqual(report.scope.requiredBehaviors.count, 17)
+        XCTAssertEqual(report.clientProtocolVersion, OpenIapVersion.clientProtocolVersion)
+        if let path = ProcessInfo.processInfo.environment["OPENIAP_PROVIDER_REPORT"] {
+            try report.write(to: URL(fileURLWithPath: path))
+        }
+    }
+
+    func testFailedConnectionAttemptsDisconnect() async {
+        for throwsError in [false, true] {
+            let provider = FixtureModule()
+            provider.connectionResult = false
+            if throwsError { provider.connectionError = PurchaseError.make(code: .initConnection) }
+            let report = await ProviderConformanceSuite(adapter: Adapter(module: provider)).run()
+            XCTAssertFalse(report.conformant)
+            XCTAssertFalse(report.scope.complete)
+            XCTAssertEqual(report.results.first { $0.id == "provider.connection" }?.outcome, "fail")
+            XCTAssertEqual(report.results.first { $0.id == "provider.disconnect" }?.outcome, "pass")
+            XCTAssertEqual(provider.disconnectCount, 1)
+            XCTAssertFalse(provider.isConnected)
+        }
+    }
+
+    func testDeferredErrorsAndBillingGraceRetainTheirPlatformSemantics() async {
+        let provider = FixtureModule()
+        provider.deferredPending = true
+        provider.billingGracePeriod = true
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider)).run()
+        XCTAssertTrue(report.conformant)
+    }
+
+    func testDeclaredCapabilityCannotPassWithoutItsEvent() async {
+        let report = await ProviderConformanceSuite(
+            adapter: Adapter(module: FixtureModule(), omitCapability: "subscriptionBillingIssue"), eventTimeout: 0.05
+        ).run()
+        XCTAssertFalse(report.conformant)
+        XCTAssertTrue(report.scope.complete)
+        XCTAssertEqual(report.results.first { $0.id == "apple-provider.subscription-billing-issue" }?.outcome, "fail")
+    }
+
+    func testPendingRejectsPurchasedAfterDeferredError() async {
+        let provider = FixtureModule()
+        provider.deferredThenPurchased = true
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider), eventTimeout: 0.05).run()
+        XCTAssertFalse(report.conformant)
+        XCTAssertEqual(report.results.first { $0.id == ProviderBehaviors.capabilities["pendingPurchases"] }?.outcome, "fail")
+    }
+
+    func testCapabilityEventsRequireConsistentStoreIdentity() async {
+        let provider = FixtureModule()
+        provider.capabilityStore = .apple
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider), eventTimeout: 0.05).run()
+        XCTAssertFalse(report.conformant)
+        XCTAssertEqual(report.results.filter { $0.outcome == "fail" }.count, 3)
+    }
+
+    func testFilteredBooleanUsesProviderResultInsteadOfListLength() async throws {
+        let provider = FixtureModule()
+        provider.inactiveSubscriptions = true
+        provider.forcedHasActive = false
+        let module = OpenIapModule(factory: FixedFactory(provider))
+        _ = try await module.initConnection()
+        let request = try OpenIapSerialization.decode(object: ["type": "in-app", "requestPurchase": ["apple": ["sku": "conformance.product"]]], as: RequestPurchaseProps.self)
+        _ = try await module.requestPurchase(request)
+        let subscriptions = try await module.getActiveSubscriptions(["conformance.product"])
+        XCTAssertEqual(subscriptions.count, 1)
+        XCTAssertFalse(try XCTUnwrap(subscriptions.first).isActive)
+        let completed = expectation(description: "Filtered native boolean")
+        module.hasActiveSubscriptionsWithSubscriptionIds(["conformance.product"]) { active, error in
+            XCTAssertNil(error)
+            XCTAssertFalse(active)
+            completed.fulfill()
+        }
+        await fulfillment(of: [completed], timeout: 2)
+        XCTAssertEqual(provider.lastSubscriptionIds, ["conformance.product"])
+    }
+
+    func testFacadePreservesOpaqueIdentityAndFullCompletion() async throws {
+        let provider = FixtureModule()
+        let module = OpenIapModule(factory: FixedFactory(provider))
+        let connected = try await module.initConnection()
+        XCTAssertTrue(connected)
+        let request = try OpenIapSerialization.decode(object: ["type": "in-app", "requestPurchase": ["apple": ["sku": "conformance.product"]]], as: RequestPurchaseProps.self)
+        _ = try await module.requestPurchase(request)
+        try await module.restorePurchases()
+        _ = try await module.presentCodeRedemptionSheetIOS()
+        let owned = try await module.getAvailablePurchases(nil)
+        let purchase = try XCTUnwrap(owned.first)
+        XCTAssertEqual(purchase.storeId, "community-fixture")
+        XCTAssertEqual(purchase.store, .unknown)
+        let expectation = expectation(description: "Objective-C completion")
+        let data = try JSONEncoder().encode(purchase)
+        // The public union and flattened payload paths must both preserve identity.
+        module.finishTransactionWithPurchaseJSON(String(decoding: data, as: UTF8.self), isConsumable: false) { error in
+            XCTAssertNil(error)
+            expectation.fulfill()
+        }
+        await fulfillment(of: [expectation], timeout: 2)
+        XCTAssertEqual(provider.finished[purchase.id]?.purchaseToken, purchase.purchaseToken)
+        let legacy = self.expectation(description: "Legacy completion")
+        module.finishTransactionWithPurchaseId(purchase.id, productId: purchase.productId, isConsumable: false) { error in
+            XCTAssertNil(error)
+            legacy.fulfill()
+        }
+        await fulfillment(of: [legacy], timeout: 2)
+        do { _ = try await module.getReceiptDataIOS(); XCTFail("Optional StoreKit operation must be unsupported") }
+        catch let error as PurchaseError { XCTAssertEqual(error.code, .featureNotSupported) }
+        let disconnected = try await module.endConnection()
+        XCTAssertTrue(disconnected)
+    }
+
+    func testRemovingListenersStopsProviderEvents() async throws {
+        let provider = FixtureModule()
+        let count = Count()
+        let subscription = provider.purchaseUpdatedListener({ _ in count.increment() }, options: nil)
+        try provider.trigger("pendingPurchases")
+        XCTAssertEqual(count.value, 1)
+        provider.removeListener(subscription)
+        try provider.trigger("pendingPurchases")
+        XCTAssertEqual(count.value, 1)
+    }
+}
+
+private final class Count: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func increment() { lock.lock(); count += 1; lock.unlock() }
+    var value: Int { lock.lock(); defer { lock.unlock() }; return count }
+}
+private final class FixedFactory: OpenIapProviderFactory {
+    let module: FixtureModule
+    required init() { module = FixtureModule() }
+    init(_ module: FixtureModule) { self.module = module }
+    var storeId: String { "community-fixture" }
+    var coreVersion: String { FixtureFactory().coreVersion }
+    var clientProtocolVersion: String { FixtureFactory().clientProtocolVersion }
+    func create() throws -> any OpenIapModuleProtocol { module }
+}
