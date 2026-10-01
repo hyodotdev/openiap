@@ -255,8 +255,6 @@ gentype.Purchase convertToPurchase(
       'id': purchaseId,
       'productId': productId,
       'store': storeValue,
-      'storeId': sourcePayload['storeId']?.toString() ??
-          (storeValue == 'google' ? 'play' : storeValue),
       'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': purchaseState,
       'quantity': quantity,
@@ -307,7 +305,6 @@ gentype.Purchase convertToPurchase(
       'id': purchaseId,
       'productId': productId,
       'store': storeValueIOS,
-      'storeId': sourcePayload['storeId']?.toString() ?? 'apple',
       'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': stateIOS,
       'quantity': quantity,

@@ -146,6 +146,68 @@ void main() {
   });
 
   group('purchase helpers', () {
+    test('infers official identity after normalizing legacy store spelling',
+        () {
+      for (final store in ['google', 'Google', 'GOOGLE']) {
+        final purchase = convertToPurchase(
+          {
+            'id': 'purchase-id',
+            'productId': 'coins.pack',
+            'store': store,
+            'purchaseState': 'purchased',
+          },
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        );
+        expect(purchase.store, types.IapStore.Google);
+        expect(purchase.storeId, 'play');
+      }
+    });
+
+    test('rejects non-string community identities without coercion', () {
+      for (final storeId in [
+        true,
+        123,
+        ['community-fixture']
+      ]) {
+        expect(
+          () => convertToPurchase(
+            {
+              'id': 'purchase-id',
+              'productId': 'coins.pack',
+              'store': 'unknown',
+              'storeId': storeId,
+              'purchaseState': 'purchased',
+            },
+            platformIsAndroid: true,
+            platformIsIOS: false,
+            acknowledgedAndroidPurchaseTokens: <String, bool>{},
+          ),
+          throwsFormatException,
+        );
+      }
+    });
+
+    test('preserves strict identity validation in the iOS adapter', () {
+      expect(
+        () => convertToPurchase(
+          {
+            'id': 'transaction-id',
+            'transactionId': 'transaction-id',
+            'productId': 'coins.pack',
+            'store': 'apple',
+            'storeId': true,
+            'purchaseState': 'purchased',
+          },
+          platformIsAndroid: false,
+          platformIsIOS: true,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        ),
+        throwsFormatException,
+      );
+    });
+
     test('preserves canonical Android purchase fields', () {
       final acknowledgedTokens = <String, bool>{};
       final purchase = convertToPurchase(
