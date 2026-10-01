@@ -2,7 +2,8 @@
 
 `community.fixture:provider:1.0.0` is an in-memory store in the
 `community.fixture` namespace. It compiles against Maven artifacts only:
-`openiap-core` for its implementation and `openiap-conformance` for its tests.
+`openiap-core` and its separately published `vendor-sdk` for implementation,
+and `openiap-conformance` for tests.
 It has no official billing SDK, composite build, or official provider source
 dependency. It is deliberately absent from the store registry.
 
@@ -20,6 +21,9 @@ The script publishes into a temporary local Maven repository and checks:
 - The minified host selects the provider with the two Gradle properties, keeps
   its manifest factory, and contains no official billing SDK.
 - Two different provider manifests fail merging.
+- Product loading calls the separate vendor SDK, its Kotlin Multiplatform JVM
+  runtime, and the core's Compose context. Missing runtime dependencies fail
+  before the store can serve products.
 - The Gradle plugin resolves core plus provider for plain and flavored apps;
   a provider flavor without coordinates fails.
 
@@ -40,7 +44,7 @@ packages/google/gradlew -p packages/google \
   -Dmaven.repo.local=/tmp/openiap-provider-maven
 
 packages/google/gradlew -p packages/google/compatibility/community-provider \
-  :provider:negativeConformance :provider:publishFixturePublicationToMavenLocal \
+  :provider:negativeConformance :vendor-sdk:publishVendorPublicationToMavenLocal :provider:publishFixturePublicationToMavenLocal \
   -Dmaven.repo.local=/tmp/openiap-provider-maven \
   -PopenIapRepository=/tmp/openiap-provider-maven \
   -PopenIapVersion=<google-version> -PconformanceVersion=<suite-version>

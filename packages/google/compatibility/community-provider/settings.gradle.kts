@@ -7,4 +7,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "independent-openiap-provider"
-include(":provider", ":host", ":second-provider")
+include(":provider", ":host", ":second-provider", ":vendor-sdk")

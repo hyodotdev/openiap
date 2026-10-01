@@ -2,6 +2,7 @@ package community.fixture
 
 import android.app.Activity
 import android.content.Context
+import community.fixture.vendor.FixtureVendorSdk
 import dev.hyo.openiap.*
 import dev.hyo.openiap.listener.*
 
@@ -26,8 +27,9 @@ class FixtureProvider : OpenIapProtocol {
     override val endConnection: MutationEndConnectionHandler = { connected = false; true }
     override val fetchProducts: QueryFetchProductsHandler = { params ->
         check(connected)
+        val contextName = IapContext.LocalOpenIapStore.javaClass.simpleName
         FetchProductsResultProducts(params.skus.map { id -> ProductAndroid(
-            currency = "USD", description = "In-memory fixture product", displayPrice = "$1.00", id = id,
+            currency = "USD", description = "${FixtureVendorSdk.productDescription()} ($contextName)", displayPrice = "$1.00", id = id,
             nameAndroid = id, title = id,
         ) })
     }

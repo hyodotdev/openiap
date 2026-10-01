@@ -4,7 +4,7 @@
 
 import {Platform} from 'react-native';
 import {ErrorCode} from '../types';
-import type {DiscountOfferInputIOS} from '../types';
+import type {DiscountOfferInputIOS, Purchase} from '../types';
 
 // Minimal Nitro IAP mock to exercise wrappers
 const mockIap: any = {
@@ -1353,7 +1353,7 @@ describe('Public API (src/index.ts)', () => {
       );
     });
 
-    it('Android path merges inapp+subs results', async () => {
+    it('Android reads all ownership through the provider contract once', async () => {
       Object.assign(Platform, {OS: 'android'});
       const nitro = (id: string) => ({
         id: `t-${id}`,
@@ -1365,17 +1365,21 @@ describe('Public API (src/index.ts)', () => {
         purchaseState: 'purchased',
         isAutoRenewing: false,
       });
-      mockIap.getAvailablePurchases
-        .mockResolvedValueOnce([nitro('p1')])
-        .mockResolvedValueOnce([nitro('s1')]);
-      const res = await IAP.getAvailablePurchases();
-      expect(mockIap.getAvailablePurchases).toHaveBeenNthCalledWith(1, {
-        android: {type: 'in-app', includeSuspended: false},
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([
+        nitro('p1'),
+        nitro('s1'),
+      ]);
+      const res = await IAP.getAvailablePurchases({
+        includeSuspendedAndroid: true,
       });
-      expect(mockIap.getAvailablePurchases).toHaveBeenNthCalledWith(2, {
-        android: {type: 'subs', includeSuspended: false},
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledWith({
+        android: {includeSuspended: true},
       });
-      expect(res.map((p: any) => p.productId).sort()).toEqual(['p1', 's1']);
+      expect(res.map((purchase: Purchase) => purchase.productId).sort()).toEqual([
+        'p1',
+        's1',
+      ]);
     });
 
     it('rejects a mixed valid and malformed native purchase list', async () => {
@@ -1390,9 +1394,10 @@ describe('Public API (src/index.ts)', () => {
         purchaseState: 'purchased',
         isAutoRenewing: false,
       };
-      mockIap.getAvailablePurchases
-        .mockResolvedValueOnce([valid])
-        .mockResolvedValueOnce([{id: 'malformed'}]);
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([
+        valid,
+        {id: 'malformed'},
+      ]);
 
       await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
         code: 'billing-response-json-parse-error',
@@ -1464,21 +1469,23 @@ describe('Public API (src/index.ts)', () => {
     it('preserves community identity in Android ownership reads and restore', async () => {
       Object.assign(Platform, {OS: 'android'});
       mockIap.getAvailablePurchases.mockImplementation(
-        async (options: {android?: {type?: string}}) =>
-          options.android?.type === 'subs'
-            ? []
-            : [
-                {
-                  id: 'community',
-                  productId: 'premium',
-                  transactionDate: 1,
-                  store: 'unknown',
-                  storeId: 'community-fixture',
-                  quantity: 1,
-                  purchaseState: 'purchased',
-                  isAutoRenewing: false,
-                },
-              ],
+        async (options: {android?: {type?: string}}) => {
+          if (options.android?.type) {
+            throw new Error('The provider supports canonical ownership reads only');
+          }
+          return [
+            {
+              id: 'community',
+              productId: 'premium',
+              transactionDate: 1,
+              store: 'unknown',
+              storeId: 'community-fixture',
+              quantity: 1,
+              purchaseState: 'purchased',
+              isAutoRenewing: false,
+            },
+          ];
+        },
       );
       await expect(IAP.getAvailablePurchases()).resolves.toEqual([
         expect.objectContaining({

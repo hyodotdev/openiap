@@ -91,7 +91,7 @@ run "and names the alias when it was set" "fail:OpenIapAndroidStore='bogus' is n
 run "even beside a valid OpenIapStore"   "fail:OpenIapAndroidStore='bogus' is not a store" $link -p:OpenIapStore=play -p:OpenIapAndroidStore=bogus
 
 echo "community provider"
-run "external coordinates link only the provider" "community-fixture:provider" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
+run "external pair selects the neutral core" "community-fixture:" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
 run "external id needs coordinates" "fail:OpenIapStore='community-fixture' is not a store" $link -p:OpenIapStore=community-fixture
 run "official selection rejects an external pair" "fail:OpenIapProvider requires a community OpenIapStore id" $link -p:OpenIapStore=play -p:OpenIapProvider=community.fixture:provider:1.0.0
 run "provider version must be fixed" "fail:OpenIapProvider must be fixed group:artifact:version coordinates" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:+
@@ -118,42 +118,11 @@ ANDROID_SERIAL=ABSENT run "an unattached ANDROID_SERIAL is Play" "$play" $link "
 unset FAKE_ADB_DEVICES
 run "no adb at all"                      "$play"    $link -p:AdbToolPath=/nonexistent/
 
-# Exercise POM verification with a downloaded provider whose core is bundled.
-core_version=$(python3 - "$maui_root/openiap-versions.json" <<'PYCODE'
-import json, sys
-print(json.load(open(sys.argv[1]))["google"])
-PYCODE
-)
-cat > "$fake_sdk/provider.pom" <<POM
-<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
-<groupId>community.fixture</groupId><artifactId>provider</artifactId><version>1.0.0</version>
-<dependencies><dependency><groupId>io.github.hyochan.openiap</groupId><artifactId>openiap-core</artifactId>
-<version>$core_version</version><scope>compile</scope></dependency></dependencies></project>
-POM
-sed "s/<version>$core_version<\/version><scope>compile/<version>999.0.0<\/version><scope>compile/" "$fake_sdk/provider.pom" > "$fake_sdk/provider-incompatible.pom"
-cp "$maui_root/../../packages/google/core/build/outputs/aar/openiap-core-release.aar" "$fake_sdk/provider.aar"
-cat > "$fake_sdk/provider.targets" <<'TARGETS'
-<Project>
-  <Target Name="_OpenIapLocalProviderVerification" DependsOnTargets="_OpenIapLinkAndroidStore" BeforeTargets="_MavenRestore">
-    <PropertyGroup>
-      <_FixtureProviderManifest>$(MSBuildThisFileDirectory)provider.pom</_FixtureProviderManifest>
-      <_FixtureProviderManifest Condition="'$(FixtureWrongCoreVersion)' == 'true'">$(MSBuildThisFileDirectory)provider-incompatible.pom</_FixtureProviderManifest>
-    </PropertyGroup>
-    <ItemGroup Condition="'$(OpenIapStore)' == 'community-fixture'">
-      <AndroidMavenLibrary Remove="$(_OpenIapProviderModule)" />
-      <AndroidLibrary Include="$(MSBuildThisFileDirectory)provider.aar" Manifest="$(_FixtureProviderManifest)"
-                      JavaArtifact="community.fixture:provider:1.0.0" Bind="false" />
-    </ItemGroup>
-  </Target>
-</Project>
-TARGETS
-
 echo "dependency verification"
 run "Play's Maven SDKs verify"           "$play"    _CategorizeAndroidLibraries -p:OpenIapStore=play
 run "Horizon's Maven SDKs verify"        "$horizon" _CategorizeAndroidLibraries -p:OpenIapStore=horizon
 run "Amazon's Maven SDKs verify"         "$amazon"  _CategorizeAndroidLibraries -p:OpenIapStore=amazon
-run "community POM credits the bundled core" "community-fixture:" _CategorizeAndroidLibraries -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0 "-p:CustomAfterMicrosoftCommonTargets=$fake_sdk/provider.targets"
-run "community POM rejects the wrong core version" "fail:XA4241" _CategorizeAndroidLibraries -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0 "-p:CustomAfterMicrosoftCommonTargets=$fake_sdk/provider.targets" -p:FixtureWrongCoreVersion=true
+bash "$maui_root/scripts/verify-community-provider.sh"
 
 # --apk also builds the whole example per store and checks what its APK links:
 # manifest merge, D8 and packaging are past the stage the cases above reach.

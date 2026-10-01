@@ -1,4 +1,27 @@
 <Project>
+  <UsingTask TaskName="OpenIapReadProviderArtifacts" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ManifestFile ParameterType="System.String" Required="true" />
+      <Libraries ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+      <Redirects ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        Libraries = System.IO.File.ReadAllLines(ManifestFile).Select(line => {
+          var fields = line.Split('\t');
+          if (fields.Length != 2) throw new System.InvalidOperationException("Invalid provider artifact manifest");
+          var item = new Microsoft.Build.Utilities.TaskItem(fields[0]);
+          item.SetMetadata("JavaArtifact", fields[1]);
+          item.SetMetadata("Bind", "false");
+          return (Microsoft.Build.Framework.ITaskItem)item;
+        }).ToArray();
+        Redirects = System.IO.File.ReadAllLines(ManifestFile + ".redirects")
+          .Select(line => (Microsoft.Build.Framework.ITaskItem)new Microsoft.Build.Utilities.TaskItem(line)).ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
   <!--
     Links one Android store into an app, by the rule every OpenIAP build shares:
     OpenIapStore (the deprecated OpenIapAndroidStore still pins, and must agree
@@ -133,8 +156,6 @@
     </PropertyGroup>
     <PropertyGroup>
       <_OpenIapCoreAar>$([System.IO.Path]::GetFullPath('$(OpenIapCoreAarDirectory)openiap-core-release.aar'))</_OpenIapCoreAar>
-      <_OpenIapProviderModule>$([System.Text.RegularExpressions.Regex]::Replace('$(OpenIapProvider.Trim())', '^([^:]+:[^:]+):([^:]+)$', '$1'))</_OpenIapProviderModule>
-      <_OpenIapProviderVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(OpenIapProvider.Trim())', '^([^:]+:[^:]+):([^:]+)$', '$2'))</_OpenIapProviderVersion>
     </PropertyGroup>
     <Error Condition="!Exists('$(_OpenIapCoreAar)')" Text="openiap: $(_OpenIapCoreAar) is missing." />
     <Message Importance="high" Text="openiap: store=$(OpenIapLinkedStore) (source=$(_OpenIapSource); $(_OpenIapReason))" />
@@ -143,7 +164,7 @@
     <ItemGroup>
       <AndroidLibrary Include="$(_OpenIapCoreAar)" Bind="false" JavaArtifact="io.github.hyochan.openiap:openiap-core:$(MauiOpenIapCoreVersion)" />
       <AndroidLibrary Include="$(_OpenIapGoogleAar)" Bind="false" Condition="'$(_OpenIapCommunity)' != 'true'" />
-      <AndroidMavenLibrary Include="$(_OpenIapProviderModule)" Version="$(_OpenIapProviderVersion)" Bind="false" Condition="'$(_OpenIapCommunity)' == 'true'" />
+
       <!-- MSBuild compares timestamps, and another store's AARs can be older than
            the last build, so a changed store must rewrite the properties cache. -->
       <_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />
@@ -168,5 +189,34 @@
     <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'amazon'">
       <AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />
     </ItemGroup>
+  </Target>
+
+  <Target Name="_OpenIapResolveCommunityDependencies"
+          DependsOnTargets="_OpenIapLinkAndroidStore;ResolvePackageAssets;_ResolveSdks"
+          BeforeTargets="_MavenRestore;_VerifyJavaDependencies;_CategorizeAndroidLibraries"
+          Condition="'$(AndroidApplication)' == 'true'">
+    <PropertyGroup Condition="'$(_OpenIapCommunity)' == 'true'">
+      <_OpenIapResolverDirectory>$(MSBuildThisFileDirectory)provider-resolver</_OpenIapResolverDirectory>
+      <_OpenIapWrapperJar>$(_OpenIapResolverDirectory)/gradle/wrapper/gradle-wrapper.jar</_OpenIapWrapperJar>
+      <_OpenIapWrapperJar Condition="!Exists('$(_OpenIapWrapperJar)')">$(MSBuildThisFileDirectory)../../../../../packages/google/gradle/wrapper/gradle-wrapper.jar</_OpenIapWrapperJar>
+      <_OpenIapResolverOutput>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)openiap-provider'))</_OpenIapResolverOutput>
+      <_OpenIapResolverManifest>$(_OpenIapResolverOutput)/artifacts.tsv</_OpenIapResolverManifest>
+      <_OpenIapJavaExe>$(_JavaSdkDirectory)/bin/java</_OpenIapJavaExe>
+      <_OpenIapJavaExe Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(_OpenIapJavaExe).exe</_OpenIapJavaExe>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(_OpenIapCommunity)' == 'true'">
+      <_OpenIapSuppliedJava Include="@(AndroidLibrary->'%(JavaArtifact)');@(PackageReference->'%(JavaArtifact)');@(ProjectReference->'%(JavaArtifact)');@(AndroidIgnoredJavaDependency)" />
+      <_OpenIapSuppliedJava Include="@(AndroidMavenLibrary->'%(Identity):%(Version)')" Condition="'%(AndroidMavenLibrary.JavaArtifact)' == ''" />
+      <_OpenIapSuppliedJava Include="@(AndroidMavenLibrary->'%(JavaArtifact)')" Condition="'%(AndroidMavenLibrary.JavaArtifact)' != ''" />
+    </ItemGroup>
+    <MakeDir Condition="'$(_OpenIapCommunity)' == 'true'" Directories="$(_OpenIapResolverOutput)" />
+    <WriteLinesToFile Condition="'$(_OpenIapCommunity)' == 'true'" File="$(_OpenIapResolverOutput)/supplied.txt" Lines="@(_OpenIapSuppliedJava)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteLinesToFile Condition="'$(_OpenIapCommunity)' == 'true'" File="$(_OpenIapResolverOutput)/repositories.txt" Lines="@(OpenIapProviderRepository)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Exec Condition="'$(_OpenIapCommunity)' == 'true'" Command="&quot;$(_OpenIapJavaExe)&quot; -classpath &quot;$(_OpenIapWrapperJar)&quot; org.gradle.wrapper.GradleWrapperMain -p &quot;$(_OpenIapResolverDirectory)&quot; resolveProvider --no-daemon --console=plain --project-cache-dir &quot;$(_OpenIapResolverOutput)/gradle-cache&quot;"
+          EnvironmentVariables="OPENIAP_SUPPLIED=$(_OpenIapResolverOutput)/supplied.txt;OPENIAP_ASSETS=$(ProjectAssetsFile);OPENIAP_TARGET=$(TargetFramework);OPENIAP_PROVIDER=$(OpenIapProvider);OPENIAP_REPOSITORIES_FILE=$(_OpenIapResolverOutput)/repositories.txt;OPENIAP_OUTPUT=$(_OpenIapResolverManifest);JAVA_HOME=$(_JavaSdkDirectory)" />
+    <OpenIapReadProviderArtifacts Condition="'$(_OpenIapCommunity)' == 'true'" ManifestFile="$(_OpenIapResolverManifest)">
+      <Output TaskParameter="Libraries" ItemName="AndroidLibrary" />
+      <Output TaskParameter="Redirects" ItemName="AndroidIgnoredJavaDependency" />
+    </OpenIapReadProviderArtifacts>
   </Target>
 </Project>

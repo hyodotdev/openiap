@@ -155,6 +155,19 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
 </PropertyGroup>`}
         />
         <p>
+          MAUI resolves the provider’s Maven runtime dependencies using the
+          included Gradle wrapper and your Android Java SDK. NuGet owns its
+          existing runtimes; a provider requiring newer versions reports a
+          conflict so you can update those NuGet packages.
+        </p>
+        <p>For a provider outside Maven Central, add its repository:</p>
+        <CodeBlock
+          language="xml"
+          children={`<ItemGroup>
+  <OpenIapProviderRepository Include="https://your-store.example/maven" />
+</ItemGroup>`}
+        />
+        <p>
           Store-specific app ids, keys, and resources belong to the provider’s
           manifest or resources. Follow its setup instructions. Existing
           official aliases, legacy flags, and automatic device selection keep

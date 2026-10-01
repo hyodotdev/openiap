@@ -996,23 +996,10 @@ export const getAvailablePurchases: QueryField<
         options?.includeSuspendedAndroid ?? false,
       );
 
-      if (isVegaOS()) {
-        const nitroPurchases = await IAP.instance.getAvailablePurchases({
-          android: {includeSuspended},
-        });
-        return convertAndroidPurchasesOrThrow(nitroPurchases);
-      }
-
-      // For Android Play/Horizon/Fire OS, query in-app items and subscriptions separately.
-      const inappNitroPurchases = await IAP.instance.getAvailablePurchases({
-        android: {type: 'in-app', includeSuspended},
+      const nitroPurchases = await IAP.instance.getAvailablePurchases({
+        android: {includeSuspended},
       });
-      const subsNitroPurchases = await IAP.instance.getAvailablePurchases({
-        android: {type: 'subs', includeSuspended},
-      });
-
-      const allNitroPurchases = [...inappNitroPurchases, ...subsNitroPurchases];
-      return convertAndroidPurchasesOrThrow(allNitroPurchases);
+      return convertAndroidPurchasesOrThrow(nitroPurchases);
     } else {
       throw unsupportedPlatformError();
     }

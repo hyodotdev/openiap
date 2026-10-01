@@ -3542,7 +3542,7 @@ function checkBillingChoiceFieldBindings() {
     "libraries/react-native-iap/src/index.ts",
     [
       "return convertApplePurchasesOrThrow(nitroPurchases);",
-      "return convertAndroidPurchasesOrThrow(allNitroPurchases);",
+      "return convertAndroidPurchasesOrThrow(nitroPurchases);",
     ],
     "RN platform-scoped authoritative purchase-list decoding",
   );

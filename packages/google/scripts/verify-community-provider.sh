@@ -14,7 +14,7 @@ suite_version=$(node --input-type=module -e "import {SUITE_VERSION} from '$repo_
     :openiap-conformance:publishToMavenLocal -Dmaven.repo.local="$repository"
 args=(-PopenIapRepository="$repository" -PopenIapVersion="$core_version" -PconformanceVersion="$suite_version")
 "$google_root/gradlew" -p "$fixture_root" :provider:negativeConformance \
-    :provider:publishFixturePublicationToMavenLocal -Dmaven.repo.local="$repository" "${args[@]}"
+    :vendor-sdk:publishVendorPublicationToMavenLocal :provider:publishFixturePublicationToMavenLocal -Dmaven.repo.local="$repository" "${args[@]}"
 "$google_root/gradlew" -p "$fixture_root" :host:assembleRelease "${args[@]}" \
     -PopeniapStore=community-fixture -PopeniapProvider=community.fixture:provider:1.0.0
 node --input-type=module - "$repo_root" "$fixture_root" <<'JS'

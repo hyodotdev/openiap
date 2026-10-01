@@ -334,6 +334,8 @@ preserved_property_names = [
     "MauiGoogleGsonNuGetVersion",
     "MauiAndroidXActivityVersion",
     "MauiAndroidXCollectionVersion",
+    "MauiComposeAnnotationVersion",
+    "MauiAndroidXWindowVersion",
     "MauiAndroidXFragmentVersion",
     "MauiAndroidXFragmentKtxVersion",
     "MauiAndroidXLifecycleVersion",
@@ -363,6 +365,8 @@ content = f"""<Project>
     <MauiGoogleGsonNuGetVersion>{preserved["MauiGoogleGsonNuGetVersion"]}</MauiGoogleGsonNuGetVersion>
     <MauiAndroidXActivityVersion>{preserved["MauiAndroidXActivityVersion"]}</MauiAndroidXActivityVersion>
     <MauiAndroidXCollectionVersion>{preserved["MauiAndroidXCollectionVersion"]}</MauiAndroidXCollectionVersion>
+    <MauiComposeAnnotationVersion>{preserved["MauiComposeAnnotationVersion"]}</MauiComposeAnnotationVersion>
+    <MauiAndroidXWindowVersion>{preserved["MauiAndroidXWindowVersion"]}</MauiAndroidXWindowVersion>
     <MauiAndroidXFragmentVersion>{preserved["MauiAndroidXFragmentVersion"]}</MauiAndroidXFragmentVersion>
     <MauiAndroidXFragmentKtxVersion>{preserved["MauiAndroidXFragmentKtxVersion"]}</MauiAndroidXFragmentKtxVersion>
     <MauiAndroidXLifecycleVersion>{preserved["MauiAndroidXLifecycleVersion"]}</MauiAndroidXLifecycleVersion>

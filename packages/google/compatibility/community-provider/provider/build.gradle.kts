@@ -11,6 +11,7 @@ android {
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
+    implementation(project(":vendor-sdk"))
     api("io.github.hyochan.openiap:openiap-core:$coreVersion")
     testImplementation("io.github.hyochan.openiap:openiap-conformance:${providers.gradleProperty("conformanceVersion").get()}")
     testImplementation("org.robolectric:robolectric:4.16.1")
