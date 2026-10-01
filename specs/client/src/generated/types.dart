@@ -1549,7 +1549,7 @@ abstract class PurchaseCommon {
   int get quantity;
   /// Store where purchase was made
   IapStore get store;
-  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
   String get storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   double get transactionDate;
@@ -3190,7 +3190,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? signatureAndroid;
   /// Store where purchase was made
   final IapStore store;
-  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
   final String storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   final double transactionDate;
@@ -3423,7 +3423,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   /// Store where purchase was made
   final IapStore store;
   final String? storefrontCountryCodeIOS;
-  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
   final String storeId;
   final String? subscriptionGroupIdIOS;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
@@ -3815,7 +3815,7 @@ class RequestVerifyPurchaseWithIapkitResult {
   /// The current state of the purchase.
   final IapkitPurchaseState state;
   final IapStore store;
-  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
   final String storeId;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
@@ -3840,6 +3840,46 @@ class RequestVerifyPurchaseWithIapkitResult {
       'productId': productId,
       'state': state.toJson(),
       'store': store.toJson(),
+      'storeId': storeId,
+    };
+  }
+}
+
+/// Store-provider contract shared by the Apple and Android native bindings.
+/// coreVersion names the native contract build; clientProtocolVersion names the
+/// Client Protocol build. Capabilities use the conformance provider profile ids.
+class StoreProviderDescriptor {
+  const StoreProviderDescriptor({
+    required this.capabilities,
+    required this.clientProtocolVersion,
+    required this.coreVersion,
+    required this.platform,
+    required this.storeId,
+  });
+
+  final List<String> capabilities;
+  final String clientProtocolVersion;
+  final String coreVersion;
+  final IapPlatform platform;
+  final String storeId;
+
+  factory StoreProviderDescriptor.fromJson(Map<String, dynamic> json) {
+    return StoreProviderDescriptor(
+      capabilities: (json['capabilities'] as List<dynamic>).map((e) => e as String).toList(),
+      clientProtocolVersion: json['clientProtocolVersion'] as String,
+      coreVersion: json['coreVersion'] as String,
+      platform: IapPlatform.fromJson(json['platform'] as String),
+      storeId: json['storeId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'StoreProviderDescriptor',
+      'capabilities': capabilities,
+      'clientProtocolVersion': clientProtocolVersion,
+      'coreVersion': coreVersion,
+      'platform': platform.toJson(),
       'storeId': storeId,
     };
   }
@@ -5055,10 +5095,8 @@ class _SubsPurchase extends RequestPurchaseProps {
 /// Platform-specific purchase request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestPurchasePropsByPlatforms {
   const RequestPurchasePropsByPlatforms({
     this.apple,
@@ -5233,10 +5271,8 @@ class RequestSubscriptionIosProps {
 /// Platform-specific subscription request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestSubscriptionPropsByPlatforms {
   const RequestSubscriptionPropsByPlatforms({
     this.apple,
@@ -5806,7 +5842,7 @@ sealed class Purchase implements PurchaseCommon {
   /// Store where purchase was made
   @override
   IapStore get store;
-  /// Stable store id: apple, play, horizon, amazon, or an Android provider id.
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
   @override
   String get storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.

@@ -4,9 +4,13 @@
  * Generates Swift types with Codable conformance from GraphQL schema.
  */
 
-import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
-import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
-import { generatedFileHeader } from '../core/generated-header.js';
+import {
+  renderStoreIds,
+  renderStoreIdentityResolver,
+  hasStoreIdentity,
+} from "../core/store-ids.js";
+import { CodegenPlugin, type CodegenPluginConfig } from "./base-plugin.js";
+import { generatedFileHeader } from "../core/generated-header.js";
 import type {
   IRSchema,
   IREnum,
@@ -18,12 +22,18 @@ import type {
   IRType,
   IRField,
   IROperationField,
-} from '../core/types.js';
-import { SWIFT_KEYWORDS, GRAPHQL_TO_SWIFT, requireGraphQLScalarMapping, toLowerCamelCase, capitalize } from '../core/utils.js';
+} from "../core/types.js";
+import {
+  SWIFT_KEYWORDS,
+  GRAPHQL_TO_SWIFT,
+  requireGraphQLScalarMapping,
+  toLowerCamelCase,
+  capitalize,
+} from "../core/utils.js";
 
 export class SwiftPlugin extends CodegenPlugin {
-  readonly name = 'swift';
-  readonly fileExtension = '.swift';
+  readonly name = "swift";
+  readonly fileExtension = ".swift";
   readonly keywords = SWIFT_KEYWORDS;
 
   private schema!: IRSchema;
@@ -37,16 +47,18 @@ export class SwiftPlugin extends CodegenPlugin {
   // ============================================================================
 
   mapScalar(name: string): string {
-    return requireGraphQLScalarMapping(GRAPHQL_TO_SWIFT, name, 'Swift');
+    return requireGraphQLScalarMapping(GRAPHQL_TO_SWIFT, name, "Swift");
   }
 
   mapType(type: IRType): string {
-    if (type.kind === 'list') {
+    if (type.kind === "list") {
       const elementType = this.mapType(type.elementType!);
-      const element = type.elementType!.nullable ? `${elementType}?` : elementType;
+      const element = type.elementType!.nullable
+        ? `${elementType}?`
+        : elementType;
       return `[${element}]`;
     }
-    if (type.kind === 'scalar') {
+    if (type.kind === "scalar") {
       return this.mapScalar(type.name!);
     }
     return type.name!;
@@ -70,9 +82,9 @@ export class SwiftPlugin extends CodegenPlugin {
 
   generateHeader(): void {
     for (const line of generatedFileHeader()) this.emit(line);
-    this.emit('');
-    this.emit('import Foundation');
-    this.emit('');
+    this.emit("");
+    this.emit("import Foundation");
+    this.emit("");
   }
 
   // ============================================================================
@@ -84,7 +96,7 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public enum ${irEnum.name}: String, Codable, CaseIterable {`);
 
     for (const value of irEnum.values) {
-      this.generateDocComment(value.description, '    ');
+      this.generateDocComment(value.description, "    ");
       const caseName = this.escapeKeyword(this.enumValueCase(value.name));
       this.emit(`    case ${caseName} = "${value.rawValue}"`);
     }
@@ -96,24 +108,32 @@ export class SwiftPlugin extends CodegenPlugin {
       const legacyAliases = new Map(
         irEnum.values.flatMap((value) => {
           const targetCase = this.escapeKeyword(this.enumValueCase(value.name));
-          return value.legacyAliases.map((alias) => [alias, targetCase] as const);
+          return value.legacyAliases.map(
+            (alias) => [alias, targetCase] as const,
+          );
         }),
       );
 
-      this.emit('');
-      this.emit('    /// Custom initializer to handle both kebab-case and camelCase error codes');
-      this.emit('    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase');
-      this.emit('    public init?(rawValue: String) {');
-      this.emit('        // Try direct match first (kebab-case)');
-      this.emit('        switch rawValue {');
+      this.emit("");
+      this.emit(
+        "    /// Custom initializer to handle both kebab-case and camelCase error codes",
+      );
+      this.emit(
+        "    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase",
+      );
+      this.emit("    public init?(rawValue: String) {");
+      this.emit("        // Try direct match first (kebab-case)");
+      this.emit("        switch rawValue {");
 
       for (const value of irEnum.values) {
         const caseName = this.escapeKeyword(this.enumValueCase(value.name));
         const rawValue = value.rawValue;
-        const camelCaseName = value.name.charAt(0).toUpperCase() + value.name.slice(1);
+        const camelCaseName =
+          value.name.charAt(0).toUpperCase() + value.name.slice(1);
 
         // Check if this case is a legacy alias that should map to another case
-        const aliasTarget = legacyAliases.get(rawValue) ?? legacyAliases.get(camelCaseName);
+        const aliasTarget =
+          legacyAliases.get(rawValue) ?? legacyAliases.get(camelCaseName);
 
         if (aliasTarget && aliasTarget === caseName) {
           // This case IS the target - just use normal handling
@@ -130,14 +150,14 @@ export class SwiftPlugin extends CodegenPlugin {
         }
       }
 
-      this.emit('        default:');
-      this.emit('            return nil');
-      this.emit('        }');
-      this.emit('    }');
+      this.emit("        default:");
+      this.emit("            return nil");
+      this.emit("        }");
+      this.emit("    }");
     }
 
-    this.emit('}');
-    this.emit('');
+    this.emit("}");
+    this.emit("");
   }
 
   // ============================================================================
@@ -149,17 +169,19 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public protocol ${irInterface.name}: Codable {`);
 
     // Sort fields alphabetically for Swift
-    const sortedFields = [...irInterface.fields].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = [...irInterface.fields].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
     for (const field of sortedFields) {
-      this.generateDocComment(field.description, '    ');
-      this.generateDeprecationAnnotation(field.description, '    ');
+      this.generateDocComment(field.description, "    ");
+      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    var ${propertyName}: ${propertyType} { get }`);
     }
 
-    this.emit('}');
-    this.emit('');
+    this.emit("}");
+    this.emit("");
   }
 
   // ============================================================================
@@ -168,10 +190,10 @@ export class SwiftPlugin extends CodegenPlugin {
 
   generateObject(irObject: IRObject): void {
     // Handle VoidResult
-    if (irObject.name === 'VoidResult') {
+    if (irObject.name === "VoidResult") {
       this.generateDocComment(irObject.description);
-      this.emit('public typealias VoidResult = Void');
-      this.emit('');
+      this.emit("public typealias VoidResult = Void");
+      this.emit("");
       return;
     }
 
@@ -182,21 +204,23 @@ export class SwiftPlugin extends CodegenPlugin {
     }
 
     this.generateDocComment(irObject.description);
-    const conformances = ['Codable', ...irObject.interfaces];
-    this.emit(`public struct ${irObject.name}: ${conformances.join(', ')} {`);
+    const conformances = ["Codable", ...irObject.interfaces];
+    this.emit(`public struct ${irObject.name}: ${conformances.join(", ")} {`);
 
     // Sort fields alphabetically for Swift
-    const sortedFields = [...irObject.fields].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = [...irObject.fields].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
 
     // Properties
     for (const field of sortedFields) {
-      this.generateDocComment(field.description, '    ');
-      this.generateDeprecationAnnotation(field.description, '    ');
+      this.generateDocComment(field.description, "    ");
+      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
 
       const schemaDefault = this.buildDefaultValueExpression(field);
-      let defaultValue = '';
+      let defaultValue = "";
       if (schemaDefault) {
         defaultValue = ` = ${schemaDefault}`;
       } else if (field.type.nullable) {
@@ -204,45 +228,56 @@ export class SwiftPlugin extends CodegenPlugin {
         // initializer can omit them — existing call sites that construct
         // objects without every optional keep compiling when new nullable
         // fields are added.
-        defaultValue = ' = nil';
+        defaultValue = " = nil";
       }
 
-      this.emit(`    public var ${propertyName}: ${propertyType}${defaultValue}`);
+      this.emit(
+        `    public var ${propertyName}: ${propertyType}${defaultValue}`,
+      );
     }
 
-    // Generate initializer if there are no fields
-    if (sortedFields.length === 0) {
-      this.emit('    public init() {}');
-    }
+    this.generatePublicInitializer(sortedFields);
 
     if (hasStoreIdentity(sortedFields)) {
-      this.emit('    private enum CodingKeys: String, CodingKey {');
-      this.emit(`        case ${sortedFields.map(field => this.escapeKeyword(field.name)).join(', ')}`);
-      this.emit('    }');
+      this.emit("    private enum CodingKeys: String, CodingKey {");
+      this.emit(
+        `        case ${sortedFields.map((field) => this.escapeKeyword(field.name)).join(", ")}`,
+      );
+      this.emit("    }");
     }
-    this.emit('}');
-    this.emit('');
+    this.emit("}");
+    this.emit("");
     if (hasStoreIdentity(sortedFields)) {
       this.emit(`extension ${irObject.name} {`);
-      this.emit('    public init(from decoder: Decoder) throws {');
-      this.emit('        let container = try decoder.container(keyedBy: CodingKeys.self)');
-      this.emit('        let store = try container.decode(IapStore.self, forKey: .store)');
+      this.emit("    public init(from decoder: Decoder) throws {");
+      this.emit(
+        "        let container = try decoder.container(keyedBy: CodingKeys.self)",
+      );
+      this.emit(
+        "        let store = try container.decode(IapStore.self, forKey: .store)",
+      );
       for (const field of sortedFields) {
         const name = this.escapeKeyword(field.name);
-        if (field.name === 'store') {
-          this.emit('        self.store = store');
-        } else if (field.name === 'storeId') {
-          this.emit('        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {');
-          this.emit('            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")');
-          this.emit('        }');
-          this.emit('        self.storeId = storeId');
+        if (field.name === "store") {
+          this.emit("        self.store = store");
+        } else if (field.name === "storeId") {
+          this.emit(
+            "        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {",
+          );
+          this.emit(
+            '            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")',
+          );
+          this.emit("        }");
+          this.emit("        self.storeId = storeId");
         } else {
-          this.emit(`        self.${name} = try container.${field.type.nullable ? 'decodeIfPresent' : 'decode'}(${this.mapType(field.type)}.self, forKey: .${name})`);
+          this.emit(
+            `        self.${name} = try container.${field.type.nullable ? "decodeIfPresent" : "decode"}(${this.mapType(field.type)}.self, forKey: .${name})`,
+          );
         }
       }
-      this.emit('    }');
-      this.emit('}');
-      this.emit('');
+      this.emit("    }");
+      this.emit("}");
+      this.emit("");
     }
   }
 
@@ -251,16 +286,18 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public enum ${irObject.name} {`);
 
     // Sort entries alphabetically
-    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) => a.fieldName.localeCompare(b.fieldName));
+    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) =>
+      a.fieldName.localeCompare(b.fieldName),
+    );
     for (const entry of sortedEntries) {
-      this.generateDocComment(entry.description, '    ');
+      this.generateDocComment(entry.description, "    ");
       const caseName = this.escapeKeyword(this.enumValueCase(entry.fieldName));
       const payloadType = this.getPropertyType(entry.type);
       this.emit(`    case ${caseName}(${payloadType})`);
     }
 
-    this.emit('}');
-    this.emit('');
+    this.emit("}");
+    this.emit("");
   }
 
   // ============================================================================
@@ -278,59 +315,72 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public struct ${irInput.name}: Codable {`);
 
     // Sort fields alphabetically for Swift
-    const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = [...irInput.fields].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
 
     // Properties
     for (const field of sortedFields) {
-      this.generateDocComment(field.description, '    ');
-      this.generateDeprecationAnnotation(field.description, '    ');
+      this.generateDocComment(field.description, "    ");
+      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    public var ${propertyName}: ${propertyType}`);
     }
 
-    // Generate public initializer
+    this.generatePublicInitializer(sortedFields);
+
+    this.emit("}");
+    this.emit("");
+  }
+
+  private generatePublicInitializer(sortedFields: IRField[]): void {
     if (sortedFields.length > 0) {
-      this.emit('');
+      this.emit("");
       const initParams = sortedFields
         .map((field) => {
           const propertyType = this.getPropertyType(field.type);
-          const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
+          const propertyName = this.escapeKeyword(
+            this.fieldNameCase(field.name),
+          );
           const schemaDefault = this.buildDefaultValueExpression(field);
-          const defaultValue = schemaDefault ? ` = ${schemaDefault}` : field.type.nullable ? ' = nil' : '';
+          const defaultValue = schemaDefault
+            ? ` = ${schemaDefault}`
+            : field.type.nullable
+              ? " = nil"
+              : "";
           return `        ${propertyName}: ${propertyType}${defaultValue}`;
         })
-        .join(',\n');
-      this.emit('    public init(');
+        .join(",\n");
+      this.emit("    public init(");
       this.emit(initParams);
-      this.emit('    ) {');
+      this.emit("    ) {");
       for (const field of sortedFields) {
         const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
         this.emit(`        self.${propertyName} = ${propertyName}`);
       }
-      this.emit('    }');
+      this.emit("    }");
     } else {
-      this.emit('    public init() {}');
+      this.emit("    public init() {}");
     }
-
-    this.emit('}');
-    this.emit('');
   }
 
   private generateCustomInput(irInput: IRInput): void {
     switch (irInput.customTypeKind) {
-      case 'PurchaseInput':
-        this.emit('public typealias PurchaseInput = Purchase');
-        this.emit('');
+      case "PurchaseInput":
+        this.emit("public typealias PurchaseInput = Purchase");
+        this.emit("");
         break;
-      case 'DiscountOfferInputIOS':
+      case "DiscountOfferInputIOS":
         this.generateDiscountOfferInputIOS(irInput);
         break;
-      case 'RequestPurchaseProps':
+      case "RequestPurchaseProps":
         this.generateRequestPurchaseProps(irInput);
         break;
       default:
-        throw new Error(`${irInput.name} is marked as a custom input without a Swift generator strategy.`);
+        throw new Error(
+          `${irInput.name} is marked as a custom input without a Swift generator strategy.`,
+        );
     }
   }
 
@@ -339,20 +389,26 @@ export class SwiftPlugin extends CodegenPlugin {
     return this.buildDefaultValueForType(field.type, field.defaultValue);
   }
 
-  private buildDefaultValueForType(type: IRType, defaultValue: unknown): string | null {
-    if (type.kind === 'list') {
+  private buildDefaultValueForType(
+    type: IRType,
+    defaultValue: unknown,
+  ): string | null {
+    if (type.kind === "list") {
       if (!Array.isArray(defaultValue)) return null;
       const items = defaultValue
         .map((value) => this.buildDefaultValueForType(type.elementType!, value))
         .filter((value): value is string => value !== null);
-      return `[${items.join(', ')}]`;
+      return `[${items.join(", ")}]`;
     }
-    if (type.kind === 'enum' && typeof defaultValue === 'string') {
+    if (type.kind === "enum" && typeof defaultValue === "string") {
       return `.${this.escapeKeyword(this.enumValueCase(defaultValue))}`;
     }
-    if (type.kind === 'scalar') {
-      if (typeof defaultValue === 'string') return `"${defaultValue}"`;
-      if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
+    if (type.kind === "scalar") {
+      if (typeof defaultValue === "string") return `"${defaultValue}"`;
+      if (
+        typeof defaultValue === "number" ||
+        typeof defaultValue === "boolean"
+      ) {
         return String(defaultValue);
       }
     }
@@ -362,144 +418,195 @@ export class SwiftPlugin extends CodegenPlugin {
   private generateDiscountOfferInputIOS(irInput: IRInput): void {
     const fields = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
-    this.emit('public struct DiscountOfferInputIOS: Codable {');
+    this.emit("public struct DiscountOfferInputIOS: Codable {");
     for (const field of fields) {
-      this.generateDocComment(field.description, '    ');
-      this.emit(`    public var ${field.name}: ${this.getPropertyType(field.type)}`);
+      this.generateDocComment(field.description, "    ");
+      this.emit(
+        `    public var ${field.name}: ${this.getPropertyType(field.type)}`,
+      );
     }
-    this.emit('');
-    this.emit('    public init(identifier: String, keyIdentifier: String, nonce: String, signature: String, timestamp: Double) {');
-    this.emit('        self.identifier = identifier');
-    this.emit('        self.keyIdentifier = keyIdentifier');
-    this.emit('        self.nonce = nonce');
-    this.emit('        self.signature = signature');
-    this.emit('        self.timestamp = timestamp');
-    this.emit('    }');
-    this.emit('');
-    this.emit('    private enum CodingKeys: String, CodingKey {');
-    this.emit('        case identifier, keyIdentifier, nonce, signature, timestamp');
-    this.emit('    }');
-    this.emit('');
-    this.emit('    public init(from decoder: Decoder) throws {');
-    this.emit('        let container = try decoder.container(keyedBy: CodingKeys.self)');
-    this.emit('        identifier = try container.decode(String.self, forKey: .identifier)');
-    this.emit('        keyIdentifier = try container.decode(String.self, forKey: .keyIdentifier)');
-    this.emit('        nonce = try container.decode(String.self, forKey: .nonce)');
-    this.emit('        signature = try container.decode(String.self, forKey: .signature)');
-    this.emit('');
-    this.emit('        // Flexible timestamp decoding: accept Double or String');
-    this.emit('        if let timestampDouble = try? container.decode(Double.self, forKey: .timestamp) {');
-    this.emit('            timestamp = timestampDouble');
-    this.emit('        } else if let timestampString = try? container.decode(String.self, forKey: .timestamp),');
-    this.emit('                  let timestampDouble = Double(timestampString) {');
-    this.emit('            timestamp = timestampDouble');
-    this.emit('        } else {');
-    this.emit('            throw DecodingError.dataCorruptedError(');
-    this.emit('                forKey: .timestamp,');
-    this.emit('                in: container,');
-    this.emit('                debugDescription: "timestamp must be a number or numeric string"');
-    this.emit('            )');
-    this.emit('        }');
-    this.emit('    }');
-    this.emit('');
-    this.emit('    public func encode(to encoder: Encoder) throws {');
-    this.emit('        var container = encoder.container(keyedBy: CodingKeys.self)');
-    this.emit('        try container.encode(identifier, forKey: .identifier)');
-    this.emit('        try container.encode(keyIdentifier, forKey: .keyIdentifier)');
-    this.emit('        try container.encode(nonce, forKey: .nonce)');
-    this.emit('        try container.encode(signature, forKey: .signature)');
-    this.emit('        try container.encode(timestamp, forKey: .timestamp)');
-    this.emit('    }');
-    this.emit('}');
-    this.emit('');
+    this.emit("");
+    this.emit(
+      "    public init(identifier: String, keyIdentifier: String, nonce: String, signature: String, timestamp: Double) {",
+    );
+    this.emit("        self.identifier = identifier");
+    this.emit("        self.keyIdentifier = keyIdentifier");
+    this.emit("        self.nonce = nonce");
+    this.emit("        self.signature = signature");
+    this.emit("        self.timestamp = timestamp");
+    this.emit("    }");
+    this.emit("");
+    this.emit("    private enum CodingKeys: String, CodingKey {");
+    this.emit(
+      "        case identifier, keyIdentifier, nonce, signature, timestamp",
+    );
+    this.emit("    }");
+    this.emit("");
+    this.emit("    public init(from decoder: Decoder) throws {");
+    this.emit(
+      "        let container = try decoder.container(keyedBy: CodingKeys.self)",
+    );
+    this.emit(
+      "        identifier = try container.decode(String.self, forKey: .identifier)",
+    );
+    this.emit(
+      "        keyIdentifier = try container.decode(String.self, forKey: .keyIdentifier)",
+    );
+    this.emit(
+      "        nonce = try container.decode(String.self, forKey: .nonce)",
+    );
+    this.emit(
+      "        signature = try container.decode(String.self, forKey: .signature)",
+    );
+    this.emit("");
+    this.emit(
+      "        // Flexible timestamp decoding: accept Double or String",
+    );
+    this.emit(
+      "        if let timestampDouble = try? container.decode(Double.self, forKey: .timestamp) {",
+    );
+    this.emit("            timestamp = timestampDouble");
+    this.emit(
+      "        } else if let timestampString = try? container.decode(String.self, forKey: .timestamp),",
+    );
+    this.emit(
+      "                  let timestampDouble = Double(timestampString) {",
+    );
+    this.emit("            timestamp = timestampDouble");
+    this.emit("        } else {");
+    this.emit("            throw DecodingError.dataCorruptedError(");
+    this.emit("                forKey: .timestamp,");
+    this.emit("                in: container,");
+    this.emit(
+      '                debugDescription: "timestamp must be a number or numeric string"',
+    );
+    this.emit("            )");
+    this.emit("        }");
+    this.emit("    }");
+    this.emit("");
+    this.emit("    public func encode(to encoder: Encoder) throws {");
+    this.emit(
+      "        var container = encoder.container(keyedBy: CodingKeys.self)",
+    );
+    this.emit("        try container.encode(identifier, forKey: .identifier)");
+    this.emit(
+      "        try container.encode(keyIdentifier, forKey: .keyIdentifier)",
+    );
+    this.emit("        try container.encode(nonce, forKey: .nonce)");
+    this.emit("        try container.encode(signature, forKey: .signature)");
+    this.emit("        try container.encode(timestamp, forKey: .timestamp)");
+    this.emit("    }");
+    this.emit("}");
+    this.emit("");
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
-    const [requestPurchase, requestSubscription, type] = this.requireCustomInputFields(irInput);
+    const [requestPurchase, requestSubscription, type] =
+      this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
-    this.emit('public struct RequestPurchaseProps: Codable {');
-    this.emit('    public var request: Request');
-    this.generateDocComment(type.description, '    ');
-    this.emit('    public var type: ProductQueryType');
-    this.emit('');
-    this.emit('    public init(request: Request, type: ProductQueryType? = nil) {');
-    this.emit('        switch request {');
-    this.emit('        case .purchase:');
-    this.emit('            let resolved = type ?? .inApp');
-    this.emit('            precondition(resolved == .inApp, "RequestPurchaseProps.type must be .inApp when request is purchase")');
-    this.emit('            self.type = resolved');
-    this.emit('        case .subscription:');
-    this.emit('            let resolved = type ?? .subs');
-    this.emit('            precondition(resolved == .subs, "RequestPurchaseProps.type must be .subs when request is subscription")');
-    this.emit('            self.type = resolved');
-        this.emit('        }');
-        this.emit('        self.request = request');
-        this.emit('    }');
-    this.emit('');
-    this.emit('    private enum CodingKeys: String, CodingKey {');
-    this.emit('        case requestPurchase');
-    this.emit('        case requestSubscription');
-    this.emit('        case type');
-    this.emit('    }');
-    this.emit('');
-    this.emit('    public init(from decoder: Decoder) throws {');
-    this.emit('        let container = try decoder.container(keyedBy: CodingKeys.self)');
-    this.emit('        let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)');
-    this.emit('        let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)');
+    this.emit("public struct RequestPurchaseProps: Codable {");
+    this.emit("    public var request: Request");
+    this.generateDocComment(type.description, "    ");
+    this.emit("    public var type: ProductQueryType");
+    this.emit("");
     this.emit(
-      '        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)',
+      "    public init(request: Request, type: ProductQueryType? = nil) {",
     );
-    this.emit('        guard (purchase == nil) != (subscription == nil) else {');
+    this.emit("        switch request {");
+    this.emit("        case .purchase:");
+    this.emit("            let resolved = type ?? .inApp");
+    this.emit(
+      '            precondition(resolved == .inApp, "RequestPurchaseProps.type must be .inApp when request is purchase")',
+    );
+    this.emit("            self.type = resolved");
+    this.emit("        case .subscription:");
+    this.emit("            let resolved = type ?? .subs");
+    this.emit(
+      '            precondition(resolved == .subs, "RequestPurchaseProps.type must be .subs when request is subscription")',
+    );
+    this.emit("            self.type = resolved");
+    this.emit("        }");
+    this.emit("        self.request = request");
+    this.emit("    }");
+    this.emit("");
+    this.emit("    private enum CodingKeys: String, CodingKey {");
+    this.emit("        case requestPurchase");
+    this.emit("        case requestSubscription");
+    this.emit("        case type");
+    this.emit("    }");
+    this.emit("");
+    this.emit("    public init(from decoder: Decoder) throws {");
+    this.emit(
+      "        let container = try decoder.container(keyedBy: CodingKeys.self)",
+    );
+    this.emit(
+      "        let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)",
+    );
+    this.emit(
+      "        let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)",
+    );
+    this.emit(
+      "        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)",
+    );
+    this.emit(
+      "        guard (purchase == nil) != (subscription == nil) else {",
+    );
     this.emit(
       '            throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription.")',
     );
-    this.emit('        }');
-    this.emit('        if let purchase {');
-    this.emit('            let finalType = decodedType ?? .inApp');
-    this.emit('            guard finalType == .inApp else {');
+    this.emit("        }");
+    this.emit("        if let purchase {");
+    this.emit("            let finalType = decodedType ?? .inApp");
+    this.emit("            guard finalType == .inApp else {");
     this.emit(
       '                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be IN_APP when requestPurchase is provided")',
     );
-    this.emit('            }');
-    this.emit('            self.request = .purchase(purchase)');
-    this.emit('            self.type = finalType');
-    this.emit('            return');
-    this.emit('        }');
-    this.emit('        if let subscription {');
-    this.emit('            let finalType = decodedType ?? .subs');
-    this.emit('            guard finalType == .subs else {');
+    this.emit("            }");
+    this.emit("            self.request = .purchase(purchase)");
+    this.emit("            self.type = finalType");
+    this.emit("            return");
+    this.emit("        }");
+    this.emit("        if let subscription {");
+    this.emit("            let finalType = decodedType ?? .subs");
+    this.emit("            guard finalType == .subs else {");
     this.emit(
       '                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be SUBS when requestSubscription is provided")',
     );
-    this.emit('            }');
-    this.emit('            self.request = .subscription(subscription)');
-    this.emit('            self.type = finalType');
-    this.emit('            return');
-    this.emit('        }');
+    this.emit("            }");
+    this.emit("            self.request = .subscription(subscription)");
+    this.emit("            self.type = finalType");
+    this.emit("            return");
+    this.emit("        }");
     this.emit(
       '        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps branch validation failed.")',
     );
-    this.emit('    }');
-    this.emit('');
-    this.emit('    public func encode(to encoder: Encoder) throws {');
-    this.emit('        var container = encoder.container(keyedBy: CodingKeys.self)');
-    this.emit('        switch request {');
-    this.emit('        case let .purchase(value):');
-    this.emit('            try container.encode(value, forKey: .requestPurchase)');
-    this.emit('        case let .subscription(value):');
-    this.emit('            try container.encode(value, forKey: .requestSubscription)');
-    this.emit('        }');
-    this.emit('        try container.encode(type, forKey: .type)');
-    this.emit('    }');
-    this.emit('');
-    this.emit('    public enum Request {');
-    this.generateDocComment(requestPurchase.description, '        ');
-    this.emit('        case purchase(RequestPurchasePropsByPlatforms)');
-    this.generateDocComment(requestSubscription.description, '        ');
-    this.emit('        case subscription(RequestSubscriptionPropsByPlatforms)');
-    this.emit('    }');
-    this.emit('}');
-    this.emit('');
+    this.emit("    }");
+    this.emit("");
+    this.emit("    public func encode(to encoder: Encoder) throws {");
+    this.emit(
+      "        var container = encoder.container(keyedBy: CodingKeys.self)",
+    );
+    this.emit("        switch request {");
+    this.emit("        case let .purchase(value):");
+    this.emit(
+      "            try container.encode(value, forKey: .requestPurchase)",
+    );
+    this.emit("        case let .subscription(value):");
+    this.emit(
+      "            try container.encode(value, forKey: .requestSubscription)",
+    );
+    this.emit("        }");
+    this.emit("        try container.encode(type, forKey: .type)");
+    this.emit("    }");
+    this.emit("");
+    this.emit("    public enum Request {");
+    this.generateDocComment(requestPurchase.description, "        ");
+    this.emit("        case purchase(RequestPurchasePropsByPlatforms)");
+    this.generateDocComment(requestSubscription.description, "        ");
+    this.emit("        case subscription(RequestSubscriptionPropsByPlatforms)");
+    this.emit("    }");
+    this.emit("}");
+    this.emit("");
   }
 
   // ============================================================================
@@ -509,8 +616,9 @@ export class SwiftPlugin extends CodegenPlugin {
   generateUnion(irUnion: IRUnion): void {
     this.generateDocComment(irUnion.description);
 
-    const conformances = ['Codable', ...irUnion.sharedInterfaces];
-    const conformanceClause = conformances.length > 0 ? `: ${conformances.join(', ')}` : '';
+    const conformances = ["Codable", ...irUnion.sharedInterfaces];
+    const conformanceClause =
+      conformances.length > 0 ? `: ${conformances.join(", ")}` : "";
 
     this.emit(`public enum ${irUnion.name}${conformanceClause} {`);
 
@@ -524,18 +632,22 @@ export class SwiftPlugin extends CodegenPlugin {
       this.generateUnionInterfaceAccessors(irUnion);
     }
 
-    this.emit('}');
-    this.emit('');
+    this.emit("}");
+    this.emit("");
   }
 
   private generateUnionInterfaceAccessors(irUnion: IRUnion): void {
     // Collect fields from shared interfaces
     const interfaceFields = new Map<string, IRField>();
     for (const interfaceName of irUnion.sharedInterfaces) {
-      const irInterface = this.schema.interfaces.find((i) => i.name === interfaceName);
+      const irInterface = this.schema.interfaces.find(
+        (i) => i.name === interfaceName,
+      );
       if (!irInterface) continue;
       // Sort interface fields alphabetically
-      const sortedFields = [...irInterface.fields].sort((a, b) => a.name.localeCompare(b.name));
+      const sortedFields = [...irInterface.fields].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
       for (const field of sortedFields) {
         if (!interfaceFields.has(field.name)) {
           interfaceFields.set(field.name, field);
@@ -544,19 +656,21 @@ export class SwiftPlugin extends CodegenPlugin {
     }
 
     if (interfaceFields.size > 0) {
-      this.emit('');
+      this.emit("");
     }
 
     // Sort the final array alphabetically
-    const interfaceFieldsArray = [...interfaceFields.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const interfaceFieldsArray = [...interfaceFields.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    );
     interfaceFieldsArray.forEach(([fieldName, field], index) => {
-      this.generateDocComment(field.description, '    ');
-      this.generateDeprecationAnnotation(field.description, '    ');
+      this.generateDocComment(field.description, "    ");
+      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(fieldName));
 
       this.emit(`    public var ${propertyName}: ${propertyType} {`);
-      this.emit('        switch self {');
+      this.emit("        switch self {");
 
       for (const member of irUnion.members) {
         const caseName = this.escapeKeyword(this.enumValueCase(member.name));
@@ -564,11 +678,11 @@ export class SwiftPlugin extends CodegenPlugin {
         this.emit(`            return value.${propertyName}`);
       }
 
-      this.emit('        }');
-      this.emit('    }');
+      this.emit("        }");
+      this.emit("    }");
       // Add blank line between properties (except after the last one)
       if (index < interfaceFieldsArray.length - 1) {
-        this.emit('');
+        this.emit("");
       }
     });
   }
@@ -594,12 +708,13 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Header
     this.generateHeader();
-    this.emit(renderStoreIds('swift'));
-    if (schema.enums.some(item => item.name === 'IapStore')) this.emit(renderStoreIdentityResolver('swift'));
+    this.emit(renderStoreIds("swift"));
+    if (schema.enums.some((item) => item.name === "IapStore"))
+      this.emit(renderStoreIdentityResolver("swift"));
 
     // Enums
     if (schema.enums.length > 0) {
-      this.addSectionComment('Enums');
+      this.addSectionComment("Enums");
       for (const irEnum of schema.enums) {
         this.generateEnum(irEnum);
       }
@@ -607,7 +722,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Interfaces
     if (schema.interfaces.length > 0) {
-      this.addSectionComment('Interfaces');
+      this.addSectionComment("Interfaces");
       for (const irInterface of schema.interfaces) {
         this.generateInterface(irInterface);
       }
@@ -615,7 +730,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Objects
     if (schema.objects.length > 0) {
-      this.addSectionComment('Objects');
+      this.addSectionComment("Objects");
       for (const irObject of schema.objects) {
         this.generateObject(irObject);
       }
@@ -623,7 +738,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Inputs
     if (schema.inputs.length > 0) {
-      this.addSectionComment('Input Objects');
+      this.addSectionComment("Input Objects");
       for (const irInput of schema.inputs) {
         this.generateInput(irInput);
       }
@@ -631,7 +746,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Unions
     if (schema.unions.length > 0) {
-      this.addSectionComment('Unions');
+      this.addSectionComment("Unions");
       for (const irUnion of schema.unions) {
         this.generateUnion(irUnion);
       }
@@ -639,7 +754,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Operations - Protocols first
     if (schema.operations.length > 0) {
-      this.addSectionComment('Root Operations');
+      this.addSectionComment("Root Operations");
       for (const irOperation of schema.operations) {
         this.generateOperationProtocol(irOperation);
       }
@@ -647,35 +762,44 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Operations - Helpers second (matching original order)
     if (schema.operations.length > 0) {
-      this.addSectionComment('Root Operation Helpers');
+      this.addSectionComment("Root Operation Helpers");
       for (const irOperation of schema.operations) {
         this.generateOperationHelpers(irOperation);
       }
     }
 
-    const output = this.lines.join('\n');
+    const output = this.lines.join("\n");
     return this.postProcess(output);
   }
 
   private generateOperationProtocol(irOperation: IROperation): void {
     const protocolName = `${irOperation.name}Resolver`;
-    this.generateDocComment(irOperation.description ?? `GraphQL root ${irOperation.name.toLowerCase()} operations.`);
+    this.generateDocComment(
+      irOperation.description ??
+        `GraphQL root ${irOperation.name.toLowerCase()} operations.`,
+    );
     this.emit(`public protocol ${protocolName} {`);
 
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields
+      .filter((f) => f.name !== "_placeholder")
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     for (const field of sortedFields) {
-      this.generateDocComment(this.operationFieldDescription(field), '    ');
+      this.generateDocComment(this.operationFieldDescription(field), "    ");
       const returnType = this.getOperationReturnType(field);
 
       if (field.args.length === 0) {
-        this.emit(`    func ${this.escapeKeyword(field.name)}() async throws -> ${returnType}`);
+        this.emit(
+          `    func ${this.escapeKeyword(field.name)}() async throws -> ${returnType}`,
+        );
       } else if (field.args.length === 1) {
         const arg = field.args[0];
         const argType = this.getPropertyType(arg.type);
         const argName = this.escapeKeyword(arg.name);
-        this.emit(`    func ${this.escapeKeyword(field.name)}(_ ${argName}: ${argType}) async throws -> ${returnType}`);
+        this.emit(
+          `    func ${this.escapeKeyword(field.name)}(_ ${argName}: ${argType}) async throws -> ${returnType}`,
+        );
       } else {
         const params = field.args
           .map((arg) => {
@@ -683,23 +807,27 @@ export class SwiftPlugin extends CodegenPlugin {
             const argName = this.escapeKeyword(arg.name);
             return `${argName}: ${argType}`;
           })
-          .join(', ');
-        this.emit(`    func ${this.escapeKeyword(field.name)}(${params}) async throws -> ${returnType}`);
+          .join(", ");
+        this.emit(
+          `    func ${this.escapeKeyword(field.name)}(${params}) async throws -> ${returnType}`,
+        );
       }
     }
 
-    this.emit('}');
-    this.emit('');
+    this.emit("}");
+    this.emit("");
   }
 
   private generateOperationHelpers(irOperation: IROperation): void {
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields
+      .filter((f) => f.name !== "_placeholder")
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     if (sortedFields.length === 0) return;
 
     this.emit(`// MARK: - ${irOperation.name} Helpers`);
-    this.emit('');
+    this.emit("");
 
     // Generate typealiases for handlers
     for (const field of sortedFields) {
@@ -707,43 +835,51 @@ export class SwiftPlugin extends CodegenPlugin {
       const returnType = this.getOperationReturnType(field);
 
       if (field.args.length === 0) {
-        this.emit(`public typealias ${aliasName} = () async throws -> ${returnType}`);
+        this.emit(
+          `public typealias ${aliasName} = () async throws -> ${returnType}`,
+        );
       } else {
         const params = field.args
           .map((arg) => {
             const argType = this.getPropertyType(arg.type);
             return `_ ${this.escapeKeyword(arg.name)}: ${argType}`;
           })
-          .join(', ');
-        this.emit(`public typealias ${aliasName} = (${params}) async throws -> ${returnType}`);
+          .join(", ");
+        this.emit(
+          `public typealias ${aliasName} = (${params}) async throws -> ${returnType}`,
+        );
       }
     }
 
     // Generate handlers struct
     const structName = `${irOperation.name}Handlers`;
-    this.emit('');
+    this.emit("");
     this.emit(`public struct ${structName} {`);
 
     for (const field of sortedFields) {
       const aliasName = `${irOperation.name}${capitalize(field.name)}Handler`;
-      this.emit(`    public var ${this.escapeKeyword(field.name)}: ${aliasName}?`);
+      this.emit(
+        `    public var ${this.escapeKeyword(field.name)}: ${aliasName}?`,
+      );
     }
 
-    this.emit('');
+    this.emit("");
     const initParams = sortedFields
       .map((field) => {
         const aliasName = `${irOperation.name}${capitalize(field.name)}Handler`;
         return `${this.escapeKeyword(field.name)}: ${aliasName}? = nil`;
       })
-      .join(',\n        ');
-    this.emit(`    public init(${sortedFields.length > 0 ? `\n        ${initParams}\n    ` : ''}) {`);
+      .join(",\n        ");
+    this.emit(
+      `    public init(${sortedFields.length > 0 ? `\n        ${initParams}\n    ` : ""}) {`,
+    );
     for (const field of sortedFields) {
       const propertyName = this.escapeKeyword(field.name);
       this.emit(`        self.${propertyName} = ${propertyName}`);
     }
-    this.emit('    }');
-    this.emit('}');
-    this.emit('');
+    this.emit("    }");
+    this.emit("}");
+    this.emit("");
   }
 
   // ============================================================================
@@ -759,24 +895,36 @@ export class SwiftPlugin extends CodegenPlugin {
     const resolved = field.resolvedReturnType;
 
     // Handle Void
-    if (resolved.kind === 'scalar' && resolved.name === 'Void') {
-      return resolved.nullable ? 'Void?' : 'Void';
+    if (resolved.kind === "scalar" && resolved.name === "Void") {
+      return resolved.nullable ? "Void?" : "Void";
     }
 
     return this.getPropertyType(resolved);
   }
 
-  protected generateDocComment(description: string | undefined, indent: string = ''): void {
+  protected generateDocComment(
+    description: string | undefined,
+    indent: string = "",
+  ): void {
     if (!description) return;
     for (const line of description.split(/\r?\n/)) {
       this.emit(line ? `${indent}/// ${line}` : `${indent}///`);
     }
   }
 
-  private generateDeprecationAnnotation(description: string | undefined, indent: string = ''): void {
-    const reason = description?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]?.trim();
+  private generateDeprecationAnnotation(
+    description: string | undefined,
+    indent: string = "",
+  ): void {
+    const reason = description
+      ?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]
+      ?.trim();
     if (!reason) return;
-    const escapedReason = reason.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-    this.emit(`${indent}@available(*, deprecated, message: "${escapedReason}")`);
+    const escapedReason = reason
+      .replaceAll("\\", "\\\\")
+      .replaceAll('"', '\\"');
+    this.emit(
+      `${indent}@available(*, deprecated, message: "${escapedReason}")`,
+    );
   }
 }

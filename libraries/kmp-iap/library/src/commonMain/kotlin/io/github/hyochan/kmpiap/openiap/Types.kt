@@ -1475,7 +1475,7 @@ public interface PurchaseCommon {
      */
     val store: IapStore
     /**
-     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
      */
     val storeId: String
     /**
@@ -3047,7 +3047,7 @@ public data class PurchaseAndroid(
      */
     override val store: IapStore,
     /**
-     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
      */
     override val storeId: String,
     /**
@@ -3276,7 +3276,7 @@ public data class PurchaseIOS(
     override val store: IapStore,
     val storefrontCountryCodeIOS: String? = null,
     /**
-     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
      */
     override val storeId: String,
     val subscriptionGroupIdIOS: String? = null,
@@ -3666,7 +3666,7 @@ public class RequestVerifyPurchaseWithIapkitResult(
         private set
 
     /**
-     * Stable store id: apple, play, horizon, amazon, or an Android provider id.
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
      */
     var storeId: String = when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> "unknown" }
         private set
@@ -3779,6 +3779,41 @@ public class RequestVerifyPurchaseWithIapkitResult(
         "state" to state.toJson(),
         "productId" to productId,
         "clientPayload" to clientPayload?.toJson(),
+    )
+}
+
+/**
+ * Store-provider contract shared by the Apple and Android native bindings.
+ * coreVersion names the native contract build; clientProtocolVersion names the
+ * Client Protocol build. Capabilities use the conformance provider profile ids.
+ */
+public data class StoreProviderDescriptor(
+    val capabilities: List<String>,
+    val clientProtocolVersion: String,
+    val coreVersion: String,
+    val platform: IapPlatform,
+    val storeId: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): StoreProviderDescriptor {
+            return StoreProviderDescriptor(
+                capabilities = (json["capabilities"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                clientProtocolVersion = json["clientProtocolVersion"] as? String ?: "",
+                coreVersion = json["coreVersion"] as? String ?: "",
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for IapPlatform"),
+                storeId = json["storeId"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "StoreProviderDescriptor",
+        "capabilities" to capabilities,
+        "clientProtocolVersion" to clientProtocolVersion,
+        "coreVersion" to coreVersion,
+        "platform" to platform.toJson(),
+        "storeId" to storeId,
     )
 }
 
@@ -5035,10 +5070,8 @@ public data class RequestPurchaseProps(
  * Platform-specific purchase request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 public data class RequestPurchasePropsByPlatforms(
     /**
@@ -5239,10 +5272,8 @@ public data class RequestSubscriptionIosProps(
  * Platform-specific subscription request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 public data class RequestSubscriptionPropsByPlatforms(
     /**

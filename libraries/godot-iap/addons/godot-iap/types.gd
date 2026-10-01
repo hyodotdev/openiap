@@ -2272,7 +2272,7 @@ class PurchaseAndroid:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: _Types.IapStore = IapStore.UNKNOWN
-	## Stable store id: apple, play, horizon, amazon, or an Android provider id.
+	## Stable store id: apple, play, horizon, amazon, or a community provider id.
 	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
@@ -2504,7 +2504,7 @@ class PurchaseIOS:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: _Types.IapStore = IapStore.UNKNOWN
-	## Stable store id: apple, play, horizon, amazon, or an Android provider id.
+	## Stable store id: apple, play, horizon, amazon, or a community provider id.
 	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
@@ -3005,7 +3005,7 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: _Types.IapStore = IapStore.UNKNOWN
-	## Stable store id: apple, play, horizon, amazon, or an Android provider id.
+	## Stable store id: apple, play, horizon, amazon, or a community provider id.
 	var store_id: String = ""
 	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
@@ -3071,6 +3071,55 @@ class RequestVerifyPurchaseWithIapkitResult:
 			dict["clientPayload"] = client_payload.to_dict()
 		else:
 			dict["clientPayload"] = client_payload
+		return dict
+
+## Store-provider contract shared by the Apple and Android native bindings. coreVersion names the native contract build; clientProtocolVersion names the Client Protocol build. Capabilities use the conformance provider profile ids.
+class StoreProviderDescriptor:
+	var store_id: String = ""
+	var platform: _Types.IapPlatform
+	var core_version: String = ""
+	var client_protocol_version: String = ""
+	var capabilities: Array[String] = []
+
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.StoreProviderDescriptor:
+		if not data.has("platform") or not ((data["platform"] is String and IAP_PLATFORM_FROM_STRING.has(data["platform"])) or (data["platform"] is int and IAP_PLATFORM_VALUES.has(data["platform"]))):
+			if report_errors:
+				push_error("Invalid StoreProviderDescriptor.platform enum value")
+			return null
+		var obj = StoreProviderDescriptor.new()
+		if data.has("storeId") and data["storeId"] != null:
+			obj.store_id = data["storeId"]
+		if data.has("platform") and data["platform"] != null:
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
+			else:
+				obj.platform = enum_str
+		if data.has("coreVersion") and data["coreVersion"] != null:
+			obj.core_version = data["coreVersion"]
+		if data.has("clientProtocolVersion") and data["clientProtocolVersion"] != null:
+			obj.client_protocol_version = data["clientProtocolVersion"]
+		if data.has("capabilities") and data["capabilities"] != null:
+			if data["capabilities"] is Array:
+				var arr: Array[String] = []
+				for item in data["capabilities"]:
+					if item is String:
+						arr.append(str(item))
+				obj.capabilities = arr
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["storeId"] = store_id
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["coreVersion"] = core_version
+		dict["clientProtocolVersion"] = client_protocol_version
+		dict["capabilities"] = capabilities
 		return dict
 
 class SubscriptionCommitmentInfoIOS:
@@ -4697,7 +4746,7 @@ class RequestPurchaseProps:
 		dict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)
 		return dict
 
-## Platform-specific purchase request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
+## Platform-specific purchase request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Uses the selected Apple-platform provider (App Store by default) - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestPurchasePropsByPlatforms:
 	## Apple-specific purchase parameters
 	var apple: _Types.RequestPurchaseIosProps
@@ -5006,7 +5055,7 @@ class RequestSubscriptionIosProps:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
 
-## Platform-specific subscription request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
+## Platform-specific subscription request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Uses the selected Apple-platform provider (App Store by default) - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestSubscriptionPropsByPlatforms:
 	## Apple-specific subscription parameters
 	var apple: _Types.RequestSubscriptionIosProps

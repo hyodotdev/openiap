@@ -1254,7 +1254,7 @@ export interface PurchaseAndroid extends PurchaseCommon {
   signatureAndroid?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
-  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
   storeId: string;
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
@@ -1290,7 +1290,7 @@ export interface PurchaseCommon {
   quantity: number;
   /** Store where purchase was made */
   store: IapStore;
-  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
   storeId: string;
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
@@ -1370,7 +1370,7 @@ export interface PurchaseIOS extends PurchaseCommon {
   revocationTypeIOS?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
-  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
   storeId: string;
   storefrontCountryCodeIOS?: (string | null);
   subscriptionGroupIdIOS?: (string | null);
@@ -1716,10 +1716,8 @@ export type RequestPurchaseProps =
  * Platform-specific purchase request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 export interface RequestPurchasePropsByPlatforms {
   /** Apple-specific purchase parameters */
@@ -1816,10 +1814,8 @@ export interface RequestSubscriptionIosProps {
  * Platform-specific subscription request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 export interface RequestSubscriptionPropsByPlatforms {
   /** Apple-specific subscription parameters */
@@ -1929,7 +1925,20 @@ export interface RequestVerifyPurchaseWithIapkitResult {
   /** The current state of the purchase. */
   state: IapkitPurchaseState;
   store: IapStore;
-  /** Stable store id: apple, play, horizon, amazon, or an Android provider id. */
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
+  storeId: string;
+}
+
+/**
+ * Store-provider contract shared by the Apple and Android native bindings.
+ * coreVersion names the native contract build; clientProtocolVersion names the
+ * Client Protocol build. Capabilities use the conformance provider profile ids.
+ */
+export interface StoreProviderDescriptor {
+  capabilities: string[];
+  clientProtocolVersion: string;
+  coreVersion: string;
+  platform: IapPlatform;
   storeId: string;
 }
 

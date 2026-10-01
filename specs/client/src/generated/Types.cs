@@ -2514,7 +2514,7 @@ public interface PurchaseCommon
     int Quantity { get; }
     /// <summary>Store where purchase was made</summary>
     IapStore Store { get; }
-    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
     string StoreId { get; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     double TransactionDate { get; }
@@ -2594,7 +2594,7 @@ public abstract record Purchase : PurchaseCommon
     public abstract int Quantity { get; init; }
     /// <summary>Store where purchase was made</summary>
     public abstract IapStore Store { get; init; }
-    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
     public abstract string StoreId { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     public abstract double TransactionDate { get; init; }
@@ -3549,7 +3549,7 @@ public sealed record PurchaseAndroid : Purchase, IJsonOnDeserialized
     /// <summary>Store where purchase was made</summary>
     [JsonPropertyName("store")]
     public override required IapStore Store { get; init; }
-    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
     private string? _storeId;
     [JsonPropertyName("storeId")]
     public override string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }
@@ -3752,7 +3752,7 @@ public sealed record PurchaseIOS : Purchase, IJsonOnDeserialized
     public override required IapStore Store { get; init; }
     [JsonPropertyName("storefrontCountryCodeIOS")]
     public string? StorefrontCountryCodeIOS { get; init; }
-    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
     private string? _storeId;
     [JsonPropertyName("storeId")]
     public override string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }
@@ -4040,7 +4040,7 @@ public sealed record RequestVerifyPurchaseWithIapkitResult : IJsonOnDeserialized
     public required IapkitPurchaseState State { get; init; }
     [JsonPropertyName("store")]
     public required IapStore Store { get; init; }
-    /// <summary>Stable store id: apple, play, horizon, amazon, or an Android provider id.</summary>
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
     private string? _storeId;
     [JsonPropertyName("storeId")]
     public string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }
@@ -4066,6 +4066,25 @@ public sealed record RequestVerifyPurchaseWithIapkitResult : IJsonOnDeserialized
         hash.Add(StoreId);
         return hash.ToHashCode();
     }
+}
+
+/// <summary>
+/// Store-provider contract shared by the Apple and Android native bindings.
+/// coreVersion names the native contract build; clientProtocolVersion names the
+/// Client Protocol build. Capabilities use the conformance provider profile ids.
+/// </summary>
+public sealed record StoreProviderDescriptor
+{
+    [JsonPropertyName("capabilities")]
+    public required IReadOnlyList<string> Capabilities { get; init; }
+    [JsonPropertyName("clientProtocolVersion")]
+    public required string ClientProtocolVersion { get; init; }
+    [JsonPropertyName("coreVersion")]
+    public required string CoreVersion { get; init; }
+    [JsonPropertyName("platform")]
+    public required IapPlatform Platform { get; init; }
+    [JsonPropertyName("storeId")]
+    public required string StoreId { get; init; }
 }
 
 public sealed record SubscriptionCommitmentInfoIOS
@@ -4752,10 +4771,8 @@ public sealed record RequestPurchaseProps : IJsonOnDeserialized
 /// Platform-specific purchase request parameters.
 ///
 /// Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 /// </summary>
 public sealed record RequestPurchasePropsByPlatforms
 {
@@ -4875,10 +4892,8 @@ public sealed record RequestSubscriptionIosProps
 /// Platform-specific subscription request parameters.
 ///
 /// Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 /// </summary>
 public sealed record RequestSubscriptionPropsByPlatforms
 {
