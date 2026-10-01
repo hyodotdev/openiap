@@ -6,7 +6,7 @@ package dev.hyo.openiap.conformance
 
 object ConformanceBehaviors {
     const val SUITE_VERSION = "4.0.0"
-    const val CLIENT_PROTOCOL_VERSION = "0.1.1"
+    const val CLIENT_PROTOCOL_VERSION = "0.2.0"
     const val ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "android-provider.subscription-billing-issue"
     const val ANDROID_PROVIDER_OFFER_CODE_REDEMPTION = "android-provider.offer-code-redemption"
     val ANDROID_MAPPING_BEHAVIORS = setOf("subscriptions.active-subscription-is-reported-active", "subscriptions.pending-subscription-is-not-active", "subscriptions.unknown-state-subscription-is-not-active", "subscriptions.groups-keep-independent-identifiers", "errors.store-codes-normalize-to-spec-error-codes", "errors.unrecognized-store-code-normalizes-to-unknown", "identifiers.purchase-carries-a-concrete-store", "capabilities.declared-capabilities-match-the-matrix", "capabilities.unsupported-operations-degrade-predictably")
