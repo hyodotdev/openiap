@@ -110,6 +110,19 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
             assertThrows(AssertionError::class.java) { invalid.`purchase restores and finishes with a stable identity`() }
         }
     }
+    @Test fun `suite rejects redemption updates from the wrong platform`() {
+        val invalid = object : FixtureConformanceTest() {
+            private var updateListener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener? = null
+            override val provider = object : OpenIapProtocol by fixture {
+                override fun addPurchaseUpdateListener(listener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener) { updateListener = listener }
+                override fun removePurchaseUpdateListener(listener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener) { updateListener = null }
+            }
+            override suspend fun triggerCapability(capability: StoreCapability) {
+                updateListener?.onPurchaseUpdated(PurchaseIOS.fromJson(fixture.purchase("conformance.product").toJson()))
+            }
+        }
+        assertThrows(AssertionError::class.java) { invalid.`declared redemption capability reaches the purchase listener`() }
+    }
     @Test fun `repurchasing a consumed item creates a new transaction`() = runBlocking {
         val request = RequestPurchaseProps.fromJson(mapOf(
             "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("conformance.product"))), "type" to "in-app",

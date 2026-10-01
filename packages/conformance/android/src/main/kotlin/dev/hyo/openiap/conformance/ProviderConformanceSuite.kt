@@ -163,6 +163,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
             assertTrue(redeem())
             triggerCapability(StoreCapability.OfferCodeRedemption)
             val purchase = withTimeout(timeoutMillis) { received.await() }
+            assertTrue(purchase is PurchaseAndroid)
             assertEquals(factory.storeId, purchase.storeId)
             assertEquals(adapter.store, purchase.store)
             assertEquals(PurchaseState.Purchased, purchase.purchaseState)

@@ -21,7 +21,7 @@ const selection: Record<string, string> = {
   'kmp-iap':
     'Apply the OpenIAP Gradle plugin and select the provider platform variant.',
   'godot-iap':
-    'Set Project Settings → OpenIAP → Android Store and Android Provider, then export Android.',
+    'Set openiap/android_store and openiap/android_provider in the Android export preset, then export Android.',
   'maui-iap': 'Set OpenIapStore and OpenIapProvider in the app project.',
 };
 

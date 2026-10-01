@@ -311,9 +311,10 @@ test("the release commit stages the mirror the bump moves", () => {
     "packages/conformance/src/spec/generated-spec.mjs",
   ]) {
     assert.ok(
-      new RegExp(`^\\s+${generated.replaceAll("/", "\\/").replaceAll(".", "\\.")} \\\\$`, "m").test(
-        script,
-      ),
+      new RegExp(
+        `^\\s+${generated.replaceAll("/", "\\/").replaceAll(".", "\\.")} \\\\$`,
+        "m",
+      ).test(script),
       `sync-release-generated.sh must stage ${generated}`,
     );
   }
@@ -341,7 +342,26 @@ test("Commerce release commits have browser smoke prerequisites", () => {
   );
   const commit = steps.findIndex((step) => step.run?.includes("git commit -m"));
   assert.ok(dependencies >= 0 && dependencies < browser && browser < commit);
-  assert.equal(steps[browser].if, "${{ env.PACKAGE_ID == 'commerce-protocol' }}");
+  assert.equal(
+    steps[browser].if,
+    "${{ env.PACKAGE_ID == 'commerce-protocol' }}",
+  );
+});
+
+test("every MAUI native validation and publishing job assembles the core AAR", () => {
+  const workflow = parse(
+    readFileSync(join(root, ".github/workflows/release-maui.yml"), "utf8"),
+  );
+  const builds = Object.values(workflow.jobs).flatMap((job) =>
+    (job.steps ?? []).filter(
+      (step) =>
+        step["working-directory"] === "packages/google" &&
+        step.run?.includes(":openiap:assemblePlayRelease"),
+    ),
+  );
+  assert.equal(builds.length, 2);
+  for (const step of builds)
+    assert.match(step.run, /:openiap-core:assembleRelease/);
 });
 
 test("workflow exact bumps write alpha, beta, and stable versions to the selected manifest", (t) => {
