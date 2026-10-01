@@ -237,6 +237,10 @@ jobs:
               - '!**/*.md'
             ios:
               - 'packages/apple/**'
+              - 'packages/conformance/apple/**'
+              - 'packages/conformance/src/spec/**'
+              - 'packages/conformance/scripts/**'
+              - 'Package.swift'
               - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
@@ -671,6 +675,12 @@ jobs:
       - name: Run tests
         working-directory: packages/apple
         run: swift test
+
+      - name: Verify public provider contract and conformance
+        run: |
+          swift build --target OpenIapConformance
+          swift test --package-path packages/apple/compatibility/community-provider
+          swift run --package-path packages/apple/compatibility/community-provider/consumer -c release FixtureConsumer
 
   test-ios-compiler-boundaries:
     name: Build iOS guard boundary (Xcode ${{ matrix.xcode-version }})

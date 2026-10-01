@@ -22,10 +22,10 @@ history.
 
 A report states two versions, and neither is optional:
 
-| Field          | Meaning                                                           |
-| -------------- | ----------------------------------------------------------------- |
-| `suiteVersion` | Version of this behavior suite (`src/spec/suite-version.mjs`)     |
-| `clientProtocolVersion`  | Client Protocol version validated, read from `openiap-versions.json` |
+| Field                   | Meaning                                                              |
+| ----------------------- | -------------------------------------------------------------------- |
+| `suiteVersion`          | Version of this behavior suite (`src/spec/suite-version.mjs`)        |
+| `clientProtocolVersion` | Client Protocol version validated, read from `openiap-versions.json` |
 
 "Conformant" without both attached is exactly the unverifiable claim this suite
 exists to replace.
@@ -67,6 +67,31 @@ Official stores retain their existing requirements in `capability-matrix.mjs`.
 
 The source module is `packages/conformance/android`; its AAR depends only on
 core, JUnit and store-neutral tooling. It ships separately from billing SDKs.
+
+## Apple provider Swift product
+
+Add the public `OpenIapConformance` Swift product from the OpenIAP package to
+an independent provider's test target. Implement `ProviderConformanceAdapter`
+using the production error and entitlement mappers, a purchasable sandbox SKU,
+and triggers for every declared capability.
+
+```swift
+let report = await ProviderConformanceSuite(adapter: adapter).run()
+XCTAssertTrue(report.conformant)
+try report.write(to: reportURL)
+```
+
+The `apple-provider` and `android-provider` profiles share mapping, runtime and
+capability requirements. Apple pending purchases may arrive as a Pending purchase
+or a DeferredPayment error. For billing issues, implement
+`billingIssueRetainsEntitlement` from the sandbox's retry or grace state; the
+suite compares that expected entitlement with the production mapper. A missing
+required callback, unknown capability or failing assertion cannot pass.
+
+The [independent Swift fixture](../apple/compatibility/community-provider/README.md)
+runs this product through public imports and checks optimized factory discovery.
+Upload the Codable JSON report with the successful CI run. Registration uses
+one store id with separate Apple and Android bindings when both are supported.
 
 ## Running the suite
 
@@ -198,10 +223,10 @@ node packages/conformance/scripts/generate-behavior-ids.mjs          # write
 node packages/conformance/scripts/generate-behavior-ids.mjs --check  # CI drift gate
 ```
 
-| Language | Generated file                                                                                         |
-| -------- | ------------------------------------------------------------------------------------------------------ |
+| Language | Generated file                                                                                     |
+| -------- | -------------------------------------------------------------------------------------------------- |
 | Kotlin   | `packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt` |
-| Swift    | `packages/apple/Tests/OpenIapTests/ConformanceBehaviors.swift`                                         |
+| Swift    | `packages/apple/Tests/OpenIapTests/ConformanceBehaviors.swift`                                     |
 
 ## Current coverage
 

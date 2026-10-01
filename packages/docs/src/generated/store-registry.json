@@ -18,7 +18,8 @@
         "offerCodeRedemption"
       ],
       "latestReport": null,
-      "status": "official"
+      "status": "official",
+      "reports": []
     },
     {
       "id": "play",
@@ -35,7 +36,8 @@
         "offerCodeRedemption"
       ],
       "latestReport": null,
-      "status": "official"
+      "status": "official",
+      "reports": []
     },
     {
       "id": "horizon",
@@ -48,7 +50,8 @@
       "coordinates": "io.github.hyochan.openiap:openiap-google-horizon:3.6.2",
       "capabilities": ["pendingPurchases"],
       "latestReport": null,
-      "status": "official"
+      "status": "official",
+      "reports": []
     },
     {
       "id": "amazon",
@@ -61,7 +64,8 @@
       "coordinates": "io.github.hyochan.openiap:openiap-google-amazon:3.6.2",
       "capabilities": ["pendingPurchases"],
       "latestReport": null,
-      "status": "official"
+      "status": "official",
+      "reports": []
     }
   ]
 }

@@ -432,7 +432,12 @@ jobs:
 
       - name: Build release artifacts
         working-directory: packages/google
-        run: ./gradlew :openiap:assembleRelease --no-daemon --stacktrace
+        run: |
+          tasks=(:openiap:assembleRelease)
+          if [ -f core/build.gradle.kts ]; then
+            tasks+=(:openiap-core:assembleRelease)
+          fi
+          ./gradlew "${tasks[@]}" --no-daemon --stacktrace
 
       - name: Build provider conformance artifact
         if: steps.check_providers.outputs.conformance_exists == 'false'
@@ -449,6 +454,10 @@ jobs:
         working-directory: packages/google
         run: |
           mkdir -p release-artifacts
+          if [ -f core/build.gradle.kts ] && [ ! -f core/build/outputs/aar/openiap-core-release.aar ]; then
+            echo "::error::The provider core AAR is missing"
+            exit 1
+          fi
           shopt -s nullglob
           artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar core/build/outputs/aar/*.aar ../conformance/android/build/outputs/aar/*.aar)
           if [ ${#artifacts[@]} -eq 0 ]; then

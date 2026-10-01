@@ -190,7 +190,7 @@ function Purchase() {
               <td>
                 Required stable store id: apple, play, horizon, amazon, or the
                 community provider id.{' '}
-                <Link to="/docs/guides/android-providers#identity">
+                <Link to="/docs/guides/store-providers#identity">
                   Store identity
                 </Link>
               </td>

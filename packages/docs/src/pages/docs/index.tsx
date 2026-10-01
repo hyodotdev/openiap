@@ -123,7 +123,7 @@ import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
 import Testing from './guides/testing';
-import AndroidProviders from './guides/android-providers';
+import StoreProviders from './guides/store-providers';
 import SecurityOverview from './security/overview';
 import SecuritySbom from './security/sbom';
 import SecurityCompliance from './security/compliance';
@@ -607,11 +607,11 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/guides/android-providers"
+                to="/docs/guides/store-providers"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Android Providers
+                Store Providers
               </NavLink>
             </li>
             <li>
@@ -1377,7 +1377,8 @@ function Docs() {
           }
         />
         <Route path="guides/testing" element={<Testing />} />
-        <Route path="guides/android-providers" element={<AndroidProviders />} />
+        <Route path="guides/store-providers" element={<StoreProviders />} />
+        <Route path="guides/android-providers" element={<StoreProviders />} />
         <Route path="security/overview" element={<SecurityOverview />} />
         <Route path="security/sbom" element={<SecuritySbom />} />
         <Route path="security/compliance" element={<SecurityCompliance />} />

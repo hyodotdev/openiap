@@ -52,6 +52,8 @@ jobs:
           filters: |
             swift_core:
               - 'packages/apple/**'
+              - 'packages/conformance/apple/**'
+              - 'Package.swift'
               - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
               - 'libraries/kmp-iap/openiap-versions.json'
               - 'openiap-versions.json'
@@ -379,8 +381,7 @@ jobs:
 
       # Clean so the traced build recompiles everything; a cache hit would
       # leave the CodeQL database empty.
-      - name: Build Apple core for analysis
-        working-directory: packages/apple
+      - name: Build Apple core and provider conformance for analysis
         run: |
           swift package clean
           swift build --build-tests

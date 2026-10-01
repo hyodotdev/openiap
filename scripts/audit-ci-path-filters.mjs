@@ -137,6 +137,26 @@ const ALL_SWIFT_WRAPPERS = [
 
 export const cases = Object.freeze([
   {
+    name: "apple-public-provider-conformance",
+    files: ["packages/conformance/apple/Sources/ProviderConformance.swift"],
+    jobs: [
+      "ci:test-android",
+      "ci:test-gql",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "codeql:analyze-swift",
+    ],
+  },
+  {
+    name: "apple-public-package-products",
+    files: ["Package.swift"],
+    jobs: [
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "codeql:analyze-swift",
+    ],
+  },
+  {
     name: "apple-core-docs-only",
     files: [
       "packages/apple/README.md",

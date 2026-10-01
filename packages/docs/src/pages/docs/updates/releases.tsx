@@ -491,20 +491,19 @@ function Releases() {
     {
       id: 'community-android-providers-2026-10-01',
       aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag),
-      date: new Date('2026-10-01'),
+      date: new Date('2026-10-02'),
       element: (
         <div key="community-android-providers-2026-10-01" style={noteCardStyle}>
           {COMMUNITY_PROVIDER_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="community-android-providers-2026-10-01" level="h4">
-            October 1, 2026 - Community Android store providers
+            October 2, 2026 - Community store providers
           </AnchorLink>
           <p>
-            Use a community Android store in any OpenIAP framework by selecting
-            its store ID and Maven coordinates. Provider authors can build and
-            test integrations in their own repositories without adding store
-            code to OpenIAP.
+            Use community stores on Apple and Android through one provider
+            contract. Build and test integrations in your own repository, then
+            select a linked provider without changing app purchase APIs.
           </p>
           <h5>Common changes</h5>
           <ul>
@@ -522,8 +521,10 @@ function Releases() {
           <h5>Protocols and native packages</h5>
           <ul>
             <li>
-              Client Protocol 0.2.0 defines store identity; OpenIAP Apple 4.0.0
-              stamps <code>apple</code> on its outputs.
+              Client Protocol 0.2.0 defines store identity and shared provider
+              metadata. OpenIAP Apple 4.0.0 adds factory discovery and the
+              public
+              <code>OpenIapConformance</code> Swift suite.
             </li>
             <li>
               OpenIAP Google 4.0.0 publishes <code>openiap-core</code> and the
@@ -540,8 +541,8 @@ function Releases() {
           <ul>
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
-              4.0.0, and MAUI 3.0.0 select external Android providers and
-              preserve their identities through purchase and verification
+              4.0.0, and MAUI 3.0.0 support external Apple and Android providers
+              and preserve their identities through purchase and verification
               callbacks.
             </li>
           </ul>
@@ -554,8 +555,8 @@ function Releases() {
             </li>
             <li>
               Follow the{' '}
-              <Link to="/docs/guides/android-providers">
-                Android provider guide
+              <Link to="/docs/guides/store-providers">
+                Store provider guide
               </Link>{' '}
               to author, test, or select a provider; provider-specific settings
               belong to its manifest or resources.

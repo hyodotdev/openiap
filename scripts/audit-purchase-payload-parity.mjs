@@ -51,6 +51,13 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
   }
 }
 
+function expectMatch(relativePath, pattern, label = relativePath) {
+  expectFile(relativePath);
+  if (exists(relativePath) && !pattern.test(read(relativePath))) {
+    fail(`${label} must match ${pattern}`);
+  }
+}
+
 function expectSameSet(label, expected, actual) {
   const expectedSet = new Set(expected);
   const actualSet = new Set(actual);
@@ -1341,7 +1348,7 @@ function checkStrictAppleFrameworkQuerySerialization() {
       'if result.get("status", "") == "pending" or result.get("pending", false):\n\t\treturn null',
       'const APPLE_PLATFORMS := ["iOS", "macOS"]',
       "func _is_apple() -> bool:\n\treturn _platform in APPLE_PLATFORMS",
-      'if _is_apple() and store != "apple":',
+      'if _is_apple() and store not in ["apple", "unknown"]:',
       'store not in ["google", "amazon", "horizon"]',
     ],
     "Godot pending dispatch and platform-scoped purchase decoding",
@@ -1349,16 +1356,17 @@ function checkStrictAppleFrameworkQuerySerialization() {
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/BridgePayloadDecoder.cs",
     [
-      "ios.Store is not IapStore.Apple",
+      "!ValidIOSStore(ios)",
+      "IapStore.Apple => purchase.StoreId == StoreIds.Apple",
       "!ValidAndroidStore(android)",
       "IapStore.Google => purchase.StoreId == StoreIds.Play",
       "IapStore.Horizon => purchase.StoreId == StoreIds.Horizon",
       "IapStore.Amazon => purchase.StoreId == StoreIds.Amazon",
-      "IapStore.Unknown => purchase.StoreId is not null",
-      'Regex.IsMatch(purchase.StoreId, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")',
-      'purchase.StoreId is not ("auto" or "none" or "unknown")',
-      "purchase.StoreId != StoreIds.Apple && purchase.StoreId != StoreIds.Play",
-      "purchase.StoreId != StoreIds.Horizon && purchase.StoreId != StoreIds.Amazon",
+      "IapStore.Unknown => ValidCommunityStoreId(purchase.StoreId)",
+      'Regex.IsMatch(id, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")',
+      'id is not ("auto" or "none" or "unknown" or "google")',
+      "id != StoreIds.Apple && id != StoreIds.Play",
+      "id != StoreIds.Horizon && id != StoreIds.Amazon",
       "_ => false",
     ],
     "MAUI platform-scoped authoritative purchase-list decoding",
@@ -1434,6 +1442,7 @@ function checkReactNativePurchasePayloadContracts() {
   const legacyTransportFields = [
     "purchaseStateAndroid",
     "purchaseTokenAndroid",
+    "platform",
   ];
   expectSameSet(
     "React Native NitroPurchase transport fields",
@@ -1851,8 +1860,7 @@ function checkGooglePurchasePayloadContracts() {
         productId: /^productsList\.firstOrNull\(\)\.orEmpty\(\)$/,
         purchaseToken: /^token$/,
         signatureAndroid: /^signature$/,
-        transactionId:
-          /^orderId\?\.takeIf \{ it\.isNotBlank\(\) \} \?: token$/,
+        transactionId: /^orderId\?\.takeIf \{ it\.isNotBlank\(\) \} \?: token$/,
       },
       intentionallyDefaultedFields: [
         "isSuspendedAndroid",
@@ -2150,7 +2158,7 @@ function checkPurchaseRoundTripRegressionCoverage() {
 
 function checkActiveSubscriptionFailureContracts() {
   expectIncludes(
-    "packages/apple/Sources/OpenIapModule.swift",
+    "packages/apple/Sources/OpenIapStoreKitModule.swift",
     [
       "for await verification in Transaction.currentEntitlements {\n            let transaction = try checkVerified(verification)",
     ],
@@ -2202,9 +2210,7 @@ function checkActiveSubscriptionFailureContracts() {
   );
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs",
-    [
-      'operation: "getActiveSubscriptions"',
-    ],
+    ['operation: "getActiveSubscriptions"'],
     "MAUI active-subscription list decoding",
   );
   expectIncludes(
@@ -2230,9 +2236,13 @@ function checkActiveSubscriptionFailureContracts() {
     [
       "Unexpected active-subscription response type:",
       "Native active-subscription response contained malformed fields",
-      "return activeSubscriptions.isNotEmpty;",
     ],
     "Flutter active-subscription failure propagation",
+  );
+  expectMatch(
+    "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+    /_channel\.invokeMethod<bool>\(\s*'hasActiveSubscriptions'/,
+    "Flutter delegates the subscription boolean to the provider",
   );
   expectNotIncludes(
     "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",

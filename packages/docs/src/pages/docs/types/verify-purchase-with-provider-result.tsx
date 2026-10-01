@@ -151,7 +151,7 @@ function VerifyPurchaseWithProviderResult() {
               </td>
               <td>
                 Required stable store id.{' '}
-                <Link to="/docs/guides/android-providers#identity">
+                <Link to="/docs/guides/store-providers#identity">
                   Preserve it when routing verification results.
                 </Link>
               </td>
