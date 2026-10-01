@@ -17,7 +17,7 @@ Provider selection does not add IAPKit server validation for a new store.
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Android provider      | Independent local Maven publication, required behavioral profile, negative capability/platform/token cases, discovery, manifest conflicts, and optimized host |
 | Apple provider        | Independent Swift package, matching behavioral profile, explicit discovery failures, and optimized factory retention                                          |
-| SDK dispatch          | React Native, Expo, Flutter, Godot, KMP, and MAUI selection and identity handling; public storefront overrides, ownership/restore, and transaction completion |
+| SDK dispatch          | React Native, Expo, Flutter, Godot, KMP, and MAUI selection and identity handling; public storefront/redemption overrides, community KMP billing operations/events, ownership/restore, and completion |
 | Provider dependencies | Neutral Gradle consumer graphs and MAUI Maven runtime closure, including a separate vendor SDK and credits for existing app dependencies                      |
 | Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance              |
 | Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                    |

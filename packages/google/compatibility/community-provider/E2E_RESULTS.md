@@ -50,6 +50,7 @@ Evidence is retained in the private local directory `/tmp/openiap-common-provide
 - Expo, KMP, and MAUI ran the strengthened fixture on the Pixel. All fetched products, purchased, and finished with `store = unknown` and `storeId = community-fixture`. Product loading called its separately published vendor SDK, the Kotlin Multiplatform JVM date runtime, and the core Compose context. They used **None (Skip)** verification because the fixture has no receipt-validation service.
 - A separately packed MAUI NuGet consumer resolved the same provider, vendor runtime, and core dependencies with one core artifact. Its Gradle wrapper and resolver came from the package.
 - React Native's final ownership-query correction fetched an existing Play purchase through the required common API on hardware.
+- After the public-method corrections, fresh Expo and KMP fixture builds again loaded the vendor JVM and core Compose dependencies, purchased with `None (Skip)`, and finished. Expo also returned `true` from its public redemption override with the optional handler unset; its purchase detail showed `store = unknown` and `storeId = community-fixture`. This recheck covers those corrected paths, not a rerun of the 31 official cells.
 - The Apple fixture builds independently against the public OpenIAP Swift product. Its conformance and discovery checks cover the matching Apple provider contract; this does not claim a third-party Apple store purchase on hardware.
 
 ## Backend and recovery evidence

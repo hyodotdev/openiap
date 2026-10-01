@@ -61,10 +61,9 @@ class FixtureProvider : OpenIapProtocol {
     override val verifyPurchase: MutationVerifyPurchaseHandler = { unsupported() }
     override val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler = { unsupported() }
     override val queryHandlers get() = QueryHandlers(fetchProducts = fetchProducts, getAvailablePurchases = getAvailablePurchases,
-        getActiveSubscriptions = getActiveSubscriptions, hasActiveSubscriptions = hasActiveSubscriptions, getStorefront = { "US" })
+        getActiveSubscriptions = getActiveSubscriptions, hasActiveSubscriptions = hasActiveSubscriptions)
     override val mutationHandlers get() = MutationHandlers(initConnection = initConnection, endConnection = endConnection,
-        requestPurchase = requestPurchase, finishTransaction = finishTransaction, restorePurchases = restorePurchases,
-        openRedeemOfferCodeAndroid = { true })
+        requestPurchase = requestPurchase, finishTransaction = finishTransaction, restorePurchases = restorePurchases)
     override val subscriptionHandlers = SubscriptionHandlers()
     override fun setActivity(activity: Activity?) {}
     override fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) { updates.add(listener) }
@@ -86,6 +85,7 @@ class FixtureProvider : OpenIapProtocol {
     override suspend fun showBillingProgramInformationDialog(activity: Activity, params: BillingProgramInformationDialogParamsAndroid): BillingResultAndroid = unsupported()
     override suspend fun showInAppMessages(activity: Activity, params: InAppMessageParamsAndroid?): InAppMessageResultAndroid = unsupported()
     override suspend fun openRedeemOfferCode(activity: Activity) = true
+    override suspend fun getStorefront() = "US"
 
     fun emitPending() { updates.toList().forEach { it.onPurchaseUpdated(purchase("conformance.product", PurchaseState.Pending)) } }
     fun emitBillingIssue() { issues.toList().forEach { it.onSubscriptionBillingIssue(purchase("conformance.product").copy(isSuspendedAndroid = true)) } }

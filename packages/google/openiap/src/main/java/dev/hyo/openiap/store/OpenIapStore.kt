@@ -77,11 +77,7 @@ internal object OpenIapStorePurchaseRequestResolver {
         }
 }
 
-/**
- * OpenIapStore (Android)
- * Convenience store that wraps an [OpenIapProtocol] implementation (Play, Horizon, or Amazon)
- * and exposes suspend APIs with observable StateFlows for UI layers to consume.
- */
+/** Exposes provider operations and observable StateFlows for UI layers. */
 class OpenIapStore(private val module: OpenIapProtocol) {
     private val manualActivityOwner = Any()
     private val activityBindings = OwnerScopedValueBinding<Activity>(module::setActivity)

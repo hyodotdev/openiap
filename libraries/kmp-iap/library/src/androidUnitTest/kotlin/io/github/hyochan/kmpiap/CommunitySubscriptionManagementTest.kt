@@ -40,7 +40,7 @@ class CommunitySubscriptionManagementTest {
         var restores = 0
         val active: QueryGetActiveSubscriptionsHandler = { queries.add(it); emptyList() }
         val hasActive: QueryHasActiveSubscriptionsHandler = { queries.add(it); true }
-        val restore: MutationRestorePurchasesHandler = { restores++; Unit }
+        val restore: MutationRestorePurchasesHandler = { restores++ }
         val provider = Proxy.newProxyInstance(
             OpenIapProtocol::class.java.classLoader,
             arrayOf(OpenIapProtocol::class.java),
@@ -66,7 +66,7 @@ class CommunitySubscriptionManagementTest {
     @Test
     fun defaultOptionsReachTheProvider() = runBlocking {
         val requests = mutableListOf<AndroidDeepLinkOptions?>()
-        val handler: MutationDeepLinkToSubscriptionsHandler = { requests.add(it); Unit }
+        val handler: MutationDeepLinkToSubscriptionsHandler = { requests.add(it) }
         val provider = Proxy.newProxyInstance(
             OpenIapProtocol::class.java.classLoader,
             arrayOf(OpenIapProtocol::class.java),

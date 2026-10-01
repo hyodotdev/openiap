@@ -1,5 +1,6 @@
 package community.fixture
 
+import android.app.Activity
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.hyo.openiap.*
@@ -9,6 +10,7 @@ import org.junit.Test
 import org.junit.Assert.*
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Robolectric
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -17,6 +19,7 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
     override val factory: OpenIapProviderFactory = FixtureFactory()
     protected val fixture = FixtureProvider()
     override val provider: OpenIapProtocol = fixture
+    override val redemptionActivity: Activity = Robolectric.buildActivity(Activity::class.java).setup().get()
     override val adapter = object : StoreConformanceAdapter {
         override val store = IapStore.Unknown
         override val storeId get() = factory.storeId

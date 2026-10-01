@@ -58,6 +58,7 @@ import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
+import dev.hyo.openiap.utils.redeemOfferCode
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -2142,12 +2143,9 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             RnIapLog.payload("openRedeemOfferCodeAndroid", null)
             try {
-                withContext(Dispatchers.Main) {
-                    runCatching { context.currentActivity }.getOrNull()?.let(openIap::setActivity)
+                val result = withContext(Dispatchers.Main) {
+                    redeemOfferCode(openIap, runCatching { context.currentActivity }.getOrNull())
                 }
-                val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
-                    ?: throw OpenIapError.FeatureNotSupported()
-                val result = handler()
                 RnIapLog.result("openRedeemOfferCodeAndroid", result)
                 result
             } catch (err: CancellationException) {

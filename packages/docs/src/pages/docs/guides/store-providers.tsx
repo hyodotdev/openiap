@@ -348,7 +348,9 @@ class YourStoreFactory : OpenIapProviderFactory {
           fresh provider, and a <code>StoreConformanceAdapter</code> bound to
           your production error and entitlement mappers. Supply a sandbox SKU
           and an isolated test account. Implement <code>triggerCapability</code>{' '}
-          to drive each declared capability after the suite attaches listeners.
+          to drive each declared capability after the suite attaches listeners.{' '}
+          For offer-code redemption, supply <code>redemptionActivity</code> from
+          your host or Robolectric.
         </p>
         <CodeBlock
           language="kotlin"

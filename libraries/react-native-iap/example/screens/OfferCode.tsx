@@ -15,7 +15,6 @@ import {openRedeemOfferCode, useIAP} from 'react-native-iap';
 
 const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
 
-// Platform-specific content helpers
 const getPlatformContent = () => {
   if (isVegaOS()) {
     return {
@@ -32,17 +31,19 @@ const getPlatformContent = () => {
 
   const isIOS = Platform.OS === 'ios';
   return {
-    buttonText: isIOS ? '🎁 Redeem Offer Code' : '🎁 Open Play Store',
-    buttonSubtext: isIOS ? 'Enter code in-app' : 'Redeem in Play Store',
+    buttonText: isIOS ? '🎁 Redeem Offer Code' : '🎁 Open Redemption Flow',
+    buttonSubtext: isIOS
+      ? 'Enter code in-app'
+      : 'Redeem with the selected store',
     howItWorks: isIOS
       ? '• Tap the button below to open the redemption sheet\n• Enter your offer code\n• The system will validate and apply the code\n• Your purchase will appear in purchase history'
-      : '• Tap the button to open Google Play Store\n• Enter your promo code in the Play Store\n• Complete the redemption process\n• Return to this app to see your purchase',
+      : '• Open the selected store’s redemption flow\n• Enter a code if the store supports redemption\n• Refresh available purchases after completing redemption',
     platformNote: isIOS
       ? 'iOS supports in-app code redemption via StoreKit'
-      : 'Android requires redemption through Google Play Store',
+      : 'Android redemption support depends on the selected store',
     testingInfo: isIOS
       ? '• Use TestFlight or App Store Connect to generate test codes\n• Test on real devices (not simulators)\n• Sandbox environment supports offer codes'
-      : '• Generate promo codes in Google Play Console\n• Test with your Google account\n• Ensure app is properly configured for IAP',
+      : '• Use the selected store’s test codes and test account\n• Follow that provider’s sandbox instructions',
   };
 };
 
@@ -70,7 +71,6 @@ export default function OfferCodeScreen() {
     setIsRedeeming(true);
 
     try {
-      // Unified cross-platform redemption flow
       const purchase = await openRedeemOfferCode();
       if (purchase) {
         Alert.alert(
@@ -85,7 +85,7 @@ export default function OfferCodeScreen() {
       } else {
         Alert.alert(
           'Redemption Requested',
-          'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
+          'The selected store opens its redemption flow when supported. Refresh available purchases after redeeming.',
         );
       }
     } catch (error) {

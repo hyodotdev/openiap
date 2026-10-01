@@ -34,6 +34,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
+import dev.hyo.openiap.utils.redeemOfferCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -205,29 +206,25 @@ class OpenIapMauiModule(private val context: Context) {
     fun showBillingProgramInformationDialogAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
         val params = BillingProgramInformationDialogParamsAndroid.fromJson(parseMap(paramsJson))
             ?: throw badInput("BillingProgramInformationDialogParamsAndroid")
-        val activity = currentActivityOrThrow("showBillingProgramInformationDialogAndroid")
+        val activity = currentActivityOrThrow()
         gson.toJson(module.showBillingProgramInformationDialog(activity, params).toJson())
     }
 
     fun showInAppMessagesAndroid(paramsJson: String?, callback: ResultCallback) = run(callback) {
         val params = paramsJson?.let { InAppMessageParamsAndroid.fromJson(parseMap(it)) }
-        val activity = currentActivityOrThrow("showInAppMessagesAndroid")
+        val activity = currentActivityOrThrow()
         gson.toJson(module.showInAppMessages(activity, params).toJson())
     }
 
     fun launchExternalLinkAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
         val params = LaunchExternalLinkParamsAndroid.fromJson(parseMap(paramsJson))
             ?: throw badInput("LaunchExternalLinkParamsAndroid")
-        val activity = currentActivityOrThrow("launchExternalLinkAndroid")
+        val activity = currentActivityOrThrow()
         wrapBool(module.launchExternalLink(activity, params))
     }
 
     fun openRedeemOfferCodeAndroid(callback: ResultCallback) = run(callback) {
-        val handler = module.mutationHandlers.openRedeemOfferCodeAndroid
-            ?: throw OpenIapError.FeatureNotSupported(
-                "openRedeemOfferCodeAndroid is not wired for this store",
-            )
-        wrapBool(handler())
+        wrapBool(redeemOfferCode(module, currentActivity))
     }
 
     // -----------------------------------------------------------------
@@ -311,17 +308,8 @@ class OpenIapMauiModule(private val context: Context) {
         return token
     }
 
-    private fun currentActivityOrThrow(@Suppress("UNUSED_PARAMETER") api: String): Activity {
-        // setActivity(...) is called by the host MAUI app on lifecycle events;
-        // when it hasn't fired yet, surfacing OpenIapError.MissingCurrentActivity makes
-        // the error path obvious instead of a generic NullPointerException.
-        return currentActivity ?: throw OpenIapError.MissingCurrentActivity
-    }
+    private fun currentActivityOrThrow(): Activity = currentActivity ?: throw OpenIapError.MissingCurrentActivity
 
-    /**
-     * Run a suspending block off the main thread and route its result/error through [callback].
-     * The block returns the JSON-encoded payload (or null for void).
-     */
     private inline fun run(callback: ResultCallback, crossinline block: suspend () -> String?) {
         scope.launch {
             try {

@@ -37,6 +37,7 @@ import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.utils.redeemOfferCode
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -310,10 +311,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             attachListenersIfNeeded()
                             requireOpenIap()
                         }
-                        activity?.let(iap::setActivity)
-                        val redeem = iap.mutationHandlers.openRedeemOfferCodeAndroid
-                            ?: throw OpenIapError.FeatureNotSupported()
-                        safe.success(redeem())
+                        safe.success(redeemOfferCode(iap, activity))
                     } catch (e: OpenIapError) {
                         safe.error(e.code, e.message, serializeOpenIapError(e))
                     } catch (e: Exception) {

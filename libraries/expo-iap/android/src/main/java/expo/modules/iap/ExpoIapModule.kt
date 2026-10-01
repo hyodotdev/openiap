@@ -49,6 +49,7 @@ import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid as OpenIapGetBillingCho
 import dev.hyo.openiap.InAppMessageCategoryAndroid as OpenIapInAppMessageCategory
 import dev.hyo.openiap.InAppMessageParamsAndroid as OpenIapInAppMessageParams
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
+import dev.hyo.openiap.utils.redeemOfferCode
 
 internal suspend fun endExpoConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
@@ -324,10 +325,7 @@ class ExpoIapModule : Module() {
                 ExpoIapLog.payload("openRedeemOfferCodeAndroid", null)
                 scope.launch {
                     try {
-                        runCatching { currentActivity }.getOrNull()?.let(openIap::setActivity)
-                        val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
-                            ?: throw OpenIapError.FeatureNotSupported()
-                        val launched = handler()
+                        val launched = redeemOfferCode(openIap, runCatching { currentActivity }.getOrNull())
                         ExpoIapLog.result("openRedeemOfferCodeAndroid", launched)
                         promise.resolve(launched)
                     } catch (e: Exception) {

@@ -294,12 +294,19 @@ test("dependency audit fails closed on findings and malformed output", () => {
   assert.throws(
     () =>
       auditDependencies(
-        () => ({
-          status: 1,
-          stdout:
-            '{"hono":[{"severity":"high","title":"unsafe version","url":"https://github.com/advisories/GHSA-test-test-test"}]}',
-          stderr: "",
-        }),
+        (command) =>
+          command === "osv-scanner"
+            ? {
+                status: 0,
+                stdout: JSON.stringify({ results: [] }),
+                stderr: "",
+              }
+            : {
+                status: 1,
+                stdout:
+                  '{"hono":[{"severity":"high","title":"unsafe version","url":"https://github.com/advisories/GHSA-test-test-test"}]}',
+                stderr: "",
+              },
         projects,
       ),
     /1 dependency audit findings/u,
@@ -357,6 +364,141 @@ reason = "Invalid date."
 `),
     /invalid ignored vulnerability expiry/u,
   );
+});
+
+test("Bun lock exceptions require usage in either feed and expire on their date", () => {
+  const lockfile = "libraries/expo-iap/bun.lock";
+  const projects = [{ directory: "libraries/expo-iap", lockfile }];
+  const id = "GHSA-86w9-cpqp-85rv";
+  const bunFinding = JSON.stringify({
+    "node-forge": [
+      {
+        severity: "high",
+        title: "certificate issue",
+        url: `https://github.com/advisories/${id}`,
+      },
+    ],
+  });
+  const osvFinding = {
+    id: "CVE-2026-85393",
+    aliases: [id],
+    summary: "certificate issue",
+  };
+  const scanner = (bun, vulnerabilities) => (command, args) => {
+    if (command === "bun")
+      return { status: bun === "{}" ? 0 : 1, stdout: bun, stderr: "" };
+    assert.equal(command, "osv-scanner");
+    assert.ok(args.includes(`--lockfile=${lockfile}`));
+    assert.ok(args.includes("--config=/dev/null"));
+    return {
+      status: vulnerabilities.length ? 1 : 0,
+      stdout: JSON.stringify({
+        results: [
+          { packages: [{ package: { name: "node-forge" }, vulnerabilities }] },
+        ],
+      }),
+      stderr: "",
+    };
+  };
+  const beforeExpiry = new Date("2026-10-02T00:00:00Z");
+  assert.doesNotThrow(() =>
+    auditDependencies(scanner("{}", [osvFinding]), projects, beforeExpiry),
+  );
+  assert.doesNotThrow(() =>
+    auditDependencies(scanner(bunFinding, []), projects, beforeExpiry),
+  );
+  assert.throws(
+    () => auditDependencies(scanner("{}", []), projects, beforeExpiry),
+    /unused dependency exception/u,
+  );
+  assert.throws(
+    () =>
+      auditDependencies(
+        scanner("{}", [osvFinding]),
+        projects,
+        new Date("2026-10-09T00:00:00Z"),
+      ),
+    /expired dependency exception/u,
+  );
+  assert.throws(
+    () =>
+      auditDependencies(
+        scanner("{}", [osvFinding, { id: "GHSA-unaccepted" }]),
+        projects,
+        beforeExpiry,
+      ),
+    /GHSA-unaccepted/u,
+  );
+});
+
+test("Bun OSV scans fail closed on incomplete or failed reports", () => {
+  const projects = [{ directory: ".", lockfile: "bun.lock" }];
+  for (const [result, message] of [
+    [
+      { status: 0, stdout: '{"results":{}}' },
+      /invalid OSV-Scanner result structure/u,
+    ],
+    [{ status: 1, stdout: '{"results":[]}' }, /exited 1 without findings/u],
+    [{ status: 2, stdout: '{"results":[]}' }, /OSV-Scanner exited 2/u],
+    [{ status: 0, stdout: "partial" }, /invalid OSV-Scanner JSON/u],
+  ]) {
+    assert.throws(
+      () =>
+        auditDependencies(
+          (command) =>
+            command === "bun"
+              ? { status: 0, stdout: "{}", stderr: "" }
+              : { stderr: "partial scan failure", ...result },
+          projects,
+        ),
+      message,
+    );
+  }
+});
+
+test("exception usage remains isolated to its owning lock", () => {
+  const projects = ["libraries/expo-iap", "libraries/expo-iap/example"].map(
+    (directory) => ({ directory, lockfile: `${directory}/bun.lock` }),
+  );
+  const scanner = (emptyLock) => (command, args) => {
+    if (command === "bun") return { status: 0, stdout: "{}", stderr: "" };
+    const lockfile = args
+      .find((arg) => arg.startsWith("--lockfile="))
+      .slice("--lockfile=".length);
+    const directory = projects.find(
+      (project) => project.lockfile === lockfile,
+    ).directory;
+    const ignored = parseOsvIgnoredVulnerabilities(
+      readFileSync(
+        resolve(import.meta.dirname, "..", directory, "osv-scanner.toml"),
+        "utf8",
+      ),
+    );
+    const vulnerabilities =
+      lockfile === emptyLock ? [] : [...ignored.keys()].map((id) => ({ id }));
+    return {
+      status: vulnerabilities.length ? 1 : 0,
+      stdout: JSON.stringify({
+        results: [{ packages: [{ vulnerabilities }] }],
+      }),
+      stderr: "",
+    };
+  };
+  const now = new Date("2026-10-02T00:00:00Z");
+  assert.doesNotThrow(() => auditDependencies(scanner(null), projects, now));
+  for (const { lockfile } of projects) {
+    assert.throws(
+      () => auditDependencies(scanner(lockfile), projects, now),
+      (error) => {
+        assert.match(error.message, /unused dependency exception/u);
+        assert.match(
+          error.message,
+          new RegExp(lockfile.replaceAll(".", "\\."), "u"),
+        );
+        return true;
+      },
+    );
+  }
 });
 
 test("Yarn-only OSV exceptions cannot become stale or expired", () => {

@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2026-10-09
+reason = "No patched node-forge release is available. Expo's development CLI uses it for certificate tooling; the published SDK and config plugin do not import it. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."

@@ -1,5 +1,6 @@
 package dev.hyo.openiap.conformance
 
+import android.app.Activity
 import dev.hyo.openiap.*
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -21,6 +22,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
     protected abstract val provider: OpenIapProtocol
     protected open val testProductId: String = "conformance.product"
     protected open val timeoutMillis: Long = 5_000
+    protected open val redemptionActivity: Activity? = null
 
     /** Drive the store's sandbox or fake backend after the suite attaches listeners. */
     protected open suspend fun triggerCapability(capability: StoreCapability) {
@@ -158,9 +160,10 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
         val listener = OpenIapPurchaseUpdateListener { received.complete(it) }
         provider.addPurchaseUpdateListener(listener)
         try {
-            val redeem = provider.mutationHandlers.openRedeemOfferCodeAndroid
-                ?: error("Declared offerCodeRedemption requires its public mutation handler")
-            assertTrue(redeem())
+            val activity = requireNotNull(redemptionActivity) {
+                "Declared offerCodeRedemption requires a host or Robolectric Activity"
+            }
+            assertTrue(provider.openRedeemOfferCode(activity))
             triggerCapability(StoreCapability.OfferCodeRedemption)
             val purchase = withTimeout(timeoutMillis) { received.await() }
             assertTrue(purchase is PurchaseAndroid)
