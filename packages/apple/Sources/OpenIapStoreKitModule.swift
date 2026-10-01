@@ -2654,7 +2654,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         let appVersionId = transaction.appVersionID.map(Double.init) ?? 0
         let appVersion = transaction.appVersion
         let appId = transaction.appID.map(Double.init) ?? 0
-        
+
         // iOS 18.4+ properties - only compile with Xcode 16.4+ (Swift 6.1 compiler+)
         // This prevents build failures on Xcode 16.3 and below
         var appTransactionId: String? = nil
@@ -2682,7 +2682,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             storeTypeValue = transaction.storeType.rawValue
         }
         #endif
-        
+
         return AppTransaction(
             appId: appId,
             appTransactionId: appTransactionId,
