@@ -8,6 +8,7 @@ import dev.hyo.openiap.listener.*
 class FixtureFactory : OpenIapProviderFactory {
     override val storeId = STORE_ID
     override val coreVersion = BuildConfig.CORE_VERSION
+    override val clientProtocolVersion = "0.2.0"
     override val capabilities = setOf("pendingPurchases", "subscriptionBillingIssue", "offerCodeRedemption")
     override fun create(context: Context): OpenIapProtocol = FixtureProvider()
     companion object { const val STORE_ID = "community-fixture" }

@@ -9,7 +9,12 @@ import java.lang.reflect.InvocationTargetException
 interface OpenIapProviderFactory {
     val storeId: String
     val coreVersion: String
+    val clientProtocolVersion: String
     val capabilities: Set<String> get() = emptySet()
+    val descriptor: StoreProviderDescriptor get() = StoreProviderDescriptor(
+        capabilities = capabilities.sorted(), clientProtocolVersion = clientProtocolVersion,
+        coreVersion = coreVersion, platform = IapPlatform.Android, storeId = storeId,
+    )
     fun create(context: Context): OpenIapProtocol
 }
 
@@ -28,7 +33,7 @@ object OpenIapProvider {
                 throw OpenIapError.ProviderConfiguration("$className must implement OpenIapProviderFactory.")
             }
             val factory = type.getConstructor().newInstance() as OpenIapProviderFactory
-            validate(factory.storeId, factory.coreVersion)
+            validate(factory.descriptor)
             return factory
         } catch (error: OpenIapError) {
             throw error
@@ -46,7 +51,7 @@ object OpenIapProvider {
     fun create(context: Context): OpenIapProtocol = create(context, factory(context))
 
     fun create(context: Context, factory: OpenIapProviderFactory): OpenIapProtocol {
-        validate(factory.storeId, factory.coreVersion)
+        validate(factory.descriptor)
         try {
             return factory.create(context)
         } catch (error: OpenIapError) {
@@ -57,7 +62,7 @@ object OpenIapProvider {
     }
 
     fun validate(storeId: String, providerCoreVersion: String, runtimeCoreVersion: String = coreVersion) {
-        if (!storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) || storeId in setOf("auto", "none", "apple", "unknown")) {
+        if (!storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) || storeId in setOf("auto", "none", "apple", "google", "unknown")) {
             throw OpenIapError.ProviderConfiguration("Invalid Android provider storeId '$storeId'. Use a lowercase stable store id.")
         }
         val version = Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?")
@@ -71,6 +76,18 @@ object OpenIapProvider {
         val prerelease = built.groupValues[4].isNotEmpty() || runtime.groupValues[4].isNotEmpty()
         if (required[0] != available[0] || order > 0 || (prerelease && providerCoreVersion != runtimeCoreVersion)) {
             throw OpenIapError.ProviderConfiguration("Provider '$storeId' requires openiap-core $providerCoreVersion; this app links $runtimeCoreVersion. Use a compatible provider or core version.")
+        }
+    }
+
+    fun validate(descriptor: StoreProviderDescriptor) {
+        if (descriptor.platform != IapPlatform.Android) {
+            throw OpenIapError.ProviderConfiguration("Android provider must use the android platform binding.")
+        }
+        validate(descriptor.storeId, descriptor.coreVersion)
+        validate(descriptor.storeId, descriptor.clientProtocolVersion, BuildConfig.CLIENT_PROTOCOL_VERSION)
+        if (descriptor.clientProtocolVersion.startsWith("0.") &&
+            descriptor.clientProtocolVersion.split('.')[1] != BuildConfig.CLIENT_PROTOCOL_VERSION.split('.')[1]) {
+            throw OpenIapError.ProviderConfiguration("Provider '${descriptor.storeId}' must implement Client Protocol ${BuildConfig.CLIENT_PROTOCOL_VERSION}.")
         }
     }
 

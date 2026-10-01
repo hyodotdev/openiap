@@ -76,6 +76,8 @@ val openIapVersion: String =
     project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
         ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
         ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
+val clientProtocolVersion = versionsJson["clientProtocol"]?.toString()
+    ?: throw GradleException("packages/google: 'clientProtocol' version missing in openiap-versions.json")
 val isCentralPublishTaskRequested =
     gradle.startParameter.taskNames.any { taskName ->
         taskName.contains("mavenCentral", ignoreCase = true)
@@ -87,6 +89,7 @@ android {
     defaultConfig {
         minSdk = 23
         buildConfigField("String", "OPENIAP_CORE_VERSION", "\"$openIapVersion\"")
+        buildConfigField("String", "CLIENT_PROTOCOL_VERSION", "\"$clientProtocolVersion\"")
         consumerProguardFiles("consumer-rules.pro")
     }
     sourceSets.named("main") {

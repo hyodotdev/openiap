@@ -58,6 +58,7 @@ class OpenIapProviderTest {
     @Test fun `invalid ids and incompatible cores fail with a developer error`() {
         for ((id, built, runtime) in listOf(
             Triple("auto", "3.6.2", "3.6.2"),
+            Triple("google", "3.6.2", "3.6.2"),
             Triple("Bad Store", "3.6.2", "3.6.2"),
             Triple("fake", "4.0.0", "3.6.2"),
             Triple("fake", "3.7.0", "3.6.2"),
@@ -69,6 +70,19 @@ class OpenIapProviderTest {
                     OpenIapProvider.validate(id, built, runtime)
                 }
             assertEquals(ErrorCode.DeveloperError.rawValue, error.code)
+        }
+    }
+
+    @Test fun `descriptor validates the native and protocol contracts separately`() {
+        val descriptor = community.fixture.DiscoveryFactory().descriptor
+        OpenIapProvider.validate(descriptor)
+        assertEquals(IapPlatform.Android, descriptor.platform)
+        for (invalid in listOf(
+            descriptor.copy(platform = IapPlatform.Ios),
+            descriptor.copy(clientProtocolVersion = "0.1.1"),
+            descriptor.copy(clientProtocolVersion = "0.3.0"),
+        )) {
+            assertThrows(OpenIapError.ProviderConfiguration::class.java) { OpenIapProvider.validate(invalid) }
         }
     }
 

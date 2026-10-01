@@ -7,6 +7,8 @@ import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.delay
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -30,7 +32,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
         adapter.capabilities.map { capabilityBehavior(it) }
 
     @Before fun connectProvider() = runBlocking {
-        OpenIapProvider.validate(factory.storeId, factory.coreVersion)
+        OpenIapProvider.validate(factory.descriptor)
         assertEquals(factory.storeId, adapter.storeId)
         assertEquals(factory.capabilities, adapter.capabilities.map { it.id }.toSet())
         assertTrue(provider.initConnection(null))
@@ -71,6 +73,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
     @ConformanceBehavior(ConformanceBehaviors.RESTORATION_AVAILABLE_PURCHASES_RETURNS_OWNED_ITEMS)
     fun `owned purchase remains available`() = runBlocking {
         val purchased = purchase()
+        provider.restorePurchases()
         assertTrue(provider.getAvailablePurchases(null).any { it.purchaseToken == purchased.purchaseToken && it.storeId == factory.storeId })
     }
 
@@ -98,22 +101,37 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
         assumeTrue(StoreCapability.PendingPurchases in adapter.capabilities)
         val received = CompletableDeferred<Purchase>()
         val errors = CompletableDeferred<OpenIapError>()
-        val listener = OpenIapPurchaseUpdateListener { received.complete(it) }
-        val errorListener = OpenIapPurchaseErrorListener { errors.complete(it) }
+        val invalid = AtomicBoolean(false)
+        val listener = OpenIapPurchaseUpdateListener {
+            if (it !is PurchaseAndroid || it.store != adapter.store || it.storeId != factory.storeId ||
+                it.purchaseState != PurchaseState.Pending || adapter.toActiveSubscription(it).isActive) invalid.set(true)
+            received.complete(it)
+        }
+        val errorListener = OpenIapPurchaseErrorListener {
+            if (it.code != ErrorCode.DeferredPayment.rawValue) invalid.set(true)
+            errors.complete(it)
+        }
         provider.addPurchaseUpdateListener(listener)
         provider.addPurchaseErrorListener(errorListener)
         try {
-            triggerCapability(StoreCapability.PendingPurchases)
+            try { triggerCapability(StoreCapability.PendingPurchases) }
+            catch (error: OpenIapError) {
+                if (error.code != ErrorCode.DeferredPayment.rawValue) throw error
+                errors.complete(error)
+            }
             withTimeout(timeoutMillis) {
                 kotlinx.coroutines.selects.select<Unit> {
                     received.onAwait { purchase ->
                         assertEquals(PurchaseState.Pending, purchase.purchaseState)
                         assertEquals(factory.storeId, purchase.storeId)
+                        assertEquals(adapter.store, purchase.store)
                         assertFalse(adapter.toActiveSubscription(purchase as PurchaseAndroid).isActive)
                     }
                     errors.onAwait { error -> assertEquals(ErrorCode.DeferredPayment.rawValue, error.code) }
                 }
             }
+            delay(timeoutMillis)
+            assertFalse("Pending trigger emitted a purchased or contradictory event", invalid.get())
         } finally {
             provider.removePurchaseUpdateListener(listener)
             provider.removePurchaseErrorListener(errorListener)
@@ -131,6 +149,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
             triggerCapability(StoreCapability.SubscriptionBillingIssue)
             val purchase = withTimeout(timeoutMillis) { received.await() } as PurchaseAndroid
             assertEquals(factory.storeId, purchase.storeId)
+            assertEquals(adapter.store, purchase.store)
             assertEquals(true, purchase.isSuspendedAndroid)
             assertFalse(adapter.toActiveSubscription(purchase).isActive)
         } finally { provider.removeSubscriptionBillingIssueListener(listener) }
@@ -150,6 +169,7 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
             triggerCapability(StoreCapability.OfferCodeRedemption)
             val purchase = withTimeout(timeoutMillis) { received.await() }
             assertEquals(factory.storeId, purchase.storeId)
+            assertEquals(adapter.store, purchase.store)
             assertEquals(PurchaseState.Purchased, purchase.purchaseState)
         } finally { provider.removePurchaseUpdateListener(listener) }
     }
