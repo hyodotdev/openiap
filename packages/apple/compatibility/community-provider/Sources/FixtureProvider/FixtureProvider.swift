@@ -19,6 +19,9 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     private var errors: [UUID: PurchaseErrorListener] = [:]
     private var owned: [String: Purchase] = [:]
     public private(set) var finished: [String: Purchase] = [:]
+    public var rejectOwnedPurchase = false
+    public var emitAndroidPurchase = false
+    public private(set) var lastRequest: RequestPurchaseProps?
     public var connectionResult = true
     public var connectionError: PurchaseError?
     public private(set) var disconnectCount = 0
@@ -63,8 +66,17 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
         }
         guard synchronized({ connected }) else { throw PurchaseError.make(code: .notPrepared) }
         guard let sku, !sku.isEmpty else { throw normalizeError("missing-sku") }
-        let purchase = Purchase.purchaseIos(try makePurchase(sku: sku))
+        if rejectOwnedPurchase && synchronized({ owned.values.contains { $0.productId == sku } }) {
+            throw PurchaseError.make(code: .alreadyOwned)
+        }
+        let ios = try makePurchase(sku: sku)
+        let purchase = emitAndroidPurchase ? Purchase.purchaseAndroid(PurchaseAndroid(
+            id: ios.id, isAutoRenewing: ios.isAutoRenewing, productId: ios.productId,
+            purchaseState: ios.purchaseState, purchaseToken: ios.purchaseToken, quantity: ios.quantity,
+            store: ios.store, storeId: ios.storeId, transactionDate: ios.transactionDate
+        )) : Purchase.purchaseIos(ios)
         let listeners = synchronized {
+            lastRequest = params
             owned[purchase.id] = purchase
             return Array(updated.values)
         }

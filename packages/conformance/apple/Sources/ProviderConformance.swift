@@ -187,27 +187,38 @@ public struct ProviderConformanceSuite {
             }
             return !ids.isEmpty && ids.allSatisfy { $0 == self.adapter.testProductId }
         }
+        var ownedPurchase: Purchase?
         await check("purchases.request-emits-purchase-updated-on-success") {
             let purchase = try await self.purchase()
-            return purchase.storeId == factory.storeId && purchase.productId == self.adapter.testProductId
-                && purchase.purchaseState == .purchased
-                && purchase.store == (factory.storeId == StoreIds.Apple ? .apple : .unknown)
+            guard case .purchaseIos = purchase,
+                  purchase.storeId == factory.storeId, purchase.productId == self.adapter.testProductId,
+                  purchase.purchaseState == .purchased,
+                  purchase.store == (factory.storeId == StoreIds.Apple ? .apple : .unknown) else { return false }
+            ownedPurchase = purchase
+            return true
         }
         await check("restoration.available-purchases-returns-owned-items") {
-            let purchased = try await self.purchase()
+            guard let purchased = ownedPurchase else { return false }
             try await provider.restorePurchases()
             return try await provider.getAvailablePurchases(nil).contains {
-                $0.purchaseToken == purchased.purchaseToken && $0.storeId == factory.storeId
+                if case .purchaseIos = $0 {
+                    return $0.id == purchased.id && $0.purchaseToken == purchased.purchaseToken
+                        && $0.storeId == factory.storeId && $0.store == purchased.store
+                }
+                return false
             }
         }
         await check("identifiers.purchase-token-is-stable-across-reads") {
-            let purchased = try await self.purchase()
+            guard let purchased = ownedPurchase else { return false }
             let first = try await provider.getAvailablePurchases(nil).first { $0.id == purchased.id }
             let second = try await provider.getAvailablePurchases(nil).first { $0.id == purchased.id }
-            return first?.purchaseToken?.isEmpty == false && first?.purchaseToken == second?.purchaseToken
+            guard let first, let second, case .purchaseIos = first, case .purchaseIos = second else { return false }
+            return first.purchaseToken?.isEmpty == false && first.purchaseToken == second.purchaseToken
+                && first.storeId == factory.storeId && second.storeId == factory.storeId
+                && first.store == purchased.store && second.store == purchased.store
         }
         await check("completion.finish-is-idempotent") {
-            let purchased = try await self.purchase()
+            guard let purchased = ownedPurchase else { return false }
             try await provider.finishTransaction(purchase: purchased, isConsumable: false)
             try await provider.finishTransaction(purchase: purchased, isConsumable: false)
             return true

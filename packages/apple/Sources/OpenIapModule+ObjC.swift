@@ -118,6 +118,18 @@ import StoreKit
         }
     }
 
+    @objc func requestPurchaseWithJSON(
+        _ payloadJSON: String,
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
+        do {
+            guard let payload = try JSONSerialization.jsonObject(with: Data(payloadJSON.utf8)) as? [String: Any] else {
+                throw PurchaseError.make(code: .developerError, message: "Purchase request must be a dictionary")
+            }
+            requestPurchaseWithPayload(payload, completion: completion)
+        } catch { completion(nil, error) }
+    }
+
     @objc func requestPurchaseWithPayload(
         _ payload: [String: Any],
         completion: @escaping (Any?, Error?) -> Void

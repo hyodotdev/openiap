@@ -4,6 +4,7 @@ import 'package:platform/platform.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart'
     show FlutterInappPurchase;
 import 'package:flutter_inapp_purchase/types.dart';
+import 'package:flutter_inapp_purchase/helpers.dart' show extractPurchases;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +66,23 @@ void main() {
         'purchaseState': 'purchased',
         'transactionDate': 1.0,
       };
+
+  test('authoritative Android reads preserve and validate community identities',
+      () {
+    List<Purchase> decode(Object? id) => extractPurchases(
+          [
+            {...payload('unknown'), 'storeId': id}
+          ],
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: {},
+          rejectMalformed: true,
+        );
+    expect(decode('community-fixture').single.storeId, 'community-fixture');
+    for (final id in [null, 42, 'Bad id', 'apple']) {
+      expect(() => decode(id), throwsFormatException);
+    }
+  });
 
   test('legacy official purchases infer and round trip identity', () {
     for (final entry in {

@@ -289,7 +289,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 return@suspendCancellableCoroutine
             }
 
-            openIapModule.requestPurchaseWithPayload(params.toJson().toObjCMap()) { result, error ->
+            openIapModule.requestPurchaseWithJSON(params.toJson().toJsonStringIOS()) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
@@ -314,27 +314,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         } else {
             null
         }
-    }
-
-    private fun Map<String, Any?>.toObjCMap(): Map<Any?, Any?> =
-        entries.associate { (key, value) -> key to value.toObjCValue() }
-
-    private fun Any?.toObjCValue(): Any = when (val value = this) {
-        null -> NSNull()
-        is Map<*, *> -> NSMutableDictionary().apply {
-            value.forEach { (key, nestedValue) ->
-                if (key != null) {
-                    setObject(
-                        nestedValue.toObjCValue(),
-                        NSString.create(string = key.toString())
-                    )
-                }
-            }
-        }
-        is List<*> -> NSMutableArray().apply {
-            value.forEach { addObject(it.toObjCValue()) }
-        }
-        else -> value
     }
 
     /**
@@ -368,10 +347,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?): Unit =
         suspendCancellableCoroutine { continuation ->
             // No first-purchase notice on iOS: nothing reliably tells a debug build of the host app.
-            val data = NSJSONSerialization.dataWithJSONObject(purchase.toJson().toObjCMap(), 0u, null)
-                ?: throw IllegalArgumentException("Purchase could not be serialized")
-            val payload = NSString.create(data = data, encoding = NSUTF8StringEncoding)?.toString()
-                ?: throw IllegalArgumentException("Purchase JSON could not be encoded")
+            val payload = purchase.toJson().toJsonStringIOS()
             openIapModule.finishTransactionWithPurchaseJSON(
                 payload,
                 isConsumable = isConsumable ?: false

@@ -2727,7 +2727,7 @@ function checkKmp() {
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
     [
-      "requestPurchaseWithPayload(params.toJson().toObjCMap())",
+      "requestPurchaseWithJSON(params.toJson().toJsonStringIOS())",
       "requireIosSku(params)",
       "openIapModule.verifyPurchaseWithSku(sku)",
       "decodeActiveSubscriptionListPayloadIOS(result, subscriptionIds)",
@@ -2961,6 +2961,8 @@ function checkApple() {
     rel(base, "Sources/OpenIapModule+ObjC.swift"),
     [
       "func requestPurchaseWithPayload",
+      "func requestPurchaseWithJSON",
+      "requestPurchaseWithPayload(payload, completion: completion)",
       "OpenIapSerialization.requestPurchaseProps(from: payload)",
       "func getStorefrontWithCompletion",
     ],

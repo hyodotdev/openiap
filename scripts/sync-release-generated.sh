@@ -28,6 +28,7 @@ git add \
   openiap-versions.json \
   packages/docs/openiap-versions.json \
   packages/apple/Sources/OpenIapGeneratedVersion.swift \
+  libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props \
   packages/conformance/src/spec/generated-spec.mjs \
   packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt \
   packages/conformance/apple/Sources/ProviderBehaviors.swift \

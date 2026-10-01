@@ -63,7 +63,52 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
                 override val restorePurchases: MutationRestorePurchasesHandler = { throw OpenIapError.FeatureNotSupported() }
             }
         }
-        assertThrows(OpenIapError.FeatureNotSupported::class.java) { unsupported.`owned purchase remains available`() }
+        assertThrows(OpenIapError.FeatureNotSupported::class.java) { unsupported.`purchase restores and finishes with a stable identity`() }
+    }
+    @Test fun `conformance only buys an owned product once`() {
+        val actualProvider = provider
+        var requests = 0
+        val persistent = object : FixtureConformanceTest() {
+            override val provider = object : OpenIapProtocol by actualProvider {
+                override val requestPurchase: MutationRequestPurchaseHandler = { props ->
+                    if (++requests > 1) throw OpenIapError.ItemAlreadyOwned()
+                    actualProvider.requestPurchase(props)
+                }
+            }
+        }
+        persistent.`purchase restores and finishes with a stable identity`()
+        assertEquals(1, requests)
+    }
+    @Test fun `suite rejects purchase updates from the wrong platform`() {
+        val actualProvider = provider
+        val invalid = object : FixtureConformanceTest() {
+            override val provider = object : OpenIapProtocol by actualProvider {
+                private var updateListener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener? = null
+                override fun addPurchaseUpdateListener(listener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener) { updateListener = listener }
+                override fun removePurchaseUpdateListener(listener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener) { updateListener = null }
+                override val requestPurchase: MutationRequestPurchaseHandler = {
+                    val purchase = PurchaseIOS.fromJson(fixture.purchase("conformance.product").toJson())
+                    updateListener?.onPurchaseUpdated(purchase)
+                    RequestPurchaseResultPurchase(purchase)
+                }
+            }
+        }
+        assertThrows(AssertionError::class.java) { invalid.`purchase restores and finishes with a stable identity`() }
+    }
+    @Test fun `suite rejects altered restored purchase identities and tokens`() {
+        val actualProvider = provider
+        for (field in listOf("storeId", "purchaseToken")) {
+            val invalid = object : FixtureConformanceTest() {
+                override val provider = object : OpenIapProtocol by actualProvider {
+                    override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
+                        actualProvider.getAvailablePurchases(options).map { purchase ->
+                            PurchaseAndroid.fromJson(purchase.toJson() + (field to "altered-value"))
+                        }
+                    }
+                }
+            }
+            assertThrows(AssertionError::class.java) { invalid.`purchase restores and finishes with a stable identity`() }
+        }
     }
     @Test fun `repurchasing a consumed item creates a new transaction`() = runBlocking {
         val request = RequestPurchaseProps.fromJson(mapOf(

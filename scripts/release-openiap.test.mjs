@@ -306,6 +306,7 @@ test("the release commit stages the mirror the bump moves", () => {
     "openiap-versions.json",
     "packages/docs/openiap-versions.json",
     "packages/apple/Sources/OpenIapGeneratedVersion.swift",
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
     "packages/docs/src/generated/version-metadata.json",
     "packages/conformance/src/spec/generated-spec.mjs",
   ]) {

@@ -33,6 +33,49 @@ final class FixtureProviderTests: XCTestCase {
         }
     }
 
+    func testConformanceReusesAnOwnedPurchase() async {
+        let provider = FixtureModule()
+        provider.rejectOwnedPurchase = true
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider)).run()
+        XCTAssertTrue(report.conformant)
+        XCTAssertTrue(report.scope.complete)
+    }
+
+    func testConformanceRejectsAndroidPurchasesOnApple() async {
+        let provider = FixtureModule()
+        provider.emitAndroidPurchase = true
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider)).run()
+        XCTAssertFalse(report.conformant)
+        XCTAssertEqual(report.results.first { $0.id == "purchases.request-emits-purchase-updated-on-success" }?.outcome, "fail")
+    }
+
+    func testObjCRequestJSONPreservesBooleanOptionsAndDictionaryCompatibility() async throws {
+        for useJSON in [true, false] {
+            let provider = FixtureModule()
+            let module = OpenIapModule(factory: FixedFactory(provider))
+            _ = try await module.initConnection()
+            let payload: [String: Any] = ["type": "in-app", "requestPurchase": ["apple": [
+                "sku": "conformance.product", "andDangerouslyFinishTransactionAutomatically": false
+            ]]]
+            let completed = expectation(description: "Objective-C request")
+            let completion: (Any?, Error?) -> Void = { result, error in
+                XCTAssertNil(error)
+                XCTAssertNotNil(result)
+                completed.fulfill()
+            }
+            if useJSON {
+                let data = try JSONSerialization.data(withJSONObject: payload)
+                module.requestPurchaseWithJSON(String(decoding: data, as: UTF8.self), completion: completion)
+            } else { module.requestPurchaseWithPayload(payload, completion: completion) }
+            await fulfillment(of: [completed], timeout: 2)
+            guard case .purchase(let request) = provider.lastRequest?.request else {
+                XCTFail("Provider did not receive a purchase request")
+                continue
+            }
+            XCTAssertEqual(request.apple?.andDangerouslyFinishTransactionAutomatically, false)
+        }
+    }
+
     func testFailedConnectionAttemptsDisconnect() async {
         for throwsError in [false, true] {
             let provider = FixtureModule()

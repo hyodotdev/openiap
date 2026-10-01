@@ -59,38 +59,33 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
     }
 
     @Test
-    @ConformanceBehavior(ConformanceBehaviors.PURCHASES_REQUEST_EMITS_PURCHASE_UPDATED_ON_SUCCESS)
-    fun `purchase emits its stable store identity`() = runBlocking {
-        val purchase = purchase()
-        assertEquals(testProductId, purchase.productId)
-        assertEquals(adapter.store, purchase.store)
-        assertEquals(factory.storeId, purchase.storeId)
-        assertEquals(purchase.storeId, Purchase.fromJson(purchase.toJson()).storeId)
-        assertEquals(PurchaseState.Purchased, purchase.purchaseState)
-    }
-
-    @Test
-    @ConformanceBehavior(ConformanceBehaviors.RESTORATION_AVAILABLE_PURCHASES_RETURNS_OWNED_ITEMS)
-    fun `owned purchase remains available`() = runBlocking {
+    @ConformanceBehavior(
+        ConformanceBehaviors.PURCHASES_REQUEST_EMITS_PURCHASE_UPDATED_ON_SUCCESS,
+        ConformanceBehaviors.RESTORATION_AVAILABLE_PURCHASES_RETURNS_OWNED_ITEMS,
+        ConformanceBehaviors.IDENTIFIERS_PURCHASE_TOKEN_IS_STABLE_ACROSS_READS,
+        ConformanceBehaviors.COMPLETION_FINISH_IS_IDEMPOTENT,
+    )
+    fun `purchase restores and finishes with a stable identity`() = runBlocking {
         val purchased = purchase()
+        assertTrue(purchased is PurchaseAndroid)
+        assertEquals(testProductId, purchased.productId)
+        assertEquals(adapter.store, purchased.store)
+        assertEquals(factory.storeId, purchased.storeId)
+        assertEquals(purchased.storeId, Purchase.fromJson(purchased.toJson()).storeId)
+        assertEquals(PurchaseState.Purchased, purchased.purchaseState)
         provider.restorePurchases()
-        assertTrue(provider.getAvailablePurchases(null).any { it.purchaseToken == purchased.purchaseToken && it.storeId == factory.storeId })
-    }
-
-    @Test
-    @ConformanceBehavior(ConformanceBehaviors.IDENTIFIERS_PURCHASE_TOKEN_IS_STABLE_ACROSS_READS)
-    fun `repeated reads preserve the purchase token`() = runBlocking {
-        val purchased = purchase()
-        val first = provider.getAvailablePurchases(null).first { it.id == purchased.id }
-        val second = provider.getAvailablePurchases(null).first { it.id == purchased.id }
+        suspend fun ownedPurchase(): Purchase {
+            val owned = provider.getAvailablePurchases(null).first { it.id == purchased.id }
+            assertTrue(owned is PurchaseAndroid)
+            assertEquals(adapter.store, owned.store)
+            assertEquals(factory.storeId, owned.storeId)
+            assertEquals(purchased.purchaseToken, owned.purchaseToken)
+            return owned
+        }
+        val first = ownedPurchase()
+        val second = ownedPurchase()
         assertFalse(first.purchaseToken.isNullOrBlank())
         assertEquals(first.purchaseToken, second.purchaseToken)
-    }
-
-    @Test
-    @ConformanceBehavior(ConformanceBehaviors.COMPLETION_FINISH_IS_IDEMPOTENT)
-    fun `finishing twice is safe`() = runBlocking {
-        val purchased = purchase()
         provider.finishTransaction(purchased, false)
         provider.finishTransaction(purchased, false)
     }

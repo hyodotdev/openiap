@@ -7,7 +7,7 @@ import java.io.File
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class ConformanceBehavior(val id: String)
+annotation class ConformanceBehavior(vararg val id: String)
 
 /** Writes only executed assertions; a missing required behavior cannot pass. */
 internal object ConformanceReports {
@@ -18,10 +18,10 @@ internal object ConformanceReports {
         override fun failed(error: Throwable, description: Description) { outcome = "fail" }
         override fun skipped(error: org.junit.AssumptionViolatedException, description: Description) { outcome = "not-applicable" }
         override fun finished(description: Description) {
-            val behavior = description.getAnnotation(ConformanceBehavior::class.java)?.id
-                ?: if (outcome != "pass") "suite.${description.methodName}" else return
+            val behaviors = description.getAnnotation(ConformanceBehavior::class.java)?.id
+                ?: if (outcome != "pass") arrayOf("suite.${description.methodName}") else return
             val target = System.getProperty("openiap.conformanceReport") ?: return
-            record(suite, target, behavior, outcome)
+            behaviors.forEach { record(suite, target, it, outcome) }
         }
     }
 
