@@ -46,6 +46,19 @@ public class BridgePayloadDecoderTests
         """;
 
     [Fact]
+    public void CommunityIOSPurchasePreservesItsShapeAndOpaqueId()
+    {
+        var item = JsonNode.Parse(PurchaseIosJson)!;
+        item["store"] = "unknown";
+        item["storeId"] = "community-fixture";
+        item["transactionId"] = "opaque-txn";
+        var decoded = BridgePayloadDecoder.DecodeRequiredArray<Purchase>(new JsonArray(item), "getAvailablePurchases");
+        var purchase = Assert.IsType<PurchaseIOS>(Assert.Single(decoded));
+        Assert.Equal("community-fixture", purchase.StoreId);
+        Assert.Equal("opaque-txn", purchase.TransactionId);
+    }
+
+    [Fact]
     public void ExplicitEmptyItemsIsAuthoritativeSuccess()
     {
         var result = BridgePayloadDecoder.DecodeRequiredItems<Purchase>(

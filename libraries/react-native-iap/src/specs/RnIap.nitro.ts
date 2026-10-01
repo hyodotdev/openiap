@@ -101,16 +101,22 @@ export type BillingChoiceImageLayoutAndroid =
   | 'rectangular-two-by-two';
 
 export type BillingChoiceScreenTypeAndroid =
-  'unspecified' | 'developer-rendered' | 'google-rendered';
+  | 'unspecified'
+  | 'developer-rendered'
+  | 'google-rendered';
 
 export type DeveloperBillingTypeAndroid =
-  'developer-billing-type-unspecified' | 'in-app' | 'external-link';
+  | 'developer-billing-type-unspecified'
+  | 'in-app'
+  | 'external-link';
 
 export type InAppMessageCategoryAndroid =
-  'unknown-in-app-message-category-id' | 'transactional';
+  | 'unknown-in-app-message-category-id'
+  | 'transactional';
 
 export type InAppMessageResponseCodeAndroid =
-  'no-action-needed' | 'subscription-status-updated';
+  | 'no-action-needed'
+  | 'subscription-status-updated';
 
 // Android 8.3.0+
 export type DeveloperBillingLaunchModeAndroid =
@@ -126,7 +132,9 @@ export type ExternalLinkLaunchModeAndroid =
 
 // Android 8.2.0+
 export type ExternalLinkTypeAndroid =
-  'unspecified' | 'link-to-digital-content-offer' | 'link-to-app-download';
+  | 'unspecified'
+  | 'link-to-digital-content-offer'
+  | 'link-to-app-download';
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║                                  PARAMS                                  ║
@@ -273,6 +281,8 @@ export interface NitroAvailablePurchasesOptions {
  */
 export interface NitroFinishTransactionIosParams {
   transactionId: string;
+  purchaseJson?: string;
+  isConsumable?: boolean;
 }
 
 /**
@@ -280,6 +290,7 @@ export interface NitroFinishTransactionIosParams {
  */
 export interface NitroFinishTransactionAndroidParams {
   purchaseToken: string;
+  purchaseJson?: string;
   isConsumable?: MutationFinishTransactionArgs['isConsumable'];
 }
 
@@ -527,6 +538,7 @@ export interface NitroPurchase {
   /** Store where purchase was made */
   store: IapStore;
   storeId: string;
+  platform?: IapPlatform;
   quantity: PurchaseCommon['quantity'];
   purchaseState: PurchaseCommon['purchaseState'];
   isAutoRenewing: PurchaseCommon['isAutoRenewing'];
@@ -899,6 +911,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * @returns Promise<boolean> - Success flag
    * @platform iOS
    */
+  restorePurchases(): Promise<boolean>;
   syncIOS(): Promise<boolean>;
 
   /**

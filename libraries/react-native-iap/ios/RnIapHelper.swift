@@ -424,6 +424,7 @@ enum RnIapHelper {
             ids: wrapStringArray(dictionary["ids"] as? [String]),
             store: store,
             storeId: dictionary["storeId"] as? String ?? (store == .google ? "play" : store.stringValue),
+            platform: .ios,
             quantity: doubleValue(dictionary["quantity"]) ?? 0,
             purchaseState: purchaseState,
             isAutoRenewing: boolValue(dictionary["isAutoRenewing"]) ?? false,

@@ -451,7 +451,7 @@ bool _isValidAuthoritativePurchaseMap(
   final transactionDate = value['transactionDate'];
   if (transactionDate is! num || !transactionDate.isFinite) return false;
   final store = value['store'];
-  if (platformIsIOS && store != 'apple') return false;
+  if (platformIsIOS && store != 'apple' && store != 'unknown') return false;
   if (platformIsAndroid &&
       store != 'google' &&
       store != 'amazon' &&

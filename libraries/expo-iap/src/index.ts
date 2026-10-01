@@ -16,7 +16,7 @@ import {
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
 import {showFirstPurchaseNotice} from './utils/firstPurchaseNotice';
-import {restorePurchasesIOSNative} from './utils/restorePurchases';
+import {restorePurchasesNative} from './utils/restorePurchases';
 import {
   decodeAndroidPurchases,
   decodeApplePurchases,
@@ -1191,7 +1191,10 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
   purchase,
   isConsumable = false,
 }) => {
-  if (Platform.OS === 'ios') {
+  if (
+    Platform.OS === 'ios' ||
+    (isAndroidStoreRuntime() && purchase.store === 'unknown')
+  ) {
     await ExpoIapModule.finishTransaction(purchase, isConsumable);
   } else if (isAndroidStoreRuntime()) {
     const token = purchase.purchaseToken ?? undefined;
@@ -1227,9 +1230,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
  * @see {@link https://openiap.dev/docs/apis/restore-purchases}
  */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
-  if (Platform.OS === 'ios') {
-    await restorePurchasesIOSNative();
-  }
+  await restorePurchasesNative();
 
   await getAvailablePurchases({
     alsoPublishToEventListenerIOS: false,

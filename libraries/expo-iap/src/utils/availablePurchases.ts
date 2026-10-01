@@ -93,15 +93,19 @@ export const decodeAvailablePurchases = (value: unknown): Purchase[] => {
   });
 };
 
-/** Decode an authoritative StoreKit list without filtering foreign entries. */
+/** Decode an authoritative Apple-platform list without filtering foreign entries. */
 export const decodeApplePurchases = (value: unknown): PurchaseIOS[] => {
   const decoded = decodeAvailablePurchases(value);
   const invalidIndex = decoded.findIndex(
-    (purchase) => purchase.store !== 'apple',
+    (purchase) =>
+      (purchase.store !== 'apple' && purchase.store !== 'unknown') ||
+      !('transactionId' in purchase) ||
+      typeof purchase.transactionId !== 'string' ||
+      !purchase.transactionId,
   );
   if (invalidIndex !== -1) {
     throw malformedPurchaseError(
-      `Native StoreKit bridge returned a non-Apple purchase at index ${invalidIndex}`,
+      `Native Apple bridge returned an invalid iOS purchase at index ${invalidIndex}`,
     );
   }
   return decoded as PurchaseIOS[];

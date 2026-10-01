@@ -2,15 +2,48 @@ package io.github.hyochan.kmpiap
 
 import dev.hyo.openiap.DeepLinkOptions as AndroidDeepLinkOptions
 import dev.hyo.openiap.MutationDeepLinkToSubscriptionsHandler
+import dev.hyo.openiap.MutationRestorePurchasesHandler
 import dev.hyo.openiap.OpenIapProtocol
+import dev.hyo.openiap.QueryGetActiveSubscriptionsHandler
+import dev.hyo.openiap.QueryHasActiveSubscriptionsHandler
 import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class CommunitySubscriptionManagementTest {
+    @Test
+    fun requiredHandlersDoNotNeedOptionalDispatchTables() = runBlocking {
+        val queries = mutableListOf<List<String>?>()
+        var restores = 0
+        val active: QueryGetActiveSubscriptionsHandler = { queries.add(it); emptyList() }
+        val hasActive: QueryHasActiveSubscriptionsHandler = { queries.add(it); true }
+        val restore: MutationRestorePurchasesHandler = { restores++; Unit }
+        val provider = Proxy.newProxyInstance(
+            OpenIapProtocol::class.java.classLoader,
+            arrayOf(OpenIapProtocol::class.java),
+        ) { _, method, _ ->
+            when (method.name) {
+                "getGetActiveSubscriptions" -> active
+                "getHasActiveSubscriptions" -> hasActive
+                "getRestorePurchases" -> restore
+                else -> error("Unexpected call: ${method.name}")
+            }
+        } as OpenIapProtocol
+        val delegate = OpenIapDelegateInAppPurchaseAndroid("community", Store.UNKNOWN, "Android Community")
+        delegate.javaClass.getDeclaredField("module").apply { isAccessible = true }.set(delegate, provider)
+
+        assertTrue(delegate.getActiveSubscriptions(listOf("subscription")).isEmpty())
+        assertTrue(delegate.hasActiveSubscriptions(null))
+        delegate.restorePurchases()
+
+        assertEquals(listOf(listOf("subscription"), null), queries)
+        assertEquals(1, restores)
+    }
+
     @Test
     fun defaultOptionsReachTheProvider() = runBlocking {
         val requests = mutableListOf<AndroidDeepLinkOptions?>()

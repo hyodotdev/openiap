@@ -489,7 +489,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          await _channel.invokeMethod('endConnection');
+          final disconnected =
+              await _channel.invokeMethod<Object?>('endConnection');
+          if (disconnected == false) return false;
 
           _isInitialized = false;
           _isIapUnavailable = false;
@@ -1691,6 +1693,14 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         final transactionId = purchase.id;
 
         if (_platform.isAndroid) {
+          if (purchase.store == gentype.IapStore.Unknown) {
+            await _channel.invokeMethod('finishTransaction', <String, dynamic>{
+              'purchase': purchase.toJson(),
+              'isConsumable': consumable,
+            });
+            unawaited(_firstPurchaseNotice.onFinished(purchase));
+            return;
+          }
           if (purchase.purchaseToken == null ||
               purchase.purchaseToken!.isEmpty) {
             throw PurchaseError(
@@ -2287,18 +2297,23 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/restore-purchases
   gentype.MutationRestorePurchasesHandler get restorePurchases => () async {
         try {
-          if (_platform.isIOS || _platform.isMacOS) {
-            final synced = await syncIOS();
+          if (_platform.isIOS || _platform.isMacOS || _platform.isAndroid) {
+            final synced =
+                await _channel.invokeMethod<bool>('restorePurchases') ?? false;
             if (!synced) {
               throw PurchaseError(
                 code: gentype.ErrorCode.SyncError,
-                message: 'App Store sync did not complete',
+                message: 'Store purchase restore did not complete',
               );
             }
           }
           await getAvailablePurchases();
         } catch (error) {
           if (error is PurchaseError) rethrow;
+          if (error is PlatformException) {
+            throw _purchaseErrorFromPlatformException(
+                error, 'restore purchases');
+          }
           throw PurchaseError(
             code: gentype.ErrorCode.SyncError,
             message: 'Failed to restore purchases: ${error.toString()}',
@@ -2462,21 +2477,19 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/has-active-subscriptions
   gentype.QueryHasActiveSubscriptionsHandler get hasActiveSubscriptions =>
       ([subscriptionIds]) async {
-        final activeSubscriptions = await getActiveSubscriptions(
-          subscriptionIds,
-        );
-        // For Android, also call native with explicit type for parity/logging
-        if (_platform.isAndroid) {
-          try {
-            await _channel.invokeMethod(
-              'getAvailableItems',
-              <String, dynamic>{'type': 'subs'},
-            );
-          } catch (_) {
-            // Ignore; this is for logging/compatibility only
-          }
+        if (!_platform.isAndroid && !_platform.isIOS && !_platform.isMacOS) {
+          return false;
         }
-        return activeSubscriptions.isNotEmpty;
+        try {
+          return await _channel.invokeMethod<bool>(
+                  'hasActiveSubscriptions', <String, dynamic>{
+                'subscriptionIds': subscriptionIds,
+              }) ??
+              false;
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+              error, 'check active subscriptions');
+        }
       };
 
   // MARK: - Billing Programs API (Android 8.2.0+)

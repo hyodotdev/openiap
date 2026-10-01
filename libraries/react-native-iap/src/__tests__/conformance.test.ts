@@ -208,6 +208,13 @@ const mockIap: Record<string, unknown> = {
   removeUserChoiceBillingListenerAndroid: jest.fn(),
 
   getStorefront: jest.fn(async () => 'USA'),
+  hasActiveSubscriptions: jest.fn(async (subscriptionIds?: string[]) =>
+    [...store.owned.values()].some(
+      (record) =>
+        record.type === 'subs' &&
+        (!subscriptionIds?.length || subscriptionIds.includes(record.sku)),
+    ),
+  ),
   getActiveSubscriptions: jest.fn(async (subscriptionIds?: string[]) =>
     [...store.owned.values()]
       .filter((record) => record.type === 'subs')

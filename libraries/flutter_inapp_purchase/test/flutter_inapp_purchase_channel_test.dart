@@ -1100,6 +1100,22 @@ void main() {
       expect(endCount, 1);
     });
 
+    test('endConnection preserves false and allows a provider retry', () async {
+      final iap =
+          FlutterInappPurchase.private(FakePlatform(operatingSystem: 'ios'));
+      var disconnects = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'endConnection') return ++disconnects > 1;
+        return null;
+      });
+      expect(await iap.initConnection(), isTrue);
+      expect(await iap.endConnection(), isFalse);
+      expect(await iap.endConnection(), isTrue);
+      expect(disconnects, 2);
+    });
+
     test('endConnection returns false when not initialized', () async {
       bool endCalled = false;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -2400,7 +2416,7 @@ void main() {
         switch (call.method) {
           case 'initConnection':
             return true;
-          case 'syncIOS':
+          case 'restorePurchases':
             syncCalls += 1;
             return true;
           case 'getAvailableItems':
@@ -2430,7 +2446,7 @@ void main() {
         switch (call.method) {
           case 'initConnection':
             return true;
-          case 'syncIOS':
+          case 'restorePurchases':
             syncCalls += 1;
             return true;
           case 'getAvailableItems':
@@ -2460,7 +2476,7 @@ void main() {
         if (call.method == 'initConnection') {
           return true;
         }
-        if (call.method == 'syncIOS') {
+        if (call.method == 'restorePurchases') {
           throw PlatformException(code: '500', message: 'boom');
         }
         if (call.method == 'getAvailableItems') {
@@ -2481,7 +2497,7 @@ void main() {
           isA<PurchaseError>().having(
             (error) => error.message,
             'message',
-            contains('sync iOS purchases'),
+            contains('restore purchases'),
           ),
         ),
       );
@@ -2495,7 +2511,7 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         if (call.method == 'initConnection') return true;
-        if (call.method == 'syncIOS') return false;
+        if (call.method == 'restorePurchases') return false;
         if (call.method == 'getAvailableItems') {
           availableCalls += 1;
           return <Map<String, dynamic>>[];
@@ -2521,7 +2537,8 @@ void main() {
       expect(availableCalls, 0);
     });
 
-    test('restorePurchases fetches purchases directly on Android', () async {
+    test('restorePurchases restores then fetches purchases on Android',
+        () async {
       int availableCalls = 0;
       int endCalls = 0;
 
@@ -2530,6 +2547,7 @@ void main() {
         if (call.method == 'initConnection') {
           return true;
         }
+        if (call.method == 'restorePurchases') return true;
         if (call.method == 'endConnection') {
           endCalls += 1;
           return true;
@@ -2555,7 +2573,10 @@ void main() {
     test('restorePurchases propagates available-purchase errors', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'initConnection') return true;
+        if (call.method == 'initConnection' ||
+            call.method == 'restorePurchases') {
+          return true;
+        }
         if (call.method == 'getAvailableItems') {
           throw PlatformException(
             code: 'service-error',

@@ -3,6 +3,29 @@ import 'package:flutter_inapp_purchase/types.dart' as types;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('preserves community iOS identity in authoritative ownership lists', () {
+    final result = extractPurchases(
+        [
+          {
+            'id': 'opaque-txn',
+            'transactionId': 'opaque-txn',
+            'productId': 'premium',
+            'store': 'unknown',
+            'storeId': 'community-fixture',
+            'quantity': 1,
+            'purchaseState': 'purchased',
+            'isAutoRenewing': false,
+            'transactionDate': 1
+          },
+        ],
+        platformIsAndroid: false,
+        platformIsIOS: true,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        rejectMalformed: true);
+    expect(result.single, isA<types.PurchaseIOS>());
+    expect(result.single.storeId, 'community-fixture');
+  });
+
   test('preserves a community store identity in an Android purchase', () {
     final purchase = convertToPurchase(
         {

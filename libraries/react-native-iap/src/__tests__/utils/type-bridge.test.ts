@@ -594,3 +594,24 @@ test('preserves a community provider storeId through the Nitro purchase bridge',
   expect(result.store).toBe('unknown');
   expect(result.storeId).toBe('community-fixture');
 });
+
+test('preserves a community iOS purchase shape and opaque transaction identifier', () => {
+  const result = convertNitroPurchaseToPurchase(
+    purchase({
+      store: 'unknown',
+      storeId: 'community-fixture',
+      platform: 'ios',
+      transactionId: 'opaque-txn',
+      quantityIOS: 2,
+      environmentIOS: 'Sandbox',
+    }),
+  );
+  expect(result).toMatchObject({
+    store: 'unknown',
+    storeId: 'community-fixture',
+    transactionId: 'opaque-txn',
+    quantityIOS: 2,
+    environmentIOS: 'Sandbox',
+  });
+  expect(result).not.toHaveProperty('isAcknowledgedAndroid');
+});

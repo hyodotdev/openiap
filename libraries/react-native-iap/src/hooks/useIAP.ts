@@ -2,7 +2,7 @@
 import {useCallback, useEffect, useState, useRef} from 'react';
 import {Platform} from 'react-native';
 import {RnIapConsole} from '../utils/debug';
-import {createPurchaseError} from '../utils/errorMapping';
+import {restorePurchasesNative} from '../utils/restore-purchases';
 
 // Internal modules
 import {
@@ -18,7 +18,6 @@ import {
   verifyPurchaseWithProvider as verifyPurchaseWithProviderTopLevel,
   getActiveSubscriptions,
   hasActiveSubscriptions,
-  syncIOS,
   getPromotedProductIOS,
   getBillingChoiceInfoAndroid,
   isBillingProgramAvailableAndroid,
@@ -536,9 +535,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const finishTransaction = useCallback(
     async (args: MutationFinishTransactionArgs): Promise<void> => {
-      // Errors propagate: the root API owns validation and error handling,
-      // including treating iOS "Transaction not found" as already finished.
-      // Callers handle failures in onPurchaseSuccess.
+      // The root API preserves provider completion errors.
       await finishTransactionInternal(args);
     },
     [],
@@ -553,23 +550,13 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const restorePurchases = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
-      if (Platform.OS === 'ios') {
-        try {
-          const synced = await syncIOS();
-          if (!synced) {
-            throw createPurchaseError({
-              code: ErrorCode.SyncError,
-              message: 'App Store purchase sync did not complete',
-              platform: 'ios',
-            });
-          }
-        } catch (error) {
-          RnIapConsole.warn('Failed to restore purchases:', error);
-          invokeOnError(error);
-          throw error;
-        }
+      try {
+        await restorePurchasesNative();
+      } catch (error) {
+        RnIapConsole.warn('Failed to restore purchases:', error);
+        invokeOnError(error);
+        throw error;
       }
-
       // The query helper reports and rethrows its own error, avoiding a second
       // onError call while keeping restore failure observable to the caller.
       await getAvailablePurchasesInternal(options);

@@ -1,7 +1,12 @@
 // External dependencies
 import {Platform} from 'react-native';
-// Importing NitroModules installs its dispatcher before IAP is used (no-op in tests).
-import {NitroModules} from 'react-native-nitro-modules';
+import {
+  getNativeIapInstance,
+  hasNativeIapInstance,
+  isNativeIapReady,
+  toErrorMessage,
+} from './utils/native-instance';
+import {restorePurchasesNative} from './utils/restore-purchases';
 
 // Internal modules
 import type {
@@ -111,18 +116,6 @@ type NitroPromotedProductListener = Parameters<
   RnIap['addPromotedProductListenerIOS']
 >[0];
 
-const toErrorMessage = (error: unknown): string => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    (error as {message?: unknown}).message != null
-  ) {
-    return String((error as {message?: unknown}).message);
-  }
-  return String(error ?? '');
-};
-
 const parseErrorAndLogIfNeeded = (
   message: string,
   error: unknown,
@@ -162,7 +155,6 @@ export type {
 } from './kit-api';
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
-let iapRef: RnIap | null = null;
 let attachingPendingNativeListeners = false;
 
 /**
@@ -170,19 +162,7 @@ let attachingPendingNativeListeners = false;
  * This is useful for platforms like tvOS where Nitro may initialize later.
  * @returns true if Nitro is ready, false otherwise
  */
-export const isNitroReady = (): boolean => {
-  if (iapRef) return true;
-  if (isVegaOS()) {
-    iapRef = getVegaAdapter();
-    return Boolean(iapRef);
-  }
-  try {
-    iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
-    return true;
-  } catch {
-    return false;
-  }
-};
+export const isNitroReady = isNativeIapReady;
 
 /**
  * Check if we're running on tvOS.
@@ -214,43 +194,9 @@ const isAndroidStoreRuntime = (): boolean => {
   return Platform.OS === 'android' || isVegaOS();
 };
 
-function getRawIapInstance(): RnIap {
-  if (iapRef) return iapRef;
-
-  if (isVegaOS()) {
-    const vegaModule = getVegaAdapter();
-    if (!vegaModule) {
-      throw new Error(
-        'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
-      );
-    }
-    iapRef = vegaModule;
-    return iapRef;
-  }
-
-  // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
-  try {
-    iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
-  } catch (e) {
-    const msg = toErrorMessage(e);
-    if (
-      msg.includes('Nitro') ||
-      msg.includes('JSI') ||
-      msg.includes('dispatcher') ||
-      msg.includes('HybridObject')
-    ) {
-      throw new Error(
-        'Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP.',
-      );
-    }
-    throw e;
-  }
-  return iapRef;
-}
-
 const IAP = {
   get instance(): RnIap {
-    const instance = getRawIapInstance();
+    const instance = getNativeIapInstance();
     if (!attachingPendingNativeListeners) {
       attachingPendingNativeListeners = true;
       try {
@@ -344,7 +290,7 @@ function tryAttachPurchaseUpdateNative(
       | undefined = receiveDuplicateTransactionUpdatesIOS
       ? {dedupeTransactionIOS: false}
       : undefined;
-    const token = getRawIapInstance().addPurchaseUpdatedListener(
+    const token = getNativeIapInstance().addPurchaseUpdatedListener(
       receiveDuplicateTransactionUpdatesIOS
         ? purchaseUpdateDuplicateNativeHandler
         : purchaseUpdateNativeHandler,
@@ -394,7 +340,7 @@ const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
 function tryAttachPurchaseErrorNative(): void {
   if (purchaseErrorNativeAttached) return;
   attachNativeListenerOrDefer('purchaseErrorListener', () => {
-    getRawIapInstance().addPurchaseErrorListener(purchaseErrorNativeHandler);
+    getNativeIapInstance().addPurchaseErrorListener(purchaseErrorNativeHandler);
     purchaseErrorNativeAttached = true;
   });
 }
@@ -424,7 +370,7 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
 function tryAttachPromotedProductNative(): void {
   if (promotedProductNativeAttached) return;
   attachNativeListenerOrDefer('promotedProductListenerIOS', () => {
-    getRawIapInstance().addPromotedProductListenerIOS(
+    getNativeIapInstance().addPromotedProductListenerIOS(
       promotedProductNativeHandler,
     );
     promotedProductNativeAttached = true;
@@ -500,7 +446,7 @@ export const purchaseUpdatedListener = (
       }
 
       try {
-        getRawIapInstance().removePurchaseUpdatedListener(token);
+        getNativeIapInstance().removePurchaseUpdatedListener(token);
         if (receiveDuplicateTransactionUpdatesIOS) {
           purchaseUpdateDuplicateNativeToken = null;
           purchaseUpdateDuplicateNativeAttached = false;
@@ -543,7 +489,7 @@ export const purchaseErrorListener = (
 
       if (purchaseErrorNativeAttached) {
         try {
-          getRawIapInstance().removePurchaseErrorListener(
+          getNativeIapInstance().removePurchaseErrorListener(
             purchaseErrorNativeHandler,
           );
           purchaseErrorNativeAttached = false;
@@ -614,7 +560,7 @@ const userChoiceBillingNativeHandler: NitroUserChoiceBillingListener = (
 function tryAttachUserChoiceBillingNative(): void {
   if (userChoiceBillingNativeAttached) return;
   attachNativeListenerOrDefer('userChoiceBillingListenerAndroid', () => {
-    getRawIapInstance().addUserChoiceBillingListenerAndroid(
+    getNativeIapInstance().addUserChoiceBillingListenerAndroid(
       userChoiceBillingNativeHandler,
     );
     userChoiceBillingNativeAttached = true;
@@ -677,7 +623,7 @@ export const userChoiceBillingListenerAndroid = (
         return;
       }
       try {
-        getRawIapInstance().removeUserChoiceBillingListenerAndroid(
+        getNativeIapInstance().removeUserChoiceBillingListenerAndroid(
           userChoiceBillingNativeHandler,
         );
         userChoiceBillingNativeAttached = false;
@@ -716,7 +662,7 @@ const developerProvidedBillingNativeHandler: NitroDeveloperProvidedBillingListen
 function tryAttachDeveloperProvidedBillingNative(): void {
   if (developerProvidedBillingNativeAttached) return;
   attachNativeListenerOrDefer('developerProvidedBillingListenerAndroid', () => {
-    getRawIapInstance().addDeveloperProvidedBillingListenerAndroid(
+    getNativeIapInstance().addDeveloperProvidedBillingListenerAndroid(
       developerProvidedBillingNativeHandler,
     );
     developerProvidedBillingNativeAttached = true;
@@ -806,7 +752,7 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
 function tryAttachSubscriptionBillingIssueNative(): void {
   if (subscriptionBillingIssueNativeAttached) return;
   attachNativeListenerOrDefer('subscriptionBillingIssueListener', () => {
-    getRawIapInstance().addSubscriptionBillingIssueListener(
+    getNativeIapInstance().addSubscriptionBillingIssueListener(
       subscriptionBillingIssueNativeHandler,
     );
     subscriptionBillingIssueNativeAttached = true;
@@ -1264,7 +1210,9 @@ export const currentEntitlementIOS: QueryField<
     const nitroPurchase = await IAP.instance.currentEntitlementIOS(sku);
     if (nitroPurchase) {
       const converted = convertNitroPurchaseToPurchase(nitroPurchase);
-      return converted.store === 'apple' ? (converted as PurchaseIOS) : null;
+      return converted.store === 'apple' || converted.store === 'unknown'
+        ? (converted as PurchaseIOS)
+        : null;
     }
     return null;
   } catch (error) {
@@ -1300,7 +1248,9 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
     const nitroPurchase = await IAP.instance.latestTransactionIOS(sku);
     if (nitroPurchase) {
       const converted = convertNitroPurchaseToPurchase(nitroPurchase);
-      return converted.store === 'apple' ? (converted as PurchaseIOS) : null;
+      return converted.store === 'apple' || converted.store === 'unknown'
+        ? (converted as PurchaseIOS)
+        : null;
     }
     return null;
   } catch (error) {
@@ -1628,7 +1578,9 @@ export const initConnection: MutationField<'initConnection'> = async (
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
   try {
-    const result = iapRef ? await IAP.instance.endConnection() : true;
+    const result = hasNativeIapInstance()
+      ? await IAP.instance.endConnection()
+      : true;
     resetListenerState();
     return result;
   } catch (error) {
@@ -1652,16 +1604,7 @@ export const endConnection: MutationField<'endConnection'> = async () => {
  */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   try {
-    if (Platform.OS === 'ios') {
-      const synced = await syncIOS();
-      if (!synced) {
-        throw createPurchaseError({
-          code: ErrorCode.SyncError,
-          message: 'App Store purchase sync did not complete',
-          platform: 'ios',
-        });
-      }
-    }
+    await restorePurchasesNative();
 
     await getAvailablePurchases({
       alsoPublishToEventListenerIOS: false,
@@ -1969,18 +1912,22 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
       params = {
         ios: {
           transactionId: purchase.id,
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: isConsumable ?? undefined,
         },
       };
     } else if (isAndroidStoreRuntime()) {
       const token = purchase.purchaseToken ?? undefined;
 
-      if (!token) {
+      const community = purchase.store === 'unknown';
+      if (!token && !community) {
         throw new Error('purchaseToken required to finish Android transaction');
       }
 
       params = {
         android: {
-          purchaseToken: token,
+          purchaseToken: token ?? '',
+          ...(community ? {purchaseJson: JSON.stringify(purchase)} : {}),
           isConsumable: isConsumable ?? false,
         },
       };
@@ -1997,15 +1944,18 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
     return;
   } catch (error) {
     const parsedError = parseErrorStringToJsonObj(error);
-    // If iOS transaction has already been auto-finished natively, treat as success
-    if (Platform.OS === 'ios') {
+    // StoreKit can finish a transaction before a replay reaches JavaScript.
+    if (
+      Platform.OS === 'ios' &&
+      (purchase.store === 'apple' || purchase.store == null) &&
+      (purchase.storeId === 'apple' || purchase.storeId == null)
+    ) {
       const msg = (parsedError.message || '').toString();
       const code = (parsedError.code || '').toString();
       if (
         msg.includes('Transaction not found') ||
         code === 'E_ITEM_UNAVAILABLE'
       ) {
-        // Consider already finished
         return;
       }
     }
@@ -2683,8 +2633,17 @@ export const getActiveSubscriptions: QueryField<
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
 > = async (subscriptionIds) => {
-  const activeSubscriptions = await getActiveSubscriptions(subscriptionIds);
-  return activeSubscriptions.length > 0;
+  try {
+    return await IAP.instance.hasActiveSubscriptions(
+      subscriptionIds ?? undefined,
+    );
+  } catch (error) {
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to check active subscriptions:',
+      error,
+    );
+    throw createPurchaseError(parsedError);
+  }
 };
 
 // Type conversion utilities

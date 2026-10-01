@@ -1080,7 +1080,7 @@ func _is_valid_purchase_dictionary(value) -> bool:
 			or String(value.get(required_string)).is_empty():
 			return false
 	var store := String(value.get("store"))
-	if _is_apple() and store != "apple":
+	if _is_apple() and store not in ["apple", "unknown"]:
 		return false
 	if _platform == "Android" and store not in ["google", "amazon", "horizon"] and store != "unknown":
 		return false
@@ -2219,6 +2219,8 @@ func get_store() -> Variant:
 			return Types.IapStore.AMAZON
 		return Types.IapStore.GOOGLE
 	elif _is_apple():
+		if _native_plugin and _native_plugin.has_method("getStoreId"):
+			return Types.IapStore.APPLE if _native_plugin.call("getStoreId") == "apple" else Types.IapStore.UNKNOWN
 		return Types.IapStore.APPLE
 	return Types.IapStore.UNKNOWN
 

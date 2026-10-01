@@ -460,7 +460,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                // getAvailablePurchases effectively restores purchases
+                store.restorePurchases()
                 val purchases = store.getAvailablePurchases(null)
 
                 // Emit each purchase

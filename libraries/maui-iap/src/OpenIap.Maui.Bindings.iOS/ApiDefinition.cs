@@ -91,6 +91,10 @@ interface OpenIapModule
     [Async]
     void FinishTransaction(string purchaseId, string productId, bool isConsumable, Action<NSError?> completion);
 
+    [Export("finishTransactionWithPurchaseJSON:isConsumable:completion:")]
+    [Async]
+    void FinishTransactionWithPurchaseJSON(string purchaseJSON, bool isConsumable, Action<NSError?> completion);
+
     [Export("getPendingTransactionsIOSWithCompletion:")]
     [Async]
     void GetPendingTransactionsIOS(Action<NSArray?, NSError?> completion);
@@ -133,9 +137,17 @@ interface OpenIapModule
     [Async]
     void GetActiveSubscriptions(Action<NSArray?, NSError?> completion);
 
+    [Export("getActiveSubscriptionsWithSubscriptionIds:completion:")]
+    [Async]
+    void GetActiveSubscriptions([NullAllowed] string[] subscriptionIds, Action<NSArray?, NSError?> completion);
+
     [Export("hasActiveSubscriptionsWithCompletion:")]
     [Async]
     void HasActiveSubscriptions(Action<bool, NSError?> completion);
+
+    [Export("hasActiveSubscriptionsWithSubscriptionIds:completion:")]
+    [Async]
+    void HasActiveSubscriptions([NullAllowed] string[] subscriptionIds, Action<bool, NSError?> completion);
 
     [Export("subscriptionStatusIOSWithSku:completion:")]
     [Async]

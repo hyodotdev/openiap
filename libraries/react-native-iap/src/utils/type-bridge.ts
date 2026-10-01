@@ -394,6 +394,7 @@ export function convertProductToProductSubscription(
  */
 export function convertNitroPurchaseToPurchase(
   nitroPurchase: NitroPurchase,
+  platform = nitroPurchase.platform,
 ): Purchase {
   let purchaseState = normalizePurchaseState(
     nitroPurchase.purchaseState ?? nitroPurchase.purchaseStateAndroid,
@@ -409,7 +410,10 @@ export function convertNitroPurchaseToPurchase(
 
   const store = normalizeStore(nitroPurchase.store);
 
-  if (store === STORE_APPLE) {
+  if (
+    store === STORE_APPLE ||
+    (store === STORE_UNKNOWN && platform === 'ios')
+  ) {
     const transactionId = toNullableString(nitroPurchase.transactionId);
     if (transactionId == null) {
       throw new Error('Apple purchase is missing transactionId');

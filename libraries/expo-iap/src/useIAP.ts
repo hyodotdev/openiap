@@ -27,7 +27,7 @@ import {
 } from './index';
 import {ExpoIapConsole} from './utils/debug';
 import {getPromotedProductIOS} from './modules/ios';
-import {restorePurchasesIOSNative} from './utils/restorePurchases';
+import {restorePurchasesNative} from './utils/restorePurchases';
 import {
   getBillingChoiceInfoAndroid,
   isBillingProgramAvailableAndroid,
@@ -547,8 +547,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       const purchases = Array.isArray(purchaseResult)
         ? purchaseResult
         : purchaseResult
-        ? [purchaseResult]
-        : [];
+          ? [purchaseResult]
+          : [];
 
       for (const purchase of purchases ?? []) {
         if (!markPurchaseDelivered(purchase)) {
@@ -576,9 +576,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const restorePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
       try {
-        if (Platform.OS === 'ios') {
-          await restorePurchasesIOSNative();
-        }
+        await restorePurchasesNative();
 
         const purchases = await getAvailablePurchases({
           alsoPublishToEventListenerIOS:

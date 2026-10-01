@@ -189,18 +189,17 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
         withMappedOpenIapError {
-            requireModule().queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds)
-                ?.map { ActiveSubscription.fromJson(it.toJson()) }
-                ?: emptyList()
+            requireModule().getActiveSubscriptions(subscriptionIds)
+                .map { ActiveSubscription.fromJson(it.toJson()) }
         }
 
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
         withMappedOpenIapError {
-            requireModule().queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
+            requireModule().hasActiveSubscriptions(subscriptionIds)
         }
 
     override suspend fun restorePurchases() {
-        withMappedOpenIapError { requireModule().mutationHandlers.restorePurchases?.invoke() }
+        withMappedOpenIapError { requireModule().restorePurchases() }
     }
 
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {

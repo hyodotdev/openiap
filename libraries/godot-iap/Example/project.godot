@@ -21,7 +21,7 @@ config/icon="res://openiap-logo.png"
 
 [autoload]
 
-GodotIapPlugin="*res://addons/godot-iap/godot_iap.gd"
+GodotIapPlugin="*uid://blclqxkjtp077"
 IapManager="*res://iap_manager.gd"
 
 [display]

@@ -901,12 +901,22 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    override fun restorePurchases(): Promise<Boolean> = Promise.async {
+        try {
+            openIap.restorePurchases()
+            true
+        } catch (error: OpenIapError) {
+            throw OpenIapException(toErrorJson(error), error)
+        }
+    }
+
     // Transaction management methods (Unified)
     override fun finishTransaction(params: NitroFinishTransactionParams): Promise<Variant_Boolean_NitroPurchaseResult> {
         return Promise.async {
             val androidParams = (params.android as? Variant_NullType_NitroFinishTransactionAndroidParams.Second)?.value
                 ?: return@async Variant_Boolean_NitroPurchaseResult.First(true)
             val purchaseToken = androidParams.purchaseToken
+            val purchaseJson = androidParams.purchaseJson
             val isConsumable = androidParams.isConsumable.unwrapBool() ?: false
 
             RnIapLog.payload(
@@ -918,7 +928,7 @@ class HybridRnIap : HybridRnIapSpec() {
             )
 
             // Validate token early to avoid confusing native errors
-            if (purchaseToken.isBlank()) {
+            if (purchaseToken.isBlank() && purchaseJson == null) {
                 RnIapLog.warn("finishTransaction called with missing purchaseToken")
                 return@async Variant_Boolean_NitroPurchaseResult.Second(
                     NitroPurchaseResult(
@@ -937,7 +947,10 @@ class HybridRnIap : HybridRnIapSpec() {
             }
 
             try {
-                if (isConsumable) {
+                if (purchaseJson != null) {
+                    val purchase = PurchaseAndroid.fromJson(JSONObject(purchaseJson).toPurchaseMap())
+                    openIap.finishTransaction(purchase, isConsumable)
+                } else if (isConsumable) {
                     openIap.consumePurchaseAndroid(purchaseToken)
                 } else {
                     openIap.acknowledgePurchaseAndroid(purchaseToken)
@@ -1370,6 +1383,7 @@ class HybridRnIap : HybridRnIapSpec() {
             ids = purchase.ids.wrapVariant(),
             store = mapIapStore(purchase.store),
             storeId = purchase.storeId,
+            platform = IapPlatform.ANDROID,
             quantity = purchase.quantity.toDouble(),
             purchaseState = mapPurchaseState(purchase.purchaseState),
             isAutoRenewing = purchase.isAutoRenewing,
@@ -2429,4 +2443,14 @@ class HybridRnIap : HybridRnIapSpec() {
             subResponseCodeAndroid = mapSubResponseCode(subResponseCode)
         )
     }
+}
+
+private fun JSONObject.toPurchaseMap(): Map<String, Any?> = keys().asSequence().associateWith { key ->
+    fun value(raw: Any?): Any? = when (raw) {
+        JSONObject.NULL -> null
+        is JSONObject -> raw.toPurchaseMap()
+        is JSONArray -> (0 until raw.length()).map { value(raw.opt(it)) }
+        else -> raw
+    }
+    value(opt(key))
 }

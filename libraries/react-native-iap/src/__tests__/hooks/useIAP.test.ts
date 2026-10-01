@@ -1,3 +1,4 @@
+import * as nativeRestore from '../../utils/restore-purchases';
 /* eslint-disable import/first */
 import React, {act} from 'react';
 import {createRoot, type Root} from 'test-renderer';
@@ -98,7 +99,9 @@ describe('hooks/useIAP (renderer)', () => {
   let mockHasActiveSubscriptions: jest.SpiedFunction<
     typeof IAP.hasActiveSubscriptions
   >;
-  let mockSyncIOS: jest.SpiedFunction<typeof IAP.syncIOS>;
+  let mockRestorePurchases: jest.SpiedFunction<
+    typeof nativeRestore.restorePurchasesNative
+  >;
 
   beforeEach(() => {
     capturedPurchaseListener = undefined;
@@ -114,7 +117,9 @@ describe('hooks/useIAP (renderer)', () => {
       .mockResolvedValue(false);
     jest.spyOn(IAP, 'finishTransaction').mockResolvedValue(undefined);
     mockFetchProducts = jest.spyOn(IAP, 'fetchProducts').mockResolvedValue([]);
-    mockSyncIOS = jest.spyOn(IAP, 'syncIOS').mockResolvedValue(true);
+    mockRestorePurchases = jest
+      .spyOn(nativeRestore, 'restorePurchasesNative')
+      .mockResolvedValue(undefined);
     jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation((cb: any) => {
       capturedPurchaseListener = cb;
       return {remove: jest.fn()};
@@ -784,9 +789,9 @@ describe('hooks/useIAP (renderer)', () => {
       expect(thrown).toBe(hasSubsError);
     });
 
-    it('calls onError when restorePurchases fails (syncIOS error on iOS)', async () => {
+    it('calls onError when restorePurchases fails (provider error on iOS)', async () => {
       const restoreError = new Error('Failed to restore');
-      mockSyncIOS.mockRejectedValueOnce(restoreError);
+      mockRestorePurchases.mockRejectedValueOnce(restoreError);
 
       let api: any;
       const onError = jest.fn();
@@ -809,14 +814,18 @@ describe('hooks/useIAP (renderer)', () => {
         }
       });
 
-      expect(mockSyncIOS).toHaveBeenCalled();
+      expect(mockRestorePurchases).toHaveBeenCalled();
       expect(onError).toHaveBeenCalledWith(restoreError);
       expect(onError).toHaveBeenCalledTimes(1);
       expect(thrown).toBe(restoreError);
     });
 
-    it('rejects when restorePurchases syncIOS returns false on iOS', async () => {
-      mockSyncIOS.mockResolvedValueOnce(false);
+    it('rejects when restorePurchases rejects an incomplete provider restore', async () => {
+      mockRestorePurchases.mockRejectedValueOnce(
+        Object.assign(new Error('Store purchase restore did not complete'), {
+          code: IAP.ErrorCode.SyncError,
+        }),
+      );
 
       let api: any;
       const onError = jest.fn();
@@ -843,7 +852,7 @@ describe('hooks/useIAP (renderer)', () => {
       expect(onError).toHaveBeenCalledWith(thrown);
       expect(thrown).toMatchObject({
         code: IAP.ErrorCode.SyncError,
-        message: 'App Store purchase sync did not complete',
+        message: 'Store purchase restore did not complete',
       });
       expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
     });
@@ -878,7 +887,7 @@ describe('hooks/useIAP (renderer)', () => {
       expect(thrown).toBe(purchaseError);
     });
 
-    it('restorePurchases calls syncIOS then getAvailablePurchases on iOS', async () => {
+    it('restorePurchases calls the provider then refreshes available purchases on iOS', async () => {
       let api: any;
       const Harness = () => {
         api = useIAP();
@@ -894,8 +903,8 @@ describe('hooks/useIAP (renderer)', () => {
         await api.restorePurchases();
       });
 
-      expect(mockSyncIOS).toHaveBeenCalled();
-      expect(mockGetAvailablePurchases).toHaveBeenCalled();
+      expect(mockRestorePurchases).toHaveBeenCalled();
+      expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
     });
 
     it('does not call onError when operations succeed', async () => {

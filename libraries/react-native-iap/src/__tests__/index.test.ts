@@ -19,6 +19,8 @@ const mockIap: any = {
   requestPurchase: jest.fn(async () => undefined),
   getAvailablePurchases: jest.fn(async () => []),
   finishTransaction: jest.fn(async () => true),
+  restorePurchases: jest.fn(async () => true),
+  hasActiveSubscriptions: jest.fn(async () => false),
 
   // listeners
   addPurchaseUpdatedListener: jest.fn(),
@@ -105,6 +107,7 @@ describe('Public API (src/index.ts)', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIap.restorePurchases = jest.fn(async () => true);
     let purchaseUpdatedToken = 1;
     mockIap.addPurchaseUpdatedListener.mockImplementation(
       () => purchaseUpdatedToken++,
@@ -1595,6 +1598,25 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('finishTransaction', () => {
+    it('forwards full community purchase identity to Android completion', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const purchase = {
+        id: 'opaque-id',
+        productId: 'sku',
+        store: 'unknown',
+        storeId: 'community-fixture',
+        purchaseToken: 'opaque-receipt',
+      };
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase, isConsumable: true});
+      expect(mockIap.finishTransaction).toHaveBeenCalledWith({
+        android: {
+          purchaseToken: 'opaque-receipt',
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: true,
+        },
+      });
+    });
     it('iOS requires purchase.id and returns success state', async () => {
       Object.assign(Platform, {OS: 'ios'});
       await expect(IAP.finishTransaction({purchase: {id: ''}})).rejects.toThrow(
@@ -1636,6 +1658,22 @@ describe('Public API (src/index.ts)', () => {
       await expect(
         IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).resolves.toBeUndefined();
+    });
+
+    it('iOS: preserves community completion errors', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.finishTransaction.mockRejectedValueOnce(
+        new Error('Transaction not found'),
+      );
+      await expect(
+        IAP.finishTransaction({
+          purchase: {
+            id: 'opaque-id',
+            store: 'unknown',
+            storeId: 'community-fixture',
+          },
+        }),
+      ).rejects.toThrow('Transaction not found');
     });
 
     it('iOS: propagates native finish failures', async () => {
@@ -2007,20 +2045,20 @@ describe('Public API (src/index.ts)', () => {
       expect(console.error).not.toHaveBeenCalled();
     });
 
-    it('restorePurchases on iOS calls syncIOS first', async () => {
+    it('restorePurchases calls the native provider first', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.syncIOS = jest.fn(async () => true);
+      mockIap.restorePurchases = jest.fn(async () => true);
       await IAP.restorePurchases();
-      expect(mockIap.syncIOS).toHaveBeenCalled();
+      expect(mockIap.restorePurchases).toHaveBeenCalled();
     });
 
-    it('restorePurchases on iOS rejects when syncIOS returns false', async () => {
+    it('restorePurchases rejects when native restore returns false', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.syncIOS = jest.fn(async () => false);
+      mockIap.restorePurchases = jest.fn(async () => false);
 
       await expect(IAP.restorePurchases()).rejects.toMatchObject({
         code: ErrorCode.SyncError,
-        message: 'App Store purchase sync did not complete',
+        message: 'Store purchase restore did not complete',
       });
       expect(mockIap.getAvailablePurchases).not.toHaveBeenCalled();
     });
@@ -2631,9 +2669,7 @@ describe('Public API (src/index.ts)', () => {
     describe('hasActiveSubscriptions', () => {
       it('should return true when there are active subscriptions', async () => {
         Object.assign(Platform, {OS: 'ios'});
-        mockIap.getActiveSubscriptions.mockResolvedValueOnce([
-          {productId: 'sub1', isActive: true},
-        ]);
+        mockIap.hasActiveSubscriptions.mockResolvedValueOnce(true);
 
         const result = await IAP.hasActiveSubscriptions();
 
@@ -2642,7 +2678,7 @@ describe('Public API (src/index.ts)', () => {
 
       it('should return false when there are no active subscriptions', async () => {
         Object.assign(Platform, {OS: 'ios'});
-        mockIap.getActiveSubscriptions.mockResolvedValueOnce([]);
+        mockIap.hasActiveSubscriptions.mockResolvedValueOnce(false);
 
         const result = await IAP.hasActiveSubscriptions();
 
@@ -2654,13 +2690,22 @@ describe('Public API (src/index.ts)', () => {
         async (platform) => {
           Object.assign(Platform, {OS: platform});
           const error = new Error('Failed to fetch');
-          mockIap.getActiveSubscriptions.mockRejectedValueOnce(error);
+          mockIap.hasActiveSubscriptions.mockRejectedValueOnce(error);
 
           await expect(IAP.hasActiveSubscriptions()).rejects.toThrow(
             'Failed to fetch',
           );
         },
       );
+    });
+    it('preserves false provider status for a nonempty inactive list', async () => {
+      mockIap.getActiveSubscriptions.mockResolvedValueOnce([
+        {productId: 'expired', isActive: false},
+      ]);
+      mockIap.hasActiveSubscriptions.mockResolvedValueOnce(false);
+      expect(await IAP.hasActiveSubscriptions()).toBe(false);
+      expect(mockIap.hasActiveSubscriptions).toHaveBeenCalled();
+      expect(mockIap.getActiveSubscriptions).not.toHaveBeenCalled();
     });
   });
 

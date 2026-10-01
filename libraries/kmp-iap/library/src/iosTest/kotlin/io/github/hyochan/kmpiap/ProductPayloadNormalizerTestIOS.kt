@@ -30,6 +30,20 @@ class ProductPayloadNormalizerTestIOS {
     )
 
     @Test
+    fun `community iOS purchases preserve opaque identity and reject invalid ids`() {
+        val purchase = validPurchase("opaque-txn").toMutableMap().apply {
+            this["store"] = "unknown"
+            this["storeId"] = "community-fixture"
+        }
+        assertEquals("community-fixture", decodePurchaseListPayloadIOS(listOf(purchase)).single().storeId)
+        assertEquals("opaque-txn", decodePurchasePayloadIOS(purchase)?.transactionId)
+        for (id in listOf(null, "", "apple", "play", "Bad id")) {
+            purchase["storeId"] = id
+            assertFailsWith<PurchaseException> { decodePurchaseListPayloadIOS(listOf(purchase)) }
+        }
+    }
+
+    @Test
     fun `strict purchase list preserves explicit empty result`() {
         assertEquals(emptyList(), decodePurchaseListPayloadIOS(emptyList<Any?>()))
     }

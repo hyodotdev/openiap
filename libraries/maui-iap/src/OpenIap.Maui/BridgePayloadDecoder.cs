@@ -82,7 +82,7 @@ internal static class BridgePayloadDecoder
             purchase.Ids?.Any(string.IsNullOrWhiteSpace) == true ||
             decoded is PurchaseIOS ios &&
                 (string.IsNullOrWhiteSpace(ios.TransactionId) ||
-                 ios.Store is not IapStore.Apple || ios.StoreId != StoreIds.Apple) ||
+                 !ValidIOSStore(ios)) ||
             decoded is PurchaseAndroid android &&
                 !ValidAndroidStore(android))
         {
@@ -90,16 +90,25 @@ internal static class BridgePayloadDecoder
         }
     }
 
+    private static bool ValidIOSStore(PurchaseIOS purchase) => purchase.Store switch
+    {
+        IapStore.Apple => purchase.StoreId == StoreIds.Apple,
+        IapStore.Unknown => ValidCommunityStoreId(purchase.StoreId),
+        _ => false,
+    };
+
+    private static bool ValidCommunityStoreId(string? id) => id is not null &&
+        Regex.IsMatch(id, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$") &&
+        id is not ("auto" or "none" or "unknown" or "google") &&
+        id != StoreIds.Apple && id != StoreIds.Play &&
+        id != StoreIds.Horizon && id != StoreIds.Amazon;
+
     private static bool ValidAndroidStore(PurchaseAndroid purchase) => purchase.Store switch
     {
         IapStore.Google => purchase.StoreId == StoreIds.Play,
         IapStore.Horizon => purchase.StoreId == StoreIds.Horizon,
         IapStore.Amazon => purchase.StoreId == StoreIds.Amazon,
-        IapStore.Unknown => purchase.StoreId is not null &&
-            Regex.IsMatch(purchase.StoreId, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$") &&
-            purchase.StoreId is not ("auto" or "none" or "unknown") &&
-            purchase.StoreId != StoreIds.Apple && purchase.StoreId != StoreIds.Play &&
-            purchase.StoreId != StoreIds.Horizon && purchase.StoreId != StoreIds.Amazon,
+        IapStore.Unknown => ValidCommunityStoreId(purchase.StoreId),
         _ => false,
     };
 

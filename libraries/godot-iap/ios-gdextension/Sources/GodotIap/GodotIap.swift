@@ -149,12 +149,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         enqueueLifecycleOperation { [weak self] generation in
             guard let self else { return }
             do {
-                let _ = try await self.openIap.endConnection()
+                let disconnected = try await self.openIap.endConnection()
                 await self.emitEndConnectionSuccess(
                     generation: generation,
-                    requestId: requestId
+                    requestId: requestId,
+                    success: disconnected
                 )
-                GodotIapLog.result("endConnection", value: true)
+                GodotIapLog.result("endConnection", value: disconnected)
             } catch {
                 GodotIapLog.failure("endConnection", error: error)
                 await self.emitEndConnectionFailure(
@@ -609,6 +610,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
+
+    @Callable
+    public func getStoreId() -> String { openIap.storeId ?? "" }
 
     // MARK: - iOS Specific Methods
 
@@ -1849,13 +1853,15 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @MainActor
     private func emitEndConnectionSuccess(
         generation: UInt64,
-        requestId: String
+        requestId: String,
+        success: Bool
     ) {
         guard isConnectionGenerationCurrent(generation) else { return }
-        disconnected.emit(0)
+        if success { disconnected.emit(0) }
         let dict = asyncResultDictionary(
             method: "endConnection",
-            requestId: requestId
+            requestId: requestId,
+            success: success
         )
         productsFetched.emit(dict)
     }
@@ -1917,6 +1923,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         dict["transactionDate"] = Variant(transactionDate)
         dict["purchaseState"] = Variant(purchase.purchaseState.rawValue)
         dict["store"] = Variant(store)
+        dict["storeId"] = Variant(purchase.storeId)
         dict["quantity"] = Variant(quantity)
         dict["isAutoRenewing"] = Variant(isAutoRenewing)
 
@@ -1933,6 +1940,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         let dict = VariantDictionary()
         dict["productId"] = Variant(purchase.productId)
         dict["purchaseState"] = Variant(purchase.purchaseState.rawValue)
+        dict["storeId"] = Variant(purchase.storeId)
         switch purchase {
         case .purchaseIos(let p):
             dict["id"] = Variant(p.id)

@@ -35,7 +35,7 @@
       <_OpenIapUnknownStore Condition="'$(_OpenIapPinStore)' == ''">OpenIapStore='$(OpenIapStore)'</_OpenIapUnknownStore>
     </PropertyGroup>
     <Error Condition="'$(_OpenIapUnknownStore)' != ''"
-           Text="$(_OpenIapUnknownStore) is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os)." />
+           Text="$(_OpenIapUnknownStore) is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os). Community stores require OpenIapStore and fixed OpenIapProvider coordinates." />
     <Error Condition="'$(OpenIapProvider.Trim())' != '' and '$(_OpenIapCommunity)' != 'true'"
            Text="openiap: OpenIapProvider requires a community OpenIapStore id." />
     <Error Condition="'$(_OpenIapCommunity)' == 'true' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(OpenIapProvider.Trim())', '^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$'))"
@@ -141,7 +141,7 @@
     <Error Condition="'$(_OpenIapCommunity)' != 'true' and !Exists('$(_OpenIapGoogleAar)')" Text="openiap: $(_OpenIapGoogleAar) is missing, so the $(OpenIapLinkedStore) store cannot be linked." />
 
     <ItemGroup>
-      <AndroidLibrary Include="$(_OpenIapCoreAar)" Bind="false" />
+      <AndroidLibrary Include="$(_OpenIapCoreAar)" Bind="false" JavaArtifact="io.github.hyochan.openiap:openiap-core:$(MauiOpenIapCoreVersion)" />
       <AndroidLibrary Include="$(_OpenIapGoogleAar)" Bind="false" Condition="'$(_OpenIapCommunity)' != 'true'" />
       <AndroidMavenLibrary Include="$(_OpenIapProviderModule)" Version="$(_OpenIapProviderVersion)" Bind="false" Condition="'$(_OpenIapCommunity)' == 'true'" />
       <!-- MSBuild compares timestamps, and another store's AARs can be older than

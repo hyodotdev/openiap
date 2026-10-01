@@ -1268,9 +1268,11 @@ describe('Public API (index.ts)', () => {
       expect(res).toHaveLength(2);
     });
 
-    it('restorePurchases performs iOS sync then fetches purchases', async () => {
+    it('restorePurchases calls the provider then fetches purchases', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      const syncSpy = jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(true);
+      const restoreSpy = ((ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(true));
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([
@@ -1281,7 +1283,7 @@ describe('Public API (index.ts)', () => {
           }),
         ]);
       await restorePurchases();
-      expect(syncSpy).toHaveBeenCalledTimes(1);
+      expect(restoreSpy).toHaveBeenCalledTimes(1);
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(false, true);
     });
 
@@ -1317,6 +1319,24 @@ describe('Public API (index.ts)', () => {
       } finally {
         Reflect.deleteProperty(ExpoIapModule, 'USING_ONSIDE_SDK');
       }
+    });
+
+    it('getAvailablePurchases preserves community identity on iOS', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      (ExpoIapModule.getAvailableItems as jest.Mock).mockResolvedValue([
+        nativePurchase('community', {
+          store: 'unknown',
+          storeId: 'community-fixture',
+          transactionId: 'opaque-txn',
+        }),
+      ]);
+      expect(await getAvailablePurchases()).toEqual([
+        expect.objectContaining({
+          store: 'unknown',
+          storeId: 'community-fixture',
+          transactionId: 'opaque-txn',
+        }),
+      ]);
     });
 
     it('getAvailablePurchases rejects mixed malformed results atomically', async () => {
@@ -1427,7 +1447,9 @@ describe('Public API (index.ts)', () => {
     it('restorePurchases propagates iOS sync failure without querying', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const syncError = new Error('sync failed');
-      jest.spyOn(iosMod, 'syncIOS').mockRejectedValue(syncError);
+      (ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(syncError);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
 
       await expect(restorePurchases()).rejects.toBe(syncError);
@@ -1436,7 +1458,9 @@ describe('Public API (index.ts)', () => {
 
     it('restorePurchases rejects a false iOS sync result', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(false);
+      (ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(false);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
 
       await expect(restorePurchases()).rejects.toMatchObject({
@@ -1447,6 +1471,22 @@ describe('Public API (index.ts)', () => {
   });
 
   describe('finishTransaction', () => {
+    it('forwards full community purchase identity to Android completion', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const purchase = nativePurchase('opaque-id', {
+        store: 'unknown',
+        storeId: 'community-fixture',
+        purchaseToken: 'opaque-receipt',
+      });
+      (ExpoIapModule.finishTransaction as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(null);
+      await finishTransaction({purchase, isConsumable: true});
+      expect(ExpoIapModule.finishTransaction).toHaveBeenCalledWith(
+        purchase,
+        true,
+      );
+    });
     it('iOS forwards purchase payload to native finishTransaction', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const basePurchase: PurchaseInput = {

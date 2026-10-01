@@ -389,10 +389,10 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     connectionMutex.withLock {
                         try {
                             OpenIapLog.debug("endConnection called", TAG)
-                            openIap?.endConnection()
-                            connectionReady = false
-                            OpenIapLog.debug("Connection ended successfully", TAG)
-                            safe.success("Billing client has ended.")
+                            val disconnected = openIap?.endConnection() ?: true
+                            if (disconnected) connectionReady = false
+                            OpenIapLog.debug("endConnection result: $disconnected", TAG)
+                            safe.success(disconnected)
                         } catch (e: Exception) {
                             OpenIapLog.error("Error ending connection: ${e.message}", e)
                             replyBillingError(safe, e)
@@ -657,6 +657,39 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     try {
                         val iap = requireOpenIap()
                         iap.deepLinkToSubscriptions(DeepLinkOptions(skuAndroid = sku, packageNameAndroid = pkg))
+                        safe.success(null)
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "hasActiveSubscriptions" -> {
+                val ids = call.argument<List<String>>("subscriptionIds")
+                scope.launch {
+                    try {
+                        safe.success(requireOpenIap().hasActiveSubscriptions(ids))
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "restorePurchases" -> {
+                scope.launch {
+                    try {
+                        requireOpenIap().restorePurchases()
+                        safe.success(true)
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "finishTransaction" -> {
+                val purchase = call.argument<Map<String, Any?>>("purchase")
+                val isConsumable = call.argument<Boolean>("isConsumable") ?: false
+                scope.launch {
+                    try {
+                        val payload = purchase ?: throw OpenIapError.DeveloperError("Missing purchase")
+                        requireOpenIap().finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(payload), isConsumable)
                         safe.success(null)
                     } catch (e: Exception) {
                         replyBillingError(safe, e)

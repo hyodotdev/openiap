@@ -1157,7 +1157,7 @@ describe('Amazon Vega adapter', () => {
     );
     const listener = jest.fn();
     module.addPurchaseUpdatedListener(listener);
-    await expect(module.restorePurchases()).resolves.toBeUndefined();
+    await expect(module.restorePurchases()).resolves.toBe(true);
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
         productId: 'premium_monthly',
@@ -1447,7 +1447,7 @@ describe('Amazon Vega adapter', () => {
         purchaseState: 'purchased',
       }),
     ]);
-    await expect(module.restorePurchases()).resolves.toBeUndefined();
+    await expect(module.restorePurchases()).resolves.toBe(true);
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'deferred-sub',

@@ -62,7 +62,7 @@ internal fun normalizePurchasePayloadIOS(data: Any?): Map<String, Any?>? {
 
 internal fun decodePurchasePayloadIOS(data: Any?): PurchaseIOS? {
     val normalized = normalizePurchasePayloadIOS(data) ?: return null
-    if (normalized["store"] != "apple") return null
+    if (normalized["store"] !in setOf("apple", "unknown")) return null
     if ((normalized["productId"] as? String).isNullOrBlank()) return null
     if (
         (normalized["id"] as? String).isNullOrBlank() ||
@@ -117,7 +117,7 @@ internal fun decodePurchaseListPayloadIOS(data: Any?): List<PurchaseIOS> {
         }
         val normalized = normalizePurchasePayloadIOS(bridgeMap)!!
         if (
-            normalized["store"] != "apple" ||
+            normalized["store"] !in setOf("apple", "unknown") ||
             (normalized["productId"] as? String).isNullOrBlank() ||
             (normalized["id"] as? String).isNullOrBlank() ||
             (normalized["transactionId"] as? String).isNullOrBlank() ||
@@ -182,7 +182,7 @@ private fun Map<String, Any?>.hasNativePurchaseQuantityIOS(): Boolean =
     this["quantity"] is Number || this["quantityIOS"] is Number
 
 private fun Map<String, Any?>.hasNativePurchaseIdentityIOS(): Boolean =
-    (this["store"] as? String)?.equals("apple", ignoreCase = true) == true &&
+    (this["store"] as? String)?.lowercase() in setOf("apple", "unknown") &&
         !(this["productId"] as? String).isNullOrBlank() &&
         !(this["id"] as? String).isNullOrBlank() &&
         !(this["transactionId"] as? String).isNullOrBlank()

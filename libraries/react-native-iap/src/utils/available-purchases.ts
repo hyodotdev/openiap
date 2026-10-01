@@ -1,5 +1,5 @@
 import {ErrorCode} from '../types';
-import type {Purchase, PurchaseIOS} from '../types';
+import type {IapPlatform, Purchase, PurchaseIOS} from '../types';
 import {createPurchaseError} from './errorMapping';
 import {
   convertNitroPurchaseToPurchase,
@@ -11,6 +11,7 @@ const ANDROID_STORES = new Set(['google', 'amazon', 'horizon']);
 /** Decode an authoritative native purchase list atomically. */
 export const convertAvailablePurchasesOrThrow = (
   purchases: unknown,
+  platform?: IapPlatform,
 ): Purchase[] => {
   if (!Array.isArray(purchases)) {
     throw createPurchaseError({
@@ -28,7 +29,13 @@ export const convertAvailablePurchasesOrThrow = (
     }
 
     try {
-      return convertNitroPurchaseToPurchase(purchase);
+      if (platform && purchase.platform && purchase.platform !== platform) {
+        throw new Error('Purchase platform differs from its native bridge');
+      }
+      return convertNitroPurchaseToPurchase(
+        purchase,
+        platform ?? purchase.platform,
+      );
     } catch {
       throw createPurchaseError({
         code: ErrorCode.BillingResponseJsonParseError,
@@ -38,18 +45,22 @@ export const convertAvailablePurchasesOrThrow = (
   });
 };
 
-/** Decode an authoritative StoreKit purchase list without filtering entries. */
+/** Decode an authoritative Apple-platform purchase list without filtering entries. */
 export const convertApplePurchasesOrThrow = (
   purchases: unknown,
 ): PurchaseIOS[] => {
-  const decoded = convertAvailablePurchasesOrThrow(purchases);
+  const decoded = convertAvailablePurchasesOrThrow(purchases, 'ios');
   const invalidIndex = decoded.findIndex(
-    (purchase) => purchase.store !== 'apple',
+    (purchase) =>
+      (purchase.store !== 'apple' && purchase.store !== 'unknown') ||
+      !('transactionId' in purchase) ||
+      typeof purchase.transactionId !== 'string' ||
+      !purchase.transactionId,
   );
   if (invalidIndex !== -1) {
     throw createPurchaseError({
       code: ErrorCode.BillingResponseJsonParseError,
-      message: `Native StoreKit bridge returned a non-Apple purchase at index ${invalidIndex}`,
+      message: `Native Apple bridge returned an invalid iOS purchase at index ${invalidIndex}`,
     });
   }
   return decoded as PurchaseIOS[];

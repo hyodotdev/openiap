@@ -488,6 +488,30 @@ class ExpoIapModule : Module() {
                 }
             }
 
+            AsyncFunction("restorePurchases") { promise: Promise ->
+                scope.launch {
+                    try {
+                        openIap.restorePurchases()
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("restorePurchases", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                    }
+                }
+            }
+
+            AsyncFunction("finishTransaction") { purchase: Map<String, Any?>, isConsumable: Boolean, promise: Promise ->
+                scope.launch {
+                    try {
+                        openIap.finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(purchase), isConsumable)
+                        promise.resolve(null)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("finishTransaction", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.DeveloperError.CODE, e.message, null)
+                    }
+                }
+            }
+
             AsyncFunction("acknowledgePurchaseAndroid") { token: String, promise: Promise ->
                 ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to token))
                 scope.launch {

@@ -19,6 +19,10 @@ public final class ExpoIapModule: Module {
             OpenIapSerialization.errorCodes()
         }
 
+        Constant("HAS_EXPLICIT_STORE_PROVIDER") {
+            Bundle.main.object(forInfoDictionaryKey: OpenIapProvider.metadataKey) != nil
+        }
+
         Events(
             IapEvent.purchaseUpdated.rawValue,
             IapEvent.purchaseError.rawValue,
@@ -328,6 +332,11 @@ public final class ExpoIapModule: Module {
             let storefront = try await OpenIapModule.shared.getStorefront()
             ExpoIapLog.result("getStorefront", value: storefront)
             return storefront
+        }
+
+        AsyncFunction("restorePurchases") { () async throws -> Bool in
+            try await OpenIapModule.shared.restorePurchases()
+            return true
         }
 
         AsyncFunction("syncIOS") { () async throws -> Bool in

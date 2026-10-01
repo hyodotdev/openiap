@@ -394,6 +394,10 @@ void main() {
         switch (call.method) {
           case 'initConnection':
             return true;
+          case 'hasActiveSubscriptions':
+            throw PlatformException(
+                code: 'billing-response-json-parse-error',
+                message: 'Invalid status');
           case 'getActiveSubscriptions':
             return <Map<String, dynamic>>[
               <String, dynamic>{

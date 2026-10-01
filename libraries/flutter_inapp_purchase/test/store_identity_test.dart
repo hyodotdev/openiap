@@ -1,7 +1,61 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:platform/platform.dart';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart'
+    show FlutterInappPurchase;
 import 'package:flutter_inapp_purchase/types.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('flutter_inapp');
+  tearDown(() => TestDefaultBinaryMessengerBinding
+      .instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, null));
+  test(
+      'community completion forwards the full purchase to the Android provider',
+      () async {
+    final purchase = PurchaseAndroid.fromJson({
+      'store': 'unknown',
+      'storeId': 'community-fixture',
+      'id': 'opaque-id',
+      'productId': 'sku',
+      'quantity': 1,
+      'isAutoRenewing': false,
+      'purchaseState': 'purchased',
+      'transactionDate': 1.0,
+      'purchaseToken': 'opaque-receipt',
+    });
+    MethodCall? completion;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'finishTransaction') completion = call;
+      return null;
+    });
+    await FlutterInappPurchase.private(FakePlatform(operatingSystem: 'android'))
+        .finishTransaction(purchase: purchase, isConsumable: true);
+    expect(completion?.arguments,
+        {'purchase': purchase.toJson(), 'isConsumable': true});
+  });
+  test(
+      'provider subscription status does not infer entitlement from inactive entries',
+      () async {
+    final calls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      if (call.method == 'hasActiveSubscriptions') return false;
+      if (call.method == 'getActiveSubscriptions') {
+        return [
+          {'productId': 'expired', 'isActive': false}
+        ];
+      }
+      return null;
+    });
+    final iap =
+        FlutterInappPurchase.private(FakePlatform(operatingSystem: 'ios'));
+    expect(await iap.hasActiveSubscriptions(), false);
+    expect(calls, ['hasActiveSubscriptions']);
+  });
   Map<String, dynamic> payload(String store) => {
         'store': store,
         'id': 'txn',

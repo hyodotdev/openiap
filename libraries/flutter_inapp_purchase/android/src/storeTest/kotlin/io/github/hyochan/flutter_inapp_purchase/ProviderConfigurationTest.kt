@@ -141,6 +141,7 @@ class ProviderConfigurationTest {
 class SubscriptionManagementFactory : OpenIapProviderFactory {
     override val storeId = "test-subscription-management"
     override val coreVersion get() = OpenIapProvider.coreVersion
+    override val clientProtocolVersion = "0.2.0"
 
     override fun create(context: Context): OpenIapProtocol {
         val deepLink: MutationDeepLinkToSubscriptionsHandler = { options ->

@@ -827,7 +827,7 @@ type VegaRnIapModule = Partial<RnIap> & {
   consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
   /** @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0. */
   openRedeemOfferCodeAndroid(): Promise<boolean>;
-  restorePurchases(): Promise<void>;
+  restorePurchases(): Promise<boolean>;
 };
 
 interface RecoveredNitroPurchases {
@@ -1618,9 +1618,10 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       await finishReceipt(purchaseToken);
       return true;
     },
-    async restorePurchases(): Promise<void> {
+    async restorePurchases(): Promise<boolean> {
       const purchases = await getAvailablePurchases();
       purchases.forEach(emitPurchaseUpdated);
+      return true;
     },
     addPurchaseUpdatedListener(listener): number {
       const token = nextPurchaseUpdateListenerToken++;
