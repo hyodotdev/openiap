@@ -1,6 +1,4 @@
-// The delegate serves the Amazon and Horizon flavors through OpenIapModule and
-// overrides the shared 2.x compatibility methods.
-// Consumer call sites retain warnings; remove the overrides in kmp-iap 3.
+// Keep deprecated overrides for existing consumers.
 @file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 
 package io.github.hyochan.kmpiap
@@ -225,9 +223,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     override suspend fun getStorefront(): String =
         withMappedOpenIapError {
-            val handler = requireModule().queryHandlers.getStorefront
-                ?: failUnsupported("$storeName storefront query is unavailable.")
-            authoritativeStorefrontCountryOrNull(handler()) ?: failWith(
+            authoritativeStorefrontCountryOrNull(requireModule().getStorefront()) ?: failWith(
                 PurchaseError(
                     code = ErrorCode.ServiceError,
                     message = "$storeName returned no authoritative storefront country code",

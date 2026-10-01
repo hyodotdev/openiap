@@ -16,6 +16,25 @@ import kotlin.test.assertTrue
 
 class CommunitySubscriptionManagementTest {
     @Test
+    fun storefrontOverrideDoesNotNeedAnOptionalQueryHandler() = runBlocking {
+        var calls = 0
+        val provider = Proxy.newProxyInstance(
+            OpenIapProtocol::class.java.classLoader,
+            arrayOf(OpenIapProtocol::class.java),
+        ) { _, method, _ ->
+            check(method.name == "getStorefront") { "Unexpected call: ${method.name}" }
+            calls++
+            "US"
+        } as OpenIapProtocol
+        for (store in listOf(Store.UNKNOWN, Store.AMAZON, Store.HORIZON)) {
+            val delegate = OpenIapDelegateInAppPurchaseAndroid(store.name, store, "Android")
+            delegate.javaClass.getDeclaredField("module").apply { isAccessible = true }.set(delegate, provider)
+            assertEquals("US", delegate.getStorefront())
+        }
+        assertEquals(3, calls)
+    }
+
+    @Test
     fun requiredHandlersDoNotNeedOptionalDispatchTables() = runBlocking {
         val queries = mutableListOf<List<String>?>()
         var restores = 0

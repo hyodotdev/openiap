@@ -88,7 +88,7 @@ if dotnet msbuild "$example" "${args[@]}" -p:OpenIapProvider=community.fixture:p
     echo 'MAUI replaced an incompatible directly supplied vendor SDK.' >&2
     exit 1
 fi
-rg -q 'vendor-sdk resolves 1.0.0, but the app provides 0.9.0' "$workspace/vendor-conflict.log"
+grep -Fq 'vendor-sdk resolves 1.0.0, but the app provides 0.9.0' "$workspace/vendor-conflict.log"
 echo 'MAUI rejects a provider requiring a newer vendor SDK than the app supplies.'
 
 bad="$repository/community/fixture/incompatible/1.0.0"
@@ -101,7 +101,7 @@ if dotnet msbuild "$example" "${args[@]}" -p:OpenIapProvider=community.fixture:i
     echo 'MAUI linked a provider requiring an incompatible core.' >&2
     exit 1
 fi
-if ! rg -q 'Cannot find a version.*openiap-core|Could not (resolve|find).*openiap-core|openiap-core resolves 999' "$workspace/incompatible.log"; then
+if ! grep -Eq 'Cannot find a version.*openiap-core|Could not (resolve|find).*openiap-core|openiap-core resolves 999' "$workspace/incompatible.log"; then
     cat "$workspace/incompatible.log" >&2
     exit 1
 fi

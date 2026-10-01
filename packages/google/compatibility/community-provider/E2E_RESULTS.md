@@ -66,4 +66,4 @@ Evidence is retained in the private local directory `/tmp/openiap-common-provide
 - Both Vega release apps installed, launched, and remained running. The device exposes neither the required purchase input nor a usable screen-capture command. Their purchase, verification, and finish remain blocked.
 - Expo Onside prebuild, pods, and the unsigned device build passed. The app embeds `OnsideKit.framework` and the `dev.hyo.martie.onside-auth` callback scheme. No Onside runtime purchase is claimed.
 
-No merge, package release, production data write, or production deployment was performed. Temporary device settings and local processes are cleaned up separately after final verification.
+No merge, package release, production data write, or production deployment was performed. Temporary device settings were restored and task-owned local processes stopped. The original Quest app was restored and its APK hash verified.
