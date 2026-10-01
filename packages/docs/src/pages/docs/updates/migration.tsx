@@ -221,7 +221,7 @@ const flutterCustomWireMigrations = [
 const scheduledRemovals = [
   {
     title:
-      'react-native-iap, expo-iap, flutter_inapp_purchase, and the openiap-google Gradle plugin',
+      'Removal in openiap-google 5.0, react-native-iap 18.0, expo-iap 7.0, and flutter_inapp_purchase 12.0',
     rows: [
       [
         'horizonEnabled=true',
@@ -231,7 +231,7 @@ const scheduledRemovals = [
     ],
   },
   {
-    title: 'expo-iap',
+    title: 'Removal in expo-iap 7.0',
     rows: [
       [
         'modules.horizon / EXPO_IAP_HORIZON=1',
@@ -249,11 +249,11 @@ const scheduledRemovals = [
     ],
   },
   {
-    title: 'OpenIap.Maui',
+    title: 'Removal in OpenIap.Maui 4.0',
     rows: [['OpenIapAndroidStore', 'OpenIapStore']],
   },
   {
-    title: 'react-native-iap',
+    title: 'Removal in react-native-iap 18.0',
     rows: [
       [
         'NitroProduct.originalPriceAndroid, originalPriceAmountMicrosAndroid, introductoryPriceValueAndroid, introductoryPriceCyclesAndroid, introductoryPricePeriodAndroid, subscriptionPeriodAndroid, freeTrialPeriodAndroid',
@@ -545,14 +545,13 @@ function Migration() {
 
       <section>
         <AnchorLink id="next-major" level="h2">
-          Scheduled for the next major release
+          Scheduled removals
         </AnchorLink>
         <p>
-          These keys and fields are deprecated. Every patch and minor release
-          keeps them working, and the store keys print a build warning. Each
-          goes in the next major release of the package that carries it; the
-          Gradle store keys, which several packages read, go in one major
-          release of all of them. The store rule itself is in{' '}
+          These deprecated keys and fields remain available in the community
+          provider release train. Their removal moves to the versions below;
+          shared Gradle flags are removed together across the packages that read
+          them. Migrate using{' '}
           <Link to="/docs/setup/store#selection">
             How the Store Is Selected
           </Link>
