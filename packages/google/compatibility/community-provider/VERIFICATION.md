@@ -21,30 +21,30 @@ registry that generates the alias tables, constants, and docs listing.
 
 ## Executed checks
 
-| Check | Result |
-| --- | --- |
-| Independent provider | 21 JVM tests pass; 17 required behavior results pass on suite 4.0.0 / Client Protocol 0.1.1 |
-| Missing declared capability | Exactly one expected test failure; report is nonconformant |
-| Minified standalone host | Factory retained; no Play, Horizon, or Amazon billing SDK in R8 output; installed and purchased on device |
-| Duplicate providers | Manifest merge fails on the fixed provider metadata key |
-| Expo device example | Connected, fetched three fixture products, purchased, finished, and displayed `community-fixture` in purchase details |
-| KMP device example | Connected, fetched three fixture products, purchased, finished, and displayed `Store ID: community-fixture` |
-| Published KMP metadata consumed locally | Both plain and flavored apps resolve `kmp-iap-android-provider,openiap-core,provider` |
-| Gradle selection | 93 resolver cases; 22 plugin cases; external plain/flavored graphs pass and missing provider coordinates fail |
-| Google | Core and all three official unit-test variants pass; conformance AAR builds |
-| Official consumers | Kotlin 2.1 and minified release consumers pass for Play, Horizon, and Amazon |
-| React Native | 691 tests and typecheck pass; initial builds of all three official example APKs pass |
-| Expo | 516 SDK tests, 116 plugin tests, and typecheck pass; three provider-destruction regressions pass; initial builds of all three official example APKs pass |
-| Flutter | 388 tests and analysis pass; two native provider-configuration regressions pass; initial builds of all three official example APKs pass |
-| KMP | Android tests and neutral build pass; all three official example APKs and iOS simulator compilation pass |
-| MAUI | 139 tests and 32 selection cases pass; typed provider-init failure regression passes; initial builds of all three official example APKs pass |
-| Godot | Types 271, API 139, envelope 251, wrapper 223, and selection 46 assertions pass; Android plugin builds and unit tests pass |
-| Apple | 169 tests pass |
-| Client Protocol and CLI | 187 schema tests and canonical generation pass; 185 CLI tests pass |
-| JavaScript conformance | 40 tests pass |
-| Registry and release wiring | Registry validation/drift checks pass; 71 registry/preflight/sync/policy tests pass; fresh checkout dependency installation and release generation pass; edited workflows parse as YAML and Bash |
-| Repository and docs | Parity, layout, docs, release-state, CI path, and fact audits pass; docs build, lint, formatting, and discoverability pass |
-| Rendered docs | New guide checked on desktop and 390px mobile viewport; page has no horizontal overflow or browser warnings/errors |
+| Check                                   | Result                                                                                                                                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Independent provider                    | 21 JVM tests pass; 17 required behavior results pass on suite 4.0.0 / Client Protocol 0.2.0                                                                                                      |
+| Missing declared capability             | Exactly one expected test failure; report is nonconformant                                                                                                                                       |
+| Minified standalone host                | Factory retained; no Play, Horizon, or Amazon billing SDK in R8 output; installed and purchased on device                                                                                        |
+| Duplicate providers                     | Manifest merge fails on the fixed provider metadata key                                                                                                                                          |
+| Expo device example                     | Connected, fetched three fixture products, purchased, finished, and displayed `community-fixture` in purchase details                                                                            |
+| KMP device example                      | Connected, fetched three fixture products, purchased, finished, and displayed `Store ID: community-fixture`                                                                                      |
+| Published KMP metadata consumed locally | Both plain and flavored apps resolve `kmp-iap-android-provider,openiap-core,provider`                                                                                                            |
+| Gradle selection                        | 93 resolver cases; 22 plugin cases; external plain/flavored graphs pass and missing provider coordinates fail                                                                                    |
+| Google                                  | Core and all three official unit-test variants pass; conformance AAR builds                                                                                                                      |
+| Official consumers                      | Kotlin 2.1 and minified release consumers pass for Play, Horizon, and Amazon                                                                                                                     |
+| React Native                            | 691 tests and typecheck pass; initial builds of all three official example APKs pass                                                                                                             |
+| Expo                                    | 516 SDK tests, 116 plugin tests, and typecheck pass; three provider-destruction regressions pass; initial builds of all three official example APKs pass                                         |
+| Flutter                                 | 391 tests and analysis pass; two native provider-configuration regressions pass; initial builds of all three official example APKs pass                                                          |
+| KMP                                     | Android tests and neutral build pass; all three official example APKs and iOS simulator compilation pass                                                                                         |
+| MAUI                                    | 139 tests and 32 selection cases pass; typed provider-init failure regression passes; initial builds of all three official example APKs pass                                                     |
+| Godot                                   | Types 271, API 139, envelope 251, wrapper 223, and selection 46 assertions pass; Android plugin builds and unit tests pass                                                                       |
+| Apple                                   | 169 tests pass                                                                                                                                                                                   |
+| Client Protocol and CLI                 | 187 schema tests and canonical generation pass; 185 CLI tests pass                                                                                                                               |
+| JavaScript conformance                  | 40 tests pass                                                                                                                                                                                    |
+| Registry and release wiring             | Registry validation/drift checks pass; 71 registry/preflight/sync/policy tests pass; fresh checkout dependency installation and release generation pass; edited workflows parse as YAML and Bash |
+| Repository and docs                     | Parity, layout, docs, release-state, CI path, and fact audits pass; docs build, lint, formatting, and discoverability pass                                                                       |
+| Rendered docs                           | New guide checked on desktop and 390px mobile viewport; page has no horizontal overflow or browser warnings/errors                                                                               |
 
 Reproduce the provider checks with the command in [README.md](README.md).
 Local device evidence is in `build/reports/device/`; those build outputs are
@@ -61,14 +61,18 @@ validation, Kotlin JVM compatibility bridges, Swift/Dart constant collisions,
 C# record equality, typed initialization failures, and safe Expo destruction.
 
 KMP forwards default subscription options to community providers while retaining
-Amazon/Horizon's existing default no-op. Review fixes passed the full language
-suites and focused native tests listed above. Official APK builds and device
-purchases were executed during initial implementation; the complete official
-sandbox matrix was not rerun after review fixes.
+Amazon/Horizon's existing default no-op. Flutter's bridge preserves raw
+`storeId` values so the generated decoder rejects malformed identities instead
+of converting them to strings. Its 391 tests, analysis, four rebuilt store
+binaries, and repeated device flows pass.
 
-The PR release-note gate is still blocked on the maintainer-selected Client
-Protocol version. Remote CI, CodeRabbit, and the two scheduled clean snapshots
-have not run, so the full loop-review gate is not complete.
+The final registry/CLI/release review covered `bb386321` with no findings;
+the SDK review covered the strict decoder fix at `9af1820d` with no findings.
+The full device run is recorded in [E2E_RESULTS.md](E2E_RESULTS.md): 31 successful
+build cells, 21 completed sandbox purchase/verification/finish chains, seven
+Horizon checkout gates, two Vega installs/launches, and the Onside build.
+Amazon Live App Testing and Vega purchases remain explicitly blocked there.
+Review and remote CI results must be evaluated at the PR's exact current head.
 
 ## Deviations from decisions
 
@@ -88,53 +92,37 @@ have not run, so the full loop-review gate is not complete.
   an error and an unresolvable Maven coordinate so the Android build fails.
 - Apple changes also include the required generated constants/types and test
   fixture updates; its runtime edits only populate store identity.
-- The published release card remains outstanding because the Client Protocol
-  target is unspecified. The skill explicitly requires a maintainer-selected
-  version and a matching committed manifest. No version was invented or
-  manually changed in the CI-owned native version mirror.
 
-## Unverified locally
+## Release targets and remaining external verification
 
-Official store sandbox purchases across the complete device matrix were not
-rerun. Official results above cover unit tests, dependency resolution, APK
-builds, and the Kotlin/R8 consumers. Godot's full exported game, a minified KMP
-APK, and the iOS framework examples were not exercised on devices. Godot's
-headless suites also emit existing unavailable-StoreKit and ObjectDB shutdown
-warnings; their assertion suites pass without script errors.
+Client Protocol 0.2.0 is committed in its publishing manifest and generated
+mirrors. The consolidated release card includes the affected packages and
+future release links. Native and framework release metadata remains under
+its existing release workflow; no stable package was published in this run.
+Existing official aliases, legacy flags, and deprecated configuration paths
+remain supported through this provider release. Their scheduled removals move
+to the following major releases, as the task requires.
 
-Maven Central publication, remote CI, signing/provenance of remote releases,
-and production deployment were not tested or executed. All new artifacts were
-published only into local Maven repositories. There was no push or PR.
+| Publication                   | Release card target |
+| ----------------------------- | ------------------- |
+| Client Protocol / CLI         | 0.2.0 / 0.2.0       |
+| Google / core / Gradle plugin | 4.0.0               |
+| Android conformance           | Suite 4.0.0         |
+| Apple                         | 4.0.0               |
+| React Native                  | 17.0.0              |
+| Expo                          | 6.0.0               |
+| Flutter                       | 11.0.0              |
+| Godot / KMP                   | 4.0.0 / 4.0.0       |
+| MAUI                          | 3.0.0               |
 
-## Release follow-ups
+The guide renders the checkout's generated native version metadata. Its new
+core and conformance coordinates become publicly usable only after their
+release artifacts are published. The card's future tag links do not claim
+that publication has occurred. Selecting a provider does not add IAPKit
+receipt-validation support for that store. Commerce Protocol and IAPKit have
+no source or publication change in this task.
 
-Before a PR or release, select and commit the Client Protocol target through its
-publishing manifest, resolve the coordinated package targets, and add the
-consolidated release card with tag aliases and expected release links. The PR
-release-note completeness gate is not satisfied yet.
-
-| Affected publication | Current metadata; no release bump performed |
-| --- | --- |
-| Client Protocol | 0.1.1 |
-| Google, core, Gradle plugin | 3.6.2 |
-| Android conformance | New AAR uses suite 4.0.0 |
-| Apple | 3.6.1 |
-| React Native | 16.7.2 |
-| Expo | 5.8.2 |
-| Flutter | 10.7.2 |
-| Godot / KMP | 3.6.2 |
-| MAUI | 2.6.2 |
-| CLI | 0.1.1 |
-
-The card's behavior text is ready to use: select an independently maintained
-Android provider in any SDK without adding store code to OpenIAP; preserve
-`storeId` alongside the frozen `IapStore` discriminator; verify providers with
-the public conformance profile and register them optionally. Mention that
-purchase and verification-result objects expose non-null `storeId`, official
-legacy decoders infer missing IDs, community objects require their explicit ID, and that selecting a provider does not add IAPKit receipt-validation
-support. Commerce Protocol and IAPKit have no publication in this change.
-
-The guide currently renders this checkout's version metadata. Its core and
-plugin coordinates must follow the release's generated version metadata before
-the docs are deployed. The new core AAR does not exist at the previously
-published Google version simply because this checkout builds it locally.
+Maven Central publication, remote release signing/provenance, and production
+deployment were not performed. All new artifacts were published only into
+local Maven repositories. The maintainer retains final device verification,
+merge, release, and deployment authority.
