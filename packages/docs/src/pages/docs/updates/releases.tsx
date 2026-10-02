@@ -562,8 +562,9 @@ function Releases() {
               <Link to="/docs/guides/store-providers">
                 Store provider guide
               </Link>{' '}
-              to author, test, or select a provider; provider-specific settings
-              belong to its manifest or resources.
+              for platform architecture diagrams and a runnable Amazon SDK
+              example. Provider-specific settings belong to its manifest or
+              resources.
             </li>
             <li>
               Existing store aliases, legacy flags, and deprecated configuration

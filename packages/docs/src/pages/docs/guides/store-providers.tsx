@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
+import StoreProviderDiagram from './StoreProviderDiagram';
 import { LIBRARIES } from '../../../lib/images';
 import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 import registry from '../../../generated/store-registry.json';
@@ -42,9 +43,50 @@ export default function StoreProviders() {
       </p>
       <p>
         A provider must already implement the store’s billing SDK. OpenIAP ships
-        official Apple App Store, Play, Horizon, and Amazon providers; the
-        compatibility fixture below is an in-memory test store.
+        official Apple App Store, Play, Horizon, and Amazon providers.
       </p>
+      <section>
+        <AnchorLink id="architecture" level="h2">
+          How providers fit together
+        </AnchorLink>
+        <StoreProviderDiagram />
+      </section>
+      <section>
+        <AnchorLink id="amazon-example" level="h2">
+          Try a real Amazon SDK binding
+        </AnchorLink>
+        <p>
+          The{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap-provider-amazon-example"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Amazon provider example
+          </a>{' '}
+          builds a separate Android library against public core and conformance
+          artifacts, then runs it through an Expo app. It uses the Amazon SDK
+          with <code>storeId = 'amazon-example'</code> and{' '}
+          <code>store = 'unknown'</code>. Its implementation was extracted from
+          OpenIAP&apos;s Amazon binding; it tests external packaging and public
+          SDK integration.
+        </p>
+        <p>
+          Follow its README to prepare local artifacts from a compatible OpenIAP
+          checkout, load products, purchase, restore, verify with a dev backend,
+          and finish. The example artifact is local only. Its{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap-provider-amazon-example/blob/main/VERIFICATION.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            verification report
+          </a>{' '}
+          distinguishes controlled conformance tests, App Tester simulation, and
+          Live App Testing. The compatibility fixtures below use in-memory
+          stores.
+        </p>
+      </section>
       <section>
         <AnchorLink id="apple-selection" level="h2">
           Select an Apple provider
@@ -199,8 +241,8 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           <Link to="/docs/types/verify-purchase-with-provider-result">
             Verification result fields
           </Link>
-          . Selecting a store provider does not add server verification support
-          to IAPKit; use the provider’s authenticated server integration.
+          . Use the provider&apos;s authenticated server integration for receipt
+          verification.
         </p>
       </section>
       <section>
