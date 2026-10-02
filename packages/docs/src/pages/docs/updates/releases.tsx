@@ -562,9 +562,10 @@ function Releases() {
               <Link to="/docs/guides/store-providers">
                 Store provider guide
               </Link>{' '}
-              for platform architecture diagrams and a runnable Amazon SDK
-              example. Provider-specific settings belong to its manifest or
-              resources.
+              for architecture diagrams, actual Amazon example screens, a source
+              walkthrough and an acceptance brief for provider authors and AI
+              coding agents. Provider-specific settings belong to its manifest
+              or resources.
             </li>
             <li>
               Existing store aliases, legacy flags, and deprecated configuration

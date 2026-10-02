@@ -498,7 +498,20 @@ jobs:
       - name: Build React Native Swift wrapper
         if: matrix.component == 'react-native'
         working-directory: libraries/react-native-iap
+        env:
+          CURL_HOME: ${{ runner.temp }}/codeql-react-native-curl
         run: |
+          # CocoaPods downloads can stall even when React Native's own cache is warm.
+          mkdir -p "$CURL_HOME"
+          cat > "$CURL_HOME/.curlrc" <<'CURL_CONFIG'
+          connect-timeout = 30
+          max-time = 300
+          speed-time = 60
+          speed-limit = 1024
+          retry = 2
+          retry-all-errors
+          retry-max-time = 600
+          CURL_CONFIG
           corepack enable
           corepack prepare yarn@3.6.1 --activate
           yarn install --immutable

@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import StoreProviderDiagram from './StoreProviderDiagram';
+import StoreProviderExample from './StoreProviderExample';
 import { LIBRARIES } from '../../../lib/images';
 import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 import registry from '../../../generated/store-registry.json';
@@ -55,37 +56,7 @@ export default function StoreProviders() {
         <AnchorLink id="amazon-example" level="h2">
           Try a real Amazon SDK binding
         </AnchorLink>
-        <p>
-          The{' '}
-          <a
-            href="https://github.com/hyodotdev/openiap-provider-amazon-example"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Amazon provider example
-          </a>{' '}
-          builds a separate Android library against public core and conformance
-          artifacts, then runs it through an Expo app. It uses the Amazon SDK
-          with <code>storeId = 'amazon-example'</code> and{' '}
-          <code>store = 'unknown'</code>. Its implementation was extracted from
-          OpenIAP&apos;s Amazon binding; it tests external packaging and public
-          SDK integration.
-        </p>
-        <p>
-          Follow its README to prepare local artifacts from a compatible OpenIAP
-          checkout, load products, purchase, restore, verify with a dev backend,
-          and finish. The example artifact is local only. Its{' '}
-          <a
-            href="https://github.com/hyodotdev/openiap-provider-amazon-example/blob/main/VERIFICATION.md"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            verification report
-          </a>{' '}
-          distinguishes controlled conformance tests, App Tester simulation, and
-          Live App Testing. The compatibility fixtures below use in-memory
-          stores.
-        </p>
+        <StoreProviderExample />
       </section>
       <section>
         <AnchorLink id="apple-selection" level="h2">
