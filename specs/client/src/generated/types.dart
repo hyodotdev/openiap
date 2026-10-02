@@ -5998,6 +5998,7 @@ abstract class MutationResolver {
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();
   /// Initiate a purchase or subscription flow; rely on events for final state.
+  /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
   /// See: https://openiap.dev/docs/apis/request-purchase
   Future<RequestPurchaseResult?> requestPurchase(RequestPurchaseProps params);
   /// Restore non-consumable and active subscription purchases.

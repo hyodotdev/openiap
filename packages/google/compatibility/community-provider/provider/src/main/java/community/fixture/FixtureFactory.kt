@@ -19,6 +19,7 @@ class FixtureFactory : OpenIapProviderFactory {
 class FixtureProvider : OpenIapProtocol {
     private val updates = mutableSetOf<OpenIapPurchaseUpdateListener>()
     private val issues = mutableSetOf<OpenIapSubscriptionBillingIssueListener>()
+    private val errors = mutableSetOf<OpenIapPurchaseErrorListener>()
     private val owned = linkedMapOf<String, PurchaseAndroid>()
     private var connected = false
     private var nextTransaction = 0
@@ -39,12 +40,12 @@ class FixtureProvider : OpenIapProtocol {
     }
     override val hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler = { ids -> getActiveSubscriptions(ids).any { it.isActive } }
     override val requestPurchase: MutationRequestPurchaseHandler = { params ->
-        check(connected)
+        if (!connected) failRequest(OpenIapError.NotPrepared)
         val skus = when (val request = params.request) {
             is RequestPurchaseProps.Request.Purchase -> request.value.google?.skus
             is RequestPurchaseProps.Request.Subscription -> request.value.google?.skus
         }
-        val sku = skus?.firstOrNull() ?: throw OpenIapError.ItemUnavailable()
+        val sku = skus?.firstOrNull()?.takeIf { it.isNotBlank() } ?: failRequest(OpenIapError.EmptySkuList)
         val transaction = ++nextTransaction
         val purchase = purchase(sku).copy(id = "fixture:$sku:$transaction", purchaseToken = "fixture-token:$sku:$transaction")
         owned[sku] = purchase
@@ -70,8 +71,8 @@ class FixtureProvider : OpenIapProtocol {
     override fun removePurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) { updates.remove(listener) }
     override fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) { issues.add(listener) }
     override fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) { issues.remove(listener) }
-    override fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {}
-    override fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) {}
+    override fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener) { errors.add(listener) }
+    override fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener) { errors.remove(listener) }
     override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {}
     override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {}
     override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {}
@@ -86,6 +87,11 @@ class FixtureProvider : OpenIapProtocol {
     override suspend fun showInAppMessages(activity: Activity, params: InAppMessageParamsAndroid?): InAppMessageResultAndroid = unsupported()
     override suspend fun openRedeemOfferCode(activity: Activity) = true
     override suspend fun getStorefront() = "US"
+
+    private fun failRequest(error: OpenIapError): Nothing {
+        errors.toList().forEach { it.onPurchaseError(error) }
+        throw error
+    }
 
     fun emitPending() { updates.toList().forEach { it.onPurchaseUpdated(purchase("conformance.product", PurchaseState.Pending)) } }
     fun emitBillingIssue() { issues.toList().forEach { it.onSubscriptionBillingIssue(purchase("conformance.product").copy(isSuspendedAndroid = true)) } }

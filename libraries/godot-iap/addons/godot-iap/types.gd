@@ -6509,7 +6509,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
+	## Initiate a purchase or subscription flow; rely on events for final state. Providers emit one canonical purchase-error event before returning or throwing a request failure. See: https://openiap.dev/docs/apis/request-purchase
 	class requestPurchaseField:
 		const name = "requestPurchase"
 		const snake_name = "request_purchase"
@@ -7079,7 +7079,7 @@ static func init_connection_args(config: Variant = null) -> Dictionary:
 static func end_connection_args() -> Dictionary:
 	return {}
 
-## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
+## Initiate a purchase or subscription flow; rely on events for final state. Providers emit one canonical purchase-error event before returning or throwing a request failure. See: https://openiap.dev/docs/apis/request-purchase
 static func request_purchase_args(params: _Types.RequestPurchaseProps) -> Dictionary:
 	var args = {}
 	if params != null:

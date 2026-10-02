@@ -239,6 +239,13 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           <code>feature-not-supported</code>.
         </p>
         <p>
+          On either platform, a failed <code>requestPurchase</code> emits one
+          canonical purchase-error event before returning an empty result or
+          throwing, and delivers no purchase. Event-based SDK callers depend on
+          this behavior; conformance rejects missing or duplicate errors and
+          contradictory purchase events.
+        </p>
+        <p>
           Both factories expose the generated{' '}
           <code>StoreProviderDescriptor</code>: store identity, platform, native
           core version, Client Protocol version, and capability ids. Native

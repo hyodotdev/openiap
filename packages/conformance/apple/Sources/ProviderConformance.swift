@@ -188,6 +188,28 @@ public struct ProviderConformanceSuite {
             return !ids.isEmpty && ids.allSatisfy { $0 == self.adapter.testProductId }
         }
         var ownedPurchase: Purchase?
+        await check("provider.invalid-purchase-emits-error-once") {
+            let probe = EventProbe<ProviderEvent>()
+            let updates = provider.purchaseUpdatedListener({ probe.receive(.purchase($0)) }, options: nil)
+            let errors = provider.purchaseErrorListener { probe.receive(.error($0)) }
+            defer { provider.removeListener(updates); provider.removeListener(errors) }
+            let request = try OpenIapSerialization.decode(object: [
+                "type": "in-app", "requestPurchase": ["apple": ["sku": ""]],
+            ], as: RequestPurchaseProps.self)
+            var failure: PurchaseError?
+            do {
+                switch try await provider.requestPurchase(request) {
+                case .purchase(let purchase): if purchase != nil { return false }
+                case .purchases(let purchases): if purchases?.isEmpty == false { return false }
+                case nil: break
+                }
+            } catch let error as PurchaseError { failure = error }
+            let events = probe.receivedValues
+            guard events.count == 1, case .error(let emitted) = events[0] else { return false }
+            if let failure, emitted.code != failure.code { return false }
+            try await Task.sleep(nanoseconds: UInt64(self.timeout * 1_000_000_000))
+            return probe.receivedValues.count == 1
+        }
         await check("purchases.request-emits-purchase-updated-on-success") {
             let purchase = try await self.purchase()
             guard case .purchaseIos = purchase,
@@ -213,7 +235,8 @@ public struct ProviderConformanceSuite {
             let first = try await provider.getAvailablePurchases(nil).first { $0.id == purchased.id }
             let second = try await provider.getAvailablePurchases(nil).first { $0.id == purchased.id }
             guard let first, let second, case .purchaseIos = first, case .purchaseIos = second else { return false }
-            return first.purchaseToken?.isEmpty == false && first.purchaseToken == second.purchaseToken
+            return first.purchaseToken?.isEmpty == false && first.purchaseToken == purchased.purchaseToken
+                && second.purchaseToken == purchased.purchaseToken
                 && first.storeId == factory.storeId && second.storeId == factory.storeId
                 && first.store == purchased.store && second.store == purchased.store
         }

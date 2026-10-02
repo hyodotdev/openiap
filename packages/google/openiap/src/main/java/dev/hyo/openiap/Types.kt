@@ -6061,6 +6061,7 @@ public interface MutationResolver {
     suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
+     * Providers emit one canonical purchase-error event before returning or throwing a request failure.
      * See: https://openiap.dev/docs/apis/request-purchase
      */
     suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?
@@ -6467,6 +6468,7 @@ public data class MutationHandlers(
     val presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
+     * Providers emit one canonical purchase-error event before returning or throwing a request failure.
      * See: https://openiap.dev/docs/apis/request-purchase
      */
     val requestPurchase: MutationRequestPurchaseHandler? = null,

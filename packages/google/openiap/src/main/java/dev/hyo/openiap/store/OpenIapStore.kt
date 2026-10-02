@@ -141,20 +141,15 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         _status.value = _status.value.copy(lastError = null)
         pendingRequestProductId = null
 
-        // CRITICAL FIX: Refresh available purchases to update UI
-        // This ensures the purchase list reflects the new purchase immediately
         storeScope.launch {
             try {
                 OpenIapLog.info("Purchase update received, refreshing available purchases", "OpenIapStore")
 
-                // Wait a bit for the purchase to be fully processed by Horizon
+                // Horizon ownership can lag behind the purchase callback.
                 kotlinx.coroutines.delay(500)
 
-                // Ensure connection is ready
                 if (!isConnected.value) {
                     OpenIapLog.warn("Not connected, skipping purchase refresh (connection will be restored on next app start)", "OpenIapStore")
-                    // Don't attempt to reconnect here as it may cause issues
-                    // The purchase will be available on next app launch
                     return@launch
                 }
 

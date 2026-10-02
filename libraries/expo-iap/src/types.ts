@@ -874,6 +874,7 @@ export interface Mutation {
   presentExternalPurchaseNoticeSheetIOS: Promise<ExternalPurchaseNoticeResultIOS>;
   /**
    * Initiate a purchase or subscription flow; rely on events for final state.
+   * Providers emit one canonical purchase-error event before returning or throwing a request failure.
    * See: https://openiap.dev/docs/apis/request-purchase
    */
   requestPurchase?: Promise<(Purchase | Purchase[] | null)>;

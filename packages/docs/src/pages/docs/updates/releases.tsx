@@ -517,6 +517,10 @@ function Releases() {
               tiers, and conformance reports; unregistered providers work with
               explicit coordinates.
             </li>
+            <li>
+              Providers deliver purchase failures through one canonical error
+              event and preserve the purchase token across ownership reads.
+            </li>
           </ul>
           <h5>Protocols and native packages</h5>
           <ul>

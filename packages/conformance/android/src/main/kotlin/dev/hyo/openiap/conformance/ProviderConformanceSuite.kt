@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -58,6 +59,40 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
         }
         assertTrue(ids.contains(testProductId))
         assertTrue(ids.all { it == testProductId })
+    }
+
+    @Test
+    @ConformanceBehavior(ConformanceBehaviors.PROVIDER_INVALID_PURCHASE_EMITS_ERROR_ONCE)
+    fun `invalid purchase emits one error before completion`() = runBlocking {
+        val errors = CopyOnWriteArrayList<OpenIapError>()
+        val purchased = AtomicBoolean(false)
+        val updates = OpenIapPurchaseUpdateListener { purchased.set(true) }
+        val failures = OpenIapPurchaseErrorListener { errors.add(it) }
+        provider.addPurchaseUpdateListener(updates)
+        provider.addPurchaseErrorListener(failures)
+        try {
+            val request = RequestPurchaseProps.fromJson(mapOf(
+                "type" to "in-app",
+                "requestPurchase" to mapOf("google" to mapOf("skus" to emptyList<String>())),
+            ))
+            val failure = try {
+                val result = provider.requestPurchase(request)
+                assertTrue("A failed request cannot return a purchase", when (result) {
+                    is RequestPurchaseResultPurchase -> result.value == null
+                    is RequestPurchaseResultPurchases -> result.value.isNullOrEmpty()
+                    null -> true
+                })
+                null
+            } catch (error: OpenIapError) { error }
+            assertEquals("Emit the error before returning or throwing", 1, errors.size)
+            if (failure != null) assertEquals(failure.code, errors.single().code)
+            delay(timeoutMillis)
+            assertEquals("Request failure must emit exactly once", 1, errors.size)
+            assertFalse("A failed request cannot deliver a purchase", purchased.get())
+        } finally {
+            provider.removePurchaseUpdateListener(updates)
+            provider.removePurchaseErrorListener(failures)
+        }
     }
 
     @Test

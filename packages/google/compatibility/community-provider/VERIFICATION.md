@@ -29,6 +29,14 @@ Use [README.md](README.md) and the Apple compatibility fixture to reproduce
 independent publication and conformance. Artifacts and raw device/backend
 evidence remain in ignored build outputs or the private local run directory.
 
+Both independent fixtures pass all 18 common provider behaviors, including
+exactly one canonical error event before a failed purchase request returns an
+empty result or throws.
+Negative cases reject missing, duplicate, and contradictory events. Swift
+ownership reads must retain the token from the original purchase callback;
+matching later reads alone cannot pass. The final fixture checks ran 15 Swift
+tests and 26 Android tests, with no failures.
+
 MAUI uses Gradle to resolve and verify the provider's dependency graph,
 including Maven POMs, module-metadata runtime variants, BOMs, exclusions,
 and version conflicts. The bundled core retains its runtime dependencies.

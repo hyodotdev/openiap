@@ -61,9 +61,14 @@ export function capabilityLevel(behavior, store) {
   kotlin: {
     path: "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt",
     render: () => {
-      const constants = BEHAVIORS.map(
-        (behavior) => `    const val ${symbol(behavior.id)} = "${behavior.id}"`,
-      ).join("\n");
+      const constants = [
+        ...new Set([
+          ...BEHAVIORS.map((behavior) => behavior.id),
+          ...ANDROID_PROVIDER_PROFILE.runtime,
+        ]),
+      ]
+        .map((id) => `    const val ${symbol(id)} = "${id}"`)
+        .join("\n");
       const capabilityRows = [
         "pendingPurchases",
         "subscriptionBillingIssue",

@@ -20,6 +20,11 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     private var owned: [String: Purchase] = [:]
     public private(set) var finished: [String: Purchase] = [:]
     public var rejectOwnedPurchase = false
+    public var failureEventCount = 1
+    public var returnFailureInsteadOfThrow = false
+    public var purchaseOnFailure = false
+    public var rotateTokenAfterFirstRead = false
+    private var ownedReadCount = 0
     public var emitAndroidPurchase = false
     public private(set) var lastRequest: RequestPurchaseProps?
     public var connectionResult = true
@@ -64,10 +69,17 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
         case .purchase(let props): sku = props.apple?.sku
         case .subscription(let props): sku = props.apple?.sku
         }
-        guard synchronized({ connected }) else { throw PurchaseError.make(code: .notPrepared) }
-        guard let sku, !sku.isEmpty else { throw normalizeError("missing-sku") }
+        guard synchronized({ connected }) else { try failRequest(PurchaseError.make(code: .notPrepared)) }
+        guard let sku, !sku.isEmpty else {
+            let error = normalizeError("missing-sku")
+            if returnFailureInsteadOfThrow {
+                try emitRequestFailure(error)
+                return .purchases([])
+            }
+            try failRequest(error)
+        }
         if rejectOwnedPurchase && synchronized({ owned.values.contains { $0.productId == sku } }) {
-            throw PurchaseError.make(code: .alreadyOwned)
+            try failRequest(PurchaseError.make(code: .alreadyOwned))
         }
         let ios = try makePurchase(sku: sku)
         let purchase = emitAndroidPurchase ? Purchase.purchaseAndroid(PurchaseAndroid(
@@ -85,7 +97,27 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     }
     public func restorePurchases() async throws {}
     public func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
-        synchronized { Array(owned.values) }
+        synchronized {
+            ownedReadCount += 1
+            return owned.values.map { purchase in
+                guard rotateTokenAfterFirstRead, ownedReadCount > 1,
+                      case .purchaseIos(var ios) = purchase else { return purchase }
+                ios.purchaseToken = "altered-token"
+                return .purchaseIos(ios)
+            }
+        }
+    }
+    private func failRequest(_ error: PurchaseError) throws -> Never {
+        try emitRequestFailure(error)
+        throw error
+    }
+    private func emitRequestFailure(_ error: PurchaseError) throws {
+        let listeners = synchronized { Array(errors.values) }
+        for _ in 0..<failureEventCount { listeners.forEach { $0(error) } }
+        if purchaseOnFailure {
+            let purchase = Purchase.purchaseIos(try makePurchase())
+            synchronized { Array(updated.values) }.forEach { $0(purchase) }
+        }
     }
     public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws {
         guard purchase.storeId == "community-fixture", purchase.purchaseToken?.isEmpty == false else {

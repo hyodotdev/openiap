@@ -26,7 +26,7 @@ final class FixtureProviderTests: XCTestCase {
         let report = await ProviderConformanceSuite(adapter: Adapter(module: FixtureModule())).run()
         XCTAssertTrue(report.conformant)
         XCTAssertTrue(report.scope.complete)
-        XCTAssertEqual(report.scope.requiredBehaviors.count, 17)
+        XCTAssertEqual(report.scope.requiredBehaviors.count, 18)
         XCTAssertEqual(report.clientProtocolVersion, OpenIapVersion.clientProtocolVersion)
         if let path = ProcessInfo.processInfo.environment["OPENIAP_PROVIDER_REPORT"] {
             try report.write(to: URL(fileURLWithPath: path))
@@ -39,6 +39,34 @@ final class FixtureProviderTests: XCTestCase {
         let report = await ProviderConformanceSuite(adapter: Adapter(module: provider)).run()
         XCTAssertTrue(report.conformant)
         XCTAssertTrue(report.scope.complete)
+    }
+
+    func testInvalidRequestRequiresExactlyOneFailureEventAndNoPurchase() async {
+        for mode in ["missing", "duplicate", "purchase"] {
+            let provider = FixtureModule()
+            provider.failureEventCount = mode == "missing" ? 0 : mode == "duplicate" ? 2 : 1
+            provider.purchaseOnFailure = mode == "purchase"
+            let report = await ProviderConformanceSuite(adapter: Adapter(module: provider), eventTimeout: 0.05).run()
+            XCTAssertFalse(report.conformant, mode)
+            XCTAssertEqual(report.results.first { $0.id == "provider.invalid-purchase-emits-error-once" }?.outcome, "fail", mode)
+        }
+    }
+
+    func testRepeatedReadTokensMustMatchThePurchaseCallback() async {
+        let provider = FixtureModule()
+        provider.rotateTokenAfterFirstRead = true
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider), eventTimeout: 0.05).run()
+        XCTAssertEqual(report.results.first { $0.id == "restoration.available-purchases-returns-owned-items" }?.outcome, "pass")
+        XCTAssertEqual(report.results.first { $0.id == "identifiers.purchase-token-is-stable-across-reads" }?.outcome, "fail")
+        XCTAssertFalse(report.conformant)
+    }
+
+    func testFailureEventMayAccompanyAnEmptyResult() async {
+        let provider = FixtureModule()
+        provider.returnFailureInsteadOfThrow = true
+        let report = await ProviderConformanceSuite(adapter: Adapter(module: provider), eventTimeout: 0.05).run()
+        XCTAssertTrue(report.conformant)
+        XCTAssertEqual(report.results.first { $0.id == "provider.invalid-purchase-emits-error-once" }?.outcome, "pass")
     }
 
     func testConformanceRejectsAndroidPurchasesOnApple() async {

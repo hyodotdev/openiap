@@ -16,6 +16,7 @@ const commonV4 = Object.freeze({
   runtime: [
     "products.fetch-returns-requested-skus",
     "purchases.request-emits-purchase-updated-on-success",
+    "provider.invalid-purchase-emits-error-once",
     "restoration.available-purchases-returns-owned-items",
     "identifiers.purchase-token-is-stable-across-reads",
     "completion.finish-is-idempotent",
