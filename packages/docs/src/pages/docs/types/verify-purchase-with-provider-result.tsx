@@ -138,8 +138,8 @@ function VerifyPurchaseWithProviderResult() {
               <td>
                 The store that processed the purchase: <code>'apple'</code>,{' '}
                 <code>'google'</code>, <code>'horizon'</code>, or{' '}
-                <code>'amazon'</code>, or <code>'unknown'</code> for an external
-                Android provider.
+                <code>'amazon'</code>, or <code>'unknown'</code> for a community
+                Apple or Android provider.
               </td>
             </tr>
             <tr>

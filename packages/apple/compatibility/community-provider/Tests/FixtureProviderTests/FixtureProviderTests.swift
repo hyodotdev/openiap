@@ -69,6 +69,22 @@ final class FixtureProviderTests: XCTestCase {
         XCTAssertEqual(report.results.first { $0.id == "provider.invalid-purchase-emits-error-once" }?.outcome, "pass")
     }
 
+    func testGenericThrowStillRequiresExactlyOneCanonicalFailureEvent() async {
+        for count in [0, 1, 2] {
+            let provider = FixtureModule()
+            provider.genericRequestFailure = NSError(domain: "CommunityProvider", code: 1)
+            provider.failureEventCount = count
+            let report = await ProviderConformanceSuite(
+                adapter: Adapter(module: provider), eventTimeout: 0.05
+            ).run()
+            XCTAssertEqual(report.conformant, count == 1)
+            XCTAssertEqual(
+                report.results.first { $0.id == "provider.invalid-purchase-emits-error-once" }?.outcome,
+                count == 1 ? "pass" : "fail"
+            )
+        }
+    }
+
     func testConformanceRejectsAndroidPurchasesOnApple() async {
         let provider = FixtureModule()
         provider.emitAndroidPurchase = true

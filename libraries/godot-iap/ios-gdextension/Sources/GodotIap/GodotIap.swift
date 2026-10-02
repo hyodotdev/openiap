@@ -146,12 +146,18 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func endConnection() -> String {
         GodotIapLog.payload("endConnection", payload: nil)
         let requestId = UUID().uuidString
-        enqueueLifecycleOperation { [weak self] generation in
+        enqueueLifecycleOperation(invalidateConnection: false) { [weak self] generation in
             guard let self else { return }
             do {
                 let disconnected = try await self.openIap.endConnection()
+                var resultGeneration = generation
+                if disconnected {
+                    let lifecycle = self.advanceConnectionGeneration()
+                    self.removeListeners(lifecycle.listeners)
+                    resultGeneration = lifecycle.generation
+                }
                 await self.emitEndConnectionSuccess(
-                    generation: generation,
+                    generation: resultGeneration,
                     requestId: requestId,
                     success: disconnected
                 )
@@ -277,23 +283,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 "error": error.localizedDescription
             ])
         }
-        let productId = purchaseProductId(from: purchaseProps)
-
         Task { [weak self] in
             do {
                 // Providers may complete through listeners without returning a purchase.
                 _ = try await self?.openIap.requestPurchase(purchaseProps)
-            } catch let error as PurchaseError {
-                // OpenIAP requestPurchase emits its canonical error exactly once
-                // through purchaseErrorListener before throwing.
-                GodotIapLog.failure("requestPurchaseWithPayload", error: error)
             } catch {
+                // Providers own purchase-error delivery after dispatch.
                 GodotIapLog.failure("requestPurchaseWithPayload", error: error)
-                await self?.emitPurchaseError(
-                    code: ErrorCode.purchaseError.rawValue,
-                    message: error.localizedDescription,
-                    productId: productId
-                )
             }
         }
 
@@ -1684,6 +1680,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func enqueueLifecycleOperation(
+        invalidateConnection: Bool = true,
         _ operation: @escaping (UInt64) async -> Void
     ) {
         withLifecycleLock {
@@ -1693,9 +1690,15 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await predecessor.value
                 }
                 guard let self else { return }
-                let lifecycle = self.advanceConnectionGeneration()
-                self.removeListeners(lifecycle.listeners)
-                await operation(lifecycle.generation)
+                let generation: UInt64
+                if invalidateConnection {
+                    let lifecycle = self.advanceConnectionGeneration()
+                    self.removeListeners(lifecycle.listeners)
+                    generation = lifecycle.generation
+                } else {
+                    generation = self.withLifecycleLock { self.lifecycleGeneration }
+                }
+                await operation(generation)
             }
             lifecycleTail = task
         }
@@ -1854,15 +1857,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             requestId: requestId,
             message: message
         )
-    }
-
-    private func purchaseProductId(from props: RequestPurchaseProps) -> String? {
-        switch props.request {
-        case .purchase(let platforms):
-            return platforms.apple?.sku
-        case .subscription(let platforms):
-            return platforms.apple?.sku
-        }
     }
 
     @MainActor

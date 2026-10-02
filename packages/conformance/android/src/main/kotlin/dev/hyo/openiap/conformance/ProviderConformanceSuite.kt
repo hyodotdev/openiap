@@ -83,7 +83,13 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
                     null -> true
                 })
                 null
-            } catch (error: OpenIapError) { error }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: OpenIapError) {
+                error
+            } catch (_: Exception) {
+                null
+            }
             assertEquals("Emit the error before returning or throwing", 1, errors.size)
             if (failure != null) assertEquals(failure.code, errors.single().code)
             delay(timeoutMillis)

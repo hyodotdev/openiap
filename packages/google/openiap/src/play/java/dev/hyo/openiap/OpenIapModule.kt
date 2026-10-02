@@ -1600,7 +1600,11 @@ class OpenIapModule(
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val errorEventGate = PurchaseErrorEventGate(::emitPurchaseError)
         val purchases = try { withContext(Dispatchers.IO) {
-            val androidArgs = props.toAndroidPurchaseArgs()
+            val androidArgs = try {
+                props.toAndroidPurchaseArgs()
+            } catch (error: IllegalArgumentException) {
+                throw OpenIapError.DeveloperError(error.message)
+            }
             val activity = currentActivityRef?.get() ?: fallbackActivity
 
             if (activity == null) {

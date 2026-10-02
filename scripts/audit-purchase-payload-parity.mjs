@@ -1337,11 +1337,29 @@ function checkStrictAppleFrameworkQuerySerialization() {
   expectIncludes(
     "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
     [
-      "// OpenIAP requestPurchase emits its canonical error exactly once",
-      "code: ErrorCode.purchaseError.rawValue,\n                    message: error.localizedDescription,\n                    productId: productId",
+      "// Providers own purchase-error delivery after dispatch.",
+      'GodotIapLog.failure("requestPurchaseWithPayload", error: error)',
+      "enqueueLifecycleOperation(invalidateConnection: false)",
+      "if disconnected {\n                    let lifecycle = self.advanceConnectionGeneration()",
     ],
-    "Godot iOS request-purchase terminal error delivery",
+    "Godot iOS provider error ownership and failure-aware teardown",
   );
+  const godotAppleSource = read(
+    "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
+  );
+  const godotPurchaseDispatch = godotAppleSource
+    .split(
+      "public func requestPurchaseWithPayload(argsJson: String) -> String {",
+    )[1]
+    ?.split("public func finishTransaction(argsJson: String) -> String {")[0];
+  if (
+    !godotPurchaseDispatch ||
+    godotPurchaseDispatch.includes("emitPurchaseError(")
+  ) {
+    fail(
+      "Godot iOS must leave post-dispatch purchase-error events to the provider",
+    );
+  }
   expectIncludes(
     "libraries/godot-iap/addons/godot-iap/godot_iap.gd",
     [

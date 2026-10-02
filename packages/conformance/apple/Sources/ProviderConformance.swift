@@ -203,7 +203,13 @@ public struct ProviderConformanceSuite {
                 case .purchases(let purchases): if purchases?.isEmpty == false { return false }
                 case nil: break
                 }
-            } catch let error as PurchaseError { failure = error }
+            } catch let error as PurchaseError {
+                failure = error
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // The canonical listener event owns a provider's generic failure.
+            }
             let events = probe.receivedValues
             guard events.count == 1, case .error(let emitted) = events[0] else { return false }
             if let failure, emitted.code != failure.code { return false }

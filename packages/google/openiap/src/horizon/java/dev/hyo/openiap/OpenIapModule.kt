@@ -947,7 +947,12 @@ class OpenIapModule(
 
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.IO) {
-            val androidArgs = props.toAndroidPurchaseArgs()
+            val androidArgs = try {
+                props.toAndroidPurchaseArgs()
+            } catch (error: IllegalArgumentException) {
+                emitPurchaseError(OpenIapError.DeveloperError(error.message))
+                return@withContext emptyList()
+            }
             OpenIapLog.info("=== REQUEST PURCHASE: ${androidArgs.skus} ===", TAG)
 
             val activity = currentActivityRef?.get() ?: fallbackActivity
@@ -1028,9 +1033,7 @@ class OpenIapModule(
                 )
                 if (installError != null) {
                     OpenIapLog.warn("requestPurchase rejected: ${installError.message}", TAG)
-                    if (installError is OpenIapError.ServiceDisconnected) {
-                        emitPurchaseError(installError)
-                    }
+                    emitPurchaseError(installError)
                     resumer.resumeWithException(installError)
                     return@suspendCancellableCoroutine
                 }
@@ -1221,16 +1224,11 @@ class OpenIapModule(
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
                                             }
                                         }
-                                } else if (matched.isEmpty() && consumePurchaseCallback(
-                                        callback,
-                                        Result.success(emptyList()),
-                                        client,
-                                    )
-                                ) {
+                                } else if (matched.isEmpty()) {
                                     val timeoutError = OpenIapError.ServiceTimeout(
                                         "Meta Horizon purchase did not complete within the polling window"
                                     ).withProductId(androidArgs.skus.singleOrNull())
-                                    emitPurchaseError(timeoutError)
+                                    finishPurchaseCallback(client, callback, timeoutError)
                                 }
                             }
                         }
@@ -1798,20 +1796,13 @@ class OpenIapModule(
             OpenIapLog.info("=== END onPurchasesUpdated ===", TAG)
         } catch (error: Exception) {
             OpenIapLog.error("Exception in onPurchasesUpdated", error, TAG)
-            if (
-                pendingRequest?.launchStartedAtMillis != null &&
-                consumePurchaseCallback(
-                    pendingRequest.callback,
-                    Result.success(emptyList()),
-                    expectedClient,
-                )
-            ) {
+            if (pendingRequest?.launchStartedAtMillis != null) {
                 val purchaseError = (error as? OpenIapError)
                     ?: OpenIapError.PurchaseFailed(
                         error.message ?: "Failed to process the Horizon purchase update"
                     )
                 purchaseError.withProductId(pendingRequest.requestedSkus.singleOrNull())
-                emitPurchaseError(purchaseError)
+                finishPurchaseCallback(expectedClient, pendingRequest.callback, purchaseError)
             }
         }
     }

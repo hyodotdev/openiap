@@ -52,6 +52,13 @@ function EndConnection() {
         reconnect and register fresh listeners before the next store call.
       </p>
 
+      <p>
+        <strong>Godot / Apple providers:</strong> A failed disconnection keeps
+        the current session and listeners available, including when the provider
+        returns <code>false</code>. Retry teardown; successful disconnection
+        clears both native and GDScript connection state.
+      </p>
+
       <h2>Signature</h2>
       <LanguageTabs>
         {{

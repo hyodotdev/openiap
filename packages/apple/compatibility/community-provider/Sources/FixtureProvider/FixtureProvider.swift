@@ -22,6 +22,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     public var rejectOwnedPurchase = false
     public var failureEventCount = 1
     public var returnFailureInsteadOfThrow = false
+    public var genericRequestFailure: Error?
     public var purchaseOnFailure = false
     public var rotateTokenAfterFirstRead = false
     private var ownedReadCount = 0
@@ -109,7 +110,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     }
     private func failRequest(_ error: PurchaseError) throws -> Never {
         try emitRequestFailure(error)
-        throw error
+        throw genericRequestFailure ?? error
     }
     private func emitRequestFailure(_ error: PurchaseError) throws {
         let listeners = synchronized { Array(errors.values) }

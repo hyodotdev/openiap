@@ -69,7 +69,7 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
         assertThrows(OpenIapError.FeatureNotSupported::class.java) { unsupported.`purchase restores and finishes with a stable identity`() }
     }
     @Test fun `suite rejects missing duplicate or contradictory failure events`() {
-        for (mode in listOf("missing", "duplicate", "purchase", "returned")) {
+        for (mode in listOf("missing", "duplicate", "purchase", "returned", "generic", "generic-missing", "generic-duplicate")) {
             val invalid = object : FixtureConformanceTest() {
                 override val timeoutMillis = 50L
                 override val provider = object : OpenIapProtocol by fixture {
@@ -81,14 +81,15 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
                     override fun removePurchaseUpdateListener(listener: dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener) { updates = null }
                     override val requestPurchase: MutationRequestPurchaseHandler = {
                         val error = OpenIapError.EmptySkuList
-                        if (mode != "missing") errors?.onPurchaseError(error)
-                        if (mode == "duplicate") errors?.onPurchaseError(error)
+                        if (mode != "missing" && mode != "generic-missing") errors?.onPurchaseError(error)
+                        if (mode == "duplicate" || mode == "generic-duplicate") errors?.onPurchaseError(error)
                         if (mode == "purchase") updates?.onPurchaseUpdated(fixture.purchase("conformance.product"))
+                        if (mode.startsWith("generic")) throw IllegalStateException("Vendor failure")
                         if (mode == "returned") RequestPurchaseResultPurchases(emptyList()) else throw error
                     }
                 }
             }
-            if (mode == "returned") invalid.`invalid purchase emits one error before completion`()
+            if (mode == "returned" || mode == "generic") invalid.`invalid purchase emits one error before completion`()
             else assertThrows(AssertionError::class.java) { invalid.`invalid purchase emits one error before completion`() }
         }
     }

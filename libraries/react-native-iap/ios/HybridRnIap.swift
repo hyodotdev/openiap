@@ -1490,6 +1490,10 @@ class HybridRnIap: HybridRnIapSpec {
             } catch let purchaseError as PurchaseError {
                 self.deliverRequestPurchaseError(purchaseError)
                 throw purchaseError
+            } catch {
+                // Providers own purchase-error delivery after dispatch.
+                RnIapLog.failure("requestPurchase", error: error)
+                return nil
             }
         }
     }

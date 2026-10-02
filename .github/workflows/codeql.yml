@@ -500,6 +500,8 @@ jobs:
         working-directory: libraries/react-native-iap
         env:
           CURL_HOME: ${{ runner.temp }}/codeql-react-native-curl
+          # React Native uses this base for the same Maven artifacts and checksums.
+          ENTERPRISE_REPOSITORY: https://repo.maven.apache.org/maven2
         run: |
           # CocoaPods downloads can stall even when React Native's own cache is warm.
           mkdir -p "$CURL_HOME"

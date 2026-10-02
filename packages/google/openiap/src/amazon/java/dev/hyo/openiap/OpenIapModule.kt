@@ -748,8 +748,12 @@ class OpenIapModule(
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = try {
             withContext(Dispatchers.IO) {
+                val androidArgs = try {
+                    props.toAndroidPurchaseArgs()
+                } catch (error: IllegalArgumentException) {
+                    emitPurchaseErrorAndThrow(OpenIapError.DeveloperError(error.message))
+                }
                 ensureRegistered()
-                val androidArgs = props.toAndroidPurchaseArgs()
                 if (androidArgs.skus.isEmpty()) {
                     emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
                 }
