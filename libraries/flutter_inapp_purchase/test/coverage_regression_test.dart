@@ -664,6 +664,7 @@ types.PurchaseAndroid _androidPurchase(String? token) {
     purchaseToken: token,
     quantity: 1,
     store: types.IapStore.Google,
+    storeId: 'play',
     transactionDate: 1,
   );
 }
@@ -676,6 +677,7 @@ types.PurchaseIOS _iosPurchase() {
     purchaseState: types.PurchaseState.Purchased,
     quantity: 1,
     store: types.IapStore.Apple,
+    storeId: 'apple',
     transactionDate: 1,
     transactionId: 'apple-transaction',
   );
@@ -690,6 +692,7 @@ Map<String, dynamic> _androidPurchaseJson(String token) {
     'purchaseToken': token,
     'quantity': 1,
     'store': 'google',
+    'storeId': 'play',
     'transactionDate': 1,
   };
 }

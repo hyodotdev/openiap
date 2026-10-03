@@ -117,6 +117,7 @@ jobs:
         working-directory: packages/google
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
+            :openiap-core:assembleRelease \
             :openiap:assemblePlayRelease \
             :openiap:assembleAmazonRelease \
             :openiap:assembleHorizonRelease

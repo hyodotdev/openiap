@@ -9,6 +9,28 @@ describe('ExpoIapModule proxy', () => {
     return require('../ExpoIapModule').default;
   };
 
+  it('uses an explicit native provider before automatic Onside selection', () => {
+    const module = {
+      HAS_EXPLICIT_STORE_PROVIDER: true,
+      fetchProducts: jest.fn(),
+    };
+    const requireNativeModule = jest.fn((name: string) => {
+      if (name === 'ExpoIap') return module;
+      throw new Error(`Unexpected native module '${name}'`);
+    });
+    jest.doMock('../onside', () => ({installedFromOnside: true}));
+    jest.doMock('expo-modules-core', () => ({
+      requireNativeModule,
+      UnavailabilityError: class extends Error {},
+    }));
+    const resolved = loadExpoIapModule();
+    expect(resolved.USING_ONSIDE_SDK).toBe(false);
+    expect(resolved.fetchProducts).toBe(module.fetchProducts);
+    expect(
+      requireNativeModule.mock.calls.every(([name]) => name === 'ExpoIap'),
+    ).toBe(true);
+  });
+
   it('does not load ExpoIapOnside when Onside is not enabled', () => {
     const expoIapModule = {
       ERROR_CODES: {},
@@ -119,6 +141,7 @@ describe('ExpoIapModule proxy', () => {
     expect(() => ExpoIapModule.USING_ONSIDE_SDK).toThrow();
     expect(() => ExpoIapModule.USING_ONSIDE_SDK).toThrow();
     expect(requireNativeModule.mock.calls.map(([name]) => name)).toEqual([
+      'ExpoIap',
       'ExpoIapOnside',
     ]);
   });
@@ -147,6 +170,6 @@ describe('ExpoIapModule proxy', () => {
     expect(ExpoIapModule.requestPurchase).toBe(onsideModule.requestPurchase);
     expect(() => ExpoIapModule.verifyPurchase()).toThrow();
     expect(() => ExpoIapModule.getActiveSubscriptions()).toThrow();
-    expect(requireNativeModule).toHaveBeenCalledTimes(1);
+    expect(requireNativeModule).toHaveBeenCalledTimes(2);
   });
 });

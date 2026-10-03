@@ -547,6 +547,7 @@ describe('Standardized Offer Types', () => {
         isAutoRenewing: true,
         quantity: 1,
         store: 'google',
+        storeId: 'play',
         pendingPurchaseUpdateAndroid: {
           products: ['premium_yearly'],
           purchaseToken: 'pending_upgrade_token',
@@ -575,6 +576,7 @@ describe('Standardized Offer Types', () => {
         isAutoRenewing: false,
         quantity: 1,
         store: 'google',
+        storeId: 'play',
         // No pending update - this is a regular purchase
       };
 

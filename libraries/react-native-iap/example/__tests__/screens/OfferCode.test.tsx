@@ -106,7 +106,7 @@ describe('OfferCode Screen', () => {
     Platform.OS = 'android';
     const {getByText} = await render(<OfferCode />);
 
-    expect(getByText('🎁 Open Play Store')).toBeTruthy();
+    expect(getByText('🎁 Open Redemption Flow')).toBeTruthy();
   });
 
   it('handles Android offer code redemption button press', async () => {
@@ -115,14 +115,14 @@ describe('OfferCode Screen', () => {
 
     const {getByText} = await render(<OfferCode />);
 
-    const redeemButton = getByText('🎁 Open Play Store');
+    const redeemButton = getByText('🎁 Open Redemption Flow');
     await fireEvent.press(redeemButton);
 
     await waitFor(() => {
       expect(mockOpenRedeemOfferCode).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
         'Redemption Requested',
-        'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
+        'The selected store opens its redemption flow when supported. Refresh available purchases after redeeming.',
       );
     });
   });
@@ -135,7 +135,7 @@ describe('OfferCode Screen', () => {
 
     const {getByText} = await render(<OfferCode />);
 
-    const redeemButton = getByText('🎁 Open Play Store');
+    const redeemButton = getByText('🎁 Open Redemption Flow');
     await fireEvent.press(redeemButton);
 
     await waitFor(() => {

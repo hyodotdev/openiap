@@ -26,6 +26,7 @@ const ONSIDE_MARKETPLACE_ID = 'com.onside.marketplace-app';
 /** Members read from the raw module; every store module provides them. */
 type NativeEventModule = {
   ERROR_CODES?: Record<string, unknown>;
+  HAS_EXPLICIT_STORE_PROVIDER?: boolean;
   addListener<T>(
     eventName: string,
     listener: (payload: T) => void,
@@ -93,6 +94,7 @@ export type ExpoIapNativeModule = NativeEventModule &
     getAllTransactionsIOS(): Promise<unknown>;
     getPendingTransactionsIOS(): Promise<unknown>;
     showManageSubscriptionsIOS(): Promise<unknown>;
+    deepLinkToSubscriptionsIOS(): Promise<boolean>;
     requestPurchase(request: object): Promise<unknown>;
     finishTransaction(
       purchase: PurchaseInput,
@@ -123,9 +125,28 @@ type ResolvedNativeModule = {
 
 let cached: ResolvedNativeModule | null = null;
 let onsideModuleUnavailable = false;
+let explicitStoreProvider: boolean | undefined;
 
 function getResolved(): ResolvedNativeModule {
   function shouldUseOnsideModule(): boolean {
+    if (
+      installedFromOnside === true ||
+      typeof installedFromOnside === 'string'
+    ) {
+      if (explicitStoreProvider === undefined) {
+        try {
+          const module =
+            cached?.name === 'ExpoIap'
+              ? cached.module
+              : requireNativeModule<NativeEventModule>('ExpoIap');
+          explicitStoreProvider = module.HAS_EXPLICIT_STORE_PROVIDER === true;
+        } catch (error) {
+          if (!isMissingModuleError(error, 'ExpoIap')) throw error;
+          explicitStoreProvider = false;
+        }
+      }
+      if (explicitStoreProvider) return false;
+    }
     if (installedFromOnside === true) {
       return true;
     }

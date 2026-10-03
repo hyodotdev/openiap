@@ -753,6 +753,7 @@ function mapReceipt(
       type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
     ids: productId ? [productId] : [],
     store: 'amazon',
+    storeId: 'amazon',
     quantity: 1,
     purchaseState: isActive ? 'purchased' : 'unknown',
     isAutoRenewing: type === 'subs' && isActive,
@@ -1232,6 +1233,7 @@ export function createExpoIapVegaModule(
         ...(productId == null ? {} : {productId}),
         state: normalizeIapkitState(json.state),
         store: 'amazon',
+        storeId: 'amazon',
       };
     }
 
@@ -1294,6 +1296,7 @@ export function createExpoIapVegaModule(
         },
         body: JSON.stringify({
           store: 'amazon',
+          storeId: 'amazon',
           userId,
           receiptId,
           ...(amazon.expectedProductId == null

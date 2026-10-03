@@ -125,6 +125,33 @@ public sealed class StrictNullableEnumListJsonConverter<TEnum, TConverter> : Jso
     }
 }
 
+public static class StoreIds
+{
+    public const string Apple = "apple";
+    public const string Play = "play";
+    public const string Horizon = "horizon";
+    public const string Amazon = "amazon";
+}
+
+internal static class StoreIdentity
+{
+    internal static string Resolve(IapStore store, string? value)
+    {
+        var official = store switch
+        {
+            IapStore.Apple => "apple",
+            IapStore.Google => "play",
+            IapStore.Horizon => "horizon",
+            IapStore.Amazon => "amazon",
+            _ => null,
+        };
+        var id = value ?? official;
+        if (id is null || (official is not null ? id != official : !System.Text.RegularExpressions.Regex.IsMatch(id, @"\A[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*\z") || id is "auto" or "none" or "unknown" or "apple" or "play" or "google" or "horizon" or "amazon"))
+            throw new JsonException("Invalid store identity.");
+        return id;
+    }
+}
+
 // ============================================================================
 // Enums
 // ============================================================================
@@ -1365,6 +1392,7 @@ public static class IapPlatformExtensions
     public static IapPlatform FromJson(string value) => IapPlatformJsonConverter.FromRawString(value);
 }
 
+/// <summary>Frozen legacy store discriminator. Use storeId for extensible store identity.</summary>
 [JsonConverter(typeof(IapStoreJsonConverter))]
 public enum IapStore
 {
@@ -2478,6 +2506,7 @@ public interface PurchaseCommon
     string? CurrentPlanId { get; }
     string Id { get; }
     IReadOnlyList<string>? Ids { get; }
+    /// <summary>Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.</summary>
     bool IsAutoRenewing { get; }
     string ProductId { get; }
     PurchaseState PurchaseState { get; }
@@ -2486,6 +2515,8 @@ public interface PurchaseCommon
     int Quantity { get; }
     /// <summary>Store where purchase was made</summary>
     IapStore Store { get; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
+    string StoreId { get; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     double TransactionDate { get; }
 }
@@ -2556,6 +2587,7 @@ public abstract record Purchase : PurchaseCommon
     public abstract string? CurrentPlanId { get; init; }
     public abstract string Id { get; init; }
     public abstract IReadOnlyList<string>? Ids { get; init; }
+    /// <summary>Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.</summary>
     public abstract bool IsAutoRenewing { get; init; }
     public abstract string ProductId { get; init; }
     public abstract PurchaseState PurchaseState { get; init; }
@@ -2564,6 +2596,8 @@ public abstract record Purchase : PurchaseCommon
     public abstract int Quantity { get; init; }
     /// <summary>Store where purchase was made</summary>
     public abstract IapStore Store { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
+    public abstract string StoreId { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     public abstract double TransactionDate { get; init; }
 }
@@ -2584,6 +2618,7 @@ public abstract record VerifyPurchaseResult : VerifyPurchaseResultCommon
 
 public sealed record ActiveSubscription
 {
+    /// <summary>Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.</summary>
     [JsonPropertyName("autoRenewingAndroid")]
     public bool? AutoRenewingAndroid { get; init; }
     [JsonPropertyName("basePlanIdAndroid")]
@@ -3463,8 +3498,9 @@ public sealed record ProductSubscriptionIOS : ProductSubscription
     public required ProductTypeIOS TypeIOS { get; init; }
 }
 
-public sealed record PurchaseAndroid : Purchase
+public sealed record PurchaseAndroid : Purchase, IJsonOnDeserialized
 {
+    /// <summary>Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.</summary>
     [JsonPropertyName("autoRenewingAndroid")]
     public bool? AutoRenewingAndroid { get; init; }
     [JsonPropertyName("currentPlanId")]
@@ -3479,6 +3515,7 @@ public sealed record PurchaseAndroid : Purchase
     public override IReadOnlyList<string>? Ids { get; init; }
     [JsonPropertyName("isAcknowledgedAndroid")]
     public bool? IsAcknowledgedAndroid { get; init; }
+    /// <summary>Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.</summary>
     [JsonPropertyName("isAutoRenewing")]
     public override required bool IsAutoRenewing { get; init; }
     /// <summary>
@@ -3517,6 +3554,10 @@ public sealed record PurchaseAndroid : Purchase
     /// <summary>Store where purchase was made</summary>
     [JsonPropertyName("store")]
     public override required IapStore Store { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
+    private string? _storeId;
+    [JsonPropertyName("storeId")]
+    public override string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     [JsonPropertyName("transactionDate")]
     public override required double TransactionDate { get; init; }
@@ -3535,6 +3576,62 @@ public sealed record PurchaseAndroid : Purchase
     /// </summary>
     [JsonPropertyName("userMarketplaceAmazon")]
     public string? UserMarketplaceAmazon { get; init; }
+    void IJsonOnDeserialized.OnDeserialized() => _storeId = StoreIdentity.Resolve(Store, _storeId);
+    public bool Equals(PurchaseAndroid? other) => other is not null
+        && EqualityComparer<bool?>.Default.Equals(AutoRenewingAndroid, other.AutoRenewingAndroid)
+        && EqualityComparer<string?>.Default.Equals(CurrentPlanId, other.CurrentPlanId)
+        && EqualityComparer<string?>.Default.Equals(DataAndroid, other.DataAndroid)
+        && EqualityComparer<string?>.Default.Equals(DeveloperPayloadAndroid, other.DeveloperPayloadAndroid)
+        && EqualityComparer<string>.Default.Equals(Id, other.Id)
+        && EqualityComparer<IReadOnlyList<string>?>.Default.Equals(Ids, other.Ids)
+        && EqualityComparer<bool?>.Default.Equals(IsAcknowledgedAndroid, other.IsAcknowledgedAndroid)
+        && EqualityComparer<bool>.Default.Equals(IsAutoRenewing, other.IsAutoRenewing)
+        && EqualityComparer<bool?>.Default.Equals(IsSuspendedAndroid, other.IsSuspendedAndroid)
+        && EqualityComparer<string?>.Default.Equals(ObfuscatedAccountIdAndroid, other.ObfuscatedAccountIdAndroid)
+        && EqualityComparer<string?>.Default.Equals(ObfuscatedProfileIdAndroid, other.ObfuscatedProfileIdAndroid)
+        && EqualityComparer<string?>.Default.Equals(PackageNameAndroid, other.PackageNameAndroid)
+        && EqualityComparer<PendingPurchaseUpdateAndroid?>.Default.Equals(PendingPurchaseUpdateAndroid, other.PendingPurchaseUpdateAndroid)
+        && EqualityComparer<string>.Default.Equals(ProductId, other.ProductId)
+        && EqualityComparer<PurchaseState>.Default.Equals(PurchaseState, other.PurchaseState)
+        && EqualityComparer<string?>.Default.Equals(PurchaseToken, other.PurchaseToken)
+        && EqualityComparer<int>.Default.Equals(Quantity, other.Quantity)
+        && EqualityComparer<string?>.Default.Equals(SignatureAndroid, other.SignatureAndroid)
+        && EqualityComparer<IapStore>.Default.Equals(Store, other.Store)
+        && EqualityComparer<string>.Default.Equals(StoreId, other.StoreId)
+        && EqualityComparer<double>.Default.Equals(TransactionDate, other.TransactionDate)
+        && EqualityComparer<string?>.Default.Equals(TransactionId, other.TransactionId)
+        && EqualityComparer<string?>.Default.Equals(UserIdAmazon, other.UserIdAmazon)
+        && EqualityComparer<string?>.Default.Equals(UserMarketplaceAmazon, other.UserMarketplaceAmazon);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(typeof(PurchaseAndroid));
+        hash.Add(AutoRenewingAndroid);
+        hash.Add(CurrentPlanId);
+        hash.Add(DataAndroid);
+        hash.Add(DeveloperPayloadAndroid);
+        hash.Add(Id);
+        hash.Add(Ids);
+        hash.Add(IsAcknowledgedAndroid);
+        hash.Add(IsAutoRenewing);
+        hash.Add(IsSuspendedAndroid);
+        hash.Add(ObfuscatedAccountIdAndroid);
+        hash.Add(ObfuscatedProfileIdAndroid);
+        hash.Add(PackageNameAndroid);
+        hash.Add(PendingPurchaseUpdateAndroid);
+        hash.Add(ProductId);
+        hash.Add(PurchaseState);
+        hash.Add(PurchaseToken);
+        hash.Add(Quantity);
+        hash.Add(SignatureAndroid);
+        hash.Add(Store);
+        hash.Add(StoreId);
+        hash.Add(TransactionDate);
+        hash.Add(TransactionId);
+        hash.Add(UserIdAmazon);
+        hash.Add(UserMarketplaceAmazon);
+        return hash.ToHashCode();
+    }
 }
 
 public sealed record PurchaseError
@@ -3559,7 +3656,7 @@ public sealed record PurchaseError
     public SubResponseCodeAndroid? SubResponseCodeAndroid { get; init; }
 }
 
-public sealed record PurchaseIOS : Purchase
+public sealed record PurchaseIOS : Purchase, IJsonOnDeserialized
 {
     /// <summary>
     /// Advanced Commerce API metadata (iOS 18.4+).
@@ -3609,6 +3706,7 @@ public sealed record PurchaseIOS : Purchase
     public override required string Id { get; init; }
     [JsonPropertyName("ids")]
     public override IReadOnlyList<string>? Ids { get; init; }
+    /// <summary>Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.</summary>
     [JsonPropertyName("isAutoRenewing")]
     public override required bool IsAutoRenewing { get; init; }
     [JsonPropertyName("isUpgradedIOS")]
@@ -3660,6 +3758,10 @@ public sealed record PurchaseIOS : Purchase
     public override required IapStore Store { get; init; }
     [JsonPropertyName("storefrontCountryCodeIOS")]
     public string? StorefrontCountryCodeIOS { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
+    private string? _storeId;
+    [JsonPropertyName("storeId")]
+    public override string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }
     [JsonPropertyName("subscriptionGroupIdIOS")]
     public string? SubscriptionGroupIdIOS { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
@@ -3671,6 +3773,100 @@ public sealed record PurchaseIOS : Purchase
     public string? TransactionReasonIOS { get; init; }
     [JsonPropertyName("webOrderLineItemIdIOS")]
     public string? WebOrderLineItemIdIOS { get; init; }
+    void IJsonOnDeserialized.OnDeserialized() => _storeId = StoreIdentity.Resolve(Store, _storeId);
+    public bool Equals(PurchaseIOS? other) => other is not null
+        && EqualityComparer<AdvancedCommerceInfoIOS?>.Default.Equals(AdvancedCommerceInfoIOS, other.AdvancedCommerceInfoIOS)
+        && EqualityComparer<string?>.Default.Equals(AppAccountToken, other.AppAccountToken)
+        && EqualityComparer<string?>.Default.Equals(AppBundleIdIOS, other.AppBundleIdIOS)
+        && EqualityComparer<SubscriptionBillingPlanTypeIOS?>.Default.Equals(BillingPlanTypeIOS, other.BillingPlanTypeIOS)
+        && EqualityComparer<string?>.Default.Equals(BundleOriginalTransactionIdIOS, other.BundleOriginalTransactionIdIOS)
+        && EqualityComparer<string?>.Default.Equals(BundleProductIdIOS, other.BundleProductIdIOS)
+        && EqualityComparer<string?>.Default.Equals(BundleSubscriptionGroupIdIOS, other.BundleSubscriptionGroupIdIOS)
+        && EqualityComparer<string?>.Default.Equals(BundleTransactionIdIOS, other.BundleTransactionIdIOS)
+        && EqualityComparer<TransactionCommitmentInfoIOS?>.Default.Equals(CommitmentInfoIOS, other.CommitmentInfoIOS)
+        && EqualityComparer<string?>.Default.Equals(CountryCodeIOS, other.CountryCodeIOS)
+        && EqualityComparer<string?>.Default.Equals(CurrencyCodeIOS, other.CurrencyCodeIOS)
+        && EqualityComparer<string?>.Default.Equals(CurrencySymbolIOS, other.CurrencySymbolIOS)
+        && EqualityComparer<string?>.Default.Equals(CurrentPlanId, other.CurrentPlanId)
+        && EqualityComparer<string?>.Default.Equals(EnvironmentIOS, other.EnvironmentIOS)
+        && EqualityComparer<double?>.Default.Equals(ExpirationDateIOS, other.ExpirationDateIOS)
+        && EqualityComparer<string>.Default.Equals(Id, other.Id)
+        && EqualityComparer<IReadOnlyList<string>?>.Default.Equals(Ids, other.Ids)
+        && EqualityComparer<bool>.Default.Equals(IsAutoRenewing, other.IsAutoRenewing)
+        && EqualityComparer<bool?>.Default.Equals(IsUpgradedIOS, other.IsUpgradedIOS)
+        && EqualityComparer<PurchaseOfferIOS?>.Default.Equals(OfferIOS, other.OfferIOS)
+        && EqualityComparer<double?>.Default.Equals(OriginalTransactionDateIOS, other.OriginalTransactionDateIOS)
+        && EqualityComparer<string?>.Default.Equals(OriginalTransactionIdentifierIOS, other.OriginalTransactionIdentifierIOS)
+        && EqualityComparer<string?>.Default.Equals(OwnershipTypeIOS, other.OwnershipTypeIOS)
+        && EqualityComparer<string?>.Default.Equals(PreviousOriginalTransactionIdIOS, other.PreviousOriginalTransactionIdIOS)
+        && EqualityComparer<string>.Default.Equals(ProductId, other.ProductId)
+        && EqualityComparer<PurchaseState>.Default.Equals(PurchaseState, other.PurchaseState)
+        && EqualityComparer<string?>.Default.Equals(PurchaseToken, other.PurchaseToken)
+        && EqualityComparer<int>.Default.Equals(Quantity, other.Quantity)
+        && EqualityComparer<int?>.Default.Equals(QuantityIOS, other.QuantityIOS)
+        && EqualityComparer<string?>.Default.Equals(ReasonIOS, other.ReasonIOS)
+        && EqualityComparer<string?>.Default.Equals(ReasonStringRepresentationIOS, other.ReasonStringRepresentationIOS)
+        && EqualityComparer<RenewalInfoIOS?>.Default.Equals(RenewalInfoIOS, other.RenewalInfoIOS)
+        && EqualityComparer<double?>.Default.Equals(RevocationDateIOS, other.RevocationDateIOS)
+        && EqualityComparer<string?>.Default.Equals(RevocationReasonIOS, other.RevocationReasonIOS)
+        && EqualityComparer<string?>.Default.Equals(RevocationTypeIOS, other.RevocationTypeIOS)
+        && EqualityComparer<IapStore>.Default.Equals(Store, other.Store)
+        && EqualityComparer<string?>.Default.Equals(StorefrontCountryCodeIOS, other.StorefrontCountryCodeIOS)
+        && EqualityComparer<string>.Default.Equals(StoreId, other.StoreId)
+        && EqualityComparer<string?>.Default.Equals(SubscriptionGroupIdIOS, other.SubscriptionGroupIdIOS)
+        && EqualityComparer<double>.Default.Equals(TransactionDate, other.TransactionDate)
+        && EqualityComparer<string>.Default.Equals(TransactionId, other.TransactionId)
+        && EqualityComparer<string?>.Default.Equals(TransactionReasonIOS, other.TransactionReasonIOS)
+        && EqualityComparer<string?>.Default.Equals(WebOrderLineItemIdIOS, other.WebOrderLineItemIdIOS);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(typeof(PurchaseIOS));
+        hash.Add(AdvancedCommerceInfoIOS);
+        hash.Add(AppAccountToken);
+        hash.Add(AppBundleIdIOS);
+        hash.Add(BillingPlanTypeIOS);
+        hash.Add(BundleOriginalTransactionIdIOS);
+        hash.Add(BundleProductIdIOS);
+        hash.Add(BundleSubscriptionGroupIdIOS);
+        hash.Add(BundleTransactionIdIOS);
+        hash.Add(CommitmentInfoIOS);
+        hash.Add(CountryCodeIOS);
+        hash.Add(CurrencyCodeIOS);
+        hash.Add(CurrencySymbolIOS);
+        hash.Add(CurrentPlanId);
+        hash.Add(EnvironmentIOS);
+        hash.Add(ExpirationDateIOS);
+        hash.Add(Id);
+        hash.Add(Ids);
+        hash.Add(IsAutoRenewing);
+        hash.Add(IsUpgradedIOS);
+        hash.Add(OfferIOS);
+        hash.Add(OriginalTransactionDateIOS);
+        hash.Add(OriginalTransactionIdentifierIOS);
+        hash.Add(OwnershipTypeIOS);
+        hash.Add(PreviousOriginalTransactionIdIOS);
+        hash.Add(ProductId);
+        hash.Add(PurchaseState);
+        hash.Add(PurchaseToken);
+        hash.Add(Quantity);
+        hash.Add(QuantityIOS);
+        hash.Add(ReasonIOS);
+        hash.Add(ReasonStringRepresentationIOS);
+        hash.Add(RenewalInfoIOS);
+        hash.Add(RevocationDateIOS);
+        hash.Add(RevocationReasonIOS);
+        hash.Add(RevocationTypeIOS);
+        hash.Add(Store);
+        hash.Add(StorefrontCountryCodeIOS);
+        hash.Add(StoreId);
+        hash.Add(SubscriptionGroupIdIOS);
+        hash.Add(TransactionDate);
+        hash.Add(TransactionId);
+        hash.Add(TransactionReasonIOS);
+        hash.Add(WebOrderLineItemIdIOS);
+        return hash.ToHashCode();
+    }
 }
 
 public sealed record PurchaseOfferIOS
@@ -3808,7 +4004,7 @@ public sealed record RequestPurchaseResultPurchase(Purchase? Value) : RequestPur
 
 public sealed record RequestPurchaseResultPurchases(IReadOnlyList<Purchase>? Value) : RequestPurchaseResult;
 
-public sealed record RequestVerifyPurchaseWithIapkitResult
+public sealed record RequestVerifyPurchaseWithIapkitResult : IJsonOnDeserialized
 {
     /// <summary>
     /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
@@ -3850,6 +4046,51 @@ public sealed record RequestVerifyPurchaseWithIapkitResult
     public required IapkitPurchaseState State { get; init; }
     [JsonPropertyName("store")]
     public required IapStore Store { get; init; }
+    /// <summary>Stable store id: apple, play, horizon, amazon, or a community provider id.</summary>
+    private string? _storeId;
+    [JsonPropertyName("storeId")]
+    public string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }
+    void IJsonOnDeserialized.OnDeserialized() => _storeId = StoreIdentity.Resolve(Store, _storeId);
+    public bool Equals(RequestVerifyPurchaseWithIapkitResult? other) => other is not null
+        && EqualityComparer<IapkitProductClientPayload?>.Default.Equals(ClientPayload, other.ClientPayload)
+        && EqualityComparer<string?>.Default.Equals(Environment, other.Environment)
+        && EqualityComparer<bool>.Default.Equals(IsValid, other.IsValid)
+        && EqualityComparer<string?>.Default.Equals(ProductId, other.ProductId)
+        && EqualityComparer<IapkitPurchaseState>.Default.Equals(State, other.State)
+        && EqualityComparer<IapStore>.Default.Equals(Store, other.Store)
+        && EqualityComparer<string>.Default.Equals(StoreId, other.StoreId);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(typeof(RequestVerifyPurchaseWithIapkitResult));
+        hash.Add(ClientPayload);
+        hash.Add(Environment);
+        hash.Add(IsValid);
+        hash.Add(ProductId);
+        hash.Add(State);
+        hash.Add(Store);
+        hash.Add(StoreId);
+        return hash.ToHashCode();
+    }
+}
+
+/// <summary>
+/// Store-provider contract shared by the Apple and Android native bindings.
+/// coreVersion names the native contract build; clientProtocolVersion names the
+/// Client Protocol build. Capabilities use the conformance provider profile ids.
+/// </summary>
+public sealed record StoreProviderDescriptor
+{
+    [JsonPropertyName("capabilities")]
+    public required IReadOnlyList<string> Capabilities { get; init; }
+    [JsonPropertyName("clientProtocolVersion")]
+    public required string ClientProtocolVersion { get; init; }
+    [JsonPropertyName("coreVersion")]
+    public required string CoreVersion { get; init; }
+    [JsonPropertyName("platform")]
+    public required IapPlatform Platform { get; init; }
+    [JsonPropertyName("storeId")]
+    public required string StoreId { get; init; }
 }
 
 public sealed record SubscriptionCommitmentInfoIOS
@@ -4536,10 +4777,8 @@ public sealed record RequestPurchaseProps : IJsonOnDeserialized
 /// Platform-specific purchase request parameters.
 ///
 /// Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 /// </summary>
 public sealed record RequestPurchasePropsByPlatforms
 {
@@ -4659,10 +4898,8 @@ public sealed record RequestSubscriptionIosProps
 /// Platform-specific subscription request parameters.
 ///
 /// Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 /// </summary>
 public sealed record RequestSubscriptionPropsByPlatforms
 {
@@ -5043,6 +5280,7 @@ public interface MutationResolver
 
     /// <summary>
     /// Initiate a purchase or subscription flow; rely on events for final state.
+    /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
     /// See: https://openiap.dev/docs/apis/request-purchase
     /// </summary>
     Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params);

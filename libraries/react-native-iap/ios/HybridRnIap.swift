@@ -505,13 +505,25 @@ class HybridRnIap: HybridRnIapSpec {
                     "finishTransaction", ["transactionId": iosParams.transactionId]
                 )
                 _ = try await self.runConnectedOperation {
-                    guard let purchaseInput = try await self.purchaseToFinish(
-                        transactionId: iosParams.transactionId,
-                        loadTransactions: { try await OpenIapModule.shared.getAllTransactionsIOS() }
-                    ) else { return }
+                    let purchaseInput: OpenIAP.PurchaseInput
+                    if let json = iosParams.purchaseJson {
+                        let object = try JSONSerialization.jsonObject(with: Data(json.utf8))
+                        purchaseInput = try OpenIapSerialization.purchaseInput(from: object)
+                    } else {
+                        guard let cached = try await self.purchaseToFinish(
+                            transactionId: iosParams.transactionId,
+                            loadTransactions: {
+                                try await OpenIapModule.shared.getAvailablePurchases(nil).compactMap {
+                                    guard case .purchaseIos(let purchase) = $0 else { return nil }
+                                    return purchase
+                                }
+                            }
+                        ) else { return }
+                        purchaseInput = cached
+                    }
                     try await OpenIapModule.shared.finishTransaction(
                         purchase: purchaseInput,
-                        isConsumable: nil
+                        isConsumable: iosParams.isConsumable
                     )
                 }
                 RnIapLog.result("finishTransaction", true)
@@ -665,7 +677,8 @@ class HybridRnIap: HybridRnIapSpec {
                         isValid: item.isValid,
                         productId: RnIapHelper.wrapString(item.productId),
                         state: IapkitPurchaseState(fromString: item.state.rawValue) ?? .unknown,
-                        store: IapStore(fromString: item.store.rawValue) ?? .unknown
+                        store: IapStore(fromString: item.store.rawValue) ?? .unknown,
+                        storeId: item.storeId
                     )
                 }
                 // Convert errors if present
@@ -1027,6 +1040,29 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    func restorePurchases() throws -> Promise<Bool> {
+        return Promise.async {
+            do {
+                RnIapLog.payload("restorePurchases", nil)
+                let ok = try await self.runConnectedOperation {
+                    try await OpenIapModule.shared.restorePurchases()
+                    return true
+                }
+                RnIapLog.result("restorePurchases", ok)
+                return ok
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("restorePurchases", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
+            } catch let connectionError as OpenIapException {
+                RnIapLog.failure("restorePurchases", error: connectionError)
+                throw connectionError
+            } catch {
+                RnIapLog.failure("restorePurchases", error: error)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
+            }
+        }
+    }
+
     func syncIOS() throws -> Promise<Bool> {
         return Promise.async {
             do {
@@ -1383,8 +1419,8 @@ class HybridRnIap: HybridRnIapSpec {
         transactionId: String,
         loadTransactions: () async throws -> [OpenIAP.PurchaseIOS]
     ) async throws -> OpenIAP.PurchaseInput? {
-        guard UInt64(transactionId) != nil else {
-            throw OpenIapException.make(code: .purchaseError, message: "Invalid transaction identifier")
+        guard !transactionId.isEmpty else {
+            throw OpenIapException.make(code: .purchaseError, message: "Transaction identifier is required")
         }
         if let payload = await MainActor.run(body: { self.purchasePayloadById[transactionId] }) {
             return try OpenIapSerialization.purchaseInput(from: payload)
@@ -1454,6 +1490,10 @@ class HybridRnIap: HybridRnIapSpec {
             } catch let purchaseError as PurchaseError {
                 self.deliverRequestPurchaseError(purchaseError)
                 throw purchaseError
+            } catch {
+                // Providers own purchase-error delivery after dispatch.
+                RnIapLog.failure("requestPurchase", error: error)
+                return nil
             }
         }
     }

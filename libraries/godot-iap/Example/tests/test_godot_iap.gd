@@ -47,6 +47,7 @@ class FakeIOSAsyncPlugin:
 	var request_count := 0
 	var last_purchase_options: Dictionary = {}
 	var last_subscription_ids := "unset"
+	var disconnect_result := true
 
 	func _complete(method: String, values: Dictionary) -> String:
 		request_count += 1
@@ -56,7 +57,7 @@ class FakeIOSAsyncPlugin:
 			"requestId": request_id,
 			"success": true,
 		}
-		payload.merge(values)
+		payload.merge(values, true)
 		# Emit before returning to prove the wrapper's result cache closes the
 		# native-call-to-signal-wait race.
 		products_fetched.emit(payload)
@@ -102,6 +103,9 @@ class FakeIOSAsyncPlugin:
 				"transactionDate": 1.0,
 			}]),
 		})
+
+	func endConnection() -> String:
+		return _complete("endConnection", {"success": disconnect_result})
 
 
 class FakeNoticePlugin:
@@ -211,6 +215,7 @@ func _run_all_tests() -> void:
 	await test_restore_purchases_mock()
 	await test_storefront_error_contract()
 	test_native_purchase_payload_safety()
+	test_community_apple_purchase_identity()
 	test_freed_object_options_are_ignored()
 	test_sensitive_values_are_not_logged()
 
@@ -424,6 +429,19 @@ func test_end_connection_mock() -> void:
 	var result = await GodotIapPlugin.end_connection()
 	_assert_true(result, "end_connection should return true in mock mode")
 
+	var fake := FakeIOSAsyncPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "iOS"
+	GodotIapPlugin._connect_signals_apple()
+	GodotIapPlugin._is_connected = true
+	fake.disconnect_result = false
+	_assert_false(await GodotIapPlugin.end_connection(), "Provider false must survive Apple disconnection")
+	_assert_true(GodotIapPlugin.is_store_connected(), "Unsuccessful disconnection retains connection state")
+	fake.disconnect_result = true
+	_assert_true(await GodotIapPlugin.end_connection(), "Provider true completes Apple disconnection")
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
 
 func test_native_purchase_payload_safety() -> void:
 	var fallback = {"purchaseJson": null, "productId": "fallback"}
@@ -436,6 +454,20 @@ func test_native_purchase_payload_safety() -> void:
 		"purchaseJson": JSON.stringify({"productId": "canonical"}),
 	})
 	_assert_equal(canonical.get("productId"), "canonical", "Valid purchaseJson should be decoded")
+
+
+func test_community_apple_purchase_identity() -> void:
+	var original_platform = GodotIapPlugin._platform
+	GodotIapPlugin._platform = "iOS"
+	var payload = FakeIOSAsyncPlugin.new()._purchase("community")
+	payload["store"] = "unknown"
+	payload["storeId"] = "community-fixture"
+	var decoded = GodotIapPlugin._validated_purchase_batch([payload], "iOS")
+	_assert_true(decoded.get("success", false), "Community Apple purchases should retain the Apple shape")
+	_assert_equal(payload["transactionId"], "tx-community", "Provider transaction ids may be opaque")
+	payload["storeId"] = "apple"
+	_assert_false(GodotIapPlugin._validated_purchase_batch([payload], "iOS").get("success", false), "Community purchases cannot claim an official identity")
+	GodotIapPlugin._platform = original_platform
 
 
 func test_freed_object_options_are_ignored() -> void:

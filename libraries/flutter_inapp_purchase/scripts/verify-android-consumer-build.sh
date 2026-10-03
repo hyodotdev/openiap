@@ -15,11 +15,16 @@ trap cleanup EXIT
 
 package_copy="$tmp_root/flutter_inapp_purchase"
 local_google_copy="$tmp_root/packages/google/openiap"
+local_core_copy="$tmp_root/packages/google/core"
 consumer_app="$tmp_root/openiap_consumer_smoke"
+conformance_copy="$tmp_root/packages/conformance/src/spec"
 
 cp -R "$package_root" "$tmp_root/"
 mkdir -p "$(dirname "$local_google_copy")"
 cp -R "$repo_root/packages/google/openiap" "$local_google_copy"
+cp -R "$repo_root/packages/google/core" "$local_core_copy"
+mkdir -p "$conformance_copy"
+cp "$repo_root/packages/conformance/src/spec/suite-version.mjs" "$conformance_copy/"
 rm -rf \
   "$package_copy/.build" \
   "$package_copy/.dart_tool" \
@@ -31,7 +36,9 @@ rm -rf \
   "$package_copy/example/android/build" \
   "$package_copy/example/build" \
   "$local_google_copy/.gradle" \
-  "$local_google_copy/build"
+  "$local_google_copy/build" \
+  "$local_core_copy/.gradle" \
+  "$local_core_copy/build"
 
 rm -f "$package_copy/openiap-versions.json" "$package_copy/android/openiap-store.gradle"
 cp "$repo_root/openiap-versions.json" "$package_copy/openiap-versions.json"
@@ -79,6 +86,8 @@ if [ -f "$consumer_app/android/settings.gradle.kts" ]; then
 
 include(":openiap")
 project(":openiap").projectDir = file("../../packages/google/openiap")
+include(":openiap-core")
+project(":openiap-core").projectDir = file("../../packages/google/core")
 EOF
 elif [ -f "$consumer_app/android/settings.gradle" ]; then
   settings_file="$consumer_app/android/settings.gradle"
@@ -87,6 +96,8 @@ elif [ -f "$consumer_app/android/settings.gradle" ]; then
 
 include ':openiap'
 project(':openiap').projectDir = file('../../packages/google/openiap')
+include ':openiap-core'
+project(':openiap-core').projectDir = file('../../packages/google/core')
 EOF
 else
   echo "Failed to locate generated Android settings.gradle(.kts) in $consumer_app/android" >&2

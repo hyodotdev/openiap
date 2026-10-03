@@ -90,6 +90,13 @@ run "a value that names no store fails"  "fail:OpenIapStore='bogus' is not a sto
 run "and names the alias when it was set" "fail:OpenIapAndroidStore='bogus' is not a store" $link -p:OpenIapAndroidStore=bogus
 run "even beside a valid OpenIapStore"   "fail:OpenIapAndroidStore='bogus' is not a store" $link -p:OpenIapStore=play -p:OpenIapAndroidStore=bogus
 
+echo "community provider"
+run "external pair selects the neutral core" "community-fixture:" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
+run "external id needs coordinates" "fail:OpenIapStore='community-fixture' is not a store" $link -p:OpenIapStore=community-fixture
+run "official selection rejects an external pair" "fail:OpenIapProvider requires a community OpenIapStore id" $link -p:OpenIapStore=play -p:OpenIapProvider=community.fixture:provider:1.0.0
+run "provider version must be fixed" "fail:OpenIapProvider must be fixed group:artifact:version coordinates" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:+
+run "official coordinates cannot pose as external" "fail:OpenIapProvider must name a community artifact" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=io.github.hyochan.openiap:openiap-google:3.6.2
+
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
 run "a Quest links Horizon"              "$horizon" $link "$adb"
@@ -115,6 +122,7 @@ echo "dependency verification"
 run "Play's Maven SDKs verify"           "$play"    _CategorizeAndroidLibraries -p:OpenIapStore=play
 run "Horizon's Maven SDKs verify"        "$horizon" _CategorizeAndroidLibraries -p:OpenIapStore=horizon
 run "Amazon's Maven SDKs verify"         "$amazon"  _CategorizeAndroidLibraries -p:OpenIapStore=amazon
+bash "$maui_root/scripts/verify-community-provider.sh"
 
 # --apk also builds the whole example per store and checks what its APK links:
 # manifest merge, D8 and packaging are past the stage the cases above reach.

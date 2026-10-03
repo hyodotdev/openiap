@@ -12,6 +12,12 @@
 # Keep the file named generated_nullable_enum_list_types.gd: the preload finds it by that name.
 const _Types = preload("generated_nullable_enum_list_types.gd")
 
+class StoreIds:
+	const APPLE = "apple"
+	const PLAY = "play"
+	const HORIZON = "horizon"
+	const AMAZON = "amazon"
+
 # ============================================================================
 # Enums
 # ============================================================================

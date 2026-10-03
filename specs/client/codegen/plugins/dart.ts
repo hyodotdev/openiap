@@ -5,6 +5,7 @@
  * Uses the IR (Intermediate Representation) for maintainable code generation.
  */
 
+import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -73,6 +74,8 @@ export class DartPlugin extends CodegenPlugin {
 
     this.lines = [];
     this.generateHeader();
+    this.emit(renderStoreIds('dart'));
+    if (schema.enums.some(item => item.name === 'IapStore')) this.emit(renderStoreIdentityResolver('dart'));
 
     // Enums
     if (schema.enums.length > 0) {
@@ -302,9 +305,10 @@ export class DartPlugin extends CodegenPlugin {
     // fromJson factory
     this.emit('');
     this.emit(`  factory ${irObject.name}.fromJson(Map<String, dynamic> json) {`);
+    if (hasStoreIdentity(sortedFields)) this.emit('    final store = IapStore.fromJson(json[\'store\'] as String);');
     this.emit(`    return ${irObject.name}(`);
     for (const field of sortedFields) {
-      const jsonExpr = this.buildFromJsonExpression(field.type, `json['${field.name}']`);
+      const jsonExpr = hasStoreIdentity(sortedFields) && field.name === 'storeId' ? "_resolveStoreId(store, json['storeId'])" : hasStoreIdentity(sortedFields) && field.name === 'store' ? 'store' : this.buildFromJsonExpression(field.type, `json['${field.name}']`);
       this.emit(`      ${this.escapeKeyword(field.name)}: ${jsonExpr},`);
     }
     if (needsAlternativeBilling) {

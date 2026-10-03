@@ -1,4 +1,9 @@
 [[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2026-10-09
+reason = "No patched node-forge release is available. This example uses Expo's Node CLI for development and builds; its mobile entry points do not import the CLI certificate tools. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
+
+[[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
 ignoreUntil = 2026-10-14
 reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."

@@ -35,6 +35,7 @@ include(":example:composeApp")
 
 includeBuild("../../packages/google") {
     dependencySubstitution {
+        substitute(module("io.github.hyochan.openiap:openiap-core")).using(project(":openiap-core"))
         substitute(module("io.github.hyochan.openiap:openiap-google")).using(project(":openiap"))
         substitute(module("io.github.hyochan.openiap:openiap-google-horizon")).using(project(":openiap"))
         substitute(module("io.github.hyochan.openiap:openiap-google-amazon")).using(project(":openiap"))

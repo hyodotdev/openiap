@@ -28,6 +28,7 @@ import type {
   RenewalInfoIOS,
   SubscriptionStatusIOS,
 } from '../types';
+import {resolveStoreId} from '../types';
 import {RnIapConsole} from './debug';
 
 const PLATFORM_IOS: IapPlatform = 'ios';
@@ -393,6 +394,7 @@ export function convertProductToProductSubscription(
  */
 export function convertNitroPurchaseToPurchase(
   nitroPurchase: NitroPurchase,
+  platform = nitroPurchase.platform,
 ): Purchase {
   let purchaseState = normalizePurchaseState(
     nitroPurchase.purchaseState ?? nitroPurchase.purchaseStateAndroid,
@@ -408,7 +410,10 @@ export function convertNitroPurchaseToPurchase(
 
   const store = normalizeStore(nitroPurchase.store);
 
-  if (store === STORE_APPLE) {
+  if (
+    store === STORE_APPLE ||
+    (store === STORE_UNKNOWN && platform === 'ios')
+  ) {
     const transactionId = toNullableString(nitroPurchase.transactionId);
     if (transactionId == null) {
       throw new Error('Apple purchase is missing transactionId');
@@ -420,6 +425,7 @@ export function convertNitroPurchaseToPurchase(
       transactionDate: nitroPurchase.transactionDate ?? Date.now(),
       purchaseToken: nitroPurchase.purchaseToken ?? null,
       store,
+      storeId: resolveStoreId(nitroPurchase.storeId, store),
       quantity: nitroPurchase.quantity ?? 1,
       purchaseState,
       isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
@@ -524,6 +530,7 @@ export function convertNitroPurchaseToPurchase(
     purchaseToken:
       nitroPurchase.purchaseToken ?? nitroPurchase.purchaseTokenAndroid ?? null,
     store,
+    storeId: resolveStoreId(nitroPurchase.storeId, store),
     quantity: nitroPurchase.quantity ?? 1,
     purchaseState,
     isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
@@ -533,7 +540,9 @@ export function convertNitroPurchaseToPurchase(
     // not synthesize a transactionId from it.
     transactionId: androidTransactionId,
     autoRenewingAndroid: toNullableBoolean(
-      nitroPurchase.autoRenewingAndroid ?? nitroPurchase.isAutoRenewing,
+      nitroPurchase.autoRenewingAndroid === undefined
+        ? nitroPurchase.isAutoRenewing
+        : nitroPurchase.autoRenewingAndroid,
     ),
     dataAndroid: toNullableString(nitroPurchase.dataAndroid),
     signatureAndroid: toNullableString(nitroPurchase.signatureAndroid),

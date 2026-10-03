@@ -194,7 +194,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override fun getVersion(): String = kmpIapVersionString("iOS")
 
-    override fun getStore(): Store = Store.APP_STORE
+    override fun getStore(): Store = if (openIapModule.storeId == "apple") Store.APP_STORE else Store.UNKNOWN
 
     override suspend fun canMakePayments(): Boolean =
         withContext(Dispatchers.Main) { isConnected }
@@ -289,7 +289,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 return@suspendCancellableCoroutine
             }
 
-            openIapModule.requestPurchaseWithPayload(params.toJson().toObjCMap()) { result, error ->
+            openIapModule.requestPurchaseWithJSON(params.toJson().toJsonStringIOS()) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else if (result != null) {
@@ -314,27 +314,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         } else {
             null
         }
-    }
-
-    private fun Map<String, Any?>.toObjCMap(): Map<Any?, Any?> =
-        entries.associate { (key, value) -> key to value.toObjCValue() }
-
-    private fun Any?.toObjCValue(): Any = when (val value = this) {
-        null -> NSNull()
-        is Map<*, *> -> NSMutableDictionary().apply {
-            value.forEach { (key, nestedValue) ->
-                if (key != null) {
-                    setObject(
-                        nestedValue.toObjCValue(),
-                        NSString.create(string = key.toString())
-                    )
-                }
-            }
-        }
-        is List<*> -> NSMutableArray().apply {
-            value.forEach { addObject(it.toObjCValue()) }
-        }
-        else -> value
     }
 
     /**
@@ -368,12 +347,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?): Unit =
         suspendCancellableCoroutine { continuation ->
             // No first-purchase notice on iOS: nothing reliably tells a debug build of the host app.
-            val transactionId = purchase.id
-            val productId = purchase.productId
-
-            openIapModule.finishTransactionWithPurchaseId(
-                transactionId,
-                productId = productId,
+            val payload = purchase.toJson().toJsonStringIOS()
+            openIapModule.finishTransactionWithPurchaseJSON(
+                payload,
                 isConsumable = isConsumable ?: false
             ) { error ->
                 if (error != null) {
@@ -670,10 +646,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
+            openIapModule.getActiveSubscriptionsWithSubscriptionIds(subscriptionIds) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                    return@getActiveSubscriptionsWithCompletion
+                    return@getActiveSubscriptionsWithSubscriptionIds
                 }
 
                 try {
@@ -756,31 +732,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
         suspendCancellableCoroutine { continuation ->
-            if (subscriptionIds.isNullOrEmpty()) {
-                openIapModule.hasActiveSubscriptionsWithCompletion { hasActive, error ->
-                    if (error != null) {
-                        continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                        return@hasActiveSubscriptionsWithCompletion
-                    }
-
-                    continuation.resumeIfActive(hasActive)
-                }
-                return@suspendCancellableCoroutine
-            }
-
-            openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
+            openIapModule.hasActiveSubscriptionsWithSubscriptionIds(subscriptionIds) { hasActive, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                    return@getActiveSubscriptionsWithCompletion
+                    return@hasActiveSubscriptionsWithSubscriptionIds
                 }
-
-                try {
-                    continuation.resumeIfActive(
-                        decodeActiveSubscriptionListPayloadIOS(result, subscriptionIds).isNotEmpty()
-                    )
-                } catch (decodeError: Exception) {
-                    continuation.resumeWithExceptionIfActive(decodeError)
-                }
+                continuation.resumeIfActive(hasActive)
             }
         }
 
@@ -1076,7 +1033,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         IapkitPurchaseState.fromJson(stateString)
                     }.getOrDefault(IapkitPurchaseState.Unknown)
                     val store = IapStore.fromJson(storeString)
-                    if (store != IapStore.Apple) {
+                    if (store !in setOf(IapStore.Apple, IapStore.Unknown)) {
                         throw IllegalArgumentException("IAPKit result store mismatch: $storeString")
                     }
                     val productId = when (val rawProductId = map["productId"]) {
@@ -1108,14 +1065,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                             )
                         }
                     }
-                    val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
-                        clientPayload = clientPayload,
-                        environment = environment,
-                        isValid = isValid,
-                        productId = productId,
-                        state = state,
-                        store = store
-                    )
+                    val iapkitResult = RequestVerifyPurchaseWithIapkitResult.fromJson(mapOf(
+                        "clientPayload" to clientPayload?.toJson(),
+                        "environment" to environment,
+                        "isValid" to isValid,
+                        "productId" to productId,
+                        "state" to state.rawValue,
+                        "store" to store.rawValue,
+                        "storeId" to map["storeId"],
+                    ))
 
                     continuation.resumeIfActive(
                         VerifyPurchaseWithProviderResult(

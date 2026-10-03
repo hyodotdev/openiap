@@ -22,6 +22,7 @@ const vegaPurchase = (
   purchaseState: 'purchased',
   quantity: 1,
   store: 'amazon',
+  storeId: 'amazon',
   transactionDate: 1720000000000,
   ...overrides,
 });
@@ -116,6 +117,7 @@ describe('Amazon Vega public API', () => {
         productId: 'premium',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,

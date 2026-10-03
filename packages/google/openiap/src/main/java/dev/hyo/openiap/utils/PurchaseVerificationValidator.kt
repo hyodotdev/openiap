@@ -432,7 +432,8 @@ suspend fun verifyPurchaseWithIapkit(
                 isValid = isValid,
                 productId = productId,
                 state = parsedState,
-                store = responseStore
+                store = responseStore,
+                storeId = when (responseStore) { IapStore.Apple -> "apple"; IapStore.Google -> "play"; IapStore.Horizon -> "horizon"; IapStore.Amazon -> "amazon"; IapStore.Unknown -> "unknown" }
             )
         }
 

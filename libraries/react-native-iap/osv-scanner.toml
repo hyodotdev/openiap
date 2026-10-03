@@ -4,7 +4,11 @@ ignoreUntil = 2026-10-14
 reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2026-10-09
+reason = "No patched node-forge release is available. Expo's development CLI uses it for certificate tooling; it is excluded from the published SDK runtime. Development certificate verification remains affected until the upstream fix ships: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
+
+[[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-10-14
 reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
-

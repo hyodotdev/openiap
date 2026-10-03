@@ -4,6 +4,7 @@
  * Generates Kotlin data classes with JSON serialization from GraphQL schema.
  */
 
+import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -28,9 +29,11 @@ import {
 } from '../core/utils.js';
 
 interface CompatibleDataClassShape {
+  preserveExtraValues?: boolean;
   primaryFields: string[];
   extraFields: string[];
   legacyExtraFieldCounts?: number[];
+  legacyRequiredExtraFieldCounts?: number[];
 }
 
 const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
@@ -43,9 +46,11 @@ const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
     extraFields: ['productDetailsAndroid', 'originalExternalTransactionId'],
   },
   RequestVerifyPurchaseWithIapkitResult: {
+    preserveExtraValues: true,
     primaryFields: ['isValid', 'state', 'store'],
-    extraFields: ['clientPayload', 'productId', 'environment'],
-    legacyExtraFieldCounts: [2],
+    extraFields: ['clientPayload', 'productId', 'environment', 'storeId'],
+    legacyExtraFieldCounts: [2, 3],
+    legacyRequiredExtraFieldCounts: [3],
   },
 };
 
@@ -119,6 +124,8 @@ export class KotlinPlugin extends CodegenPlugin {
 
     // Header
     this.generateHeader();
+    this.emit(renderStoreIds('kotlin'));
+    if (schema.enums.some(item => item.name === 'IapStore')) this.emit(renderStoreIdentityResolver('kotlin'));
 
     // Enums
     if (schema.enums.length > 0) {
@@ -334,13 +341,14 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('');
     this.emit('    companion object {');
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
+    if (hasStoreIdentity(irObject.fields)) this.emit('            val store = IapStore.fromJson(json["store"] as? String ?: "")');
     this.emit(`            return ${irObject.name}(`);
 
     const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irObject.name, this.schema);
 
     for (const field of sortedFields) {
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-      const expression = this.buildFromJsonExpression(
+      const expression = hasStoreIdentity(irObject.fields) && field.name === 'storeId' ? 'resolveStoreId(store, json["storeId"])' : hasStoreIdentity(irObject.fields) && field.name === 'store' ? 'store' : this.buildFromJsonExpression(
         field.type,
         `json["${field.name}"]`,
         false,
@@ -383,13 +391,13 @@ export class KotlinPlugin extends CodegenPlugin {
     if (primaryFields.length + extraFields.length !== irObject.fields.length) {
       throw new Error(`${irObject.name} compatibility shape is incomplete`);
     }
-    if (extraFields.some((value) => !value.type.nullable)) {
+    if (extraFields.some((value) => !value.type.nullable && value.name !== 'storeId')) {
       throw new Error(`${irObject.name} compatibility fields must be nullable`);
     }
 
     this.generateDocComment(irObject.description);
     this.generateDeprecationAnnotation(irObject.description);
-    this.emit(`public data class ${irObject.name}(`);
+    this.emit(`public ${shape.preserveExtraValues ? 'class' : 'data class'} ${irObject.name}(`);
     primaryFields.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
       this.generateDeprecationAnnotation(value.description, '    ');
@@ -403,7 +411,10 @@ export class KotlinPlugin extends CodegenPlugin {
     for (const value of extraFields) {
       this.generateDocComment(value.description, '    ');
       this.generateDeprecationAnnotation(value.description, '    ');
-      this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = null`);
+      const initialValue = value.name === 'storeId'
+        ? 'when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> "unknown" }'
+        : 'null';
+      this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = ${initialValue}`);
       this.emit('        private set');
       this.emit('');
     }
@@ -424,7 +435,11 @@ export class KotlinPlugin extends CodegenPlugin {
         this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
       }
       constructorExtraFields.forEach((value, index) => {
-        const defaultValue = index === 0 || (isCurrentConstructor && hasLegacyConstructor) ? '' : ' = null';
+        const hasRequiredExtraField = constructorExtraFields.some((field) => !field.type.nullable);
+        const required = !value.type.nullable ||
+          shape.legacyRequiredExtraFieldCounts?.includes(extraFieldCount) ||
+          (!hasRequiredExtraField && (index === 0 || (isCurrentConstructor && hasLegacyConstructor)));
+        const defaultValue = required ? '' : ' = null';
         this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
       });
       this.emit('    ) : this(');
@@ -439,12 +454,35 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit('');
     }
 
+    if (shape.preserveExtraValues) {
+      primaryFields.forEach((value, index) => this.emit(`    operator fun component${index + 1}(): ${this.getPropertyType(value.type)} = ${value.name}`));
+      this.emit('');
+      this.emit('    fun copy(');
+      for (const value of primaryFields) this.emit(`        ${value.name}: ${this.getPropertyType(value.type)} = this.${value.name},`);
+      this.emit(`    ): ${irObject.name} = ${irObject.name}(`);
+      for (const value of primaryFields) this.emit(`        ${value.name} = ${value.name},`);
+      for (const value of extraFields) this.emit(`        ${value.name} = this.${value.name},`);
+      this.emit('    )');
+      this.emit('');
+      const fields = [...primaryFields, ...extraFields];
+      this.emit(`    override fun equals(other: Any?): Boolean = other is ${irObject.name} &&`);
+      this.emit(`        ${fields.map(value => `${value.name} == other.${value.name}`).join(' && ')}`);
+      this.emit('    override fun hashCode(): Int {');
+      this.emit('        var result = 1');
+      for (const value of fields) this.emit(`        result = 31 * result + ${value.type.nullable ? `(${value.name}?.hashCode() ?: 0)` : `${value.name}.hashCode()`}`);
+      this.emit('        return result');
+      this.emit('    }');
+      this.emit(`    override fun toString(): String = "${irObject.name}(${fields.map(value => `${value.name}=$${value.name}`).join(', ')})"`);
+      this.emit('');
+    }
+
     this.emit('    companion object {');
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
+    if (hasStoreIdentity(irObject.fields)) this.emit('            val store = IapStore.fromJson(json["store"] as? String ?: "")');
     this.emit(`            return ${irObject.name}(`);
     const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irObject.name, this.schema);
     for (const value of [...primaryFields, ...extraFields]) {
-      const expression = this.buildFromJsonExpression(
+      const expression = hasStoreIdentity(irObject.fields) && value.name === 'storeId' ? 'resolveStoreId(store, json["storeId"])' : hasStoreIdentity(irObject.fields) && value.name === 'store' ? 'store' : this.buildFromJsonExpression(
         value.type,
         `json["${value.name}"]`,
         false,

@@ -265,14 +265,7 @@ export function parseOsvIgnoredVulnerabilities(source) {
   return ignored;
 }
 
-// `bun audit` reaches a remote advisory service, and that call fails
-// intermittently. The failure is a transport error rather than a verdict, so it
-// is retried; anything else, including a real advisory, still fails the audit.
-// OSV-Scanner treats `ignoreUntil` as the first day an exception no longer
-// applies, so a window dated today is already expired there. This audit used
-// `>=`/`<`, which called that same day live — the split that let a lapsed
-// exception fail CI while this audit stayed silent. One definition, matching
-// the scanner, so the four comparison sites cannot drift again.
+// OSV treats ignoreUntil as the first expired day.
 const isExpired = (ignoreUntil, now) =>
   ignoreUntil <= now.toISOString().slice(0, 10);
 
@@ -287,11 +280,7 @@ const sleepSync = (milliseconds) => {
 };
 
 export const BUN_AUDIT_ATTEMPTS = 4;
-// Exponential rather than linear: the first CI failure this retry was written
-// for came back within seconds, but a later one outlasted a 2s/4s window. This
-// spans about a minute while costing nothing on the normal path, which
-// succeeds on the first attempt and never sleeps. It does not make the audit
-// immune to a real outage — that still fails closed, and is re-run.
+// Allow advisory-service transport failures a bounded minute to recover.
 export const BUN_AUDIT_BACKOFF_MS = [5_000, 15_000, 40_000];
 
 export function runBunAudit(
@@ -323,6 +312,8 @@ export function auditDependencies(
   auditOptions = {},
 ) {
   const findings = [];
+  const ignoredByLock = new Map();
+  const usedByLock = new Map();
   let ignoredCount = 0;
   for (const { directory, lockfile } of projects) {
     const result = runBunAudit(run, resolve(repoRoot, directory), auditOptions);
@@ -349,43 +340,32 @@ export function auditDependencies(
       ? parseOsvIgnoredVulnerabilities(readFileSync(configPath, "utf8"))
       : new Map();
     const used = new Set();
+    ignoredByLock.set(lockfile, ignored);
+    usedByLock.set(lockfile, used);
     for (const advisory of advisories) {
       const exception = ignored.get(advisory.id);
-      if (
-        exception &&
-        !isExpired(exception.ignoreUntil, now)
-      ) {
+      if (exception && !isExpired(exception.ignoreUntil, now)) {
+        if (!used.has(advisory.id)) ignoredCount += 1;
         used.add(advisory.id);
-        ignoredCount += 1;
         continue;
       }
       findings.push({ ...advisory, lockfile });
-    }
-    for (const [id, exception] of ignored) {
-      if (used.has(id)) continue;
-      const state =
-        isExpired(exception.ignoreUntil, now)
-          ? "expired"
-          : "unused";
-      findings.push({
-        id,
-        lockfile,
-        packageName: "exception",
-        severity: state,
-        title: `${state} dependency exception`,
-      });
     }
     if (result.status === 1 && advisories.length === 0) {
       throw new Error(`${lockfile}: bun audit exited ${result.status}`);
     }
   }
 
-  const bunLocks = new Set(projects.map(({ lockfile }) => lockfile));
-  for (const lockfile of osvLockfiles.filter((path) => !bunLocks.has(path))) {
+  for (const lockfile of osvLockfiles) {
     const configPath = resolve(repoRoot, dirname(lockfile), "osv-scanner.toml");
-    const ignored = existsSync(configPath)
-      ? parseOsvIgnoredVulnerabilities(readFileSync(configPath, "utf8"))
-      : new Map();
+    const ignored =
+      ignoredByLock.get(lockfile) ??
+      (existsSync(configPath)
+        ? parseOsvIgnoredVulnerabilities(readFileSync(configPath, "utf8"))
+        : new Map());
+    const used = usedByLock.get(lockfile) ?? new Set();
+    ignoredByLock.set(lockfile, ignored);
+    usedByLock.set(lockfile, used);
     const result = run(
       "osv-scanner",
       [
@@ -422,7 +402,6 @@ export function auditDependencies(
     ) {
       throw new Error(`${lockfile}: invalid OSV-Scanner result structure`);
     }
-    const used = new Set();
     let vulnerabilityCount = 0;
     for (const scanResult of report.results) {
       if (!scanResult || !Array.isArray(scanResult.packages)) {
@@ -440,15 +419,22 @@ export function auditDependencies(
           ].filter(Boolean);
           const acceptedId = ids.find((id) => {
             const exception = ignored.get(id);
-            return (
-              exception && !isExpired(exception.ignoreUntil, now)
-            );
+            return exception && !isExpired(exception.ignoreUntil, now);
           });
           if (acceptedId) {
+            if (!used.has(acceptedId)) ignoredCount += 1;
             used.add(acceptedId);
-            ignoredCount += 1;
             continue;
           }
+          if (
+            findings.some(
+              (finding) =>
+                finding.lockfile === lockfile &&
+                finding.packageName === pkg.package?.name &&
+                ids.includes(finding.id),
+            )
+          )
+            continue;
           findings.push({
             id: vulnerability.id ?? ids[0] ?? "unknown",
             lockfile,
@@ -465,6 +451,10 @@ export function auditDependencies(
     if (result.status === 1 && vulnerabilityCount === 0) {
       throw new Error(`${lockfile}: OSV-Scanner exited 1 without findings`);
     }
+  }
+
+  for (const [lockfile, ignored] of ignoredByLock) {
+    const used = usedByLock.get(lockfile);
     for (const [id, exception] of ignored) {
       const expired = isExpired(exception.ignoreUntil, now);
       if (!expired && used.has(id)) continue;

@@ -5,6 +5,29 @@
 
 import Foundation
 
+public enum StoreIds {
+    public static let Apple = "apple"
+    public static let Play = "play"
+    public static let Horizon = "horizon"
+    public static let Amazon = "amazon"
+}
+
+private func resolveStoreId(_ store: IapStore, _ value: String?) -> String? {
+    let official: String?
+    switch store {
+    case .apple: official = "apple"
+    case .google: official = "play"
+    case .horizon: official = "horizon"
+    case .amazon: official = "amazon"
+    case .unknown: official = nil
+    }
+    guard let id = value ?? official else { return nil }
+    if let official { return id == official ? id : nil }
+    guard id.range(of: "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", options: .regularExpression) == id.startIndex..<id.endIndex,
+          !["auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon"].contains(id) else { return nil }
+    return id
+}
+
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)
@@ -323,6 +346,7 @@ public enum IapPlatform: String, Codable, CaseIterable {
     case android = "android"
 }
 
+/// Frozen legacy store discriminator. Use storeId for extensible store identity.
 public enum IapStore: String, Codable, CaseIterable {
     case unknown = "unknown"
     case apple = "apple"
@@ -506,6 +530,7 @@ public protocol PurchaseCommon: Codable {
     var currentPlanId: String? { get }
     var id: String { get }
     var ids: [String]? { get }
+    /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
     var isAutoRenewing: Bool { get }
     var productId: String { get }
     var purchaseState: PurchaseState { get }
@@ -514,6 +539,8 @@ public protocol PurchaseCommon: Codable {
     var quantity: Int { get }
     /// Store where purchase was made
     var store: IapStore { get }
+    /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+    var storeId: String { get }
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     var transactionDate: Double { get }
 }
@@ -527,6 +554,7 @@ public protocol VerifyPurchaseResultCommon: Codable {
 // MARK: - Objects
 
 public struct ActiveSubscription: Codable {
+    /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
     public var autoRenewingAndroid: Bool? = nil
     public var basePlanIdAndroid: String? = nil
     /// The current plan identifier. This is:
@@ -548,6 +576,36 @@ public struct ActiveSubscription: Codable {
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String
+
+    public init(
+        autoRenewingAndroid: Bool? = nil,
+        basePlanIdAndroid: String? = nil,
+        currentPlanId: String? = nil,
+        daysUntilExpirationIOS: Double? = nil,
+        environmentIOS: String? = nil,
+        expirationDateIOS: Double? = nil,
+        isActive: Bool,
+        productId: String,
+        purchaseToken: String? = nil,
+        purchaseTokenAndroid: String? = nil,
+        renewalInfoIOS: RenewalInfoIOS? = nil,
+        transactionDate: Double,
+        transactionId: String
+    ) {
+        self.autoRenewingAndroid = autoRenewingAndroid
+        self.basePlanIdAndroid = basePlanIdAndroid
+        self.currentPlanId = currentPlanId
+        self.daysUntilExpirationIOS = daysUntilExpirationIOS
+        self.environmentIOS = environmentIOS
+        self.expirationDateIOS = expirationDateIOS
+        self.isActive = isActive
+        self.productId = productId
+        self.purchaseToken = purchaseToken
+        self.purchaseTokenAndroid = purchaseTokenAndroid
+        self.renewalInfoIOS = renewalInfoIOS
+        self.transactionDate = transactionDate
+        self.transactionId = transactionId
+    }
 }
 
 /// Advanced Commerce metadata from a transaction (iOS 18.4+).
@@ -576,12 +634,40 @@ public struct AdvancedCommerceInfoIOS: Codable {
     public var taxExclusivePrice: String? = nil
     /// Tax rate applied (decimal string)
     public var taxRate: String? = nil
+
+    public init(
+        description: String? = nil,
+        displayName: String? = nil,
+        estimatedTax: String? = nil,
+        items: [AdvancedCommerceItemIOS],
+        period: SubscriptionPeriodValueIOS? = nil,
+        requestReferenceId: String? = nil,
+        taxCode: String? = nil,
+        taxExclusivePrice: String? = nil,
+        taxRate: String? = nil
+    ) {
+        self.description = description
+        self.displayName = displayName
+        self.estimatedTax = estimatedTax
+        self.items = items
+        self.period = period
+        self.requestReferenceId = requestReferenceId
+        self.taxCode = taxCode
+        self.taxExclusivePrice = taxExclusivePrice
+        self.taxRate = taxRate
+    }
 }
 
 /// Details of an Advanced Commerce item (iOS 18.4+).
 public struct AdvancedCommerceItemDetailsIOS: Codable {
     /// JSON representation of the item details
     public var jsonRepresentation: String? = nil
+
+    public init(
+        jsonRepresentation: String? = nil
+    ) {
+        self.jsonRepresentation = jsonRepresentation
+    }
 }
 
 /// An item purchased through the Advanced Commerce API (iOS 18.4+).
@@ -593,12 +679,28 @@ public struct AdvancedCommerceItemIOS: Codable {
     public var refunds: [AdvancedCommerceRefundIOS]? = nil
     /// Date access to this item was revoked (milliseconds since epoch)
     public var revocationDate: Double? = nil
+
+    public init(
+        details: AdvancedCommerceItemDetailsIOS? = nil,
+        refunds: [AdvancedCommerceRefundIOS]? = nil,
+        revocationDate: Double? = nil
+    ) {
+        self.details = details
+        self.refunds = refunds
+        self.revocationDate = revocationDate
+    }
 }
 
 /// Refund information for an Advanced Commerce item (iOS 18.4+).
 public struct AdvancedCommerceRefundIOS: Codable {
     /// JSON representation of the refund details
     public var jsonRepresentation: String? = nil
+
+    public init(
+        jsonRepresentation: String? = nil
+    ) {
+        self.jsonRepresentation = jsonRepresentation
+    }
 }
 
 public struct AppTransaction: Codable {
@@ -623,6 +725,40 @@ public struct AppTransaction: Codable {
     /// Store channel of the original app purchase: consumer, education, enterprise,
     /// or another future StoreKit value (Apple 27+ beta).
     public var storeType: String? = nil
+
+    public init(
+        appId: Double,
+        appTransactionId: String? = nil,
+        appVersion: String,
+        appVersionId: Double,
+        bundleId: String,
+        deviceVerification: String,
+        deviceVerificationNonce: String,
+        environment: String,
+        originalAppVersion: String,
+        originalPlatform: String? = nil,
+        originalPurchaseDate: Double,
+        preorderDate: Double? = nil,
+        revocationDate: Double? = nil,
+        signedDate: Double,
+        storeType: String? = nil
+    ) {
+        self.appId = appId
+        self.appTransactionId = appTransactionId
+        self.appVersion = appVersion
+        self.appVersionId = appVersionId
+        self.bundleId = bundleId
+        self.deviceVerification = deviceVerification
+        self.deviceVerificationNonce = deviceVerificationNonce
+        self.environment = environment
+        self.originalAppVersion = originalAppVersion
+        self.originalPlatform = originalPlatform
+        self.originalPurchaseDate = originalPurchaseDate
+        self.preorderDate = preorderDate
+        self.revocationDate = revocationDate
+        self.signedDate = signedDate
+        self.storeType = storeType
+    }
 }
 
 /// Display information for developer-rendered Billing Choice screens (Android)
@@ -632,6 +768,14 @@ public struct BillingChoiceInfoAndroid: Codable {
     public var playBillingChoiceImageUrl: String
     /// Play Loyalty information for the user.
     public var playBillingLoyaltyInfo: String? = nil
+
+    public init(
+        playBillingChoiceImageUrl: String,
+        playBillingLoyaltyInfo: String? = nil
+    ) {
+        self.playBillingChoiceImageUrl = playBillingChoiceImageUrl
+        self.playBillingLoyaltyInfo = playBillingLoyaltyInfo
+    }
 }
 
 /// Result of checking billing program availability (Android)
@@ -648,6 +792,18 @@ public struct BillingProgramAvailabilityResultAndroid: Codable {
     /// Populated only for available BILLING_CHOICE results.
     /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
     public var isExternalLinkAvailable: Bool? = nil
+
+    public init(
+        billingProgram: BillingProgramAndroid,
+        choiceScreenType: BillingChoiceScreenTypeAndroid? = nil,
+        isAvailable: Bool,
+        isExternalLinkAvailable: Bool? = nil
+    ) {
+        self.billingProgram = billingProgram
+        self.choiceScreenType = choiceScreenType
+        self.isAvailable = isAvailable
+        self.isExternalLinkAvailable = isExternalLinkAvailable
+    }
 }
 
 /// Reporting details for transactions made outside of Google Play Billing (Android)
@@ -660,6 +816,14 @@ public struct BillingProgramReportingDetailsAndroid: Codable {
     /// Do not cache it for a later redirect session. For External Offer, the same token may report
     /// multiple purchases made during the session that generated it.
     public var externalTransactionToken: String
+
+    public init(
+        billingProgram: BillingProgramAndroid,
+        externalTransactionToken: String
+    ) {
+        self.billingProgram = billingProgram
+        self.externalTransactionToken = externalTransactionToken
+    }
 }
 
 /// Extended billing result with sub-response code (Android)
@@ -672,6 +836,16 @@ public struct BillingResultAndroid: Codable {
     /// Sub-response code for more granular error information (8.0+).
     /// Provides additional context when responseCode indicates an error.
     public var subResponseCode: SubResponseCodeAndroid? = nil
+
+    public init(
+        debugMessage: String? = nil,
+        responseCode: Int,
+        subResponseCode: SubResponseCodeAndroid? = nil
+    ) {
+        self.debugMessage = debugMessage
+        self.responseCode = responseCode
+        self.subResponseCode = subResponseCode
+    }
 }
 
 /// Metadata for one auto-renewable subscription included in an Apple
@@ -686,6 +860,28 @@ public struct BundledSubscriptionIOS: Codable {
     public var subscriptionGroupDisplayName: String
     public var subscriptionGroupId: String
     public var subscriptionGroupLevel: Int
+
+    public init(
+        description: String,
+        displayName: String,
+        displayPrice: String,
+        id: String,
+        isFamilyShareable: Bool,
+        price: Double,
+        subscriptionGroupDisplayName: String,
+        subscriptionGroupId: String,
+        subscriptionGroupLevel: Int
+    ) {
+        self.description = description
+        self.displayName = displayName
+        self.displayPrice = displayPrice
+        self.id = id
+        self.isFamilyShareable = isFamilyShareable
+        self.price = price
+        self.subscriptionGroupDisplayName = subscriptionGroupDisplayName
+        self.subscriptionGroupId = subscriptionGroupId
+        self.subscriptionGroupLevel = subscriptionGroupLevel
+    }
 }
 
 /// Details provided when user selects developer billing option (Android)
@@ -703,6 +899,18 @@ public struct DeveloperProvidedBillingDetailsAndroid: Codable {
     public var originalExternalTransactionId: String? = nil
     /// Products selected for the developer billing flow.
     public var products: [DeveloperProvidedBillingProductAndroid]
+
+    public init(
+        externalTransactionToken: String? = nil,
+        linkUri: String? = nil,
+        originalExternalTransactionId: String? = nil,
+        products: [DeveloperProvidedBillingProductAndroid]
+    ) {
+        self.externalTransactionToken = externalTransactionToken
+        self.linkUri = linkUri
+        self.originalExternalTransactionId = originalExternalTransactionId
+        self.products = products
+    }
 }
 
 /// Product selected for developer-provided billing (Android 9.0+).
@@ -713,6 +921,16 @@ public struct DeveloperProvidedBillingProductAndroid: Codable {
     public var offerToken: String? = nil
     /// Google Play product type (in-app or subscription).
     public var type: ProductType
+
+    public init(
+        id: String,
+        offerToken: String? = nil,
+        type: ProductType
+    ) {
+        self.id = id
+        self.offerToken = offerToken
+        self.type = type
+    }
 }
 
 /// Discount amount details for one-time purchase offers (Android)
@@ -722,6 +940,14 @@ public struct DiscountAmountAndroid: Codable {
     public var discountAmountMicros: String
     /// Formatted discount amount with currency sign (e.g., "$4.99")
     public var formattedDiscountAmount: String
+
+    public init(
+        discountAmountMicros: String,
+        formattedDiscountAmount: String
+    ) {
+        self.discountAmountMicros = discountAmountMicros
+        self.formattedDiscountAmount = formattedDiscountAmount
+    }
 }
 
 /// Discount display information for one-time purchase offers (Android)
@@ -733,6 +959,14 @@ public struct DiscountDisplayInfoAndroid: Codable {
     /// Percentage discount (e.g., 33 for 33% off)
     /// Only returned for percentage-based discounts
     public var percentageDiscount: Int? = nil
+
+    public init(
+        discountAmount: DiscountAmountAndroid? = nil,
+        percentageDiscount: Int? = nil
+    ) {
+        self.discountAmount = discountAmount
+        self.percentageDiscount = percentageDiscount
+    }
 }
 
 /// Standardized one-time product discount offer.
@@ -790,12 +1024,58 @@ public struct DiscountOffer: Codable {
     /// [Android] Valid time window for the offer.
     /// Contains startTimeMillis and endTimeMillis.
     public var validTimeWindowAndroid: ValidTimeWindowAndroid? = nil
+
+    public init(
+        currency: String,
+        discountAmountMicrosAndroid: String? = nil,
+        displayPrice: String,
+        formattedDiscountAmountAndroid: String? = nil,
+        fullPriceMicrosAndroid: String? = nil,
+        id: String? = nil,
+        limitedQuantityInfoAndroid: LimitedQuantityInfoAndroid? = nil,
+        offerTagsAndroid: [String]? = nil,
+        offerTokenAndroid: String? = nil,
+        percentageDiscountAndroid: Int? = nil,
+        preorderDetailsAndroid: PreorderDetailsAndroid? = nil,
+        price: Double,
+        purchaseOptionIdAndroid: String? = nil,
+        rentalDetailsAndroid: RentalDetailsAndroid? = nil,
+        type: DiscountOfferType,
+        validTimeWindowAndroid: ValidTimeWindowAndroid? = nil
+    ) {
+        self.currency = currency
+        self.discountAmountMicrosAndroid = discountAmountMicrosAndroid
+        self.displayPrice = displayPrice
+        self.formattedDiscountAmountAndroid = formattedDiscountAmountAndroid
+        self.fullPriceMicrosAndroid = fullPriceMicrosAndroid
+        self.id = id
+        self.limitedQuantityInfoAndroid = limitedQuantityInfoAndroid
+        self.offerTagsAndroid = offerTagsAndroid
+        self.offerTokenAndroid = offerTokenAndroid
+        self.percentageDiscountAndroid = percentageDiscountAndroid
+        self.preorderDetailsAndroid = preorderDetailsAndroid
+        self.price = price
+        self.purchaseOptionIdAndroid = purchaseOptionIdAndroid
+        self.rentalDetailsAndroid = rentalDetailsAndroid
+        self.type = type
+        self.validTimeWindowAndroid = validTimeWindowAndroid
+    }
 }
 
 public struct EntitlementIOS: Codable {
     public var jsonRepresentation: String
     public var sku: String
     public var transactionId: String
+
+    public init(
+        jsonRepresentation: String,
+        sku: String,
+        transactionId: String
+    ) {
+        self.jsonRepresentation = jsonRepresentation
+        self.sku = sku
+        self.transactionId = transactionId
+    }
 }
 
 /// Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
@@ -804,6 +1084,14 @@ public struct ExternalPurchaseCustomLinkNoticeResultIOS: Codable {
     public var continued: Bool
     /// Optional error message if the presentation failed
     public var error: String? = nil
+
+    public init(
+        continued: Bool,
+        error: String? = nil
+    ) {
+        self.continued = continued
+        self.error = error
+    }
 }
 
 /// Result of requesting an ExternalPurchaseCustomLink token (iOS 18.1+).
@@ -813,6 +1101,14 @@ public struct ExternalPurchaseCustomLinkTokenResultIOS: Codable {
     /// The external purchase token string.
     /// Report this token to Apple's External Purchase Server API.
     public var token: String? = nil
+
+    public init(
+        error: String? = nil,
+        token: String? = nil
+    ) {
+        self.error = error
+        self.token = token
+    }
 }
 
 /// Result of presenting an external purchase link
@@ -821,6 +1117,14 @@ public struct ExternalPurchaseLinkResultIOS: Codable {
     public var error: String? = nil
     /// Whether the user completed the external purchase flow
     public var success: Bool
+
+    public init(
+        error: String? = nil,
+        success: Bool
+    ) {
+        self.error = error
+        self.success = success
+    }
 }
 
 /// Result of presenting external purchase notice sheet (iOS 17.4+)
@@ -834,6 +1138,16 @@ public struct ExternalPurchaseNoticeResultIOS: Codable {
     public var externalPurchaseToken: String? = nil
     /// Notice result indicating user action
     public var result: ExternalPurchaseNoticeAction
+
+    public init(
+        error: String? = nil,
+        externalPurchaseToken: String? = nil,
+        result: ExternalPurchaseNoticeAction
+    ) {
+        self.error = error
+        self.externalPurchaseToken = externalPurchaseToken
+        self.result = result
+    }
 }
 
 public enum FetchProductsResult {
@@ -849,6 +1163,18 @@ public struct IapkitProductClientPayload: Codable {
     public var format: IapkitClientPayloadFormat
     public var updatedAt: Double
     public var version: Double
+
+    public init(
+        body: String,
+        format: IapkitClientPayloadFormat,
+        updatedAt: Double,
+        version: Double
+    ) {
+        self.body = body
+        self.format = format
+        self.updatedAt = updatedAt
+        self.version = version
+    }
 }
 
 /// Result from showing Play billing in-app messages (Android)
@@ -859,6 +1185,14 @@ public struct InAppMessageResultAndroid: Codable {
     public var purchaseToken: String? = nil
     /// Response code for the in-app messaging flow.
     public var responseCode: InAppMessageResponseCodeAndroid
+
+    public init(
+        purchaseToken: String? = nil,
+        responseCode: InAppMessageResponseCodeAndroid
+    ) {
+        self.purchaseToken = purchaseToken
+        self.responseCode = responseCode
+    }
 }
 
 /// Installment plan details for subscription offers (Android)
@@ -874,6 +1208,14 @@ public struct InstallmentPlanDetailsAndroid: Codable {
     /// users will be committed to another 12 monthly payments when the plan renews.
     /// Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
     public var subsequentCommitmentPaymentsCount: Int
+
+    public init(
+        commitmentPaymentsCount: Int,
+        subsequentCommitmentPaymentsCount: Int
+    ) {
+        self.commitmentPaymentsCount = commitmentPaymentsCount
+        self.subsequentCommitmentPaymentsCount = subsequentCommitmentPaymentsCount
+    }
 }
 
 /// Limited quantity information for one-time purchase offers (Android)
@@ -883,6 +1225,14 @@ public struct LimitedQuantityInfoAndroid: Codable {
     public var maximumQuantity: Int
     /// Remaining quantity the user can still purchase
     public var remainingQuantity: Int
+
+    public init(
+        maximumQuantity: Int,
+        remainingQuantity: Int
+    ) {
+        self.maximumQuantity = maximumQuantity
+        self.remainingQuantity = remainingQuantity
+    }
 }
 
 /// Pending purchase update for subscription upgrades/downgrades (Android)
@@ -897,6 +1247,14 @@ public struct PendingPurchaseUpdateAndroid: Codable {
     /// Purchase token for the pending transaction.
     /// Use this token to track or manage the pending purchase update.
     public var purchaseToken: String
+
+    public init(
+        products: [String],
+        purchaseToken: String
+    ) {
+        self.products = products
+        self.purchaseToken = purchaseToken
+    }
 }
 
 /// Pre-order details for one-time purchase products (Android)
@@ -908,6 +1266,14 @@ public struct PreorderDetailsAndroid: Codable {
     /// Pre-order release time in milliseconds since epoch.
     /// This is when the product will be available to users who pre-ordered.
     public var preorderReleaseTimeMillis: String
+
+    public init(
+        preorderPresaleEndTimeMillis: String,
+        preorderReleaseTimeMillis: String
+    ) {
+        self.preorderPresaleEndTimeMillis = preorderPresaleEndTimeMillis
+        self.preorderReleaseTimeMillis = preorderReleaseTimeMillis
+    }
 }
 
 public struct PricingPhaseAndroid: Codable {
@@ -917,10 +1283,32 @@ public struct PricingPhaseAndroid: Codable {
     public var priceAmountMicros: String
     public var priceCurrencyCode: String
     public var recurrenceMode: Int
+
+    public init(
+        billingCycleCount: Int,
+        billingPeriod: String,
+        formattedPrice: String,
+        priceAmountMicros: String,
+        priceCurrencyCode: String,
+        recurrenceMode: Int
+    ) {
+        self.billingCycleCount = billingCycleCount
+        self.billingPeriod = billingPeriod
+        self.formattedPrice = formattedPrice
+        self.priceAmountMicros = priceAmountMicros
+        self.priceCurrencyCode = priceCurrencyCode
+        self.recurrenceMode = recurrenceMode
+    }
 }
 
 public struct PricingPhasesAndroid: Codable {
     public var pricingPhaseList: [PricingPhaseAndroid]
+
+    public init(
+        pricingPhaseList: [PricingPhaseAndroid]
+    ) {
+        self.pricingPhaseList = pricingPhaseList
+    }
 }
 
 public struct ProductAndroid: Codable, ProductCommon {
@@ -949,6 +1337,38 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
+
+    public init(
+        currency: String,
+        debugDescription: String? = nil,
+        description: String,
+        discountOffers: [DiscountOffer]? = nil,
+        displayName: String? = nil,
+        displayPrice: String,
+        id: String,
+        nameAndroid: String,
+        platform: IapPlatform = .android,
+        price: Double? = nil,
+        productStatusAndroid: ProductStatusAndroid? = nil,
+        subscriptionOffers: [SubscriptionOffer]? = nil,
+        title: String,
+        type: ProductType = .inApp
+    ) {
+        self.currency = currency
+        self.debugDescription = debugDescription
+        self.description = description
+        self.discountOffers = discountOffers
+        self.displayName = displayName
+        self.displayPrice = displayPrice
+        self.id = id
+        self.nameAndroid = nameAndroid
+        self.platform = platform
+        self.price = price
+        self.productStatusAndroid = productStatusAndroid
+        self.subscriptionOffers = subscriptionOffers
+        self.title = title
+        self.type = type
+    }
 }
 
 public struct ProductIOS: Codable, ProductCommon {
@@ -974,6 +1394,42 @@ public struct ProductIOS: Codable, ProductCommon {
     public var title: String
     public var type: ProductType = .inApp
     public var typeIOS: ProductTypeIOS
+
+    public init(
+        currency: String,
+        debugDescription: String? = nil,
+        description: String,
+        displayName: String? = nil,
+        displayNameIOS: String,
+        displayPrice: String,
+        id: String,
+        isFamilyShareableIOS: Bool,
+        jsonRepresentationIOS: String,
+        platform: IapPlatform = .ios,
+        price: Double? = nil,
+        pricingTermsIOS: [SubscriptionPricingTermsIOS]? = nil,
+        subscriptionOffers: [SubscriptionOffer]? = nil,
+        title: String,
+        type: ProductType = .inApp,
+        typeIOS: ProductTypeIOS
+    ) {
+        self.currency = currency
+        self.debugDescription = debugDescription
+        self.description = description
+        self.displayName = displayName
+        self.displayNameIOS = displayNameIOS
+        self.displayPrice = displayPrice
+        self.id = id
+        self.isFamilyShareableIOS = isFamilyShareableIOS
+        self.jsonRepresentationIOS = jsonRepresentationIOS
+        self.platform = platform
+        self.price = price
+        self.pricingTermsIOS = pricingTermsIOS
+        self.subscriptionOffers = subscriptionOffers
+        self.title = title
+        self.type = type
+        self.typeIOS = typeIOS
+    }
 }
 
 public struct ProductSubscriptionAndroid: Codable, ProductCommon {
@@ -998,6 +1454,36 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var subscriptionOffers: [SubscriptionOffer]
     public var title: String
     public var type: ProductType = .subs
+
+    public init(
+        currency: String,
+        debugDescription: String? = nil,
+        description: String,
+        displayName: String? = nil,
+        displayPrice: String,
+        id: String,
+        nameAndroid: String,
+        platform: IapPlatform = .android,
+        price: Double? = nil,
+        productStatusAndroid: ProductStatusAndroid? = nil,
+        subscriptionOffers: [SubscriptionOffer],
+        title: String,
+        type: ProductType = .subs
+    ) {
+        self.currency = currency
+        self.debugDescription = debugDescription
+        self.description = description
+        self.displayName = displayName
+        self.displayPrice = displayPrice
+        self.id = id
+        self.nameAndroid = nameAndroid
+        self.platform = platform
+        self.price = price
+        self.productStatusAndroid = productStatusAndroid
+        self.subscriptionOffers = subscriptionOffers
+        self.title = title
+        self.type = type
+    }
 }
 
 public struct ProductSubscriptionIOS: Codable, ProductCommon {
@@ -1034,9 +1520,64 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var title: String
     public var type: ProductType = .subs
     public var typeIOS: ProductTypeIOS
+
+    public init(
+        bundledSubscriptionsIOS: [BundledSubscriptionIOS]? = nil,
+        currency: String,
+        debugDescription: String? = nil,
+        description: String,
+        displayName: String? = nil,
+        displayNameIOS: String,
+        displayPrice: String,
+        id: String,
+        introductoryPriceAsAmountIOS: String? = nil,
+        introductoryPriceIOS: String? = nil,
+        introductoryPriceNumberOfPeriodsIOS: String? = nil,
+        introductoryPricePaymentModeIOS: PaymentModeIOS,
+        introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = nil,
+        isFamilyShareableIOS: Bool,
+        jsonRepresentationIOS: String,
+        platform: IapPlatform = .ios,
+        price: Double? = nil,
+        pricingTermsIOS: [SubscriptionPricingTermsIOS]? = nil,
+        subscriptionGroupIdIOS: String? = nil,
+        subscriptionOffers: [SubscriptionOffer]? = nil,
+        subscriptionPeriodNumberIOS: String? = nil,
+        subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = nil,
+        title: String,
+        type: ProductType = .subs,
+        typeIOS: ProductTypeIOS
+    ) {
+        self.bundledSubscriptionsIOS = bundledSubscriptionsIOS
+        self.currency = currency
+        self.debugDescription = debugDescription
+        self.description = description
+        self.displayName = displayName
+        self.displayNameIOS = displayNameIOS
+        self.displayPrice = displayPrice
+        self.id = id
+        self.introductoryPriceAsAmountIOS = introductoryPriceAsAmountIOS
+        self.introductoryPriceIOS = introductoryPriceIOS
+        self.introductoryPriceNumberOfPeriodsIOS = introductoryPriceNumberOfPeriodsIOS
+        self.introductoryPricePaymentModeIOS = introductoryPricePaymentModeIOS
+        self.introductoryPriceSubscriptionPeriodIOS = introductoryPriceSubscriptionPeriodIOS
+        self.isFamilyShareableIOS = isFamilyShareableIOS
+        self.jsonRepresentationIOS = jsonRepresentationIOS
+        self.platform = platform
+        self.price = price
+        self.pricingTermsIOS = pricingTermsIOS
+        self.subscriptionGroupIdIOS = subscriptionGroupIdIOS
+        self.subscriptionOffers = subscriptionOffers
+        self.subscriptionPeriodNumberIOS = subscriptionPeriodNumberIOS
+        self.subscriptionPeriodUnitIOS = subscriptionPeriodUnitIOS
+        self.title = title
+        self.type = type
+        self.typeIOS = typeIOS
+    }
 }
 
 public struct PurchaseAndroid: Codable, PurchaseCommon {
+    /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
     public var autoRenewingAndroid: Bool? = nil
     public var currentPlanId: String? = nil
     public var dataAndroid: String? = nil
@@ -1044,6 +1585,7 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var id: String
     public var ids: [String]? = nil
     public var isAcknowledgedAndroid: Bool? = nil
+    /// Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
     public var isAutoRenewing: Bool
     /// Whether the subscription is suspended (Android)
     /// A suspended subscription means the user's payment method failed and they need to fix it.
@@ -1066,6 +1608,8 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var signatureAndroid: String? = nil
     /// Store where purchase was made
     public var store: IapStore
+    /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+    public var storeId: String
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String? = nil
@@ -1076,6 +1620,95 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     /// Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
     /// for example "US" or "FR". Only populated on the Amazon flavor.
     public var userMarketplaceAmazon: String? = nil
+
+    public init(
+        autoRenewingAndroid: Bool? = nil,
+        currentPlanId: String? = nil,
+        dataAndroid: String? = nil,
+        developerPayloadAndroid: String? = nil,
+        id: String,
+        ids: [String]? = nil,
+        isAcknowledgedAndroid: Bool? = nil,
+        isAutoRenewing: Bool,
+        isSuspendedAndroid: Bool? = nil,
+        obfuscatedAccountIdAndroid: String? = nil,
+        obfuscatedProfileIdAndroid: String? = nil,
+        packageNameAndroid: String? = nil,
+        pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = nil,
+        productId: String,
+        purchaseState: PurchaseState,
+        purchaseToken: String? = nil,
+        quantity: Int,
+        signatureAndroid: String? = nil,
+        store: IapStore,
+        storeId: String,
+        transactionDate: Double,
+        transactionId: String? = nil,
+        userIdAmazon: String? = nil,
+        userMarketplaceAmazon: String? = nil
+    ) {
+        self.autoRenewingAndroid = autoRenewingAndroid
+        self.currentPlanId = currentPlanId
+        self.dataAndroid = dataAndroid
+        self.developerPayloadAndroid = developerPayloadAndroid
+        self.id = id
+        self.ids = ids
+        self.isAcknowledgedAndroid = isAcknowledgedAndroid
+        self.isAutoRenewing = isAutoRenewing
+        self.isSuspendedAndroid = isSuspendedAndroid
+        self.obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid
+        self.obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid
+        self.packageNameAndroid = packageNameAndroid
+        self.pendingPurchaseUpdateAndroid = pendingPurchaseUpdateAndroid
+        self.productId = productId
+        self.purchaseState = purchaseState
+        self.purchaseToken = purchaseToken
+        self.quantity = quantity
+        self.signatureAndroid = signatureAndroid
+        self.store = store
+        self.storeId = storeId
+        self.transactionDate = transactionDate
+        self.transactionId = transactionId
+        self.userIdAmazon = userIdAmazon
+        self.userMarketplaceAmazon = userMarketplaceAmazon
+    }
+    private enum CodingKeys: String, CodingKey {
+        case autoRenewingAndroid, currentPlanId, dataAndroid, developerPayloadAndroid, id, ids, isAcknowledgedAndroid, isAutoRenewing, isSuspendedAndroid, obfuscatedAccountIdAndroid, obfuscatedProfileIdAndroid, packageNameAndroid, pendingPurchaseUpdateAndroid, productId, purchaseState, purchaseToken, quantity, signatureAndroid, store, storeId, transactionDate, transactionId, userIdAmazon, userMarketplaceAmazon
+    }
+}
+
+extension PurchaseAndroid {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let store = try container.decode(IapStore.self, forKey: .store)
+        self.autoRenewingAndroid = try container.decodeIfPresent(Bool.self, forKey: .autoRenewingAndroid)
+        self.currentPlanId = try container.decodeIfPresent(String.self, forKey: .currentPlanId)
+        self.dataAndroid = try container.decodeIfPresent(String.self, forKey: .dataAndroid)
+        self.developerPayloadAndroid = try container.decodeIfPresent(String.self, forKey: .developerPayloadAndroid)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.ids = try container.decodeIfPresent([String].self, forKey: .ids)
+        self.isAcknowledgedAndroid = try container.decodeIfPresent(Bool.self, forKey: .isAcknowledgedAndroid)
+        self.isAutoRenewing = try container.decode(Bool.self, forKey: .isAutoRenewing)
+        self.isSuspendedAndroid = try container.decodeIfPresent(Bool.self, forKey: .isSuspendedAndroid)
+        self.obfuscatedAccountIdAndroid = try container.decodeIfPresent(String.self, forKey: .obfuscatedAccountIdAndroid)
+        self.obfuscatedProfileIdAndroid = try container.decodeIfPresent(String.self, forKey: .obfuscatedProfileIdAndroid)
+        self.packageNameAndroid = try container.decodeIfPresent(String.self, forKey: .packageNameAndroid)
+        self.pendingPurchaseUpdateAndroid = try container.decodeIfPresent(PendingPurchaseUpdateAndroid.self, forKey: .pendingPurchaseUpdateAndroid)
+        self.productId = try container.decode(String.self, forKey: .productId)
+        self.purchaseState = try container.decode(PurchaseState.self, forKey: .purchaseState)
+        self.purchaseToken = try container.decodeIfPresent(String.self, forKey: .purchaseToken)
+        self.quantity = try container.decode(Int.self, forKey: .quantity)
+        self.signatureAndroid = try container.decodeIfPresent(String.self, forKey: .signatureAndroid)
+        self.store = store
+        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {
+            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")
+        }
+        self.storeId = storeId
+        self.transactionDate = try container.decode(Double.self, forKey: .transactionDate)
+        self.transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId)
+        self.userIdAmazon = try container.decodeIfPresent(String.self, forKey: .userIdAmazon)
+        self.userMarketplaceAmazon = try container.decodeIfPresent(String.self, forKey: .userMarketplaceAmazon)
+    }
 }
 
 public struct PurchaseError: Codable {
@@ -1088,6 +1721,28 @@ public struct PurchaseError: Codable {
     public var productType: String? = nil
     public var responseCode: Int? = nil
     public var subResponseCodeAndroid: SubResponseCodeAndroid? = nil
+
+    public init(
+        code: ErrorCode,
+        debugMessage: String? = nil,
+        isEmptyProductList: Bool? = nil,
+        message: String,
+        productId: String? = nil,
+        productIds: [String]? = nil,
+        productType: String? = nil,
+        responseCode: Int? = nil,
+        subResponseCodeAndroid: SubResponseCodeAndroid? = nil
+    ) {
+        self.code = code
+        self.debugMessage = debugMessage
+        self.isEmptyProductList = isEmptyProductList
+        self.message = message
+        self.productId = productId
+        self.productIds = productIds
+        self.productType = productType
+        self.responseCode = responseCode
+        self.subResponseCodeAndroid = subResponseCodeAndroid
+    }
 }
 
 public struct PurchaseIOS: Codable, PurchaseCommon {
@@ -1118,6 +1773,7 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var expirationDateIOS: Double? = nil
     public var id: String
     public var ids: [String]? = nil
+    /// Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
     public var isAutoRenewing: Bool
     public var isUpgradedIOS: Bool? = nil
     public var offerIOS: PurchaseOfferIOS? = nil
@@ -1145,23 +1801,189 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     /// Store where purchase was made
     public var store: IapStore
     public var storefrontCountryCodeIOS: String? = nil
+    /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+    public var storeId: String
     public var subscriptionGroupIdIOS: String? = nil
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String
     public var transactionReasonIOS: String? = nil
     public var webOrderLineItemIdIOS: String? = nil
+
+    public init(
+        advancedCommerceInfoIOS: AdvancedCommerceInfoIOS? = nil,
+        appAccountToken: String? = nil,
+        appBundleIdIOS: String? = nil,
+        billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = nil,
+        bundleOriginalTransactionIdIOS: String? = nil,
+        bundleProductIdIOS: String? = nil,
+        bundleSubscriptionGroupIdIOS: String? = nil,
+        bundleTransactionIdIOS: String? = nil,
+        commitmentInfoIOS: TransactionCommitmentInfoIOS? = nil,
+        countryCodeIOS: String? = nil,
+        currencyCodeIOS: String? = nil,
+        currencySymbolIOS: String? = nil,
+        currentPlanId: String? = nil,
+        environmentIOS: String? = nil,
+        expirationDateIOS: Double? = nil,
+        id: String,
+        ids: [String]? = nil,
+        isAutoRenewing: Bool,
+        isUpgradedIOS: Bool? = nil,
+        offerIOS: PurchaseOfferIOS? = nil,
+        originalTransactionDateIOS: Double? = nil,
+        originalTransactionIdentifierIOS: String? = nil,
+        ownershipTypeIOS: String? = nil,
+        previousOriginalTransactionIdIOS: String? = nil,
+        productId: String,
+        purchaseState: PurchaseState,
+        purchaseToken: String? = nil,
+        quantity: Int,
+        quantityIOS: Int? = nil,
+        reasonIOS: String? = nil,
+        reasonStringRepresentationIOS: String? = nil,
+        renewalInfoIOS: RenewalInfoIOS? = nil,
+        revocationDateIOS: Double? = nil,
+        revocationReasonIOS: String? = nil,
+        revocationTypeIOS: String? = nil,
+        store: IapStore,
+        storefrontCountryCodeIOS: String? = nil,
+        storeId: String,
+        subscriptionGroupIdIOS: String? = nil,
+        transactionDate: Double,
+        transactionId: String,
+        transactionReasonIOS: String? = nil,
+        webOrderLineItemIdIOS: String? = nil
+    ) {
+        self.advancedCommerceInfoIOS = advancedCommerceInfoIOS
+        self.appAccountToken = appAccountToken
+        self.appBundleIdIOS = appBundleIdIOS
+        self.billingPlanTypeIOS = billingPlanTypeIOS
+        self.bundleOriginalTransactionIdIOS = bundleOriginalTransactionIdIOS
+        self.bundleProductIdIOS = bundleProductIdIOS
+        self.bundleSubscriptionGroupIdIOS = bundleSubscriptionGroupIdIOS
+        self.bundleTransactionIdIOS = bundleTransactionIdIOS
+        self.commitmentInfoIOS = commitmentInfoIOS
+        self.countryCodeIOS = countryCodeIOS
+        self.currencyCodeIOS = currencyCodeIOS
+        self.currencySymbolIOS = currencySymbolIOS
+        self.currentPlanId = currentPlanId
+        self.environmentIOS = environmentIOS
+        self.expirationDateIOS = expirationDateIOS
+        self.id = id
+        self.ids = ids
+        self.isAutoRenewing = isAutoRenewing
+        self.isUpgradedIOS = isUpgradedIOS
+        self.offerIOS = offerIOS
+        self.originalTransactionDateIOS = originalTransactionDateIOS
+        self.originalTransactionIdentifierIOS = originalTransactionIdentifierIOS
+        self.ownershipTypeIOS = ownershipTypeIOS
+        self.previousOriginalTransactionIdIOS = previousOriginalTransactionIdIOS
+        self.productId = productId
+        self.purchaseState = purchaseState
+        self.purchaseToken = purchaseToken
+        self.quantity = quantity
+        self.quantityIOS = quantityIOS
+        self.reasonIOS = reasonIOS
+        self.reasonStringRepresentationIOS = reasonStringRepresentationIOS
+        self.renewalInfoIOS = renewalInfoIOS
+        self.revocationDateIOS = revocationDateIOS
+        self.revocationReasonIOS = revocationReasonIOS
+        self.revocationTypeIOS = revocationTypeIOS
+        self.store = store
+        self.storefrontCountryCodeIOS = storefrontCountryCodeIOS
+        self.storeId = storeId
+        self.subscriptionGroupIdIOS = subscriptionGroupIdIOS
+        self.transactionDate = transactionDate
+        self.transactionId = transactionId
+        self.transactionReasonIOS = transactionReasonIOS
+        self.webOrderLineItemIdIOS = webOrderLineItemIdIOS
+    }
+    private enum CodingKeys: String, CodingKey {
+        case advancedCommerceInfoIOS, appAccountToken, appBundleIdIOS, billingPlanTypeIOS, bundleOriginalTransactionIdIOS, bundleProductIdIOS, bundleSubscriptionGroupIdIOS, bundleTransactionIdIOS, commitmentInfoIOS, countryCodeIOS, currencyCodeIOS, currencySymbolIOS, currentPlanId, environmentIOS, expirationDateIOS, id, ids, isAutoRenewing, isUpgradedIOS, offerIOS, originalTransactionDateIOS, originalTransactionIdentifierIOS, ownershipTypeIOS, previousOriginalTransactionIdIOS, productId, purchaseState, purchaseToken, quantity, quantityIOS, reasonIOS, reasonStringRepresentationIOS, renewalInfoIOS, revocationDateIOS, revocationReasonIOS, revocationTypeIOS, store, storefrontCountryCodeIOS, storeId, subscriptionGroupIdIOS, transactionDate, transactionId, transactionReasonIOS, webOrderLineItemIdIOS
+    }
+}
+
+extension PurchaseIOS {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let store = try container.decode(IapStore.self, forKey: .store)
+        self.advancedCommerceInfoIOS = try container.decodeIfPresent(AdvancedCommerceInfoIOS.self, forKey: .advancedCommerceInfoIOS)
+        self.appAccountToken = try container.decodeIfPresent(String.self, forKey: .appAccountToken)
+        self.appBundleIdIOS = try container.decodeIfPresent(String.self, forKey: .appBundleIdIOS)
+        self.billingPlanTypeIOS = try container.decodeIfPresent(SubscriptionBillingPlanTypeIOS.self, forKey: .billingPlanTypeIOS)
+        self.bundleOriginalTransactionIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleOriginalTransactionIdIOS)
+        self.bundleProductIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleProductIdIOS)
+        self.bundleSubscriptionGroupIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleSubscriptionGroupIdIOS)
+        self.bundleTransactionIdIOS = try container.decodeIfPresent(String.self, forKey: .bundleTransactionIdIOS)
+        self.commitmentInfoIOS = try container.decodeIfPresent(TransactionCommitmentInfoIOS.self, forKey: .commitmentInfoIOS)
+        self.countryCodeIOS = try container.decodeIfPresent(String.self, forKey: .countryCodeIOS)
+        self.currencyCodeIOS = try container.decodeIfPresent(String.self, forKey: .currencyCodeIOS)
+        self.currencySymbolIOS = try container.decodeIfPresent(String.self, forKey: .currencySymbolIOS)
+        self.currentPlanId = try container.decodeIfPresent(String.self, forKey: .currentPlanId)
+        self.environmentIOS = try container.decodeIfPresent(String.self, forKey: .environmentIOS)
+        self.expirationDateIOS = try container.decodeIfPresent(Double.self, forKey: .expirationDateIOS)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.ids = try container.decodeIfPresent([String].self, forKey: .ids)
+        self.isAutoRenewing = try container.decode(Bool.self, forKey: .isAutoRenewing)
+        self.isUpgradedIOS = try container.decodeIfPresent(Bool.self, forKey: .isUpgradedIOS)
+        self.offerIOS = try container.decodeIfPresent(PurchaseOfferIOS.self, forKey: .offerIOS)
+        self.originalTransactionDateIOS = try container.decodeIfPresent(Double.self, forKey: .originalTransactionDateIOS)
+        self.originalTransactionIdentifierIOS = try container.decodeIfPresent(String.self, forKey: .originalTransactionIdentifierIOS)
+        self.ownershipTypeIOS = try container.decodeIfPresent(String.self, forKey: .ownershipTypeIOS)
+        self.previousOriginalTransactionIdIOS = try container.decodeIfPresent(String.self, forKey: .previousOriginalTransactionIdIOS)
+        self.productId = try container.decode(String.self, forKey: .productId)
+        self.purchaseState = try container.decode(PurchaseState.self, forKey: .purchaseState)
+        self.purchaseToken = try container.decodeIfPresent(String.self, forKey: .purchaseToken)
+        self.quantity = try container.decode(Int.self, forKey: .quantity)
+        self.quantityIOS = try container.decodeIfPresent(Int.self, forKey: .quantityIOS)
+        self.reasonIOS = try container.decodeIfPresent(String.self, forKey: .reasonIOS)
+        self.reasonStringRepresentationIOS = try container.decodeIfPresent(String.self, forKey: .reasonStringRepresentationIOS)
+        self.renewalInfoIOS = try container.decodeIfPresent(RenewalInfoIOS.self, forKey: .renewalInfoIOS)
+        self.revocationDateIOS = try container.decodeIfPresent(Double.self, forKey: .revocationDateIOS)
+        self.revocationReasonIOS = try container.decodeIfPresent(String.self, forKey: .revocationReasonIOS)
+        self.revocationTypeIOS = try container.decodeIfPresent(String.self, forKey: .revocationTypeIOS)
+        self.store = store
+        self.storefrontCountryCodeIOS = try container.decodeIfPresent(String.self, forKey: .storefrontCountryCodeIOS)
+        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {
+            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")
+        }
+        self.storeId = storeId
+        self.subscriptionGroupIdIOS = try container.decodeIfPresent(String.self, forKey: .subscriptionGroupIdIOS)
+        self.transactionDate = try container.decode(Double.self, forKey: .transactionDate)
+        self.transactionId = try container.decode(String.self, forKey: .transactionId)
+        self.transactionReasonIOS = try container.decodeIfPresent(String.self, forKey: .transactionReasonIOS)
+        self.webOrderLineItemIdIOS = try container.decodeIfPresent(String.self, forKey: .webOrderLineItemIdIOS)
+    }
 }
 
 public struct PurchaseOfferIOS: Codable {
     public var id: String
     public var paymentMode: String
     public var type: String
+
+    public init(
+        id: String,
+        paymentMode: String,
+        type: String
+    ) {
+        self.id = id
+        self.paymentMode = paymentMode
+        self.type = type
+    }
 }
 
 public struct RefundResultIOS: Codable {
     public var message: String? = nil
     public var status: String
+
+    public init(
+        message: String? = nil,
+        status: String
+    ) {
+        self.message = message
+        self.status = status
+    }
 }
 
 public struct RenewalCommitmentInfoIOS: Codable {
@@ -1170,6 +1992,20 @@ public struct RenewalCommitmentInfoIOS: Codable {
     public var commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS
     public var commitmentRenewalDate: Double
     public var commitmentRenewalPrice: Double
+
+    public init(
+        commitmentAutoRenewProductId: String,
+        commitmentAutoRenewStatus: Bool,
+        commitmentRenewalBillingPlanType: SubscriptionBillingPlanTypeIOS,
+        commitmentRenewalDate: Double,
+        commitmentRenewalPrice: Double
+    ) {
+        self.commitmentAutoRenewProductId = commitmentAutoRenewProductId
+        self.commitmentAutoRenewStatus = commitmentAutoRenewStatus
+        self.commitmentRenewalBillingPlanType = commitmentRenewalBillingPlanType
+        self.commitmentRenewalDate = commitmentRenewalDate
+        self.commitmentRenewalPrice = commitmentRenewalPrice
+    }
 }
 
 /// Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
@@ -1214,6 +2050,44 @@ public struct RenewalInfoIOS: Codable {
     public var willAutoRenew: Bool
     /// Whether this subscription will leave its bundle and renew standalone.
     public var willUnbundle: Bool? = nil
+
+    public init(
+        autoRenewPreference: String? = nil,
+        bundleOriginalTransactionId: String? = nil,
+        bundleProductId: String? = nil,
+        bundleSubscriptionGroupId: String? = nil,
+        commitmentInfo: RenewalCommitmentInfoIOS? = nil,
+        expirationReason: String? = nil,
+        gracePeriodExpirationDate: Double? = nil,
+        isInBillingRetry: Bool? = nil,
+        jsonRepresentation: String? = nil,
+        pendingUpgradeProductId: String? = nil,
+        priceIncreaseStatus: String? = nil,
+        renewalBillingPlanType: SubscriptionBillingPlanTypeIOS? = nil,
+        renewalDate: Double? = nil,
+        renewalOfferId: String? = nil,
+        renewalOfferType: String? = nil,
+        willAutoRenew: Bool,
+        willUnbundle: Bool? = nil
+    ) {
+        self.autoRenewPreference = autoRenewPreference
+        self.bundleOriginalTransactionId = bundleOriginalTransactionId
+        self.bundleProductId = bundleProductId
+        self.bundleSubscriptionGroupId = bundleSubscriptionGroupId
+        self.commitmentInfo = commitmentInfo
+        self.expirationReason = expirationReason
+        self.gracePeriodExpirationDate = gracePeriodExpirationDate
+        self.isInBillingRetry = isInBillingRetry
+        self.jsonRepresentation = jsonRepresentation
+        self.pendingUpgradeProductId = pendingUpgradeProductId
+        self.priceIncreaseStatus = priceIncreaseStatus
+        self.renewalBillingPlanType = renewalBillingPlanType
+        self.renewalDate = renewalDate
+        self.renewalOfferId = renewalOfferId
+        self.renewalOfferType = renewalOfferType
+        self.willAutoRenew = willAutoRenew
+        self.willUnbundle = willUnbundle
+    }
 }
 
 /// Rental details for one-time purchase products that can be rented (Android)
@@ -1224,6 +2098,14 @@ public struct RentalDetailsAndroid: Codable {
     public var rentalExpirationPeriod: String? = nil
     /// Rental period in ISO 8601 format (e.g., P7D for 7 days)
     public var rentalPeriod: String
+
+    public init(
+        rentalExpirationPeriod: String? = nil,
+        rentalPeriod: String
+    ) {
+        self.rentalExpirationPeriod = rentalExpirationPeriod
+        self.rentalPeriod = rentalPeriod
+    }
 }
 
 public enum RequestPurchaseResult {
@@ -1257,12 +2139,87 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     /// The current state of the purchase.
     public var state: IapkitPurchaseState
     public var store: IapStore
+    /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+    public var storeId: String
+
+    public init(
+        clientPayload: IapkitProductClientPayload? = nil,
+        environment: String? = nil,
+        isValid: Bool,
+        productId: String? = nil,
+        state: IapkitPurchaseState,
+        store: IapStore,
+        storeId: String
+    ) {
+        self.clientPayload = clientPayload
+        self.environment = environment
+        self.isValid = isValid
+        self.productId = productId
+        self.state = state
+        self.store = store
+        self.storeId = storeId
+    }
+    private enum CodingKeys: String, CodingKey {
+        case clientPayload, environment, isValid, productId, state, store, storeId
+    }
+}
+
+extension RequestVerifyPurchaseWithIapkitResult {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let store = try container.decode(IapStore.self, forKey: .store)
+        self.clientPayload = try container.decodeIfPresent(IapkitProductClientPayload.self, forKey: .clientPayload)
+        self.environment = try container.decodeIfPresent(String.self, forKey: .environment)
+        self.isValid = try container.decode(Bool.self, forKey: .isValid)
+        self.productId = try container.decodeIfPresent(String.self, forKey: .productId)
+        self.state = try container.decode(IapkitPurchaseState.self, forKey: .state)
+        self.store = store
+        guard let storeId = resolveStoreId(store, try container.decodeIfPresent(String.self, forKey: .storeId)) else {
+            throw DecodingError.dataCorruptedError(forKey: .storeId, in: container, debugDescription: "Invalid store identity")
+        }
+        self.storeId = storeId
+    }
+}
+
+/// Store-provider contract shared by the Apple and Android native bindings.
+/// coreVersion names the native contract build; clientProtocolVersion names the
+/// Client Protocol build. Capabilities use the conformance provider profile ids.
+public struct StoreProviderDescriptor: Codable {
+    public var capabilities: [String]
+    public var clientProtocolVersion: String
+    public var coreVersion: String
+    public var platform: IapPlatform
+    public var storeId: String
+
+    public init(
+        capabilities: [String],
+        clientProtocolVersion: String,
+        coreVersion: String,
+        platform: IapPlatform,
+        storeId: String
+    ) {
+        self.capabilities = capabilities
+        self.clientProtocolVersion = clientProtocolVersion
+        self.coreVersion = coreVersion
+        self.platform = platform
+        self.storeId = storeId
+    }
 }
 
 public struct SubscriptionCommitmentInfoIOS: Codable {
     public var displayPrice: String
     public var period: SubscriptionPeriodValueIOS
     public var price: Double
+
+    public init(
+        displayPrice: String,
+        period: SubscriptionPeriodValueIOS,
+        price: Double
+    ) {
+        self.displayPrice = displayPrice
+        self.period = period
+        self.price = price
+    }
 }
 
 /// Standardized subscription discount/promotional offer.
@@ -1323,6 +2280,48 @@ public struct SubscriptionOffer: Codable {
     public var timestampIOS: Double? = nil
     /// Type of subscription offer (Introductory or Promotional)
     public var type: DiscountOfferType
+
+    public init(
+        basePlanIdAndroid: String? = nil,
+        currency: String? = nil,
+        displayPrice: String,
+        id: String,
+        installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = nil,
+        keyIdentifierIOS: String? = nil,
+        localizedPriceIOS: String? = nil,
+        nonceIOS: String? = nil,
+        numberOfPeriodsIOS: Int? = nil,
+        offerTagsAndroid: [String]? = nil,
+        offerTokenAndroid: String? = nil,
+        paymentMode: PaymentMode? = nil,
+        period: SubscriptionPeriod? = nil,
+        periodCount: Int? = nil,
+        price: Double,
+        pricingPhasesAndroid: PricingPhasesAndroid? = nil,
+        signatureIOS: String? = nil,
+        timestampIOS: Double? = nil,
+        type: DiscountOfferType
+    ) {
+        self.basePlanIdAndroid = basePlanIdAndroid
+        self.currency = currency
+        self.displayPrice = displayPrice
+        self.id = id
+        self.installmentPlanDetailsAndroid = installmentPlanDetailsAndroid
+        self.keyIdentifierIOS = keyIdentifierIOS
+        self.localizedPriceIOS = localizedPriceIOS
+        self.nonceIOS = nonceIOS
+        self.numberOfPeriodsIOS = numberOfPeriodsIOS
+        self.offerTagsAndroid = offerTagsAndroid
+        self.offerTokenAndroid = offerTokenAndroid
+        self.paymentMode = paymentMode
+        self.period = period
+        self.periodCount = periodCount
+        self.price = price
+        self.pricingPhasesAndroid = pricingPhasesAndroid
+        self.signatureIOS = signatureIOS
+        self.timestampIOS = timestampIOS
+        self.type = type
+    }
 }
 
 /// Subscription period value combining unit and count.
@@ -1331,11 +2330,27 @@ public struct SubscriptionPeriod: Codable {
     public var unit: SubscriptionPeriodUnit
     /// The number of units (e.g., 1 for monthly, 3 for quarterly)
     public var value: Int
+
+    public init(
+        unit: SubscriptionPeriodUnit,
+        value: Int
+    ) {
+        self.unit = unit
+        self.value = value
+    }
 }
 
 public struct SubscriptionPeriodValueIOS: Codable {
     public var unit: SubscriptionPeriodIOS
     public var value: Int
+
+    public init(
+        unit: SubscriptionPeriodIOS,
+        value: Int
+    ) {
+        self.unit = unit
+        self.value = value
+    }
 }
 
 public struct SubscriptionPricingTermsIOS: Codable {
@@ -1345,11 +2360,35 @@ public struct SubscriptionPricingTermsIOS: Codable {
     public var billingPrice: Double
     public var commitmentInfo: SubscriptionCommitmentInfoIOS
     public var subscriptionOffers: [SubscriptionOffer]? = nil
+
+    public init(
+        billingDisplayPrice: String,
+        billingPeriod: SubscriptionPeriodValueIOS,
+        billingPlanType: SubscriptionBillingPlanTypeIOS,
+        billingPrice: Double,
+        commitmentInfo: SubscriptionCommitmentInfoIOS,
+        subscriptionOffers: [SubscriptionOffer]? = nil
+    ) {
+        self.billingDisplayPrice = billingDisplayPrice
+        self.billingPeriod = billingPeriod
+        self.billingPlanType = billingPlanType
+        self.billingPrice = billingPrice
+        self.commitmentInfo = commitmentInfo
+        self.subscriptionOffers = subscriptionOffers
+    }
 }
 
 public struct SubscriptionStatusIOS: Codable {
     public var renewalInfo: RenewalInfoIOS? = nil
     public var state: String
+
+    public init(
+        renewalInfo: RenewalInfoIOS? = nil,
+        state: String
+    ) {
+        self.renewalInfo = renewalInfo
+        self.state = state
+    }
 }
 
 public struct TransactionCommitmentInfoIOS: Codable {
@@ -1357,6 +2396,18 @@ public struct TransactionCommitmentInfoIOS: Codable {
     public var commitmentExpiresDate: Double
     public var commitmentPrice: Double
     public var totalBillingPeriods: Int
+
+    public init(
+        billingPeriodNumber: Int,
+        commitmentExpiresDate: Double,
+        commitmentPrice: Double,
+        totalBillingPeriods: Int
+    ) {
+        self.billingPeriodNumber = billingPeriodNumber
+        self.commitmentExpiresDate = commitmentExpiresDate
+        self.commitmentPrice = commitmentPrice
+        self.totalBillingPeriods = totalBillingPeriods
+    }
 }
 
 /// User Choice Billing event details (Android)
@@ -1375,6 +2426,18 @@ public struct UserChoiceBillingDetails: Codable {
     public var productDetailsAndroid: [DeveloperProvidedBillingProductAndroid]? = nil
     /// List of product IDs selected by the user
     public var products: [String]
+
+    public init(
+        externalTransactionToken: String,
+        originalExternalTransactionId: String? = nil,
+        productDetailsAndroid: [DeveloperProvidedBillingProductAndroid]? = nil,
+        products: [String]
+    ) {
+        self.externalTransactionToken = externalTransactionToken
+        self.originalExternalTransactionId = originalExternalTransactionId
+        self.productDetailsAndroid = productDetailsAndroid
+        self.products = products
+    }
 }
 
 /// Valid time window for when an offer is available (Android)
@@ -1384,6 +2447,14 @@ public struct ValidTimeWindowAndroid: Codable {
     public var endTimeMillis: String
     /// Start time in milliseconds since epoch
     public var startTimeMillis: String
+
+    public init(
+        endTimeMillis: String,
+        startTimeMillis: String
+    ) {
+        self.endTimeMillis = endTimeMillis
+        self.startTimeMillis = startTimeMillis
+    }
 }
 
 public struct VerifyPurchaseResultAndroid: Codable, VerifyPurchaseResultCommon {
@@ -1408,6 +2479,48 @@ public struct VerifyPurchaseResultAndroid: Codable, VerifyPurchaseResultCommon {
     public var term: String
     public var termSku: String
     public var testTransaction: Bool
+
+    public init(
+        autoRenewing: Bool,
+        betaProduct: Bool,
+        cancelDate: Double? = nil,
+        cancelReason: String? = nil,
+        deferredDate: Double? = nil,
+        deferredSku: String? = nil,
+        freeTrialEndDate: Double,
+        gracePeriodEndDate: Double,
+        isValid: Bool,
+        parentProductId: String,
+        productId: String,
+        productType: String,
+        purchaseDate: Double,
+        quantity: Int,
+        receiptId: String,
+        renewalDate: Double,
+        term: String,
+        termSku: String,
+        testTransaction: Bool
+    ) {
+        self.autoRenewing = autoRenewing
+        self.betaProduct = betaProduct
+        self.cancelDate = cancelDate
+        self.cancelReason = cancelReason
+        self.deferredDate = deferredDate
+        self.deferredSku = deferredSku
+        self.freeTrialEndDate = freeTrialEndDate
+        self.gracePeriodEndDate = gracePeriodEndDate
+        self.isValid = isValid
+        self.parentProductId = parentProductId
+        self.productId = productId
+        self.productType = productType
+        self.purchaseDate = purchaseDate
+        self.quantity = quantity
+        self.receiptId = receiptId
+        self.renewalDate = renewalDate
+        self.term = term
+        self.termSku = termSku
+        self.testTransaction = testTransaction
+    }
 }
 
 /// Result from Meta Horizon verify_entitlement API.
@@ -1422,6 +2535,16 @@ public struct VerifyPurchaseResultHorizon: Codable, VerifyPurchaseResultCommon {
     /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.0.
     @available(*, deprecated, message: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.0.")
     public var success: Bool
+
+    public init(
+        grantTime: Double? = nil,
+        isValid: Bool,
+        success: Bool
+    ) {
+        self.grantTime = grantTime
+        self.isValid = isValid
+        self.success = success
+    }
 }
 
 public struct VerifyPurchaseResultIOS: Codable, VerifyPurchaseResultCommon {
@@ -1433,11 +2556,31 @@ public struct VerifyPurchaseResultIOS: Codable, VerifyPurchaseResultCommon {
     public var latestTransaction: Purchase? = nil
     /// Receipt data string
     public var receiptData: String
+
+    public init(
+        isValid: Bool,
+        jwsRepresentation: String,
+        latestTransaction: Purchase? = nil,
+        receiptData: String
+    ) {
+        self.isValid = isValid
+        self.jwsRepresentation = jwsRepresentation
+        self.latestTransaction = latestTransaction
+        self.receiptData = receiptData
+    }
 }
 
 public struct VerifyPurchaseWithProviderError: Codable {
     public var code: String? = nil
     public var message: String
+
+    public init(
+        code: String? = nil,
+        message: String
+    ) {
+        self.code = code
+        self.message = message
+    }
 }
 
 public struct VerifyPurchaseWithProviderResult: Codable {
@@ -1446,6 +2589,16 @@ public struct VerifyPurchaseWithProviderResult: Codable {
     /// IAPKit verification result
     public var iapkit: RequestVerifyPurchaseWithIapkitResult? = nil
     public var provider: PurchaseVerificationProvider
+
+    public init(
+        errors: [VerifyPurchaseWithProviderError]? = nil,
+        iapkit: RequestVerifyPurchaseWithIapkitResult? = nil,
+        provider: PurchaseVerificationProvider
+    ) {
+        self.errors = errors
+        self.iapkit = iapkit
+        self.provider = provider
+    }
 }
 
 public typealias VoidResult = Void
@@ -1901,10 +3054,8 @@ public struct RequestPurchaseProps: Codable {
 /// Platform-specific purchase request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 public struct RequestPurchasePropsByPlatforms: Codable {
     /// Apple-specific purchase parameters
     public var apple: RequestPurchaseIosProps?
@@ -2031,10 +3182,8 @@ public struct RequestSubscriptionIosProps: Codable {
 /// Platform-specific subscription request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 public struct RequestSubscriptionPropsByPlatforms: Codable {
     /// Apple-specific subscription parameters
     public var apple: RequestSubscriptionIosProps?
@@ -2532,6 +3681,7 @@ public enum Purchase: Codable, PurchaseCommon {
         }
     }
 
+    /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
     public var isAutoRenewing: Bool {
         switch self {
         case let .purchaseAndroid(value):
@@ -2585,6 +3735,16 @@ public enum Purchase: Codable, PurchaseCommon {
             return value.store
         case let .purchaseIos(value):
             return value.store
+        }
+    }
+
+    /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+    public var storeId: String {
+        switch self {
+        case let .purchaseAndroid(value):
+            return value.storeId
+        case let .purchaseIos(value):
+            return value.storeId
         }
     }
 
@@ -2722,6 +3882,7 @@ public protocol MutationResolver {
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
     func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS
     /// Initiate a purchase or subscription flow; rely on events for final state.
+    /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
     /// See: https://openiap.dev/docs/apis/request-purchase
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
     /// Restore non-consumable and active subscription purchases.

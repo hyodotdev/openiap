@@ -21,6 +21,17 @@ func _run() -> void:
 	_check("fire-os is an Amazon alias", AndroidStore.normalize("fire-os") == "amazon")
 	_check("gms is a Play alias", AndroidStore.normalize("gms") == "play")
 	_check("unknown values name no store", AndroidStore.normalize("bogus") == "")
+	_check("community ids need coordinates", AndroidStore.normalize("fixture") == "")
+	_check("community provider accepts an arbitrary id", AndroidStore.normalize("fixture", "dev.example:provider:1.0.0") == "fixture")
+	_check("community providers cannot replace official ids", AndroidStore.normalize("google", "dev.example:provider:1.0.0") == "")
+	_check("community coordinates must be fixed", AndroidStore.normalize("fixture", "dev.example:provider:+") == "")
+	_check("community exports link core", AndroidStore.artifact("io.github.hyochan.openiap:openiap-google:3.6.2", "fixture", "dev.example:provider:1.0.0") == "io.github.hyochan.openiap:openiap-core:3.6.2")
+
+	var registered := GDScript.new()
+	registered.source_code = FileAccess.get_file_as_string("res://addons/godot-iap/android_store.gd").replace("const ALIASES := {", "const ALIASES := {\n\t\"registered-fixture\": \"fixture\",")
+	_check("registered alias table compiles", registered.reload() == OK)
+	_check("registered community aliases still require coordinates", registered.normalize("registered-fixture") == "")
+	_check("registered community aliases preserve the id", registered.normalize("registered-fixture", "dev.example:provider:1.0.0") == "fixture")
 
 	var play := "io.github.hyochan.openiap:openiap-google:3.5.2"
 	_check("auto exports the Play artifact", AndroidStore.artifact(play, "auto") == play)

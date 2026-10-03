@@ -314,7 +314,7 @@ export const BEHAVIORS = Object.freeze([
     id: 'identifiers.purchase-carries-a-concrete-store',
     category: 'identifiers',
     level: 'MUST',
-    statement: 'Every purchase declares a concrete IapStore, never Unknown.',
+    statement: 'Every purchase declares a stable storeId; official stores also declare their IapStore, and community stores use Unknown.',
   },
   {
     id: 'identifiers.purchase-token-is-stable-across-reads',

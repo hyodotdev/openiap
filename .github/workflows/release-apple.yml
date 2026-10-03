@@ -78,6 +78,12 @@ jobs:
         working-directory: packages/apple
         run: swift test
 
+      - name: Verify public provider contract and conformance
+        run: |
+          swift build --target OpenIapConformance
+          swift test --package-path packages/apple/compatibility/community-provider
+          swift run --package-path packages/apple/compatibility/community-provider/consumer -c release FixtureConsumer
+
   release:
     needs: [validate-ios]
     permissions:

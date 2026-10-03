@@ -26,6 +26,7 @@ const purchase = (purchaseState: PurchaseState): PurchaseIOS => ({
   purchaseState,
   quantity: 1,
   store: 'apple',
+  storeId: 'apple',
   transactionDate: 0,
   transactionId: '2000000000000001',
 });

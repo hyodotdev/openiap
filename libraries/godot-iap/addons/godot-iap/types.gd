@@ -12,6 +12,23 @@
 # Keep the file named types.gd: the preload finds it by that name.
 const _Types = preload("types.gd")
 
+class StoreIds:
+	const APPLE = "apple"
+	const PLAY = "play"
+	const HORIZON = "horizon"
+	const AMAZON = "amazon"
+
+static func resolve_store_id(store: Variant, value: Variant) -> Variant:
+	var official: Variant = {IapStore.APPLE: "apple", IapStore.GOOGLE: "play", IapStore.HORIZON: "horizon", IapStore.AMAZON: "amazon"}.get(store)
+	var id: Variant = value if value != null else official
+	if not id is String:
+		return null
+	if official != null:
+		return id if id == official else null
+	var pattern = RegEx.new()
+	pattern.compile("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
+	return id if pattern.search(id) != null and pattern.search(id).get_string() == id and not id in ["auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon"] else null
+
 # ============================================================================
 # Enums
 # ============================================================================
@@ -208,6 +225,7 @@ enum IapPlatform {
 	ANDROID = 1,
 }
 
+## Frozen legacy store discriminator. Use storeId for extensible store identity.
 enum IapStore {
 	UNKNOWN = 0,
 	APPLE = 1,
@@ -364,6 +382,7 @@ class ActiveSubscription:
 	var product_id: String = ""
 	var is_active: bool = false
 	var expiration_date_ios: Variant = null
+	## Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
 	var auto_renewing_android: Variant = null
 	var environment_ios: Variant = null
 	var days_until_expiration_ios: Variant = null
@@ -2254,12 +2273,16 @@ class PurchaseAndroid:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: _Types.IapStore = IapStore.UNKNOWN
+	## Stable store id: apple, play, horizon, amazon, or a community provider id.
+	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
+	## Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
 	var is_auto_renewing: bool = false
 	var current_plan_id: Variant = null
 	var data_android: Variant = null
 	var signature_android: Variant = null
+	## Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
 	var auto_renewing_android: Variant = null
 	var is_acknowledged_android: Variant = null
 	var package_name_android: Variant = null
@@ -2343,6 +2366,10 @@ class PurchaseAndroid:
 			obj.user_id_amazon = data["userIdAmazon"]
 		if data.has("userMarketplaceAmazon") and data["userMarketplaceAmazon"] != null:
 			obj.user_marketplace_amazon = data["userMarketplaceAmazon"]
+		var store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))
+		if store_id == null:
+			return null
+		obj.store_id = store_id
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2359,6 +2386,7 @@ class PurchaseAndroid:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		dict["storeId"] = store_id
 		dict["quantity"] = quantity
 		if PURCHASE_STATE_VALUES.has(purchase_state):
 			dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
@@ -2479,8 +2507,11 @@ class PurchaseIOS:
 	var purchase_token: Variant = null
 	## Store where purchase was made
 	var store: _Types.IapStore = IapStore.UNKNOWN
+	## Stable store id: apple, play, horizon, amazon, or a community provider id.
+	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
+	## Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
 	var is_auto_renewing: bool = false
 	var current_plan_id: Variant = null
 	var transaction_id: String = ""
@@ -2648,6 +2679,10 @@ class PurchaseIOS:
 				obj.advanced_commerce_info_ios = AdvancedCommerceInfoIOS.from_dict(data["advancedCommerceInfoIOS"])
 			else:
 				obj.advanced_commerce_info_ios = data["advancedCommerceInfoIOS"]
+		var store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))
+		if store_id == null:
+			return null
+		obj.store_id = store_id
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2662,6 +2697,7 @@ class PurchaseIOS:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		dict["storeId"] = store_id
 		dict["quantity"] = quantity
 		if PURCHASE_STATE_VALUES.has(purchase_state):
 			dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
@@ -2973,6 +3009,8 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: _Types.IapStore = IapStore.UNKNOWN
+	## Stable store id: apple, play, horizon, amazon, or a community provider id.
+	var store_id: String = ""
 	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
@@ -3011,6 +3049,10 @@ class RequestVerifyPurchaseWithIapkitResult:
 		if data.has("clientPayload") and data["clientPayload"] != null:
 			if data["clientPayload"] is Dictionary:
 				obj.client_payload = IapkitProductClientPayload.from_dict_or_null(data["clientPayload"])
+		var store_id = _Types.resolve_store_id(obj.store, data.get("storeId"))
+		if store_id == null:
+			return null
+		obj.store_id = store_id
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3019,6 +3061,7 @@ class RequestVerifyPurchaseWithIapkitResult:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		dict["storeId"] = store_id
 		if environment != null:
 			dict["environment"] = environment
 		dict["isValid"] = is_valid
@@ -3032,6 +3075,55 @@ class RequestVerifyPurchaseWithIapkitResult:
 			dict["clientPayload"] = client_payload.to_dict()
 		else:
 			dict["clientPayload"] = client_payload
+		return dict
+
+## Store-provider contract shared by the Apple and Android native bindings. coreVersion names the native contract build; clientProtocolVersion names the Client Protocol build. Capabilities use the conformance provider profile ids.
+class StoreProviderDescriptor:
+	var store_id: String = ""
+	var platform: _Types.IapPlatform
+	var core_version: String = ""
+	var client_protocol_version: String = ""
+	var capabilities: Array[String] = []
+
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.StoreProviderDescriptor:
+		if not data.has("platform") or not ((data["platform"] is String and IAP_PLATFORM_FROM_STRING.has(data["platform"])) or (data["platform"] is int and IAP_PLATFORM_VALUES.has(data["platform"]))):
+			if report_errors:
+				push_error("Invalid StoreProviderDescriptor.platform enum value")
+			return null
+		var obj = StoreProviderDescriptor.new()
+		if data.has("storeId") and data["storeId"] != null:
+			obj.store_id = data["storeId"]
+		if data.has("platform") and data["platform"] != null:
+			var enum_str = data["platform"]
+			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
+				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
+			else:
+				obj.platform = enum_str
+		if data.has("coreVersion") and data["coreVersion"] != null:
+			obj.core_version = data["coreVersion"]
+		if data.has("clientProtocolVersion") and data["clientProtocolVersion"] != null:
+			obj.client_protocol_version = data["clientProtocolVersion"]
+		if data.has("capabilities") and data["capabilities"] != null:
+			if data["capabilities"] is Array:
+				var arr: Array[String] = []
+				for item in data["capabilities"]:
+					if item is String:
+						arr.append(str(item))
+				obj.capabilities = arr
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["storeId"] = store_id
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["coreVersion"] = core_version
+		dict["clientProtocolVersion"] = client_protocol_version
+		dict["capabilities"] = capabilities
 		return dict
 
 class SubscriptionCommitmentInfoIOS:
@@ -4307,6 +4399,7 @@ class PurchaseInput:
 	var store: Variant = null
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
+	## Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
 	var is_auto_renewing: bool = false
 
 	static func from_dict(data: Dictionary) -> _Types.PurchaseInput:
@@ -4658,7 +4751,7 @@ class RequestPurchaseProps:
 		dict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)
 		return dict
 
-## Platform-specific purchase request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
+## Platform-specific purchase request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Uses the selected Apple-platform provider (App Store by default) - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestPurchasePropsByPlatforms:
 	## Apple-specific purchase parameters
 	var apple: _Types.RequestPurchaseIosProps
@@ -4967,7 +5060,7 @@ class RequestSubscriptionIosProps:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
 
-## Platform-specific subscription request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
+## Platform-specific subscription request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Uses the selected Apple-platform provider (App Store by default) - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestSubscriptionPropsByPlatforms:
 	## Apple-specific subscription parameters
 	var apple: _Types.RequestSubscriptionIosProps
@@ -6421,7 +6514,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
+	## Initiate a purchase or subscription flow; rely on events for final state. Providers emit one canonical purchase-error event before returning or throwing a request failure. See: https://openiap.dev/docs/apis/request-purchase
 	class requestPurchaseField:
 		const name = "requestPurchase"
 		const snake_name = "request_purchase"
@@ -6991,7 +7084,7 @@ static func init_connection_args(config: Variant = null) -> Dictionary:
 static func end_connection_args() -> Dictionary:
 	return {}
 
-## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
+## Initiate a purchase or subscription flow; rely on events for final state. Providers emit one canonical purchase-error event before returning or throwing a request failure. See: https://openiap.dev/docs/apis/request-purchase
 static func request_purchase_args(params: _Types.RequestPurchaseProps) -> Dictionary:
 	var args = {}
 	if params != null:

@@ -761,6 +761,7 @@ function mapReceipt(
       type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
     ids: productId ? [productId] : [],
     store: 'amazon',
+    storeId: 'amazon',
     quantity: 1,
     purchaseState: isActive ? 'purchased' : 'unknown',
     isAutoRenewing: type === 'subs' && isActive,
@@ -826,7 +827,7 @@ type VegaRnIapModule = Partial<RnIap> & {
   consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
   /** @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0. */
   openRedeemOfferCodeAndroid(): Promise<boolean>;
-  restorePurchases(): Promise<void>;
+  restorePurchases(): Promise<boolean>;
 };
 
 interface RecoveredNitroPurchases {
@@ -1326,6 +1327,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         ...(productId == null ? {} : {productId}),
         state: normalizeIapkitState(json.state),
         store: 'amazon',
+        storeId: 'amazon',
       };
     }
 
@@ -1388,6 +1390,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         },
         body: JSON.stringify({
           store: 'amazon',
+          storeId: 'amazon',
           userId,
           receiptId,
           ...(amazon.expectedProductId == null
@@ -1615,9 +1618,10 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       await finishReceipt(purchaseToken);
       return true;
     },
-    async restorePurchases(): Promise<void> {
+    async restorePurchases(): Promise<boolean> {
       const purchases = await getAvailablePurchases();
       purchases.forEach(emitPurchaseUpdated);
+      return true;
     },
     addPurchaseUpdatedListener(listener): number {
       const token = nextPurchaseUpdateListenerToken++;

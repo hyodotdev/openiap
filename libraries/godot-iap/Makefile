@@ -116,11 +116,11 @@ ios: setup ios-build
 	@echo "$(GREEN)✓ iOS plugin built$(NC)"
 
 # Build iOS frameworks using xcodebuild
+# Select the destination so SwiftPM generators and macros keep the host SDK.
 ios-build:
 	@echo "$(GREEN)Building iOS frameworks...$(NC)"
 	@cd $(IOS_GDEXT_DIR) && xcodebuild \
 		-scheme GodotIap \
-		-sdk iphoneos \
 		-destination 'generic/platform=iOS' \
 		-configuration Release \
 		CLANG_ENABLE_CODE_COVERAGE=NO \

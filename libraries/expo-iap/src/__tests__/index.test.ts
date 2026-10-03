@@ -55,6 +55,7 @@ const nativePurchase = (
   productId: `product.${id}`,
   transactionDate: 1720000000000,
   store: 'google',
+  storeId: 'play',
   quantity: 1,
   purchaseState: 'purchased',
   isAutoRenewing: false,
@@ -419,6 +420,7 @@ describe('Public API (index.ts)', () => {
         id: 'billing-issue',
         productId: 'sub.monthly',
         store: 'apple',
+        storeId: 'apple',
       };
       registeredCallback?.(purchase);
 
@@ -1266,19 +1268,22 @@ describe('Public API (index.ts)', () => {
       expect(res).toHaveLength(2);
     });
 
-    it('restorePurchases performs iOS sync then fetches purchases', async () => {
+    it('restorePurchases calls the provider then fetches purchases', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      const syncSpy = jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(true);
+      const restoreSpy = ((ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(true));
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([
           nativePurchase('legacy', {
             store: 'apple',
+            storeId: 'apple',
             transactionId: 'txn-restore',
           }),
         ]);
       await restorePurchases();
-      expect(syncSpy).toHaveBeenCalledTimes(1);
+      expect(restoreSpy).toHaveBeenCalledTimes(1);
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(false, true);
     });
 
@@ -1297,6 +1302,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('onside', {
             store: 'apple',
+            storeId: 'apple',
             transactionId: 'txn-onside',
           }),
         ]);
@@ -1313,6 +1319,24 @@ describe('Public API (index.ts)', () => {
       } finally {
         Reflect.deleteProperty(ExpoIapModule, 'USING_ONSIDE_SDK');
       }
+    });
+
+    it('getAvailablePurchases preserves community identity on iOS', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      (ExpoIapModule.getAvailableItems as jest.Mock).mockResolvedValue([
+        nativePurchase('community', {
+          store: 'unknown',
+          storeId: 'community-fixture',
+          transactionId: 'opaque-txn',
+        }),
+      ]);
+      expect(await getAvailablePurchases()).toEqual([
+        expect.objectContaining({
+          store: 'unknown',
+          storeId: 'community-fixture',
+          transactionId: 'opaque-txn',
+        }),
+      ]);
     });
 
     it('getAvailablePurchases rejects mixed malformed results atomically', async () => {
@@ -1333,6 +1357,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('foreign', {
             store: 'google',
+            storeId: 'play',
             transactionId: 'foreign',
           }),
         ]);
@@ -1342,6 +1367,66 @@ describe('Public API (index.ts)', () => {
       });
     });
 
+    it.each([
+      ['ios', 'apple'],
+      ['android', 'google'],
+      ['android', 'horizon'],
+      ['android', 'amazon'],
+    ])('rejects contradictory %s %s identity', async (platform, store) => {
+      Object.assign(Platform, {OS: platform});
+      jest
+        .mocked(ExpoIapModule.getAvailableItems)
+        .mockResolvedValue([nativePurchase({store, storeId: 'other'})]);
+      await expect(getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('getAvailablePurchases preserves community identity on Android', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      jest.mocked(ExpoIapModule.getAvailableItems).mockResolvedValue([
+        nativePurchase('community', {
+          store: 'unknown',
+          storeId: 'community-fixture',
+        }),
+      ]);
+      await expect(getAvailablePurchases()).resolves.toEqual([
+        expect.objectContaining({
+          store: 'unknown',
+          storeId: 'community-fixture',
+        }),
+      ]);
+      await expect(restorePurchases()).resolves.toBeUndefined();
+    });
+
+    it.each([
+      undefined,
+      '',
+      'play',
+      'apple',
+      'google',
+      'horizon',
+      'amazon',
+      'auto',
+      'none',
+      'unknown',
+      'bad id',
+      'store\n',
+    ])(
+      'getAvailablePurchases rejects invalid community identity %s',
+      async (storeId) => {
+        Object.assign(Platform, {OS: 'android'});
+        jest
+          .mocked(ExpoIapModule.getAvailableItems)
+          .mockResolvedValue([
+            nativePurchase('community', {store: 'unknown', storeId}),
+          ]);
+        await expect(getAvailablePurchases()).rejects.toMatchObject({
+          code: ErrorCode.BillingResponseJsonParseError,
+        });
+      },
+    );
+
     it('getAvailablePurchases rejects a foreign store on Android', async () => {
       Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
@@ -1349,6 +1434,7 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue([
           nativePurchase('foreign', {
             store: 'apple',
+            storeId: 'apple',
             transactionId: 'foreign',
           }),
         ]);
@@ -1361,7 +1447,9 @@ describe('Public API (index.ts)', () => {
     it('restorePurchases propagates iOS sync failure without querying', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const syncError = new Error('sync failed');
-      jest.spyOn(iosMod, 'syncIOS').mockRejectedValue(syncError);
+      (ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(syncError);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
 
       await expect(restorePurchases()).rejects.toBe(syncError);
@@ -1370,7 +1458,9 @@ describe('Public API (index.ts)', () => {
 
     it('restorePurchases rejects a false iOS sync result', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(false);
+      (ExpoIapModule.restorePurchases as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(false);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
 
       await expect(restorePurchases()).rejects.toMatchObject({
@@ -1381,10 +1471,27 @@ describe('Public API (index.ts)', () => {
   });
 
   describe('finishTransaction', () => {
+    it('forwards full community purchase identity to Android completion', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const purchase = nativePurchase('opaque-id', {
+        store: 'unknown',
+        storeId: 'community-fixture',
+        purchaseToken: 'opaque-receipt',
+      });
+      (ExpoIapModule.finishTransaction as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(null);
+      await finishTransaction({purchase, isConsumable: true});
+      expect(ExpoIapModule.finishTransaction).toHaveBeenCalledWith(
+        purchase,
+        true,
+      );
+    });
     it('iOS forwards purchase payload to native finishTransaction', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const basePurchase: PurchaseInput = {
         store: 'apple',
+        storeId: 'apple',
         productId: 'prod.ios',
         isAutoRenewing: false,
         purchaseState: 'purchased',
@@ -1426,6 +1533,7 @@ describe('Public API (index.ts)', () => {
 
       const basePurchase: PurchaseInput = {
         store: 'google',
+        storeId: 'play',
         productId: 'p',
         isAutoRenewing: false,
         purchaseState: 'purchased',
@@ -1455,6 +1563,7 @@ describe('Public API (index.ts)', () => {
       const p = finishTransaction({
         purchase: {
           store: 'google',
+          storeId: 'play',
           productId: 'p',
           isAutoRenewing: false,
           purchaseState: 'purchased',
@@ -1478,6 +1587,7 @@ describe('Public API (index.ts)', () => {
           purchase: {
             id: 'tid',
             store: 'unknown',
+            storeId: 'unknown',
             productId: 'prod.web',
             isAutoRenewing: false,
             purchaseState: 'purchased',
@@ -1984,6 +2094,46 @@ describe('Public API (index.ts)', () => {
   });
 
   describe('verifyPurchaseWithProvider', () => {
+    it.each([
+      ['google', undefined, 'play'],
+      ['apple', undefined, 'apple'],
+      ['horizon', undefined, 'horizon'],
+      ['amazon', undefined, 'amazon'],
+      ['unknown', 'community-store', 'community-store'],
+    ])(
+      'preserves verification identity for %s',
+      async (store, storeId, expected) => {
+        (
+          ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+        ).mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        const result = await verifyPurchaseWithProvider({provider: 'iapkit'});
+        expect(result.iapkit?.storeId).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['unknown', undefined],
+      ['unknown', 'unknown'],
+      ['google', 'community-store'],
+      ['apple', 'play'],
+    ])(
+      'rejects contradictory verification identity for %s/%s',
+      async (store, storeId) => {
+        (
+          ExpoIapModule.verifyPurchaseWithProvider as jest.Mock
+        ).mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        await expect(
+          verifyPurchaseWithProvider({provider: 'iapkit'}),
+        ).rejects.toThrow(/store identity/);
+      },
+    );
+
     beforeEach(() => {
       jest.clearAllMocks();
     });
@@ -1996,6 +2146,7 @@ describe('Public API (index.ts)', () => {
           isValid: true,
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
           productId: 'premium.monthly',
           clientPayload: {
             format: 'toml',
@@ -2043,6 +2194,7 @@ describe('Public API (index.ts)', () => {
           productId: null,
           state: 'ready-to-consume',
           store: 'amazon',
+          storeId: 'amazon',
         },
       };
       (ExpoIapModule.verifyPurchaseWithProvider as jest.Mock) = jest
@@ -2073,6 +2225,7 @@ describe('Public API (index.ts)', () => {
         isValid: true,
         state: 'ready-to-consume',
         store: 'amazon',
+        storeId: 'amazon',
       });
       expect(result.iapkit?.store).toBe('amazon');
     });

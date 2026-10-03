@@ -32,6 +32,7 @@ void main() {
               'quantity': 1,
               'isAutoRenewing': true,
               'store': 'apple',
+              'storeId': 'apple',
             };
           case 'showManageSubscriptionsIOS':
             return <Map<String, dynamic>>[
@@ -46,6 +47,7 @@ void main() {
                 'isAutoRenewing': true,
                 'platform': 'ios',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             ];
           case 'deepLinkToSubscriptions':
@@ -65,6 +67,7 @@ void main() {
               <String, dynamic>{
                 'platform': 'ios',
                 'store': 'apple',
+                'storeId': 'apple',
                 'productId': 'com.example.prod1',
                 'transactionId': 'txn-available',
                 'purchaseState': 'PURCHASED',
@@ -93,6 +96,7 @@ void main() {
               <String, dynamic>{
                 'platform': 'ios',
                 'store': 'apple',
+                'storeId': 'apple',
                 'productId': 'com.example.prod1',
                 'transactionId': 'txn-history',
                 'purchaseState': 'PURCHASED',
@@ -126,6 +130,7 @@ void main() {
               'productId': 'com.example.prod1',
               'platform': 'IOS',
               'store': 'apple',
+              'storeId': 'apple',
               'purchaseState': 'PURCHASED',
               'quantity': 1,
               'transactionDate': 1700000000000,
@@ -139,6 +144,7 @@ void main() {
               'productId': 'com.example.prod1',
               'platform': 'IOS',
               'store': 'apple',
+              'storeId': 'apple',
               'purchaseState': 'PURCHASED',
               'quantity': 1,
               'transactionDate': 1700000000000,
@@ -172,6 +178,7 @@ void main() {
                 'isAutoRenewing': false,
                 'platform': 'ios',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             ];
           case 'getAllTransactionsIOS':
@@ -187,6 +194,7 @@ void main() {
                 'isAutoRenewing': false,
                 'platform': 'ios',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             ];
           default:
@@ -306,6 +314,7 @@ void main() {
               'quantity': 1,
               'isAutoRenewing': false,
               'store': 'apple',
+              'storeId': 'apple',
             },
             <String, dynamic>{'id': 'malformed'},
           ];

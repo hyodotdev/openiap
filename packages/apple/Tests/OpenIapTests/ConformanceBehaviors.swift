@@ -3,7 +3,7 @@
 // packages/conformance/src/spec/behaviors.mjs.
 
 enum ConformanceBehaviors {
-    static let suiteVersion = "3.0.0"
+    static let suiteVersion = "4.0.0"
 
     static let productsFetchReturnsRequestedSkus = "products.fetch-returns-requested-skus"
     static let productsFetchNormalizesRequiredFields = "products.fetch-normalizes-required-fields"

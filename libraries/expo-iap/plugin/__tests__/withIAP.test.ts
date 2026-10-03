@@ -552,6 +552,26 @@ describe('android configuration', () => {
     ]);
   });
 
+  it('pairs a community store with its provider and removes both on auto', () => {
+    const properties = [
+      {type: 'property', key: 'openiapProvider', value: 'old:provider:1.0.0'},
+    ];
+    const result = storeGradleProperties(
+      properties,
+      'fixture',
+      'dev.example:provider:1.0.0',
+    );
+    expect(result).toEqual([
+      {type: 'property', key: 'openiapStore', value: 'fixture'},
+      {
+        type: 'property',
+        key: 'openiapProvider',
+        value: 'dev.example:provider:1.0.0',
+      },
+    ]);
+    expect(storeGradleProperties(result, null)).toEqual([]);
+  });
+
   it('reads the Amazon Appstore key path from android.amazon', () => {
     expect(
       resolveAmazonAppstoreKey({
@@ -1101,7 +1121,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
+    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

@@ -145,40 +145,10 @@ public final class OpenIapStore: ObservableObject {
 
         onPurchaseSuccess?(purchase)
 
-        if let ios = purchase.asIOS() {
-            let shouldRefresh = ios.expirationDateIOS != nil
-                || ios.isAutoRenewing
-                || (ios.subscriptionGroupIdIOS?.isEmpty == false)
-            if shouldRefresh {
-                Task {
-                    await refreshPurchases()
-                }
-
-                // Update activeSubscriptions directly from purchase data (avoid calling getActiveSubscriptions)
-                // Skip if this transaction is upgraded - it means it's been replaced by a new subscription
-                if let expirationDate = ios.expirationDateIOS, ios.isUpgradedIOS != true {
-                    let isActive = Date(timeIntervalSince1970: expirationDate / 1000) > Date()
-
-                    let newSubscription = ActiveSubscription(
-                        autoRenewingAndroid: nil,
-                        currentPlanId: ios.productId,
-                        daysUntilExpirationIOS: nil,
-                        environmentIOS: ios.environmentIOS,
-                        expirationDateIOS: expirationDate,
-                        isActive: isActive,
-                        productId: ios.productId,  // Keep current productId, not autoRenewPreference
-                        purchaseToken: ios.purchaseToken,
-                        renewalInfoIOS: ios.renewalInfoIOS,  // Future changes reflected here
-                        transactionDate: ios.transactionDate,
-                        transactionId: ios.transactionId
-                    )
-
-                    // Remove duplicates by transactionId
-                    activeSubscriptions = activeSubscriptions.filter { existing in
-                        existing.transactionId != ios.transactionId
-                    } + [newSubscription]
-                }
-            }
+        Task {
+            await refreshPurchases()
+            do { try await getActiveSubscriptions() }
+            catch { OpenIapLog.error("Failed to refresh active subscriptions: \(error)") }
         }
     }
 
@@ -598,7 +568,7 @@ public final class OpenIapStore: ObservableObject {
         var skippedInactive = 0
 
         for purchase in purchases {
-            guard let iosPurchase = purchase.asIOS() else {
+            guard let iosPurchase = purchase.asIOS(), iosPurchase.store == .apple else {
                 nonSubscriptionPurchases.append(purchase)
                 continue
             }
@@ -621,7 +591,7 @@ public final class OpenIapStore: ObservableObject {
                     || iosPurchase.purchaseState == .purchased
             }
 
-            guard isActive else {
+            guard isActive, iosPurchase.purchaseState == .purchased else {
                 skippedInactive += 1
                 continue
             }

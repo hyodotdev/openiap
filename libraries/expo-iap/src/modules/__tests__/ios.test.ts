@@ -20,6 +20,8 @@ jest.mock('../../ExpoIapModule', () => ({
     getPendingTransactionsIOS: jest.fn(),
     getAllTransactionsIOS: jest.fn(),
     clearTransactionIOS: jest.fn(),
+    HAS_EXPLICIT_STORE_PROVIDER: false,
+    deepLinkToSubscriptionsIOS: jest.fn(),
     canPresentExternalPurchaseNoticeIOS: jest.fn(),
     presentExternalPurchaseNoticeSheetIOS: jest.fn(),
     presentExternalPurchaseLinkIOS: jest.fn(),
@@ -82,6 +84,7 @@ const validPurchase = (id: string) => ({
   productId: 'premium',
   transactionDate: 1720000000000,
   store: 'apple',
+  storeId: 'apple',
   quantity: 1,
   purchaseState: 'purchased',
   isAutoRenewing: false,
@@ -271,6 +274,19 @@ describe('iOS Module Functions', () => {
   });
 
   describe('Deep Link Functions', () => {
+    it('opens the explicit provider management flow', async () => {
+      Object.assign(ExpoIapModule, {HAS_EXPLICIT_STORE_PROVIDER: true});
+      (ExpoIapModule.deepLinkToSubscriptionsIOS as jest.Mock).mockResolvedValue(
+        true,
+      );
+      try {
+        await deepLinkToSubscriptionsIOS();
+        expect(ExpoIapModule.deepLinkToSubscriptionsIOS).toHaveBeenCalled();
+        expect(Linking.openURL).not.toHaveBeenCalled();
+      } finally {
+        Object.assign(ExpoIapModule, {HAS_EXPLICIT_STORE_PROVIDER: false});
+      }
+    });
     it('should open subscriptions management URL', async () => {
       await deepLinkToSubscriptionsIOS();
 
@@ -499,6 +515,7 @@ describe('iOS Module Functions', () => {
         id: 'redeemed-transaction',
         productId: 'premium',
         store: 'apple',
+        storeId: 'apple',
       };
       (
         ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
@@ -753,9 +770,8 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await getExternalPurchaseCustomLinkTokenIOS(
-          'acquisition',
-        );
+        const result =
+          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
 
         expect(
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
@@ -785,9 +801,8 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await getExternalPurchaseCustomLinkTokenIOS(
-          'acquisition',
-        );
+        const result =
+          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
 
         expect(result.error).toBe('App not eligible');
         expect(result.token).toBeUndefined();

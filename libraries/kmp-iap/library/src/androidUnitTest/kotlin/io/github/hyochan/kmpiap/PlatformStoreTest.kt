@@ -11,6 +11,7 @@ class PlatformStoreTest {
             "play" to Store.PLAY_STORE,
             "horizon" to Store.HORIZON,
             "amazon" to Store.AMAZON,
+            "provider" to Store.UNKNOWN,
         ).getValue(BuildConfig.OPENIAP_STORE)
 
         assertEquals(expected, createPlatformInAppPurchase().getStore())

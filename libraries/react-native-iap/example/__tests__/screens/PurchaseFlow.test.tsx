@@ -222,6 +222,7 @@ describe('PurchaseFlow Screen', () => {
           productId: 'dev.hyo.martie.10bulbs',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       }),
     );
@@ -320,6 +321,7 @@ describe('PurchaseFlow Screen', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -349,6 +351,7 @@ describe('PurchaseFlow Screen', () => {
       purchaseToken: 'google-token-restored-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const verificationResult: VerifyPurchaseWithProviderResult = {
@@ -358,6 +361,7 @@ describe('PurchaseFlow Screen', () => {
         productId: restoredPurchase.productId,
         state: 'ready-to-consume',
         store: 'google',
+        storeId: 'play',
       },
     };
     const finishTransaction = jest.fn(
@@ -426,6 +430,7 @@ describe('PurchaseFlow Screen', () => {
           productId: 'dev.hyo.martie.10bulbs',
           state: 'consumed',
           store: 'google',
+          storeId: 'play',
         },
       },
     },
@@ -440,6 +445,7 @@ describe('PurchaseFlow Screen', () => {
           productId: 'dev.hyo.martie.30bulbs',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       },
     },
@@ -455,6 +461,7 @@ describe('PurchaseFlow Screen', () => {
         purchaseToken: `google-token-restored-${result.iapkit?.productId}`,
         quantity: 1,
         store: 'google',
+        storeId: 'play',
         transactionDate: Date.now(),
       };
       const finishTransaction = jest.fn(
@@ -498,6 +505,7 @@ describe('PurchaseFlow Screen', () => {
       purchaseToken: 'google-token-reconnect-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const verificationResult: VerifyPurchaseWithProviderResult = {
@@ -507,6 +515,7 @@ describe('PurchaseFlow Screen', () => {
         productId: purchase.productId,
         state: 'entitled',
         store: 'google',
+        storeId: 'play',
       },
     };
     const finishTransaction = jest.fn(
@@ -627,6 +636,7 @@ describe('PurchaseFlow Screen', () => {
       purchaseToken: 'google-token-unmount-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     const finishTransaction = jest.fn(
@@ -682,6 +692,7 @@ describe('PurchaseFlow Screen', () => {
           productId: purchase.productId,
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       });
       await pendingProcessing;
@@ -704,6 +715,7 @@ describe('PurchaseFlow Screen', () => {
       purchaseToken: 'google-token-remount-pending-finish-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     let resolveFinish!: () => void;
@@ -724,6 +736,7 @@ describe('PurchaseFlow Screen', () => {
             productId: purchase.productId,
             state: 'entitled',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );
@@ -792,6 +805,7 @@ describe('PurchaseFlow Screen', () => {
       purchaseToken: 'google-token-remount-after-owner-finish-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
     };
     let resolveFinish!: () => void;
@@ -813,6 +827,7 @@ describe('PurchaseFlow Screen', () => {
             productId: purchase.productId,
             state: 'entitled',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );
@@ -894,6 +909,7 @@ describe('PurchaseFlow Screen', () => {
       purchaseToken: 'google-token-race-1',
       quantity: 1,
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -948,6 +964,7 @@ describe('PurchaseFlow Screen', () => {
           productId: 'dev.hyo.martie.10bulbs',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       });
       await purchasePromise;
@@ -967,6 +984,7 @@ describe('PurchaseFlow Screen', () => {
       productId: 'dev.hyo.martie.10bulbs',
       purchaseToken: 'google-token-invalid-1',
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -980,6 +998,7 @@ describe('PurchaseFlow Screen', () => {
             productId: 'dev.hyo.martie.10bulbs',
             state: 'consumed',
             store: 'google',
+            storeId: 'play',
           },
         }),
     );
@@ -1029,6 +1048,7 @@ describe('PurchaseFlow Screen', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'device-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -1070,6 +1090,7 @@ describe('PurchaseFlow Screen', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'hosted-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });

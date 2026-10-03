@@ -1,4 +1,9 @@
-import {ErrorCode, type Purchase, type PurchaseIOS} from '../types';
+import {
+  resolveStoreId,
+  ErrorCode,
+  type Purchase,
+  type PurchaseIOS,
+} from '../types';
 import {createPurchaseError} from './errorMapping';
 
 const ANDROID_STORES = new Set(['google', 'amazon', 'horizon']);
@@ -73,18 +78,34 @@ export const decodeAvailablePurchases = (value: unknown): Purchase[] => {
     }
   });
 
-  return value as Purchase[];
+  return value.map((item, index) => {
+    const purchase = item as Purchase;
+    try {
+      return {
+        ...purchase,
+        storeId: resolveStoreId(purchase.storeId, purchase.store),
+      };
+    } catch {
+      throw malformedPurchaseError(
+        `Native bridge returned an invalid store identity at index ${index}`,
+      );
+    }
+  });
 };
 
-/** Decode an authoritative StoreKit list without filtering foreign entries. */
+/** Decode an authoritative Apple-platform list without filtering foreign entries. */
 export const decodeApplePurchases = (value: unknown): PurchaseIOS[] => {
   const decoded = decodeAvailablePurchases(value);
   const invalidIndex = decoded.findIndex(
-    (purchase) => purchase.store !== 'apple',
+    (purchase) =>
+      (purchase.store !== 'apple' && purchase.store !== 'unknown') ||
+      !('transactionId' in purchase) ||
+      typeof purchase.transactionId !== 'string' ||
+      !purchase.transactionId,
   );
   if (invalidIndex !== -1) {
     throw malformedPurchaseError(
-      `Native StoreKit bridge returned a non-Apple purchase at index ${invalidIndex}`,
+      `Native Apple bridge returned an invalid iOS purchase at index ${invalidIndex}`,
     );
   }
   return decoded as PurchaseIOS[];
@@ -94,7 +115,8 @@ export const decodeApplePurchases = (value: unknown): PurchaseIOS[] => {
 export const decodeAndroidPurchases = (value: unknown): Purchase[] => {
   const decoded = decodeAvailablePurchases(value);
   const invalidIndex = decoded.findIndex(
-    (purchase) => !ANDROID_STORES.has(purchase.store),
+    (purchase) =>
+      !ANDROID_STORES.has(purchase.store) && purchase.store !== 'unknown',
   );
   if (invalidIndex !== -1) {
     throw malformedPurchaseError(

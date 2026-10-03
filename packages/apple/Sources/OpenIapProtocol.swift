@@ -115,7 +115,6 @@ public protocol OpenIapModuleProtocol {
 }
 
 public extension OpenIapModuleProtocol {
-    /// Default implementation that throws. Override in your module to provide actual verification.
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         throw PurchaseError(code: .featureNotSupported, message: "verifyPurchaseWithProvider not supported")
     }
@@ -164,5 +163,83 @@ public extension OpenIapModuleProtocol {
             code: .featureNotSupported,
             message: "showExternalPurchaseCustomLinkNoticeIOS not supported"
         )
+    }
+
+    func getPromotedProductIOS() async throws -> ProductIOS? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "getPromotedProductIOS not supported by this provider")
+    }
+
+    func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
+        throw PurchaseError.make(code: .featureNotSupported, message: "getAllTransactionsIOS not supported by this provider")
+    }
+
+    func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {
+        throw PurchaseError.make(code: .featureNotSupported, message: "getPendingTransactionsIOS not supported by this provider")
+    }
+
+    func clearTransactionIOS() async throws -> Bool {
+        throw PurchaseError.make(code: .featureNotSupported, message: "clearTransactionIOS not supported by this provider")
+    }
+
+    func isTransactionVerifiedIOS(sku: String) async throws -> Bool {
+        throw PurchaseError.make(code: .featureNotSupported, message: "isTransactionVerifiedIOS not supported by this provider")
+    }
+
+    func getTransactionJwsIOS(sku: String) async throws -> String? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "getTransactionJwsIOS not supported by this provider")
+    }
+
+    func currentEntitlementIOS(sku: String) async throws -> PurchaseIOS? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "currentEntitlementIOS not supported by this provider")
+    }
+
+    func latestTransactionIOS(sku: String) async throws -> PurchaseIOS? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "latestTransactionIOS not supported by this provider")
+    }
+
+    func getReceiptDataIOS() async throws -> String? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "getReceiptDataIOS not supported by this provider")
+    }
+
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
+    func getAppTransactionIOS() async throws -> AppTransaction? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "getAppTransactionIOS not supported by this provider")
+    }
+
+    func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS] {
+        throw PurchaseError.make(code: .featureNotSupported, message: "subscriptionStatusIOS not supported by this provider")
+    }
+
+    func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool {
+        throw PurchaseError.make(code: .featureNotSupported, message: "isEligibleForIntroOfferIOS not supported by this provider")
+    }
+
+    func beginRefundRequestIOS(sku: String) async throws -> String? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "beginRefundRequestIOS not supported by this provider")
+    }
+
+    func syncIOS() async throws -> Bool {
+        throw PurchaseError.make(code: .featureNotSupported, message: "syncIOS not supported by this provider")
+    }
+
+    func openRedeemOfferCode() async throws -> PurchaseIOS? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "openRedeemOfferCode not supported by this provider")
+    }
+
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
+    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? {
+        throw PurchaseError.make(code: .featureNotSupported, message: "presentCodeRedemptionSheetIOS not supported by this provider")
+    }
+
+    func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+        throw PurchaseError.make(code: .featureNotSupported, message: "showManageSubscriptionsIOS not supported by this provider")
+    }
+
+    func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription {
+        Subscription(eventType: .promotedProductIos)
+    }
+
+    func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
+        Subscription(eventType: .subscriptionBillingIssue)
     }
 }

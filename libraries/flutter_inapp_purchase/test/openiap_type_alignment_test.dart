@@ -52,6 +52,7 @@ void main() {
         purchaseToken: 'token_123',
         quantity: 1,
         store: IapStore.Google,
+        storeId: 'play',
         transactionDate: 1700000000,
       );
 
@@ -68,6 +69,7 @@ void main() {
         purchaseState: PurchaseState.Purchased,
         quantity: 1,
         store: IapStore.Apple,
+        storeId: 'apple',
         transactionDate: 1700000100,
         transactionId: 'txn_ios',
         environmentIOS: 'Sandbox',

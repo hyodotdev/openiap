@@ -13,6 +13,7 @@ jest.mock('expo-iap', () => ({
       id: 'redeemed-transaction',
       productId: 'premium',
       store: 'apple',
+      storeId: 'apple',
     }),
   ),
   useIAP: jest.fn(() => ({

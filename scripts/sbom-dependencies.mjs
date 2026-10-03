@@ -9,7 +9,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { compareSemVer } from "./release-branch-policy.mjs";
@@ -533,7 +533,7 @@ function extractGradle(root, { manifest, externalLocals }) {
   const matchedDeclarations = new Set();
   const topLevelCalls = topLevelGradleCalls(dependencies);
   const topLevelCallIndices = new Set(topLevelCalls.map((call) => call.index));
-  let usesLocalOpeniapProject = false;
+  const localOpeniapProjects = new Set();
   const record = (configuration, rawCoordinate) => {
     if (!isRuntimeGradleConfiguration(configuration)) return;
     const parsed = parseMavenCoordinate(
@@ -568,22 +568,28 @@ function extractGradle(root, { manifest, externalLocals }) {
     }
     if (!isRuntimeGradleConfiguration(call.name)) continue;
     const argument = dependencies.slice(call.index + call.text.length);
-    if (/^\s*project\s*\(\s*":openiap"\s*\)/u.test(argument)) {
-      usesLocalOpeniapProject = true;
+    const localProject = argument.match(
+      /^\s*\(?\s*project\s*\(\s*"(:openiap(?:-core)?)"\s*\)/u,
+    )?.[1];
+    if (localProject) {
+      localOpeniapProjects.add(localProject);
       continue;
     }
     throw new Error(`Unsupported Gradle dependency declaration in ${manifest}`);
   }
 
-  if (
-    usesLocalOpeniapProject &&
-    ![...found.values()].some(
-      (entry) => entry.name === "io.github.hyochan.openiap:openiap-google",
-    )
-  ) {
-    throw new Error(
-      `Local :openiap dependency in ${manifest} lacks its published fallback`,
-    );
+  for (const project of localOpeniapProjects) {
+    const artifact =
+      project === ":openiap-core" ? "openiap-core" : "openiap-google";
+    if (
+      ![...found.values()].some(
+        (entry) => entry.name === `io.github.hyochan.openiap:${artifact}`,
+      )
+    ) {
+      throw new Error(
+        `Local ${project} dependency in ${manifest} lacks its published fallback`,
+      );
+    }
   }
 
   return [...found.values()].sort((left, right) =>
@@ -1016,6 +1022,15 @@ function extractOpenIapNative(root, { apple = false, google = [] }) {
     );
   }
   for (const artifact of google) {
+    if (
+      artifact === "openiap-core" &&
+      !existsSync(resolve(root, "packages/google/core/build.gradle.kts"))
+    ) {
+      if (compareSemVer(versions.google, "4.0.0") < 0) continue;
+      throw new Error(
+        "Missing openiap-core manifest for a provider-capable release",
+      );
+    }
     entries.push(
       dependencyEntry({
         name: `io.github.hyochan.openiap:${artifact}`,
@@ -1049,7 +1064,14 @@ function verifyDeclaredInventory(root, inventories = []) {
     const actual = [...source.matchAll(inventory.pattern)]
       .map((match) => match.slice(1).find((value) => value !== undefined))
       .sort();
-    const expected = [...inventory.expected].sort();
+    const usesStoreResolver = /^\s*openIapAddStoreDependencies\s*\(/mu.test(
+      source,
+    );
+    const expected = [
+      ...(usesStoreResolver && inventory.resolverExpected
+        ? inventory.resolverExpected
+        : inventory.expected),
+    ].sort();
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(
         `Unmodelled dependency declaration in ${inventory.file}: expected ${expected.join(", ")}; found ${actual.join(", ")}`,

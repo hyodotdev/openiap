@@ -6,18 +6,18 @@ import OpenIAP
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
-    func testFinishResolvesRestoredPurchaseWithoutBridgeCache() async throws {
+    func testFinishResolvesOpaqueRestoredPurchaseWithoutBridgeCache() async throws {
         let hybrid = HybridRnIap()
-        guard case .purchaseIos(let other) = try makePurchase(id: "100"),
-              case .purchaseIos(let restored) = try makePurchase(id: "200") else {
+        guard case .purchaseIos(let other) = try makePurchase(id: "other:100"),
+              case .purchaseIos(let restored) = try makePurchase(id: "restored:200") else {
             return XCTFail("Expected iOS purchases")
         }
 
-        let purchase = try await hybrid.purchaseToFinish(transactionId: "200") {
+        let purchase = try await hybrid.purchaseToFinish(transactionId: "restored:200") {
             [other, restored]
         }
 
-        XCTAssertEqual(purchase?.id, "200")
+        XCTAssertEqual(purchase?.id, "restored:200")
         XCTAssertEqual(purchase?.productId, "premium")
     }
 
@@ -57,15 +57,15 @@ final class ConnectOnDemandTests: XCTestCase {
         }
     }
 
-    func testFinishRejectsInvalidIdentifierBeforeHistoryLookup() async throws {
+    func testFinishRejectsEmptyIdentifierBeforeHistoryLookup() async throws {
         do {
-            _ = try await HybridRnIap().purchaseToFinish(transactionId: "invalid") {
-                XCTFail("An invalid transaction must not query StoreKit")
+            _ = try await HybridRnIap().purchaseToFinish(transactionId: "") {
+                XCTFail("An empty transaction identifier must not query the provider")
                 return []
             }
-            XCTFail("Expected invalid transaction error")
+            XCTFail("Expected missing transaction identifier error")
         } catch let error as OpenIapException {
-            XCTAssertTrue(error.localizedDescription.contains("Invalid transaction identifier"))
+            XCTAssertTrue(error.localizedDescription.contains("Transaction identifier is required"))
         }
     }
 
@@ -510,6 +510,32 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await endPromise.await()
         probe.record("end")
         XCTAssertEqual(probe.events, ["native-winner", "end"])
+    }
+
+    func testGenericProviderThrowPreservesItsCanonicalPurchaseError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let canonicalError = PurchaseError.make(
+            code: .networkError,
+            productId: "premium",
+            message: "Network unavailable"
+        )
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        let result = try await hybrid.runRequestPurchaseOperation {
+            let delivery = hybrid.enqueuePurchaseErrorDelivery(canonicalError, expectedEpoch: epoch)
+            await holder.set(delivery)
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        let heldTask = await holder.task
+        let delivery = try XCTUnwrap(heldTask)
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, [ErrorCode.networkError.rawValue])
     }
 
     func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {

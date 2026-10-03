@@ -484,6 +484,7 @@ describe('Amazon Vega adapter', () => {
         purchaseToken: 'receipt-1',
         currentPlanId: null,
         store: 'amazon',
+        storeId: 'amazon',
         transactionId: 'receipt-1',
       }),
     ]);
@@ -597,6 +598,7 @@ describe('Amazon Vega adapter', () => {
         productId: 'coins_100',
         purchaseToken: 'recovered-receipt',
         store: 'amazon',
+        storeId: 'amazon',
       }),
     ]);
     expect(listener).toHaveBeenCalledWith(
@@ -645,6 +647,7 @@ describe('Amazon Vega adapter', () => {
           productId: 'coins_100',
           purchaseToken: 'recovered-receipt',
           store: 'amazon',
+          storeId: 'amazon',
         }),
       ]);
       expect(listener).toHaveBeenCalledWith(
@@ -1154,7 +1157,7 @@ describe('Amazon Vega adapter', () => {
     );
     const listener = jest.fn();
     module.addPurchaseUpdatedListener(listener);
-    await expect(module.restorePurchases()).resolves.toBeUndefined();
+    await expect(module.restorePurchases()).resolves.toBe(true);
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
         productId: 'premium_monthly',
@@ -1444,7 +1447,7 @@ describe('Amazon Vega adapter', () => {
         purchaseState: 'purchased',
       }),
     ]);
-    await expect(module.restorePurchases()).resolves.toBeUndefined();
+    await expect(module.restorePurchases()).resolves.toBe(true);
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'deferred-sub',
@@ -1495,6 +1498,7 @@ describe('Amazon Vega adapter', () => {
           isValid: true,
           state: 'READY_TO_CONSUME',
           store: 'amazon',
+          storeId: 'amazon',
         }),
     ) as unknown as jest.MockedFunction<typeof fetch>;
     globalThis.fetch = fetchMock;
@@ -1521,6 +1525,7 @@ describe('Amazon Vega adapter', () => {
           isValid: true,
           state: 'ready-to-consume',
           store: 'amazon',
+          storeId: 'amazon',
         },
       });
 
@@ -1539,6 +1544,7 @@ describe('Amazon Vega adapter', () => {
       );
       expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
         store: 'amazon',
+        storeId: 'amazon',
         userId: 'amazon-user',
         receiptId: 'receipt-vega-1',
         expectedProductId: 'amazon.premium.monthly',
@@ -1557,6 +1563,7 @@ describe('Amazon Vega adapter', () => {
         isValid: true,
         state: 'ENTITLED',
         store: 'amazon',
+        storeId: 'amazon',
         productId: 'premium.monthly',
         clientPayload: {
           format: 'toml',
@@ -1586,9 +1593,11 @@ describe('Amazon Vega adapter', () => {
         productId: 'premium.monthly',
         state: 'entitled',
         store: 'amazon',
+        storeId: 'amazon',
       });
       expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
         store: 'amazon',
+        storeId: 'amazon',
         userId: 'amazon-user',
         receiptId: 'receipt-vega-1',
       });
@@ -1620,6 +1629,7 @@ describe('Amazon Vega adapter', () => {
           isValid: true,
           state: 'ENTITLED',
           store: 'amazon',
+          storeId: 'amazon',
         }),
     ) as unknown as jest.MockedFunction<typeof fetch>;
     globalThis.fetch = fetchMock;
@@ -1924,6 +1934,7 @@ describe('Amazon Vega adapter', () => {
           {
             state: 'ENTITLED',
             store: 'amazon',
+            storeId: 'amazon',
           },
           {status: 200},
         ),
@@ -1967,6 +1978,7 @@ describe('Amazon Vega adapter', () => {
           isValid: true,
           state: 'ENTITLED',
           store: 'amazon',
+          storeId: 'amazon',
         }),
       ) as unknown as jest.MockedFunction<typeof fetch>;
       globalThis.fetch = fetchMock;
@@ -2002,6 +2014,7 @@ describe('Amazon Vega adapter', () => {
             isValid: true,
             state: 'ENTITLED',
             store: 'apple',
+            storeId: 'apple',
           },
           {status: 200},
         ),

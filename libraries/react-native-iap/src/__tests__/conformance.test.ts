@@ -54,6 +54,7 @@ function toPurchase(record: FakeRecord) {
     isAutoRenewing: record.type === 'subs' && record.state === 'purchased',
     quantity: 1,
     store: 'google',
+    storeId: 'play',
     platform: 'android',
     transactionDate: 1_700_000_000_000,
     transactionId: record.token,
@@ -207,6 +208,13 @@ const mockIap: Record<string, unknown> = {
   removeUserChoiceBillingListenerAndroid: jest.fn(),
 
   getStorefront: jest.fn(async () => 'USA'),
+  hasActiveSubscriptions: jest.fn(async (subscriptionIds?: string[]) =>
+    [...store.owned.values()].some(
+      (record) =>
+        record.type === 'subs' &&
+        (!subscriptionIds?.length || subscriptionIds.includes(record.sku)),
+    ),
+  ),
   getActiveSubscriptions: jest.fn(async (subscriptionIds?: string[]) =>
     [...store.owned.values()]
       .filter((record) => record.type === 'subs')

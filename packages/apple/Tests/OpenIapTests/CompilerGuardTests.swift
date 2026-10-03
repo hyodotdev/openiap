@@ -8,7 +8,7 @@ final class CompilerGuardTests: XCTestCase {
             .deletingLastPathComponent()
         let sourceFiles = [
             "Sources/Helpers/StoreKitTypesBridge.swift",
-            "Sources/OpenIapModule.swift",
+            "Sources/OpenIapStoreKitModule.swift",
         ]
         let forbiddenGuard = "#if " + "swi" + "ft(>="
         let forbiddenEndifComment = "#endif // " + "swi" + "ft("

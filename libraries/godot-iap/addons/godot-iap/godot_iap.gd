@@ -865,42 +865,42 @@ func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> v
 		print("\n".join(_FIRST_PURCHASE_NOTICE))
 
 ## Restore completed transactions.
-## Apple platforms: Performs a lightweight sync then fetches available purchases.
-## Android: Simply fetches available purchases.
+## Uses the selected provider's restore operation.
 ## @return Types.VoidResult
 ##
 ## See: https://openiap.dev/docs/apis/restore-purchases
 func restore_purchases() -> Variant:
 	print("[GodotIap] restore_purchases called")
 
-	if _is_apple() and _native_plugin:
+	var payload: Dictionary
+	if not _native_plugin:
+		payload = {"success": false, "code": "not-prepared", "error": "Native plugin not available"}
+	elif _is_apple():
 		# AppStore.sync() can show a sign-in sheet, so restore gets the system-sheet timeout.
-		var payload = await _call_apple_async(
+		payload = await _call_apple_async(
 			"restorePurchases",
 			[],
 			_apple_async_ui_timeout_seconds
 		)
-		var apple_result = Types.VoidResult.new()
-		apple_result.success = payload.get("success", false)
-		# The non-Apple path below reports a failed restore through
-		# purchase_error. Emit it here too, otherwise a caller that only
-		# listens to the signal sees Android restore failures but not Apple ones.
-		if not apple_result.success:
-			_purchase_failure(
-				String(payload.get("code", "service-error")),
-				String(payload.get("error", "Failed to restore purchases")),
-				payload
-			)
-		return apple_result
-
-	var available_result := await get_available_purchases_result()
+	elif _platform == "Android":
+		var response = JSON.parse_string(_native_plugin.call("restorePurchases"))
+		if response is Dictionary:
+			payload = response
+		else:
+			payload = {
+				"success": false,
+				"code": "billing-response-json-parse-error",
+				"error": "Failed to parse the Android restore response",
+			}
+	else:
+		payload = {"success": false, "code": "feature-not-supported", "error": "Unsupported platform"}
 	var result = Types.VoidResult.new()
-	result.success = available_result.get("success", false)
+	result.success = payload.get("success", false)
 	if not result.success:
 		_purchase_failure(
-			String(available_result.get("code", "service-error")),
-			String(available_result.get("error", "Failed to restore purchases")),
-			available_result
+			String(payload.get("code", "service-error")),
+			String(payload.get("error", "Failed to restore purchases")),
+			payload
 		)
 	return result
 
@@ -948,10 +948,14 @@ func get_available_purchases_result(options = null) -> Dictionary:
 	var purchases: Array = []
 
 	for purchase_dict in raw_purchases:
+		var purchase
 		if _platform == "Android":
-			purchases.append(Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(purchase_dict)))
+			purchase = Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(purchase_dict))
 		elif _is_apple():
-			purchases.append(Types.PurchaseIOS.from_dict(_normalize_purchase_dict(purchase_dict)))
+			purchase = Types.PurchaseIOS.from_dict(_normalize_purchase_dict(purchase_dict))
+		if purchase == null:
+			return {"success": false, "code": "billing-response-json-parse-error", "error": "Invalid purchase data"}
+		purchases.append(purchase)
 
 	return {
 		"success": true,
@@ -1076,9 +1080,11 @@ func _is_valid_purchase_dictionary(value) -> bool:
 			or String(value.get(required_string)).is_empty():
 			return false
 	var store := String(value.get("store"))
-	if _is_apple() and store != "apple":
+	if _is_apple() and store not in ["apple", "unknown"]:
 		return false
-	if _platform == "Android" and store not in ["google", "amazon", "horizon"]:
+	if _platform == "Android" and store not in ["google", "amazon", "horizon"] and store != "unknown":
+		return false
+	if not Types.IAP_STORE_FROM_STRING.has(store) or Types.resolve_store_id(Types.IAP_STORE_FROM_STRING[store], value.get("storeId")) == null:
 		return false
 	var transaction_date = value.get("transactionDate")
 	if not transaction_date is float and not transaction_date is int:
@@ -2204,6 +2210,8 @@ func is_stub_mode() -> bool:
 ## Returns Types.IapStore enum value
 func get_store() -> Variant:
 	if _platform == "Android":
+		if _has_feature.call("openiap_store_provider"):
+			return Types.IapStore.UNKNOWN
 		# Every store is an Android build; the export tags the one it linked.
 		if _has_feature.call(AndroidStore.store_feature("horizon")):
 			return Types.IapStore.HORIZON
@@ -2211,6 +2219,8 @@ func get_store() -> Variant:
 			return Types.IapStore.AMAZON
 		return Types.IapStore.GOOGLE
 	elif _is_apple():
+		if _native_plugin and _native_plugin.has_method("getStoreId"):
+			return Types.IapStore.APPLE if _native_plugin.call("getStoreId") == "apple" else Types.IapStore.UNKNOWN
 		return Types.IapStore.APPLE
 	return Types.IapStore.UNKNOWN
 

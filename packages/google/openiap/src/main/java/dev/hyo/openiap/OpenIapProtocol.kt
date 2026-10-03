@@ -34,6 +34,12 @@ interface OpenIapProtocol {
     val mutationHandlers: MutationHandlers
     val subscriptionHandlers: SubscriptionHandlers
 
+    suspend fun getStorefront(): String = queryHandlers.getStorefront?.invoke()
+        ?: throw OpenIapError.FeatureNotSupported("Storefront query is unavailable")
+
+    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> =
+        throw OpenIapError.FeatureNotSupported("Use getAvailablePurchases without a product-type filter")
+
     fun setActivity(activity: Activity?)
 
     fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener)
@@ -127,15 +133,9 @@ interface OpenIapProtocol {
         params: InAppMessageParamsAndroid? = null
     ): InAppMessageResultAndroid
 
-    // Offer Code Redemption (Google Play)
     /**
-     * Open the Google Play offer/promo code redemption page so the user can enter a code.
-     * A listener can receive the redeemed purchase while the app has an active
-     * billing connection; reconcile available purchases when the app resumes.
-     * Does not require the billing client to be initialized.
-     *
-     * @param activity Current activity context
-     * @return true when the redemption flow was launched
+     * Launch the provider's offer-code redemption flow, returning whether it opened.
+     * Keep purchase listeners active and reconcile owned purchases when the app resumes.
      */
     suspend fun openRedeemOfferCode(activity: Activity): Boolean
 }

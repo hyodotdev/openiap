@@ -102,6 +102,31 @@ const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: '@hyodotdev/openiap', version: '0.1.1', tag: 'openiap-0.1.1' },
 ];
 
+const COMMUNITY_PROVIDER_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '4.0.0', tag: '4.0.0' },
+  { name: 'openiap-google', version: '4.0.0', tag: 'google-4.0.0' },
+  {
+    name: 'react-native-iap',
+    version: '17.0.0',
+    tag: 'react-native-iap-17.0.0',
+  },
+  { name: 'expo-iap', version: '6.0.0', tag: 'expo-iap-6.0.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.0',
+    tag: 'flutter-iap-11.0.0',
+  },
+  { name: 'godot-iap', version: '4.0.0', tag: 'godot-iap-4.0.0' },
+  { name: 'kmp-iap', version: '4.0.0', tag: 'kmp-iap-4.0.0' },
+  { name: 'maui-iap', version: '3.0.0', tag: 'maui-iap-3.0.0' },
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '0.2.0',
+    tag: 'openiap-client-protocol-0.2.0',
+  },
+  { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
+];
+
 const MINIFIED_RELEASE_BUILD_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.6.1', tag: 'google-3.6.1' },
   {
@@ -463,6 +488,132 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'community-android-providers-2026-10-01',
+      aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag),
+      date: new Date('2026-10-02'),
+      element: (
+        <div key="community-android-providers-2026-10-01" style={noteCardStyle}>
+          {COMMUNITY_PROVIDER_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="community-android-providers-2026-10-01" level="h4">
+            October 2, 2026 - Community store providers
+          </AnchorLink>
+          <p>
+            Use community stores on Apple and Android through one provider
+            contract. Build and test integrations in your own repository, then
+            select a linked provider without changing app purchase APIs.
+          </p>
+          <h5>Common changes</h5>
+          <ul>
+            <li>
+              Purchases and verification outputs include a required{' '}
+              <code>storeId</code>; community stores use <code>Unknown</code> in
+              the frozen <code>IapStore</code> enum.
+            </li>
+            <li>
+              The optional registry lists provider capabilities, maintenance
+              tiers, and conformance reports; unregistered providers work with
+              explicit coordinates.
+            </li>
+            <li>
+              Providers deliver purchase failures through one canonical error
+              event and preserve the purchase token across ownership reads.
+            </li>
+          </ul>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              Client Protocol 0.2.0 defines store identity and shared provider
+              metadata. OpenIAP Apple 4.0.0 adds factory discovery and the
+              public
+              <code>OpenIapConformance</code> Swift suite.
+            </li>
+            <li>
+              OpenIAP Google 4.0.0 publishes <code>openiap-core</code> and the
+              Kotlin <code>openiap-conformance</code> suite alongside the three
+              official store artifacts, with shared provider discovery and
+              compatibility checks.
+            </li>
+            <li>
+              CLI 0.2.0 checks community store selection and provider
+              coordinates with <code>openiap doctor</code>.
+            </li>
+          </ul>
+          <h5>Framework libraries</h5>
+          <ul>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
+              4.0.0, and MAUI 3.0.0 support external Apple and Android providers
+              and preserve purchase and verification identities.
+            </li>
+            <li>
+              React Native preserves unknown Android renewal as{' '}
+              <code>null</code>; required Boolean hints do not establish
+              cancellation or entitlement.
+            </li>
+            <li>
+              Godot keeps Apple listeners when provider disconnection fails and
+              fixes iOS source builds with SwiftPM generators.
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
+          <ul>
+            <li>
+              Add <code>storeId</code> to manually constructed purchase and
+              verification values; official legacy JSON still infers its
+              canonical ID, while community values require an explicit ID.
+            </li>
+            <li>
+              Follow the{' '}
+              <Link to="/docs/guides/store-providers">
+                Store provider guide
+              </Link>{' '}
+              for architecture diagrams, actual Amazon example screens, a source
+              walkthrough and an acceptance brief for provider authors and AI
+              coding agents. Provider-specific settings belong to its manifest
+              or resources. The Amazon community package is an educational
+              example; use the{' '}
+              <Link to="/docs/setup/store/amazon">
+                official Amazon integration
+              </Link>{' '}
+              for FireOS apps.
+            </li>
+            <li>
+              Existing store aliases, legacy flags, and deprecated configuration
+              paths remain supported; their{' '}
+              <Link to="/docs/updates/migration#next-major">
+                removal schedule
+              </Link>{' '}
+              moves to the following major releases.
+            </li>
+          </ul>
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul>
+              {COMMUNITY_PROVIDER_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'amazon-subscription-offers-2026-09-30',
       aliases: AMAZON_OFFER_FIX_RELEASES.map((release) => release.tag),

@@ -178,8 +178,21 @@ function Purchase() {
                 <code>store</code>
               </td>
               <td>
-                Store discriminator: <code>"apple"</code>, <code>"google"</code>
-                , or <code>"horizon"</code>
+                Fixed store discriminator: <code>"apple"</code>,{' '}
+                <code>"google"</code>, <code>"horizon"</code>,{' '}
+                <code>"amazon"</code>, or <code>"unknown"</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>storeId</code>
+              </td>
+              <td>
+                Required stable store id: apple, play, horizon, amazon, or the
+                community provider id.{' '}
+                <Link to="/docs/guides/store-providers#identity">
+                  Store identity
+                </Link>
               </td>
             </tr>
             <tr>
@@ -198,7 +211,11 @@ function Purchase() {
               <td>
                 <code>isAutoRenewing</code>
               </td>
-              <td>Whether subscription will auto-renew</td>
+              <td>
+                Legacy renewal hint that cannot represent unknown. Use nullable
+                platform renewal metadata or backend status for renewal
+                decisions.
+              </td>
             </tr>
             <tr>
               <td>
@@ -630,7 +647,10 @@ function Purchase() {
                       <td>
                         <code>autoRenewingAndroid</code>
                       </td>
-                      <td>Whether subscription will auto-renew</td>
+                      <td>
+                        Store-reported renewal status; null when unavailable.
+                        Does not establish entitlement.
+                      </td>
                     </tr>
                     <tr>
                       <td>

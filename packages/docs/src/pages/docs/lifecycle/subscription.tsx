@@ -60,6 +60,13 @@ function Subscription() {
         </a>
       </p>
 
+      <p>
+        Android examples on this page describe Google Play. Community providers
+        expose only the lifecycle data their store supplies and need that
+        store's server verification. Installing a provider does not add its
+        backend support to IAPKit.
+      </p>
+
       <section>
         <AnchorLink id="platform-comparison" level="h2">
           Platform Comparison
@@ -87,7 +94,7 @@ function Subscription() {
                   ✅ <code>willAutoRenew</code>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  ✅ <code>isAutoRenewing</code>
+                  ⚠️ <code>autoRenewingAndroid</code> (null when unavailable)
                 </td>
                 <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
@@ -165,12 +172,15 @@ function Subscription() {
           <p>
             <strong>Android</strong>: client-side{' '}
             <em>subscription lifecycle</em> data is limited to{' '}
-            <code>isAutoRenewing</code>, <code>isSuspendedAndroid</code>, and{' '}
-            <code>pendingPurchaseUpdateAndroid</code> — the purchase itself
+            <code>autoRenewingAndroid</code>, <code>isSuspendedAndroid</code>,
+            and <code>pendingPurchaseUpdateAndroid</code> — the purchase itself
             still carries <code>productId</code>, <code>purchaseToken</code>,{' '}
             <code>transactionDate</code>, and <code>purchaseState</code>. Expiry
             and renewal dates and detailed subscription state require{' '}
-            <strong>server-side validation</strong>.
+            <strong>server-side validation</strong>. Store support varies; null
+            renewal status means unknown, not cancelled. The required{' '}
+            <code>isAutoRenewing</code> compatibility hint cannot represent
+            unknown.
           </p>
           <p>
             <strong>Both platforms</strong>: Use{' '}
@@ -558,7 +568,8 @@ function Subscription() {
             android: (
               <div className="lifecycle-flow">
                 <div>
-                  <strong>Detection:</strong> isAutoRenewing = false
+                  <strong>Renewal disabled:</strong> autoRenewingAndroid ===
+                  false; null means unknown
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
                   <strong>User still has access:</strong>
@@ -662,7 +673,8 @@ function Subscription() {
           </div>
           <div className="lifecycle-indent">• iOS: willAutoRenew = false</div>
           <div className="lifecycle-indent">
-            • Android: isAutoRenewing = false
+            • Android: autoRenewingAndroid === false when reported; null means
+            unknown
           </div>
 
           <div style={{ marginTop: '0.75rem' }}>
@@ -773,7 +785,7 @@ function Subscription() {
               after validation and content delivery.
             </li>
             <li>
-              <strong>Android 3-day window</strong>: Android purchases must be
+              <strong>Google Play 3-day window</strong>: Play purchases must be
               acknowledged within 3 days or they're automatically refunded.
             </li>
             <li>
@@ -1075,8 +1087,9 @@ function Subscription() {
                     validation (key for all server API calls)
                   </li>
                   <li>
-                    <strong>isAutoRenewing</strong>: Whether the subscription
-                    will auto-renew
+                    <strong>autoRenewingAndroid</strong>: Store-reported renewal
+                    status; null when unavailable. It does not prove entitlement
+                    or cancellation.
                   </li>
                   <li>
                     <strong>isSuspendedAndroid</strong>: Whether the
@@ -1360,10 +1373,13 @@ function Subscription() {
                   Cancellations
                 </AnchorLink>
                 <p>
-                  Client-side, only <code>isAutoRenewing === false</code> is
-                  available. For accurate cancellation details (when, why, by
-                  whom), use the server API which provides{' '}
-                  <code>canceledStateContext</code>.
+                  Google Play can report renewal disabled through{' '}
+                  <code>autoRenewingAndroid === false</code>. A null value means
+                  unknown; do not infer cancellation from the legacy{' '}
+                  <code>isAutoRenewing</code> hint. For cancellation details
+                  (when, why, by whom), use the Google Play server API's{' '}
+                  <code>canceledStateContext</code>. Other stores require their
+                  own server verification.
                 </p>
               </section>
 
@@ -1447,9 +1463,11 @@ function Subscription() {
             <ul style={{ marginBottom: 0 }}>
               <li>
                 Client-side <em>subscription lifecycle</em> data limited to{' '}
-                <code>isAutoRenewing</code>, <code>isSuspendedAndroid</code>,
-                and <code>pendingPurchaseUpdateAndroid</code>
+                <code>autoRenewingAndroid</code>,{' '}
+                <code>isSuspendedAndroid</code>, and{' '}
+                <code>pendingPurchaseUpdateAndroid</code>
               </li>
+              <li>Null renewal status means unknown, not cancelled</li>
               <li>Server-side required for detailed subscription info</li>
               <li>Use Google Play Developer API for authoritative data</li>
               <li>RTDN for real-time subscription updates</li>

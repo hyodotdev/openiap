@@ -36,6 +36,7 @@ func _run_all_tests() -> void:
 
 	# PurchaseAndroid tests
 	_test_purchase_android()
+	_test_store_identity()
 
 	# PurchaseIOS tests
 	_test_purchase_ios()
@@ -234,6 +235,7 @@ func _test_purchase_android() -> void:
 
 	# Test from_dict
 	var from_dict_data = {
+		"store": "google",
 		"id": "parsed_id",
 		"productId": "parsed_product",
 		"transactionId": "parsed_txn",
@@ -832,6 +834,7 @@ func _test_purchase_android_json_round_trip() -> void:
 	purchase.transaction_date = 1720000000000.0
 	purchase.purchase_token = "token-1"
 	purchase.store = Types.IapStore.GOOGLE
+	purchase.store_id = "play"
 	purchase.quantity = 2
 	purchase.purchase_state = Types.PurchaseState.PURCHASED
 	purchase.is_auto_renewing = true
@@ -873,10 +876,10 @@ func _test_purchase_android_json_round_trip() -> void:
 		"pendingPurchaseUpdateAndroid token should survive the wire round trip"
 	)
 
-	var unknown_state = Types.PurchaseAndroid.from_dict({"productId": "p", "purchaseState": "mystery"})
+	var unknown_state = Types.PurchaseAndroid.from_dict({"productId": "p", "purchaseState": "mystery", "store": "google"})
 	_assert_equal(unknown_state.purchase_state, Types.PurchaseState.UNKNOWN, "Unknown purchaseState strings should fall back to UNKNOWN")
 	var unknown_store = Types.PurchaseAndroid.from_dict({"productId": "p", "store": "mystery"})
-	_assert_equal(unknown_store.store, Types.IapStore.UNKNOWN, "Unknown store strings should fall back to UNKNOWN")
+	_assert_equal(unknown_store, null, "Unknown stores require a community identity")
 
 
 func _test_purchase_ios_json_round_trip() -> void:
@@ -889,6 +892,7 @@ func _test_purchase_ios_json_round_trip() -> void:
 	purchase.transaction_date = 1720000000000.0
 	purchase.purchase_token = "jws-token"
 	purchase.store = Types.IapStore.APPLE
+	purchase.store_id = "apple"
 	purchase.quantity = 1
 	purchase.purchase_state = Types.PurchaseState.PURCHASED
 	purchase.original_transaction_identifier_ios = "orig-1"
@@ -1088,3 +1092,16 @@ func _assert_equal(actual, expected, message: String) -> void:
 	else:
 		_total_failed += 1
 		print("  FAIL: %s (expected: %s, got: %s)" % [message, expected, actual])
+
+
+func _test_store_identity() -> void:
+	for store in {"apple": "apple", "google": "play", "horizon": "horizon", "amazon": "amazon"}:
+		var purchase = Types.PurchaseAndroid.from_dict({"store": store})
+		var expected = "play" if store == "google" else store
+		_assert_equal(purchase.store_id, expected, "Legacy official identity should be inferred")
+		_assert_equal(Types.PurchaseAndroid.from_dict(purchase.to_dict()).store_id, expected, "Official identity should round trip")
+	var community = Types.PurchaseAndroid.from_dict({"store": "unknown", "storeId": "community-fixture"})
+	_assert_equal(Types.PurchaseAndroid.from_dict(community.to_dict()).store_id, "community-fixture", "Community identity should round trip")
+	for id in [null, "", "auto", "none", "unknown", "apple", "play", "google", "amazon", "horizon", "Bad id", "store\n", 42]:
+		_assert_equal(Types.PurchaseAndroid.from_dict({"store": "unknown", "storeId": id}), null, "Malformed community identity should fail")
+	_assert_equal(Types.PurchaseAndroid.from_dict({"store": "google", "storeId": "other"}), null, "Conflicting official identity should fail")

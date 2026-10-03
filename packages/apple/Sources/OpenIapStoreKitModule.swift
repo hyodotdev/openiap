@@ -1,0 +1,2722 @@
+import Foundation
+import CoreFoundation
+import StoreKit
+
+private struct IndexedProductEntry: @unchecked Sendable {
+    let index: Int
+    let entry: OpenIAP.ProductOrSubscription
+}
+
+struct IapkitAmazonVerificationPayload: Codable {
+    let store: IapStore
+    let expectedProductId: String?
+    let receiptId: String
+    let sandbox: Bool?
+    let userId: String?
+    let includeClientPayload: Bool?
+}
+
+struct IapkitHorizonVerificationPayload: Codable {
+    let store: IapStore
+    let sku: String
+    let userId: String
+    let includeClientPayload: Bool?
+}
+
+struct EntitlementSelectionKey: Comparable {
+    let purchaseDate: Date
+    let transactionId: UInt64
+
+    static func < (lhs: Self, rhs: Self) -> Bool {
+        if lhs.purchaseDate != rhs.purchaseDate {
+            return lhs.purchaseDate < rhs.purchaseDate
+        }
+        return lhs.transactionId < rhs.transactionId
+    }
+}
+// UIKit: Required for UIApplication, UIWindowScene on iOS/tvOS/visionOS
+#if canImport(UIKit)
+import UIKit
+#endif
+// AppKit: Required for NSApplication, NSWindow on macOS
+#if canImport(AppKit)
+import AppKit
+#endif
+
+/// - SeeAlso: https://developer.apple.com/documentation/storekit/in-app_purchase
+@available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
+
+    static func iapkitVerificationURL(baseUrl: String?) throws -> URL {
+        let defaultBaseUrl = "https://kit.openiap.dev"
+        let trimmedBaseUrl = baseUrl?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var normalizedBaseUrl = trimmedBaseUrl.isEmpty ? defaultBaseUrl : trimmedBaseUrl
+
+        while normalizedBaseUrl.hasSuffix("/") {
+            normalizedBaseUrl.removeLast()
+        }
+
+        guard let components = URLComponents(string: normalizedBaseUrl) else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "IAPKit baseUrl must be a valid HTTP(S) origin"
+            )
+        }
+        let hasValidPort = components.port.map { (1...65_535).contains($0) } ?? true
+        guard let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              components.host?.isEmpty == false,
+              components.user == nil,
+              components.password == nil,
+              components.path.isEmpty,
+              components.query == nil,
+              components.fragment == nil,
+              hasValidPort,
+              let url = URL(string: "\(normalizedBaseUrl)/v1/purchase/verify") else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "IAPKit baseUrl must be a valid HTTP(S) origin"
+            )
+        }
+
+        return url
+    }
+
+    /// Optional enrichment: returns nil for anything this build cannot read,
+    /// including a `format` IAPKit added later. Never fails the receipt.
+    static func iapkitClientPayload(from rawValue: Any?) -> IapkitProductClientPayload? {
+        guard let rawValue, !(rawValue is NSNull) else { return nil }
+        guard let payload = rawValue as? [String: Any],
+              let formatString = payload["format"] as? String,
+              let format = IapkitClientPayloadFormat(rawValue: formatString),
+              let body = payload["body"] as? String,
+              let version = payload["version"] as? NSNumber,
+              let updatedAt = payload["updatedAt"] as? NSNumber,
+              CFGetTypeID(version) != CFBooleanGetTypeID(),
+              CFGetTypeID(updatedAt) != CFBooleanGetTypeID(),
+              version.doubleValue.isFinite,
+              version.doubleValue > 0,
+              version.doubleValue.rounded(.towardZero) == version.doubleValue,
+              updatedAt.doubleValue.isFinite,
+              updatedAt.doubleValue >= 0 else {
+            OpenIapLog.warn("Ignoring an IAPKit client payload this build cannot read")
+            return nil
+        }
+
+        return IapkitProductClientPayload(
+            body: body,
+            format: format,
+            updatedAt: updatedAt.doubleValue,
+            version: version.doubleValue
+        )
+    }
+
+    static func makeIapkitRequest(
+        url: URL,
+        apiKey: String?,
+        body: Data
+    ) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedApiKey, trimmedApiKey.isEmpty == false {
+            request.setValue("Bearer \(trimmedApiKey)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = body
+        return request
+    }
+
+    static func iapkitBoolean(from rawValue: Any?) throws -> Bool {
+        guard let value = rawValue as? NSNumber,
+              CFGetTypeID(value) == CFBooleanGetTypeID() else {
+            throw PurchaseError.make(
+                code: .purchaseVerificationFailed,
+                message: "IAPKit returned malformed response"
+            )
+        }
+
+        return value.boolValue
+    }
+
+    /// Forwarded opaquely: `environment` is String in the spec, and App Store
+    /// Server also names `Xcode` and `LocalTesting`.
+    static func iapkitEnvironment(from rawValue: Any?) -> String? {
+        guard let rawValue, !(rawValue is NSNull) else { return nil }
+        guard let environment = rawValue as? String, environment.isEmpty == false else {
+            OpenIapLog.warn("Ignoring an IAPKit environment this build cannot read")
+            return nil
+        }
+
+        return environment
+    }
+
+    static func iapkitAmazonPayload(
+        from amazon: RequestVerifyPurchaseWithIapkitAmazonProps,
+        includeClientPayload: Bool?
+    ) throws -> IapkitAmazonVerificationPayload {
+        let receiptId = amazon.receiptId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard receiptId.isEmpty == false else {
+            throw PurchaseError.make(code: .developerError, message: "Amazon receiptId is required")
+        }
+        let userId = amazon.userId?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return IapkitAmazonVerificationPayload(
+            store: .amazon,
+            expectedProductId: amazon.expectedProductId,
+            receiptId: receiptId,
+            sandbox: amazon.sandbox,
+            userId: userId?.isEmpty == true ? nil : userId,
+            includeClientPayload: includeClientPayload
+        )
+    }
+
+    static func iapkitHorizonPayload(
+        from horizon: RequestVerifyPurchaseWithIapkitHorizonProps,
+        includeClientPayload: Bool?
+    ) throws -> IapkitHorizonVerificationPayload {
+        let sku = horizon.sku.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userId = horizon.userId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard sku.isEmpty == false, userId.isEmpty == false else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Horizon sku and userId are required"
+            )
+        }
+        return IapkitHorizonVerificationPayload(
+            store: .horizon,
+            sku: sku,
+            userId: userId,
+            includeClientPayload: includeClientPayload
+        )
+    }
+
+    private let state = IapState()
+    private let connection = OpenIapConnectionLifecycle()
+    private let messageListenerRegistrationLock = NSLock()
+    private static let initRetryDelayNanoseconds: UInt64 = 1_000_000
+    private static let subscriptionPreflightTimeoutNanoseconds: UInt64 = 750_000_000
+    @TaskLocal private static var suppressPurchaseErrorEmission = false
+
+    #if os(iOS)
+    private let promotedPurchaseObserverLock = NSLock()
+    private var didRegisterPromotedPurchaseObserver = false
+    private var isPromotedPurchaseObserverTransitionInFlight = false
+    private var promotedPurchaseIntentTask: Task<Void, Never>?
+    private let promotedPurchaseIntentOffers =
+        PromotedPurchaseIntentOfferStore<StoreKit.Product.SubscriptionOffer>()
+    #endif
+
+    private enum SubscriptionPreflightOutcome {
+        case completed
+        case timedOut
+    }
+
+    override init() {
+        super.init()
+        startPromotedPurchaseIntentListenerIfAvailableIOS()
+        registerPromotedPurchaseObserverIfNeeded()
+    }
+
+    deinit {
+        #if os(iOS)
+        promotedPurchaseIntentTask?.cancel()
+        #endif
+        unregisterPromotedPurchaseObserverIfNeeded()
+        cancelConnectionTasksForDeinit()
+    }
+
+    // MARK: - Connection Management
+
+    /// Initialize the store connection. Must be called before any other IAP API.
+    ///
+    /// - Returns: `true` once StoreKit is connected.
+    /// - Throws: When StoreKit fails to initialize.
+    /// - Note: This wraps `OpenIapStoreKit2.initialize()`. Safe to call multiple times — the
+    ///   second call is a no-op.
+    ///
+    /// See: https://openiap.dev/docs/apis/init-connection
+    public func initConnection() async throws -> Bool {
+        while true {
+            if let endTask = connection.currentEndTask() {
+                await endTask.value
+                continue
+            }
+
+            if await hasInitializedConnection() {
+                return true
+            }
+
+            guard let initWork = connection.makeInitTask(operation: { [weak self] generation in
+                guard let self else { return false }
+                return try await self.performInitConnection(generation: generation)
+            }) else {
+                if let endTask = connection.currentEndTask() {
+                    await endTask.value
+                } else {
+                    try await Task.sleep(nanoseconds: Self.initRetryDelayNanoseconds)
+                }
+                continue
+            }
+
+            do {
+                let value = try await initWork.task.value
+                connection.clearInitTask(generation: initWork.generation)
+                return value
+            } catch is CancellationError {
+                connection.clearInitTask(generation: initWork.generation)
+                return false
+            } catch {
+                connection.clearInitTask(generation: initWork.generation)
+                throw error
+            }
+        }
+    }
+
+    /// Close the store connection and release resources.
+    /// See: https://openiap.dev/docs/apis/end-connection
+    public func endConnection() async throws -> Bool {
+        let task = connection.makeEndTask { [weak self] in
+            guard let self else { return }
+            await self.cleanupExistingState()
+        }
+        await task.value
+        return true
+    }
+
+    // MARK: - Product Management
+
+    /// Retrieve products or subscriptions from the App Store by SKU.
+    ///
+    /// - Parameter params: `ProductRequest` with `skus` (the product identifiers) and an
+    ///   optional `type` (`.inApp`, `.subs`, or `.all`; defaults to `.inApp` when omitted —
+    ///   matches the cross-platform Flutter / expo-iap / react-native-iap / godot SDKs).
+    /// - Returns: A `FetchProductsResult` variant — `Product[]` for `.inApp`,
+    ///   `ProductSubscription[]` for `.subs`, or a mixed list for `.all`.
+    /// - Throws: When the store rejects the request (unknown SKU, network failure, not connected).
+    /// - Note: This is a regular promise-based call. Do not confuse with `request*` APIs,
+    ///   which are event-based.
+    ///
+    /// See: https://openiap.dev/docs/apis/fetch-products
+    public func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult {
+        guard !params.skus.isEmpty else {
+            let error = makePurchaseError(code: .emptySkuList)
+            emitPurchaseError(error)
+            throw error
+        }
+
+        try await ensureConnection()
+        guard let productManager = connection.currentProductManager() else {
+            let error = makePurchaseError(code: .notPrepared)
+            emitPurchaseError(error)
+            throw error
+        }
+
+        let fetchedProducts: [StoreKit.Product]
+        do {
+            fetchedProducts = try await StoreKit.Product.products(for: params.skus)
+            for product in fetchedProducts {
+                await productManager.addProduct(product)
+            }
+        } catch {
+            let purchaseError = makePurchaseError(
+                code: .queryProduct,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
+            emitPurchaseError(purchaseError)
+            throw purchaseError
+        }
+
+        // Preserve the concrete product variant so subscription-only fields are
+        // not discarded when callers request a mixed result.
+        let allEntries = await withTaskGroup(of: IndexedProductEntry.self) { group in
+            for (index, product) in fetchedProducts.enumerated() {
+                group.addTask {
+                    if let subscription = await StoreKitTypesBridge.productSubscription(from: product) {
+                        return IndexedProductEntry(
+                            index: index,
+                            entry: .productSubscription(subscription)
+                        )
+                    }
+
+                    let productEntry = await StoreKitTypesBridge.product(from: product)
+                    return IndexedProductEntry(index: index, entry: .product(productEntry))
+                }
+            }
+
+            var entries = Array<OpenIAP.ProductOrSubscription?>(
+                repeating: nil,
+                count: fetchedProducts.count
+            )
+            for await result in group {
+                entries[result.index] = result.entry
+            }
+            return entries.compactMap { $0 }
+        }
+
+        var productEntries: [OpenIAP.Product] = []
+        var subscriptionEntries: [OpenIAP.ProductSubscription] = []
+        for entry in allEntries {
+            switch entry {
+            case .product(let product):
+                productEntries.append(product)
+            case .productSubscription(let subscription):
+                subscriptionEntries.append(subscription)
+            }
+        }
+
+        switch params.type ?? .inApp {
+        case .subs:
+            return .subscriptions(subscriptionEntries.isEmpty ? nil : subscriptionEntries)
+        case .inApp:
+            return .products(productEntries.isEmpty ? nil : productEntries)
+        case .all:
+            return .all(allEntries.isEmpty ? nil : allEntries)
+        }
+    }
+
+    /// Read the App Store-promoted product, if any.
+    /// See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
+    public func getPromotedProductIOS() async throws -> ProductIOS? {
+        // iOS-only: Promoted in-app purchases (App Store promotional purchases) only available on iOS
+        // Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
+        #if os(iOS)
+        let sku = await state.promotedProductIdentifier()
+        guard let sku else { return nil }
+
+        do {
+            try await ensureConnection()
+        } catch let purchaseError as PurchaseError {
+            throw purchaseError
+        }
+
+        await state.setPromotedProductId(sku)
+
+        do {
+            let product = try await storeProduct(for: sku)
+            return await StoreKitTypesBridge.productIOS(from: product)
+        } catch let purchaseError as PurchaseError {
+            await state.setPromotedProductId(nil)
+            throw purchaseError
+        } catch {
+            let wrapped = makePurchaseError(
+                code: .queryProduct,
+                productId: sku,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
+            emitPurchaseError(wrapped)
+            await state.setPromotedProductId(nil)
+            throw wrapped
+        }
+        #else
+        return nil
+        #endif // os(iOS)
+    }
+
+    // MARK: - Purchase Management
+
+    /// Initiate a purchase flow. The result is delivered via the purchase update listener,
+    /// NOT through the return value.
+    ///
+    /// - Parameter params: `RequestPurchaseProps` — discriminated by `type`:
+    ///   `.inApp` for one-time products (use `request.apple.sku`), `.subs` for subscriptions.
+    /// - Returns: The dispatched request payload. Do not rely on this for the purchase outcome.
+    /// - Throws: Synchronous rejections from StoreKit (e.g. user cancel before sheet, not prepared).
+    /// - Warning: Event-based. Listen via `purchaseUpdatedListener` / `purchaseErrorListener`.
+    ///
+    /// See: https://openiap.dev/docs/apis/request-purchase
+    public func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
+        let fallbackProductId = purchaseProductId(from: params)
+        do {
+            return try await Self.$suppressPurchaseErrorEmission.withValue(true) {
+                try await performRequestPurchase(params)
+            }
+        } catch let purchaseError as PurchaseError {
+            var canonicalError = purchaseError
+            if canonicalError.productId == nil {
+                canonicalError.productId = fallbackProductId
+            }
+            emitPurchaseError(canonicalError)
+            throw canonicalError
+        } catch {
+            let canonicalError = PurchaseError.wrap(
+                error,
+                fallback: .purchaseError,
+                productId: fallbackProductId
+            )
+            emitPurchaseError(canonicalError)
+            throw canonicalError
+        }
+    }
+
+    /// Performs the StoreKit request while helper-level error emissions are
+    /// suppressed. `requestPurchase` emits the final canonical error exactly once.
+    private func performRequestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
+        let iosProps = try resolveIOSPurchaseProps(from: params)
+        try await ensureConnection()
+        let sku = iosProps.sku
+        let product = try await storeProduct(for: sku)
+        #if os(iOS)
+        let canUsePurchaseIntentOffer: Bool
+        if let subscriptionProps = iosProps as? RequestSubscriptionIosProps {
+            canUsePurchaseIntentOffer = subscriptionProps.winBackOffer == nil &&
+                subscriptionProps.withOffer == nil &&
+                subscriptionProps.promotionalOfferJWS == nil
+        } else {
+            canUsePurchaseIntentOffer = false
+        }
+        let purchaseIntentOfferLease = canUsePurchaseIntentOffer
+            ? await promotedPurchaseIntentOffers.lease(for: sku)
+            : nil
+        let purchaseIntentOffer = purchaseIntentOfferLease?.offer
+        #else
+        let purchaseIntentOffer: StoreKit.Product.SubscriptionOffer? = nil
+        #endif
+        let options: Set<StoreKit.Product.PurchaseOption>
+        do {
+            options = try StoreKitTypesBridge.purchaseOptionsIOS(
+                from: iosProps,
+                product: product,
+                purchaseIntentOffer: purchaseIntentOffer
+            )
+        } catch {
+            #if os(iOS)
+            if let purchaseIntentOfferLease {
+                await promotedPurchaseIntentOffers.release(
+                    purchaseIntentOfferLease,
+                    for: sku
+                )
+            }
+            #endif
+            throw error
+        }
+
+        if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type) {
+            await preflightInactiveUnfinishedSubscriptions(productId: sku)
+        }
+
+        let result: StoreKit.Product.PurchaseResult
+        do {
+            // iOS 17.0+, tvOS 17.0+, macOS 15.2+: Use purchase(confirmIn:options:) for better purchase confirmation UI
+            // Reference: https://developer.apple.com/documentation/storekit/product/purchase(confirmin:options:)-6dj6y
+            #if os(iOS) || os(tvOS) || os(visionOS)
+            // iOS/tvOS/visionOS: Use UIWindowScene (not available on watchOS)
+            if #available(iOS 17.0, tvOS 17.0, visionOS 1.0, *) {
+                result = try await purchaseWithActiveScene(product: product, options: options, sku: sku)
+            } else {
+                result = try await product.purchase(options: options)
+            }
+            #elseif os(macOS)
+            // macOS: Use NSWindow (macOS 15.2+)
+            if #available(macOS 15.2, *) {
+                let window: NSWindow? = await MainActor.run {
+                    NSApplication.shared.windows.first
+                }
+                guard let window else {
+                    let error = makePurchaseError(code: .purchaseError, message: "Could not find window")
+                    throw error
+                }
+                result = try await product.purchase(confirmIn: window, options: options)
+            } else {
+                result = try await product.purchase(options: options)
+            }
+            #else
+            result = try await product.purchase(options: options)
+            #endif
+        } catch {
+            #if os(iOS)
+            if let purchaseIntentOfferLease {
+                await promotedPurchaseIntentOffers.release(
+                    purchaseIntentOfferLease,
+                    for: sku
+                )
+            }
+            #endif
+            // Enhanced error handling for promotional offers
+            if iosProps.withOffer != nil {
+                OpenIapLog.error("Purchase with promotional offer failed: \(error.localizedDescription)")
+                let enhancedMessage = """
+                    Promotional offer purchase failed: \(error.localizedDescription)
+
+                    Common causes:
+                    1. Invalid signature - verify server generates correct signature with exact parameter order
+                    2. Empty appAccountToken - ensure empty string ('') is used in signature, not null
+                    3. Sandbox testing - ensure current subscription has expired before testing offers
+                    4. Offer eligibility - user may not be eligible for this promotional offer
+                    """
+                let purchaseError = makePurchaseError(
+                    code: .purchaseError,
+                    productId: sku,
+                    message: enhancedMessage,
+                    debugMessage: error.localizedDescription
+                )
+                throw purchaseError
+            }
+
+            // Use PurchaseError.wrap to automatically map errors (including StoreKitError.userCancelled)
+            let purchaseError = PurchaseError.wrap(error, fallback: .purchaseError, productId: sku)
+            throw purchaseError
+        }
+
+        // Keep the intent offer available across local validation and
+        // presentation-context failures. Consume only after StoreKit has
+        // accepted the matching purchase attempt and returned a result.
+        #if os(iOS)
+        if let purchaseIntentOfferLease {
+            await promotedPurchaseIntentOffers.consume(
+                purchaseIntentOfferLease,
+                for: sku
+            )
+        }
+        #endif
+
+        switch result {
+        case .success(let verification):
+            let transaction = try checkVerified(verification)
+            if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type),
+               isInactiveSubscriptionTransaction(transaction) {
+                await transaction.finish()
+                await state.removePending(id: String(transaction.id))
+                OpenIapLog.debug("""
+                    🧹 [requestPurchase] Finished inactive subscription transaction before emitting:
+                    - SKU: \(transaction.productID)
+                    - Transaction ID: \(transaction.id)
+                    - Expiration: \(transaction.expirationDate?.description ?? "none")
+                    - Revoked: \(transaction.revocationDate?.description ?? "none")
+                    - Upgraded: \(transaction.isUpgraded)
+                    """)
+                let error = makePurchaseError(
+                    code: .purchaseError,
+                    productId: sku,
+                    message: "Finished an inactive subscription transaction. Please retry the purchase."
+                )
+                throw error
+            }
+            let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
+            let transactionId = String(transaction.id)
+            let shouldAutoFinish = iosProps.andDangerouslyFinishTransactionAutomatically == true
+
+            let isSubscription = StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type)
+
+            OpenIapLog.debug("""
+                🎯 [requestPurchase] Purchase successful:
+                - Requested SKU: \(sku)
+                - Returned Product: \(transaction.productID)
+                - Transaction ID: \(transactionId)
+                - Purchase Date: \(transaction.purchaseDate)
+                - Product Type: \(isSubscription ? "subscription" : "non-subscription")
+                - SKU matches: \(transaction.productID == sku)
+                - Note: \(isSubscription ? "Subscription transactions will be emitted via Transaction.updates" : "Emitting directly")
+                """)
+
+            let shouldEmit = await state.recordPurchaseUpdateEmission(
+                id: transactionId,
+                pendingTransaction: shouldAutoFinish ? nil : transaction
+            )
+            // Dedupe only controls listener delivery; auto-finish must still
+            // complete the StoreKit transaction lifecycle for replayed updates.
+            if shouldAutoFinish {
+                await transaction.finish()
+                await state.removePending(id: transactionId)
+            }
+
+            // StoreKit can replay unfinished transactions through multiple paths during a
+            // connection session. Default listeners receive each transaction id once;
+            // non-deduping listeners can opt into the replay for diagnostics.
+            emitPurchaseUpdate(
+                purchase,
+                isDuplicate: !shouldEmit,
+                duplicateSource: "requestPurchase",
+                duplicateTransactionId: transactionId
+            )
+
+            return .purchase(purchase)
+
+        case .userCancelled:
+            let error = makePurchaseError(code: .userCancelled, productId: sku)
+            throw error
+
+        case .pending:
+            let error = makePurchaseError(code: .deferredPayment, productId: sku)
+            throw error
+
+        @unknown default:
+            let error = makePurchaseError(code: .unknown, productId: sku)
+            throw error
+        }
+    }
+
+    /// Restore non-consumable and active subscription purchases.
+    /// See: https://openiap.dev/docs/apis/restore-purchases
+    public func restorePurchases() async throws -> Void {
+        _ = try await syncIOS()
+    }
+
+    /// List the user's purchases held by StoreKit. By default reads `Transaction.all` (the
+    /// full history including refunded / revoked entries). Pass
+    /// `onlyIncludeActiveItemsIOS = true` to switch to `Transaction.currentEntitlements`,
+    /// which narrows the result to active non-consumables and live subscriptions.
+    ///
+    /// - Parameter options: Optional iOS-specific flags. `onlyIncludeActiveItemsIOS`
+    ///   toggles between `Transaction.all` (default) and `Transaction.currentEntitlements`.
+    ///   `alsoPublishToEventListenerIOS` re-emits each purchase on the update listener.
+    /// - Returns: An array of `Purchase` values matching the selected scope.
+    /// - Throws: When the StoreKit query fails.
+    ///
+    /// See: https://openiap.dev/docs/apis/get-available-purchases
+    public func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
+        try await ensureConnection()
+        let onlyActive = options?.onlyIncludeActiveItemsIOS ?? false
+        let shouldPublish = options?.alsoPublishToEventListenerIOS ?? false
+        var purchasedItems: [Purchase] = []
+
+        for await verification in (onlyActive ? Transaction.currentEntitlements : Transaction.all) {
+            let transaction = try checkVerified(verification)
+
+            if onlyActive, let expirationDate = transaction.expirationDate, expirationDate <= Date() {
+                continue
+            }
+
+            let purchase = await StoreKitTypesBridge.purchase(
+                from: transaction,
+                jwsRepresentation: verification.jwsRepresentation
+            )
+            purchasedItems.append(purchase)
+        }
+
+        // Publish only after the complete sequence verifies successfully so a
+        // failed query cannot leak a partial authoritative result via events.
+        if shouldPublish {
+            purchasedItems.forEach { emitPurchaseUpdate($0) }
+        }
+
+        OpenIapLog.debug("🔍 getAvailablePurchases: \(purchasedItems.count) purchases (onlyActive=\(onlyActive))")
+        return purchasedItems
+    }
+
+    /// Get the full StoreKit 2 transaction history as `PurchaseIOS` values.
+    /// Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app
+    /// for finished consumables to be included in `Transaction.all` (iOS 18+).
+    /// Unlike `getAvailablePurchases(_:)`, this method always reads from
+    /// `Transaction.all` and returns the iOS-specific `PurchaseIOS` shape rather than
+    /// the cross-platform `Purchase` type.
+    ///
+    /// See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
+    public func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
+        try await ensureConnection()
+        var transactions: [PurchaseIOS] = []
+
+        for await verification in Transaction.all {
+            let transaction = try checkVerified(verification)
+            let purchase = await StoreKitTypesBridge.purchaseIOS(
+                from: transaction,
+                jwsRepresentation: verification.jwsRepresentation
+            )
+            transactions.append(purchase)
+        }
+
+        OpenIapLog.debug("🔍 getAllTransactionsIOS: \(transactions.count) transactions")
+        return transactions
+    }
+
+    // MARK: - Transaction Management
+
+    /// Complete a purchase transaction. Call after server-side verification to remove it
+    /// from the StoreKit queue.
+    ///
+    /// - Parameters:
+    ///   - purchase: The `PurchaseInput` to finalize.
+    ///   - isConsumable: Pass `true` for consumables (re-buyable like coins), `false` for
+    ///     subscriptions and non-consumables. Affects only Android consume vs acknowledge;
+    ///     iOS always calls `Transaction.finish()`.
+    /// - Throws: When the platform finalization fails.
+    /// - Important: iOS unfinished transactions replay on every app launch. (Android purchases
+    ///   must be acknowledged within 3 days, but that path lives in the Android module.)
+    ///
+    /// See: https://openiap.dev/docs/apis/finish-transaction
+    public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void {
+        try await ensureConnection()
+        let identifier = purchase.id
+
+        if let pending = await state.getPending(id: identifier) {
+            await pending.finish()
+            await state.removePending(id: identifier)
+            return
+        }
+
+        guard let numericId = UInt64(identifier) else {
+            let error = makePurchaseError(code: .purchaseError, message: "Invalid transaction identifier")
+            emitPurchaseError(error)
+            throw error
+        }
+
+        for await result in Transaction.unfinished {
+            do {
+                let transaction = try checkVerified(result)
+                if transaction.id == numericId {
+                    await transaction.finish()
+                    await state.removePending(id: identifier)
+                    return
+                }
+            } catch {
+                OpenIapLog.debug("⚠️ finishTransaction unfinished lookup failed: \(error.localizedDescription)")
+            }
+        }
+
+        if let result = await Transaction.latest(for: purchase.productId) {
+            do {
+                let transaction = try checkVerified(result)
+                if transaction.id == numericId {
+                    await transaction.finish()
+                    await state.removePending(id: identifier)
+                    return
+                }
+            } catch {
+                OpenIapLog.debug("⚠️ finishTransaction latest lookup failed: \(error.localizedDescription)")
+            }
+        }
+
+        OpenIapLog.debug("ℹ️ finishTransaction skipped: transaction \(identifier) is not pending/unfinished/latest; treating as already finished")
+    }
+
+    /// List unfinished StoreKit transactions.
+    /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
+    public func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {
+        try await ensureConnection()
+        var purchases: [PurchaseIOS] = []
+        for await verification in Transaction.unfinished {
+            let transaction = try checkVerified(verification)
+            await state.storePending(id: String(transaction.id), transaction: transaction)
+            purchases.append(
+                await StoreKitTypesBridge.purchaseIOS(
+                    from: transaction,
+                    jwsRepresentation: verification.jwsRepresentation
+                )
+            )
+        }
+        return purchases
+    }
+
+    /// Clear pending transactions in the queue (sandbox helper).
+    /// See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
+    public func clearTransactionIOS() async throws -> Bool {
+        try await ensureConnection()
+        for await result in Transaction.unfinished {
+            do {
+                let transaction = try checkVerified(result)
+                await transaction.finish()
+                await state.removePending(id: String(transaction.id))
+            } catch {
+                continue
+            }
+        }
+        return true
+    }
+
+    /// Check whether a transaction's JWS verification passed.
+    /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
+    public func isTransactionVerifiedIOS(sku: String) async throws -> Bool {
+        try await ensureConnection()
+        let product = try await storeProduct(for: sku)
+        guard let result = await product.latestTransaction else { return false }
+        do {
+            _ = try checkVerified(result)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Return the JWS string for a transaction.
+    /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
+    public func getTransactionJwsIOS(sku: String) async throws -> String? {
+        try await ensureConnection()
+        let product = try await storeProduct(for: sku)
+        guard let result = await product.latestTransaction else {
+            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            emitPurchaseError(error)
+            throw error
+        }
+        return result.jwsRepresentation
+    }
+
+    // MARK: - Validation
+
+    /// Get base64 receipt data (legacy validation).
+    /// See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
+    public func getReceiptDataIOS() async throws -> String? {
+        guard let receiptURL = Bundle.main.appStoreReceiptURL,
+              FileManager.default.fileExists(atPath: receiptURL.path) else {
+            return nil
+        }
+        let data = try Data(contentsOf: receiptURL)
+        return data.base64EncodedString()
+    }
+
+    private func performVerifyPurchaseIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
+        let receiptData = (try? await getReceiptDataIOS()) ?? ""
+        var latestPurchase: Purchase? = nil
+        var jws: String = ""
+        var isValid = false
+
+        // Apple options with sku is required
+        guard let appleOptions = props.apple, !appleOptions.sku.isEmpty else {
+            throw makePurchaseError(
+                code: .developerError,
+                message: "Apple verification requires apple options with sku"
+            )
+        }
+
+        do {
+            let product = try await storeProduct(for: appleOptions.sku)
+            if let result = await product.latestTransaction {
+                jws = result.jwsRepresentation
+                let transaction = try checkVerified(result)
+                latestPurchase = .purchaseIos(await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation))
+                isValid = true
+            }
+        } catch {
+            isValid = false
+        }
+
+        return VerifyPurchaseResultIOS(
+            isValid: isValid,
+            jwsRepresentation: jws,
+            latestTransaction: latestPurchase,
+            receiptData: receiptData
+        )
+    }
+
+    /// Verify a purchase against your own backend (returns isValid + raw store metadata).
+    /// See: https://openiap.dev/docs/features/validation#verify-purchase
+    public func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
+        try await ensureConnection()
+        let iosResult = try await performVerifyPurchaseIOS(props)
+        return .verifyPurchaseResultIos(iosResult)
+    }
+
+    /// Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
+    /// See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
+    public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
+        struct IapkitApplePayload: Codable {
+            let store: IapStore
+            let jws: String
+            let includeClientPayload: Bool?
+        }
+        struct IapkitGooglePayload: Codable {
+            let store: IapStore
+            let purchaseToken: String
+            let includeClientPayload: Bool?
+        }
+
+        func extractIapkitErrorMessage(from json: [String: Any]) -> String? {
+            func extractStringMessage(_ value: String) -> String {
+                if let data = value.data(using: .utf8),
+                   let nested = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    return extractIapkitErrorMessage(from: nested) ?? value
+                }
+                return value
+            }
+
+            if let details = json["details"] as? [String: Any],
+               let originalError = details["originalError"] as? String {
+                return extractStringMessage(originalError)
+            }
+
+            if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
+                return extractIapkitErrorMessage(from: firstError)
+            }
+
+            if let message = json["message"] as? String {
+                return extractStringMessage(message)
+            }
+
+            if let error = json["error"] as? String {
+                return extractStringMessage(error)
+            }
+
+            return nil
+        }
+
+        func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps) throws -> (store: IapStore, body: Data) {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            let payloadCount = [
+                props.apple != nil,
+                props.google != nil,
+                props.horizon != nil,
+                props.amazon != nil,
+            ].filter { $0 }.count
+            guard payloadCount == 1 else {
+                throw makePurchaseError(code: .developerError, message: "IAPKit verification requires exactly one store payload")
+            }
+
+            if let apple = props.apple {
+                let jws = apple.jws.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard jws.isEmpty == false else {
+                    throw makePurchaseError(code: .developerError, message: "JWS is required")
+                }
+                let payload = IapkitApplePayload(
+                    store: .apple,
+                    jws: jws,
+                    includeClientPayload: props.includeClientPayload
+                )
+                return (.apple, try encoder.encode(payload))
+            }
+
+            if let google = props.google {
+                let purchaseToken = google.purchaseToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard purchaseToken.isEmpty == false else {
+                    throw makePurchaseError(code: .developerError, message: "Google purchase token is required")
+                }
+                let payload = IapkitGooglePayload(
+                    store: .google,
+                    purchaseToken: purchaseToken,
+                    includeClientPayload: props.includeClientPayload
+                )
+                return (.google, try encoder.encode(payload))
+            }
+
+            if let horizon = props.horizon {
+                let payload = try Self.iapkitHorizonPayload(
+                    from: horizon,
+                    includeClientPayload: props.includeClientPayload
+                )
+                return (.horizon, try encoder.encode(payload))
+            }
+
+            if let amazon = props.amazon {
+                let payload = try Self.iapkitAmazonPayload(
+                    from: amazon,
+                    includeClientPayload: props.includeClientPayload
+                )
+                return (.amazon, try encoder.encode(payload))
+            }
+
+            throw makePurchaseError(code: .developerError, message: "IAPKit verification payload is required")
+        }
+
+        func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
+            let url = try Self.iapkitVerificationURL(baseUrl: props.baseUrl)
+
+            let payload = try buildIapkitPayload(props: props)
+            let store = payload.store
+            let body = payload.body
+
+            let request = Self.makeIapkitRequest(url: url, apiKey: props.apiKey, body: body)
+
+            OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
+            OpenIapLog.debug("IAPKit request body bytes=\(body.count)")
+
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                if let urlError = error as? URLError, urlError.code == .cancelled {
+                    throw CancellationError()
+                }
+                OpenIapLog.warn("IAPKit verification network error: \(error.localizedDescription)")
+                throw makePurchaseError(code: .networkError, message: error.localizedDescription)
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw makePurchaseError(code: .networkError, message: "Invalid response")
+            }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8) ?? ""
+                OpenIapLog.warn("verifyPurchaseWithProvider failed (HTTP \(httpResponse.statusCode))")
+                var errorMessage = "HTTP \(httpResponse.statusCode)"
+                if let jsonData = responseBody.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    errorMessage = extractIapkitErrorMessage(from: json) ?? errorMessage
+                }
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: errorMessage)
+            }
+
+            OpenIapLog.debug("IAPKit verification response received: bytes=\(data.count)")
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                OpenIapLog.warn("Failed to parse IAPKit verification response")
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: "Unable to parse verification response")
+            }
+
+            if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
+                let errorMessage = extractIapkitErrorMessage(from: firstError) ?? "Unknown error"
+                let errorCode = firstError["code"] as? String ?? "unknown"
+                OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: errorMessage)
+            }
+
+            let isValid = try Self.iapkitBoolean(from: json["isValid"])
+            guard let stateString = json["state"] as? String,
+                  let storeString = json["store"] as? String,
+                  let parsedStore = IapStore(rawValue: storeString),
+                  parsedStore == store else {
+                OpenIapLog.warn("IAPKit verification response missing required fields")
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
+            }
+            let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
+            let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
+            let productId: String?
+            if let rawProductId = json["productId"], !(rawProductId is NSNull) {
+                guard let value = rawProductId as? String else {
+                    OpenIapLog.warn("IAPKit verification response contains a non-string productId")
+                    throw makePurchaseError(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
+                }
+                productId = value
+            } else {
+                productId = nil
+            }
+            let environment = Self.iapkitEnvironment(from: json["environment"])
+            let clientPayload = Self.iapkitClientPayload(from: json["clientPayload"])
+            OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
+            return RequestVerifyPurchaseWithIapkitResult(
+                clientPayload: clientPayload,
+                environment: environment,
+                isValid: isValid,
+                productId: productId,
+                state: parsedState,
+                store: parsedStore,
+                storeId: parsedStore == .google ? "play" : parsedStore.rawValue,
+            )
+        }
+        try await ensureConnection()
+        guard props.provider == .iapkit else {
+            throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
+        }
+        guard let iapkit = props.iapkit else {
+            throw makePurchaseError(code: .developerError, message: "Missing IAPKit verification parameters")
+        }
+        let result = try await verifyPurchaseWithIapkit(props: iapkit)
+        return VerifyPurchaseWithProviderResult(
+            iapkit: result,
+            provider: props.provider
+        )
+    }
+
+    // MARK: - Store Information
+
+    /// Return the user's storefront country code.
+    /// See: https://openiap.dev/docs/apis/get-storefront
+    public func getStorefront() async throws -> String {
+        try await ensureConnection()
+        guard let storefront = await Storefront.current else {
+            let error = makePurchaseError(code: .unknown)
+            emitPurchaseError(error)
+            throw error
+        }
+        return storefront.countryCode
+    }
+
+    /// Get the app transaction that represents the user's purchase of the app
+    /// - Note: Available on iOS 16.0+, macOS 14.0+, tvOS 16.0+, watchOS 9.0+
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/apptransaction
+    ///
+    /// See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
+    public func getAppTransactionIOS() async throws -> AppTransaction? {
+        try await ensureConnection()
+        let verification = try await StoreKit.AppTransaction.shared
+        switch verification {
+        case .verified(let transaction):
+            return mapAppTransaction(transaction)
+        case .unverified:
+            return nil
+        }
+    }
+
+    // MARK: - Subscription Management
+
+    /// Get details of all currently active subscriptions.
+    /// See: https://openiap.dev/docs/apis/get-active-subscriptions
+    public func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] {
+        try await ensureConnection()
+        var allSubscriptions: [ActiveSubscription] = []
+        for await verification in Transaction.currentEntitlements {
+            let transaction = try checkVerified(verification)
+            guard StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
+                transaction.productType
+            ) else {
+                continue
+            }
+
+            // Skip upgraded subscriptions - they've been replaced
+            if transaction.isUpgraded {
+                continue
+            }
+
+            if let ids = subscriptionIds, ids.contains(transaction.productID) == false {
+                continue
+            }
+            let expiration = transaction.expirationDate
+            // If expiration date is nil, treat as inactive (expired or invalid)
+            // This prevents treating subscriptions without expiration dates as active
+            let isActive = expiration.map { $0 > Date() } ?? false
+            let dayDelta = expiration.map { Calendar.current.dateComponents([.day], from: Date(), to: $0).day ?? 0 }
+            let daysUntilExpiration = dayDelta.map { Double($0) }
+            let environment: String?
+            // OpenIapStoreKitModule already requires tvOS 16, so only the lower
+            // iOS and watchOS deployment floors need a runtime check here.
+            if #available(iOS 16.0, watchOS 9.0, *) {
+                environment = transaction.environment.rawValue
+            } else {
+                environment = nil
+            }
+
+            // Fetch renewal info for subscription
+            let renewalInfo = await StoreKitTypesBridge.subscriptionRenewalInfoIOS(for: transaction)
+
+            allSubscriptions.append(
+                ActiveSubscription(
+                    autoRenewingAndroid: nil,
+                    currentPlanId: transaction.productID,
+                    daysUntilExpirationIOS: daysUntilExpiration,
+                    environmentIOS: environment,
+                    expirationDateIOS: expiration?.milliseconds,
+                    isActive: isActive,
+                    productId: transaction.productID,
+                    purchaseToken: verification.jwsRepresentation,
+                    renewalInfoIOS: renewalInfo,
+                    transactionDate: transaction.purchaseDate.milliseconds,
+                    transactionId: String(transaction.id)
+                )
+            )
+        }
+
+        OpenIapLog.debug("📊 Returning \(allSubscriptions.count) active subscriptions")
+
+        // Upgraded subscriptions are already filtered out by transaction.isUpgraded check
+        // Return all remaining subscriptions (active, downgraded, and cancelled)
+        return allSubscriptions
+    }
+
+    /// Check whether the user has any active subscription.
+    /// See: https://openiap.dev/docs/apis/has-active-subscriptions
+    public func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool {
+        let subscriptions = try await getActiveSubscriptions(subscriptionIds)
+        return subscriptions.contains { $0.isActive }
+    }
+
+    /// Show the subscription management interface
+    /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 14.0+, visionOS 1.0+. Not available on tvOS (subscriptions are managed in Settings > Accounts) or watchOS.
+    /// - Note: macOS has no native StoreKit manage-subscriptions sheet, so this opens https://apps.apple.com/account/subscriptions in the default browser.
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)
+    ///
+    /// See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
+    public func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
+        try await ensureConnection()
+        // tvOS: AppStore.showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
+        // watchOS: No window scene UI for showManageSubscriptions
+        #if !os(tvOS) && !os(watchOS)
+            #if canImport(UIKit)
+            let scene: UIWindowScene? = await MainActor.run {
+                UIApplication.shared.connectedScenes.first as? UIWindowScene
+            }
+            guard let scene else {
+                throw makePurchaseError(code: .unknown)
+            }
+            try await AppStore.showManageSubscriptions(in: scene)
+            #elseif canImport(AppKit)
+            // macOS: AppStore.showManageSubscriptions requires a UIWindowScene, which
+            // does not exist on macOS. Fall back to opening the App Store
+            // subscriptions management page in the default browser.
+            guard let url = URL(string: "https://apps.apple.com/account/subscriptions") else {
+                throw makePurchaseError(code: .unknown, message: "Invalid subscriptions management URL")
+            }
+            let opened = await MainActor.run {
+                NSWorkspace.shared.open(url)
+            }
+            guard opened else {
+                throw makePurchaseError(code: .unknown, message: "Failed to open subscriptions management page")
+            }
+            #endif
+        #else
+        throw makePurchaseError(code: .featureNotSupported)
+        #endif // !os(tvOS) && !os(watchOS)
+    }
+
+    /// Get subscription status objects from StoreKit 2.
+    /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
+    public func subscriptionStatusIOS(sku: String) async throws -> [SubscriptionStatusIOS] {
+        try await ensureConnection()
+        let product = try await storeProduct(for: sku)
+        guard let subscription = product.subscription else {
+            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            emitPurchaseError(error)
+            throw error
+        }
+
+        do {
+            let statuses = try await subscription.status
+            return statuses.map { status in
+                let renewalInfo: RenewalInfoIOS?
+                switch status.renewalInfo {
+                case .verified(let info):
+                    let jsonString = String(data: info.jsonRepresentation, encoding: .utf8) ?? info.jsonRepresentation.base64EncodedString()
+                    renewalInfo = RenewalInfoIOS(
+                        autoRenewPreference: info.autoRenewPreference,
+                        commitmentInfo: StoreKitTypesBridge.renewalCommitmentInfoIOS(from: info),
+                        isInBillingRetry: info.isInBillingRetry,
+                        jsonRepresentation: jsonString,
+                        renewalBillingPlanType: StoreKitTypesBridge.renewalBillingPlanTypeIOS(from: info),
+                        willAutoRenew: info.willAutoRenew
+                    )
+                case .unverified:
+                    renewalInfo = nil
+                }
+                return SubscriptionStatusIOS(
+                    renewalInfo: renewalInfo,
+                    state: String(describing: status.state)
+                )
+            }
+        } catch {
+            let purchaseError = makePurchaseError(code: .serviceError, message: error.localizedDescription)
+            emitPurchaseError(purchaseError)
+            throw purchaseError
+        }
+    }
+
+    /// Get the user's current entitlement for a product.
+    /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
+    public func currentEntitlementIOS(sku: String) async throws -> PurchaseIOS? {
+        try await ensureConnection()
+        let product = try await storeProduct(for: sku)
+
+        let entitlements: Transaction.Transactions
+        // Product.currentEntitlements ships in the Xcode 26 SDK and is
+        // back-deployed by StoreKit. Xcode 16.4 also uses Swift 6.1, so the
+        // compiler guard must stay at Swift 6.2+ to keep that SDK buildable.
+        #if compiler(>=6.2)
+        if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
+            entitlements = product.currentEntitlements
+        } else {
+            entitlements = Transaction.currentEntitlements
+        }
+        #else
+        entitlements = Transaction.currentEntitlements
+        #endif
+
+        var latest: (
+            key: EntitlementSelectionKey,
+            transaction: StoreKit.Transaction,
+            jwsRepresentation: String
+        )?
+        for await result in entitlements {
+            guard result.unsafePayloadValue.productID == sku else { continue }
+            do {
+                let transaction = try checkVerified(result)
+                let key = EntitlementSelectionKey(
+                    purchaseDate: transaction.purchaseDate,
+                    transactionId: transaction.id
+                )
+                if latest.map({ $0.key < key }) ?? true {
+                    latest = (key, transaction, result.jwsRepresentation)
+                }
+            } catch {
+                let error = makePurchaseError(
+                    code: .transactionValidationFailed,
+                    message: error.localizedDescription
+                )
+                emitPurchaseError(error)
+                throw error
+            }
+        }
+        guard let latest else { return nil }
+        return await StoreKitTypesBridge.purchaseIOS(
+            from: latest.transaction,
+            jwsRepresentation: latest.jwsRepresentation
+        )
+    }
+
+    /// Get the latest verified transaction for a product.
+    /// See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
+    public func latestTransactionIOS(sku: String) async throws -> PurchaseIOS? {
+        try await ensureConnection()
+        let product = try await storeProduct(for: sku)
+        guard let result = await product.latestTransaction else { return nil }
+        do {
+            let transaction = try checkVerified(result)
+            return await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation)
+        } catch {
+            let error = makePurchaseError(code: .transactionValidationFailed, message: error.localizedDescription)
+            emitPurchaseError(error)
+            throw error
+        }
+    }
+
+    // MARK: - Refunds
+
+    /// Begin a refund request for a transaction
+    /// - Note: Available on iOS 15.0+, iPadOS 15.0+, Mac Catalyst 15.0+, macOS 12.0+, visionOS 1.0+. Not available on tvOS or watchOS.
+    /// - Note: macOS has no native StoreKit refund sheet, so this opens https://reportaproblem.apple.com in the default browser and returns nil (the refund is resolved outside the app).
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/transaction/3803220-beginrefundrequest
+    ///
+    /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
+    public func beginRefundRequestIOS(sku: String) async throws -> String? {
+        try await ensureConnection()
+        // tvOS: Transaction.beginRefundRequest not available on tvOS
+        // watchOS: Transaction.beginRefundRequest not available on watchOS
+        #if !os(tvOS) && !os(watchOS)
+        let product = try await storeProduct(for: sku)
+        guard let result = await product.latestTransaction else {
+            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            emitPurchaseError(error)
+            throw error
+        }
+
+        let transaction = try checkVerified(result)
+
+        #if canImport(UIKit)
+        let scene: UIWindowScene? = await MainActor.run {
+            UIApplication.shared.connectedScenes.first as? UIWindowScene
+        }
+        guard let scene else {
+            let error = makePurchaseError(code: .purchaseError, message: "Cannot find window scene")
+            emitPurchaseError(error)
+            throw error
+        }
+        let status = try await transaction.beginRefundRequest(in: scene)
+        switch status {
+        case .success:
+            return "success"
+        case .userCancelled:
+            return "userCancelled"
+        @unknown default:
+            return nil
+        }
+        #elseif canImport(AppKit)
+        // macOS: Transaction.beginRefundRequest requires a UIWindowScene, which does
+        // not exist on macOS. Fall back to opening Apple's refund request page in the
+        // default browser for the verified transaction. The refund is resolved outside
+        // the app, so return nil (no definitive status), matching @unknown default.
+        OpenIapLog.debug("Opening refund request page for transaction \(transaction.id)")
+        guard let url = URL(string: "https://reportaproblem.apple.com/") else {
+            let error = makePurchaseError(code: .purchaseError, message: "Invalid refund request URL")
+            emitPurchaseError(error)
+            throw error
+        }
+        let opened = await MainActor.run {
+            NSWorkspace.shared.open(url)
+        }
+        guard opened else {
+            let error = makePurchaseError(code: .purchaseError, message: "Failed to open refund request page")
+            emitPurchaseError(error)
+            throw error
+        }
+        return nil
+        #endif
+        #else
+        throw makePurchaseError(code: .featureNotSupported)
+        #endif // !os(tvOS) && !os(watchOS)
+    }
+
+    // MARK: - Misc
+
+    /// Check if the user is eligible for an introductory offer for a subscription group
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer(for:)
+    ///
+    /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+    public func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool {
+        let normalizedGroupID = groupID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedGroupID.isEmpty else {
+            return false
+        }
+        try await ensureConnection()
+        return await StoreKit.Product.SubscriptionInfo.isEligibleForIntroOffer(for: normalizedGroupID)
+    }
+
+    /// Sync the user's in-app purchases with the App Store
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/sync()
+    ///
+    /// See: https://openiap.dev/docs/apis/ios/sync-ios
+    public func syncIOS() async throws -> Bool {
+        try await ensureConnection()
+        do {
+            try await AppStore.sync()
+            return true
+        } catch {
+            throw PurchaseError.wrap(error, fallback: .serviceError)
+        }
+    }
+
+    /// Open the offer/promo code redemption flow (the App Store offer code
+    /// redemption sheet on Apple platforms).
+    /// - Note: Builds made with Xcode 27+ return the verified transaction on
+    ///   iOS 27+, Mac Catalyst 27+, and visionOS 27+. Earlier iOS and visionOS
+    ///   paths return nil after presenting the system sheet. Mac Catalyst 16–26
+    ///   throws StoreKitError.unknown, and Catalyst 15 returns nil after a
+    ///   StoreKit 1 call that has no effect.
+    /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(from:options:)
+    ///
+    /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
+    public func openRedeemOfferCode() async throws -> PurchaseIOS? {
+        try await ensureConnection()
+
+        #if compiler(>=6.4)
+        #if os(iOS) || os(visionOS)
+        if #available(iOS 27.0, macCatalyst 27.0, visionOS 27.0, *) {
+            guard let viewController = await activeViewController() else {
+                throw makePurchaseError(
+                    code: .purchaseError,
+                    message: "Cannot find an active view controller for offer-code redemption"
+                )
+            }
+
+            do {
+                let result = try await AppStore.presentOfferCodeRedeemSheet(
+                    from: viewController,
+                    options: []
+                )
+                let transaction = try checkVerified(result)
+                return await StoreKitTypesBridge.purchaseIOS(
+                    from: transaction,
+                    jwsRepresentation: result.jwsRepresentation
+                )
+            } catch {
+                throw PurchaseError.wrap(error, fallback: .purchaseError)
+            }
+        }
+        #endif
+        #endif
+
+        // StoreKit 2's scene-based sheet is available before the result-returning
+        // Apple 27 API, but cannot return the redeemed transaction directly.
+        #if os(iOS) || os(visionOS)
+        if #available(iOS 16.0, macCatalyst 16.0, visionOS 1.0, *) {
+            guard let scene = await activeWindowScene() else {
+                throw makePurchaseError(
+                    code: .purchaseError,
+                    message: "Cannot find an active window scene for offer-code redemption"
+                )
+            }
+            do {
+                try await AppStore.presentOfferCodeRedeemSheet(in: scene)
+                return nil
+            } catch {
+                throw PurchaseError.wrap(error, fallback: .purchaseError)
+            }
+        }
+        #endif
+
+        // iOS 15 requires the original StoreKit sheet.
+        #if os(iOS)
+        await MainActor.run {
+            SKPaymentQueue.default().presentCodeRedemptionSheet()
+        }
+        return nil
+        #else
+        throw makePurchaseError(code: .featureNotSupported)
+        #endif // os(iOS)
+    }
+
+    /// Deprecated. Use openRedeemOfferCode instead.
+    /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
+    public func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? {
+        try await openRedeemOfferCode()
+    }
+
+    /// Present the manage-subscriptions sheet.
+    /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+    public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
+        #if os(macOS)
+        // deepLinkToSubscriptions can open a browser on macOS, but that call
+        // returns immediately and cannot observe changes made outside the app.
+        throw makePurchaseError(code: .featureNotSupported)
+        #else
+        let previousTransactions = try await getAllTransactionsIOS()
+        try await deepLinkToSubscriptions(nil)
+        let currentTransactions = try await getAllTransactionsIOS()
+        return Self.changedPurchasesIOS(currentTransactions, comparedTo: previousTransactions)
+        #endif
+    }
+
+    static func changedPurchasesIOS(
+        _ current: [PurchaseIOS],
+        comparedTo previous: [PurchaseIOS]
+    ) -> [PurchaseIOS] {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        var previousById: [String: Data] = [:]
+        for purchase in previous {
+            if let data = try? encoder.encode(purchase) {
+                previousById[purchase.id] = data
+            }
+        }
+
+        return current.filter { purchase in
+            guard let currentData = try? encoder.encode(purchase) else { return true }
+            return previousById[purchase.id] != currentData
+        }
+    }
+
+    // MARK: - External Purchase (iOS 17.4+, macOS 14.4+, tvOS 17.4+, visionOS 1.1+)
+
+    /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
+    /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+    public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
+        try await ensureConnection()
+        // iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+, visionOS 1.1+: ExternalPurchase.canPresent
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/canpresent
+        if #available(iOS 17.4, macOS 14.4, tvOS 17.4, watchOS 10.4, visionOS 1.1, *) {
+            return await ExternalPurchase.canPresent
+        } else {
+            return false
+        }
+    }
+
+    /// Present the external purchase notice sheet (iOS 17.4+).
+    /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+    public func presentExternalPurchaseNoticeSheetIOS() async throws -> ExternalPurchaseNoticeResultIOS {
+        try await ensureConnection()
+        // iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+, visionOS 1.1+: ExternalPurchase.presentNoticeSheet
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
+        if #available(iOS 17.4, macOS 14.4, tvOS 17.4, watchOS 10.4, visionOS 1.1, *) {
+            guard await ExternalPurchase.canPresent else {
+                throw makePurchaseError(
+                    code: .featureNotSupported,
+                    message: "External purchase notice sheet is not available"
+                )
+            }
+
+            do {
+                let result = try await ExternalPurchase.presentNoticeSheet()
+                switch result {
+                case .continuedWithExternalPurchaseToken(let token):
+                    // Return the token for reporting to Apple's External Purchase Server API
+                    // The token is a String type in StoreKit
+                    return ExternalPurchaseNoticeResultIOS(
+                        error: nil,
+                        externalPurchaseToken: token,
+                        result: .continue
+                    )
+                case .cancelled:
+                    // User dismissed the notice sheet
+                    return ExternalPurchaseNoticeResultIOS(
+                        error: nil,
+                        externalPurchaseToken: nil,
+                        result: .dismissed
+                    )
+                @unknown default:
+                    // Handle future cases gracefully
+                    throw makePurchaseError(
+                        code: .unknown,
+                        message: "Unexpected result from external purchase notice sheet"
+                    )
+                }
+            } catch let error as PurchaseError {
+                return ExternalPurchaseNoticeResultIOS(
+                    error: error.message,
+                    externalPurchaseToken: nil,
+                    result: .dismissed
+                )
+            } catch {
+                let purchaseError = makePurchaseError(
+                    code: .serviceError,
+                    message: "Failed to present external purchase notice: \(error.localizedDescription)"
+                )
+                return ExternalPurchaseNoticeResultIOS(
+                    error: purchaseError.message,
+                    externalPurchaseToken: nil,
+                    result: .dismissed
+                )
+            }
+        } else {
+            throw makePurchaseError(
+                code: .featureNotSupported,
+                message: "External purchase notice sheet requires iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+, or visionOS 1.1+"
+            )
+        }
+    }
+
+    /// Present an external purchase link, StoreKit External (iOS 16+).
+    /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+    public func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS {
+        try await ensureConnection()
+        // UIApplication.open is available on iOS/tvOS/visionOS but not watchOS/macOS
+        // Reference: https://developer.apple.com/documentation/uikit/uiapplication/1648685-open
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        guard let customLink = URL(string: url) else {
+            return ExternalPurchaseLinkResultIOS(
+                error: "Invalid URL",
+                success: false
+            )
+        }
+
+        return await MainActor.run {
+            if UIApplication.shared.canOpenURL(customLink) {
+                UIApplication.shared.open(customLink, options: [:]) { success in
+                    // Completion handler - link opened
+                }
+                return ExternalPurchaseLinkResultIOS(error: nil, success: true)
+            } else {
+                return ExternalPurchaseLinkResultIOS(
+                    error: "Cannot open URL",
+                    success: false
+                )
+            }
+        }
+        #else
+        throw makePurchaseError(code: .featureNotSupported)
+        #endif // os(iOS) || os(tvOS) || os(visionOS)
+    }
+
+    // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
+
+    /// Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
+    /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+    public func isEligibleForExternalPurchaseCustomLinkIOS() async throws -> Bool {
+        try await ensureConnection()
+        // iOS 18.1+: ExternalPurchaseCustomLink.isEligible
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *) {
+            return await ExternalPurchaseCustomLink.isEligible
+        } else {
+            return false
+        }
+    }
+
+    /// Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+).
+    /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+    public func getExternalPurchaseCustomLinkTokenIOS(
+        _ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkTokenResultIOS {
+        try await ensureConnection()
+        // iOS 18.1+: ExternalPurchaseCustomLink.token(for:)
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *) {
+            guard await ExternalPurchaseCustomLink.isEligible else {
+                return ExternalPurchaseCustomLinkTokenResultIOS(
+                    error: "App is not eligible for ExternalPurchaseCustomLink",
+                    token: nil
+                )
+            }
+
+            do {
+                // Token type is a String parameter, use enum's rawValue directly
+                guard let token = try await ExternalPurchaseCustomLink.token(for: tokenType.rawValue) else {
+                    return ExternalPurchaseCustomLinkTokenResultIOS(
+                        error: "Failed to retrieve external purchase token",
+                        token: nil
+                    )
+                }
+                return ExternalPurchaseCustomLinkTokenResultIOS(
+                    error: nil,
+                    token: token.value
+                )
+            } catch {
+                return ExternalPurchaseCustomLinkTokenResultIOS(
+                    error: "Failed to get external purchase token: \(error.localizedDescription)",
+                    token: nil
+                )
+            }
+        } else {
+            throw makePurchaseError(
+                code: .featureNotSupported,
+                message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, tvOS 18.1+, watchOS 11.1+, or visionOS 2.1+"
+            )
+        }
+    }
+
+    /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
+    /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+    public func showExternalPurchaseCustomLinkNoticeIOS(
+        _ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS {
+        try await ensureConnection()
+        // iOS 18.1+: ExternalPurchaseCustomLink.showNotice(type:)
+        // Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+        if #available(iOS 18.1, macOS 15.1, tvOS 18.1, watchOS 11.1, visionOS 2.1, *) {
+            guard await ExternalPurchaseCustomLink.isEligible else {
+                return ExternalPurchaseCustomLinkNoticeResultIOS(
+                    continued: false,
+                    error: "App is not eligible for ExternalPurchaseCustomLink"
+                )
+            }
+
+            do {
+                let storeKitNoticeType: ExternalPurchaseCustomLink.NoticeType = switch noticeType {
+                case .browser:
+                    .browser
+                }
+
+                let result = try await ExternalPurchaseCustomLink.showNotice(type: storeKitNoticeType)
+                switch result {
+                case .continued:
+                    return ExternalPurchaseCustomLinkNoticeResultIOS(
+                        continued: true,
+                        error: nil
+                    )
+                case .cancelled:
+                    return ExternalPurchaseCustomLinkNoticeResultIOS(
+                        continued: false,
+                        error: nil
+                    )
+                @unknown default:
+                    return ExternalPurchaseCustomLinkNoticeResultIOS(
+                        continued: false,
+                        error: "Unknown notice result"
+                    )
+                }
+            } catch {
+                return ExternalPurchaseCustomLinkNoticeResultIOS(
+                    continued: false,
+                    error: "Failed to show notice: \(error.localizedDescription)"
+                )
+            }
+        } else {
+            throw makePurchaseError(
+                code: .featureNotSupported,
+                message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, tvOS 18.1+, watchOS 11.1+, or visionOS 2.1+"
+            )
+        }
+    }
+
+    // MARK: - Event Listener Registration
+
+    public func purchaseUpdatedListener(
+        _ listener: @escaping PurchaseUpdatedListener,
+        options: PurchaseUpdatedListenerOptions? = nil
+    ) -> Subscription {
+        let subscription = Subscription(eventType: .purchaseUpdated)
+        state.addPurchaseUpdatedListener(
+            id: subscription.id,
+            listener: listener,
+            options: options
+        )
+        return subscription
+    }
+
+    public func purchaseErrorListener(_ listener: @escaping PurchaseErrorListener) -> Subscription {
+        let subscription = Subscription(eventType: .purchaseError)
+        state.addPurchaseErrorListener((subscription.id, listener))
+        return subscription
+    }
+
+    public func promotedProductListenerIOS(_ listener: @escaping PromotedProductListener) -> Subscription {
+        let subscription = Subscription(eventType: .promotedProductIos)
+        let pendingSku = state.addPromotedProductListener((subscription.id, listener))
+        if let pendingSku {
+            Task {
+                await MainActor.run {
+                    listener(pendingSku)
+                }
+            }
+        }
+        return subscription
+    }
+
+    public func subscriptionBillingIssueListener(_ listener: @escaping SubscriptionBillingIssueListener) -> Subscription {
+        let subscription = Subscription(eventType: .subscriptionBillingIssue)
+        withMessageListenerRegistrationLock {
+            state.addSubscriptionBillingIssueListener((subscription.id, listener))
+        }
+        // Do not consume StoreKit's pending Message sequence before connection
+        // initialization. performInitConnection starts it when listeners exist;
+        // this task covers registration after an already-completed init.
+        Task { [weak self] in
+            guard let self,
+                  await self.state.isInitialized,
+                  let generation = self.connection.currentConnectedGeneration() else { return }
+            try? self.startMessageListenerIfRegistered(generation: generation)
+        }
+        return subscription
+    }
+
+    public func removeListener(_ subscription: Subscription) {
+        withMessageListenerRegistrationLock {
+            state.removeListener(id: subscription.id, type: subscription.eventType)
+            if subscription.eventType == .subscriptionBillingIssue,
+               !state.hasSubscriptionBillingIssueListeners() {
+                connection.stopMessageListenerTask()
+            }
+        }
+        Task { await MainActor.run { subscription.onRemove?() } }
+    }
+
+    public func removeAllListeners() {
+        withMessageListenerRegistrationLock {
+            state.removeAllListeners()
+            connection.stopMessageListenerTask()
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    private func performInitConnection(generation: UInt64) async throws -> Bool {
+        try Task.checkCancellation()
+        try connection.ensureCurrent(generation)
+
+        if await state.isInitialized {
+            try Task.checkCancellation()
+            try connection.ensureCurrent(generation)
+            return true
+        }
+
+        _ = try connection.getOrCreateProductManager(generation: generation)
+
+        registerPromotedPurchaseObserverIfNeeded()
+
+        try Task.checkCancellation()
+        try connection.ensureCurrent(generation)
+        if await state.isInitialized {
+            try Task.checkCancellation()
+            try connection.ensureCurrent(generation)
+            return true
+        }
+
+        guard AppStore.canMakePayments else {
+            emitPurchaseError(makePurchaseError(code: .iapNotAvailable))
+            await state.setInitialized(false)
+            return false
+        }
+
+        try Task.checkCancellation()
+        try connection.ensureCurrent(generation)
+
+        await state.setInitialized(true)
+        try startTransactionListener(generation: generation)
+        try startUnfinishedTransactionProcessing(generation: generation)
+        try Task.checkCancellation()
+        try connection.ensureCurrent(generation)
+        try startMessageListenerIfRegistered(generation: generation)
+        try Task.checkCancellation()
+        try connection.ensureCurrent(generation)
+        return true
+    }
+
+    private func cancelConnectionTasksForDeinit() {
+        let resources = connection.detachTasksForDeinit()
+        resources.initTask?.cancel()
+        resources.endTask?.cancel()
+        resources.updateListenerTask?.cancel()
+        resources.messageListenerTask?.cancel()
+        resources.unfinishedTransactionTask?.cancel()
+    }
+
+    private func startPromotedPurchaseIntentListenerIfAvailableIOS() {
+        #if os(iOS)
+        if #available(iOS 16.4, macCatalyst 16.4, *) {
+            guard promotedPurchaseIntentTask == nil else { return }
+            promotedPurchaseIntentTask = Task { [weak self] in
+                for await intent in PurchaseIntent.intents {
+                    guard !Task.isCancelled, let self else { return }
+                    let offer: StoreKit.Product.SubscriptionOffer?
+                    if #available(iOS 18.0, macCatalyst 18.0, *) {
+                        offer = intent.offer
+                    } else {
+                        offer = nil
+                    }
+                    await self.promotedPurchaseIntentOffers.record(
+                        offer,
+                        for: intent.product.id
+                    )
+                    if let productManager = self.connection.currentProductManager() {
+                        await productManager.addProduct(intent.product)
+                    }
+                    self.emitPromotedProduct(intent.product.id)
+                }
+            }
+        }
+        #endif
+    }
+
+    private func registerPromotedPurchaseObserverIfNeeded() {
+        #if os(iOS)
+        if #available(iOS 16.4, macCatalyst 16.4, *) { return }
+
+        promotedPurchaseObserverLock.lock()
+        let shouldRegister = !didRegisterPromotedPurchaseObserver &&
+            !isPromotedPurchaseObserverTransitionInFlight
+        if shouldRegister {
+            isPromotedPurchaseObserverTransitionInFlight = true
+        }
+        promotedPurchaseObserverLock.unlock()
+
+        guard shouldRegister else { return }
+
+        let addObserver = {
+            SKPaymentQueue.default().add(self)
+        }
+
+        if Thread.isMainThread {
+            addObserver()
+        } else {
+            DispatchQueue.main.sync(execute: addObserver)
+        }
+
+        promotedPurchaseObserverLock.lock()
+        didRegisterPromotedPurchaseObserver = true
+        isPromotedPurchaseObserverTransitionInFlight = false
+        promotedPurchaseObserverLock.unlock()
+        #endif // os(iOS)
+    }
+
+    private func unregisterPromotedPurchaseObserverIfNeeded() {
+        #if os(iOS)
+        if #available(iOS 16.4, macCatalyst 16.4, *) { return }
+
+        promotedPurchaseObserverLock.lock()
+        let shouldUnregister = didRegisterPromotedPurchaseObserver &&
+            !isPromotedPurchaseObserverTransitionInFlight
+        if shouldUnregister {
+            isPromotedPurchaseObserverTransitionInFlight = true
+        }
+        promotedPurchaseObserverLock.unlock()
+
+        guard shouldUnregister else { return }
+
+        let removeObserver = {
+            SKPaymentQueue.default().remove(self)
+        }
+
+        if Thread.isMainThread {
+            removeObserver()
+        } else {
+            DispatchQueue.main.sync(execute: removeObserver)
+        }
+
+        promotedPurchaseObserverLock.lock()
+        didRegisterPromotedPurchaseObserver = false
+        isPromotedPurchaseObserverTransitionInFlight = false
+        promotedPurchaseObserverLock.unlock()
+        #endif // os(iOS)
+    }
+
+    private func ensureConnection() async throws {
+        guard AppStore.canMakePayments else {
+            let error = makePurchaseError(code: .iapNotAvailable)
+            emitPurchaseError(error)
+            throw error
+        }
+
+        while true {
+            if await hasInitializedConnection() { return }
+            if let endTask = connection.currentEndTask() {
+                await endTask.value
+                continue
+            }
+
+            let initialized = try await initConnection()
+            if initialized, await hasInitializedConnection() { return }
+            if connection.currentEndTask() != nil { continue }
+
+            let error = makePurchaseError(code: .initConnection)
+            emitPurchaseError(error)
+            throw error
+        }
+    }
+
+    private func hasInitializedConnection() async -> Bool {
+        guard let generation = connection.currentConnectedGeneration(),
+              await state.isInitialized else { return false }
+        return connection.isConnected(generation: generation)
+    }
+
+    private func cleanupExistingState() async {
+        let resources = connection.detachResourcesForCleanup()
+        resources.updateListenerTask?.cancel()
+        resources.messageListenerTask?.cancel()
+        resources.unfinishedTransactionTask?.cancel()
+        if let updateListenerTask = resources.updateListenerTask {
+            _ = try? await updateListenerTask.value
+        }
+        if let messageListenerTask = resources.messageListenerTask {
+            await messageListenerTask.value
+        }
+        if let unfinishedTransactionTask = resources.unfinishedTransactionTask {
+            await unfinishedTransactionTask.value
+        }
+        await state.reset()
+        if let manager = resources.productManager { await manager.removeAll() }
+    }
+
+    private func storeProduct(for sku: String) async throws -> StoreKit.Product {
+        guard let productManager = connection.currentProductManager() else {
+            let error = makePurchaseError(code: .notPrepared)
+            emitPurchaseError(error)
+            throw error
+        }
+
+        if let product = await productManager.getProduct(productID: sku) {
+            return product
+        }
+
+        let products = try await StoreKit.Product.products(for: [sku])
+        guard let first = products.first else {
+            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            emitPurchaseError(error)
+            throw error
+        }
+        await productManager.addProduct(first)
+        return first
+    }
+
+    /// Resolves iOS purchase props from request params.
+    /// Returns either RequestPurchaseIosProps or RequestSubscriptionIosProps based on request type.
+    func resolveIOSPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
+        try Self.validateIOSPurchaseProps(params)
+        switch params.request {
+        case let .purchase(platforms):
+            if let ios = platforms.apple {
+                return ios
+            }
+        case let .subscription(platforms):
+            if let ios = platforms.apple {
+                return ios
+            }
+        }
+        throw makePurchaseError(code: .purchaseError, message: "Missing iOS purchase parameters")
+    }
+
+    static func validateIOSPurchaseProps(_ params: RequestPurchaseProps) throws {
+        switch params.request {
+        case .purchase where params.type == .inApp:
+            return
+        case .subscription where params.type == .subs:
+            return
+        case .purchase:
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "type must be in-app when requestPurchase is provided"
+            )
+        case .subscription:
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "type must be subs when requestSubscription is provided"
+            )
+        }
+    }
+
+    private func purchaseProductId(from params: RequestPurchaseProps) -> String? {
+        switch params.request {
+        case let .purchase(platforms):
+            return platforms.apple?.sku
+        case let .subscription(platforms):
+            return platforms.apple?.sku
+        }
+    }
+
+    private func startTransactionListener(generation: UInt64) throws {
+        try connection.startTransactionListenerTask(generation: generation) {
+            OpenIapLog.debug("🎧 [TransactionListener] Starting Transaction.updates listener...")
+            return Task<Void, Error> { [weak self] in
+                guard let self else {
+                    OpenIapLog.debug("⚠️ [TransactionListener] Self is nil, exiting listener")
+                    return
+                }
+                OpenIapLog.debug("✅ [TransactionListener] Listener task started, waiting for transactions...")
+                for await verification in Transaction.updates {
+                    guard !Task.isCancelled,
+                          self.connection.isCurrentGeneration(generation) else { return }
+                    do {
+                        guard await self.state.isInitialized else { continue }
+                        guard self.connection.isCurrentGeneration(generation) else { return }
+                        let transaction = try self.checkVerified(verification)
+                        let transactionId = String(transaction.id)
+
+                        // Log all transaction details for debugging
+                        OpenIapLog.debug("""
+                            📦 Transaction received:
+                            - ID: \(transactionId)
+                            - Product: \(transaction.productID)
+                            - purchaseDate: \(transaction.purchaseDate)
+                            - subscriptionGroupID: \(transaction.subscriptionGroupID ?? "nil")
+                            - revocationDate: \(transaction.revocationDate?.description ?? "nil")
+                            """)
+
+                        if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
+                            transaction.productType
+                        ),
+                           self.isInactiveSubscriptionTransaction(transaction) {
+                            await transaction.finish()
+                            guard self.connection.isCurrentGeneration(generation) else { return }
+                            await self.state.removePending(id: transactionId)
+                            OpenIapLog.debug("""
+                                🧹 [TransactionListener] Finished inactive subscription update without emitting:
+                                - SKU: \(transaction.productID)
+                                - Transaction ID: \(transaction.id)
+                                - Expiration: \(transaction.expirationDate?.description ?? "none")
+                                - Revoked: \(transaction.revocationDate?.description ?? "none")
+                                - Upgraded: \(transaction.isUpgraded)
+                                """)
+                            continue
+                        }
+
+                        if transaction.revocationDate != nil {
+                            OpenIapLog.debug("⏭️ Skipping revoked transaction: \(transactionId)")
+                            continue
+                        }
+
+                        let purchase = await StoreKitTypesBridge.purchase(from: transaction, jwsRepresentation: verification.jwsRepresentation)
+                        guard self.connection.isCurrentGeneration(generation) else { return }
+
+                        // Default listeners receive each transaction id once per connection
+                        // session. Non-deduping listeners can opt into StoreKit replays.
+                        guard await self.state.recordPurchaseUpdateEmission(
+                            id: transactionId,
+                            pendingTransaction: transaction
+                        ) else {
+                            guard self.connection.isCurrentGeneration(generation) else { return }
+                            self.emitPurchaseUpdate(
+                                purchase,
+                                isDuplicate: true,
+                                duplicateSource: "Transaction.updates",
+                                duplicateTransactionId: transactionId
+                            )
+                            continue
+                        }
+                        guard self.connection.isCurrentGeneration(generation) else { return }
+                        OpenIapLog.debug("✅ [TransactionListener] Emitting transaction: \(transactionId) for product: \(transaction.productID)")
+                        self.emitPurchaseUpdate(purchase)
+                    } catch {
+                        guard self.connection.isCurrentGeneration(generation) else { return }
+                        let purchaseError: PurchaseError
+                        if let existing = error as? PurchaseError {
+                            purchaseError = existing
+                        } else {
+                            purchaseError = makePurchaseError(code: .transactionValidationFailed, message: error.localizedDescription)
+                        }
+                        self.emitPurchaseError(purchaseError)
+                    }
+                }
+            }
+        }
+    }
+
+    private func startUnfinishedTransactionProcessing(generation: UInt64) throws {
+        try connection.startUnfinishedTransactionTask(generation: generation) {
+            Task { [weak self] in
+                guard let self else { return }
+                defer { self.connection.clearUnfinishedTransactionTask(generation: generation) }
+                await self.processUnfinishedTransactions(generation: generation)
+            }
+        }
+    }
+
+    private func processUnfinishedTransactions(generation: UInt64) async {
+        for await verification in Transaction.unfinished {
+            guard !Task.isCancelled,
+                  connection.isCurrentGeneration(generation) else { return }
+            guard await state.isInitialized else { return }
+            guard connection.isCurrentGeneration(generation) else { return }
+            do {
+                let transaction = try checkVerified(verification)
+                if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
+                    transaction.productType
+                ),
+                   isInactiveSubscriptionTransaction(transaction) {
+                    await transaction.finish()
+                    guard connection.isCurrentGeneration(generation) else { return }
+                    await state.removePending(id: String(transaction.id))
+                    OpenIapLog.debug("""
+                        🧹 [processUnfinishedTransactions] Finished inactive subscription transaction:
+                        - SKU: \(transaction.productID)
+                        - Transaction ID: \(transaction.id)
+                        - Expiration: \(transaction.expirationDate?.description ?? "none")
+                        - Revoked: \(transaction.revocationDate?.description ?? "none")
+                        - Upgraded: \(transaction.isUpgraded)
+                        """)
+                    continue
+                }
+                guard connection.isCurrentGeneration(generation) else { return }
+                await state.storePending(id: String(transaction.id), transaction: transaction)
+            } catch {
+                continue
+            }
+        }
+    }
+
+    private func finishInactiveUnfinishedSubscriptions(productId: String) async {
+        for await verification in Transaction.unfinished {
+            if Task.isCancelled { return }
+
+            do {
+                let transaction = try checkVerified(verification)
+                guard StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
+                    transaction.productType
+                ),
+                      transaction.productID == productId,
+                      isInactiveSubscriptionTransaction(transaction)
+                else {
+                    continue
+                }
+
+                await transaction.finish()
+                await state.removePending(id: String(transaction.id))
+                OpenIapLog.debug("""
+                    🧹 [requestPurchase] Cleared inactive unfinished subscription before purchase:
+                    - SKU: \(transaction.productID)
+                    - Transaction ID: \(transaction.id)
+                    - Expiration: \(transaction.expirationDate?.description ?? "none")
+                    - Revoked: \(transaction.revocationDate?.description ?? "none")
+                    - Upgraded: \(transaction.isUpgraded)
+                    """)
+            } catch {
+                OpenIapLog.debug("⚠️ Failed to clear inactive unfinished subscription: \(error.localizedDescription)")
+                continue
+            }
+        }
+    }
+
+    private func preflightInactiveUnfinishedSubscriptions(productId: String) async {
+        let outcome = await withTaskGroup(
+            of: SubscriptionPreflightOutcome.self,
+            returning: SubscriptionPreflightOutcome.self
+        ) { group in
+            group.addTask { [weak self] in
+                guard let self else { return .completed }
+                await self.finishInactiveUnfinishedSubscriptions(productId: productId)
+                return .completed
+            }
+
+            group.addTask {
+                do {
+                    try await Task.sleep(nanoseconds: Self.subscriptionPreflightTimeoutNanoseconds)
+                    return .timedOut
+                } catch {
+                    return .completed
+                }
+            }
+
+            let outcome = await group.next() ?? .completed
+            group.cancelAll()
+            return outcome
+        }
+
+        if case .timedOut = outcome {
+            OpenIapLog.debug("⚠️ [requestPurchase] Inactive subscription cleanup timed out; continuing purchase flow")
+        }
+    }
+
+    private func isInactiveSubscriptionTransaction(_ transaction: StoreKit.Transaction) -> Bool {
+        if transaction.revocationDate != nil || transaction.isUpgraded {
+            return true
+        }
+
+        if let expirationDate = transaction.expirationDate {
+            return expirationDate <= Date()
+        }
+
+        return false
+    }
+
+    func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        switch result {
+        case .verified(let value):
+            return value
+        case .unverified:
+            throw makePurchaseError(code: .transactionValidationFailed, message: "Transaction verification failed")
+        }
+    }
+
+    private func logDuplicatePurchaseUpdate(
+        source: String,
+        transactionId: String,
+        productId: String,
+        listenerCount: Int
+    ) {
+        let action = listenerCount > 0
+            ? "Delivered duplicate purchase-updated event to \(listenerCount) non-deduping listener(s)."
+            : "Suppressed duplicate purchase-updated listener emission."
+        let message = """
+            [PurchaseUpdateDedup] \(action)
+            - Source: \(source)
+            - Product: \(productId)
+            - Transaction ID: \(transactionId)
+            - Reason: this transaction id was already emitted during the current connection session.
+            - Scope: listeners dedupe by transaction id by default; listeners registered with dedupeTransactionIOS: false receive StoreKit replays.
+            """
+        if listenerCount > 0 {
+            OpenIapLog.info(message)
+        } else {
+            OpenIapLog.debug(message)
+        }
+    }
+
+    private func emitPurchaseUpdate(
+        _ purchase: Purchase,
+        isDuplicate: Bool = false,
+        duplicateSource: String? = nil,
+        duplicateTransactionId: String? = nil
+    ) {
+        Task { [state] in
+            let listeners = state.snapshotPurchaseUpdated(isDuplicate: isDuplicate)
+            if isDuplicate {
+                self.logDuplicatePurchaseUpdate(
+                    source: duplicateSource ?? "unknown",
+                    transactionId: duplicateTransactionId ?? purchase.id,
+                    productId: purchase.productId,
+                    listenerCount: listeners.count
+                )
+                if listeners.isEmpty {
+                    return
+                }
+            }
+            OpenIapLog.debug("✅ Emitting purchase update: Product=\(purchase.productId), Listeners=\(listeners.count)")
+            await MainActor.run {
+                listeners.forEach { $0(purchase) }
+            }
+        }
+    }
+
+    private func emitPurchaseError(_ error: PurchaseError) {
+        guard !Self.suppressPurchaseErrorEmission else { return }
+        Task { [state] in
+            let listeners = state.snapshotPurchaseError()
+            await MainActor.run {
+                listeners.forEach { $0(error) }
+            }
+        }
+    }
+
+    private func emitPromotedProduct(_ sku: String) {
+        Task { [state] in
+            let listeners = await state.recordPromotedProductAndSnapshotListeners(sku)
+            await MainActor.run {
+                listeners.forEach { $0(sku) }
+            }
+        }
+    }
+
+    private func emitSubscriptionBillingIssue(_ purchase: Purchase) {
+        let listeners = state.snapshotSubscriptionBillingIssue()
+        Task {
+            await MainActor.run {
+                listeners.forEach { $0(purchase) }
+            }
+        }
+    }
+
+    /// Starts the StoreKit 2 Message listener for subscription-billing-issue events.
+    ///
+    /// The `.billingIssue` reason (what we care about) ships on iOS 16.4+, Mac Catalyst
+    /// 16.4+, and visionOS 1.0+, so this method starts the `Message.messages` loop when
+    /// that availability holds. On macOS, tvOS, and watchOS the Message API is unavailable,
+    /// making this a silent no-op on those platforms.
+    ///
+    /// References:
+    /// - https://developer.apple.com/documentation/storekit/message
+    /// - https://developer.apple.com/documentation/storekit/message/reason-swift.struct/billingissue
+    private func startMessageListenerIfRegistered(generation: UInt64) throws {
+        try withMessageListenerRegistrationLock {
+            guard state.hasSubscriptionBillingIssueListeners() else { return }
+            try startMessageListener(generation: generation)
+        }
+    }
+
+    private func startMessageListener(generation: UInt64) throws {
+        #if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)
+        if #available(iOS 16.4, macCatalyst 16.4, visionOS 1.0, *) {
+            try connection.startMessageListenerTask(generation: generation) {
+                OpenIapLog.debug("🔔 [MessageListener] Starting Message.messages listener")
+                return Task { [weak self] in
+                    guard let self else { return }
+                    for await message in StoreKit.Message.messages {
+                        guard !Task.isCancelled,
+                              self.connection.isConnected(generation: generation),
+                              await self.state.isInitialized else { return }
+                        OpenIapLog.debug("🔔 [MessageListener] Received message: reason=\(message.reason)")
+
+                        // Listening to Message.messages transfers presentation control to
+                        // the app. Preserve StoreKit's default UX for every reason (including
+                        // price-increase consent and win-back offers) instead of silently
+                        // suppressing messages that OpenIAP does not expose as events.
+                        guard await self.displayStoreKitMessage(message),
+                              !Task.isCancelled,
+                              self.connection.isConnected(generation: generation),
+                              await self.state.isInitialized else { return }
+
+                        guard case .billingIssue = message.reason else {
+                            OpenIapLog.debug("🔔 [MessageListener] Skipping non-billingIssue message")
+                            continue
+                        }
+                        OpenIapLog.debug("🔔 [MessageListener] billingIssue received — dispatching")
+                        await self.dispatchBillingIssueMessage(generation: generation)
+                    }
+                }
+            }
+        } else {
+            OpenIapLog.debug("🔔 [MessageListener] Skipped — Message.billingIssue unavailable")
+        }
+        #else
+        OpenIapLog.debug("🔔 [MessageListener] Skipped — unsupported platform")
+        #endif
+    }
+
+    #if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)
+    @available(iOS 16.0, macCatalyst 16.0, visionOS 1.0, *)
+    @MainActor
+    private func displayStoreKitMessage(_ message: StoreKit.Message) async -> Bool {
+        var retryDelay: UInt64 = 500_000_000
+        while !Task.isCancelled {
+            if let scene = activeWindowScene(), scene.activationState == .foregroundActive {
+                do {
+                    try message.display(in: scene)
+                    return true
+                } catch {
+                    OpenIapLog.warn("🔔 [MessageListener] StoreKit message display deferred: \(error.localizedDescription)")
+                }
+            }
+
+            do {
+                try await Task.sleep(nanoseconds: retryDelay)
+            } catch {
+                return false
+            }
+            retryDelay = min(retryDelay * 2, 2_000_000_000)
+        }
+        return false
+    }
+    #endif
+
+    /// Resolves the affected subscription group(s) from transaction history and emits the event.
+    ///
+    /// `StoreKit.Message` doesn't carry a transaction reference. Billing-retry subscriptions
+    /// are not necessarily current entitlements, so use `Transaction.all` only to discover the
+    /// user's subscription-group IDs, then treat `Product.SubscriptionInfo.status(for:)` as the
+    /// authoritative source. The status array is unordered across group members, so every
+    /// retry/grace entry and its own verified transaction must be inspected.
+    ///
+    /// Reference: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:)
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    private func dispatchBillingIssueMessage(generation: UInt64) async {
+        guard !Task.isCancelled else { return }
+        var subscriptionGroupIds = Set<String>()
+        for await verification in Transaction.all {
+            guard !Task.isCancelled else { return }
+            guard case .verified(let transaction) = verification,
+                  StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
+                      transaction.productType
+                  ),
+                  let groupId = transaction.subscriptionGroupID else { continue }
+            subscriptionGroupIds.insert(groupId)
+        }
+        guard !subscriptionGroupIds.isEmpty else {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no auto-renewable transaction history is present")
+            return
+        }
+
+        var emitted = false
+        var emittedTransactionIds = Set<UInt64>()
+        for groupId in subscriptionGroupIds {
+            guard !Task.isCancelled else { return }
+            let statusArray: [StoreKit.Product.SubscriptionInfo.Status]
+            do {
+                statusArray = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
+            } catch {
+                OpenIapLog.debug("🔔 [MessageListener] Subscription status failed for group \(groupId): \(error.localizedDescription)")
+                continue
+            }
+            for status in statusArray {
+                guard !Task.isCancelled else { return }
+                guard status.state == .inBillingRetryPeriod || status.state == .inGracePeriod,
+                      case .verified(let transaction) = status.transaction,
+                      emittedTransactionIds.insert(transaction.id).inserted else { continue }
+                let purchase = await StoreKitTypesBridge.purchase(
+                    from: transaction,
+                    jwsRepresentation: status.transaction.jwsRepresentation
+                )
+                guard !Task.isCancelled,
+                      connection.isConnected(generation: generation),
+                      await state.isInitialized else { return }
+                emitSubscriptionBillingIssue(purchase)
+                emitted = true
+            }
+        }
+        if !emitted {
+            OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no subscription currently reports retry/grace state")
+        }
+    }
+
+    private func makePurchaseError(
+        code: ErrorCode,
+        productId: String? = nil,
+        message: String? = nil,
+        debugMessage: String? = nil
+    ) -> PurchaseError {
+        PurchaseError(
+            code: code,
+            debugMessage: debugMessage,
+            message: message ?? defaultMessage(for: code),
+            productId: productId
+        )
+    }
+
+    private func defaultMessage(for code: ErrorCode) -> String {
+        switch code {
+        case .unknown: return "Unknown error occurred"
+        case .userCancelled: return "User cancelled the purchase flow"
+        case .userError: return "User action error"
+        case .itemUnavailable: return "Item unavailable"
+        case .remoteError: return "Remote service error"
+        case .networkError: return "Network connection error"
+        case .serviceError: return "Store service error"
+        case .purchaseVerificationFailed: return "Purchase verification failed"
+        case .purchaseVerificationFinished: return "Transaction already finished"
+        case .purchaseVerificationFinishFailed: return "Transaction finish failed"
+        case .notPrepared: return "Billing is not prepared"
+        case .notEnded: return "Billing connection not ended"
+        case .alreadyOwned: return "Item already owned"
+        case .developerError: return "Developer configuration error"
+        case .billingResponseJsonParseError: return "Failed to parse billing response"
+        case .deferredPayment: return "Payment was deferred (pending approval)"
+        case .interrupted: return "Purchase flow interrupted"
+        case .iapNotAvailable: return "In-app purchases not available on this device"
+        case .purchaseError: return "Purchase error"
+        case .syncError: return "Sync error"
+        case .transactionValidationFailed: return "Transaction validation failed"
+        case .activityUnavailable: return "Required activity is unavailable"
+        case .alreadyPrepared: return "Billing already prepared"
+        case .pending: return "Transaction pending"
+        case .connectionClosed: return "Connection closed"
+        case .initConnection: return "Failed to initialize billing connection"
+        case .serviceDisconnected: return "Billing service disconnected"
+        case .serviceTimeout: return "Billing service request timed out"
+        case .queryProduct: return "Failed to query product"
+        case .skuNotFound: return "SKU not found"
+        case .skuOfferMismatch: return "SKU offer mismatch"
+        case .itemNotOwned: return "Item not owned"
+        case .billingUnavailable: return "Billing unavailable"
+        case .featureNotSupported: return "Feature not supported on this platform"
+        case .emptySkuList: return "Empty SKU list provided"
+        case .duplicatePurchase: return "Duplicate purchase update detected"
+        }
+    }
+
+    private func withMessageListenerRegistrationLock<T>(_ body: () throws -> T) rethrows -> T {
+        messageListenerRegistrationLock.lock()
+        defer { messageListenerRegistrationLock.unlock() }
+        return try body()
+    }
+
+    #if os(iOS) || os(tvOS) || os(visionOS)
+    @available(iOS 17.0, tvOS 17.0, visionOS 1.0, *)
+    @MainActor
+    private func purchaseWithActiveScene(
+        product: StoreKit.Product,
+        options: Set<StoreKit.Product.PurchaseOption>,
+        sku: String
+    ) async throws -> StoreKit.Product.PurchaseResult {
+        guard let scene = activeWindowScene() else {
+            let error = makePurchaseError(code: .purchaseError, productId: sku, message: "Could not find active window scene")
+            emitPurchaseError(error)
+            throw error
+        }
+
+        OpenIapLog.debug("""
+            🛒 [requestPurchase] Presenting StoreKit purchase sheet:
+            - SKU: \(sku)
+            - Scene state: \(scene.activationState.rawValue)
+            """)
+        return try await product.purchase(confirmIn: scene, options: options)
+    }
+
+    @MainActor
+    private func activeWindowScene() -> UIWindowScene? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.first { $0.activationState == .foregroundActive }
+            ?? scenes.first { $0.activationState == .foregroundInactive }
+            ?? scenes.first
+    }
+
+    @MainActor
+    private func activeViewController() -> UIViewController? {
+        guard let scene = activeWindowScene() else {
+            return nil
+        }
+        let window = scene.windows.first(where: \.isKeyWindow) ?? scene.windows.first
+        return topViewController(from: window?.rootViewController)
+    }
+
+    @MainActor
+    private func topViewController(from root: UIViewController?) -> UIViewController? {
+        if let presented = root?.presentedViewController {
+            return topViewController(from: presented)
+        }
+        if let navigation = root as? UINavigationController {
+            return topViewController(from: navigation.visibleViewController)
+        }
+        if let tab = root as? UITabBarController {
+            return topViewController(from: tab.selectedViewController)
+        }
+        return root
+    }
+    #endif
+
+    @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
+    private func mapAppTransaction(_ transaction: StoreKit.AppTransaction) -> AppTransaction {
+        let appVersionId = transaction.appVersionID.map(Double.init) ?? 0
+        let appVersion = transaction.appVersion
+        let appId = transaction.appID.map(Double.init) ?? 0
+
+        // iOS 18.4+ properties - only compile with Xcode 16.4+ (Swift 6.1 compiler+)
+        // This prevents build failures on Xcode 16.3 and below
+        var appTransactionId: String? = nil
+        var originalPlatformValue: String? = nil
+        var revocationDateValue: Double? = nil
+        var storeTypeValue: String? = nil
+
+        // Swift 6.1 compiler+ (Xcode 16.4+): appTransactionID is back-deployed
+        // to the AppTransaction baseline; originalPlatform itself starts at 18.4.
+        #if compiler(>=6.1)
+        appTransactionId = transaction.appTransactionID
+        if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
+            originalPlatformValue = transaction.originalPlatform.rawValue
+        } else {
+            originalPlatformValue = transaction.originalPlatformStringRepresentation
+        }
+        #endif // compiler(>=6.1)
+
+        #if compiler(>=6.4)
+        // Xcode 27 first publishes this property, but StoreKit declares it
+        // back-deployed to the AppTransaction baseline runtimes.
+        revocationDateValue = transaction.revocationDate?.milliseconds
+
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *) {
+            storeTypeValue = transaction.storeType.rawValue
+        }
+        #endif
+
+        return AppTransaction(
+            appId: appId,
+            appTransactionId: appTransactionId,
+            appVersion: appVersion,
+            appVersionId: appVersionId,
+            bundleId: transaction.bundleID,
+            deviceVerification: transaction.deviceVerification.base64EncodedString(),
+            deviceVerificationNonce: transaction.deviceVerificationNonce.uuidString,
+            environment: transaction.environment.rawValue,
+            originalAppVersion: transaction.originalAppVersion,
+            originalPlatform: originalPlatformValue,
+            originalPurchaseDate: transaction.originalPurchaseDate.milliseconds,
+            preorderDate: transaction.preorderDate?.milliseconds,
+            revocationDate: revocationDateValue,
+            signedDate: transaction.signedDate.milliseconds,
+            storeType: storeTypeValue
+        )
+    }
+}
+
+// iOS-only: SKPaymentTransactionObserver extension for promoted in-app purchases
+// Reference: https://developer.apple.com/documentation/storekit/promoting-in-app-purchases
+#if os(iOS)
+extension OpenIapStoreKitModule: SKPaymentTransactionObserver {
+    public func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
+        // StoreKit 2 handles transactions via Transaction.updates; nothing to do here.
+    }
+
+    public func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
+        Task { [weak self] in
+            guard let self else { return }
+            self.emitPromotedProduct(product.productIdentifier)
+        }
+        return false
+    }
+}
+#endif // os(iOS)

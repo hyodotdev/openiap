@@ -1,6 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -100,4 +109,68 @@ test("the committed script passes its own audit", () => {
     "utf8",
   );
   assert.deepEqual(auditGitAddBlocks(source), []);
+});
+
+test("a Google version bump stages MAUI's regenerated core version", (t) => {
+  const scratch = mkdtempSync(join(tmpdir(), "openiap-release-staging-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const stage = toLogicalLines(
+    readFileSync(join(REPO_ROOT, "scripts/sync-release-generated.sh"), "utf8"),
+  )
+    .find((line) => line.text.trim().startsWith("git add "))
+    .text.trim()
+    .split(/\s+/u)
+    .slice(2);
+  for (const path of stage) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), "");
+  }
+  const props =
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props";
+  const dependencies = "libraries/maui-iap/src/Directory.Build.props";
+  mkdirSync(dirname(join(scratch, dependencies)), { recursive: true });
+  for (const path of [props, dependencies, "openiap-versions.json"]) {
+    copyFileSync(join(REPO_ROOT, path), join(scratch, path));
+  }
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: scratch, encoding: "utf8" });
+  git("init", "-q");
+  git("add", ".");
+  const baseline = git("write-tree").trim();
+  const versions = JSON.parse(
+    readFileSync(join(scratch, "openiap-versions.json"), "utf8"),
+  );
+  versions.google = "4.0.0";
+  writeFileSync(
+    join(scratch, "openiap-versions.json"),
+    JSON.stringify(versions),
+  );
+  const sync = readFileSync(
+    join(REPO_ROOT, "scripts/sync-versions.sh"),
+    "utf8",
+  );
+  const marker = `    python3 - "$maui_props" "$maui_store_props"`;
+  const start = sync.indexOf("\n", sync.indexOf(marker)) + 1;
+  const end = sync.indexOf("\nPY\n", start);
+  assert.ok(start > 0 && end > start);
+  execFileSync(
+    "python3",
+    ["-", dependencies, props, "8.3.0", "3.0.8", "8.1.2", "66.0.0", "2.14.0"],
+    {
+      cwd: scratch,
+      input: sync.slice(start, end),
+    },
+  );
+  git("add", ...stage);
+  assert.ok(
+    git("diff", "--cached", baseline, "--name-only")
+      .trim()
+      .split("\n")
+      .includes(props),
+  );
+  assert.match(
+    git("show", `:${props}`),
+    /<MauiOpenIapCoreVersion>4\.0\.0<\/MauiOpenIapCoreVersion>/u,
+  );
+  assert.equal(git("diff", "--name-only", "--", props).trim(), "");
 });

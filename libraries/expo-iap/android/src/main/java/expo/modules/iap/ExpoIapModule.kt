@@ -7,7 +7,8 @@ import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.Purchase
@@ -48,6 +49,7 @@ import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid as OpenIapGetBillingCho
 import dev.hyo.openiap.InAppMessageCategoryAndroid as OpenIapInAppMessageCategory
 import dev.hyo.openiap.InAppMessageParamsAndroid as OpenIapInAppMessageParams
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
+import dev.hyo.openiap.utils.redeemOfferCode
 
 internal suspend fun endExpoConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
@@ -118,7 +120,7 @@ class ExpoIapModule : Module() {
     private val currentActivity
         get() = appContext.activityProvider?.currentActivity ?: throw Exceptions.MissingActivity()
 
-    private val openIap: OpenIapModule by lazy { OpenIapModule(context) }
+    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
 
     // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }
@@ -323,10 +325,7 @@ class ExpoIapModule : Module() {
                 ExpoIapLog.payload("openRedeemOfferCodeAndroid", null)
                 scope.launch {
                     try {
-                        runCatching { currentActivity }.getOrNull()?.let(openIap::setActivity)
-                        val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
-                            ?: throw OpenIapError.FeatureNotSupported()
-                        val launched = handler()
+                        val launched = redeemOfferCode(openIap, runCatching { currentActivity }.getOrNull())
                         ExpoIapLog.result("openRedeemOfferCodeAndroid", launched)
                         promise.resolve(launched)
                     } catch (e: Exception) {
@@ -483,6 +482,30 @@ class ExpoIapModule : Module() {
                         if (e is CancellationException) {
                             throw e
                         }
+                    }
+                }
+            }
+
+            AsyncFunction("restorePurchases") { promise: Promise ->
+                scope.launch {
+                    try {
+                        openIap.restorePurchases()
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("restorePurchases", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                    }
+                }
+            }
+
+            AsyncFunction("finishTransaction") { purchase: Map<String, Any?>, isConsumable: Boolean, promise: Promise ->
+                scope.launch {
+                    try {
+                        openIap.finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(purchase), isConsumable)
+                        promise.resolve(null)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("finishTransaction", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.DeveloperError.CODE, e.message, null)
                     }
                 }
             }
@@ -808,12 +831,18 @@ class ExpoIapModule : Module() {
             }
 
             OnDestroy {
-                ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
-                listenerHandles = null
-                connectionReady.set(false)
-                pendingEvents.clear()
-                PromiseUtils.rejectAllPendingPromises()
-                job.cancel()
+                try {
+                    listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }
+                } finally {
+                    listenerHandles = null
+                    connectionReady.set(false)
+                    pendingEvents.clear()
+                    try {
+                        PromiseUtils.rejectAllPendingPromises()
+                    } finally {
+                        job.cancel()
+                    }
+                }
             }
         }
 

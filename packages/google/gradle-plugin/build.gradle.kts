@@ -35,7 +35,7 @@ gradlePlugin {
             id = "io.github.hyochan.openiap"
             implementationClass = "dev.hyo.openiap.gradle.OpenIapPlugin"
             displayName = "OpenIAP store selection"
-            description = "Links the Play, Horizon, or Amazon build of openiap-google and kmp-iap by the OpenIAP store rule."
+            description = "Selects an official or community Android store provider for OpenIAP consumers."
         }
     }
 }

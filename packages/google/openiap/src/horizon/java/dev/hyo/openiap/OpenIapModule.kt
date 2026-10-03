@@ -843,7 +843,7 @@ class OpenIapModule(
      * Get available items by product type (Play-compatible API for Horizon)
      * Used by react-native-iap when type filter is specified
      */
-    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+    override suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         val billingType = if (type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
         queryPurchasesHorizon(client, activeOperations, billingType)
@@ -947,7 +947,12 @@ class OpenIapModule(
 
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.IO) {
-            val androidArgs = props.toAndroidPurchaseArgs()
+            val androidArgs = try {
+                props.toAndroidPurchaseArgs()
+            } catch (error: IllegalArgumentException) {
+                emitPurchaseError(OpenIapError.DeveloperError(error.message))
+                return@withContext emptyList()
+            }
             OpenIapLog.info("=== REQUEST PURCHASE: ${androidArgs.skus} ===", TAG)
 
             val activity = currentActivityRef?.get() ?: fallbackActivity
@@ -1028,9 +1033,7 @@ class OpenIapModule(
                 )
                 if (installError != null) {
                     OpenIapLog.warn("requestPurchase rejected: ${installError.message}", TAG)
-                    if (installError is OpenIapError.ServiceDisconnected) {
-                        emitPurchaseError(installError)
-                    }
+                    emitPurchaseError(installError)
                     resumer.resumeWithException(installError)
                     return@suspendCancellableCoroutine
                 }
@@ -1124,7 +1127,7 @@ class OpenIapModule(
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                            .setOldPurchaseToken(androidArgs.purchaseToken)
+                            .setOldPurchaseToken(requireNotNull(androidArgs.purchaseToken))
 
                         // Set replacement mode - this is critical for upgrades
                         updateParamsBuilder.setSubscriptionReplacementMode(5)
@@ -1221,16 +1224,11 @@ class OpenIapModule(
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
                                             }
                                         }
-                                } else if (matched.isEmpty() && consumePurchaseCallback(
-                                        callback,
-                                        Result.success(emptyList()),
-                                        client,
-                                    )
-                                ) {
+                                } else if (matched.isEmpty()) {
                                     val timeoutError = OpenIapError.ServiceTimeout(
                                         "Meta Horizon purchase did not complete within the polling window"
                                     ).withProductId(androidArgs.skus.singleOrNull())
-                                    emitPurchaseError(timeoutError)
+                                    finishPurchaseCallback(client, callback, timeoutError)
                                 }
                             }
                         }
@@ -1566,7 +1564,7 @@ class OpenIapModule(
         }
     }
 
-    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         val client = billingClient ?: emitFailureAndThrow(
             OpenIapError.NotPrepared,
             ::emitPurchaseError,
@@ -1798,20 +1796,13 @@ class OpenIapModule(
             OpenIapLog.info("=== END onPurchasesUpdated ===", TAG)
         } catch (error: Exception) {
             OpenIapLog.error("Exception in onPurchasesUpdated", error, TAG)
-            if (
-                pendingRequest?.launchStartedAtMillis != null &&
-                consumePurchaseCallback(
-                    pendingRequest.callback,
-                    Result.success(emptyList()),
-                    expectedClient,
-                )
-            ) {
+            if (pendingRequest?.launchStartedAtMillis != null) {
                 val purchaseError = (error as? OpenIapError)
                     ?: OpenIapError.PurchaseFailed(
                         error.message ?: "Failed to process the Horizon purchase update"
                     )
                 purchaseError.withProductId(pendingRequest.requestedSkus.singleOrNull())
-                emitPurchaseError(purchaseError)
+                finishPurchaseCallback(expectedClient, pendingRequest.callback, purchaseError)
             }
         }
     }

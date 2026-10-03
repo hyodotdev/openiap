@@ -7,6 +7,28 @@
 
 import 'dart:async';
 
+abstract final class StoreIds {
+  static const String apple = 'apple';
+  static const String play = 'play';
+  static const String horizon = 'horizon';
+  static const String amazon = 'amazon';
+}
+
+String _resolveStoreId(IapStore store, dynamic value) {
+  final official = switch (store) {
+    IapStore.Apple => 'apple',
+    IapStore.Google => 'play',
+    IapStore.Horizon => 'horizon',
+    IapStore.Amazon => 'amazon',
+    IapStore.Unknown => null,
+  };
+  final id = value ?? official;
+  if (id is! String || (official != null ? id != official : RegExp(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$').firstMatch(id)?.end != id.length || const {'auto', 'none', 'unknown', 'apple', 'play', 'google', 'horizon', 'amazon'}.contains(id))) {
+    throw const FormatException('Invalid store identity');
+  }
+  return id;
+}
+
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)
@@ -803,6 +825,7 @@ enum IapPlatform {
   String toJson() => value;
 }
 
+/// Frozen legacy store discriminator. Use storeId for extensible store identity.
 enum IapStore {
   Unknown('unknown'),
   Apple('apple'),
@@ -1518,6 +1541,7 @@ abstract class PurchaseCommon {
   String? get currentPlanId;
   String get id;
   List<String>? get ids;
+  /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
   bool get isAutoRenewing;
   String get productId;
   PurchaseState get purchaseState;
@@ -1526,6 +1550,8 @@ abstract class PurchaseCommon {
   int get quantity;
   /// Store where purchase was made
   IapStore get store;
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+  String get storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   double get transactionDate;
 }
@@ -1555,6 +1581,7 @@ class ActiveSubscription {
     required this.transactionId,
   });
 
+  /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
   final bool? autoRenewingAndroid;
   final String? basePlanIdAndroid;
   /// The current plan identifier. This is:
@@ -3128,6 +3155,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     required this.quantity,
     this.signatureAndroid,
     required this.store,
+    required this.storeId,
     required this.transactionDate,
     this.transactionId,
     this.userIdAmazon,
@@ -3135,6 +3163,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.isAlternativeBilling,
   });
 
+  /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
   final bool? autoRenewingAndroid;
   final String? currentPlanId;
   final String? dataAndroid;
@@ -3142,6 +3171,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String id;
   final List<String>? ids;
   final bool? isAcknowledgedAndroid;
+  /// Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
   final bool isAutoRenewing;
   /// Whether the subscription is suspended (Android)
   /// A suspended subscription means the user's payment method failed and they need to fix it.
@@ -3164,6 +3194,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String? signatureAndroid;
   /// Store where purchase was made
   final IapStore store;
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+  final String storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   final double transactionDate;
   final String? transactionId;
@@ -3177,6 +3209,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final bool? isAlternativeBilling;
 
   factory PurchaseAndroid.fromJson(Map<String, dynamic> json) {
+    final store = IapStore.fromJson(json['store'] as String);
     return PurchaseAndroid(
       autoRenewingAndroid: json['autoRenewingAndroid'] as bool?,
       currentPlanId: json['currentPlanId'] as String?,
@@ -3196,7 +3229,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       purchaseToken: json['purchaseToken'] as String?,
       quantity: json['quantity'] as int,
       signatureAndroid: json['signatureAndroid'] as String?,
-      store: IapStore.fromJson(json['store'] as String),
+      store: store,
+      storeId: _resolveStoreId(store, json['storeId']),
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String?,
       userIdAmazon: json['userIdAmazon'] as String?,
@@ -3228,6 +3262,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       'quantity': quantity,
       'signatureAndroid': signatureAndroid,
       'store': store.toJson(),
+      'storeId': storeId,
       'transactionDate': transactionDate,
       'transactionId': transactionId,
       'userIdAmazon': userIdAmazon,
@@ -3329,6 +3364,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.revocationTypeIOS,
     required this.store,
     this.storefrontCountryCodeIOS,
+    required this.storeId,
     this.subscriptionGroupIdIOS,
     required this.transactionDate,
     required this.transactionId,
@@ -3364,6 +3400,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final double? expirationDateIOS;
   final String id;
   final List<String>? ids;
+  /// Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
   final bool isAutoRenewing;
   final bool? isUpgradedIOS;
   final PurchaseOfferIOS? offerIOS;
@@ -3391,6 +3428,8 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   /// Store where purchase was made
   final IapStore store;
   final String? storefrontCountryCodeIOS;
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+  final String storeId;
   final String? subscriptionGroupIdIOS;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   final double transactionDate;
@@ -3400,6 +3439,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final bool? isAlternativeBilling;
 
   factory PurchaseIOS.fromJson(Map<String, dynamic> json) {
+    final store = IapStore.fromJson(json['store'] as String);
     return PurchaseIOS(
       advancedCommerceInfoIOS: json['advancedCommerceInfoIOS'] != null ? AdvancedCommerceInfoIOS.fromJson(json['advancedCommerceInfoIOS'] as Map<String, dynamic>) : null,
       appAccountToken: json['appAccountToken'] as String?,
@@ -3436,8 +3476,9 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       revocationDateIOS: (json['revocationDateIOS'] as num?)?.toDouble(),
       revocationReasonIOS: json['revocationReasonIOS'] as String?,
       revocationTypeIOS: json['revocationTypeIOS'] as String?,
-      store: IapStore.fromJson(json['store'] as String),
+      store: store,
       storefrontCountryCodeIOS: json['storefrontCountryCodeIOS'] as String?,
+      storeId: _resolveStoreId(store, json['storeId']),
       subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String,
@@ -3488,6 +3529,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'revocationTypeIOS': revocationTypeIOS,
       'store': store.toJson(),
       'storefrontCountryCodeIOS': storefrontCountryCodeIOS,
+      'storeId': storeId,
       'subscriptionGroupIdIOS': subscriptionGroupIdIOS,
       'transactionDate': transactionDate,
       'transactionId': transactionId,
@@ -3750,6 +3792,7 @@ class RequestVerifyPurchaseWithIapkitResult {
     this.productId,
     required this.state,
     required this.store,
+    required this.storeId,
   });
 
   /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
@@ -3777,15 +3820,19 @@ class RequestVerifyPurchaseWithIapkitResult {
   /// The current state of the purchase.
   final IapkitPurchaseState state;
   final IapStore store;
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+  final String storeId;
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
+    final store = IapStore.fromJson(json['store'] as String);
     return RequestVerifyPurchaseWithIapkitResult(
       clientPayload: json['clientPayload'] is Map<String, dynamic> ? IapkitProductClientPayload._tryFromJson(json['clientPayload'] as Map<String, dynamic>) : null,
       environment: json['environment'] as String?,
       isValid: json['isValid'] as bool,
       productId: json['productId'] as String?,
       state: IapkitPurchaseState.fromJson(json['state'] as String),
-      store: IapStore.fromJson(json['store'] as String),
+      store: store,
+      storeId: _resolveStoreId(store, json['storeId']),
     );
   }
 
@@ -3798,6 +3845,47 @@ class RequestVerifyPurchaseWithIapkitResult {
       'productId': productId,
       'state': state.toJson(),
       'store': store.toJson(),
+      'storeId': storeId,
+    };
+  }
+}
+
+/// Store-provider contract shared by the Apple and Android native bindings.
+/// coreVersion names the native contract build; clientProtocolVersion names the
+/// Client Protocol build. Capabilities use the conformance provider profile ids.
+class StoreProviderDescriptor {
+  const StoreProviderDescriptor({
+    required this.capabilities,
+    required this.clientProtocolVersion,
+    required this.coreVersion,
+    required this.platform,
+    required this.storeId,
+  });
+
+  final List<String> capabilities;
+  final String clientProtocolVersion;
+  final String coreVersion;
+  final IapPlatform platform;
+  final String storeId;
+
+  factory StoreProviderDescriptor.fromJson(Map<String, dynamic> json) {
+    return StoreProviderDescriptor(
+      capabilities: (json['capabilities'] as List<dynamic>).map((e) => e as String).toList(),
+      clientProtocolVersion: json['clientProtocolVersion'] as String,
+      coreVersion: json['coreVersion'] as String,
+      platform: IapPlatform.fromJson(json['platform'] as String),
+      storeId: json['storeId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'StoreProviderDescriptor',
+      'capabilities': capabilities,
+      'clientProtocolVersion': clientProtocolVersion,
+      'coreVersion': coreVersion,
+      'platform': platform.toJson(),
+      'storeId': storeId,
     };
   }
 }
@@ -5012,10 +5100,8 @@ class _SubsPurchase extends RequestPurchaseProps {
 /// Platform-specific purchase request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestPurchasePropsByPlatforms {
   const RequestPurchasePropsByPlatforms({
     this.apple,
@@ -5190,10 +5276,8 @@ class RequestSubscriptionIosProps {
 /// Platform-specific subscription request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
-/// - apple: Always targets App Store
-/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
-///   or Fire OS when built with amazon flavor
-///   (determined at build time, not runtime)
+/// - apple: Uses the selected Apple-platform provider (App Store by default)
+/// - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
 class RequestSubscriptionPropsByPlatforms {
   const RequestSubscriptionPropsByPlatforms({
     this.apple,
@@ -5749,6 +5833,7 @@ sealed class Purchase implements PurchaseCommon {
   String get id;
   @override
   List<String>? get ids;
+  /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
   @override
   bool get isAutoRenewing;
   @override
@@ -5763,6 +5848,9 @@ sealed class Purchase implements PurchaseCommon {
   /// Store where purchase was made
   @override
   IapStore get store;
+  /// Stable store id: apple, play, horizon, amazon, or a community provider id.
+  @override
+  String get storeId;
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   @override
   double get transactionDate;
@@ -5916,6 +6004,7 @@ abstract class MutationResolver {
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
   Future<ExternalPurchaseNoticeResultIOS> presentExternalPurchaseNoticeSheetIOS();
   /// Initiate a purchase or subscription flow; rely on events for final state.
+  /// Providers emit one canonical purchase-error event before returning or throwing a request failure.
   /// See: https://openiap.dev/docs/apis/request-purchase
   Future<RequestPurchaseResult?> requestPurchase(RequestPurchaseProps params);
   /// Restore non-consumable and active subscription purchases.

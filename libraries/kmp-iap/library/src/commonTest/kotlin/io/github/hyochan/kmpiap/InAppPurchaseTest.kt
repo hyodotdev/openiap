@@ -272,6 +272,7 @@ class InAppPurchaseTest {
             quantity = 1,
             signatureAndroid = "signature",
             store = IapStore.Google,
+            storeId = "play",
             transactionDate = 1234567890.0
         )
 

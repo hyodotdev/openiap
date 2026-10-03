@@ -40,6 +40,7 @@ class OpenIapStoreConnectionLifecycleTest {
             purchaseToken = "purchase-token",
             quantity = 1,
             store = IapStore.Google,
+            storeId = "play",
             transactionDate = 1.0,
         )
         module.availablePurchases = listOf(purchase)

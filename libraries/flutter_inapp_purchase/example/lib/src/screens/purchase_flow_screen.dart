@@ -32,7 +32,8 @@ extension VerificationMethodX on VerificationMethod {
 }
 
 /// Mirrors the other examples: no key skips, a local origin prefers it.
-VerificationMethod defaultVerificationMethod(String apiKey, String localBaseUrl) {
+VerificationMethod defaultVerificationMethod(
+    String apiKey, String localBaseUrl) {
   if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
   if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
   return VerificationMethod.iapkit;
@@ -84,8 +85,9 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     });
 
     try {
-      // End any existing connection first to reset configuration
-      // This ensures we start fresh without alternative billing settings
+      await _purchaseUpdatedSubscription?.cancel();
+      await _purchaseErrorSubscription?.cancel();
+      // Reset alternative billing settings before connecting.
       try {
         await _iap.endConnection();
         await Future.delayed(const Duration(milliseconds: 100));
@@ -103,6 +105,25 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
 
       _setupPurchaseListeners();
       await _loadProducts();
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.macOS)) {
+        try {
+          final pending = await _iap.getPendingTransactionsIOS();
+          for (final purchase in pending) {
+            if (!mounted) return;
+            await _handlePurchaseUpdate(purchase);
+          }
+        } catch (error) {
+          if (error is! PurchaseError ||
+              error.code != ErrorCode.FeatureNotSupported) {
+            if (!mounted) return;
+            setState(() {
+              _purchaseResult = 'Pending purchase recovery failed: $error';
+            });
+          }
+        }
+      }
     } catch (e) {
       debugPrint('Failed to initialize IAP connection: $e');
     } finally {
@@ -268,8 +289,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 
     // A redelivery can land while this attempt is still verifying, so claim
     // the id now and release it only if this attempt does not finish.
-    if (transactionId != null &&
-        !_processedTransactionIds.add(transactionId)) {
+    if (transactionId != null && !_processedTransactionIds.add(transactionId)) {
       debugPrint('⚠️ Transaction already in progress: $transactionId');
       return;
     }

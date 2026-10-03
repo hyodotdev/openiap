@@ -1,0 +1,143 @@
+import groovy.json.JsonSlurper
+import groovy.xml.XmlSlurper
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+
+plugins { id 'java-base' }
+
+String required(String name) {
+    def value = System.getenv(name)
+    if (!value) throw new GradleException("openiap: missing resolver input ${name}")
+    return value
+}
+
+def supplied = [:]
+def ownedClosures = [] as Set
+def credit = { String coordinate ->
+    def parts = coordinate.trim().split(':')
+    if (parts.length != 3) throw new GradleException("openiap: invalid supplied JavaArtifact ${coordinate}")
+    def module = "${parts[0]}:${parts[1]}".toString()
+    if (supplied[module] && supplied[module] != parts[2]) {
+        throw new GradleException("openiap: conflicting supplied versions for ${module}")
+    }
+    supplied[module] = parts[2]
+}
+new File(required('OPENIAP_SUPPLIED')).eachLine { line ->
+    line.split('[,;]').findAll { it.trim() }.each { credit(it) }
+}
+
+def assets = new JsonSlurper().parse(new File(required('OPENIAP_ASSETS')))
+def target = assets.targets[required('OPENIAP_TARGET')]
+if (target == null) throw new GradleException('openiap: Android NuGet target is missing; restore the app first')
+target.findAll { name, library -> library.type == 'package' }.each { name, library ->
+    def entry = assets.libraries[name]
+    def nuspec = entry.files.find { it.toLowerCase().endsWith('.nuspec') }
+    if (nuspec) {
+        def file = assets.packageFolders.keySet().collect { new File(it, "${entry.path}/${nuspec}") }.find { it.isFile() }
+        if (!file) throw new GradleException("openiap: restored NuGet manifest is missing for ${name}")
+        def tags = new XmlSlurper(false, false).parse(file).metadata.tags.text()
+        def matches = tags =~ /artifact(?:_versioned)?=([^:\s;,]+:[^:\s;,]+:[^:\s;,]+)/
+        matches.each { match ->
+            credit(match[1])
+            ownedClosures.add(match[1].split(':').take(2).join(':'))
+        }
+    }
+}
+
+repositories {
+    def extra = System.getenv('OPENIAP_REPOSITORIES_FILE')
+    if (extra) new File(extra).readLines().findAll { it.trim() }.each { repository -> maven { url = uri(repository.trim()) } }
+    google()
+    mavenCentral()
+    toList().each { repository ->
+        if (repository instanceof MavenArtifactRepository) {
+            repository.content {
+                ownedClosures.each { module ->
+                    def parts = module.split(':')
+                    excludeModule(parts[0], parts[1])
+                }
+            }
+            maven {
+                url = repository.url
+                content {
+                    ownedClosures.each { module ->
+                        def parts = module.split(':')
+                        includeModule(parts[0], parts[1])
+                    }
+                }
+                // NuGet already selected the runtime variant for these modules.
+                metadataSources { mavenPom(); ignoreGradleMetadataRedirection() }
+            }
+        }
+    }
+}
+
+def runtime = configurations.create('providerRuntime') {
+    canBeConsumed = false
+    canBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+        attribute(TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE, objects.named(TargetJvmEnvironment, TargetJvmEnvironment.ANDROID))
+    }
+}
+dependencies {
+    components.all { details ->
+        if (ownedClosures.contains("${details.id.group}:${details.id.name}".toString())) {
+            // NuGet owns these runtimes and their dependency closures.
+            details.allVariants { withDependencies { clear() } }
+        }
+    }
+    add(runtime.name, required('OPENIAP_PROVIDER'))
+    constraints {
+        supplied.each { module, suppliedVersion ->
+            add(runtime.name, "${module}:${suppliedVersion}")
+        }
+    }
+}
+
+tasks.register('resolveProvider') {
+    doLast {
+        runtime.incoming.resolutionResult.allComponents.each { component ->
+            def id = component.moduleVersion
+            if (id) {
+                def suppliedVersion = supplied["${id.group}:${id.name}".toString()]
+                if (suppliedVersion && id.version != suppliedVersion) {
+                    throw new GradleException("openiap: ${id.group}:${id.name} resolves ${id.version}, but the app provides ${suppliedVersion}")
+                }
+            }
+        }
+        def artifacts = runtime.resolvedConfiguration.resolvedArtifacts
+        def physicalIds = artifacts.collect { it.moduleVersion.id.toString() } as Set
+        def output = new File(required('OPENIAP_OUTPUT'))
+        output.parentFile.mkdirs()
+        new File(output.path + '.redirects').withWriter('UTF-8') { writer ->
+            runtime.incoming.resolutionResult.allComponents.each { component ->
+                def id = component.moduleVersion
+                if (id && component.variants.any { it.externalVariant.isPresent() }) {
+                    component.variants.each { variant ->
+                        def external = variant.externalVariant.orElse(null)
+                        while (external?.externalVariant?.isPresent()) external = external.externalVariant.get()
+                        if (external && !physicalIds.contains(external.owner.toString())) {
+                            throw new GradleException("openiap: metadata redirect ${id} has no linked runtime artifact")
+                        }
+                    }
+                    writer.write("${id}\n")
+                }
+            }
+        }
+        output.withWriter('UTF-8') { writer ->
+            artifacts.sort { it.moduleVersion.id.toString() }.each { artifact ->
+                def id = artifact.moduleVersion.id
+                if (!supplied.containsKey("${id.group}:${id.name}".toString())) {
+                    if (!(artifact.file.name.endsWith('.aar') || artifact.file.name.endsWith('.jar'))) {
+                        throw new GradleException("openiap: unsupported runtime artifact ${id}: ${artifact.file.name}")
+                    }
+                    if (artifact.file.absolutePath =~ /[\t\r\n]/) throw new GradleException('openiap: artifact path contains a control character')
+                    writer.write("${artifact.file.absolutePath}\t${id}\n")
+                }
+            }
+        }
+    }
+}

@@ -3,7 +3,25 @@
 // Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
+export const StoreIds = {
+  Apple: 'apple',
+  Play: 'play',
+  Horizon: 'horizon',
+  Amazon: 'amazon',
+} as const;
+
+export function resolveStoreId(value: unknown, store: IapStore): string {
+  const officialIds: Partial<Record<IapStore, string>> = {'apple': 'apple', 'google': 'play', 'horizon': 'horizon', 'amazon': 'amazon'};
+  const official = officialIds[store];
+  const id = value ?? official;
+  if (typeof id !== 'string' || (official != null ? id !== official : store !== 'unknown' || id.match(/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/)?.[0] !== id || ['auto', 'none', 'unknown', 'apple', 'play', 'google', 'horizon', 'amazon'].includes(id))) {
+    throw new Error('Invalid store identity');
+  }
+  return id;
+}
+
 export interface ActiveSubscription {
+  /** Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement. */
   autoRenewingAndroid?: (boolean | null);
   basePlanIdAndroid?: (string | null);
   /**
@@ -586,6 +604,7 @@ export type IapEvent = 'purchase-updated' | 'purchase-error' | 'promoted-product
 
 export type IapPlatform = 'ios' | 'android';
 
+/** Frozen legacy store discriminator. Use storeId for extensible store identity. */
 export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
 /** Serialization format of a public IAPKit product client payload. */
@@ -856,6 +875,7 @@ export interface Mutation {
   presentExternalPurchaseNoticeSheetIOS: Promise<ExternalPurchaseNoticeResultIOS>;
   /**
    * Initiate a purchase or subscription flow; rely on events for final state.
+   * Providers emit one canonical purchase-error event before returning or throwing a request failure.
    * See: https://openiap.dev/docs/apis/request-purchase
    */
   requestPurchase?: Promise<(Purchase | Purchase[] | null)>;
@@ -1203,6 +1223,7 @@ export interface PromotionalOfferJwsInputIOS {
 export type Purchase = PurchaseAndroid | PurchaseIOS;
 
 export interface PurchaseAndroid extends PurchaseCommon {
+  /** Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement. */
   autoRenewingAndroid?: (boolean | null);
   currentPlanId?: (string | null);
   dataAndroid?: (string | null);
@@ -1210,6 +1231,7 @@ export interface PurchaseAndroid extends PurchaseCommon {
   id: string;
   ids?: (string[] | null);
   isAcknowledgedAndroid?: (boolean | null);
+  /** Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown. */
   isAutoRenewing: boolean;
   /**
    * Whether the subscription is suspended (Android)
@@ -1236,6 +1258,8 @@ export interface PurchaseAndroid extends PurchaseCommon {
   signatureAndroid?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
+  storeId: string;
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
   transactionId?: (string | null);
@@ -1262,6 +1286,7 @@ export interface PurchaseCommon {
   currentPlanId?: (string | null);
   id: string;
   ids?: (string[] | null);
+  /** Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions. */
   isAutoRenewing: boolean;
   productId: string;
   purchaseState: PurchaseState;
@@ -1270,6 +1295,8 @@ export interface PurchaseCommon {
   quantity: number;
   /** Store where purchase was made */
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
+  storeId: string;
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
 }
@@ -1318,6 +1345,7 @@ export interface PurchaseIOS extends PurchaseCommon {
   expirationDateIOS?: (number | null);
   id: string;
   ids?: (string[] | null);
+  /** Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state. */
   isAutoRenewing: boolean;
   isUpgradedIOS?: (boolean | null);
   offerIOS?: (PurchaseOfferIOS | null);
@@ -1348,6 +1376,8 @@ export interface PurchaseIOS extends PurchaseCommon {
   revocationTypeIOS?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
+  storeId: string;
   storefrontCountryCodeIOS?: (string | null);
   subscriptionGroupIdIOS?: (string | null);
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
@@ -1692,10 +1722,8 @@ export type RequestPurchaseProps =
  * Platform-specific purchase request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 export interface RequestPurchasePropsByPlatforms {
   /** Apple-specific purchase parameters */
@@ -1792,10 +1820,8 @@ export interface RequestSubscriptionIosProps {
  * Platform-specific subscription request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 export interface RequestSubscriptionPropsByPlatforms {
   /** Apple-specific subscription parameters */
@@ -1905,6 +1931,21 @@ export interface RequestVerifyPurchaseWithIapkitResult {
   /** The current state of the purchase. */
   state: IapkitPurchaseState;
   store: IapStore;
+  /** Stable store id: apple, play, horizon, amazon, or a community provider id. */
+  storeId: string;
+}
+
+/**
+ * Store-provider contract shared by the Apple and Android native bindings.
+ * coreVersion names the native contract build; clientProtocolVersion names the
+ * Client Protocol build. Capabilities use the conformance provider profile ids.
+ */
+export interface StoreProviderDescriptor {
+  capabilities: string[];
+  clientProtocolVersion: string;
+  coreVersion: string;
+  platform: IapPlatform;
+  storeId: string;
 }
 
 /**

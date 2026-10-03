@@ -11,7 +11,8 @@ import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
@@ -57,6 +58,7 @@ import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
+import dev.hyo.openiap.utils.redeemOfferCode
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -202,7 +204,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     // OpenIAP backend + local cache for product types
-    private val openIap: OpenIapModule by lazy { OpenIapModule(context) }
+    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
     private val productTypeBySku = mutableMapOf<String, String>()
 
     // Event listeners
@@ -832,7 +834,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         purchaseToken = sub.purchaseToken.wrapVariant(),
                         transactionDate = sub.transactionDate,
                         // Android specific fields
-                        autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
+                        autoRenewingAndroid = sub.autoRenewingAndroid.toNitroNullableBoolean(),
                         basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
                         currentPlanId = sub.currentPlanId.wrapVariant(),
                         purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
@@ -900,12 +902,22 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
+    override fun restorePurchases(): Promise<Boolean> = Promise.async {
+        try {
+            openIap.restorePurchases()
+            true
+        } catch (error: OpenIapError) {
+            throw OpenIapException(toErrorJson(error), error)
+        }
+    }
+
     // Transaction management methods (Unified)
     override fun finishTransaction(params: NitroFinishTransactionParams): Promise<Variant_Boolean_NitroPurchaseResult> {
         return Promise.async {
             val androidParams = (params.android as? Variant_NullType_NitroFinishTransactionAndroidParams.Second)?.value
                 ?: return@async Variant_Boolean_NitroPurchaseResult.First(true)
             val purchaseToken = androidParams.purchaseToken
+            val purchaseJson = androidParams.purchaseJson
             val isConsumable = androidParams.isConsumable.unwrapBool() ?: false
 
             RnIapLog.payload(
@@ -917,7 +929,7 @@ class HybridRnIap : HybridRnIapSpec() {
             )
 
             // Validate token early to avoid confusing native errors
-            if (purchaseToken.isBlank()) {
+            if (purchaseToken.isBlank() && purchaseJson == null) {
                 RnIapLog.warn("finishTransaction called with missing purchaseToken")
                 return@async Variant_Boolean_NitroPurchaseResult.Second(
                     NitroPurchaseResult(
@@ -936,7 +948,10 @@ class HybridRnIap : HybridRnIapSpec() {
             }
 
             try {
-                if (isConsumable) {
+                if (purchaseJson != null) {
+                    val purchase = PurchaseAndroid.fromJson(JSONObject(purchaseJson).toPurchaseMap())
+                    openIap.finishTransaction(purchase, isConsumable)
+                } else if (isConsumable) {
                     openIap.consumePurchaseAndroid(purchaseToken)
                 } else {
                     openIap.acknowledgePurchaseAndroid(purchaseToken)
@@ -1368,6 +1383,8 @@ class HybridRnIap : HybridRnIapSpec() {
             currentPlanId = purchase.currentPlanId.wrapVariant(),
             ids = purchase.ids.wrapVariant(),
             store = mapIapStore(purchase.store),
+            storeId = purchase.storeId,
+            platform = IapPlatform.ANDROID,
             quantity = purchase.quantity.toDouble(),
             purchaseState = mapPurchaseState(purchase.purchaseState),
             isAutoRenewing = purchase.isAutoRenewing,
@@ -1405,7 +1422,7 @@ class HybridRnIap : HybridRnIapSpec() {
             purchaseTokenAndroid = androidPurchase?.purchaseToken.wrapVariant(),
             dataAndroid = androidPurchase?.dataAndroid.wrapVariant(),
             signatureAndroid = androidPurchase?.signatureAndroid.wrapVariant(),
-            autoRenewingAndroid = androidPurchase?.autoRenewingAndroid.wrapVariant(),
+            autoRenewingAndroid = androidPurchase?.autoRenewingAndroid.toNitroNullableBoolean(),
             purchaseStateAndroid = purchaseStateAndroidNumeric.wrapVariant(),
             isAcknowledgedAndroid = androidPurchase?.isAcknowledgedAndroid.wrapVariant(),
             packageNameAndroid = androidPurchase?.packageNameAndroid.wrapVariant(),
@@ -1711,7 +1728,8 @@ class HybridRnIap : HybridRnIapSpec() {
                         // mappers match separator-delimited spellings, so
                         // multi-word states would otherwise degrade to UNKNOWN.
                         state = mapIapkitPurchaseState(item.state.rawValue),
-                        store = mapIapkitStore(item.store.rawValue)
+                        store = mapIapkitStore(item.store.rawValue),
+                        storeId = item.storeId
                     )
                 }
 
@@ -2125,12 +2143,9 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             RnIapLog.payload("openRedeemOfferCodeAndroid", null)
             try {
-                withContext(Dispatchers.Main) {
-                    runCatching { context.currentActivity }.getOrNull()?.let(openIap::setActivity)
+                val result = withContext(Dispatchers.Main) {
+                    redeemOfferCode(openIap, runCatching { context.currentActivity }.getOrNull())
                 }
-                val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
-                    ?: throw OpenIapError.FeatureNotSupported()
-                val result = handler()
                 RnIapLog.result("openRedeemOfferCodeAndroid", result)
                 result
             } catch (err: CancellationException) {
@@ -2426,4 +2441,14 @@ class HybridRnIap : HybridRnIapSpec() {
             subResponseCodeAndroid = mapSubResponseCode(subResponseCode)
         )
     }
+}
+
+private fun JSONObject.toPurchaseMap(): Map<String, Any?> = keys().asSequence().associateWith { key ->
+    fun value(raw: Any?): Any? = when (raw) {
+        JSONObject.NULL -> null
+        is JSONObject -> raw.toPurchaseMap()
+        is JSONArray -> (0 until raw.length()).map { value(raw.opt(it)) }
+        else -> raw
+    }
+    value(opt(key))
 }

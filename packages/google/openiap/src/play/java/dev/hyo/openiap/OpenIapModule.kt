@@ -1600,7 +1600,11 @@ class OpenIapModule(
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val errorEventGate = PurchaseErrorEventGate(::emitPurchaseError)
         val purchases = try { withContext(Dispatchers.IO) {
-            val androidArgs = props.toAndroidPurchaseArgs()
+            val androidArgs = try {
+                props.toAndroidPurchaseArgs()
+            } catch (error: IllegalArgumentException) {
+                throw OpenIapError.DeveloperError(error.message)
+            }
             val activity = currentActivityRef?.get() ?: fallbackActivity
 
             if (activity == null) {
@@ -1814,7 +1818,7 @@ class OpenIapModule(
                                 return
                             }
 
-                            builder.setOfferToken(androidArgs.offerToken)
+                            builder.setOfferToken(requireNotNull(androidArgs.offerToken))
                         }
 
                         paramsList += builder.build()
@@ -2087,7 +2091,7 @@ class OpenIapModule(
         RequestPurchaseResultPurchases(purchases)
     }
 
-    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+    override suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
         val client = billingClient ?: throw OpenIapError.NotPrepared
         val billingType = if (type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
         queryPurchases(client, activeOperations, billingType)
@@ -2295,7 +2299,7 @@ class OpenIapModule(
         }
     }
 
-    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         val client = billingClient ?: emitFailureAndThrow(
             OpenIapError.NotPrepared,
             ::emitPurchaseError,

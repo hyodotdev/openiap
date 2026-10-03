@@ -1,0 +1,71 @@
+{
+  "suiteVersion": "4.0.0",
+  "maintenanceWindowDays": 90,
+  "suiteMajorAdoptionDate": "2026-10-01",
+  "stores": [
+    {
+      "id": "apple",
+      "platform": "ios",
+      "displayName": "Apple App Store",
+      "tier": "official",
+      "aliases": [],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/apple",
+      "coordinates": "hyodotdev/openiap@3.6.1",
+      "capabilities": [
+        "pendingPurchases",
+        "subscriptionBillingIssue",
+        "offerCodeRedemption"
+      ],
+      "latestReport": null,
+      "status": "official",
+      "reports": []
+    },
+    {
+      "id": "play",
+      "platform": "android",
+      "displayName": "Google Play",
+      "tier": "official",
+      "aliases": ["google", "gplay", "googleplay", "google-play", "gms"],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
+      "coordinates": "io.github.hyochan.openiap:openiap-google:3.6.2",
+      "capabilities": [
+        "pendingPurchases",
+        "subscriptionBillingIssue",
+        "offerCodeRedemption"
+      ],
+      "latestReport": null,
+      "status": "official",
+      "reports": []
+    },
+    {
+      "id": "horizon",
+      "platform": "android",
+      "displayName": "Meta Horizon",
+      "tier": "official",
+      "aliases": ["meta", "quest"],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
+      "coordinates": "io.github.hyochan.openiap:openiap-google-horizon:3.6.2",
+      "capabilities": ["pendingPurchases"],
+      "latestReport": null,
+      "status": "official",
+      "reports": []
+    },
+    {
+      "id": "amazon",
+      "platform": "android",
+      "displayName": "Amazon Appstore",
+      "tier": "official",
+      "aliases": ["fire", "fireos", "fire-os"],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
+      "coordinates": "io.github.hyochan.openiap:openiap-google-amazon:3.6.2",
+      "capabilities": ["pendingPurchases"],
+      "latestReport": null,
+      "status": "official",
+      "reports": []
+    }
+  ]
+}

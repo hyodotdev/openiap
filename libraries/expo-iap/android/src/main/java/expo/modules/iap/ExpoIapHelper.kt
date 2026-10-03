@@ -3,7 +3,8 @@ package expo.modules.iap
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
@@ -301,7 +302,7 @@ object ExpoIapHelper {
     }
 
     fun setupListeners(
-        openIap: OpenIapModule,
+        openIap: OpenIapProtocol,
         module: Module,
         scope: CoroutineScope,
         connectionReady: java.util.concurrent.atomic.AtomicBoolean,
@@ -458,7 +459,7 @@ object ExpoIapHelper {
     }
 
     fun cleanupListeners(
-        openIap: OpenIapModule,
+        openIap: OpenIapProtocol,
         handles: ListenerHandles?,
     ) {
         if (handles == null) return
