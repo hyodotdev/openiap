@@ -834,7 +834,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         purchaseToken = sub.purchaseToken.wrapVariant(),
                         transactionDate = sub.transactionDate,
                         // Android specific fields
-                        autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
+                        autoRenewingAndroid = sub.autoRenewingAndroid.toNitroNullableBoolean(),
                         basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
                         currentPlanId = sub.currentPlanId.wrapVariant(),
                         purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
@@ -1422,7 +1422,7 @@ class HybridRnIap : HybridRnIapSpec() {
             purchaseTokenAndroid = androidPurchase?.purchaseToken.wrapVariant(),
             dataAndroid = androidPurchase?.dataAndroid.wrapVariant(),
             signatureAndroid = androidPurchase?.signatureAndroid.wrapVariant(),
-            autoRenewingAndroid = androidPurchase?.autoRenewingAndroid.wrapVariant(),
+            autoRenewingAndroid = androidPurchase?.autoRenewingAndroid.toNitroNullableBoolean(),
             purchaseStateAndroid = purchaseStateAndroidNumeric.wrapVariant(),
             isAcknowledgedAndroid = androidPurchase?.isAcknowledgedAndroid.wrapVariant(),
             packageNameAndroid = androidPurchase?.packageNameAndroid.wrapVariant(),
