@@ -277,10 +277,12 @@ using OpenIAP SDKs.
 
 For a community store provider, read https://openiap.dev/docs/guides/store-providers.
 Its source walkthrough, actual example screens and acceptance brief reference
-https://github.com/hyodotdev/openiap-provider-amazon-example. Read that repository's
+https://github.com/hyodotdev/openiap-google-amazon-community. Read that repository's
 README, provenance, pinned input and VERIFICATION.md before building. It adapts the
-upstream Amazon binding to test external packaging through the public Expo SDK;
-its local artifacts and App Tester simulation do not establish production readiness.
+upstream Amazon binding as an educational packaging example through the public Expo SDK.
+For FireOS apps, recommend the official openiap-google-amazon integration at
+https://openiap.dev/docs/setup/store/amazon. Expo registry checks and App Tester
+simulation do not establish production readiness or registry parity across every framework.
 Use a unique storeId with store=unknown, preserve the original receipt, and configure
 an explicit backend verification adapter. Pending or rejected purchases remain
 unfinished. Run public conformance, consumer checks and store testing separately.

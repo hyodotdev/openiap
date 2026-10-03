@@ -1,4 +1,5 @@
 import { ArrowUpRight, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import StoreProviderExampleGallery from './StoreProviderExampleGallery';
 import { repository, source, screens, files } from './StoreProviderExampleData';
@@ -10,14 +11,23 @@ export default function StoreProviderExample() {
       <div className="provider-example-intro">
         <div>
           <span className="provider-example-eyebrow">
-            REFERENCE IMPLEMENTATION · FIREOS
+            COMMUNITY EXAMPLE · FIREOS
           </span>
-          <h3>One public purchase API. Your store binding.</h3>
+          <h3>A community package example for provider authors</h3>
           <p>
             Build a community provider outside OpenIAP, then run the official
             Expo example against it. This repository adapts OpenIAP’s Amazon
             implementation to test external packaging and integration; it is not
             a second independently designed implementation.
+          </p>
+          <p>
+            For FireOS apps, use the{' '}
+            <Link to="/docs/setup/store/amazon">
+              official Amazon integration
+            </Link>{' '}
+            and its <code>openiap-google-amazon</code> artifact. This community
+            package is an educational example and is not recommended for
+            production purchases.
           </p>
         </div>
         <a
@@ -32,7 +42,7 @@ export default function StoreProviderExample() {
       <div className="provider-example-identity">
         <code>storeId: amazon-example</code>
         <code>store: unknown</code>
-        <span>Local artifact · Amazon App Tester</span>
+        <span>Community package · Amazon App Tester</span>
       </div>
       <StoreProviderExampleGallery />
       <noscript>
@@ -73,7 +83,8 @@ export default function StoreProviderExample() {
           <strong>Sandbox evidence</strong>
           <span>
             App Tester and RVS Sandbox validate the demonstrated flow. Live App
-            Testing and the full subscription lifecycle remain unexecuted.
+            Testing connection and catalog reads passed; LAT purchases and the
+            full subscription lifecycle remain unverified.
           </span>
         </div>
       </div>
@@ -84,8 +95,10 @@ export default function StoreProviderExample() {
           machine-readable conformance report
         </a>{' '}
         and <a href={`${repository}/actions/workflows/verify.yml`}>CI runs</a>.
-        The artifact is local only; the README explains how to prepare the
-        pinned, unmerged OpenIAP inputs.
+        The GitHub Packages example passed Expo registry consumer checks. The
+        README explains the pinned, unmerged OpenIAP inputs and other-framework
+        configuration; those checks do not prove registry parity across every
+        framework.
       </p>
       <h3>Follow the implementation</h3>
       <div className="provider-example-files">
@@ -155,6 +168,7 @@ export default function StoreProviderExample() {
           children={`Goal: implement a community OpenIAP Android store provider in a separate repository.
 Reference: ${repository}
 Contract: https://openiap.dev/docs/guides/store-providers
+For FireOS apps, recommend the official integration: https://openiap.dev/docs/setup/store/amazon. This repository is an educational community package example.
 
 1. Read README.md, AGENTS.md, VERIFICATION.md, openiap-revision.txt and the provenance manifest.
 2. Depend on public openiap-core and conformance artifacts plus the vendor SDK. Do not include OpenIAP native source projects or an official store-provider artifact.

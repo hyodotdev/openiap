@@ -566,7 +566,12 @@ function Releases() {
               for architecture diagrams, actual Amazon example screens, a source
               walkthrough and an acceptance brief for provider authors and AI
               coding agents. Provider-specific settings belong to its manifest
-              or resources.
+              or resources. The Amazon community package is an educational
+              example; use the{' '}
+              <Link to="/docs/setup/store/amazon">
+                official Amazon integration
+              </Link>{' '}
+              for FireOS apps.
             </li>
             <li>
               Existing store aliases, legacy flags, and deprecated configuration
