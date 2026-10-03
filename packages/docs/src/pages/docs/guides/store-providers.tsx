@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
+import DataTable, { type DataTableColumn } from '../../../components/DataTable';
 import SEO from '../../../components/SEO';
 import StoreProviderDiagram from './StoreProviderDiagram';
 import StoreProviderExample from './StoreProviderExample';
@@ -9,12 +10,15 @@ import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 import registry from '../../../generated/store-registry.json';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-type ProviderListing = Omit<(typeof registry.stores)[number], 'reports'> & {
+interface ProviderListing extends Omit<
+  (typeof registry.stores)[number],
+  'reports'
+> {
   reports: { platform: string; url: string }[];
-};
-const storeListings: ProviderListing[] = registry.stores;
+}
+const STORE_LISTINGS: ProviderListing[] = registry.stores;
 
-const selection: Record<string, string> = {
+const SELECTION: Record<string, string> = {
   'react-native-iap': 'Set both properties in android/gradle.properties.',
   'expo-iap':
     'Set android.store and android.provider in the expo-iap config plugin, then prebuild.',
@@ -26,6 +30,53 @@ const selection: Record<string, string> = {
     'Set openiap/android_store and openiap/android_provider in the Android export preset, then export Android.',
   'maui-iap': 'Set OpenIapStore and OpenIapProvider in the app project.',
 };
+
+interface SdkSelection {
+  name: string;
+  displayName: string;
+  setupPath: string;
+  configuration: string;
+}
+
+const SDK_SELECTIONS: SdkSelection[] = LIBRARIES.map((library) => ({
+  ...library,
+  configuration: SELECTION[library.name],
+}));
+const SDK_COLUMNS: DataTableColumn<SdkSelection>[] = [
+  {
+    header: 'SDK',
+    cell: (row) => <Link to={row.setupPath}>{row.displayName}</Link>,
+  },
+  { header: 'Configuration', cell: (row) => row.configuration },
+];
+const STORE_COLUMNS: DataTableColumn<ProviderListing>[] = [
+  {
+    header: 'Store',
+    cell: (store) => (
+      <>
+        <a href={store.repo}>{store.displayName}</a>
+        <div className="text-sm text-gray-500">
+          {store.maintainers.join(', ')}
+        </div>
+      </>
+    ),
+  },
+  { header: 'Id', cell: (store) => <code>{store.id}</code> },
+  {
+    header: 'Status',
+    cell: (store) => (
+      <>
+        {store.status}
+        {store.reports.map((report) => (
+          <div key={report.platform}>
+            <a href={report.url}>{report.platform} conformance report</a>
+          </div>
+        ))}
+      </>
+    ),
+  },
+  { header: 'Provider', cell: (store) => <code>{store.coordinates}</code> },
+];
 
 export default function StoreProviders() {
   useScrollToHash();
@@ -115,24 +166,11 @@ export default function StoreProviders() {
             'openiapStore=your-store\nopeniapProvider=com.example:openiap-your-store:1.0.0'
           }
         />
-        <table>
-          <thead>
-            <tr>
-              <th>SDK</th>
-              <th>Configuration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {LIBRARIES.map((library) => (
-              <tr key={library.name}>
-                <td>
-                  <Link to={library.setupPath}>{library.displayName}</Link>
-                </td>
-                <td>{selection[library.name]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          columns={SDK_COLUMNS}
+          rows={SDK_SELECTIONS}
+          rowKey={(row) => row.name}
+        />
         <AnchorLink id="expo" level="h3">
           Expo
         </AnchorLink>
@@ -195,7 +233,8 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           Store-specific app ids, keys, and resources belong to the provider’s
           manifest or resources. Follow its setup instructions. Existing
           official aliases, legacy flags, and automatic device selection keep
-          working; an external provider requires an explicit pair.
+          working; an external provider requires an explicit pair. Invalid or
+          incomplete selection fails the Android build, including Godot exports.
         </p>
       </section>
       <section>
@@ -361,9 +400,14 @@ class YourStoreFactory : OpenIapProviderFactory {
           <code>pendingPurchases</code>, <code>subscriptionBillingIssue</code>,
           and <code>offerCodeRedemption</code>. Unsupported operations must
           return a documented unsupported result or{' '}
-          <code>FeatureNotSupported</code>. The deprecated product-type filtered
-          read has an unsupported default; prefer{' '}
-          <code>getAvailablePurchases</code>.
+          <code>FeatureNotSupported</code>. Receipt verification preserves
+          normalized provider error codes, including unsupported receipt
+          verification. Handle that code by using the store’s supported server
+          integration; a verification transport error does not invalidate the
+          purchase. On failure, Godot plain verification returns null and emits{' '}
+          <code>purchase_error</code>, while managed verification returns the
+          code in <code>errors</code>. The deprecated product-type filtered read
+          has an unsupported default; prefer <code>getAvailablePurchases</code>.
         </p>
         <p>
           An owned subscription does not establish automatic renewal. Leave{' '}
@@ -456,44 +500,11 @@ class YourStoreFactory : OpenIapProviderFactory {
           is {registry.suiteMajorAdoptionDate}; update the report to restore
           current community status.
         </p>
-        <table>
-          <thead>
-            <tr>
-              <th>Store</th>
-              <th>Id</th>
-              <th>Status</th>
-              <th>Provider</th>
-            </tr>
-          </thead>
-          <tbody>
-            {storeListings.map((store) => (
-              <tr key={store.id}>
-                <td>
-                  <a href={store.repo}>{store.displayName}</a>
-                  <div className="text-sm text-gray-500">
-                    {store.maintainers.join(', ')}
-                  </div>
-                </td>
-                <td>
-                  <code>{store.id}</code>
-                </td>
-                <td>
-                  {store.status}
-                  {store.reports.map((report) => (
-                    <div key={report.platform}>
-                      <a href={report.url}>
-                        {report.platform} conformance report
-                      </a>
-                    </div>
-                  ))}
-                </td>
-                <td>
-                  <code>{store.coordinates}</code>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          columns={STORE_COLUMNS}
+          rows={STORE_LISTINGS}
+          rowKey={(row) => row.id}
+        />
       </section>
     </div>
   );

@@ -114,7 +114,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitInitConnectionFailure(
                     generation: generation,
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -167,7 +168,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitEndConnectionFailure(
                     generation: generation,
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -206,7 +208,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self?.emitAsyncFailure(
                     method: "fetchProducts",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
             return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
@@ -246,11 +249,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
             } catch {
                 GodotIapLog.failure("fetchProducts", error: error)
-                await self?.emitProductsFetched(
-                    success: false,
-                    error: error.localizedDescription,
+                await self?.emitAsyncFailure(
                     method: "fetchProducts",
-                    requestId: requestId
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -334,7 +337,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "finishTransaction",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -356,12 +360,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                try await self.openIap.restorePurchases()
-
-                // Get available purchases after restore
-                let purchases = try await self.openIap.getAvailablePurchases(
-                    PurchaseOptions(onlyIncludeActiveItemsIOS: true)
-                )
+                let purchases = try await GodotIapHelper.withCompletionErrors {
+                    try await self.openIap.restorePurchases()
+                    return try await self.openIap.getAvailablePurchases(
+                        PurchaseOptions(onlyIncludeActiveItemsIOS: true)
+                    )
+                }
 
                 for purchase in purchases {
                     await self.emitPurchaseUpdated(purchase: purchase)
@@ -376,11 +380,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                await self.emitPurchaseError(code: ErrorCode.syncError.rawValue, message: error.localizedDescription)
                 await self.emitAsyncFailure(
                     method: "restorePurchases",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error, fallback: .syncError)
                 )
             }
         }
@@ -440,7 +444,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getAvailablePurchases",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -500,7 +505,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getActiveSubscriptions",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -546,7 +552,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "hasActiveSubscriptions",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -575,7 +582,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getStorefront",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -612,6 +620,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("syncIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -645,6 +654,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("clearTransactionIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -694,6 +704,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("getPendingTransactionsIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -743,6 +754,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("getAllTransactionsIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -782,6 +794,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("presentCodeRedemptionSheetIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -831,6 +844,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("showManageSubscriptionsIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -864,6 +878,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("beginRefundRequestIOS")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -916,7 +931,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "currentEntitlementIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -967,7 +983,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "latestTransactionIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1018,7 +1035,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getAppTransactionIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1061,7 +1079,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "subscriptionStatusIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1091,7 +1110,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "isEligibleForIntroOfferIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1142,7 +1162,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getPromotedProductIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1172,7 +1193,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "canPresentExternalPurchaseNoticeIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1206,7 +1228,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "presentExternalPurchaseNoticeSheetIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1239,7 +1262,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "presentExternalPurchaseLinkIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1280,6 +1304,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("deepLinkToSubscriptions")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -1314,7 +1339,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
                 // Create VerifyPurchaseProps from JSON using OpenIapSerialization
                 let props = try OpenIapSerialization.verifyPurchaseProps(from: json)
-                let result = try await self.openIap.verifyPurchase(props)
+                let result = try await GodotIapHelper.withCompletionErrors {
+                    try await self.openIap.verifyPurchase(props)
+                }
 
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
@@ -1335,6 +1362,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("verifyPurchase")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error, fallback: .purchaseVerificationFailed))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -1366,7 +1394,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getReceiptDataIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1396,7 +1425,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "isTransactionVerifiedIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1426,7 +1456,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self.emitAsyncFailure(
                     method: "getTransactionJwsIOS",
                     requestId: requestId,
-                    message: error.localizedDescription
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
                 )
             }
         }
@@ -1479,6 +1510,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["method"] = Variant("verifyPurchaseWithProvider")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
+                    dict["code"] = Variant(GodotIapHelper.errorCode(error, fallback: .purchaseVerificationFailed))
                     dict["error"] = Variant(error.localizedDescription)
                     self.productsFetched.emit(dict)
                 }
@@ -1517,7 +1549,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await self.emitAsyncFailure(
                         method: "isEligibleForExternalPurchaseCustomLinkIOS",
                         requestId: requestId,
-                        message: error.localizedDescription
+                        message: error.localizedDescription,
+                        code: GodotIapHelper.errorCode(error)
                     )
                 }
             }
@@ -1564,7 +1597,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await self.emitAsyncFailure(
                         method: "getExternalPurchaseCustomLinkTokenIOS",
                         requestId: requestId,
-                        message: error.localizedDescription
+                        message: error.localizedDescription,
+                        code: GodotIapHelper.errorCode(error)
                     )
                 }
             }
@@ -1609,7 +1643,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await self.emitAsyncFailure(
                         method: "showExternalPurchaseCustomLinkNoticeIOS",
                         requestId: requestId,
-                        message: error.localizedDescription
+                        message: error.localizedDescription,
+                        code: GodotIapHelper.errorCode(error)
                     )
                 }
             }
@@ -1733,10 +1768,17 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 dedupeTransactionIOS: dedupeTransactionIOS
             )
             purchaseErrorSubscription = openIap.purchaseErrorListener { [weak self] error in
-                Task { @MainActor [weak self] in
-                    guard let self,
-                          self.isConnectionActive(generation: generation) else { return }
-                    self.emitPurchaseError(error)
+                let forward: @Sendable () -> Void = { [weak self] in
+                    Task { @MainActor [weak self] in
+                        guard let self,
+                              self.isConnectionActive(generation: generation) else { return }
+                        self.emitPurchaseError(error)
+                    }
+                }
+                if let owner = GodotIapHelper.completionErrorOwner {
+                    owner.receive(forward)
+                } else {
+                    forward()
                 }
             }
             promotedProductSubscription = openIap.promotedProductListenerIOS { [weak self] productId in
@@ -1818,14 +1860,16 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private func emitInitConnectionFailure(
         generation: UInt64,
         requestId: String,
-        message: String
+        message: String,
+        code: String = ErrorCode.serviceError.rawValue
     ) {
         guard isConnectionGenerationCurrent(generation) else { return }
         connected.emit(0)
         emitAsyncFailure(
             method: "initConnection",
             requestId: requestId,
-            message: message
+            message: message,
+            code: code
         )
     }
 
@@ -1849,13 +1893,15 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private func emitEndConnectionFailure(
         generation: UInt64,
         requestId: String,
-        message: String
+        message: String,
+        code: String = ErrorCode.serviceError.rawValue
     ) {
         guard isConnectionGenerationCurrent(generation) else { return }
         emitAsyncFailure(
             method: "endConnection",
             requestId: requestId,
-            message: message
+            message: message,
+            code: code
         )
     }
 
@@ -1995,7 +2041,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private func emitProductsFetched(
         success: Bool,
         products: [[String: Any]]? = nil,
-        error: String? = nil,
         method: String,
         requestId: String
     ) {
@@ -2009,10 +2054,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
            let jsonData = try? JSONSerialization.data(withJSONObject: products),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             dict["productsJson"] = Variant(jsonString)
-        }
-
-        if let error = error {
-            dict["error"] = Variant(error)
         }
 
         self.productsFetched.emit(dict)

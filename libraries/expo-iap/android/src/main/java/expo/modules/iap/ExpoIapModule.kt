@@ -208,7 +208,7 @@ class ExpoIapModule : Module() {
                             promise.resolve(true)
                         } catch (e: Exception) {
                             ExpoIapLog.failure("initConnection", e)
-                            promise.reject(OpenIapError.InitConnection.CODE, e.message, e)
+                            promise.reject((e as? OpenIapError)?.code ?: OpenIapError.InitConnection.CODE, e.message, e)
                         }
                     }
                 }
@@ -298,7 +298,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(payload)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getAvailableItems", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -316,7 +316,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(null)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("deepLinkToSubscriptionsAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -361,7 +361,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(code)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getStorefront", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -520,7 +520,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("acknowledgePurchaseAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -538,7 +538,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("consumePurchaseAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -565,7 +565,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(resultMap)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("verifyPurchase", e)
-                        promise.reject(OpenIapError.VerificationFailed.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.VerificationFailed.CODE, e.message, e)
                     }
                 }
             }
@@ -589,7 +589,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(resultMap)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("verifyPurchaseWithProvider", e)
-                        promise.reject(OpenIapError.VerificationFailed.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.VerificationFailed.CODE, e.message, e)
                     }
                 }
             }
@@ -607,7 +607,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getActiveSubscriptions", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -624,7 +624,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(hasActive)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("hasActiveSubscriptions", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -650,7 +650,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("isBillingProgramAvailableAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -676,7 +676,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getBillingChoiceInfoAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -708,7 +708,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -742,7 +742,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showBillingProgramInformationDialogAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -777,7 +777,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showInAppMessagesAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -825,7 +825,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("launchExternalLinkAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }

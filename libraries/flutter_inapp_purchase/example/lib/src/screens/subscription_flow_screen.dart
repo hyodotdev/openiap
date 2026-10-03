@@ -34,7 +34,8 @@ extension VerificationMethodX on VerificationMethod {
 }
 
 /// Mirrors the other examples: no key skips, a local origin prefers it.
-VerificationMethod defaultVerificationMethod(String apiKey, String localBaseUrl) {
+VerificationMethod defaultVerificationMethod(
+    String apiKey, String localBaseUrl) {
   if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
   if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
   return VerificationMethod.iapkit;

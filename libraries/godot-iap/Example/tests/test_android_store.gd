@@ -61,6 +61,14 @@ func _run() -> void:
 		AndroidStore.horizon_app_id_meta_data('1" android:exported="true') == ""
 	)
 
+	var coordinates := PackedStringArray(["io.github.hyochan.openiap:openiap-google:2.0.0"])
+	var provider := "community.test:billing:0.0.1"
+	_check("community provider dependencies include core and provider", AndroidStore.dependencies(coordinates, AndroidStore.normalize("samsung", provider), provider) == PackedStringArray(["io.github.hyochan.openiap:openiap-core:2.0.0", provider]))
+	_check("missing provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize("samsung")) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+	_check("official store with provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize("play", provider), provider) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+	_check("blank store with provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize("  ", provider), provider) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+	_check("null store with provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize(null, provider), provider) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+
 	var one := "List of devices attached\r\nAAA\tdevice\r\nCCC\tunauthorized\r\nDDD\toffline\r\n"
 	var two := "List of devices attached\nAAA\tdevice\nBBB\tdevice\n"
 	_check("the one ready device is selected", AndroidStore.pick_serial(one, "") == "AAA")

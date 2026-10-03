@@ -428,7 +428,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         } catch (e: OpenIapError) {
                             safe.error(e.code, e.message, serializeOpenIapError(e))
                         } catch (e: Exception) {
-                            safe.error(OpenIapError.QueryProduct.CODE, OpenIapError.QueryProduct.MESSAGE, e.message)
+                            replyBillingError(safe, e, OpenIapError.QueryProduct)
                         }
                     }
                 }
@@ -958,7 +958,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.success(JSONObject(result.toJson()).toString())
                         } catch (e: Exception) {
                             OpenIapLog.error("verifyPurchase error", e)
-                            safe.error(OpenIapError.VerificationFailed.CODE, "Verification failed: ${e.message}", null)
+                            replyBillingError(safe, e, OpenIapError.VerificationFailed)
                         }
                     }
                 }
@@ -1034,7 +1034,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.success(JSONObject(result.toJson()).toString())
                         } catch (e: Exception) {
                             OpenIapLog.error("verifyPurchaseWithProvider error", e)
-                            safe.error(OpenIapError.VerificationFailed.CODE, "Verification failed: ${e.message}", null)
+                            replyBillingError(safe, e, OpenIapError.VerificationFailed)
                         }
                     }
                 }
@@ -1091,11 +1091,15 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         openIap = it
     }
 
-    private fun replyBillingError(safe: MethodResultWrapper, error: Exception) {
+    private fun replyBillingError(
+        safe: MethodResultWrapper,
+        error: Exception,
+        fallback: OpenIapError = OpenIapError.BillingError(),
+    ) {
         if (error is OpenIapError) {
             safe.error(error.code, error.message, serializeOpenIapError(error))
         } else {
-            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, error.message)
+            safe.error(fallback.code, fallback.message, error.message)
         }
     }
 

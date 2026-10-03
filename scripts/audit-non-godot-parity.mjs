@@ -6810,7 +6810,7 @@ function checkFrameworkDependencyHygiene() {
       "openIap.purchaseErrorListener",
       "Variant(error.code.rawValue)",
       "ErrorCode.developerError.rawValue",
-      "ErrorCode.syncError.rawValue",
+      "GodotIapHelper.errorCode(error, fallback: .syncError)",
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );

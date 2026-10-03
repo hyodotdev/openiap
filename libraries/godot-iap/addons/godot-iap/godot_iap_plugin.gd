@@ -154,19 +154,8 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 		var store := _android_store(debug)
 		var provider := str(get_option(ANDROID_PROVIDER_OPTION)).strip_edges()
 		if store.is_empty():
-			if not provider.is_empty():
-				push_error("[GodotIap] A community store requires its id and fixed group:artifact:version provider coordinates")
-				return PackedStringArray(["openiap.invalid:provider-selection:0"])
-			# Godot's export API cannot abort here, so fall back to Play (the
-			# untagged default) instead of shipping the AAR without OpenIAP classes.
-			push_error("[GodotIap] %s must be one of: %s; falling back to Play" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
-			store = "play"
-		var dependencies := PackedStringArray()
-		for dependency in _read_android_remote_dependencies():
-			dependencies.append(AndroidStore.artifact(dependency, store, provider))
-		if not provider.is_empty():
-			dependencies.append(provider)
-		return dependencies
+			push_error("[GodotIap] Select a valid official store, or a community id with fixed group:artifact:version provider coordinates")
+		return AndroidStore.dependencies(_read_android_remote_dependencies(), store, provider)
 
 	# The editor's SDK setting first, then the Gradle resolver's fallbacks.
 	func _adb_path() -> String:

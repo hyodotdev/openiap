@@ -1376,10 +1376,9 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.getAvailablePurchases).toHaveBeenCalledWith({
         android: {includeSuspended: true},
       });
-      expect(res.map((purchase: Purchase) => purchase.productId).sort()).toEqual([
-        'p1',
-        's1',
-      ]);
+      expect(
+        res.map((purchase: Purchase) => purchase.productId).sort(),
+      ).toEqual(['p1', 's1']);
     });
 
     it('rejects a mixed valid and malformed native purchase list', async () => {
@@ -1471,7 +1470,9 @@ describe('Public API (src/index.ts)', () => {
       mockIap.getAvailablePurchases.mockImplementation(
         async (options: {android?: {type?: string}}) => {
           if (options.android?.type) {
-            throw new Error('The provider supports canonical ownership reads only');
+            throw new Error(
+              'The provider supports canonical ownership reads only',
+            );
           }
           return [
             {
@@ -2403,6 +2404,35 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
+    it.each(['android', 'ios', 'ios-fallback'])(
+      'deepLinkToSubscriptions preserves native errors on %s',
+      async (path) => {
+        Object.assign(Platform, {OS: path === 'android' ? 'android' : 'ios'});
+        const nativeError = new Error(
+          JSON.stringify({
+            code: 'feature-not-supported',
+            message: 'Provider has no subscription management UI',
+            debugMessage: 'Community provider rejection',
+          }),
+        );
+        const reject = jest.fn().mockRejectedValueOnce(nativeError);
+        if (path === 'android') {
+          mockIap.deepLinkToSubscriptionsAndroid = reject;
+        } else if (path === 'ios') {
+          mockIap.deepLinkToSubscriptionsIOS = reject;
+        } else {
+          delete mockIap.deepLinkToSubscriptionsIOS;
+          mockIap.showManageSubscriptionsIOS = reject;
+        }
+        await expect(IAP.deepLinkToSubscriptions()).rejects.toMatchObject({
+          code: 'feature-not-supported',
+          message: 'Provider has no subscription management UI',
+          debugMessage: 'Community provider rejection',
+        });
+        expect(reject).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it('deepLinkToSubscriptions uses iOS deeplink when available', async () => {
       Object.assign(Platform, {OS: 'ios'});
       mockIap.deepLinkToSubscriptionsIOS = jest.fn(async () => true);
@@ -2714,6 +2744,33 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.hasActiveSubscriptions).toHaveBeenCalled();
       expect(mockIap.getActiveSubscriptions).not.toHaveBeenCalled();
     });
+  });
+
+  it('preserves unsupported native receipt verification across both APIs', async () => {
+    Object.assign(Platform, {OS: 'android'});
+    const nativeError = new Error(
+      JSON.stringify({
+        code: 'feature-not-supported',
+        message: 'Use the vendor backend',
+      }),
+    );
+    mockIap.verifyPurchase.mockRejectedValueOnce(nativeError);
+    await expect(
+      IAP.verifyPurchase({
+        google: {
+          sku: 'sku',
+          accessToken: 'fixture',
+          packageName: 'test.app',
+          purchaseToken: 'opaque',
+        },
+      }),
+    ).rejects.toMatchObject({code: 'feature-not-supported'});
+    mockIap.verifyPurchaseWithProvider = jest
+      .fn()
+      .mockRejectedValueOnce(nativeError);
+    await expect(
+      IAP.verifyPurchaseWithProvider({provider: 'iapkit'}),
+    ).rejects.toMatchObject({code: 'feature-not-supported'});
   });
 
   describe('verifyPurchaseWithProvider', () => {

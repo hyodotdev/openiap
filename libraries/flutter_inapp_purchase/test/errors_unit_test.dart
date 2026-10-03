@@ -246,6 +246,73 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
+    for (final operatingSystem in ['android', 'ios']) {
+      for (final method in ['verifyPurchase', 'verifyPurchaseWithProvider']) {
+        for (final code in [
+          types.ErrorCode.FeatureNotSupported,
+          types.ErrorCode.NotPrepared,
+        ]) {
+          test('$method preserves $code on $operatingSystem', () async {
+            debugDefaultTargetPlatformOverride = operatingSystem == 'android'
+                ? TargetPlatform.android
+                : TargetPlatform.iOS;
+            var verificationCalls = 0;
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, (call) async {
+              if (call.method == 'initConnection') return true;
+              if (call.method == method) {
+                verificationCalls++;
+                throw PlatformException(
+                  code: code.toJson(),
+                  message: 'Provider verification unavailable',
+                  details: {
+                    'debugMessage': 'Community provider rejection',
+                    'productId': 'test.sku',
+                  },
+                );
+              }
+              return null;
+            });
+            final iap = FlutterInappPurchase.private(
+              FakePlatform(operatingSystem: operatingSystem),
+            );
+            await iap.initConnection();
+            final result = method == 'verifyPurchase'
+                ? iap.verifyPurchase(
+                    apple: operatingSystem == 'ios'
+                        ? const types.VerifyPurchaseAppleOptions(
+                            sku: 'test.sku')
+                        : null,
+                    google: operatingSystem == 'android'
+                        ? const types.VerifyPurchaseGoogleOptions(
+                            accessToken: 'test-access',
+                            packageName: 'test.app',
+                            purchaseToken: 'test-token',
+                            sku: 'test.sku',
+                          )
+                        : null,
+                  )
+                : iap.verifyPurchaseWithProvider(
+                    provider: types.PurchaseVerificationProvider.Iapkit,
+                  );
+            await expectLater(
+              result,
+              throwsA(
+                isA<errors.PurchaseError>()
+                    .having((error) => error.code, 'code', code)
+                    .having((error) => error.debugMessage, 'debugMessage',
+                        'Community provider rejection')
+                    .having(
+                        (error) => error.productId, 'productId', 'test.sku'),
+              ),
+            );
+            expect(verificationCalls, 1);
+            await iap.endConnection();
+          });
+        }
+      }
+    }
+
     test(
       'requestPurchase maps user-cancelled PlatformException to '
       'ErrorCode.UserCancelled',

@@ -100,6 +100,10 @@ class FakeAndroidJsonPlugin:
 		last_args = [props_json]
 		return _respond("verifyPurchase", JSON.stringify({"isValid": false}))
 
+	func verifyPurchaseWithProvider(props_json: String) -> String:
+		last_args = [props_json]
+		return _respond("verifyPurchaseWithProvider", JSON.stringify({"provider": "iapkit"}))
+
 	func deepLinkToSubscriptions(options_json: String) -> String:
 		last_args = [options_json]
 		return _respond("deepLinkToSubscriptions", JSON.stringify({"success": true}))
@@ -248,6 +252,10 @@ func _run_all_tests() -> void:
 	test_android_billing_program_envelopes()
 	await test_android_open_redeem_offer_code_envelope()
 	await test_android_verify_purchase_envelope()
+	await test_provider_verification_errors()
+	await test_apple_concurrent_verification_failures()
+	await test_provider_query_errors()
+	test_apple_failed_connection_signal()
 	test_android_is_billing_program_available_envelope()
 	await test_android_deep_link_envelope()
 	await test_android_storefront_invalid_envelopes()
@@ -1543,3 +1551,76 @@ func _assert_true(condition: bool, message: String) -> void:
 
 func _assert_false(condition: bool, message: String) -> void:
 	_assert_equal(condition, false, message)
+
+
+func test_provider_verification_errors() -> void:
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		var errors: Array[Dictionary] = []
+		var capture = func(error: Dictionary) -> void: errors.append(error)
+		GodotIapPlugin.purchase_error.connect(capture)
+		fake.responses["verifyPurchase"] = JSON.stringify({"success": false, "code": "feature-not-supported", "error": "Use the vendor backend"})
+		var verification = await GodotIapPlugin.verify_purchase({"google": {"purchaseToken": "opaque"}})
+		_assert_equal(verification, null, "Unsupported verification retains its nullable result")
+		_assert_equal(errors.size(), 1, "Unsupported verification reports one error")
+		_assert_equal(errors[0].get("code"), "feature-not-supported", "Verification preserves the native unsupported code")
+		fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"success": false, "code": "feature-not-supported", "error": "Use the vendor backend", "provider": "iapkit", "errors": [{"code": "feature-not-supported", "message": "Use the vendor backend"}]})
+		var provider_result = await GodotIapPlugin.verify_purchase_with_provider({"provider": "iapkit"})
+		_assert_equal(provider_result.errors[0].code, "feature-not-supported", "Managed verification preserves the native unsupported code")
+		GodotIapPlugin.purchase_error.disconnect(capture)
+		_uninstall_fake()
+
+
+func test_provider_query_errors() -> void:
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		fake.responses["fetchProducts"] = JSON.stringify({"success": false, "code": "network-error", "error": "Provider cannot reach its store"})
+		var result: Dictionary = await GodotIapPlugin._fetch_products_raw({"skus": ["coins.100"], "type": "in-app"})
+		_assert_equal(result.get("code"), "network-error", "Catalog failures preserve their native error code")
+		_assert_equal(result.get("error"), "Provider cannot reach its store", "Catalog failures preserve their message")
+		_uninstall_fake()
+
+
+func _collect_verification(results: Dictionary, key: String) -> void:
+	results[key] = await GodotIapPlugin.verify_purchase({"apple": {"sku": key}})
+
+
+func test_apple_concurrent_verification_failures() -> void:
+	var fake = _install_ios_fake()
+	var errors: Array[Dictionary] = []
+	var results := {}
+	var capture = func(error: Dictionary) -> void: errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture)
+	for request_id in ["verification-first", "verification-second"]:
+		fake.responses["verifyPurchase"] = JSON.stringify({"status": "pending", "requestId": request_id})
+		_collect_verification(results, request_id)
+	await process_frame
+	for request_id in ["verification-second", "verification-first"]:
+		GodotIapPlugin._on_products_fetched({
+			"method": "verifyPurchase",
+			"requestId": request_id,
+			"success": false,
+			"code": "feature-not-supported",
+			"error": "Use the vendor backend",
+		})
+	await process_frame
+	_assert_equal(results.size(), 2, "Both concurrent verification calls complete")
+	_assert_equal(errors.size(), 2, "Identical concurrent failures each emit an error")
+	_assert_equal(errors.map(func(error: Dictionary): return error.get("requestId")), ["verification-second", "verification-first"], "Failure events retain each operation's request identity")
+	GodotIapPlugin.purchase_error.disconnect(capture)
+	_uninstall_fake()
+
+
+func test_apple_failed_connection_signal() -> void:
+	_install_ios_fake()
+	GodotIapPlugin._is_connected = false
+	var events: Array[bool] = []
+	var capture = func() -> void: events.append(GodotIapPlugin.is_store_connected())
+	GodotIapPlugin.connected.connect(capture)
+	GodotIapPlugin._on_connected(0)
+	_assert_false(GodotIapPlugin.is_store_connected(), "An Apple failure signal must not establish a connection")
+	_assert_equal(events.size(), 0, "An Apple failure signal must not emit connected")
+	GodotIapPlugin._on_connected(1)
+	_assert_equal(events, [true], "An Apple success signal establishes one connected event")
+	GodotIapPlugin.connected.disconnect(capture)
+	_uninstall_fake()

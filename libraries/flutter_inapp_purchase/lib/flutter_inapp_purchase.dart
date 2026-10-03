@@ -2053,11 +2053,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 ),
               );
             } on PlatformException catch (error) {
-              throw PurchaseError(
-                code: gentype.ErrorCode.PurchaseVerificationFailed,
-                message:
-                    'Failed to verify purchase [${error.code}]: ${error.message ?? error.details}',
-              );
+              throw _purchaseErrorFromPlatformException(
+                  error, 'verify purchase');
             } catch (error) {
               if (error is PurchaseError) rethrow;
               throw PurchaseError(
@@ -2126,11 +2123,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
           return gentype.VerifyPurchaseResult.fromJson(resultMap);
         } on PlatformException catch (error) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.PurchaseVerificationFailed,
-            message:
-                'Failed to verify purchase [${error.code}]: ${error.message ?? error.details}',
-          );
+          throw _purchaseErrorFromPlatformException(error, 'verify purchase');
         } catch (error) {
           if (error is PurchaseError) rethrow;
           throw PurchaseError(

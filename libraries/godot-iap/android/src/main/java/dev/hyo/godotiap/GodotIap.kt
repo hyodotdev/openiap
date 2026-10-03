@@ -282,6 +282,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             } catch (e: Exception) {
                 GodotIapLog.failure("fetchProducts", e)
                 JSONObject().apply {
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                     put("products", JSONArray())
                 }.toString()
@@ -362,6 +363,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             GodotIapLog.failure("requestPurchase", e)
             return JSONObject().apply {
                 put("success", false)
+                put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                 put("error", e.message)
             }.toString()
         }
@@ -434,6 +436,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("finishTransaction", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -478,6 +481,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("restorePurchases", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -769,6 +773,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("acknowledgePurchaseAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -797,6 +802,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("consumePurchaseAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -832,6 +838,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 JSONObject().apply {
                     put("success", false)
                     put("isAvailable", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -870,6 +877,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("getBillingChoiceInfoAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -922,6 +930,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("launchExternalLinkAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -952,6 +961,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             GodotIapLog.failure("openRedeemOfferCodeAndroid", e)
             JSONObject().apply {
                 put("success", false)
+                put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                 put("error", e.message)
             }.toString()
         }
@@ -974,6 +984,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         } catch (e: Exception) {
             JSONObject().apply {
                 put("success", false)
+                put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                 put("error", e.message)
             }.toString()
         }
@@ -1009,6 +1020,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -1060,6 +1072,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("showBillingProgramInformationDialogAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -1100,6 +1113,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("showInAppMessagesAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -1133,6 +1147,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("getStorefrontAndroid", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -1169,6 +1184,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("deepLinkToSubscriptions", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -1229,6 +1245,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.failure("verifyPurchase", e)
                 JSONObject().apply {
                     put("success", false)
+                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.PurchaseVerificationFailed.toJson())
                     put("error", e.message)
                 }.toString()
             }
@@ -1242,7 +1259,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             mapOf("hasIapkit" to propsJson.contains("\"iapkit\""))
         )
 
-        fun errorResponse(message: String): String {
+        fun errorResponse(message: String, code: String = ErrorCode.PurchaseVerificationFailed.toJson()): String {
             return JSONObject().apply {
                 put("success", false)
                 put("provider", PurchaseVerificationProvider.Iapkit.toJson())
@@ -1250,7 +1267,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     "errors",
                     JSONArray().apply {
                         put(JSONObject().apply {
-                            put("code", ErrorCode.PurchaseVerificationFailed.toJson())
+                            put("code", code)
                             put("message", message)
                         })
                     }
@@ -1259,7 +1276,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
 
         if (!isInitialized) {
-            return errorResponse("Not initialized")
+            return errorResponse("Not initialized", ErrorCode.NotPrepared.toJson())
         }
 
         return runBlocking {
@@ -1303,7 +1320,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 response
             } catch (e: Exception) {
                 GodotIapLog.failure("verifyPurchaseWithProvider", e)
-                errorResponse(e.message ?: "Verification failed")
+                errorResponse(e.message ?: "Verification failed", (e as? OpenIapError)?.code ?: ErrorCode.PurchaseVerificationFailed.toJson())
             }
         }
     }

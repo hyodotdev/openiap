@@ -996,14 +996,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 includeClientPayload = iapkit.includeClientPayload == true
             ) { result, error ->
                 if (error != null) {
-                    val nsError = error
                     continuation.resumeWithExceptionIfActive(
-                        PurchaseException(
-                            PurchaseError(
-                                code = ErrorCode.PurchaseVerificationFailed,
-                                message = nsError.localizedDescription
-                            )
-                        )
+                        error.toPurchaseException(ErrorCode.PurchaseVerificationFailed)
                     )
                     return@verifyPurchaseWithProviderObjCWithProvider
                 }

@@ -222,6 +222,9 @@ func _on_products_fetched(result: Dictionary) -> void:
 	products_fetched.emit(result)
 
 func _on_connected(_status_code: int = 0) -> void:
+	if _is_apple() and _status_code != 1:
+		_is_connected = false
+		return
 	_is_connected = true
 	connected.emit()
 
@@ -480,10 +483,9 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 				var parsed = JSON.parse_string(products_json)
 				if parsed is Array:
 					products_array = parsed
-			return {
-				"products": products_array,
-				"error": signal_result.get("error", "")
-			}
+			var result: Dictionary = signal_result.duplicate()
+			result["products"] = products_array
+			return result
 	# No native plugin
 	return { "products": [], "subscriptions": [] }
 
@@ -1368,12 +1370,15 @@ func verify_purchase(props) -> Variant:
 			var decoded = JSON.parse_string(payload_json)
 			if decoded is Dictionary:
 				return Types.VerifyPurchaseResultIOS.from_dict(decoded)
+		_purchase_failure(payload.get("code", "purchase-verification-failed"), payload.get("error", "Verification failed"), payload)
 		return null
 
 	var result = _verify_purchase_raw(props_dict)
 	if result.get("success", false) or result.get("isValid", false):
 		if _platform == "Android":
 			return Types.VerifyPurchaseResultAndroid.from_dict(result)
+	if result.has("code") and not result.get("success", false):
+		_purchase_failure(result.code, result.get("error", "Verification failed"), result)
 	return null
 ## Internal: Verify purchase with raw Dictionary
 func _verify_purchase_raw(props: Dictionary) -> Dictionary:
@@ -1405,7 +1410,7 @@ func verify_purchase_with_provider(props) -> Variant:
 			"provider": props_dict.get("provider", "iapkit"),
 			"errors": [
 				{
-					"code": "purchase-verification-failed",
+					"code": payload.get("code", "purchase-verification-failed") if payload is Dictionary else "purchase-verification-failed",
 					"message": payload.get("error", "Verification failed") if payload is Dictionary else "Verification failed",
 				},
 			],

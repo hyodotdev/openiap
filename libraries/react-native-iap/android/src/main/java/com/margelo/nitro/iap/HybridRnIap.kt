@@ -279,7 +279,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: CancellationException) {
                 throw err
             } catch (err: Exception) {
-                val error = OpenIapError.InitConnection
+                val error = err as? OpenIapError ?: OpenIapError.InitConnection
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.setActivity", err)
                 throw OpenIapException(
@@ -382,7 +382,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 throw err
             } catch (err: Exception) {
                 listenersAttached = false
-                val error = OpenIapError.InitConnection
+                val error = err as? OpenIapError ?: OpenIapError.InitConnection
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.listeners", err)
                 val wrapped = OpenIapException(
@@ -416,7 +416,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 } catch (err: CancellationException) {
                     throw err
                 } catch (err: Exception) {
-                    val error = OpenIapError.InitConnection
+                    val error = err as? OpenIapError ?: OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", err)
                     throw OpenIapException(
                         toErrorJson(
@@ -1472,6 +1472,10 @@ class HybridRnIap : HybridRnIapSpec() {
                     packageNameAndroid = options.packageNameAndroid.unwrapString()
                 ).let { openIap.deepLinkToSubscriptions(it) }
                 RnIapLog.result("deepLinkToSubscriptionsAndroid", true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: OpenIapError) {
+                throw OpenIapException(toErrorJson(e), e)
             } catch (e: Exception) {
                 RnIapLog.failure("deepLinkToSubscriptionsAndroid", e)
                 throw e
@@ -1639,6 +1643,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 RnIapLog.failure("verifyPurchase", e)
                 throw e
             } catch (e: Exception) {
+                if (e is OpenIapError) throw OpenIapException(toErrorJson(e), e)
                 RnIapLog.failure("verifyPurchase", e)
                 val debugMessage = e.message
                 val error = OpenIapError.InvalidPurchaseVerification
@@ -1749,6 +1754,8 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (e is OpenIapException) throw e
+                if (e is OpenIapError) throw OpenIapException(toErrorJson(e), e)
                 RnIapLog.failure("verifyPurchaseWithProvider", e)
                 val error = OpenIapError.VerificationFailed
                 throw OpenIapException(

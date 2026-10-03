@@ -34,6 +34,54 @@ import OpenIAP
 /// Provides parsing functions for request parameters and sanitization utilities.
 /// Mirrors ExpoIapHelper for consistency across platforms.
 enum GodotIapHelper {
+    @TaskLocal static var completionErrorOwner: CompletionErrorOwner?
+
+    // Only errors represented by a failed completion suppress their listener callbacks.
+    final class CompletionErrorOwner: @unchecked Sendable {
+        private let lock = NSLock()
+        private var completionSucceeded: Bool?
+        private var callbacks: [@Sendable () -> Void] = []
+
+        func receive(_ callback: @escaping @Sendable () -> Void) {
+            lock.lock()
+            guard let succeeded = completionSucceeded else {
+                callbacks.append(callback)
+                lock.unlock()
+                return
+            }
+            lock.unlock()
+            if succeeded { callback() }
+        }
+
+        func complete(succeeded: Bool) {
+            lock.lock()
+            completionSucceeded = succeeded
+            let pending = callbacks
+            callbacks.removeAll()
+            lock.unlock()
+            if succeeded {
+                for callback in pending { callback() }
+            }
+        }
+    }
+
+    static func withCompletionErrors<T>(_ operation: () async throws -> T) async rethrows -> T {
+        let owner = CompletionErrorOwner()
+        do {
+            let result = try await $completionErrorOwner.withValue(owner) {
+                try await operation()
+            }
+            owner.complete(succeeded: true)
+            return result
+        } catch {
+            owner.complete(succeeded: false)
+            throw error
+        }
+    }
+
+    static func errorCode(_ error: Error, fallback: ErrorCode = .serviceError) -> String {
+        (error as? PurchaseError)?.code.rawValue ?? fallback.rawValue
+    }
 
     // MARK: - Sanitization
 

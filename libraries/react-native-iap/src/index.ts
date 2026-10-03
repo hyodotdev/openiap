@@ -883,8 +883,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -2478,23 +2477,35 @@ export const deepLinkToSubscriptions: MutationField<
 > = async (options) => {
   const resolvedOptions = options ?? undefined;
 
-  if (Platform.OS === 'android') {
-    await IAP.instance.deepLinkToSubscriptionsAndroid?.({
-      skuAndroid: resolvedOptions?.skuAndroid ?? undefined,
-      packageNameAndroid: resolvedOptions?.packageNameAndroid ?? undefined,
-    });
-    return;
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
+    throw unsupportedPlatformError();
   }
-  if (Platform.OS === 'ios') {
+
+  try {
+    if (Platform.OS === 'android') {
+      await IAP.instance.deepLinkToSubscriptionsAndroid?.({
+        skuAndroid: resolvedOptions?.skuAndroid ?? undefined,
+        packageNameAndroid: resolvedOptions?.packageNameAndroid ?? undefined,
+      });
+      return;
+    }
     if (typeof IAP.instance.deepLinkToSubscriptionsIOS === 'function') {
       await IAP.instance.deepLinkToSubscriptionsIOS();
     } else {
       await IAP.instance.showManageSubscriptionsIOS();
     }
-    return;
+  } catch (error) {
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[deepLinkToSubscriptions] Failed:',
+      error,
+    );
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+    });
   }
-
-  throw unsupportedPlatformError();
 };
 
 export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {

@@ -546,7 +546,8 @@ function Releases() {
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
               4.0.0, and MAUI 3.0.0 support external Apple and Android providers
-              and preserve purchase and verification identities.
+              and preserve purchase identities and normalized verification
+              errors, including unsupported receipt verification.
             </li>
             <li>
               React Native preserves unknown Android renewal as{' '}
@@ -554,8 +555,17 @@ function Releases() {
               cancellation or entitlement.
             </li>
             <li>
+              React Native preserves normalized provider errors when opening
+              subscription management.
+            </li>
+            <li>
               Godot keeps Apple listeners when provider disconnection fails and
               fixes iOS source builds with SwiftPM generators.
+            </li>
+            <li>
+              Godot rejects invalid Android provider selection during export,
+              emits one error for Apple restore failures, and never signals
+              connection success after initialization fails.
             </li>
           </ul>
           <h5>Integration notes</h5>

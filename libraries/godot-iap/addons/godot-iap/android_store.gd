@@ -24,10 +24,10 @@ const ALIASES := {
 ## Returns the store id, or "" when the value names no store.
 static func normalize(value: Variant, provider: String = "") -> String:
 	if value == null:
-		return "auto"
+		return "auto" if provider.is_empty() else ""
 	var key := str(value).strip_edges().to_lower()
 	if key.is_empty():
-		return "auto"
+		return "auto" if provider.is_empty() else ""
 	key = ALIASES.get(key, key)
 	if key in ["auto", "play", "horizon", "amazon"]:
 		return key if provider.is_empty() else ""
@@ -73,6 +73,17 @@ static func artifact(coordinate: String, store: String, provider: String = "") -
 	var resolved := "play" if store == "auto" else store
 	var suffix := "" if resolved == "play" else "-" + resolved
 	return coordinate.replace(":openiap-google:", ":openiap-google" + suffix + ":")
+
+
+static func dependencies(coordinates: PackedStringArray, store: String, provider: String = "") -> PackedStringArray:
+	if store.is_empty():
+		return PackedStringArray(["openiap.invalid:provider-selection:0"])
+	var selected := PackedStringArray()
+	for coordinate in coordinates:
+		selected.append(artifact(coordinate, store, provider))
+	if not provider.is_empty():
+		selected.append(provider)
+	return selected
 
 
 ## The serial `adb devices` selects: ANDROID_SERIAL when it is attached,
