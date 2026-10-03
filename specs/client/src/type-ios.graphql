@@ -207,6 +207,7 @@ type PurchaseIOS implements PurchaseCommon {
   storeId: String!
   quantity: Int!
   purchaseState: PurchaseState!
+  """Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state."""
   isAutoRenewing: Boolean!
   currentPlanId: String
 

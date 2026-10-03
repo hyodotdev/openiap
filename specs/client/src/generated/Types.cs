@@ -2506,6 +2506,7 @@ public interface PurchaseCommon
     string? CurrentPlanId { get; }
     string Id { get; }
     IReadOnlyList<string>? Ids { get; }
+    /// <summary>Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.</summary>
     bool IsAutoRenewing { get; }
     string ProductId { get; }
     PurchaseState PurchaseState { get; }
@@ -2586,6 +2587,7 @@ public abstract record Purchase : PurchaseCommon
     public abstract string? CurrentPlanId { get; init; }
     public abstract string Id { get; init; }
     public abstract IReadOnlyList<string>? Ids { get; init; }
+    /// <summary>Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.</summary>
     public abstract bool IsAutoRenewing { get; init; }
     public abstract string ProductId { get; init; }
     public abstract PurchaseState PurchaseState { get; init; }
@@ -2616,6 +2618,7 @@ public abstract record VerifyPurchaseResult : VerifyPurchaseResultCommon
 
 public sealed record ActiveSubscription
 {
+    /// <summary>Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.</summary>
     [JsonPropertyName("autoRenewingAndroid")]
     public bool? AutoRenewingAndroid { get; init; }
     [JsonPropertyName("basePlanIdAndroid")]
@@ -3497,6 +3500,7 @@ public sealed record ProductSubscriptionIOS : ProductSubscription
 
 public sealed record PurchaseAndroid : Purchase, IJsonOnDeserialized
 {
+    /// <summary>Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.</summary>
     [JsonPropertyName("autoRenewingAndroid")]
     public bool? AutoRenewingAndroid { get; init; }
     [JsonPropertyName("currentPlanId")]
@@ -3511,6 +3515,7 @@ public sealed record PurchaseAndroid : Purchase, IJsonOnDeserialized
     public override IReadOnlyList<string>? Ids { get; init; }
     [JsonPropertyName("isAcknowledgedAndroid")]
     public bool? IsAcknowledgedAndroid { get; init; }
+    /// <summary>Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.</summary>
     [JsonPropertyName("isAutoRenewing")]
     public override required bool IsAutoRenewing { get; init; }
     /// <summary>
@@ -3701,6 +3706,7 @@ public sealed record PurchaseIOS : Purchase, IJsonOnDeserialized
     public override required string Id { get; init; }
     [JsonPropertyName("ids")]
     public override IReadOnlyList<string>? Ids { get; init; }
+    /// <summary>Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.</summary>
     [JsonPropertyName("isAutoRenewing")]
     public override required bool IsAutoRenewing { get; init; }
     [JsonPropertyName("isUpgradedIOS")]

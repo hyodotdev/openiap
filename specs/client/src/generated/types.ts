@@ -21,6 +21,7 @@ export function resolveStoreId(value: unknown, store: IapStore): string {
 }
 
 export interface ActiveSubscription {
+  /** Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement. */
   autoRenewingAndroid?: (boolean | null);
   basePlanIdAndroid?: (string | null);
   /**
@@ -1222,6 +1223,7 @@ export interface PromotionalOfferJwsInputIOS {
 export type Purchase = PurchaseAndroid | PurchaseIOS;
 
 export interface PurchaseAndroid extends PurchaseCommon {
+  /** Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement. */
   autoRenewingAndroid?: (boolean | null);
   currentPlanId?: (string | null);
   dataAndroid?: (string | null);
@@ -1229,6 +1231,7 @@ export interface PurchaseAndroid extends PurchaseCommon {
   id: string;
   ids?: (string[] | null);
   isAcknowledgedAndroid?: (boolean | null);
+  /** Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown. */
   isAutoRenewing: boolean;
   /**
    * Whether the subscription is suspended (Android)
@@ -1283,6 +1286,7 @@ export interface PurchaseCommon {
   currentPlanId?: (string | null);
   id: string;
   ids?: (string[] | null);
+  /** Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions. */
   isAutoRenewing: boolean;
   productId: string;
   purchaseState: PurchaseState;
@@ -1341,6 +1345,7 @@ export interface PurchaseIOS extends PurchaseCommon {
   expirationDateIOS?: (number | null);
   id: string;
   ids?: (string[] | null);
+  /** Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state. */
   isAutoRenewing: boolean;
   isUpgradedIOS?: (boolean | null);
   offerIOS?: (PurchaseOfferIOS | null);

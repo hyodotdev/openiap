@@ -530,6 +530,7 @@ public protocol PurchaseCommon: Codable {
     var currentPlanId: String? { get }
     var id: String { get }
     var ids: [String]? { get }
+    /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
     var isAutoRenewing: Bool { get }
     var productId: String { get }
     var purchaseState: PurchaseState { get }
@@ -553,6 +554,7 @@ public protocol VerifyPurchaseResultCommon: Codable {
 // MARK: - Objects
 
 public struct ActiveSubscription: Codable {
+    /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
     public var autoRenewingAndroid: Bool? = nil
     public var basePlanIdAndroid: String? = nil
     /// The current plan identifier. This is:
@@ -1575,6 +1577,7 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
 }
 
 public struct PurchaseAndroid: Codable, PurchaseCommon {
+    /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
     public var autoRenewingAndroid: Bool? = nil
     public var currentPlanId: String? = nil
     public var dataAndroid: String? = nil
@@ -1582,6 +1585,7 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     public var id: String
     public var ids: [String]? = nil
     public var isAcknowledgedAndroid: Bool? = nil
+    /// Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
     public var isAutoRenewing: Bool
     /// Whether the subscription is suspended (Android)
     /// A suspended subscription means the user's payment method failed and they need to fix it.
@@ -1769,6 +1773,7 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var expirationDateIOS: Double? = nil
     public var id: String
     public var ids: [String]? = nil
+    /// Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
     public var isAutoRenewing: Bool
     public var isUpgradedIOS: Bool? = nil
     public var offerIOS: PurchaseOfferIOS? = nil
@@ -3676,6 +3681,7 @@ public enum Purchase: Codable, PurchaseCommon {
         }
     }
 
+    /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
     public var isAutoRenewing: Bool {
         switch self {
         case let .purchaseAndroid(value):

@@ -382,6 +382,7 @@ class ActiveSubscription:
 	var product_id: String = ""
 	var is_active: bool = false
 	var expiration_date_ios: Variant = null
+	## Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
 	var auto_renewing_android: Variant = null
 	var environment_ios: Variant = null
 	var days_until_expiration_ios: Variant = null
@@ -2276,10 +2277,12 @@ class PurchaseAndroid:
 	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
+	## Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
 	var is_auto_renewing: bool = false
 	var current_plan_id: Variant = null
 	var data_android: Variant = null
 	var signature_android: Variant = null
+	## Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
 	var auto_renewing_android: Variant = null
 	var is_acknowledged_android: Variant = null
 	var package_name_android: Variant = null
@@ -2508,6 +2511,7 @@ class PurchaseIOS:
 	var store_id: String = ""
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
+	## Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
 	var is_auto_renewing: bool = false
 	var current_plan_id: Variant = null
 	var transaction_id: String = ""
@@ -4395,6 +4399,7 @@ class PurchaseInput:
 	var store: Variant = null
 	var quantity: int = 0
 	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
+	## Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
 	var is_auto_renewing: bool = false
 
 	static func from_dict(data: Dictionary) -> _Types.PurchaseInput:

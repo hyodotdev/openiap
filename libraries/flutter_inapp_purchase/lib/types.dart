@@ -1541,6 +1541,7 @@ abstract class PurchaseCommon {
   String? get currentPlanId;
   String get id;
   List<String>? get ids;
+  /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
   bool get isAutoRenewing;
   String get productId;
   PurchaseState get purchaseState;
@@ -1580,6 +1581,7 @@ class ActiveSubscription {
     required this.transactionId,
   });
 
+  /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
   final bool? autoRenewingAndroid;
   final String? basePlanIdAndroid;
   /// The current plan identifier. This is:
@@ -3161,6 +3163,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     this.isAlternativeBilling,
   });
 
+  /// Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
   final bool? autoRenewingAndroid;
   final String? currentPlanId;
   final String? dataAndroid;
@@ -3168,6 +3171,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   final String id;
   final List<String>? ids;
   final bool? isAcknowledgedAndroid;
+  /// Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
   final bool isAutoRenewing;
   /// Whether the subscription is suspended (Android)
   /// A suspended subscription means the user's payment method failed and they need to fix it.
@@ -3396,6 +3400,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final double? expirationDateIOS;
   final String id;
   final List<String>? ids;
+  /// Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
   final bool isAutoRenewing;
   final bool? isUpgradedIOS;
   final PurchaseOfferIOS? offerIOS;
@@ -5828,6 +5833,7 @@ sealed class Purchase implements PurchaseCommon {
   String get id;
   @override
   List<String>? get ids;
+  /// Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
   @override
   bool get isAutoRenewing;
   @override

@@ -104,6 +104,7 @@ interface PurchaseCommon {
   storeId: String!
   quantity: Int!
   purchaseState: PurchaseState!
+  """Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions."""
   isAutoRenewing: Boolean!
   """
   The current plan identifier. This is:
@@ -215,6 +216,7 @@ input PurchaseInput {
   store: IapStore
   quantity: Int!
   purchaseState: PurchaseState!
+  """Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions."""
   isAutoRenewing: Boolean!
 }
 
@@ -524,6 +526,7 @@ type ActiveSubscription {
   productId: String!
   isActive: Boolean!
   expirationDateIOS: Float
+  """Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement."""
   autoRenewingAndroid: Boolean
   environmentIOS: String
   daysUntilExpirationIOS: Float

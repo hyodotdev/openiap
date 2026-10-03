@@ -248,12 +248,14 @@ type PurchaseAndroid implements PurchaseCommon {
   storeId: String!
   quantity: Int!
   purchaseState: PurchaseState!
+  """Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown."""
   isAutoRenewing: Boolean!
   currentPlanId: String
 
   # Android-specific fields
   dataAndroid: String
   signatureAndroid: String
+  """Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement."""
   autoRenewingAndroid: Boolean
   isAcknowledgedAndroid: Boolean
   packageNameAndroid: String

@@ -390,6 +390,31 @@ describe('type-bridge utilities', () => {
       expect(result.transactionId).toBeNull();
     });
 
+    it.each([
+      [null, false, null],
+      [null, true, null],
+      [undefined, false, false],
+      [undefined, true, true],
+      [false, true, false],
+      [true, false, true],
+    ] as const)(
+      'preserves renewal %s with legacy flag %s as %s',
+      (autoRenewingAndroid, isAutoRenewing, expected) => {
+        const result = convertNitroPurchaseToPurchase(
+          purchase({
+            store: 'unknown',
+            storeId: 'samsung',
+            autoRenewingAndroid,
+            isAutoRenewing,
+          }),
+        ) as PurchaseAndroid;
+
+        expect(result.storeId).toBe('samsung');
+        expect(result.autoRenewingAndroid).toBe(expected);
+        expect(result.isAutoRenewing).toBe(isAutoRenewing);
+      },
+    );
+
     it.each(['amazon', 'horizon'] as const)(
       'preserves a %s receipt id as transactionId',
       (store) => {

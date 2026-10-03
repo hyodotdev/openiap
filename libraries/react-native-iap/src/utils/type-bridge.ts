@@ -540,7 +540,9 @@ export function convertNitroPurchaseToPurchase(
     // not synthesize a transactionId from it.
     transactionId: androidTransactionId,
     autoRenewingAndroid: toNullableBoolean(
-      nitroPurchase.autoRenewingAndroid ?? nitroPurchase.isAutoRenewing,
+      nitroPurchase.autoRenewingAndroid === undefined
+        ? nitroPurchase.isAutoRenewing
+        : nitroPurchase.autoRenewingAndroid,
     ),
     dataAndroid: toNullableString(nitroPurchase.dataAndroid),
     signatureAndroid: toNullableString(nitroPurchase.signatureAndroid),

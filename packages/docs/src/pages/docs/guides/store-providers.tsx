@@ -98,6 +98,14 @@ export default function StoreProviders() {
           its Maven repository to your app if it is hosted outside Maven
           Central. Select one provider per Android build.
         </p>
+        <p>
+          Implement the store SDK once in a native Android provider AAR.
+          Compatible framework SDKs dispatch their existing purchase APIs and
+          events through that contract; the provider author does not write a
+          billing adapter for each framework. Each app still needs the native
+          dependency, selection settings and a rebuild. An Expo config plugin
+          does not configure the other frameworks.
+        </p>
         <CodeBlock
           language="properties"
           children={
@@ -353,6 +361,12 @@ class YourStoreFactory : OpenIapProviderFactory {
           <code>FeatureNotSupported</code>. The deprecated product-type filtered
           read has an unsupported default; prefer{' '}
           <code>getAvailablePurchases</code>.
+        </p>
+        <p>
+          An owned subscription does not establish automatic renewal. Leave{' '}
+          <code>autoRenewingAndroid</code> null when the store cannot report it,
+          and set the required compatibility hint <code>isAutoRenewing</code> to
+          false. Use server verification for entitlement and expiry.
         </p>
       </section>
       <section>

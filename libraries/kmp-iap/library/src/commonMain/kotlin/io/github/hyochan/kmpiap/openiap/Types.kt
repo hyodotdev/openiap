@@ -1462,6 +1462,9 @@ public interface PurchaseCommon {
     val currentPlanId: String?
     val id: String
     val ids: List<String>?
+    /**
+     * Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
+     */
     val isAutoRenewing: Boolean
     val productId: String
     val purchaseState: PurchaseState
@@ -1497,6 +1500,9 @@ public interface VerifyPurchaseResultCommon {
 // MARK: - Objects
 
 public data class ActiveSubscription(
+    /**
+     * Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
+     */
     val autoRenewingAndroid: Boolean? = null,
     val basePlanIdAndroid: String? = null,
     /**
@@ -3011,6 +3017,9 @@ public data class ProductSubscriptionIOS(
 }
 
 public data class PurchaseAndroid(
+    /**
+     * Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
+     */
     val autoRenewingAndroid: Boolean? = null,
     override val currentPlanId: String? = null,
     val dataAndroid: String? = null,
@@ -3018,6 +3027,9 @@ public data class PurchaseAndroid(
     override val id: String,
     override val ids: List<String>? = null,
     val isAcknowledgedAndroid: Boolean? = null,
+    /**
+     * Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
+     */
     override val isAutoRenewing: Boolean,
     /**
      * Whether the subscription is suspended (Android)
@@ -3238,6 +3250,9 @@ public data class PurchaseIOS(
     val expirationDateIOS: Double? = null,
     override val id: String,
     override val ids: List<String>? = null,
+    /**
+     * Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
+     */
     override val isAutoRenewing: Boolean,
     val isUpgradedIOS: Boolean? = null,
     val offerIOS: PurchaseOfferIOS? = null,

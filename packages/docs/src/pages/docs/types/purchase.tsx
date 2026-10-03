@@ -211,7 +211,11 @@ function Purchase() {
               <td>
                 <code>isAutoRenewing</code>
               </td>
-              <td>Whether subscription will auto-renew</td>
+              <td>
+                Legacy renewal hint that cannot represent unknown. Use nullable
+                platform renewal metadata or backend status for renewal
+                decisions.
+              </td>
             </tr>
             <tr>
               <td>
@@ -643,7 +647,10 @@ function Purchase() {
                       <td>
                         <code>autoRenewingAndroid</code>
                       </td>
-                      <td>Whether subscription will auto-renew</td>
+                      <td>
+                        Store-reported renewal status; null when unavailable.
+                        Does not establish entitlement.
+                      </td>
                     </tr>
                     <tr>
                       <td>
