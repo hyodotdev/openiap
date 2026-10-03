@@ -99,12 +99,15 @@ export default function StoreProviders() {
           Central. Select one provider per Android build.
         </p>
         <p>
-          Implement the store SDK once in a native Android provider AAR.
-          Compatible framework SDKs dispatch their existing purchase APIs and
-          events through that contract; the provider author does not write a
-          billing adapter for each framework. Each app still needs the native
-          dependency, selection settings and a rebuild. An Expo config plugin
-          does not configure the other frameworks.
+          Implement the store SDK once in a native Android provider AAR. A
+          community author can use <code>samsung</code>, <code>huawei</code>, or{' '}
+          <code>xiaomi</code> as its stable <code>storeId</code>, with an
+          implementation of that store&apos;s SDK. Compatible framework SDKs
+          dispatch their existing purchase APIs and events through that
+          contract; the provider author does not write a billing adapter for
+          each framework. Each app still needs the native dependency, selection
+          settings and a rebuild. An Expo config plugin does not configure the
+          other frameworks.
         </p>
         <CodeBlock
           language="properties"

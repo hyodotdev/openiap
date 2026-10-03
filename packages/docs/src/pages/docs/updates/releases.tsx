@@ -546,11 +546,16 @@ function Releases() {
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
               4.0.0, and MAUI 3.0.0 support external Apple and Android providers
-              and preserve their identities through purchase and verification
-              callbacks. The contract distinguishes Boolean renewal hints from
-              nullable renewal status; React Native preserves Android nulls.
-              Godot keeps Apple listeners available when provider disconnection
-              fails.
+              and preserve purchase and verification identities.
+            </li>
+            <li>
+              React Native preserves unknown Android renewal as{' '}
+              <code>null</code>; required Boolean hints do not establish
+              cancellation or entitlement.
+            </li>
+            <li>
+              Godot keeps Apple listeners when provider disconnection fails and
+              fixes iOS source builds with SwiftPM generators.
             </li>
           </ul>
           <h5>Integration notes</h5>
