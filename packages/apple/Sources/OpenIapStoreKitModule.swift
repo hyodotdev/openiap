@@ -238,12 +238,15 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/init-connection
     public func initConnection() async throws -> Bool {
         while true {
+            try Task.checkCancellation()
             if let endTask = connection.currentEndTask() {
                 await endTask.value
                 continue
             }
 
-            if await hasInitializedConnection() {
+            let connected = await hasInitializedConnection()
+            try Task.checkCancellation()
+            if connected {
                 return true
             }
 
@@ -438,7 +441,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             if canonicalError.productId == nil {
                 canonicalError.productId = fallbackProductId
             }
-            emitPurchaseError(canonicalError)
+            await deliverPurchaseError(canonicalError)
             throw canonicalError
         } catch {
             let canonicalError = PurchaseError.wrap(
@@ -446,7 +449,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 fallback: .purchaseError,
                 productId: fallbackProductId
             )
-            emitPurchaseError(canonicalError)
+            await deliverPurchaseError(canonicalError)
             throw canonicalError
         }
     }
@@ -1989,6 +1992,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func ensureConnection() async throws {
+        try Task.checkCancellation()
         guard AppStore.canMakePayments else {
             let error = makePurchaseError(code: .iapNotAvailable)
             emitPurchaseError(error)
@@ -1996,13 +2000,17 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
 
         while true {
-            if await hasInitializedConnection() { return }
+            try Task.checkCancellation()
+            let connected = await hasInitializedConnection()
+            try Task.checkCancellation()
+            if connected { return }
             if let endTask = connection.currentEndTask() {
                 await endTask.value
                 continue
             }
 
             let initialized = try await initConnection()
+            try Task.checkCancellation()
             if initialized, await hasInitializedConnection() { return }
             if connection.currentEndTask() != nil { continue }
 
@@ -2367,11 +2375,13 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
 
     private func emitPurchaseError(_ error: PurchaseError) {
         guard !Self.suppressPurchaseErrorEmission else { return }
-        Task { [state] in
-            let listeners = state.snapshotPurchaseError()
-            await MainActor.run {
-                listeners.forEach { $0(error) }
-            }
+        Task { await deliverPurchaseError(error) }
+    }
+
+    private func deliverPurchaseError(_ error: PurchaseError) async {
+        let listeners = state.snapshotPurchaseError()
+        await MainActor.run {
+            listeners.forEach { $0(error) }
         }
     }
 

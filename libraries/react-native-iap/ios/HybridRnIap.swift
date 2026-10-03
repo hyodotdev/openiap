@@ -1702,7 +1702,7 @@ class HybridRnIap: HybridRnIapSpec {
             await MainActor.run {
                 guard self.isCurrentEpoch(expectedEpoch) else { return }
                 RnIapLog.result("purchaseErrorListener", payload)
-                self.sendPurchaseError(nitroError, productId: error.productId)
+                self.sendPurchaseError(nitroError, productId: error.productId, dedupe: false)
             }
         }
     }

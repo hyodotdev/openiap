@@ -119,6 +119,12 @@ export default function StoreProviders() {
           This applies to native apps and all six framework SDKs; their purchase
           APIs stay the same.
         </p>
+        <p>
+          Reuse one Swift provider across compatible Apple framework SDKs.
+          Android needs a separate native adapter; an Android AAR cannot run on
+          Apple platforms. Each app must link and select its platform’s
+          provider.
+        </p>
         <CodeBlock
           language="xml"
           children={

@@ -73,6 +73,49 @@ final class ProviderDiscoveryTests: XCTestCase {
         }
     }
 
+    func testRejectedRequestDeliversOneErrorBeforeThrowing() async throws {
+        let module = OpenIapStoreKitModule()
+        let events = RequestEvents()
+        let errorListener = module.purchaseErrorListener { error in events.record(error.code) }
+        let purchaseListener = module.purchaseUpdatedListener({ _ in events.recordPurchase() }, options: nil)
+        defer {
+            module.removeListener(errorListener)
+            module.removeListener(purchaseListener)
+        }
+        let request = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms()),
+            type: .inApp
+        )
+        for count in 1...2 {
+            do {
+                _ = try await module.requestPurchase(request)
+                XCTFail("Missing Apple purchase arguments must fail")
+            } catch let error as PurchaseError {
+                XCTAssertEqual(error.code, .purchaseError)
+                XCTAssertEqual(events.errors, Array(repeating: .purchaseError, count: count))
+                XCTAssertEqual(events.purchases, 0)
+            }
+        }
+    }
+
+    func testCancelledStoreQueryCannotInitializeAConnection() async throws {
+        let module = OpenIapStoreKitModule()
+        let ready = expectation(description: "Query task ready")
+        let gate = QueryStartGate()
+        let query = Task {
+            await gate.wait(ready: ready)
+            return try await module.getActiveSubscriptions(nil)
+        }
+        await fulfillment(of: [ready], timeout: 1)
+        query.cancel()
+        await gate.release()
+        do {
+            _ = try await query.value
+            XCTFail("Cancelled queries must not connect to StoreKit")
+        } catch is CancellationError {
+        }
+    }
+
     private func withBundle<T>(value: Any?, operation: (Bundle) throws -> T) throws -> T {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".bundle")
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -82,5 +125,29 @@ final class ProviderDiscoveryTests: XCTestCase {
         let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
         try data.write(to: url.appendingPathComponent("Info.plist"))
         return try operation(XCTUnwrap(Bundle(url: url)))
+    }
+}
+
+private final class RequestEvents: @unchecked Sendable {
+    private let lock = NSLock()
+    private var codes: [ErrorCode] = []
+    private var purchaseCount = 0
+    func record(_ code: ErrorCode) { lock.lock(); codes.append(code); lock.unlock() }
+    func recordPurchase() { lock.lock(); purchaseCount += 1; lock.unlock() }
+    var errors: [ErrorCode] { lock.lock(); defer { lock.unlock() }; return codes }
+    var purchases: Int { lock.lock(); defer { lock.unlock() }; return purchaseCount }
+}
+
+private actor QueryStartGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    func wait(ready: XCTestExpectation) async {
+        await withCheckedContinuation {
+            continuation = $0
+            ready.fulfill()
+        }
+    }
+    func release() {
+        continuation?.resume()
+        continuation = nil
     }
 }

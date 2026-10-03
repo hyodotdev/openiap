@@ -525,17 +525,19 @@ final class ConnectOnDemandTests: XCTestCase {
         let epoch = hybrid.currentConnectionEpoch()
         let holder = DeliveryTaskHolder()
 
-        let result = try await hybrid.runRequestPurchaseOperation {
-            let delivery = hybrid.enqueuePurchaseErrorDelivery(canonicalError, expectedEpoch: epoch)
-            await holder.set(delivery)
-            throw NSError(domain: "CommunityProvider", code: 1)
+        for _ in 0..<2 {
+            let result = try await hybrid.runRequestPurchaseOperation {
+                let delivery = hybrid.enqueuePurchaseErrorDelivery(canonicalError, expectedEpoch: epoch)
+                await holder.set(delivery)
+                throw NSError(domain: "CommunityProvider", code: 1)
+            }
+            XCTAssertNil(result)
+            let heldTask = await holder.task
+            let delivery = try XCTUnwrap(heldTask)
+            _ = try await delivery.value
         }
-        XCTAssertNil(result)
-        let heldTask = await holder.task
-        let delivery = try XCTUnwrap(heldTask)
-        _ = try await delivery.value
         _ = try await hybrid.enqueueEndOperation { true }.value
-        XCTAssertEqual(probe.events, [ErrorCode.networkError.rawValue])
+        XCTAssertEqual(probe.events, Array(repeating: ErrorCode.networkError.rawValue, count: 2))
     }
 
     func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {

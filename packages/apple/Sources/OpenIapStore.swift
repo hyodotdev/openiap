@@ -34,6 +34,9 @@ public final class OpenIapStore: ObservableObject {
 
     private let module: OpenIapModuleProtocol
     private var listenerTokens: [Subscription] = []
+    private var listenerGeneration: UInt64 = 0
+    private var purchaseRefreshTask: Task<Void, Never>?
+    private var endConnectionTask: Task<Void, Error>?
 
     // MARK: - Callbacks
 
@@ -75,6 +78,7 @@ public final class OpenIapStore: ObservableObject {
     }
 
     deinit {
+        purchaseRefreshTask?.cancel()
         for token in listenerTokens { module.removeListener(token) }
     }
 
@@ -82,31 +86,49 @@ public final class OpenIapStore: ObservableObject {
 
     private func setupListeners() {
         guard listenerTokens.isEmpty else { return }
+        let generation = listenerGeneration
 
         let purchaseUpdate = module.purchaseUpdatedListener({ [weak self] purchase in
-            Task { @MainActor in self?.handlePurchaseUpdate(purchase) }
+            Task { @MainActor in
+                guard let self, self.listenerGeneration == generation else { return }
+                self.handlePurchaseUpdate(purchase)
+            }
         }, options: nil)
         listenerTokens.append(purchaseUpdate)
 
         let purchaseError = module.purchaseErrorListener { [weak self] error in
-            Task { @MainActor in self?.handlePurchaseError(error) }
+            Task { @MainActor in
+                guard let self, self.listenerGeneration == generation else { return }
+                self.handlePurchaseError(error)
+            }
         }
         listenerTokens.append(purchaseError)
 
         let billingIssue = module.subscriptionBillingIssueListener { [weak self] purchase in
-            Task { @MainActor in self?.handleSubscriptionBillingIssue(purchase) }
+            Task { @MainActor in
+                guard let self, self.listenerGeneration == generation else { return }
+                self.handleSubscriptionBillingIssue(purchase)
+            }
         }
         listenerTokens.append(billingIssue)
 
         #if os(iOS)
         let promoted = module.promotedProductListenerIOS { [weak self] productId in
-            Task { @MainActor in self?.handlePromotedProduct(productId) }
+            Task { @MainActor in
+                guard let self, self.listenerGeneration == generation else { return }
+                self.handlePromotedProduct(productId)
+            }
         }
         listenerTokens.append(promoted)
         #endif
     }
 
     private func clearListeners() {
+        listenerGeneration &+= 1
+        purchaseRefreshTask?.cancel()
+        purchaseRefreshTask = nil
+        status.loadings.initConnection = false
+        status.loadings.restorePurchases = false
         for token in listenerTokens { module.removeListener(token) }
         listenerTokens.removeAll()
     }
@@ -114,16 +136,37 @@ public final class OpenIapStore: ObservableObject {
     // MARK: - Connection Management
 
     public func initConnection() async throws {
-        status.loadings.initConnection = true
-        defer { status.loadings.initConnection = false }
-        isConnected = try await module.initConnection()
+        if let endConnectionTask { try await endConnectionTask.value }
         setupListeners()
+        let generation = listenerGeneration
+        status.loadings.initConnection = true
+        defer {
+            if listenerGeneration == generation { status.loadings.initConnection = false }
+        }
+        do {
+            let connected = try await module.initConnection()
+            guard listenerGeneration == generation else { return }
+            isConnected = connected
+        } catch {
+            if listenerGeneration == generation { isConnected = false }
+            throw error
+        }
     }
 
     public func endConnection() async throws {
-        clearListeners()
-        _ = try await module.endConnection()
-        isConnected = false
+        if let endConnectionTask { return try await endConnectionTask.value }
+        purchaseRefreshTask?.cancel()
+        purchaseRefreshTask = nil
+        let task = Task { @MainActor in
+            defer { endConnectionTask = nil }
+            guard try await module.endConnection() else {
+                throw PurchaseError(code: .notEnded, message: "Store teardown did not complete")
+            }
+            clearListeners()
+            isConnected = false
+        }
+        endConnectionTask = task
+        try await task.value
     }
 
     // MARK: - Event Handlers
@@ -145,10 +188,23 @@ public final class OpenIapStore: ObservableObject {
 
         onPurchaseSuccess?(purchase)
 
-        Task {
-            await refreshPurchases()
-            do { try await getActiveSubscriptions() }
-            catch { OpenIapLog.error("Failed to refresh active subscriptions: \(error)") }
+        guard endConnectionTask == nil else { return }
+        purchaseRefreshTask?.cancel()
+        let generation = listenerGeneration
+        let module = module
+        purchaseRefreshTask = Task { [weak self] in
+            guard !Task.isCancelled, self?.listenerGeneration == generation else { return }
+            do {
+                let purchases = try await module.getAvailablePurchases(nil)
+                guard !Task.isCancelled, self?.listenerGeneration == generation else { return }
+                self?.availablePurchases = self?.deduplicatePurchases(purchases) ?? []
+                let subscriptions = try await module.getActiveSubscriptions(nil)
+                guard !Task.isCancelled, self?.listenerGeneration == generation else { return }
+                self?.activeSubscriptions = subscriptions
+            } catch {
+                guard !Task.isCancelled, self?.listenerGeneration == generation else { return }
+                OpenIapLog.error("Failed to refresh purchases: \(error)")
+            }
         }
     }
 
@@ -212,10 +268,14 @@ public final class OpenIapStore: ObservableObject {
     // MARK: - Purchase Management
 
     public func getAvailablePurchases(options: PurchaseOptions? = nil) async throws {
+        let generation = listenerGeneration
         status.loadings.restorePurchases = true
-        defer { status.loadings.restorePurchases = false }
+        defer {
+            if listenerGeneration == generation { status.loadings.restorePurchases = false }
+        }
 
         let purchases = try await module.getAvailablePurchases(options)
+        guard !Task.isCancelled, listenerGeneration == generation else { throw CancellationError() }
         availablePurchases = deduplicatePurchases(purchases)
 
         OpenIapLog.debug("🧾 availablePurchases: \(purchases.count) total → \(availablePurchases.count) active")
@@ -365,10 +425,10 @@ public final class OpenIapStore: ObservableObject {
     }
 
     public func getActiveSubscriptions(subscriptionIds: [String]? = nil) async throws {
+        let generation = listenerGeneration
         let subs = try await module.getActiveSubscriptions(subscriptionIds)
-        await MainActor.run {
-            activeSubscriptions = subs
-        }
+        guard !Task.isCancelled, listenerGeneration == generation else { throw CancellationError() }
+        activeSubscriptions = subs
         OpenIapLog.debug("📊 activeSubscriptions: \(activeSubscriptions.count) subscriptions")
 
         // Show renewal info details
@@ -639,14 +699,6 @@ public final class OpenIapStore: ObservableObject {
         }
 
         return false
-    }
-
-    private func refreshPurchases() async {
-        do {
-            try await getAvailablePurchases()
-        } catch {
-            OpenIapLog.error("Failed to refresh purchases: \(error)")
-        }
     }
 }
 
