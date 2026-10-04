@@ -175,21 +175,32 @@ export default function StoreProviders() {
             , rather than installing from npmjs.org.
           </li>
           <li>
-            <strong>Replace the Expo config plugin entry.</strong> Keep the{' '}
-            <code>expo-iap</code> dependency and imports, but replace its entry
-            in <code>plugins</code> with this package. Do not list both plugins.
+            <strong>Select one IAP plugin per build.</strong> Keep the{' '}
+            <code>expo-iap</code> dependency and imports. Remove its existing
+            plugin entry, put your current IAP options in one object, and add
+            the selected entry in <code>app.config.js</code>. Keep your other
+            plugins and app settings.
             <CodeBlock
-              language="typescript"
-              children={`plugins: [\n  ['${examplePackage.name}', {\n    openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n  }],\n]`}
+              language="javascript"
+              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon-example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', {\n          ...iapOptions,\n          openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n        }]\n      : ['expo-iap', iapOptions],\n  ],\n});`}
             />
-            Its plugin selects <code>amazon-example</code>, adds its bundled
-            Maven repository and uses the installed package’s native version.
-            Pass your compatible existing Expo IAP options to this entry. Keep
-            the existing application id and registered Amazon catalog; retain
-            <code>android.amazon.appstoreKey</code> for Appstore builds. The
-            required <code>openIapRepository</code> points to the core Maven
-            artifacts from preparation; replace the placeholder path with your
-            absolute path. See the{' '}
+            Use the same store setting in your EAS profiles:
+            <CodeBlock
+              language="json"
+              children={
+                '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "google" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon-example" }\n    }\n  }\n}'
+              }
+            />
+            Until compatible public releases exist, use EAS <code>--local</code>{' '}
+            with the prepared SDK and core inputs. Remote workers need those
+            inputs and their own Maven path; a local absolute path is not
+            uploaded automatically. The community plugin adds its bundled Maven
+            repository and uses the installed package’s native version. Its
+            required <code>openIapRepository</code> points to the prepared core
+            Maven artifacts; replace the placeholder with your absolute path.
+            The Play profile keeps the ordinary Expo IAP plugin. Keep the
+            existing application id and registered catalog; retain{' '}
+            <code>android.amazon.appstoreKey</code> for Appstore builds. See the{' '}
             <a href={`${repository}#install-this-example-package`}>
               installation guide
             </a>
@@ -201,9 +212,11 @@ export default function StoreProviders() {
             <CodeBlock
               language="bash"
               children={
-                'bunx expo prebuild --platform android\nbunx expo run:android --device'
+                'export ORG_GRADLE_PROJECT_openiapStore=amazon-example\nbunx expo prebuild --platform android\nbunx expo run:android --device'
               }
             />
+            Use <code>google</code> for a local Play build. Rebuild after
+            switching the profile or updating the provider.
           </li>
           <li>
             <strong>Check the selected provider.</strong> Your existing{' '}
