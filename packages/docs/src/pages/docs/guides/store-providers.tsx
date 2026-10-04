@@ -180,9 +180,19 @@ export default function StoreProviders() {
             plugin entry, put your current IAP options in one object, and add
             the selected entry in <code>app.config.js</code>. Keep your other
             plugins and app settings.
+            <p>
+              Move store selection out of the shared options: remove old{' '}
+              <code>android.store</code>, <code>android.provider</code>,{' '}
+              <code>modules.horizon</code>, <code>modules.amazon.fireOS</code>,{' '}
+              <code>modules.amazon.vegaOS</code> and{' '}
+              <code>android.amazon.vegaOS</code>. Unset the old{' '}
+              <code>EXPO_IAP_FIREOS</code>, <code>EXPO_IAP_HORIZON</code> and{' '}
+              <code>EXPO_IAP_VEGA</code> environment flags. Preserve unrelated
+              options, including your Appstore public-key path.
+            </p>
             <CodeBlock
               language="javascript"
-              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon-example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', {\n          ...iapOptions,\n          openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n        }]\n      : ['expo-iap', iapOptions],\n  ],\n});`}
+              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon-example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', {\n          ...iapOptions,\n          openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n        }]\n      : ['expo-iap', {\n          ...iapOptions,\n          android: { ...iapOptions.android, store: 'play' },\n          enableLocalDev: true,\n          localPath: { android: '/absolute/path/to/openiap/packages/google' },\n        }],\n  ],\n});`}
             />
             Use the same store setting in your EAS profiles:
             <CodeBlock
@@ -192,19 +202,28 @@ export default function StoreProviders() {
               }
             />
             Until compatible public releases exist, use EAS <code>--local</code>{' '}
-            with the prepared SDK and core inputs. Remote workers need those
-            inputs and their own Maven path; a local absolute path is not
-            uploaded automatically. The community plugin adds its bundled Maven
-            repository and uses the installed package’s native version. Its
-            required <code>openIapRepository</code> points to the prepared core
-            Maven artifacts; replace the placeholder with your absolute path.
-            The Play profile keeps the ordinary Expo IAP plugin. Keep the
-            existing application id and registered catalog; retain{' '}
-            <code>android.amazon.appstoreKey</code> for Appstore builds. See the{' '}
-            <a href={`${repository}#install-this-example-package`}>
-              installation guide
-            </a>
-            .
+            with the prepared inputs. The Play branch needs matching native
+            sources; set <code>localPath.android</code> to{' '}
+            <code>packages/google</code> in the same compatible OpenIAP checkout
+            that prepared your Expo SDK. Once compatible SDK and native Play
+            releases exist, remove <code>localPath</code> and set{' '}
+            <code>enableLocalDev: false</code> to use the published packages.
+            Remote workers need the prepared inputs and their own paths; local
+            absolute paths are not uploaded automatically.
+            <p>
+              The community branch uses the installed provider and public core
+              Maven artifacts, without native source includes. Its required{' '}
+              <code>openIapRepository</code> points to the prepared core Maven
+              artifacts; replace the placeholder with your absolute path. The
+              plugin adds its bundled provider repository and uses the installed
+              package’s native version. Keep the existing application id and
+              registered catalog; retain <code>android.amazon.appstoreKey</code>{' '}
+              for Appstore builds. See the{' '}
+              <a href={`${repository}#install-this-example-package`}>
+                installation guide
+              </a>
+              .
+            </p>
           </li>
           <li>
             <strong>Rebuild the native Android app.</strong> Expo Go and a
@@ -215,8 +234,8 @@ export default function StoreProviders() {
                 'export ORG_GRADLE_PROJECT_openiapStore=amazon-example\nbunx expo prebuild --platform android\nbunx expo run:android --device'
               }
             />
-            Use <code>google</code> for a local Play build. Rebuild after
-            switching the profile or updating the provider.
+            Use <code>google</code> for a local Play build. Rerun prebuild and
+            rebuild after switching the profile or updating the provider.
           </li>
           <li>
             <strong>Check the selected provider.</strong> Your existing{' '}
