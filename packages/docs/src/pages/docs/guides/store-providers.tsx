@@ -5,6 +5,7 @@ import DataTable, { type DataTableColumn } from '../../../components/DataTable';
 import SEO from '../../../components/SEO';
 import StoreProviderDiagram from './StoreProviderDiagram';
 import StoreProviderExample from './StoreProviderExample';
+import { examplePackage, repository } from './StoreProviderExampleData';
 import { LIBRARIES } from '../../../lib/images';
 import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 import registry from '../../../generated/store-registry.json';
@@ -108,6 +109,156 @@ export default function StoreProviders() {
           Try a real Amazon SDK binding
         </AnchorLink>
         <StoreProviderExample />
+      </section>
+      <section>
+        <AnchorLink id="expo-community-package" level="h2">
+          Add a community package to an existing Expo app
+        </AnchorLink>
+        <p>
+          Keep <code>expo-iap</code> and your purchase screens. Add the
+          provider’s native package and configure the Android build to select
+          it. This walkthrough uses the{' '}
+          <a href={repository}>FireOS community example</a>; its repository name
+          differs from its installation name, <code>{examplePackage.name}</code>
+          . For a maintained FireOS app, use the{' '}
+          <Link to="/docs/setup/store/amazon">official Amazon integration</Link>
+          .
+        </p>
+        <ol>
+          <li>
+            <strong>Use a compatible Expo IAP build.</strong> This example
+            requires Client Protocol 0.2 support. Released SDKs do not yet
+            contain that contract; follow the README’s{' '}
+            <a href={`${repository}#prepare-the-pinned-sdk-inputs`}>
+              pinned public Expo and core inputs
+            </a>{' '}
+            first. Then, in your existing app, install the SDK tarball named in
+            the prepared example’s <code>expo-iap</code> dependency:
+            <CodeBlock
+              language="bash"
+              children={
+                'bun add --exact /absolute/path/to/openiap-google-amazon-community/.local/expo-iap-HASH.tgz'
+              }
+            />
+            Replace <code>expo-iap-HASH.tgz</code> with the actual tarball
+            filename from <code>example/package.json</code>. Preparation only
+            updates the example app; it does not upgrade your existing app.
+            Check the{' '}
+            <a
+              href={`${repository}/blob/community-provider-v${examplePackage.version}/package.json`}
+            >
+              package’s peer dependencies
+            </a>{' '}
+            for compatible Expo and build-properties versions.
+          </li>
+          <li>
+            <strong>Install from GitHub Packages.</strong> Configure an ignored{' '}
+            <code>.npmrc</code> and a package-manager token with{' '}
+            <code>read:packages</code>. Keep the token outside the app and Expo
+            public environment variables.
+            <CodeBlock
+              language="properties"
+              children={
+                '@hyodotdev:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'
+              }
+            />
+            <CodeBlock
+              language="bash"
+              children={`bun add --exact ${examplePackage.name}@${examplePackage.version}`}
+            />
+            This command pins the{' '}
+            <a
+              href={`${repository}/blob/community-provider-v${examplePackage.version}/package.json`}
+            >
+              verified example distribution
+            </a>
+            , rather than installing from npmjs.org.
+          </li>
+          <li>
+            <strong>Replace the Expo config plugin entry.</strong> Keep the{' '}
+            <code>expo-iap</code> dependency and imports, but replace its entry
+            in <code>plugins</code> with this package. Do not list both plugins.
+            <CodeBlock
+              language="typescript"
+              children={`plugins: [\n  ['${examplePackage.name}', {\n    openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n  }],\n]`}
+            />
+            Its plugin selects <code>amazon-example</code>, adds its bundled
+            Maven repository and uses the installed package’s native version.
+            Pass your compatible existing Expo IAP options to this entry. Keep
+            the existing application id and registered Amazon catalog; retain
+            <code>android.amazon.appstoreKey</code> for Appstore builds. The
+            required <code>openIapRepository</code> points to the core Maven
+            artifacts from preparation; replace the placeholder path with your
+            absolute path. See the{' '}
+            <a href={`${repository}#install-this-example-package`}>
+              installation guide
+            </a>
+            .
+          </li>
+          <li>
+            <strong>Rebuild the native Android app.</strong> Expo Go and a
+            JavaScript reload cannot install a native provider.
+            <CodeBlock
+              language="bash"
+              children={
+                'bunx expo prebuild --platform android\nbunx expo run:android --device'
+              }
+            />
+          </li>
+          <li>
+            <strong>Check the selected provider.</strong> Your existing{' '}
+            <code>useIAP</code>, product, purchase, restore and finish APIs stay
+            the same. Purchases from this example carry{' '}
+            <code>store: 'unknown'</code> and{' '}
+            <code>storeId: 'amazon-example'</code>. Configure the backend for
+            Amazon receipt verification, grant entitlement only after valid
+            verification, then finish. The native package does not install a
+            server verification adapter. Follow the{' '}
+            <a href={`${repository}#verify-before-finishing`}>
+              verification flow
+            </a>{' '}
+            and{' '}
+            <a href={`${repository}/blob/main/VERIFICATION.md`}>
+              observed limits
+            </a>
+            .
+          </li>
+        </ol>
+        <AnchorLink id="choose-community-package" level="h3">
+          Choosing a Samsung, Huawei, or Xiaomi provider
+        </AnchorLink>
+        <p>
+          These are examples of vendors a community author could support, not
+          packages OpenIAP currently supplies or certifies. Before installing
+          another provider, its maintainer should publish:
+        </p>
+        <ul>
+          <li>
+            A native adapter for that store’s billing SDK, supported platforms
+            and compatible OpenIAP core, Client Protocol and framework versions.
+          </li>
+          <li>
+            A package name, fixed version, stable <code>storeId</code>, native
+            Maven coordinates and repository, plus Expo plugin instructions or
+            the <a href="#expo">store/provider configuration</a>.
+          </li>
+          <li>
+            Store-specific application setup, catalog and authenticated backend
+            verification instructions. A config plugin alone is not a billing
+            implementation.
+          </li>
+          <li>
+            A public conformance report and store test evidence, with supported
+            capabilities and unverified purchase or subscription scenarios.
+          </li>
+        </ul>
+        <p>
+          Expect the same OpenIAP purchase APIs and events after native setup,
+          with that provider’s <code>storeId</code> and capability behavior. One
+          Android AAR can serve compatible framework SDKs; each app still needs
+          its own configuration and rebuild. The Expo plugin configures Expo
+          only, and Apple needs a separate Swift adapter.
+        </p>
       </section>
       <section>
         <AnchorLink id="apple-selection" level="h2">

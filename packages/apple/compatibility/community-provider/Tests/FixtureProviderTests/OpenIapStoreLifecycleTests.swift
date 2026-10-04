@@ -5,6 +5,140 @@ import FixtureProvider
 
 final class OpenIapStoreLifecycleTests: XCTestCase {
     @MainActor
+    func testCancelledReinitializationPreservesTheActiveSession() async throws {
+        let gate = DisconnectGate()
+        let provider = LifecycleProvider()
+        let delivered = expectation(description: "Active listener survives cancelled init")
+        let store = OpenIapStore(onPurchaseSuccess: { _ in delivered.fulfill() }, module: provider)
+        try await store.initConnection()
+        let retry = Task {
+            await gate.wait()
+            try await store.initConnection()
+        }
+        await gate.waitUntilEntered()
+        retry.cancel()
+        await gate.release()
+        do {
+            try await retry.value
+            XCTFail("Cancelled initialization must reject")
+        } catch is CancellationError { }
+        XCTAssertTrue(store.isConnected)
+        XCTAssertTrue(provider.isConnected)
+        XCTAssertEqual(provider.connectionCount, 1)
+        provider.emit(.purchaseIos(try FixtureModule().makePurchase()))
+        await fulfillment(of: [delivered], timeout: 1)
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testFailedReinitializationPreservesTheActiveSession() async throws {
+        let provider = LifecycleProvider()
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        provider.initError = PurchaseError(code: .networkError, message: "Retry connection")
+        do {
+            try await store.initConnection()
+            XCTFail("Failed initialization must reject")
+        } catch let error as PurchaseError {
+            XCTAssertEqual(error.code, .networkError)
+        }
+        XCTAssertTrue(store.isConnected)
+        XCTAssertTrue(provider.isConnected)
+        XCTAssertEqual(provider.listenerCount, 1)
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testSecondTeardownWaitsForReconnectAndKeepsStateConsistent() async throws {
+        try await assertReconnectThenTeardown(requestBeforeReconnect: false)
+    }
+
+    @MainActor
+    func testTeardownQueuedAfterReconnectDoesNotShareEarlierTeardown() async throws {
+        try await assertReconnectThenTeardown(requestBeforeReconnect: true)
+    }
+
+    @MainActor
+    private func assertReconnectThenTeardown(requestBeforeReconnect: Bool) async throws {
+        let firstEnd = DisconnectGate()
+        let reconnect = DisconnectGate()
+        let earlyTeardown = expectation(description: "Teardown cannot overtake initialization")
+        earlyTeardown.isInverted = true
+        let reconnectRequested = expectation(description: "Reconnect requested")
+        let requested = expectation(description: "Second teardown requested")
+        let delivered = expectation(description: "Next connection owns a working listener")
+        let provider = LifecycleProvider(
+            initGates: [nil, reconnect], endGates: [firstEnd],
+            onDisconnect: { if $0 == 2 { earlyTeardown.fulfill() } }
+        )
+        let store = OpenIapStore(onPurchaseSuccess: { _ in delivered.fulfill() }, module: provider)
+        try await store.initConnection()
+        let ending = Task { try await store.endConnection() }
+        await firstEnd.waitUntilEntered()
+        let reconnecting = Task {
+            reconnectRequested.fulfill()
+            try await store.initConnection()
+        }
+        await fulfillment(of: [reconnectRequested], timeout: 1)
+        if !requestBeforeReconnect {
+            await firstEnd.release()
+            try await ending.value
+            await reconnect.waitUntilEntered()
+        }
+        let endingAgain = Task {
+            requested.fulfill()
+            try await store.endConnection()
+        }
+        await fulfillment(of: [requested], timeout: 1)
+        if requestBeforeReconnect {
+            await firstEnd.release()
+            try await ending.value
+            await reconnect.waitUntilEntered()
+        }
+        await fulfillment(of: [earlyTeardown], timeout: 0.05)
+        await reconnect.release()
+        try await reconnecting.value
+        try await endingAgain.value
+        XCTAssertFalse(provider.isConnected)
+        XCTAssertFalse(store.isConnected)
+        XCTAssertEqual(provider.listenerCount, 0)
+        XCTAssertEqual(provider.disconnectCount, 2)
+        try await store.initConnection()
+        provider.emit(.purchaseIos(try FixtureModule().makePurchase()))
+        await fulfillment(of: [delivered], timeout: 1)
+        XCTAssertTrue(provider.isConnected)
+        XCTAssertTrue(store.isConnected)
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testCancelledQueuedReconnectDoesNotReopenAfterTeardown() async throws {
+        let gate = DisconnectGate()
+        let requested = expectation(description: "Reconnect requested")
+        let provider = LifecycleProvider(endGates: [gate])
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        let ending = Task { try await store.endConnection() }
+        await gate.waitUntilEntered()
+        let reconnecting = Task {
+            requested.fulfill()
+            try await store.initConnection()
+        }
+        await fulfillment(of: [requested], timeout: 1)
+        reconnecting.cancel()
+        await gate.release()
+        try await ending.value
+        do {
+            try await reconnecting.value
+            XCTFail("Cancelled reconnect must reject")
+        } catch is CancellationError { }
+        XCTAssertFalse(store.isConnected)
+        XCTAssertFalse(provider.isConnected)
+        XCTAssertEqual(provider.connectionCount, 1)
+        XCTAssertEqual(provider.listenerCount, 0)
+    }
+
+    @MainActor
     func testFailedDisconnectPreservesSessionAndAllowsRetry() async throws {
         for thrown in [false, true] {
             let provider = LifecycleProvider()
@@ -36,7 +170,7 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
         let gate = DisconnectGate()
         let unexpected = expectation(description: "No automatic query during teardown")
         unexpected.isInverted = true
-        let provider = LifecycleProvider(endGate: gate, onAvailableRead: { unexpected.fulfill() })
+        let provider = LifecycleProvider(endGates: [gate], onAvailableRead: { unexpected.fulfill() })
         let delivered = expectation(description: "Pending session still delivers purchase")
         let store = OpenIapStore(onPurchaseSuccess: { _ in delivered.fulfill() }, module: provider)
         try await store.initConnection()
@@ -54,7 +188,7 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
     @MainActor
     func testReconnectWaitsForPendingDisconnect() async throws {
         let gate = DisconnectGate()
-        let provider = LifecycleProvider(endGate: gate)
+        let provider = LifecycleProvider(endGates: [gate])
         let store = OpenIapStore(module: provider)
         try await store.initConnection()
         let ending = Task { try await store.endConnection() }
@@ -201,12 +335,21 @@ private final class LifecycleProvider: OpenIapModuleProtocol, @unchecked Sendabl
     private let lock = NSLock()
     private var updates: [UUID: PurchaseUpdatedListener] = [:]
     private var connections = 0
+    private var disconnects = 0
+    private var connected = false
     private var reads = 0
     private let gates: [PurchaseQueryGate]
-    private let endGate: DisconnectGate?
+    private let initGates: [DisconnectGate?]
+    private let endGates: [DisconnectGate]
+    private let onDisconnect: @Sendable (Int) -> Void
     private let onAvailableRead: @Sendable () -> Void
     private var disconnectResult = true
     private var disconnectError: PurchaseError?
+    private var connectionError: PurchaseError?
+    var initError: PurchaseError? {
+        get { synchronized { connectionError } }
+        set { synchronized { connectionError = newValue } }
+    }
     var endResult: Bool {
         get { synchronized { disconnectResult } }
         set { synchronized { disconnectResult = newValue } }
@@ -223,12 +366,16 @@ private final class LifecycleProvider: OpenIapModuleProtocol, @unchecked Sendabl
     }
     init(
         gates: [PurchaseQueryGate] = [],
-        endGate: DisconnectGate? = nil,
+        initGates: [DisconnectGate?] = [],
+        endGates: [DisconnectGate] = [],
+        onDisconnect: @escaping @Sendable (Int) -> Void = { _ in },
         onAvailableRead: @escaping @Sendable () -> Void = {},
         onActiveRead: @escaping @Sendable () -> Void = {}
     ) {
         self.gates = gates
-        self.endGate = endGate
+        self.initGates = initGates
+        self.endGates = endGates
+        self.onDisconnect = onDisconnect
         self.onAvailableRead = onAvailableRead
         activeRead = onActiveRead
     }
@@ -236,16 +383,26 @@ private final class LifecycleProvider: OpenIapModuleProtocol, @unchecked Sendabl
         lock.lock(); defer { lock.unlock() }; return work()
     }
     var connectionCount: Int { synchronized { connections } }
+    var disconnectCount: Int { synchronized { disconnects } }
     var listenerCount: Int { synchronized { updates.count } }
+    var isConnected: Bool { synchronized { connected } }
     func initConnection() async throws -> Bool {
-        synchronized { connections += 1 }
+        try Task.checkCancellation()
+        if let initError { throw initError }
+        let index = synchronized { defer { connections += 1 }; return connections }
+        if index < initGates.count, let gate = initGates[index] { await gate.wait() }
+        synchronized { connected = true }
         if let initReplay { emit(initReplay) }
         return true
     }
     func endConnection() async throws -> Bool {
-        if let endGate { await endGate.wait() }
+        let index = synchronized { defer { disconnects += 1 }; return disconnects }
+        onDisconnect(index + 1)
+        if index < endGates.count { await endGates[index].wait() }
         if let endError { throw endError }
-        return endResult
+        let result = endResult
+        if result { synchronized { connected = false } }
+        return result
     }
     func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult { try await fixture.fetchProducts(params) }
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? { nil }

@@ -36,7 +36,8 @@ public final class OpenIapStore: ObservableObject {
     private var listenerTokens: [Subscription] = []
     private var listenerGeneration: UInt64 = 0
     private var purchaseRefreshTask: Task<Void, Never>?
-    private var endConnectionTask: Task<Void, Error>?
+    private var endConnectionTask: (id: UUID, task: Task<Void, Error>)?
+    private var connectionTask: (id: UUID, task: Task<Void, Error>)?
 
     // MARK: - Callbacks
 
@@ -136,37 +137,57 @@ public final class OpenIapStore: ObservableObject {
     // MARK: - Connection Management
 
     public func initConnection() async throws {
-        if let endConnectionTask { try await endConnectionTask.value }
-        setupListeners()
-        let generation = listenerGeneration
-        status.loadings.initConnection = true
-        defer {
-            if listenerGeneration == generation { status.loadings.initConnection = false }
+        try Task.checkCancellation()
+        let task = enqueueConnectionOperation { [self] in
+            setupListeners()
+            status.loadings.initConnection = true
+            defer { status.loadings.initConnection = false }
+            isConnected = try await module.initConnection()
         }
-        do {
-            let connected = try await module.initConnection()
-            guard listenerGeneration == generation else { return }
-            isConnected = connected
-        } catch {
-            if listenerGeneration == generation { isConnected = false }
-            throw error
+        try await withTaskCancellationHandler {
+            try await task.value
+            try Task.checkCancellation()
+        } onCancel: {
+            task.cancel()
         }
     }
 
     public func endConnection() async throws {
-        if let endConnectionTask { return try await endConnectionTask.value }
+        if let endConnectionTask, endConnectionTask.id == connectionTask?.id {
+            return try await endConnectionTask.task.value
+        }
         purchaseRefreshTask?.cancel()
         purchaseRefreshTask = nil
-        let task = Task { @MainActor in
-            defer { endConnectionTask = nil }
+        let id = UUID()
+        let task = enqueueConnectionOperation(id: id) { [self] in
+            defer {
+                if endConnectionTask?.id == id { endConnectionTask = nil }
+            }
             guard try await module.endConnection() else {
                 throw PurchaseError(code: .notEnded, message: "Store teardown did not complete")
             }
             clearListeners()
             isConnected = false
         }
-        endConnectionTask = task
+        endConnectionTask = (id, task)
         try await task.value
+    }
+
+    private func enqueueConnectionOperation(
+        id: UUID = UUID(),
+        _ operation: @escaping @MainActor @Sendable () async throws -> Void
+    ) -> Task<Void, Error> {
+        let previous = connectionTask?.task
+        let task = Task { @MainActor in
+            defer {
+                if connectionTask?.id == id { connectionTask = nil }
+            }
+            if let previous { _ = try? await previous.value }
+            try Task.checkCancellation()
+            try await operation()
+        }
+        connectionTask = (id, task)
+        return task
     }
 
     // MARK: - Event Handlers

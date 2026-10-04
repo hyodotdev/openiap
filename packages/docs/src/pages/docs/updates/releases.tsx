@@ -531,10 +531,11 @@ function Releases() {
               <code>OpenIapConformance</code> Swift suite.
             </li>
             <li>
-              Apple delivers purchase failure events before returning errors.
-              SwiftUI cancels outdated automatic refreshes and receives provider
-              ownership replays during reconnect. Failed teardown preserves the
-              session for retry.
+              Apple delivers purchase errors before returning. SwiftUI
+              serializes connection and teardown, preserves active sessions
+              during failed or cancelled reinitialization, cancels stale
+              refreshes, receives ownership replays and keeps failed teardown
+              retryable.
             </li>
             <li>
               OpenIAP Google 4.0.0 publishes <code>openiap-core</code> and the
