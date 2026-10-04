@@ -228,9 +228,10 @@ export default function StoreProviders() {
           Choosing a Samsung, Huawei, or Xiaomi provider
         </AnchorLink>
         <p>
-          These are examples of vendors a community author could support, not
-          packages OpenIAP currently supplies or certifies. Before installing
-          another provider, its maintainer should publish:
+          We welcome community providers for stores such as Samsung, Huawei, and
+          Xiaomi. OpenIAP does not yet supply or certify packages for these
+          stores. Before installing a provider, expect its maintainer to
+          publish:
         </p>
         <ul>
           <li>

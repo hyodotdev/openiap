@@ -10,7 +10,7 @@
 #
 # Regenerate after an intentional rebuild:
 #   node scripts/audit-godot-binary-digests.mjs --write
-86b74b8d7008b6324ea74603d7d6f337aaecbc8ff961c03e1313b290d0343169  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
-f4b77a538c99db433737bb99238a1808baf12c6b2919e34bc53b9202a8400e39  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
-5b51e50e62f91983a5bb9044c3a4b12a6410dff8cffbe4d4d95e5aadaaaadb7b  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
-2c67994fb12fba86dcc98004cb06ead529e72d2069f6216e2d49d01d5bfad983  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime
+431c8168c7b87f8d3f3cbb3eee566f8ee765d5f6e58b963d867bd476c594ba92  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+a808138b23dde6447ed98fb6d8da7404bb0dadb23f39fc6609914ff74299851e  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
+8d0c4c16573ecfbcd9695808b4aea1f60b2a7ab9d76ceb0ab8a96f9d4011980d  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
+e52e84b5f8bd8bf37b0712bd34072a55333575da32c63a4fdad96fb08138a849  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime
