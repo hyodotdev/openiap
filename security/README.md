@@ -103,6 +103,24 @@ the kit Dockerfile, and the React Native CocoaPods toolchain:
   direct dependency contract; a toolchain resolver export can add transitive
   entries for a consuming application.
 
+## Pinned brace parser replacement
+
+The six affected Bun/Yarn graphs replace `braces` with the published MIT
+derivative [`@dieub/braces-depth-guard@3.0.3-pn.3`](https://www.npmjs.com/package/@dieub/braces-depth-guard/v/3.0.3-pn.3).
+It bounds parser and AST nesting to address
+[`GHSA-vfj7-8cjw-p6xm`](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
+which has no patched upstream release. The exact version and registry integrity
+are locked; published files match
+[source commit `305a2e4`](https://github.com/dieub/braces-depth-guard/tree/305a2e4bfe324bb53c336c1b03387ee1251c926f),
+and npm registry signatures and provenance were verified. This is a reviewed
+derivative with a short maintenance history, not an upstream release.
+
+Bun, OSV and dependency snapshots retain the replacement's actual npm identity
+and transitive dependencies. No advisory is suppressed. Security regression
+tests exercise deep strings and ASTs through the installed package. Return to
+upstream when a supported fix passes those checks; the depth guard does not
+bound every possible expansion size.
+
 ## GitHub dependency graph
 
 GitHub does not parse `bun.lock` directly. The

@@ -63,6 +63,7 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
+    "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3",
     "expo-constants": "57.0.10",
     "fast-xml-parser": "5.7.0",
     "lodash": "4.18.1",

@@ -19,6 +19,7 @@
     "typescript": "4.8.4"
   },
   "overrides": {
+    "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3",
     "@react-native-community/cli": "11.4.1",
     "fast-xml-parser": "5.7.0",
     "lodash": "4.18.1",

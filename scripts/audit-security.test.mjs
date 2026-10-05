@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
+import braces from "braces";
 
 import {
   BUN_AUDIT_ATTEMPTS,
@@ -27,6 +28,74 @@ import {
   runBunAudit,
   summarizeAdvisories,
 } from "./audit-security.mjs";
+
+test("brace processing rejects excessive nesting before recursive evaluation", () => {
+  for (const delimiter of ["{}", "()"])
+    for (const depth of [101, 1000]) {
+      const input =
+        delimiter[0].repeat(depth) + "a" + delimiter[1].repeat(depth);
+      for (const operation of ["parse", "compile", "expand", "stringify"])
+        assert.throws(() => braces[operation](input), {
+          name: "SyntaxError",
+          message: /Input depth .* exceeds max depth/,
+        });
+    }
+});
+
+test("brace AST processing rejects excessive depth and cyclic child graphs", () => {
+  const ast = { type: "root", nodes: [] };
+  let node = ast;
+  for (let depth = 0; depth < 1000; depth++) {
+    const child = { type: "brace", nodes: [], parent: node };
+    node.nodes.push(child);
+    node = child;
+  }
+  node.nodes.push({ type: "text", value: "a" });
+  for (const operation of ["compile", "expand", "stringify"])
+    assert.throws(() => braces[operation](ast), {
+      name: "RangeError",
+      message: /AST depth .* exceeds max depth/,
+    });
+
+  const cycle = { type: "root", nodes: [] };
+  cycle.nodes.push(cycle);
+  for (const operation of ["compile", "expand", "stringify"])
+    assert.throws(() => braces[operation](cycle), {
+      name: "RangeError",
+      message: /AST depth .* exceeds max depth/,
+    });
+});
+
+test("brace length and depth options cannot bypass bounds", () => {
+  assert.throws(() => braces.parse("a".repeat(10001), { maxLength: NaN }), {
+    name: "RangeError",
+  });
+  let reads = 0;
+  assert.throws(
+    () =>
+      braces.parse("{".repeat(101) + "a" + "}".repeat(101), {
+        get maxDepth() {
+          return reads++ === 0 ? 100 : Infinity;
+        },
+      }),
+    { name: "SyntaxError", message: /Input depth .* exceeds max depth/ },
+  );
+  assert.equal(reads, 1);
+  assert.deepEqual(braces.expand("src/{apple,google}/{1..2}.ts"), [
+    "src/apple/1.ts",
+    "src/apple/2.ts",
+    "src/google/1.ts",
+    "src/google/2.ts",
+  ]);
+  assert.equal(
+    braces.compile("src/{apple,google}.ts"),
+    "src/(apple|google).ts",
+  );
+  assert.equal(
+    braces.stringify(braces.parse("src/{apple,google}.ts")),
+    "src/{apple,google}.ts",
+  );
+});
 
 test("workflow scan detects expressions in scalar and block run steps", () => {
   const workflow = `steps:

@@ -4,7 +4,6 @@ import {Platform, Alert} from 'react-native';
 import OfferCode from '../app/offer-code';
 import * as ExpoIap from 'expo-iap';
 
-// Mock Alert
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 jest.mock('expo-iap', () => ({
@@ -47,7 +46,6 @@ describe('OfferCode Component', () => {
     });
 
     const {getByText} = await render(<OfferCode />);
-    // Check for iOS-specific text from the actual component
     expect(
       getByText(/Tap the button below to open the redemption sheet/),
     ).toBeDefined();
@@ -56,18 +54,20 @@ describe('OfferCode Component', () => {
     ).toBeDefined();
   });
 
-  it('should show Android instructions on Android', async () => {
+  it('should show selected-store instructions on Android', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'android'),
       configurable: true,
     });
 
-    const {getByText} = await render(<OfferCode />);
-    // Check for Android-specific text from the actual component
-    expect(getByText(/Tap the button to open Google Play Store/)).toBeDefined();
+    const {getByText, queryByText} = await render(<OfferCode />);
     expect(
-      getByText(/Android requires redemption through Google Play Store/),
+      getByText(/Open the selected store’s redemption flow/),
     ).toBeDefined();
+    expect(
+      getByText(/Android redemption support depends on the selected store/),
+    ).toBeDefined();
+    expect(queryByText(/Google Play Store/)).toBeNull();
   });
 
   it('should show Vega unsupported guidance without calling platform redemption APIs', async () => {
@@ -93,12 +93,10 @@ describe('OfferCode Component', () => {
     });
 
     const {getByText} = await render(<OfferCode />);
-    // The button text is "🎁 Redeem Offer Code" on iOS
     const redeemButton = getByText('🎁 Redeem Offer Code');
 
     await fireEvent.press(redeemButton);
 
-    // Wait for async operation and Alert
     await waitFor(() => {
       expect(ExpoIap.openRedeemOfferCode).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -113,21 +111,19 @@ describe('OfferCode Component', () => {
       get: jest.fn(() => 'android'),
       configurable: true,
     });
-    // Android resolves null after launching the Play redeem page
+    // Android providers may launch redemption without returning a purchase.
     jest.mocked(ExpoIap.openRedeemOfferCode).mockResolvedValueOnce(null);
 
     const {getByText} = await render(<OfferCode />);
-    // The button text is "🎁 Open Play Store" on Android
-    const redeemButton = getByText('🎁 Open Play Store');
+    const redeemButton = getByText('🎁 Open Redemption Flow');
 
     await fireEvent.press(redeemButton);
 
-    // Wait for async operation and Alert
     await waitFor(() => {
-      expect(ExpoIap.openRedeemOfferCode).toHaveBeenCalled();
+      expect(ExpoIap.openRedeemOfferCode).toHaveBeenCalledTimes(1);
       expect(Alert.alert).toHaveBeenCalledWith(
         'Redemption Requested',
-        'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
+        'The selected store opens its redemption flow when supported. Refresh available purchases after redeeming.',
       );
     });
   });
@@ -160,7 +156,7 @@ describe('OfferCode Component', () => {
       .mockRejectedValueOnce(new Error('Unable to launch redeem page'));
 
     const {getByText} = await render(<OfferCode />);
-    await fireEvent.press(getByText('🎁 Open Play Store'));
+    await fireEvent.press(getByText('🎁 Open Redemption Flow'));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
