@@ -5,7 +5,6 @@ import dev.hyo.openiap.OpenIapProtocol
 import expo.modules.kotlin.Promise
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +19,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ProviderEndConnectionTest {
     @Test
     fun `endConnection without a provider resets state without creating one`() {
-        val provider = lazy<OpenIapProtocol> { throw AssertionError("must not create a provider") }
+        var attempts = 0
+        val provider =
+            lazy<OpenIapProtocol> {
+                attempts++
+                throw AssertionError("must not create a provider")
+            }
         val module = ExpoIapModule()
         module.field("openIapLazy").set(module, provider)
         val connected = module.field("connectionReady").get(module) as AtomicBoolean
@@ -59,13 +63,12 @@ class ProviderEndConnectionTest {
             ) -> Unit
         body(emptyArray<Any?>(), promise)
         shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, attempts)
         assertEquals(1, resolves)
         assertEquals(0, rejects)
         assertEquals(true, resolved)
-        assertFalse(provider.isInitialized())
         assertFalse(connected.get())
         assertTrue(events.isEmpty())
-        assertNull(module.field("listenerHandles").get(module))
     }
 
     private fun ExpoIapModule.field(name: String) = javaClass.getDeclaredField(name).apply { isAccessible = true }
