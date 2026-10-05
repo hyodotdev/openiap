@@ -21,11 +21,14 @@ import {
   findUnreleasedNativeChanges,
   libraryReleaseTags,
   nativeGateSkipReason,
+  nativeReleaseGates,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
   isPrereleaseVersion,
   clientProtocolVersion,
+  shipsIn,
+  shipsInAnyPackage,
   versionSources,
   normalizeBranch,
   resolveReleaseChannel,
@@ -34,6 +37,7 @@ import {
   withUpdatedNativeVersion,
 } from "./release-branch-policy.mjs";
 import { assertReleaseTag } from "./assert-release-tag.mjs";
+import { findUnnotedSourceChanges } from "./audit-release-notes.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -2094,6 +2098,94 @@ test("the native gate counts only what the native packages ship", () => {
       tag: "3.6.0",
       commits: ["4444444 fix(apple): the SwiftPM manifest"],
     },
+  ]);
+});
+
+test("the release gates know every native publication input", () => {
+  const published = [
+    "packages/google/core/build.gradle.kts",
+    "packages/google/core/consumer-rules.pro",
+    "packages/google/core/src/main/AndroidManifest.xml",
+    "packages/conformance/android/build.gradle.kts",
+    "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+    "packages/conformance/apple/Sources/ProviderConformance.swift",
+  ];
+  for (const file of published) {
+    assert.equal(shipsInAnyPackage(file), true, file);
+  }
+  assert.equal(
+    shipsIn("google", "packages/google/core/consumer-rules.pro"),
+    true,
+  );
+  assert.equal(
+    shipsIn("google", "packages/conformance/android/build.gradle.kts"),
+    true,
+  );
+  assert.equal(
+    shipsIn(
+      "apple",
+      "packages/conformance/apple/Sources/ProviderConformance.swift",
+    ),
+    true,
+  );
+  assert.deepEqual(findUnnotedSourceChanges(published), published);
+  for (const file of [
+    "packages/google/core/src/test/java/dev/hyo/openiap/OpenIapProviderTest.kt",
+    "packages/google/openiap/src/testPlay/java/dev/hyo/openiap/conformance/PlayStoreConformanceTest.kt",
+    "packages/conformance/test/runner.test.mjs",
+  ]) {
+    assert.equal(shipsInAnyPackage(file), false, file);
+  }
+  assert.deepEqual(
+    findUnnotedSourceChanges([
+      "packages/google/core/src/test/java/dev/hyo/openiap/OpenIapProviderTest.kt",
+    ]),
+    [],
+  );
+});
+
+test("the native gate flags core and conformance-only changes", () => {
+  const seenRoots = {};
+  const git = (args) => {
+    seenRoots[rangeOf(args)] = args.slice(args.indexOf("--") + 1);
+    return rangeOf(args) === "google-3.6.1..HEAD"
+      ? logEntry(
+          "aaaaaaa fix(core): keep provider factories",
+          "packages/google/core/consumer-rules.pro",
+        ) +
+          logEntry(
+            "bbbbbbb feat(conformance): extend the android suite",
+            "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+          )
+      : logEntry(
+          "ccccccc feat(conformance): extend the swift suite",
+          "packages/conformance/apple/Sources/ProviderConformance.swift",
+        );
+  };
+  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
+    {
+      label: "openiap-google",
+      tag: "google-3.6.1",
+      commits: [
+        "aaaaaaa fix(core): keep provider factories",
+        "bbbbbbb feat(conformance): extend the android suite",
+      ],
+    },
+    {
+      label: "openiap-apple",
+      tag: "3.6.0",
+      commits: ["ccccccc feat(conformance): extend the swift suite"],
+    },
+  ]);
+  assert.deepEqual(seenRoots["google-3.6.1..HEAD"], [
+    "packages/google",
+    "packages/conformance/android",
+  ]);
+  assert.deepEqual(seenRoots["3.6.0..HEAD"], [
+    "packages/apple",
+    "packages/conformance/apple",
+    "Package.swift",
+    "openiap.podspec",
   ]);
 });
 

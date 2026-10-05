@@ -1862,8 +1862,6 @@ const GOOGLE_FLAVOR_MODULES = [
   "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
 ];
 
-const CONFORMANCE_SUITE_DIR = "src/conformanceTest/java";
-
 const GOOGLE_CONFORMANCE_ADAPTERS = {
   testPlay:
     "packages/google/openiap/src/testPlay/java/dev/hyo/openiap/conformance/PlayStoreConformanceTest.kt",
@@ -2045,17 +2043,33 @@ function checkConformanceNotPublished() {
     );
   }
 
-  // conformanceTest belongs to unit-test variants; wiring it into a shipped
-  // source set would compile it into the AAR.
-  const gradle = read("packages/google/openiap/build.gradle.kts");
-  for (const sourceSet of ["main", "play", "horizon", "amazon"]) {
-    const block = new RegExp(
-      `named\\("${sourceSet}"\\)\\s*\\{([\\s\\S]*?)\\n\\s{8}\\}`,
-    ).exec(gradle)?.[1];
-    if (block?.includes(CONFORMANCE_SUITE_DIR)) {
-      fail(
-        `packages/google/openiap/build.gradle.kts: ${sourceSet} must not include "${CONFORMANCE_SUITE_DIR}" — it would ship in the AAR`,
-      );
+  // The suite lives in its own module now. The published openiap, openiap-core,
+  // and store-flavor artifacts must reach it (and JUnit) through test
+  // configurations only; an api/implementation edge would ship in the AAR/POM.
+  const shippedConfig =
+    "api|implementation|playApi|horizonApi|amazonApi|playImplementation|horizonImplementation|amazonImplementation";
+  const shippedDep = new RegExp(
+    `(^|[^A-Za-z])(${shippedConfig})\\s*\\(|add\\(\\s*"(${shippedConfig})"\\s*,`,
+  );
+  for (const buildFile of [
+    "packages/google/openiap/build.gradle.kts",
+    "packages/google/core/build.gradle.kts",
+  ]) {
+    let inBlockComment = false;
+    for (const line of read(buildFile).split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("/*")) inBlockComment = true;
+      const code = inBlockComment || trimmed.startsWith("//") ? "" : trimmed;
+      if (trimmed.endsWith("*/")) inBlockComment = false;
+      if (
+        code &&
+        shippedDep.test(code) &&
+        /openiap-conformance|junit/i.test(code)
+      ) {
+        fail(
+          `${buildFile}: conformance and JUnit stay in test configurations — "${trimmed}" would ship in the AAR`,
+        );
+      }
     }
   }
 }
