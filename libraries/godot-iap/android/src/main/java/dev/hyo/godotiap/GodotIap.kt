@@ -484,29 +484,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
 
         return runBlocking {
-            try {
-                restoreGate.whileRestoring { store.restorePurchases() }
-                val purchases = store.getAvailablePurchases(null)
-
-                // Emit each purchase
-                for (purchase in purchases) {
-                    val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
-                    emitSignal("purchase_updated", JSONObject(sanitized).toString())
-                }
-
-                GodotIapLog.result("restorePurchases", "count=${purchases.size}")
-                JSONObject().apply {
-                    put("success", true)
-                    put("count", purchases.size)
-                }.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("restorePurchases", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
-            }
+            runSilentRestore(
+                gate = restoreGate,
+                restore = { store.restorePurchases() },
+                countAvailable = { store.getAvailablePurchases(null).size },
+            )
         }
     }
 
