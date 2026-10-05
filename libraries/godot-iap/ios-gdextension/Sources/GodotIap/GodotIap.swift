@@ -321,7 +321,10 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let isConsumable = args["isConsumable"] as? Bool ?? false
 
                 // Use OpenIapSerialization to create PurchaseInput
-                let purchaseInput = try OpenIapSerialization.purchaseInput(from: purchaseDict)
+                let identified = GodotIapHelper.withProviderStoreIdentity(purchaseDict) {
+                    self.openIap.storeId
+                }
+                let purchaseInput = try OpenIapSerialization.purchaseInput(from: identified)
 
                 try await self.openIap.finishTransaction(purchase: purchaseInput, isConsumable: isConsumable)
                 GodotIapLog.result("finishTransaction", value: true)

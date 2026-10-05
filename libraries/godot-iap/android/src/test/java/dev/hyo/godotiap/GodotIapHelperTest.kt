@@ -248,8 +248,75 @@ class GodotIapHelperTest {
 
     @Test
     fun `unreadable provider leaves identity-less payloads untouched`() {
-        val input = mapOf("productId" to "coins")
-        assertSame(input, GodotIapHelper.withProviderStoreIdentity(input) { null })
+        listOf(
+            mapOf("productId" to "coins"),
+            mapOf("productId" to "coins", "store" to "unknown", "storeId" to ""),
+        ).forEach { input ->
+            assertSame(input, GodotIapHelper.withProviderStoreIdentity(input) { null })
+        }
+    }
+
+    @Test
+    fun `hand-built blank store identity fills from the connected provider`() {
+        val blankIdentities = listOf(
+            mapOf("store" to "unknown", "storeId" to ""),
+            mapOf("store" to "unknown"),
+            mapOf("storeId" to ""),
+            mapOf("store" to "", "storeId" to "  "),
+            mapOf("store" to "UNKNOWN", "storeId" to ""),
+        )
+        mapOf("play" to "google", "horizon" to "horizon", "amazon" to "amazon").forEach { (storeId, store) ->
+            blankIdentities.forEach { identity ->
+                val input = identity + mapOf("productId" to "coins", "purchaseToken" to "token")
+                val filled = GodotIapHelper.withProviderStoreIdentity(input) { storeId }
+                assertEquals(store, filled["store"])
+                assertEquals(storeId, filled["storeId"])
+                assertEquals("token", PurchaseAndroid.fromJson(filled).purchaseToken)
+            }
+        }
+    }
+
+    @Test
+    fun `hand-built blank store identity fills community providers as unknown`() {
+        val filled = GodotIapHelper.withProviderStoreIdentity(
+            mapOf("productId" to "coins", "purchaseToken" to "token", "store" to "unknown", "storeId" to ""),
+        ) { "community-fixture" }
+        assertEquals("unknown", filled["store"])
+        assertEquals("community-fixture", filled["storeId"])
+        assertEquals("token", PurchaseAndroid.fromJson(filled).purchaseToken)
+    }
+
+    @Test
+    fun `blank storeId with official store drops the key for decoder inference`() {
+        listOf("", "  ").forEach { blank ->
+            val filled = GodotIapHelper.withProviderStoreIdentity(
+                mapOf("productId" to "coins", "purchaseToken" to "token", "store" to "google", "storeId" to blank),
+            ) { "play" }
+            assertEquals(false, filled.containsKey("storeId"))
+            assertEquals("google", filled["store"])
+            val decoded = PurchaseAndroid.fromJson(filled)
+            assertEquals("play", decoded.storeId)
+            assertEquals("token", decoded.purchaseToken)
+        }
+    }
+
+    @Test
+    fun `explicit storeId passes through untouched and keeps explicit community identity`() {
+        var lookups = 0
+        val provider = { lookups += 1; "play" }
+        listOf(
+            mapOf("store" to "unknown", "storeId" to "community-fixture", "purchaseToken" to "token"),
+            mapOf("store" to "google", "storeId" to "play", "purchaseToken" to "token"),
+            mapOf("storeId" to "community-fixture"),
+        ).forEach { input ->
+            assertSame(input, GodotIapHelper.withProviderStoreIdentity(input, provider))
+        }
+        assertEquals(0, lookups)
+        val community = PurchaseAndroid.fromJson(
+            mapOf("store" to "unknown", "storeId" to "community-fixture", "purchaseToken" to "token"),
+        )
+        assertEquals("community-fixture", community.storeId)
+        assertEquals("token", community.purchaseToken)
     }
 
 }

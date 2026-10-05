@@ -123,6 +123,18 @@ class FakeNoticePlugin:
 		return claim_response
 
 
+class FakeFinishPlugin:
+	extends RefCounted
+	var last_finish_json := ""
+	var last_is_consumable := false
+
+	# Android sends the purchase plus the flag; Apple sends one args envelope.
+	func finishTransaction(purchase_json: String, is_consumable: bool = false) -> String:
+		last_finish_json = purchase_json
+		last_is_consumable = is_consumable
+		return JSON.stringify({"success": true})
+
+
 ## Android's JNI bridge hands a Kotlin Boolean to GDScript as int (1/0), and
 ## null when the call fails, so the return is deliberately untyped.
 class FakeAndroidNoticePlugin:
@@ -295,6 +307,8 @@ func _run_all_tests() -> void:
 
 	# Finish transaction tests
 	await test_finish_transaction_mock()
+	await test_finish_transaction_forwards_hand_built_android_purchase()
+	await test_finish_transaction_forwards_hand_built_ios_purchase()
 	await test_first_purchase_notice_prints_once()
 	await test_first_purchase_notice_needs_a_debug_console()
 	await test_first_purchase_notice_defaults_to_the_engine_hooks()
@@ -969,6 +983,49 @@ func test_finish_transaction_mock() -> void:
 	var result = await GodotIapPlugin.finish_transaction(purchase, true)
 
 	_assert_true(result is Types.VoidResult, "finish_transaction should return VoidResult")
+
+
+func test_finish_transaction_forwards_hand_built_android_purchase() -> void:
+	var fake := FakeFinishPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+	var purchase = Types.PurchaseAndroid.new()
+	purchase.product_id = "coins"
+	purchase.purchase_token = "token-abc"
+
+	var result = await GodotIapPlugin.finish_transaction(purchase, true)
+
+	_assert_true(result.success, "Hand-built Android finish should succeed against the fake")
+	var forwarded = JSON.parse_string(fake.last_finish_json)
+	_assert_equal(forwarded.get("purchaseToken"), "token-abc", "Hand-built token should reach native")
+	_assert_equal(forwarded.get("store"), "unknown", "Hand-built store stays blank for native to stamp")
+	_assert_equal(forwarded.get("storeId"), "", "Hand-built store id stays blank for native to stamp")
+	_assert_true(fake.last_is_consumable, "Consumable flag should reach native")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
+
+func test_finish_transaction_forwards_hand_built_ios_purchase() -> void:
+	var fake := FakeFinishPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "iOS"
+	var purchase = Types.PurchaseIOS.new()
+	purchase.product_id = "coins"
+	purchase.purchase_token = "jws-abc"
+
+	var result = await GodotIapPlugin.finish_transaction(purchase, false)
+
+	_assert_true(result.success, "Hand-built iOS finish should succeed against the fake")
+	var args = JSON.parse_string(fake.last_finish_json)
+	var forwarded = args.get("purchase", {})
+	_assert_equal(forwarded.get("purchaseToken"), "jws-abc", "Hand-built token should reach native")
+	_assert_equal(forwarded.get("store"), "unknown", "Hand-built store stays blank for native to stamp")
+	_assert_equal(forwarded.get("storeId"), "", "Hand-built store id stays blank for native to stamp")
+	_assert_false(args.get("isConsumable", true), "Consumable flag should reach native")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
 
 
 # ============================================

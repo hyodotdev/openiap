@@ -11,8 +11,8 @@
 #
 # Regenerate after an intentional rebuild:
 #   node scripts/audit-godot-binary-digests.mjs --write
-14402cca0fec8cd715b642d082a8d521a6cae51a0fc47969b5b9795b534a0aec  addons/godot-iap/android/GodotIap.debug.aar
-2e2644605177dea40bba162d82f000326c3eb1b085100633fc744f04e0ca1866  addons/godot-iap/android/GodotIap.release.aar
+5e643efdc243dae01eabd2f05ca9b3fd719e43bfd6b6e91bc58f0b3350596b75  addons/godot-iap/android/GodotIap.debug.aar
+25f5b49642ca8b44d05264ef6814c387b78ce2ad85831fc479ca807eacde942e  addons/godot-iap/android/GodotIap.release.aar
 431c8168c7b87f8d3f3cbb3eee566f8ee765d5f6e58b963d867bd476c594ba92  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
 a808138b23dde6447ed98fb6d8da7404bb0dadb23f39fc6609914ff74299851e  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
 8d0c4c16573ecfbcd9695808b4aea1f60b2a7ab9d76ceb0ab8a96f9d4011980d  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap

@@ -52,7 +52,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
 
     // Listeners
+    private val restoreGate = GodotIapRestoreGate()
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
+        if (!restoreGate.shouldEmit()) return@OpenIapPurchaseUpdateListener
         GodotIapLog.debug("Purchase updated: ${purchase.productId}")
         val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
         emitSignal("purchase_updated", JSONObject(sanitized).toString())
@@ -483,7 +485,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                store.restorePurchases()
+                restoreGate.whileRestoring { store.restorePurchases() }
                 val purchases = store.getAvailablePurchases(null)
 
                 // Emit each purchase

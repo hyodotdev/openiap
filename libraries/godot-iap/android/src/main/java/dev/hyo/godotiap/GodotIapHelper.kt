@@ -251,17 +251,22 @@ internal object GodotIapHelper {
     }
 
     /**
-     * Hand-built finish inputs carry no store identity; stamp the connected
+     * Hand-built finish inputs carry blank store identity; stamp the connected
      * provider's so decoding reaches the purchase token.
      */
     fun withProviderStoreIdentity(
         purchase: Map<String, Any?>,
         providerStoreId: () -> String?,
     ): Map<String, Any?> {
-        if (purchase["store"] != null || purchase["storeId"] != null) {
-            return purchase
+        val storeIdValue = purchase["storeId"]
+        if (storeIdValue is String && storeIdValue.isNotBlank()) return purchase
+        if (storeIdValue != null && storeIdValue !is String) return purchase
+        if (IapStore.fromJson((purchase["store"] as? String) ?: "") != IapStore.Unknown) {
+            // An official store with a blank id decodes once the blank key is gone.
+            if (storeIdValue !is String) return purchase
+            return purchase - "storeId"
         }
-        val storeId = providerStoreId() ?: return purchase
+        val storeId = providerStoreId()?.takeIf { it.isNotBlank() } ?: return purchase
         return purchase + mapOf(
             "store" to legacyStoreFor(storeId),
             "storeId" to storeId,

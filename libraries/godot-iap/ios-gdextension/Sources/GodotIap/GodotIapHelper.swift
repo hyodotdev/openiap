@@ -83,6 +83,57 @@ enum GodotIapHelper {
         (error as? PurchaseError)?.code.rawValue ?? fallback.rawValue
     }
 
+    // Hand-built finish inputs carry blank store identity; stamp the connected
+    // provider's so decoding reaches the purchase token.
+    static func withProviderStoreIdentity(
+        _ purchase: [String: Any],
+        providerStoreId: () -> String?
+    ) -> [String: Any] {
+        let storeIdValue = purchase["storeId"]
+        if let rawId = storeIdValue as? String, !isBlank(rawId) {
+            return purchase
+        }
+        if storeIdValue != nil, !(storeIdValue is NSNull), !(storeIdValue is String) {
+            return purchase
+        }
+        let storeRaw = trimmed((purchase["store"] as? String) ?? "")
+        switch storeRaw {
+        case IapStore.apple.rawValue, IapStore.google.rawValue,
+            IapStore.horizon.rawValue, IapStore.amazon.rawValue:
+            // An official store with a blank id decodes once the blank key is gone.
+            guard storeIdValue is String else { return purchase }
+            var dropped = purchase
+            dropped.removeValue(forKey: "storeId")
+            return dropped
+        default:
+            guard let storeId = providerStoreId(), !isBlank(storeId) else {
+                return purchase
+            }
+            var stamped = purchase
+            stamped["store"] = legacyStore(for: storeId)
+            stamped["storeId"] = storeId
+            return stamped
+        }
+    }
+
+    private static func trimmed(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isBlank(_ value: String) -> Bool {
+        trimmed(value).isEmpty
+    }
+
+    private static func legacyStore(for providerStoreId: String) -> String {
+        switch providerStoreId {
+        case StoreIds.Apple: return IapStore.apple.rawValue
+        case StoreIds.Play: return IapStore.google.rawValue
+        case StoreIds.Horizon: return IapStore.horizon.rawValue
+        case StoreIds.Amazon: return IapStore.amazon.rawValue
+        default: return IapStore.unknown.rawValue
+        }
+    }
+
     // MARK: - Sanitization
 
     /// Sanitize a dictionary by removing null values.
