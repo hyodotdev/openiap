@@ -24,8 +24,16 @@ suite_version=$(node --input-type=module -e "import {SUITE_VERSION} from '$repo_
 "$google_root/gradlew" -p "$fixture" :vendor-sdk:publishVendorPublicationToMavenLocal :provider:publishFixturePublicationToMavenLocal \
     -Dmaven.repo.local="$repository" -PopenIapRepository="$repository" -PopenIapVersion="$core_version" -PconformanceVersion="$suite_version" > "$workspace/provider.log" 2>&1
 python3 - "$repository" "$workspace/port" > "$workspace/http.log" 2>&1 <<'PY' &
-import functools, http.server, pathlib, sys
-server = http.server.HTTPServer(('127.0.0.1', 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=sys.argv[1]))
+import base64, functools, hashlib, http.server, pathlib, sys
+handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=sys.argv[1])
+for _ in range(100):
+    server = http.server.HTTPServer(('127.0.0.1', 0), handler)
+    repository_url = f'http://127.0.0.1:{server.server_port}'
+    cache_name = base64.b64encode(hashlib.sha256(repository_url.encode()).digest()).decode()
+    # .NET Android 36.1.69 uses this Base64 name as an unescaped cache path.
+    if '/' not in cache_name: break
+    server.server_close()
+else: raise SystemExit('Could not select a filesystem-safe Maven fixture URL')
 pathlib.Path(sys.argv[2]).write_text(str(server.server_port))
 server.serve_forever()
 PY
@@ -48,7 +56,7 @@ cat > "$workspace/repository.targets" <<TARGETS
 TARGETS
 
 dotnet restore "$example" -p:TargetFrameworks=net10.0-android --nologo > "$workspace/restore.log" 2>&1
-args=(-nologo -p:TargetFramework=net10.0-android "-p:IntermediateOutputPath=$workspace/obj/" -p:OpenIapStore=community-fixture "-p:CustomAfterMicrosoftCommonTargets=$workspace/repository.targets")
+args=(-nologo -p:TargetFramework=net10.0-android "-p:IntermediateOutputPath=$workspace/obj/" "-p:MavenCacheDirectory=$workspace/maven-cache" -p:OpenIapStore=community-fixture "-p:CustomAfterMicrosoftCommonTargets=$workspace/repository.targets")
 dotnet msbuild "$example" "${args[@]}" -p:OpenIapProvider=community.fixture:provider:1.0.0 \
     -t:_CategorizeAndroidLibraries -getItem:AndroidLibrary,AndroidIgnoredJavaDependency > "$workspace/resolved.json" 2>&1
 python3 - "$workspace/resolved.json" <<'PY'
