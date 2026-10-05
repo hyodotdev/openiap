@@ -106,11 +106,15 @@ export function androidStoreChecks(root, framework) {
   const provider = providerEntry?.value.trim() ?? "";
   const validCommunityId = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(storeValue) &&
     !["apple", "unknown"].includes(storeValue);
+  // Recognize the id first so a missing provider reports its own fix.
   const explicit = storeValue === "" ? null : Object.hasOwn(STORE_ALIASES, storeValue)
-    ? STORE_ALIASES[storeValue] : validCommunityId && provider ? storeValue : "unknown";
+    ? STORE_ALIASES[storeValue] : validCommunityId ? storeValue : "unknown";
+  const community = explicit && !["play", "horizon", "amazon", "auto", "none", "unknown"].includes(explicit);
 
+  // A community id without coordinates pins nothing yet; Gradle refuses it
+  // before comparing against any legacy flag.
   const pinned =
-    explicit !== null && explicit !== "auto" && explicit !== "unknown";
+    explicit !== null && explicit !== "auto" && explicit !== "unknown" && (!community || provider);
   // Flags pin too: fireOsEnabled picks amazon, and the deprecated
   // horizonEnabled and openiapPlatform=none pick horizon or opt out.
   const platformEntry = properties?.get("openiapPlatform");
@@ -143,7 +147,6 @@ export function androidStoreChecks(root, framework) {
       ),
     );
   }
-  const community = explicit && !["play", "horizon", "amazon", "auto", "none", "unknown"].includes(explicit);
   if ((community && !provider) || (provider && (!community ||
       !/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider) ||
       provider.startsWith("io.github.hyochan.openiap:openiap-")))) {

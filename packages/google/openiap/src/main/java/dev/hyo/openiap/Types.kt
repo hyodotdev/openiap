@@ -3688,7 +3688,7 @@ public data class RequestPurchaseResultPurchase(val value: Purchase?) : RequestP
 
 public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : RequestPurchaseResult
 
-public class RequestVerifyPurchaseWithIapkitResult(
+public class RequestVerifyPurchaseWithIapkitResult private constructor(
     /**
      * True when the purchase is valid and actionable.
      * Only entitled, pending-acknowledgment, or ready-to-consume return true.
@@ -3700,7 +3700,8 @@ public class RequestVerifyPurchaseWithIapkitResult(
      * The current state of the purchase.
      */
     val state: IapkitPurchaseState,
-    val store: IapStore
+    val store: IapStore,
+    explicitStoreId: String?,
 ) {
 
     /**
@@ -3735,8 +3736,20 @@ public class RequestVerifyPurchaseWithIapkitResult(
     /**
      * Stable store id: apple, play, horizon, amazon, or a community provider id.
      */
-    var storeId: String = when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> "unknown" }
+    var storeId: String = explicitStoreId?.let { resolveStoreId(store, it) } ?: when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> throw IllegalArgumentException("RequestVerifyPurchaseWithIapkitResult with store Unknown requires an explicit valid storeId") }
         private set
+
+    constructor(
+        isValid: Boolean,
+        state: IapkitPurchaseState,
+        store: IapStore,
+    ) : this(
+        isValid = isValid,
+        state = state,
+        store = store,
+        explicitStoreId = null,
+    ) {
+    }
 
     constructor(
         isValid: Boolean,
@@ -3748,6 +3761,7 @@ public class RequestVerifyPurchaseWithIapkitResult(
         isValid = isValid,
         state = state,
         store = store,
+        explicitStoreId = null,
     ) {
         this.clientPayload = clientPayload
         this.productId = productId
@@ -3764,6 +3778,7 @@ public class RequestVerifyPurchaseWithIapkitResult(
         isValid = isValid,
         state = state,
         store = store,
+        explicitStoreId = null,
     ) {
         this.clientPayload = clientPayload
         this.productId = productId
@@ -3782,11 +3797,11 @@ public class RequestVerifyPurchaseWithIapkitResult(
         isValid = isValid,
         state = state,
         store = store,
+        explicitStoreId = storeId,
     ) {
         this.clientPayload = clientPayload
         this.productId = productId
         this.environment = environment
-        this.storeId = storeId
     }
 
     operator fun component1(): Boolean = isValid
@@ -3797,15 +3812,19 @@ public class RequestVerifyPurchaseWithIapkitResult(
         isValid: Boolean = this.isValid,
         state: IapkitPurchaseState = this.state,
         store: IapStore = this.store,
-    ): RequestVerifyPurchaseWithIapkitResult = RequestVerifyPurchaseWithIapkitResult(
-        isValid = isValid,
-        state = state,
-        store = store,
-        clientPayload = this.clientPayload,
-        productId = this.productId,
-        environment = this.environment,
-        storeId = this.storeId,
-    )
+        storeId: String? = null,
+    ): RequestVerifyPurchaseWithIapkitResult {
+        val resolvedStoreId = storeId?.let { resolveStoreId(store, it) } ?: if (store == this.store) this.storeId else when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> throw IllegalArgumentException("RequestVerifyPurchaseWithIapkitResult with store Unknown requires an explicit valid storeId") }
+        return RequestVerifyPurchaseWithIapkitResult(
+            isValid = isValid,
+            state = state,
+            store = store,
+            clientPayload = this.clientPayload,
+            productId = this.productId,
+            environment = this.environment,
+            storeId = resolvedStoreId,
+        )
+    }
 
     override fun equals(other: Any?): Boolean = other is RequestVerifyPurchaseWithIapkitResult &&
         isValid == other.isValid && state == other.state && store == other.store && clientPayload == other.clientPayload && productId == other.productId && environment == other.environment && storeId == other.storeId
@@ -3865,11 +3884,11 @@ public data class StoreProviderDescriptor(
     companion object {
         fun fromJson(json: Map<String, Any?>): StoreProviderDescriptor {
             return StoreProviderDescriptor(
-                capabilities = (json["capabilities"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                clientProtocolVersion = json["clientProtocolVersion"] as? String ?: "",
-                coreVersion = json["coreVersion"] as? String ?: "",
+                capabilities = (json["capabilities"] as? List<*>)?.mapNotNull { it as? String } ?: throw IllegalArgumentException("Missing capabilities for StoreProviderDescriptor"),
+                clientProtocolVersion = (json["clientProtocolVersion"] as? String)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Missing or blank clientProtocolVersion for StoreProviderDescriptor"),
+                coreVersion = (json["coreVersion"] as? String)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Missing or blank coreVersion for StoreProviderDescriptor"),
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for IapPlatform"),
-                storeId = json["storeId"] as? String ?: "",
+                storeId = (json["storeId"] as? String)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Missing or blank storeId for StoreProviderDescriptor"),
             )
         }
     }

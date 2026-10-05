@@ -42,4 +42,9 @@ enum ConformanceBehaviors {
     static let identifiersPurchaseTokenIsStableAcrossReads = "identifiers.purchase-token-is-stable-across-reads"
     static let capabilitiesUnsupportedOperationsDegradePredictably = "capabilities.unsupported-operations-degrade-predictably"
     static let capabilitiesDeclaredCapabilitiesMatchTheMatrix = "capabilities.declared-capabilities-match-the-matrix"
+    static let providerInvalidPurchaseEmitsErrorOnce = "provider.invalid-purchase-emits-error-once"
+    static let androidProviderSubscriptionBillingIssue = "android-provider.subscription-billing-issue"
+    static let androidProviderOfferCodeRedemption = "android-provider.offer-code-redemption"
+    static let appleProviderSubscriptionBillingIssue = "apple-provider.subscription-billing-issue"
+    static let appleProviderOfferCodeRedemption = "apple-provider.offer-code-redemption"
 }

@@ -502,7 +502,7 @@ test("gradle.properties is judged the way Gradle judges it", () => {
       FLUTTER,
       "openiapStore=bogus\nopeniapPlatform=none\n",
       ["android-store-unknown"],
-      /openiapStore=bogus is not a store/u,
+      /Community provider selection is incomplete or invalid/u,
     ],
     [
       FLUTTER,
@@ -2892,4 +2892,13 @@ test("doctor rejects incomplete or conflicting provider coordinates", () => {
     "openiapStore=community-fixture\nopeniapProvider=io.github.hyochan.openiap:openiap-google:3.6.2\n",
     "openiapStore=unknown\nopeniapProvider=dev.example:provider:1.0.0\n",
   ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => assert.ok(ids(root).includes("android-store-unknown")));
+});
+
+test("a community id without openiapProvider names the missing coordinates", () => {
+  withProject({...EXPO, "android/gradle.properties": "openiapStore=community-fixture\n"}, (root) => {
+    const unknown = doctor(root).findings.find((one) => one.id === "android-store-unknown");
+    assert.match(unknown.message, /Community provider selection is incomplete or invalid/);
+    assert.match(unknown.fix, /openiapProvider/);
+    assert.match(unknown.fix, /group:artifact:version/);
+  });
 });

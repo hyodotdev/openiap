@@ -74,6 +74,11 @@ execFileSync(
   ],
   { stdio: "inherit" },
 );
+execFileSync(
+  process.execPath,
+  ["--test", path.resolve(root, "scripts/store-registry.test.mjs")],
+  { stdio: "inherit" },
+);
 const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";

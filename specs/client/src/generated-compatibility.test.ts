@@ -474,7 +474,7 @@ export interface WrongOwner {
       kotlin.indexOf('public data class PurchaseIOS('),
     );
     const iapkitResult = kotlin.slice(
-      kotlin.indexOf('public class RequestVerifyPurchaseWithIapkitResult('),
+      kotlin.indexOf('public class RequestVerifyPurchaseWithIapkitResult'),
       kotlin.indexOf('public data class SubscriptionCommitmentInfoIOS('),
     );
     const iapkitAmazonProps = kotlin.slice(
@@ -499,7 +499,7 @@ export interface WrongOwner {
     expect(userChoice).toContain('private set');
     expect(purchaseError).toContain('private set');
     expect(iapkitResultPrimary).toContain(
-      'public class RequestVerifyPurchaseWithIapkitResult( val isValid: Boolean, val state: IapkitPurchaseState, val store: IapStore ) {',
+      'public class RequestVerifyPurchaseWithIapkitResult private constructor( val isValid: Boolean, val state: IapkitPurchaseState, val store: IapStore, explicitStoreId: String?, ) {',
     );
     expect(iapkitResult).toContain('var clientPayload: IapkitProductClientPayload? = null');
     expect(iapkitResult).toContain('var productId: String? = null');
@@ -536,6 +536,36 @@ export interface WrongOwner {
     expect(iapkitProps).toContain('private set');
     expect(iapkitPropsPrimary).not.toContain('includeClientPayload');
     expect(iapkitPropsPrimary).not.toContain('horizon');
+  });
+
+  it('keeps store identity consistent in generated Kotlin', () => {
+    const kotlin = generated('Types.kt');
+    const iapkitResult = kotlin.slice(
+      kotlin.indexOf('public class RequestVerifyPurchaseWithIapkitResult'),
+      kotlin.indexOf('public data class SubscriptionCommitmentInfoIOS('),
+    );
+    const descriptor = kotlin.slice(
+      kotlin.indexOf('public data class StoreProviderDescriptor('),
+      kotlin.indexOf('public data class SubscriptionCommitmentInfoIOS('),
+    );
+
+    expect(iapkitResult).not.toContain('IapStore.Unknown -> "unknown"');
+    expect(iapkitResult).toContain(
+      'RequestVerifyPurchaseWithIapkitResult with store Unknown requires an explicit valid storeId',
+    );
+    expect(iapkitResult).toContain('explicitStoreId?.let { resolveStoreId(store, it) }');
+    expect(iapkitResult).toContain('explicitStoreId = null,');
+    expect(iapkitResult).toContain('explicitStoreId = storeId,');
+    expect(iapkitResult).toContain('storeId: String? = null,');
+    expect(iapkitResult).toContain('val resolvedStoreId = storeId?.let { resolveStoreId(store, it) }');
+    expect(iapkitResult).toContain('if (store == this.store) this.storeId else when (store)');
+    expect(iapkitResult).toContain('storeId = resolvedStoreId,');
+    expect(iapkitResult).not.toContain('storeId = this.storeId,');
+    expect(descriptor).toContain('Missing or blank storeId for StoreProviderDescriptor');
+    expect(descriptor).toContain('Missing or blank coreVersion for StoreProviderDescriptor');
+    expect(descriptor).toContain('Missing or blank clientProtocolVersion for StoreProviderDescriptor');
+    expect(descriptor).toContain('Missing capabilities for StoreProviderDescriptor');
+    expect(descriptor).not.toContain('as? String ?: ""');
   });
 
   it('preserves schema prose in custom purchase and discount generators', () => {

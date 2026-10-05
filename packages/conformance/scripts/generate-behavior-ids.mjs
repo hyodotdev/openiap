@@ -16,6 +16,22 @@ import { providerProfile } from "../src/spec/provider-profile.mjs";
 import { BEHAVIORS } from "../src/spec/behaviors.mjs";
 import { SUITE_VERSION } from "../src/spec/suite-version.mjs";
 
+const defined = new Set(BEHAVIORS.map((behavior) => behavior.id));
+const profileIds = ["android", "ios"].flatMap((platform) => {
+  const profile = providerProfile(platform);
+  return [
+    ...profile.mapping,
+    ...profile.runtime,
+    ...Object.values(profile.capabilities),
+  ];
+});
+const missing = [...new Set(profileIds)].filter((id) => !defined.has(id));
+if (missing.length > 0) {
+  throw new Error(
+    `Provider profile uses undefined behavior ids: ${missing.join(", ")}`,
+  );
+}
+
 const ROOT = new URL("../../../", import.meta.url);
 
 const TARGETS = {
@@ -94,8 +110,6 @@ export function capabilityLevel(behavior, store) {
 object ConformanceBehaviors {
     const val SUITE_VERSION = "${SUITE_VERSION}"
     const val CLIENT_PROTOCOL_VERSION = "${JSON.parse(readFileSync(new URL("specs/client/package.json", ROOT), "utf8")).version}"
-    const val ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "${ANDROID_PROVIDER_PROFILE.capabilities.subscriptionBillingIssue}"
-    const val ANDROID_PROVIDER_OFFER_CODE_REDEMPTION = "${ANDROID_PROVIDER_PROFILE.capabilities.offerCodeRedemption}"
     val ANDROID_MAPPING_BEHAVIORS = setOf(${ANDROID_PROVIDER_PROFILE.mapping.map(JSON.stringify).join(", ")})
     val ANDROID_PROVIDER_BEHAVIORS = setOf(${ANDROID_PROVIDER_PROFILE.runtime.map(JSON.stringify).join(", ")})
     val PROVIDER_CAPABILITY_BEHAVIORS = mapOf(${Object.entries(

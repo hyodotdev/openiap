@@ -7,8 +7,6 @@ package dev.hyo.openiap.conformance
 object ConformanceBehaviors {
     const val SUITE_VERSION = "4.0.0"
     const val CLIENT_PROTOCOL_VERSION = "0.2.0"
-    const val ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "android-provider.subscription-billing-issue"
-    const val ANDROID_PROVIDER_OFFER_CODE_REDEMPTION = "android-provider.offer-code-redemption"
     val ANDROID_MAPPING_BEHAVIORS = setOf("subscriptions.active-subscription-is-reported-active", "subscriptions.pending-subscription-is-not-active", "subscriptions.unknown-state-subscription-is-not-active", "subscriptions.groups-keep-independent-identifiers", "errors.store-codes-normalize-to-spec-error-codes", "errors.unrecognized-store-code-normalizes-to-unknown", "identifiers.purchase-carries-a-concrete-store", "capabilities.declared-capabilities-match-the-matrix", "capabilities.unsupported-operations-degrade-predictably")
     val ANDROID_PROVIDER_BEHAVIORS = setOf("products.fetch-returns-requested-skus", "purchases.request-emits-purchase-updated-on-success", "provider.invalid-purchase-emits-error-once", "restoration.available-purchases-returns-owned-items", "identifiers.purchase-token-is-stable-across-reads", "completion.finish-is-idempotent")
     val PROVIDER_CAPABILITY_BEHAVIORS = mapOf("pendingPurchases" to "purchases.pending-purchase-is-not-delivered-as-purchased", "subscriptionBillingIssue" to "android-provider.subscription-billing-issue", "offerCodeRedemption" to "android-provider.offer-code-redemption")
@@ -51,6 +49,10 @@ object ConformanceBehaviors {
     const val CAPABILITIES_UNSUPPORTED_OPERATIONS_DEGRADE_PREDICTABLY = "capabilities.unsupported-operations-degrade-predictably"
     const val CAPABILITIES_DECLARED_CAPABILITIES_MATCH_THE_MATRIX = "capabilities.declared-capabilities-match-the-matrix"
     const val PROVIDER_INVALID_PURCHASE_EMITS_ERROR_ONCE = "provider.invalid-purchase-emits-error-once"
+    const val ANDROID_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "android-provider.subscription-billing-issue"
+    const val ANDROID_PROVIDER_OFFER_CODE_REDEMPTION = "android-provider.offer-code-redemption"
+    const val APPLE_PROVIDER_SUBSCRIPTION_BILLING_ISSUE = "apple-provider.subscription-billing-issue"
+    const val APPLE_PROVIDER_OFFER_CODE_REDEMPTION = "apple-provider.offer-code-redemption"
 
     /** Capability level per store, from specs/client/src/capability-matrix.mjs. */
     val CAPABILITY_MATRIX: Map<String, Map<String, String>> = mapOf(
