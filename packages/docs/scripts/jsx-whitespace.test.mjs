@@ -37,14 +37,17 @@ const INLINE = new Set([
   'sup',
 ]);
 
-// Decode dash entities so `;` is not misread; a dash edge joins only
-// when spaced on its far side inside the same text.
+// Decode dash entities so `;` is not misread.
 const MDASH_ENTITY = /&(?:mdash|#8212|#x2014);/gi;
 const NDASH_ENTITY = /&(ndash|#8211|#x2013);/gi;
 const DASH = /[—–]/;
 
+function decodeDashes(s) {
+  return s.replace(MDASH_ENTITY, '—').replace(NDASH_ENTITY, '–');
+}
+
 function jsxText(raw) {
-  raw = raw.replace(MDASH_ENTITY, '—').replace(NDASH_ENTITY, '–');
+  raw = decodeDashes(raw);
   if (!raw.includes('\n')) return raw;
   const lines = raw.split('\n');
   let last = 0;
@@ -61,39 +64,35 @@ function jsxText(raw) {
   return out;
 }
 
-function firstChar(element) {
-  for (const child of element.children) {
-    if (ts.isJsxText(child)) {
-      const text = jsxText(child.text);
-      if (text) return text[0];
-    } else if (ts.isJsxElement(child) || ts.isJsxFragment(child)) {
-      const found = firstChar(child);
-      if (found) return found;
-    } else if (ts.isJsxExpression(child)) {
-      if (child.expression && ts.isStringLiteral(child.expression)) {
-        const text = child.expression.text;
-        if (text) return text[0];
-      }
-      return null;
-    }
-  }
-  return null;
+// Join edge of a decoded text, or null. A dash edge joins only with
+// a space on its far side inside the same text.
+function joinEdge(text, first) {
+  if (!text) return null;
+  const edge = first ? text[0] : text[text.length - 1];
+  if ((first ? JOIN_START : JOIN_END).test(edge)) return edge;
+  if (text.length < 2 || !DASH.test(edge)) return null;
+  const far = first ? text[1] : text[text.length - 2];
+  return /\s/.test(far) ? edge : null;
 }
 
-function lastChar(element) {
-  for (const child of [...element.children].reverse()) {
+// First or last decoded text inside an element, or null.
+function edgeText(element, first) {
+  const kids = first ? element.children : [...element.children].reverse();
+  for (const child of kids) {
     if (ts.isJsxText(child)) {
       const text = jsxText(child.text);
-      if (text) return text[text.length - 1];
+      if (text) return text;
     } else if (ts.isJsxElement(child) || ts.isJsxFragment(child)) {
-      const found = lastChar(child);
+      const found = edgeText(child, first);
       if (found) return found;
     } else if (ts.isJsxExpression(child)) {
-      if (child.expression && ts.isStringLiteral(child.expression)) {
-        const text = child.expression.text;
-        if (text) return text[text.length - 1];
+      const inner = child.expression;
+      if (inner && ts.isStringLiteral(inner)) {
+        const text = decodeDashes(inner.text);
+        if (text) return text;
+      } else if (inner) {
+        return null;
       }
-      return null;
     }
   }
   return null;
@@ -107,16 +106,6 @@ function isSpaceExpr(node) {
     ts.isStringLiteral(node.expression) &&
     node.expression.text.trim() === ''
   );
-}
-
-// Edge char of an expression container: a string literal's edge, null when
-// the runtime value is unknown, undefined when it renders nothing.
-function exprEdge(node, first) {
-  const inner = node.expression;
-  if (!inner) return undefined;
-  if (!ts.isStringLiteral(inner)) return null;
-  if (!inner.text) return undefined;
-  return first ? inner.text[0] : inner.text[inner.text.length - 1];
 }
 
 function scanSource(text, path) {
@@ -149,50 +138,36 @@ function scanSource(text, path) {
       if (lineOf(endPos - 1) === lineOf(b.getStart(source))) continue;
       let end = null;
       let endUnknown = false;
-      let endSpacedDash = false;
       if (ts.isJsxText(a)) {
-        const text = jsxText(a.text);
-        end = text ? text[text.length - 1] : null;
-        endSpacedDash =
-          text.length > 1 && DASH.test(end) && /\s/.test(text[text.length - 2]);
+        end = joinEdge(jsxText(a.text), false);
       } else if (ts.isJsxElement(a) || ts.isJsxFragment(a)) {
-        end = lastChar(a);
+        end = joinEdge(edgeText(a, false), false);
       } else if (ts.isJsxExpression(a)) {
-        const edge = exprEdge(a, false);
-        if (edge === undefined) continue;
-        if (edge === null) endUnknown = true;
-        else end = edge;
+        const inner = a.expression;
+        if (!inner) continue;
+        if (!ts.isStringLiteral(inner)) endUnknown = true;
+        else if (!inner.text) continue;
+        else end = joinEdge(decodeDashes(inner.text), false);
       } else {
         continue;
       }
-      if (
-        !endUnknown &&
-        (end === null || (!JOIN_END.test(end) && !endSpacedDash))
-      )
-        continue;
+      if (!endUnknown && end === null) continue;
       let start = null;
       let startUnknown = false;
-      let startSpacedDash = false;
       if (ts.isJsxText(b)) {
-        const text = jsxText(b.text);
-        start = text ? text[0] : null;
-        startSpacedDash =
-          text.length > 1 && DASH.test(start) && /\s/.test(text[1]);
+        start = joinEdge(jsxText(b.text), true);
       } else if (ts.isJsxElement(b) || ts.isJsxFragment(b)) {
-        start = firstChar(b);
+        start = joinEdge(edgeText(b, true), true);
       } else if (ts.isJsxExpression(b)) {
-        const edge = exprEdge(b, true);
-        if (edge === undefined) continue;
-        if (edge === null) startUnknown = true;
-        else start = edge;
+        const inner = b.expression;
+        if (!inner) continue;
+        if (!ts.isStringLiteral(inner)) startUnknown = true;
+        else if (!inner.text) continue;
+        else start = joinEdge(decodeDashes(inner.text), true);
       } else {
         continue;
       }
-      if (
-        !startUnknown &&
-        (start === null || (!JOIN_START.test(start) && !startSpacedDash))
-      )
-        continue;
+      if (!startUnknown && start === null) continue;
       const show = (char, unknown) => (unknown ? '{expr}' : `'${char}'`);
       findings.push(
         `${path}:${lineOf(endPos - 1)} ${show(end, endUnknown)} + ${show(start, startUnknown)}`
@@ -345,6 +320,48 @@ test('one-sided spaced dash joins are reported', () => {
         &mdash; word
       </p>`);
   assert.equal(scanSource(flagged, 'fixture.tsx').length, 9);
+});
+
+test('element-wrapped dash edges follow the same spacing rule', () => {
+  const clean = page(`      <p>
+        word
+        <em>—x</em>
+      </p>
+      <p>
+        <em>x—</em>
+        word
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+  const flagged = page(`      <p>
+        word
+        <em>— x</em>
+      </p>
+      <p>
+        <em>x —</em>
+        word
+      </p>
+      <p>
+        <strong>Note —</strong>
+        word
+      </p>
+      <p>
+        word
+        <em>— note</em>
+      </p>`);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 4);
+});
+
+test('string-literal dash edges follow the same spacing rule', () => {
+  const clean = page(`      <p>
+        {'x—'}
+        <code>y</code>
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+  const flagged = page(`      <p>
+        word
+        {'— x'}
+      </p>`);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 1);
 });
 
 test('element-only joins stay unchecked', () => {
