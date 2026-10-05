@@ -56,6 +56,7 @@ class GodotIapRestoreGateTest {
             val result = JSONObject(
                 runSilentRestore(
                     gate = gate,
+                    suppressListener = true,
                     restore = { fakeHorizonRestore(listenerEmit, listOf("a", "b")) },
                     countAvailable = { 2 },
                     onFailure = { throw AssertionError("success must not report failure") },
@@ -69,6 +70,30 @@ class GodotIapRestoreGateTest {
     }
 
     @Test
+    fun `unsuppressed restore passes listener emissions through`() {
+        runBlocking {
+            val gate = GodotIapRestoreGate()
+            val signalled = mutableListOf<String>()
+            val listenerEmit = { purchase: String ->
+                if (gate.shouldEmit()) signalled.add(purchase)
+            }
+            val result = JSONObject(
+                runSilentRestore(
+                    gate = gate,
+                    suppressListener = false,
+                    restore = { listenerEmit("a") },
+                    countAvailable = { 1 },
+                    onFailure = { throw AssertionError("success must not report failure") },
+                ),
+            )
+            assertTrue(result.getBoolean("success"))
+            assertEquals(1, result.getInt("count"))
+            assertEquals(listOf("a"), signalled)
+            assertTrue(gate.shouldEmit())
+        }
+    }
+
+    @Test
     fun `throwing provider restore reports the error code and reopens the gate`() {
         runBlocking {
             val gate = GodotIapRestoreGate()
@@ -76,6 +101,7 @@ class GodotIapRestoreGateTest {
             val result = JSONObject(
                 runSilentRestore(
                     gate = gate,
+                    suppressListener = true,
                     restore = { throw OpenIapError.UserCancelled() },
                     countAvailable = { throw AssertionError("a failing restore skips the query") },
                     onFailure = failures::add,
@@ -83,6 +109,32 @@ class GodotIapRestoreGateTest {
             )
             assertFalse(result.getBoolean("success"))
             assertEquals("user-cancelled", result.getString("code"))
+            assertEquals(1, failures.size)
+            assertTrue(gate.shouldEmit())
+        }
+    }
+
+    @Test
+    fun `unsuppressed failing restore keeps the error code and the emission`() {
+        runBlocking {
+            val gate = GodotIapRestoreGate()
+            val signalled = mutableListOf<String>()
+            val failures = mutableListOf<Exception>()
+            val result = JSONObject(
+                runSilentRestore(
+                    gate = gate,
+                    suppressListener = false,
+                    restore = {
+                        if (gate.shouldEmit()) signalled.add("a")
+                        throw OpenIapError.UserCancelled()
+                    },
+                    countAvailable = { throw AssertionError("a failing restore skips the query") },
+                    onFailure = failures::add,
+                ),
+            )
+            assertFalse(result.getBoolean("success"))
+            assertEquals("user-cancelled", result.getString("code"))
+            assertEquals(listOf("a"), signalled)
             assertEquals(1, failures.size)
             assertTrue(gate.shouldEmit())
         }
@@ -97,6 +149,7 @@ class GodotIapRestoreGateTest {
             val result = JSONObject(
                 runSilentRestore(
                     gate = gate,
+                    suppressListener = true,
                     restore = { restored = true },
                     countAvailable = { throw IllegalStateException("store down") },
                     onFailure = failures::add,
@@ -107,6 +160,22 @@ class GodotIapRestoreGateTest {
             assertEquals("service-error", result.getString("code"))
             assertEquals(1, failures.size)
             assertTrue(gate.shouldEmit())
+        }
+    }
+
+    @Test
+    fun `restore before connecting keeps the not-prepared code`() {
+        val result = JSONObject(restoreNotInitialized())
+        assertFalse(result.getBoolean("success"))
+        assertEquals("not-prepared", result.getString("code"))
+        assertEquals("IAP connection is not initialized", result.getString("error"))
+    }
+
+    @Test
+    fun `suppression follows the connected provider`() {
+        assertTrue(shouldSuppressRestoreListeners("horizon"))
+        listOf("play", "amazon", "community-fixture", "", "  ", null).forEach { storeId ->
+            assertFalse("storeId=$storeId", shouldSuppressRestoreListeners(storeId))
         }
     }
 }

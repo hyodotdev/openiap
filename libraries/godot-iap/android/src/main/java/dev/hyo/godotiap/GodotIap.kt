@@ -477,15 +477,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("restorePurchases called")
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return restoreNotInitialized()
         }
 
         return runBlocking {
             runSilentRestore(
                 gate = restoreGate,
+                suppressListener = shouldSuppressRestoreListeners(connectedProviderStoreId()),
                 restore = { store.restorePurchases() },
                 countAvailable = { store.getAvailablePurchases(null).size },
             )
