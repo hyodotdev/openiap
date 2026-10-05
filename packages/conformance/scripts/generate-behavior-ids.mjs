@@ -163,7 +163,6 @@ public enum ProviderBehaviors {
     )
       .map(([key, value]) => `${JSON.stringify(key)}: ${JSON.stringify(value)}`)
       .join(", ")}]
-    public static let officialCapabilities = ${JSON.stringify(Object.keys(profile.capabilities).filter((id) => CAPABILITY_MATRIX[id].stores.Apple !== "unsupported"))}
 }
 `;
     },

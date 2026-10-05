@@ -3,6 +3,7 @@ package dev.hyo.openiap
 import android.content.Context
 import android.os.Bundle
 import androidx.test.core.app.ApplicationProvider
+import io.github.hyochan.openiap.core.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -81,9 +82,46 @@ class OpenIapProviderTest {
             descriptor.copy(platform = IapPlatform.Ios),
             descriptor.copy(clientProtocolVersion = "0.1.1"),
             descriptor.copy(clientProtocolVersion = "0.3.0"),
+            descriptor.copy(clientProtocolVersion = "bad"),
+            descriptor.copy(coreVersion = "999.0.0"),
         )) {
             assertThrows(OpenIapError.ProviderConfiguration::class.java) { OpenIapProvider.validate(invalid) }
         }
+    }
+
+    @Test fun `descriptor mismatch messages name the failing contract`() {
+        val descriptor = community.fixture.DiscoveryFactory().descriptor
+        fun messageFor(invalid: StoreProviderDescriptor): String =
+            assertThrows(OpenIapError.ProviderConfiguration::class.java) { OpenIapProvider.validate(invalid) }.message
+        assertEquals(
+            "Provider 'fixture' requires Client Protocol 0.3.0; this app links ${BuildConfig.CLIENT_PROTOCOL_VERSION}. Update the provider or the OpenIAP runtime to a matching protocol.",
+            messageFor(descriptor.copy(clientProtocolVersion = "0.3.0")),
+        )
+        assertEquals(
+            "Invalid Client Protocol version 'bad' for provider 'fixture'. Use a complete semantic version.",
+            messageFor(descriptor.copy(clientProtocolVersion = "bad")),
+        )
+        assertEquals(
+            "Provider 'fixture' requires openiap-core 999.0.0; this app links ${OpenIapProvider.coreVersion}. Use a compatible provider or core version.",
+            messageFor(descriptor.copy(coreVersion = "999.0.0")),
+        )
+    }
+
+    @Test fun `core mismatch messages keep the core wording`() {
+        val tooNew = assertThrows(OpenIapError.ProviderConfiguration::class.java) {
+            OpenIapProvider.validate("fake", "3.7.0", "3.6.2")
+        }
+        assertEquals(
+            "Provider 'fake' requires openiap-core 3.7.0; this app links 3.6.2. Use a compatible provider or core version.",
+            tooNew.message,
+        )
+        val malformed = assertThrows(OpenIapError.ProviderConfiguration::class.java) {
+            OpenIapProvider.validate("fake", "bad", "3.6.2")
+        }
+        assertEquals(
+            "Invalid core version 'bad' for provider 'fake'. Use a complete semantic version.",
+            malformed.message,
+        )
     }
 
     @Test fun `factory is discovered outside the core package`() {

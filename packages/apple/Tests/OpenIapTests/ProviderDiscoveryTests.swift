@@ -13,6 +13,18 @@ final class ProviderDiscoveryTests: XCTestCase {
         for id in ["", "unknown", "google", "play", "none", "auto", "amazon", "horizon", "Bad id", "store\n"] {
             XCTAssertThrowsError(try OpenIapProvider.validate(storeId: id, providerCoreVersion: "4.0.0", runtimeCoreVersion: "4.0.0"))
         }
+        XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: "bad", runtimeCoreVersion: "4.0.0")) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.message,
+                "Invalid core version 'bad' for provider 'community-fixture'. Use a complete semantic version."
+            )
+        }
+        XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: "3.6.3", runtimeCoreVersion: "3.6.2")) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.message,
+                "Provider 'community-fixture' requires OpenIAP 3.6.3; this app links 3.6.2. Use a compatible provider or core version."
+            )
+        }
     }
 
     func testDescriptorChecksBothContractsAndPlatform() throws {
@@ -25,9 +37,34 @@ final class ProviderDiscoveryTests: XCTestCase {
         XCTAssertThrowsError(try OpenIapProvider.validate(invalid))
         invalid = descriptor
         invalid.clientProtocolVersion = "0.1.1"
-        XCTAssertThrowsError(try OpenIapProvider.validate(invalid))
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid)) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.message,
+                "Provider '\(descriptor.storeId)' must implement Client Protocol \(OpenIapVersion.clientProtocolVersion)."
+            )
+        }
         invalid.clientProtocolVersion = "0.3.0"
-        XCTAssertThrowsError(try OpenIapProvider.validate(invalid))
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid)) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.message,
+                "Provider '\(descriptor.storeId)' requires Client Protocol 0.3.0; this app links \(OpenIapVersion.clientProtocolVersion). Update the provider or the OpenIAP runtime to a matching protocol."
+            )
+        }
+        invalid.clientProtocolVersion = "bad"
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid)) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.message,
+                "Invalid Client Protocol version 'bad' for provider '\(descriptor.storeId)'. Use a complete semantic version."
+            )
+        }
+        invalid = descriptor
+        invalid.coreVersion = "999.0.0"
+        XCTAssertThrowsError(try OpenIapProvider.validate(invalid)) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.message,
+                "Provider '\(descriptor.storeId)' requires OpenIAP 999.0.0; this app links \(OpenIapProvider.coreVersion). Use a compatible provider or core version."
+            )
+        }
     }
 
     func testOfficialCapabilitiesMatchAvailablePlatformFeatures() {
@@ -165,6 +202,39 @@ final class ProviderDiscoveryTests: XCTestCase {
             XCTFail("Cancelled queries must not connect to StoreKit")
         } catch is CancellationError {
         }
+    }
+
+    func testCancelledRequestPurchaseDeliversNoPurchaseError() async throws {
+        let module = OpenIapStoreKitModule()
+        let events = RequestEvents()
+        let errorListener = module.purchaseErrorListener { error in events.record(error.code) }
+        let purchaseListener = module.purchaseUpdatedListener({ _ in events.recordPurchase() }, options: nil)
+        defer {
+            module.removeListener(errorListener)
+            module.removeListener(purchaseListener)
+        }
+        let request = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(apple: RequestPurchaseIosProps(sku: "cancelled.sku"))),
+            type: .inApp
+        )
+        let ready = expectation(description: "Purchase task ready")
+        let gate = QueryStartGate()
+        let purchase = Task {
+            await gate.wait(ready: ready)
+            return try await module.requestPurchase(request)
+        }
+        await fulfillment(of: [ready], timeout: 1)
+        purchase.cancel()
+        await gate.release()
+        do {
+            _ = try await purchase.value
+            XCTFail("Cancelled purchases must reject")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("Cancelled purchases must throw CancellationError, got \(error)")
+        }
+        XCTAssertEqual(events.errors, [])
+        XCTAssertEqual(events.purchases, 0)
     }
 
     private func withBundle<T>(value: Any?, operation: (Bundle) throws -> T) throws -> T {

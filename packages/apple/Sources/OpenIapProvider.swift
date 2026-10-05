@@ -75,20 +75,31 @@ public enum OpenIapProvider {
     public static func validate(
         storeId: String, providerCoreVersion: String, runtimeCoreVersion: String = coreVersion
     ) throws {
+        try validateVersion(
+            storeId: storeId, providerVersion: providerCoreVersion,
+            runtimeVersion: runtimeCoreVersion, clientProtocol: false
+        )
+    }
+
+    // One version check serves both contracts; the flag only selects the wording.
+    private static func validateVersion(
+        storeId: String, providerVersion: String, runtimeVersion: String, clientProtocol: Bool
+    ) throws {
         guard storeId.range(of: "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", options: .regularExpression)
                 == storeId.startIndex..<storeId.endIndex,
               !["auto", "none", "unknown", "play", "google", "horizon", "amazon"].contains(storeId) else {
             throw configurationError("Invalid Apple provider storeId '\(storeId)'. Use a lowercase stable store id.")
         }
         let pattern = "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?$"
+        let field = clientProtocol ? "Client Protocol version" : "core version"
         func parse(_ value: String) throws -> [String] {
             guard value.range(of: pattern, options: .regularExpression) == value.startIndex..<value.endIndex else {
-                throw configurationError("Invalid core version '\(value)' for provider '\(storeId)'. Use a complete semantic version.")
+                throw configurationError("Invalid \(field) '\(value)' for provider '\(storeId)'. Use a complete semantic version.")
             }
             return value.split(whereSeparator: { $0 == "-" || $0 == "+" })[0].split(separator: ".").map(String.init)
         }
-        let required = try parse(providerCoreVersion)
-        let available = try parse(runtimeCoreVersion)
+        let required = try parse(providerVersion)
+        let available = try parse(runtimeVersion)
         var newer = false
         for index in 0..<3 where required[index] != available[index] {
             let needed = required[index]
@@ -96,19 +107,22 @@ public enum OpenIapProvider {
             newer = needed.count == linked.count ? needed > linked : needed.count > linked.count
             break
         }
-        let prerelease = providerCoreVersion.split(separator: "+")[0].contains("-")
-            || runtimeCoreVersion.split(separator: "+")[0].contains("-")
+        let prerelease = providerVersion.split(separator: "+")[0].contains("-")
+            || runtimeVersion.split(separator: "+")[0].contains("-")
         guard required[0] == available[0], !newer,
-              !prerelease || providerCoreVersion == runtimeCoreVersion else {
-            throw configurationError("Provider '\(storeId)' requires OpenIAP \(providerCoreVersion); this app links \(runtimeCoreVersion). Use a compatible provider or core version.")
+              !prerelease || providerVersion == runtimeVersion else {
+            if clientProtocol {
+                throw configurationError("Provider '\(storeId)' requires Client Protocol \(providerVersion); this app links \(runtimeVersion). Update the provider or the OpenIAP runtime to a matching protocol.")
+            }
+            throw configurationError("Provider '\(storeId)' requires OpenIAP \(providerVersion); this app links \(runtimeVersion). Use a compatible provider or core version.")
         }
     }
 
     public static func validate(_ descriptor: StoreProviderDescriptor) throws {
         guard descriptor.platform == .ios else { throw configurationError("Apple provider must use the ios platform binding.") }
         try validate(storeId: descriptor.storeId, providerCoreVersion: descriptor.coreVersion)
-        try validate(storeId: descriptor.storeId, providerCoreVersion: descriptor.clientProtocolVersion,
-                     runtimeCoreVersion: OpenIapVersion.clientProtocolVersion)
+        try validateVersion(storeId: descriptor.storeId, providerVersion: descriptor.clientProtocolVersion,
+                            runtimeVersion: OpenIapVersion.clientProtocolVersion, clientProtocol: true)
         if descriptor.clientProtocolVersion.hasPrefix("0."),
            descriptor.clientProtocolVersion.split(separator: ".")[1]
             != OpenIapVersion.clientProtocolVersion.split(separator: ".")[1] {

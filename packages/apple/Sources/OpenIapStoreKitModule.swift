@@ -321,6 +321,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             for product in fetchedProducts {
                 await productManager.addProduct(product)
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             let purchaseError = makePurchaseError(
                 code: .queryProduct,
@@ -399,6 +401,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         do {
             let product = try await storeProduct(for: sku)
             return await StoreKitTypesBridge.productIOS(from: product)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let purchaseError as PurchaseError {
             await state.setPromotedProductId(nil)
             throw purchaseError
@@ -436,6 +440,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             return try await Self.$suppressPurchaseErrorEmission.withValue(true) {
                 try await performRequestPurchase(params)
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let purchaseError as PurchaseError {
             var canonicalError = purchaseError
             if canonicalError.productId == nil {
@@ -537,6 +543,10 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 )
             }
             #endif
+            // A cancelled purchase is not a purchase failure.
+            if error is CancellationError {
+                throw CancellationError()
+            }
             // Enhanced error handling for promotional offers
             if iosProps.withOffer != nil {
                 OpenIapLog.error("Purchase with promotional offer failed: \(error.localizedDescription)")
@@ -1276,6 +1286,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     state: String(describing: status.state)
                 )
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             let purchaseError = makePurchaseError(code: .serviceError, message: error.localizedDescription)
             emitPurchaseError(purchaseError)
@@ -1441,6 +1453,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         do {
             try await AppStore.sync()
             return true
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw PurchaseError.wrap(error, fallback: .serviceError)
         }
@@ -1479,6 +1493,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     from: transaction,
                     jwsRepresentation: result.jwsRepresentation
                 )
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 throw PurchaseError.wrap(error, fallback: .purchaseError)
             }
@@ -1499,6 +1515,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             do {
                 try await AppStore.presentOfferCodeRedeemSheet(in: scene)
                 return nil
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 throw PurchaseError.wrap(error, fallback: .purchaseError)
             }

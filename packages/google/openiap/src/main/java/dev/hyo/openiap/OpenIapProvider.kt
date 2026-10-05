@@ -62,20 +62,29 @@ object OpenIapProvider {
     }
 
     fun validate(storeId: String, providerCoreVersion: String, runtimeCoreVersion: String = coreVersion) {
+        validateVersion(storeId, providerCoreVersion, runtimeCoreVersion, clientProtocol = false)
+    }
+
+    // One version check serves both contracts; the flag only selects the wording.
+    private fun validateVersion(storeId: String, providerVersion: String, runtimeVersion: String, clientProtocol: Boolean) {
         if (!storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) || storeId in setOf("auto", "none", "apple", "google", "unknown")) {
             throw OpenIapError.ProviderConfiguration("Invalid Android provider storeId '$storeId'. Use a lowercase stable store id.")
         }
         val version = Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?")
+        val field = if (clientProtocol) "Client Protocol version" else "core version"
         fun parse(value: String): MatchResult = version.matchEntire(value)
-            ?: throw OpenIapError.ProviderConfiguration("Invalid core version '$value' for provider '$storeId'. Use a complete semantic version.")
-        val built = parse(providerCoreVersion)
-        val runtime = parse(runtimeCoreVersion)
+            ?: throw OpenIapError.ProviderConfiguration("Invalid $field '$value' for provider '$storeId'. Use a complete semantic version.")
+        val built = parse(providerVersion)
+        val runtime = parse(runtimeVersion)
         val required = (1..3).map { built.groupValues[it].toBigInteger() }
         val available = (1..3).map { runtime.groupValues[it].toBigInteger() }
         val order = required.zip(available).firstOrNull { (a, b) -> a != b }?.let { (a, b) -> a.compareTo(b) } ?: 0
         val prerelease = built.groupValues[4].isNotEmpty() || runtime.groupValues[4].isNotEmpty()
-        if (required[0] != available[0] || order > 0 || (prerelease && providerCoreVersion != runtimeCoreVersion)) {
-            throw OpenIapError.ProviderConfiguration("Provider '$storeId' requires openiap-core $providerCoreVersion; this app links $runtimeCoreVersion. Use a compatible provider or core version.")
+        if (required[0] != available[0] || order > 0 || (prerelease && providerVersion != runtimeVersion)) {
+            if (clientProtocol) {
+                throw OpenIapError.ProviderConfiguration("Provider '$storeId' requires Client Protocol $providerVersion; this app links $runtimeVersion. Update the provider or the OpenIAP runtime to a matching protocol.")
+            }
+            throw OpenIapError.ProviderConfiguration("Provider '$storeId' requires openiap-core $providerVersion; this app links $runtimeVersion. Use a compatible provider or core version.")
         }
     }
 
@@ -84,7 +93,7 @@ object OpenIapProvider {
             throw OpenIapError.ProviderConfiguration("Android provider must use the android platform binding.")
         }
         validate(descriptor.storeId, descriptor.coreVersion)
-        validate(descriptor.storeId, descriptor.clientProtocolVersion, BuildConfig.CLIENT_PROTOCOL_VERSION)
+        validateVersion(descriptor.storeId, descriptor.clientProtocolVersion, BuildConfig.CLIENT_PROTOCOL_VERSION, clientProtocol = true)
         if (descriptor.clientProtocolVersion.startsWith("0.") &&
             descriptor.clientProtocolVersion.split('.')[1] != BuildConfig.CLIENT_PROTOCOL_VERSION.split('.')[1]) {
             throw OpenIapError.ProviderConfiguration("Provider '${descriptor.storeId}' must implement Client Protocol ${BuildConfig.CLIENT_PROTOCOL_VERSION}.")
