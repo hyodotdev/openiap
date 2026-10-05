@@ -674,10 +674,24 @@ describe('android configuration', () => {
       expect(() =>
         resolveAndroidStoreSelection({android: {store}}, null),
       ).toThrow(
-        'expo-iap: a community android.store requires android.provider coordinates',
+        `expo-iap: android.store=${store} is not an Android store id; use play, horizon, amazon, or auto, or a community id`,
       );
     },
   );
+
+  it('rejects a reserved id even with provider coordinates', () => {
+    // Coordinates cannot fix a reserved id, so the error must not ask for them.
+    expect(() =>
+      resolveAndroidStoreSelection(
+        {
+          android: {store: 'apple', provider: 'dev.example:provider:1.0.0'},
+        },
+        null,
+      ),
+    ).toThrow(
+      'expo-iap: android.store=apple is not an Android store id; use play, horizon, amazon, or auto, or a community id',
+    );
+  });
 
   it.each([['1store'], ['has space'], ['upper!'], ['a..b']])(
     'rejects the invalid %s store id grammar',
@@ -685,10 +699,23 @@ describe('android configuration', () => {
       expect(() =>
         resolveAndroidStoreSelection({android: {store}}, null),
       ).toThrow(
-        'expo-iap: a community android.store requires android.provider coordinates',
+        `expo-iap: android.store=${store} is not a store id; use play, horizon, amazon, or auto, or a lowercase community id`,
       );
     },
   );
+
+  it('rejects malformed grammar even with provider coordinates', () => {
+    expect(() =>
+      resolveAndroidStoreSelection(
+        {
+          android: {store: '1store', provider: 'dev.example:provider:1.0.0'},
+        },
+        null,
+      ),
+    ).toThrow(
+      'expo-iap: android.store=1store is not a store id; use play, horizon, amazon, or auto, or a lowercase community id',
+    );
+  });
 
   it('rejects a community id without provider coordinates', () => {
     expect(() =>

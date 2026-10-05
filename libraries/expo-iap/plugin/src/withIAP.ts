@@ -780,15 +780,25 @@ export function resolveAndroidStoreSelection(
       'expo-iap: android.provider requires a community android.store id',
     );
   }
-  if (
-    normalizedStore &&
-    (['apple', 'none', 'unknown'].includes(normalizedStore) ||
-      !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(normalizedStore) ||
-      (!official.includes(normalizedStore) && !provider))
-  ) {
-    throw new Error(
-      'expo-iap: a community android.store requires android.provider coordinates',
-    );
+  // Each refusal names its own fix: a reserved id is never valid here, a
+  // malformed id must be respelled, and only a well-formed community id is
+  // fixed by adding coordinates.
+  if (normalizedStore && !official.includes(normalizedStore)) {
+    if (['apple', 'none', 'unknown'].includes(normalizedStore)) {
+      throw new Error(
+        `expo-iap: android.store=${normalizedStore} is not an Android store id; use play, horizon, amazon, or auto, or a community id`,
+      );
+    }
+    if (!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(normalizedStore)) {
+      throw new Error(
+        `expo-iap: android.store=${normalizedStore} is not a store id; use play, horizon, amazon, or auto, or a lowercase community id`,
+      );
+    }
+    if (!provider) {
+      throw new Error(
+        'expo-iap: a community android.store requires android.provider coordinates',
+      );
+    }
   }
   if (
     provider &&

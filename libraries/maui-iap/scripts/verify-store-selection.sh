@@ -92,6 +92,8 @@ run "even beside a valid OpenIapStore"   "fail:OpenIapAndroidStore='bogus' is no
 
 echo "community provider"
 run "external pair selects the neutral core" "community-fixture:" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
+# Gradle lower-cases the id before matching, so a cased community id selects too.
+run "a community id ignores case" "community-fixture:" $link -p:OpenIapStore=Community-Fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
 run "external id needs coordinates" "fail:OpenIapStore='community-fixture' is not a store" $link -p:OpenIapStore=community-fixture
 run "official selection rejects an external pair" "fail:OpenIapProvider requires a community OpenIapStore id" $link -p:OpenIapStore=play -p:OpenIapProvider=community.fixture:provider:1.0.0
 run "provider version must be fixed" "fail:OpenIapProvider must be fixed group:artifact:version coordinates" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:+

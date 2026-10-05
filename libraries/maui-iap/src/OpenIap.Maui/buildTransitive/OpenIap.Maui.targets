@@ -48,8 +48,8 @@
       <_OpenIapStoreName Include="amazon;fire;fireos;fire-os" Store="amazon" />
     </ItemGroup>
     <PropertyGroup>
-      <_OpenIapPinValue>$([MSBuild]::ValueOrDefault('$(OpenIapStore.Trim())', 'auto'))</_OpenIapPinValue>
-      <_OpenIapAliasValue>$([MSBuild]::ValueOrDefault('$(OpenIapAndroidStore.Trim())', 'auto'))</_OpenIapAliasValue>
+      <_OpenIapPinValue>$([MSBuild]::ValueOrDefault('$(OpenIapStore.Trim().ToLowerInvariant())', 'auto'))</_OpenIapPinValue>
+      <_OpenIapAliasValue>$([MSBuild]::ValueOrDefault('$(OpenIapAndroidStore.Trim().ToLowerInvariant())', 'auto'))</_OpenIapAliasValue>
       <_OpenIapPinStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapPinValue)')->Metadata('Store'))</_OpenIapPinStore>
       <_OpenIapAliasStore>@(_OpenIapStoreName->WithMetadataValue('Identity', '$(_OpenIapAliasValue)')->Metadata('Store'))</_OpenIapAliasStore>
       <_OpenIapCommunity Condition="'$(_OpenIapPinStore)' != 'auto' and '$(_OpenIapPinStore)' != 'play' and '$(_OpenIapPinStore)' != 'horizon' and '$(_OpenIapPinStore)' != 'amazon' and '$(OpenIapProvider.Trim())' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(_OpenIapPinValue)', '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')) and '$(_OpenIapPinValue)' != 'apple' and '$(_OpenIapPinValue)' != 'none' and '$(_OpenIapPinValue)' != 'unknown'">true</_OpenIapCommunity>
