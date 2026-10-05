@@ -123,6 +123,29 @@ final class StoreConformanceTests: XCTestCase {
 
         XCTAssertNotEqual(purchase.store, .unknown, "a purchase must declare a concrete store")
         XCTAssertEqual(purchase.store, .apple)
+        XCTAssertEqual(purchase.storeId, "apple")
+        XCTAssertFalse(purchase.storeId.isEmpty, "storeId must never be empty")
+
+        // A community provider reports Unknown with its own stable id.
+        let communityJson = """
+        {
+          "id": "txn-community-1",
+          "productId": "dev.hyo.martie.premium",
+          "ids": ["dev.hyo.martie.premium"],
+          "isAutoRenewing": true,
+          "purchaseState": "purchased",
+          "quantity": 1,
+          "store": "unknown",
+          "storeId": "community-fixture",
+          "transactionDate": 1700000000000,
+          "transactionId": "txn-community-1"
+        }
+        """
+        let community = try JSONDecoder().decode(PurchaseIOS.self, from: Data(communityJson.utf8))
+
+        XCTAssertEqual(community.store, .unknown)
+        XCTAssertEqual(community.storeId, "community-fixture")
+        XCTAssertFalse(community.storeId.isEmpty, "storeId must never be empty")
     }
 
     // verification.result-exposes-uniform-validity

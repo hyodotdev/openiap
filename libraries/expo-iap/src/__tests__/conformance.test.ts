@@ -19,6 +19,9 @@ const CATALOG: Record<string, 'in-app' | 'subs'> = {
   'dev.hyo.martie.lifetime': 'in-app',
 };
 
+// A community provider reports Unknown with its own stable id.
+const COMMUNITY_STORE_ID = 'community-fixture';
+
 const fakeStore = {
   owned: new Map<string, FakeRecord>(),
   forced: new Map<string, string>(),
@@ -138,7 +141,12 @@ const nativeModule: Record<string, unknown> = {
       state: forced === 'pending' ? 'pending' : 'purchased',
     };
     fakeStore.owned.set(record.token, record);
-    return toPurchase(record);
+    const purchase = toPurchase(record);
+    if (forced === 'community') {
+      purchase.store = 'unknown';
+      purchase.storeId = COMMUNITY_STORE_ID;
+    }
+    return purchase;
   }),
 
   getAvailableItems: jest.fn(async () =>
@@ -398,6 +406,14 @@ describe('conformance: expo-iap', () => {
     const purchase = await buy('dev.hyo.martie.10bulbs');
     expect(purchase.store).toBeTruthy();
     expect(purchase.store).not.toBe('unknown');
+    expect(purchase.storeId).toBe('play');
+    expect(purchase.storeId).toBeTruthy();
+
+    fakeStore.forced.set('dev.hyo.martie.lifetime', 'community');
+    const community = await buy('dev.hyo.martie.lifetime');
+    expect(community.store).toBe('unknown');
+    expect(community.storeId).toBe(COMMUNITY_STORE_ID);
+    expect(community.storeId).toBeTruthy();
   });
 
   it('identifiers.purchase-token-is-stable-across-reads', async () => {

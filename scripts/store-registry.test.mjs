@@ -269,6 +269,72 @@ test("Apple providers use the shared behavior profile and fixed Swift package co
   }
 });
 
+test("an extra failing result vetoes an otherwise passing verdict", () => {
+  const extraFail = () => {
+    const value = report();
+    value.results.push({ id: "extra-probe", outcome: "fail" });
+    return value;
+  };
+  const claimed = extraFail();
+  claimed.conformant = true;
+  assert.throws(
+    () => validateProviderReport(claimed, ["pendingPurchases"]),
+    /verdict contradicts/,
+  );
+  const honest = extraFail();
+  honest.conformant = false;
+  assert.equal(validateProviderReport(honest, ["pendingPurchases"]), false);
+  const benign = report();
+  benign.results.push({ id: "extra-probe", outcome: "not-applicable" });
+  assert.equal(validateProviderReport(benign, ["pendingPurchases"]), true);
+});
+
+test("a wrong scope.complete flag contradicts the executed results", () => {
+  const incomplete = report();
+  incomplete.results.pop();
+  incomplete.conformant = false;
+  assert.throws(
+    () => validateProviderReport(incomplete, ["pendingPurchases"]),
+    /verdict contradicts/,
+  );
+  const misflagged = report();
+  misflagged.scope.complete = false;
+  assert.throws(
+    () => validateProviderReport(misflagged, ["pendingPurchases"]),
+    /verdict contradicts/,
+  );
+});
+
+test("the maintenance window flips only after its full length", () => {
+  const store = community();
+  const release = new Date("2026-10-01T00:00:00Z").getTime();
+  const at = (days) => ({
+    suiteVersion: "5.0.0",
+    majorReleaseDate: "2026-10-01T00:00:00Z",
+    now: new Date(release + days * 86_400_000),
+  });
+  assert.equal(maintenanceStatus(store, 90, at(60)), "outdated");
+  assert.equal(maintenanceStatus(store, 90, at(89)), "outdated");
+  assert.equal(maintenanceStatus(store, 90, at(90)), "outdated");
+  assert.equal(maintenanceStatus(store, 90, at(91)), "unmaintained");
+});
+
+test("a passing report cannot claim the experimental tier", () => {
+  const data = registry();
+  const experimental = community();
+  experimental.tier = "experimental";
+  data.stores.push(experimental);
+  assert.throws(() => validateStoreRegistry(data), /Tier disagrees/);
+  const failing = report();
+  failing.results[0].outcome = "fail";
+  failing.conformant = false;
+  const failed = registry();
+  const store = community();
+  store.latestReport.report = failing;
+  failed.stores.push(store);
+  assert.throws(() => validateStoreRegistry(failed), /Tier disagrees/);
+});
+
 test("one community store id can bind to both platforms without duplicate metadata", () => {
   const store = community();
   const android = {

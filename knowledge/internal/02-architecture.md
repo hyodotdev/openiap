@@ -87,10 +87,11 @@ Registration is optional. `specs/client/src/store-registry.json` owns ids,
 aliases, tiers, maintainers, repositories, coordinates, and latest conformance
 reports. `experimental` entries have at least one platform binding without a
 passing report; `community` entries carry a passing report for every platform
-binding; `official` entries live in this monorepo. Conformance suites
-(`packages/conformance`: JS runner, Kotlin `ProviderConformanceSuite`, Swift
-`ProviderConformanceSuite`) assert the provider profile behaviors; a report
-passes only when every required behavior passes with a matching verdict.
+binding; `official` entries live in this monorepo. Provider conformance suites
+(`packages/conformance`: Kotlin `ProviderConformanceSuite`, Swift
+`ProviderConformanceSuite`) assert the provider profile behaviors while the JS
+runner covers the client behaviors; a report passes only when every required
+behavior passes with a matching verdict.
 
 ## Directory Ownership Guardrail
 

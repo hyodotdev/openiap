@@ -26,6 +26,9 @@ const CATALOG: Record<string, 'in-app' | 'subs'> = {
   'dev.hyo.martie.lifetime': 'in-app',
 };
 
+// A community provider reports Unknown with its own stable id.
+const COMMUNITY_STORE_ID = 'community-fixture';
+
 const store = {
   owned: new Map<string, FakeRecord>(),
   unfinished: new Set<string>(),
@@ -172,6 +175,10 @@ const mockIap: Record<string, unknown> = {
     store.owned.set(record.token, record);
     store.unfinished.add(record.token);
     const purchase = toPurchase(record);
+    if (forced === 'community') {
+      purchase.store = 'unknown';
+      purchase.storeId = COMMUNITY_STORE_ID;
+    }
     purchaseUpdatedListeners.forEach((listener) => listener(purchase));
     return purchase;
   }),
@@ -491,6 +498,16 @@ describe('conformance: react-native-iap', () => {
     );
     expect(purchase.store).toBeTruthy();
     expect(purchase.store).not.toBe('unknown');
+    expect(purchase.storeId).toBe('play');
+    expect(purchase.storeId).toBeTruthy();
+
+    store.forced.set('dev.hyo.martie.lifetime', 'community');
+    const community = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.lifetime'),
+    );
+    expect(community.store).toBe('unknown');
+    expect(community.storeId).toBe(COMMUNITY_STORE_ID);
+    expect(community.storeId).toBeTruthy();
   });
 
   it('identifiers.purchase-token-is-stable-across-reads', async () => {
