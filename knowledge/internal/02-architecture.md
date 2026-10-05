@@ -85,9 +85,9 @@ reports that store's canonical id and legacy value.
 
 Registration is optional. `specs/client/src/store-registry.json` owns ids,
 aliases, tiers, maintainers, repositories, coordinates, and latest conformance
-reports. `experimental` entries have no passing report; `community` entries
-carry passing reports for every platform binding on the current suite major;
-`official` entries live in this monorepo. Conformance suites
+reports. `experimental` entries have at least one platform binding without a
+passing report; `community` entries carry a passing report for every platform
+binding; `official` entries live in this monorepo. Conformance suites
 (`packages/conformance`: JS runner, Kotlin `ProviderConformanceSuite`, Swift
 `ProviderConformanceSuite`) assert the provider profile behaviors; a report
 passes only when every required behavior passes with a matching verdict.

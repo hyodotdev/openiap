@@ -635,8 +635,12 @@ class YourStoreFactory : OpenIapProviderFactory {
           your production error and entitlement mappers. Supply a sandbox SKU
           and an isolated test account. Implement <code>triggerCapability</code>{' '}
           to drive each declared capability after the suite attaches listeners.{' '}
-          For offer-code redemption, supply <code>redemptionActivity</code> from
-          your host or Robolectric.
+          Supply <code>redemptionActivity</code> from your host or Robolectric
+          test in both cases: when <code>offerCodeRedemption</code> is declared
+          the suite opens the real flow with that activity, and when it is
+          undeclared the suite calls the provider with that activity and asserts
+          the documented no-op. A missing provider or activity fails the run
+          with a message naming it.
         </p>
         <CodeBlock
           language="kotlin"
@@ -694,11 +698,10 @@ class YourStoreFactory : OpenIapProviderFactory {
         <p>
           <strong>Experimental</strong> entries have an unverified or failing
           platform binding. <strong>Community</strong> entries carry passing
-          reports for every platform binding and the current suite major.{' '}
-          <strong>Official</strong> stores live in this monorepo and keep the
-          existing capability matrix. Promotion to official requires a
-          maintainer decision, vendor and maintenance review, and SDK parity
-          verification.
+          reports for every platform binding. <strong>Official</strong> stores
+          live in this monorepo and keep the existing capability matrix.
+          Promotion to official requires a maintainer decision, vendor and
+          maintenance review, and SDK parity verification.
         </p>
         <p>
           After adoption of a new suite major, an older passing report is marked

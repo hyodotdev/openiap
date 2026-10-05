@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 // JSX drops whitespace around newlines, so `word\n<code>x</code>` renders
-// "wordx". This scans every docs page for that join.
+// "wordx". This reports cross-line joins between prose text and an inline
+// element or expression. It skips same-line pairs, `{' '}` joins,
+// non-inline elements, pairs without prose text (a newline there drops no
+// space), comments, and em/en dash joins.
 const here = dirname(fileURLToPath(import.meta.url));
 const docs = join(here, '..');
 
@@ -34,7 +37,13 @@ const INLINE = new Set([
   'sup',
 ]);
 
+// A dash without spaces is fine, so decode dash entities before the join
+// test: the raw `;` would otherwise match JOIN_END.
+const MDASH_ENTITY = /&(?:mdash|#8212|#x2014);/gi;
+const NDASH_ENTITY = /&(ndash|#8211|#x2013);/gi;
+
 function jsxText(raw) {
+  raw = raw.replace(MDASH_ENTITY, '—').replace(NDASH_ENTITY, '–');
   if (!raw.includes('\n')) return raw;
   const lines = raw.split('\n');
   let last = 0;
@@ -99,10 +108,20 @@ function isSpaceExpr(node) {
   );
 }
 
-function scanFile(path) {
+// Edge char of an expression container: a string literal's edge, null when
+// the runtime value is unknown, undefined when it renders nothing.
+function exprEdge(node, first) {
+  const inner = node.expression;
+  if (!inner) return undefined;
+  if (!ts.isStringLiteral(inner)) return null;
+  if (!inner.text) return undefined;
+  return first ? inner.text[0] : inner.text[inner.text.length - 1];
+}
+
+function scanSource(text, path) {
   const source = ts.createSourceFile(
     path,
-    readFileSync(path, 'utf8'),
+    text,
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TSX
@@ -128,26 +147,42 @@ function scanFile(path) {
       }
       if (lineOf(endPos - 1) === lineOf(b.getStart(source))) continue;
       let end = null;
+      let endUnknown = false;
       if (ts.isJsxText(a)) {
         const text = jsxText(a.text);
         end = text ? text[text.length - 1] : null;
       } else if (ts.isJsxElement(a) || ts.isJsxFragment(a)) {
         end = lastChar(a);
+      } else if (ts.isJsxExpression(a)) {
+        const edge = exprEdge(a, false);
+        if (edge === undefined) continue;
+        if (edge === null) endUnknown = true;
+        else end = edge;
       } else {
         continue;
       }
-      if (end === null || !JOIN_END.test(end)) continue;
+      if (!endUnknown && (end === null || !JOIN_END.test(end))) continue;
       let start = null;
+      let startUnknown = false;
       if (ts.isJsxText(b)) {
         const text = jsxText(b.text);
         start = text ? text[0] : null;
       } else if (ts.isJsxElement(b) || ts.isJsxFragment(b)) {
         start = firstChar(b);
+      } else if (ts.isJsxExpression(b)) {
+        const edge = exprEdge(b, true);
+        if (edge === undefined) continue;
+        if (edge === null) startUnknown = true;
+        else start = edge;
       } else {
         continue;
       }
-      if (start === null || !JOIN_START.test(start)) continue;
-      findings.push(`${path}:${lineOf(endPos - 1)} '${end}' + '${start}'`);
+      if (!startUnknown && (start === null || !JOIN_START.test(start)))
+        continue;
+      const show = (char, unknown) => (unknown ? '{expr}' : `'${char}'`);
+      findings.push(
+        `${path}:${lineOf(endPos - 1)} ${show(end, endUnknown)} + ${show(start, startUnknown)}`
+      );
     }
     for (const child of children) {
       if (ts.isJsxElement(child) || ts.isJsxFragment(child)) {
@@ -165,6 +200,81 @@ function scanFile(path) {
   visit(source);
   return findings;
 }
+
+function scanFile(path) {
+  return scanSource(readFileSync(path, 'utf8'), path);
+}
+
+const page = (body) =>
+  `export function Fixture() {\n  return (\n    <div>\n${body}\n    </div>\n  );\n}\n`;
+
+test('text to inline element joins are still reported', () => {
+  const flagged = page(`      <p>
+        word
+        <code>x</code>
+      </p>`);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 1);
+});
+
+test('expression neighbors follow the same newline rule', () => {
+  const flagged = page(`      <p>
+        word
+        {value}
+      </p>
+      <p>
+        {value}
+        word
+      </p>
+      <p>
+        word
+        {'suffix'}
+      </p>`);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 3);
+});
+
+test('punctuation literals, comments, and explicit spaces stay clean', () => {
+  const clean = page(`      <p>
+        word
+        {'.'}
+      </p>
+      <p>
+        word
+        {/* note */}
+      </p>
+      <p>
+        word{' '}
+        {value}
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+});
+
+test('dash joins are accepted', () => {
+  const clean = page(`      <p>
+        word &mdash;
+        <code>y</code>
+      </p>
+      <p>
+        word &ndash;
+        <code>y</code>
+      </p>
+      <p>
+        word —
+        <code>y</code>
+      </p>
+      <p>
+        word –
+        <code>y</code>
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+});
+
+test('element-only joins stay unchecked', () => {
+  const clean = page(`      <p>
+        <code>a</code>
+        <code>b</code>
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+});
 
 test('no cross-line JSX joins in docs pages', () => {
   const findings = walk(join(docs, 'src')).flatMap((page) => scanFile(page));

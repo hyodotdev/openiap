@@ -3,6 +3,10 @@ import { ChevronDown } from 'lucide-react';
 import { screens, type ExampleScreen } from './StoreProviderExampleData';
 
 function ScreenPreview({ screen }: { screen: ExampleScreen }) {
+  const wideNote =
+    'wideImage' in screen
+      ? ' The wide app layout was checked with a temporary display-density override; original device settings were restored.'
+      : '';
   return (
     <figure>
       <picture>
@@ -22,10 +26,7 @@ function ScreenPreview({ screen }: { screen: ExampleScreen }) {
       </picture>
       <figcaption>
         {screen.detail} Actual Fire tablet capture, October 2, 2026. App Tester
-        simulates checkout.
-        {'wideImage' in screen
-          ? ' The wide app layout was checked with a temporary display-density override; original device settings were restored.'
-          : ''}
+        simulates checkout.{wideNote}
       </figcaption>
     </figure>
   );

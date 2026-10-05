@@ -43,8 +43,11 @@ Behavior ids are permanent public identifiers. Renaming one is a breaking change
 for independent provider repositories. Add it to `testImplementation` and
 extend `ProviderConformanceSuite`. Supply a fresh provider, its factory, a
 `StoreConformanceAdapter` bound to your production mappers, and a purchasable
-`testProductId` in an isolated sandbox user. Run Android JVM tests with
-Robolectric or device instrumentation when the provider needs Android services.
+`testProductId` in an isolated sandbox user. Also supply `redemptionActivity`
+from the host or Robolectric test: declared `offerCodeRedemption` opens the
+real flow with that activity, and an undeclared capability is asserted as a
+no-op through the provider. Run Android JVM tests with Robolectric or device
+instrumentation when the provider needs Android services.
 
 The suite checks product lookup, purchase events and identity, owned purchases,
 stable tokens, idempotent completion, entitlement mapping and normalized errors.
