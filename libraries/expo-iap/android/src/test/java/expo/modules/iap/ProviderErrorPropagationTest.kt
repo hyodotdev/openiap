@@ -34,7 +34,7 @@ class ProviderErrorPropagationTest {
                 } as OpenIapProtocol
             val module = ExpoIapModule()
             module.javaClass
-                .getDeclaredField("openIap\$delegate")
+                .getDeclaredField("openIapLazy")
                 .apply { isAccessible = true }
                 .set(module, lazy { provider })
             for (method in listOf("verifyPurchase", "verifyPurchaseWithProvider")) {
@@ -97,7 +97,7 @@ class ProviderErrorPropagationTest {
             } as OpenIapProtocol
         val module = ExpoIapModule()
         module.javaClass
-            .getDeclaredField("openIap\$delegate")
+            .getDeclaredField("openIapLazy")
             .apply { isAccessible = true }
             .set(module, lazy { provider })
         var responses = 0

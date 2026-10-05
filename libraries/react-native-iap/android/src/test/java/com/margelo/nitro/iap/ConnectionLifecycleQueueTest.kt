@@ -43,15 +43,17 @@ class ConnectionLifecycleQueueTest {
     @Test(timeout = 5_000)
     fun `end without a provider resets state without touching a provider`() = runBlocking {
         val cleanedUp = AtomicBoolean(false)
+        val provider = lazy<Any> { throw AssertionError("must not create a provider") }
 
         val result = endRnConnectionOrReset(
-            hasProvider = false,
+            provider = provider,
             endConnection = { throw AssertionError("must not touch a provider") },
             cleanup = { cleanedUp.set(true) },
         )
 
         assertTrue(result)
         assertTrue(cleanedUp.get())
+        assertFalse(provider.isInitialized())
     }
 
     @Test(timeout = 5_000)
@@ -59,7 +61,7 @@ class ConnectionLifecycleQueueTest {
         val cleanedUp = AtomicBoolean(false)
 
         val result = endRnConnectionOrReset(
-            hasProvider = true,
+            provider = lazyOf(Unit),
             endConnection = { true },
             cleanup = { cleanedUp.set(true) },
         )
@@ -75,7 +77,7 @@ class ConnectionLifecycleQueueTest {
 
         val result = runCatching {
             endRnConnectionOrReset(
-                hasProvider = true,
+                provider = lazyOf(Unit),
                 endConnection = { throw failure },
                 cleanup = { cleanedUp.set(true) },
             )

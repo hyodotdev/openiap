@@ -43,7 +43,7 @@ class ProviderDestructionTest {
                 OpenIapProvider.create(context)
             }
         val module = ExpoIapModule()
-        module.field("openIap\$delegate").set(module, provider)
+        module.field("openIapLazy").set(module, provider)
         assertThrows(OpenIapError.ProviderConfiguration::class.java) { provider.value }
         val events = module.field("pendingEvents").get(module) as ConcurrentLinkedQueue<*>
         val connected = module.field("connectionReady").get(module) as AtomicBoolean
@@ -73,7 +73,7 @@ class ProviderDestructionTest {
                 arrayOf(OpenIapProtocol::class.java),
             ) { _, _, _ -> throw IllegalStateException("Provider cleanup failed") } as OpenIapProtocol
         val module = ExpoIapModule()
-        module.field("openIap\$delegate").set(module, lazy { provider })
+        module.field("openIapLazy").set(module, lazy { provider })
         module.field("listenerHandles").set(
             module,
             ExpoIapHelper.ListenerHandles(

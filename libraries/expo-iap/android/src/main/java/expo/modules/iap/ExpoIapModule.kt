@@ -60,6 +60,18 @@ internal suspend fun endExpoConnectionWithCleanup(
     cleanup()
 }
 
+internal suspend fun endExpoConnectionOrReset(
+    provider: Lazy<*>,
+    endConnection: suspend () -> Boolean,
+    cleanup: () -> Unit,
+): Boolean {
+    if (!provider.isInitialized()) {
+        cleanup()
+        return true
+    }
+    return endExpoConnectionWithCleanup(endConnection, cleanup)
+}
+
 internal fun endConnectionErrorCode(error: Exception): String =
     (error as? OpenIapError)?.code ?: OpenIapError.ServiceDisconnected.CODE
 
@@ -120,7 +132,8 @@ class ExpoIapModule : Module() {
     private val currentActivity
         get() = appContext.activityProvider?.currentActivity ?: throw Exceptions.MissingActivity()
 
-    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
+    private val openIapLazy: Lazy<OpenIapProtocol> = lazy { OpenIapProvider.create(context) }
+    private val openIap: OpenIapProtocol get() = openIapLazy.value
 
     // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }
@@ -220,10 +233,11 @@ class ExpoIapModule : Module() {
                 scope.launch {
                     connectionMutex.withLock {
                         try {
-                            val result = endExpoConnectionWithCleanup(
+                            val result = endExpoConnectionOrReset(
+                                provider = openIapLazy,
                                 endConnection = { openIap.endConnection() },
                                 cleanup = {
-                                    ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
+                                    listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }
                                     listenerHandles = null
                                     PromiseUtils.rejectAllPendingPromises()
                                     connectionReady.set(false)

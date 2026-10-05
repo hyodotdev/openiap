@@ -130,11 +130,11 @@ internal suspend fun endRnConnectionWithCleanup(
 }
 
 internal suspend fun endRnConnectionOrReset(
-    hasProvider: Boolean,
+    provider: Lazy<*>,
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
 ): Boolean {
-    if (!hasProvider) {
+    if (!provider.isInitialized()) {
         cleanup()
         return true
     }
@@ -484,7 +484,7 @@ class HybridRnIap : HybridRnIapSpec() {
             RnIapLog.payload("endConnection", null)
             try {
                 val result = endRnConnectionOrReset(
-                    hasProvider = openIapLazy.isInitialized(),
+                    provider = openIapLazy,
                     endConnection = { openIap.endConnection() },
                     cleanup = {
                         productTypeBySku.clear()
