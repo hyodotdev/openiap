@@ -23,6 +23,7 @@ import {
   maskTypeScriptCommentsAndStrings,
 } from "./audit-purchase-payload-parity.mjs";
 import { storeBindings } from "../specs/client/store-registry.mjs";
+import { SUITE_VERSION } from "../packages/conformance/src/spec/suite-version.mjs";
 import { sponsorBlockStart } from "./sync-sponsors.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -1908,6 +1909,13 @@ function checkConformanceSuite() {
   ]) {
     expectFile(relativePath);
   }
+
+  // The README coordinate must track SUITE_VERSION, not a frozen copy.
+  expectIncludes(
+    "packages/conformance/README.md",
+    [`io.github.hyochan.openiap:openiap-conformance:${SUITE_VERSION}`],
+    "packages/conformance/README.md coordinate must match SUITE_VERSION",
+  );
 
   // Every MUST behavior needs at least one implementation covering it.
   try {

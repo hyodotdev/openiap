@@ -27,6 +27,7 @@ const commonV4 = Object.freeze({
   },
 });
 
+// Keep the previous major until the registry window ends, or older reports fail validation.
 const profiles = new Map([[4, commonV4]]);
 
 export function providerProfile(

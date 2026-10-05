@@ -149,8 +149,9 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <em>
             (required, <code>boolean</code>)
           </em>{' '}
-          — <code>true</code> while the subscription is in a paying or grace
-          state.
+          — <code>true</code> on iOS while the expiration date is in the future
+          (billing grace reads inactive); on Android while the purchase state is
+          purchased.
         </li>
         <li>
           <code>expirationDateIOS</code>{' '}

@@ -545,6 +545,11 @@ function Releases() {
                   store preserves sessions across failed or cancelled reconnects
                   with retryable teardown.
                 </li>
+                <li>
+                  Cancelled tasks rethrow <code>CancellationError</code> with no
+                  purchase-error event; <code>purchaseErrorListener</code> and{' '}
+                  <code>OpenIapStore.onPurchaseError</code> stay silent.
+                </li>
               </ul>
             </li>
             <li>
@@ -564,22 +569,23 @@ function Releases() {
               unsupported receipt verification.
             </li>
             <li>
-              Expo 6.0.0 and Flutter 11.0.0 report the provider&apos;s own
-              Android error code and store-aware init message instead of fixed
-              codes (Horizon without an Activity reports{' '}
-              <code>activity-unavailable</code>).
+              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 report the
+              provider&apos;s own Android error code and store-aware init
+              message instead of fixed codes (Horizon without an Activity
+              reports <code>activity-unavailable</code>).
             </li>
             <li>
               React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
               provider&apos;s Android restore before querying ownership; on
-              Horizon <code>restorePurchases()</code> also triggers{' '}
-              <code>purchaseUpdated</code> / <code>onPurchaseSuccess</code> for
-              every owned item.
+              Horizon each owned purchase reaches <code>purchaseUpdated</code> /{' '}
+              <code>onPurchaseSuccess</code> (React Native, Expo) and
+              Flutter&apos;s purchase-updated stream.
             </li>
             <li>
-              Flutter 11.0.0, KMP 4.0.0, and MAUI 3.0.0 check StoreKit&apos;s
-              active flag for id-filtered <code>hasActiveSubscriptions</code>{' '}
-              calls on iOS; a subscriber in billing grace period reads inactive.
+              On iOS, React Native 17.0.0 and Flutter 11.0.0 (every call), KMP
+              4.0.0 and MAUI 3.0.0 (id-filtered calls) answer{' '}
+              <code>hasActiveSubscriptions</code> from StoreKit&apos;s active
+              flag, as Expo and native do; billing grace reads inactive.
             </li>
             <li>
               <strong>KMP 4.0.0</strong> adds <code>UNKNOWN</code> to the public{' '}

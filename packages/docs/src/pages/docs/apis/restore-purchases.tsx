@@ -38,10 +38,12 @@ function RestorePurchases() {
           Apple docs
         </a>
         . <strong>Android:</strong> Runs the provider&apos;s restore first, then
-        calls <code>queryPurchasesAsync</code> for both <code>INAPP</code> and{' '}
-        <code>SUBS</code>. No system-level UI prompt — Play and Amazon send
-        nothing extra, while Horizon delivers each owned purchase to the
-        purchase listeners.{' '}
+        queries owned purchases (Play: <code>queryPurchasesAsync</code>; Amazon:{' '}
+        <code>PurchaseUpdates</code>). No system-level UI prompt — Play and
+        Amazon restores deliver nothing by themselves, while Horizon&apos;s
+        restore delivers each owned purchase to the purchase listeners (React
+        Native, Expo, Flutter). Godot signals each owned purchase once on every
+        store.{' '}
         <a
           href="https://developer.android.com/google/play/billing/integrate"
           target="_blank"

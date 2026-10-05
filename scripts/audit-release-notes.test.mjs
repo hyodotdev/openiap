@@ -136,12 +136,17 @@ test("the community provider card discloses the Android restore, error, Store, a
     "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore before querying ownership",
     "purchaseUpdated",
     "onPurchaseSuccess",
+    "<code>purchaseUpdated</code> / <code>onPurchaseSuccess</code> (React Native, Expo) and Flutter's purchase-updated stream",
+    "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 report the provider's own Android error code",
     "report the provider's own Android error code and store-aware init message",
     "activity-unavailable",
     "adds <code>UNKNOWN</code> to the public <code>Store</code> enum",
     "when (getStore())",
-    "check StoreKit's active flag for id-filtered",
-    "billing grace period reads inactive",
+    "React Native 17.0.0 and Flutter 11.0.0 (every call)",
+    "4.0.0 and MAUI 3.0.0 (id-filtered calls)",
+    "from StoreKit's active flag, as Expo and native do",
+    "billing grace reads inactive",
+    "Cancelled tasks rethrow <code>CancellationError</code> with no purchase-error event; <code>purchaseErrorListener</code> and <code>OpenIapStore.onPurchaseError</code> stay silent",
   ]) {
     assert.ok(card.includes(disclosure), `card is missing: ${disclosure}`);
   }
@@ -154,11 +159,33 @@ test("the restore-purchases page documents the provider-first Android restore", 
   );
   const page = source.replaceAll("&apos;", "'").replaceAll("{' '}", " ").replaceAll(/\s+/g, " ");
   assert.ok(page.includes("Runs the provider's restore first"));
+  assert.ok(page.includes("Amazon: <code>PurchaseUpdates</code>"));
   assert.ok(
-    page.includes("Horizon delivers each owned purchase to the purchase listeners"),
+    page.includes("Play and Amazon restores deliver nothing by themselves"),
   );
+  assert.ok(
+    page.includes(
+      "Horizon's restore delivers each owned purchase to the purchase listeners",
+    ),
+  );
+  assert.ok(page.includes("Godot signals each owned purchase once on every store"));
   assert.ok(
     !page.includes("Play has no concept of an explicit"),
     "stale restore claim is still present",
+  );
+});
+
+test("the get-active-subscriptions page documents the platform isActive rules", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, "packages/docs/src/pages/docs/apis/get-active-subscriptions.tsx"),
+    "utf8",
+  );
+  const page = source.replaceAll("&apos;", "'").replaceAll("{' '}", " ").replaceAll(/\s+/g, " ");
+  assert.ok(page.includes("while the expiration date is in the future"));
+  assert.ok(page.includes("billing grace reads inactive"));
+  assert.ok(page.includes("while the purchase state is purchased"));
+  assert.ok(
+    !page.includes("paying or grace"),
+    "stale isActive claim is still present",
   );
 });

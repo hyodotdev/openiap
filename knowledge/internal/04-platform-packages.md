@@ -202,7 +202,9 @@ External selection pairs a community id with fixed coordinates in every SDK:
 `openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
 Official ids and their aliases are rejected with coordinates. Alias tables
 and `StoreIds` constants are generated from the registry with
-`bun run stores:generate`; never hand-edit a generated block.
+`bun run stores:generate`; never hand-edit a generated block. A suite major
+bump keeps the previous major's provider profile until the registry
+maintenance window ends, or older passing reports fail validation.
 
 SDK and shared code reaches the store through `OpenIapProvider` discovery on
 Android and the `OpenIapModule` facade on Apple. Never import a flavor module
