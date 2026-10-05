@@ -9,7 +9,7 @@ import ts from 'typescript';
 // "wordx". This reports cross-line joins between prose text and an inline
 // element or expression. It skips same-line pairs, `{' '}` joins,
 // non-inline elements, pairs without prose text (a newline there drops no
-// space), comments, and em/en dash joins.
+// space), comments, and unspaced em/en dash joins.
 const here = dirname(fileURLToPath(import.meta.url));
 const docs = join(here, '..');
 
@@ -37,10 +37,11 @@ const INLINE = new Set([
   'sup',
 ]);
 
-// A dash without spaces is fine, so decode dash entities before the join
-// test: the raw `;` would otherwise match JOIN_END.
+// Decode dash entities so `;` is not misread; a dash edge joins only
+// when spaced on its far side inside the same text.
 const MDASH_ENTITY = /&(?:mdash|#8212|#x2014);/gi;
 const NDASH_ENTITY = /&(ndash|#8211|#x2013);/gi;
+const DASH = /[—–]/;
 
 function jsxText(raw) {
   raw = raw.replace(MDASH_ENTITY, '—').replace(NDASH_ENTITY, '–');
@@ -148,9 +149,12 @@ function scanSource(text, path) {
       if (lineOf(endPos - 1) === lineOf(b.getStart(source))) continue;
       let end = null;
       let endUnknown = false;
+      let endSpacedDash = false;
       if (ts.isJsxText(a)) {
         const text = jsxText(a.text);
         end = text ? text[text.length - 1] : null;
+        endSpacedDash =
+          text.length > 1 && DASH.test(end) && /\s/.test(text[text.length - 2]);
       } else if (ts.isJsxElement(a) || ts.isJsxFragment(a)) {
         end = lastChar(a);
       } else if (ts.isJsxExpression(a)) {
@@ -161,12 +165,19 @@ function scanSource(text, path) {
       } else {
         continue;
       }
-      if (!endUnknown && (end === null || !JOIN_END.test(end))) continue;
+      if (
+        !endUnknown &&
+        (end === null || (!JOIN_END.test(end) && !endSpacedDash))
+      )
+        continue;
       let start = null;
       let startUnknown = false;
+      let startSpacedDash = false;
       if (ts.isJsxText(b)) {
         const text = jsxText(b.text);
         start = text ? text[0] : null;
+        startSpacedDash =
+          text.length > 1 && DASH.test(start) && /\s/.test(text[1]);
       } else if (ts.isJsxElement(b) || ts.isJsxFragment(b)) {
         start = firstChar(b);
       } else if (ts.isJsxExpression(b)) {
@@ -177,7 +188,10 @@ function scanSource(text, path) {
       } else {
         continue;
       }
-      if (!startUnknown && (start === null || !JOIN_START.test(start)))
+      if (
+        !startUnknown &&
+        (start === null || (!JOIN_START.test(start) && !startSpacedDash))
+      )
         continue;
       const show = (char, unknown) => (unknown ? '{expr}' : `'${char}'`);
       findings.push(
@@ -250,11 +264,72 @@ test('punctuation literals, comments, and explicit spaces stay clean', () => {
 
 test('dash joins are accepted', () => {
   const clean = page(`      <p>
+        word&mdash;
+        <code>y</code>
+      </p>
+      <p>
+        word&ndash;
+        <code>y</code>
+      </p>
+      <p>
+        word&#8212;
+        <code>y</code>
+      </p>
+      <p>
+        word&#8211;
+        <code>y</code>
+      </p>
+      <p>
+        word&#x2014;
+        <code>y</code>
+      </p>
+      <p>
+        word&#x2013;
+        <code>y</code>
+      </p>
+      <p>
+        word—
+        <code>y</code>
+      </p>
+      <p>
+        word–
+        <code>y</code>
+      </p>
+      <p>
+        <code>x</code>
+        &mdash;word
+      </p>
+      <p>
+        <code>x</code>
+        &mdash;
+        <code>y</code>
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+});
+
+test('one-sided spaced dash joins are reported', () => {
+  const flagged = page(`      <p>
         word &mdash;
         <code>y</code>
       </p>
       <p>
         word &ndash;
+        <code>y</code>
+      </p>
+      <p>
+        word &#8212;
+        <code>y</code>
+      </p>
+      <p>
+        word &#8211;
+        <code>y</code>
+      </p>
+      <p>
+        word &#x2014;
+        <code>y</code>
+      </p>
+      <p>
+        word &#x2013;
         <code>y</code>
       </p>
       <p>
@@ -264,8 +339,12 @@ test('dash joins are accepted', () => {
       <p>
         word –
         <code>y</code>
+      </p>
+      <p>
+        <code>x</code>
+        &mdash; word
       </p>`);
-  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 9);
 });
 
 test('element-only joins stay unchecked', () => {
