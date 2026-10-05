@@ -381,6 +381,11 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
     if (!(provider ==~ /[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*/)) {
       throw new GradleException("${label}: openiapProvider must be group:artifact:version with a fixed version")
     }
+    // A snapshot in any letter case is a moving target, not a fixed version.
+    def providerVersion = provider.split(':')[2]
+    if (providerVersion.toLowerCase(Locale.ROOT).contains('snapshot')) {
+      throw new GradleException("${label}: openiapProvider must be group:artifact:version with a fixed version")
+    }
     def module = provider.split(':').take(2).join(':')
     if (module.startsWith('io.github.hyochan.openiap:openiap-')) {
       throw new GradleException("${label}: openiapProvider must name a community provider, not an OpenIAP core or official artifact")

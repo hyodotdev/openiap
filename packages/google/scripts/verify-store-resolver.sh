@@ -112,6 +112,9 @@ run "external without provider" "fail:unknown openiapStore" assembleDebug -Popen
 run "provider without id" "fail:requires an explicit community" assembleDebug -PopeniapProvider=community.store:fake:1.0.0
 run "provider with official" "fail:requires an explicit community" assembleDebug -PopeniapStore=play -PopeniapProvider=community.store:fake:1.0.0
 run "dynamic provider" "fail:fixed version" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.+
+run "snapshot provider" "fail:fixed version" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0-SNAPSHOT
+run "official artifact as provider" "fail:must name a community provider" assembleDebug -PopeniapStore=fixture -PopeniapProvider=io.github.hyochan.openiap:openiap-core:1.0.0
+run "a legacy flag beside a community id fails" "fail:conflicts with horizonEnabled=true" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0 -PhorizonEnabled=true
 run "wrong store task" "fail:conflicts with" assembleHorizonRelease -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0
 
 echo "explicit pin"
@@ -124,6 +127,7 @@ run "alias fire-os"                        amazon/explicit  assembleDebug -Popen
 run "alias googleplay"                     play/explicit    assembleDebug -PopeniapStore=googleplay
 run "auto is not a pin"                    play/default     assembleDebug -PopeniapStore=auto
 run "a value that names no store fails"    "fail:unknown openiapStore" assembleDebug -PopeniapStore=bogus
+run "openiapStore=apple fails"             "fail:unknown openiapStore" assembleDebug -PopeniapStore=apple
 
 echo "store flags"
 run "horizonEnabled=true"                  horizon/explicit assembleDebug -PhorizonEnabled=true

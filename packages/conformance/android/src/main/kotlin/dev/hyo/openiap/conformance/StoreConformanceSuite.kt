@@ -1,9 +1,12 @@
 package dev.hyo.openiap.conformance
 
+import android.app.Activity
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -20,6 +23,9 @@ import org.junit.Rule
 abstract class StoreConformanceSuite {
 
     protected abstract val adapter: StoreConformanceAdapter
+    /** Provider under test; suites that omit a capability supply theirs to verify the no-op. */
+    protected open val provider: OpenIapProtocol? = null
+    protected open val redemptionActivity: Activity? = null
     internal val reportAdapter get() = adapter
     open val reportScope: String get() = "android-mapping"
     open val requiredReportBehaviors: Set<String> get() = ConformanceBehaviors.ANDROID_MAPPING_BEHAVIORS
@@ -160,13 +166,19 @@ abstract class StoreConformanceSuite {
 
     @Test
     @ConformanceBehavior(ConformanceBehaviors.CAPABILITIES_UNSUPPORTED_OPERATIONS_DEGRADE_PREDICTABLY)
-    fun `unsupported offer code redemption returns its documented no-op`() {
-        val result = adapter.unsupportedOperationResult()
-        if (StoreCapability.OfferCodeRedemption in adapter.capabilities) {
-            assertEquals(null, result)
-        } else {
-            assertEquals(false, result)
+    fun `unsupported offer code redemption returns its documented no-op`() = runBlocking {
+        // A store that declares redemption drives the real flow elsewhere.
+        if (StoreCapability.OfferCodeRedemption in adapter.capabilities) return@runBlocking
+        val provider = requireNotNull(provider) {
+            "${adapter.storeId} omits offerCodeRedemption but supplies no provider to verify the no-op"
         }
+        val activity = requireNotNull(redemptionActivity) {
+            "${adapter.storeId} omits offerCodeRedemption but supplies no activity to verify the no-op"
+        }
+        assertFalse(
+            "${adapter.storeId} must return false when redemption is undeclared",
+            provider.openRedeemOfferCode(activity),
+        )
     }
 
     // --- Capabilities ------------------------------------------------------

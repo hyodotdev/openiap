@@ -30,7 +30,6 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
             StoreErrorCase("missing", ErrorCode.ItemUnavailable, fixture.mapError("missing")),
         )
         override val unrecognizedError = fixture.mapError("unrecognized")
-        override fun unsupportedOperationResult(): Boolean? = null
     }
     override suspend fun triggerCapability(capability: StoreCapability) {
         when (capability) {
@@ -150,6 +149,31 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
             }
         }
         assertThrows(AssertionError::class.java) { invalid.`declared redemption capability reaches the purchase listener`() }
+    }
+    @Test fun `suite invokes redemption when the capability is missing`() {
+        val base = FixtureConformanceTest()
+        fun withoutRedemption(redemption: OpenIapProtocol) = object : FixtureConformanceTest() {
+            override val factory = object : OpenIapProviderFactory by base.factory {
+                override val capabilities = base.factory.capabilities - "offerCodeRedemption"
+            }
+            override val adapter = object : StoreConformanceAdapter by base.adapter {
+                override val capabilities = base.adapter.capabilities - StoreCapability.OfferCodeRedemption
+            }
+            override val provider = redemption
+        }
+        val throwing = withoutRedemption(object : OpenIapProtocol by base.provider {
+            override suspend fun openRedeemOfferCode(activity: Activity): Boolean =
+                throw OpenIapError.FeatureNotSupported("Fixture redemption is not implemented")
+        })
+        assertThrows(OpenIapError.FeatureNotSupported::class.java) {
+            throwing.`unsupported offer code redemption returns its documented no-op`()
+        }
+        val wrongValue = withoutRedemption(object : OpenIapProtocol by base.provider {
+            override suspend fun openRedeemOfferCode(activity: Activity): Boolean = true
+        })
+        assertThrows(AssertionError::class.java) {
+            wrongValue.`unsupported offer code redemption returns its documented no-op`()
+        }
     }
     @Test fun `repurchasing a consumed item creates a new transaction`() = runBlocking {
         val request = RequestPurchaseProps.fromJson(mapOf(

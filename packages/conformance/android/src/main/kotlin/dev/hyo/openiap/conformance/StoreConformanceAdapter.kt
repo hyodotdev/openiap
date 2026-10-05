@@ -48,9 +48,6 @@ interface StoreConformanceAdapter {
 
     /** The production mapper's fail-closed result for an unknown native value. */
     val unrecognizedError: OpenIapError
-
-    /** A documented unsupported operation result, or null when none is selected. */
-    fun unsupportedOperationResult(): Boolean?
 }
 
 fun playBillingErrorCases(mapper: (Int) -> OpenIapError): List<StoreErrorCase> = listOf(

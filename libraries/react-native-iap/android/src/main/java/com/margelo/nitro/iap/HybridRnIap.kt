@@ -204,7 +204,14 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     // OpenIAP backend + local cache for product types
-    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
+    private val openIap: OpenIapProtocol by lazy {
+        val factory = OpenIapProvider.factory(context)
+        linkedStoreId = factory.storeId
+        OpenIapProvider.create(context, factory)
+    }
+
+    // The store this binary links, for init-failure messages.
+    private var linkedStoreId: String? = null
     private val productTypeBySku = mutableMapOf<String, String>()
 
     // Event listeners
@@ -416,7 +423,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 } catch (err: CancellationException) {
                     throw err
                 } catch (err: Exception) {
-                    val error = err as? OpenIapError ?: OpenIapError.InitConnection
+                    val error = err as? OpenIapError ?: OpenIapError.InitConnection.forStore(linkedStoreId)
                     RnIapLog.failure("initConnection.native", err)
                     throw OpenIapException(
                         toErrorJson(
@@ -427,7 +434,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     )
                 }
                 if (!ok) {
-                    val error = OpenIapError.InitConnection
+                    val error = OpenIapError.InitConnection.forStore(linkedStoreId)
                     RnIapLog.failure("initConnection.native", Exception(error.message))
                     // No override: the error names the store this binary links,
                     // which a fixed string here would throw away.

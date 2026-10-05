@@ -1,6 +1,5 @@
 package dev.hyo.openiap.conformance
 
-import android.app.Activity
 import dev.hyo.openiap.*
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -20,10 +19,9 @@ import org.junit.Assert.*
 /** Run against a fresh provider with a purchasable test SKU and an isolated test user. */
 abstract class ProviderConformanceSuite : StoreConformanceSuite() {
     protected abstract val factory: OpenIapProviderFactory
-    protected abstract val provider: OpenIapProtocol
+    protected abstract override val provider: OpenIapProtocol
     protected open val testProductId: String = "conformance.product"
     protected open val timeoutMillis: Long = 5_000
-    protected open val redemptionActivity: Activity? = null
 
     /** Drive the store's sandbox or fake backend after the suite attaches listeners. */
     protected open suspend fun triggerCapability(capability: StoreCapability) {

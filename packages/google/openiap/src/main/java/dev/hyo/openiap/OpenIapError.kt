@@ -181,6 +181,14 @@ sealed class OpenIapError : Exception() {
         override val message = MESSAGE
 
         const val MESSAGE = "Failed to initialize billing connection"
+
+        /** Names the linked store; Play and unknown stores keep the plain message. */
+        fun forStore(storeId: String?): OpenIapError =
+            if (storeId.isNullOrBlank() || storeId == "play") this else StoreConnectionFailure(storeId)
+
+        fun messageFor(storeId: String): String =
+            if (storeId == "play") MESSAGE
+            else "$MESSAGE. This build targets the $storeId store, not Google Play."
     }
 
     class ProviderConfiguration(override val message: String) : OpenIapError() {
@@ -189,8 +197,7 @@ sealed class OpenIapError : Exception() {
 
     class StoreConnectionFailure(storeId: String) : OpenIapError() {
         override val code = InitConnection.CODE
-        override val message = if (storeId == "play") InitConnection.MESSAGE
-            else "${InitConnection.MESSAGE}. This build targets the $storeId store, not Google Play."
+        override val message = InitConnection.messageFor(storeId)
     }
 
     open class QueryProduct(
