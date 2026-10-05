@@ -581,8 +581,8 @@ function Releases() {
               <code>activity-unavailable</code>).
             </li>
             <li>
-              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
-              provider&apos;s Android restore before querying ownership.
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
+              run the provider&apos;s Android restore before querying ownership.
             </li>
             <li>
               On Horizon, each owned purchase then reaches{' '}

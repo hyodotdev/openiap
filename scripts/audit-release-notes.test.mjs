@@ -133,7 +133,7 @@ function cardText() {
 test("the community provider card discloses the Android restore, error, Store, and subscription behaviors", () => {
   const card = cardText();
   for (const disclosure of [
-    "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore before querying ownership.",
+    "React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0 run the provider's Android restore before querying ownership.",
     "purchaseUpdatedListener",
     "onPurchaseSuccess",
     "On Horizon, each owned purchase then reaches <code>purchaseUpdatedListener</code> / <code>onPurchaseSuccess</code> (React Native, Expo) and Flutter's purchase-updated stream.",
@@ -170,7 +170,7 @@ test("the restore-purchases page documents the provider-first Android restore", 
   assert.ok(page.includes("with no system-level UI prompt"));
   assert.ok(
     page.includes(
-      "React Native, Expo, Flutter, MAUI, and KMP (Amazon, Horizon, and community-provider builds) call the provider's restore",
+      "React Native, Expo, Flutter, MAUI, Godot, and KMP (Amazon, Horizon, and community-provider builds) call the provider's restore",
     ),
   );
   assert.ok(page.includes("KMP's Play build queries ownership directly"));
@@ -185,7 +185,7 @@ test("the restore-purchases page documents the provider-first Android restore", 
   );
   assert.ok(
     page.includes(
-      "Godot emits no <code>purchase_updated</code> signal; read owned purchases with <code>get_available_purchases</code>",
+      "Godot emits no <code>purchase_updated</code> signal; read owned purchases with <code>get_available_purchases_result</code>",
     ),
   );
   assert.ok(
