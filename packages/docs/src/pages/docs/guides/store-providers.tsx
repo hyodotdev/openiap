@@ -126,9 +126,10 @@ export default function StoreProviders() {
         </p>
         <ol>
           <li>
-            <strong>Use a compatible Expo IAP build.</strong> This example
-            requires Client Protocol 0.2 support. Released SDKs do not yet
-            contain that contract; follow the README’s{' '}
+            <strong>Use matching provider and SDK builds.</strong> Version{' '}
+            {examplePackage.version} is a pre-merge validation snapshot. It
+            requires the pinned Client Protocol 0.2 SDK and core inputs; follow
+            the README’s{' '}
             <a href={`${repository}#prepare-the-pinned-sdk-inputs`}>
               pinned public Expo and core inputs
             </a>{' '}
@@ -149,7 +150,10 @@ export default function StoreProviders() {
             >
               package’s peer dependencies
             </a>{' '}
-            for compatible Expo and build-properties versions.
+            for compatible Expo and build-properties versions. A new core major
+            or an SDK outside that range requires a rebuilt provider and fresh
+            conformance and consumer checks; the snapshot does not claim
+            compatibility with the next release train.
           </li>
           <li>
             <strong>Install from GitHub Packages.</strong> Configure an ignored{' '}
@@ -201,15 +205,15 @@ export default function StoreProviders() {
                 '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "google" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon-example" }\n    }\n  }\n}'
               }
             />
-            Until compatible public releases exist, use EAS <code>--local</code>{' '}
-            with the prepared inputs. The Play branch needs matching native
-            sources; set <code>localPath.android</code> to{' '}
-            <code>packages/google</code> in the same compatible OpenIAP checkout
-            that prepared your Expo SDK. Once compatible SDK and native Play
-            releases exist, remove <code>localPath</code> and set{' '}
-            <code>enableLocalDev: false</code> to use the published packages.
-            Remote workers need the prepared inputs and their own paths; local
-            absolute paths are not uploaded automatically.
+            For this snapshot, use EAS <code>--local</code> with the prepared
+            inputs. The Play branch needs matching native sources; set{' '}
+            <code>localPath.android</code> to <code>packages/google</code> in
+            the same compatible OpenIAP checkout that prepared your Expo SDK.
+            Once compatible SDK and native Play releases exist, remove{' '}
+            <code>localPath</code> and set <code>enableLocalDev: false</code> to
+            use the published packages. Remote workers need the prepared inputs
+            and their own paths; local absolute paths are not uploaded
+            automatically.
             <p>
               The community branch uses the installed provider and public core
               Maven artifacts, without native source includes. Its required{' '}
@@ -432,11 +436,13 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           Preserve store identity
         </AnchorLink>
         <p>
-          <code>IapStore</code> has a fixed set of values. Community purchases
-          use <code>store = 'unknown'</code> and their own nonempty{' '}
-          <code>storeId</code>. Official ids are <code>apple</code>,{' '}
-          <code>play</code>, <code>horizon</code>, and <code>amazon</code>;
-          Play’s existing enum wire value remains <code>'google'</code>.
+          <code>IapStore</code> has a fixed set of values. New stores use{' '}
+          <code>store = 'unknown'</code> and their own nonempty{' '}
+          <code>storeId</code>. Adapters for existing stores keep the matching
+          legacy value and canonical id, regardless of publisher. Official ids
+          are <code>apple</code>, <code>play</code>, <code>horizon</code>, and{' '}
+          <code>amazon</code>; Play’s existing enum wire value remains{' '}
+          <code>'google'</code>.
         </p>
         <p>
           Use <code>purchase.storeId</code> when routing a purchase to your
@@ -483,8 +489,10 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
 }`}
         />
         <p>
-          Return <code>PurchaseIOS</code> with <code>store = .unknown</code> and
-          your concrete <code>storeId</code>. Use <code>request.apple</code> for
+          A new store returns <code>PurchaseIOS</code> with{' '}
+          <code>store = .unknown</code> and its custom <code>storeId</code>. An
+          App Store adapter uses <code>store = .apple</code> and{' '}
+          <code>storeId = "apple"</code>. Use <code>request.apple</code> for
           Apple-platform purchase arguments, including community stores.
           Preserve opaque transaction IDs and receipts through listeners,
           ownership reads, and completion. Optional StoreKit-only methods
@@ -570,10 +578,14 @@ class YourStoreFactory : OpenIapProviderFactory {
         </p>
         <p>
           Choose a stable lowercase id containing letters, digits, and single
-          dot, underscore, or hyphen separators. Reserved ids include{' '}
-          <code>apple</code>, <code>auto</code>, <code>none</code>,{' '}
-          <code>unknown</code>, and official Android ids. Avoid registry alias
-          collisions.
+          dot, underscore, or hyphen separators. A new store uses a custom id
+          with <code>store: 'unknown'</code>; avoid registry alias collisions.
+          Existing store ids identify the billing store, not the provider’s
+          publisher. An adapter for an existing store uses its canonical id and
+          matching legacy <code>store</code> value. Android rejects{' '}
+          <code>apple</code>, <code>google</code>, <code>auto</code>,{' '}
+          <code>none</code>, and <code>unknown</code> as provider ids. Store
+          identity does not replace backend receipt verification.
         </p>
         <p>
           <code>OpenIapProtocol</code> and its referenced types are public API

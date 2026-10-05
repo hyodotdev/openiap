@@ -6,8 +6,8 @@ canonical errors, and stable purchase identity. All six SDKs dispatch through
 the selected native provider. No additional real store implementation ships
 in this change.
 
-Community purchases preserve `store = unknown` and their own required
-`storeId`; `IapStore` stays fixed. Registration is optional. The registry
+New stores outside the fixed `IapStore` enum use `store = unknown` and their own
+required `storeId`. Registration is optional. The registry
 produces generated constants, aliases, CLI checks, and the public listing.
 Provider selection does not add IAPKit server validation for a new store.
 

@@ -95,7 +95,7 @@ initializer, the same metadata fields as Android, and an
 `OpenIapModuleProtocol` implementation. StoreKit-specific optional operations
 have predictable unsupported defaults.
 
-Community iOS purchases use `PurchaseIOS`, `store = unknown` and their concrete
+Purchases from new stores on iOS use `PurchaseIOS`, `store = unknown` and their concrete
 `storeId`. Native and SDK bridges preserve that shape and identity through
 events, reads, JSON and completion. Add a full-purchase Objective-C completion
 selector while retaining the old ID-only selector. Existing Expo Onside

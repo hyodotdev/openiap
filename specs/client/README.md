@@ -44,8 +44,9 @@ into `openiap-versions.json` as `clientProtocol`, alongside the independent
 
 Apple and Android providers share `StoreProviderDescriptor`, frozen `IapStore`
 values, concrete `storeId` identity, purchase lifecycle and capability rules.
-A community purchase uses `store = unknown` with its stable provider id. Platform
-bindings preserve `PurchaseIOS` or `PurchaseAndroid`; `request.apple` and
+A new store uses `store = unknown` with its stable provider id. An adapter for
+an existing store keeps its canonical id and matching legacy `store`, regardless
+of publisher. Platform bindings preserve `PurchaseIOS` or `PurchaseAndroid`; `request.apple` and
 `request.google` select the corresponding platform arguments.
 
 Factories declare the native core and Client Protocol versions used to build
