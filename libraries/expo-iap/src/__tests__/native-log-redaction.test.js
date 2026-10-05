@@ -233,7 +233,7 @@ describe('native error and listener bridges', () => {
       'removeSubscriptionBillingIssueListener(handles.subscriptionBillingIssue)',
     );
     expect(androidModule).toContain(
-      'ExpoIapHelper.cleanupListeners(openIap, listenerHandles)',
+      'listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }',
     );
   });
 });
