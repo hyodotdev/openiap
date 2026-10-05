@@ -1925,10 +1925,14 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
       if (!purchase.id) {
         throw new Error('purchase.id required to finish iOS transaction');
       }
+      // A stored or minimal purchase carries no store identity; native
+      // finishes those by transaction lookup instead of decoding JSON.
       params = {
         ios: {
           transactionId: purchase.id,
-          purchaseJson: JSON.stringify(purchase),
+          ...(purchase.store != null
+            ? {purchaseJson: JSON.stringify(purchase)}
+            : {}),
           isConsumable: isConsumable ?? undefined,
         },
       };

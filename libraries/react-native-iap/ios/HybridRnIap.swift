@@ -177,10 +177,21 @@ class HybridRnIap: HybridRnIapSpec {
                 }
                 if isCurrent, !reuseExistingConnection {
                     RnIapLog.failure("initConnection", error: error)
-                    let err = RnIapHelper.makePurchaseErrorResult(
-                        code: .initConnection,
-                        message: error.localizedDescription
-                    )
+                    // A provider failure already names its fix; keep its code.
+                    let err: NitroPurchaseResult
+                    if let purchaseError = error as? PurchaseError {
+                        err = RnIapHelper.makePurchaseErrorResult(
+                            code: purchaseError.code,
+                            message: purchaseError.message,
+                            purchaseError.productId,
+                            debugMessage: purchaseError.debugMessage
+                        )
+                    } else {
+                        err = RnIapHelper.makePurchaseErrorResult(
+                            code: .initConnection,
+                            message: error.localizedDescription
+                        )
+                    }
                     self.sendPurchaseError(err, productId: nil)
                 }
                 return false
@@ -1421,8 +1432,10 @@ class HybridRnIap: HybridRnIapSpec {
         transactionId: String,
         loadTransactions: () async throws -> [OpenIAP.PurchaseIOS]
     ) async throws -> OpenIAP.PurchaseInput? {
-        guard !transactionId.isEmpty else {
-            throw OpenIapException.make(code: .purchaseError, message: "Transaction identifier is required")
+        // StoreKit transaction ids are numeric; community providers finish
+        // through the JSON path and never reach this lookup.
+        guard UInt64(transactionId) != nil else {
+            throw OpenIapException.make(code: .purchaseError, message: "Invalid transaction identifier")
         }
         if let payload = await MainActor.run(body: { self.purchasePayloadById[transactionId] }) {
             return try OpenIapSerialization.purchaseInput(from: payload)

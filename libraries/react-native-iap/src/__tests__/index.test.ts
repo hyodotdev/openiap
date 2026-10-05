@@ -1690,6 +1690,49 @@ describe('Public API (src/index.ts)', () => {
       ).resolves.toBeUndefined();
     });
 
+    it('iOS finishes a minimal purchase by transaction lookup only', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase: {id: 'tid'}});
+      const params = mockIap.finishTransaction.mock.calls[0][0];
+      expect(params).toStrictEqual({
+        ios: {transactionId: 'tid', isConsumable: undefined},
+      });
+      expect(params.ios).not.toHaveProperty('purchaseJson');
+    });
+
+    it('iOS sends purchaseJson for a purchase carrying an apple identity', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const purchase = {id: 'tid', store: 'apple', storeId: 'apple'};
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase, isConsumable: false});
+      expect(mockIap.finishTransaction).toHaveBeenCalledWith({
+        ios: {
+          transactionId: 'tid',
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: false,
+        },
+      });
+    });
+
+    it('iOS sends purchaseJson for a community Apple provider purchase', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const purchase = {
+        id: 'opaque-id',
+        store: 'unknown',
+        storeId: 'community-fixture',
+      };
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase});
+      expect(mockIap.finishTransaction).toHaveBeenCalledWith({
+        ios: {
+          transactionId: 'opaque-id',
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: undefined,
+        },
+      });
+    });
+
     it('Android requires token; maps consume flag', async () => {
       Object.assign(Platform, {OS: 'android'});
       await expect(

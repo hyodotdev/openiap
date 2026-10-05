@@ -37,6 +37,10 @@ internal fun requireStorefront(value: String?): String =
             )
         )
 
+// Native matches an empty filter against nothing; empty means "all" here.
+internal fun List<String>?.normalizeSubscriptionIdsIOS(): List<String>? =
+    if (isNullOrEmpty()) null else this
+
 private const val IOS_CONNECTION_OPERATION_TIMEOUT_MS = 15_000L
 
 internal class IosConnectionLifecycle(
@@ -646,7 +650,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.getActiveSubscriptionsWithSubscriptionIds(subscriptionIds) { result, error ->
+            val ids = subscriptionIds.normalizeSubscriptionIdsIOS()
+            openIapModule.getActiveSubscriptionsWithSubscriptionIds(ids) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@getActiveSubscriptionsWithSubscriptionIds
@@ -732,7 +737,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.hasActiveSubscriptionsWithSubscriptionIds(subscriptionIds) { hasActive, error ->
+            val ids = subscriptionIds.normalizeSubscriptionIdsIOS()
+            openIapModule.hasActiveSubscriptionsWithSubscriptionIds(ids) { hasActive, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                     return@hasActiveSubscriptionsWithSubscriptionIds

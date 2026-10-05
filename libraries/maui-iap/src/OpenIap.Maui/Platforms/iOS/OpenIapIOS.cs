@@ -481,17 +481,21 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public async Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
     {
+        subscriptionIds = SubscriptionIds.NormalizeForNative(subscriptionIds);
         var result = await InvokeArray<ActiveSubscription>(
             cb => _module.GetActiveSubscriptions(subscriptionIds?.ToArray(), cb),
             required: true,
             operation: "getActiveSubscriptions");
-        if (subscriptionIds is null || subscriptionIds.Count == 0) return result;
+        if (subscriptionIds is null) return result;
         var filter = new HashSet<string>(subscriptionIds);
         return result.Where(a => filter.Contains(a.ProductId)).ToList();
     }
 
     public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
-        => InvokeBool(cb => _module.HasActiveSubscriptions(subscriptionIds?.ToArray(), cb));
+    {
+        subscriptionIds = SubscriptionIds.NormalizeForNative(subscriptionIds);
+        return InvokeBool(cb => _module.HasActiveSubscriptions(subscriptionIds?.ToArray(), cb));
+    }
 
     public async Task<string> GetStorefrontAsync()
     {

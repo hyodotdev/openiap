@@ -49,6 +49,7 @@ import type {
   FetchProductsResult,
   ProductAndroid,
   ProductSubscriptionAndroid,
+  PurchaseError,
 } from '../../types';
 
 const inAppProduct = (
@@ -1059,6 +1060,85 @@ describe('hooks/useIAP (renderer)', () => {
 
       // Test passes if no unhandled exception is thrown
       expect(initConnectionSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('purchase error events', () => {
+    const captureErrorListener = (): {
+      current: ((error: PurchaseError) => void) | undefined;
+    } => {
+      const holder: {current: ((error: PurchaseError) => void) | undefined} = {
+        current: undefined,
+      };
+      jest
+        .spyOn(IAP, 'purchaseErrorListener')
+        .mockImplementation((listener) => {
+          holder.current = listener;
+          return {remove: jest.fn()};
+        });
+      return holder;
+    };
+
+    it('forwards a developer-error event to onPurchaseError', async () => {
+      const holder = captureErrorListener();
+      const onPurchaseError = jest.fn();
+      const Harness = () => {
+        useIAP({onPurchaseError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const developerError = {
+        code: IAP.ErrorCode.DeveloperError,
+        message: 'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
+      };
+      act(() => {
+        holder.current?.(developerError);
+      });
+
+      expect(onPurchaseError).toHaveBeenCalledWith(developerError);
+    });
+
+    it('drops init-connection events while disconnected but keeps developer-error', async () => {
+      const holder = captureErrorListener();
+      const onPurchaseError = jest.fn();
+      let api: any;
+      const Harness = () => {
+        api = useIAP({onPurchaseError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false);
+      await act(async () => {
+        await api.reconnect();
+      });
+      expect(api.connected).toBe(false);
+
+      act(() => {
+        holder.current?.({
+          code: IAP.ErrorCode.InitConnection,
+          message: 'Failed to initialize billing connection',
+        });
+      });
+      expect(onPurchaseError).not.toHaveBeenCalled();
+
+      const developerError = {
+        code: IAP.ErrorCode.DeveloperError,
+        message: 'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
+      };
+      act(() => {
+        holder.current?.(developerError);
+      });
+      expect(onPurchaseError).toHaveBeenCalledWith(developerError);
     });
   });
 

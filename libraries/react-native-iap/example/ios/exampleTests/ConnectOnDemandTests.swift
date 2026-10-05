@@ -6,18 +6,18 @@ import OpenIAP
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
-    func testFinishResolvesOpaqueRestoredPurchaseWithoutBridgeCache() async throws {
+    func testFinishResolvesRestoredPurchaseWithoutBridgeCache() async throws {
         let hybrid = HybridRnIap()
-        guard case .purchaseIos(let other) = try makePurchase(id: "other:100"),
-              case .purchaseIos(let restored) = try makePurchase(id: "restored:200") else {
+        guard case .purchaseIos(let other) = try makePurchase(id: "100"),
+              case .purchaseIos(let restored) = try makePurchase(id: "200") else {
             return XCTFail("Expected iOS purchases")
         }
 
-        let purchase = try await hybrid.purchaseToFinish(transactionId: "restored:200") {
+        let purchase = try await hybrid.purchaseToFinish(transactionId: "200") {
             [other, restored]
         }
 
-        XCTAssertEqual(purchase?.id, "restored:200")
+        XCTAssertEqual(purchase?.id, "200")
         XCTAssertEqual(purchase?.productId, "premium")
     }
 
@@ -57,15 +57,15 @@ final class ConnectOnDemandTests: XCTestCase {
         }
     }
 
-    func testFinishRejectsEmptyIdentifierBeforeHistoryLookup() async throws {
+    func testFinishRejectsInvalidIdentifierBeforeHistoryLookup() async throws {
         do {
-            _ = try await HybridRnIap().purchaseToFinish(transactionId: "") {
-                XCTFail("An empty transaction identifier must not query the provider")
+            _ = try await HybridRnIap().purchaseToFinish(transactionId: "invalid") {
+                XCTFail("An invalid transaction must not query StoreKit")
                 return []
             }
-            XCTFail("Expected missing transaction identifier error")
+            XCTFail("Expected invalid transaction error")
         } catch let error as OpenIapException {
-            XCTAssertTrue(error.localizedDescription.contains("Transaction identifier is required"))
+            XCTAssertTrue(error.localizedDescription.contains("Invalid transaction identifier"))
         }
     }
 
@@ -184,6 +184,47 @@ final class ConnectOnDemandTests: XCTestCase {
         }
         _ = try await hybrid.enqueueLifecycleBarrier().value
         XCTAssertEqual(probe.events, [ErrorCode.iapNotAvailable.rawValue])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testFailedInitPreservesProviderErrorCode() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        let messages = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+            messages.record(error.message)
+        }
+        let providerError = PurchaseError.make(
+            code: .developerError,
+            message: "Info.plist dev.hyo.openiap.PROVIDER must name a linked provider."
+        )
+
+        let connected = try await hybrid.enqueueConnectOperation {
+            throw providerError
+        }.value
+
+        XCTAssertFalse(connected)
+        XCTAssertEqual(probe.events, [ErrorCode.developerError.rawValue])
+        XCTAssertEqual(messages.events, [providerError.message])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testFailedInitMapsGenericErrorsToInitConnection() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+        }
+
+        let connected = try await hybrid.enqueueConnectOperation {
+            throw NSError(domain: "ConnectOnDemandTests", code: 1)
+        }.value
+
+        XCTAssertFalse(connected)
+        XCTAssertEqual(probe.events, [ErrorCode.initConnection.rawValue])
 
         _ = try await hybrid.endConnection().await()
     }
