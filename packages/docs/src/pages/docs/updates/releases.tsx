@@ -571,25 +571,31 @@ function Releases() {
               unsupported receipt verification.
             </li>
             <li>
-              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 report the
-              provider&apos;s own Android error code and store-aware init
-              message instead of fixed codes (Horizon without an Activity
-              reports <code>activity-unavailable</code>).
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
+              report the provider&apos;s own Android error code instead of fixed
+              codes; React Native, Expo, and Flutter also report a store-aware
+              init message (Horizon without an Activity reports{' '}
+              <code>activity-unavailable</code>).
             </li>
             <li>
               React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
-              provider&apos;s Android restore before querying ownership; on
-              Horizon each owned purchase reaches{' '}
+              provider&apos;s Android restore before querying ownership.
+            </li>
+            <li>
+              On Horizon, each owned purchase then reaches{' '}
               <code>purchaseUpdatedListener</code> /{' '}
               <code>onPurchaseSuccess</code> (React Native, Expo) and
-              Flutter&apos;s purchase-updated stream; Godot 4.0.0 runs it too
-              and still signals each owned purchase once.
+              Flutter&apos;s purchase-updated stream.
             </li>
             <li>
               On iOS, React Native 17.0.0 and Flutter 11.0.0 (every call), KMP
-              4.0.0 and MAUI 3.0.0 (id-filtered calls) answer{' '}
-              <code>hasActiveSubscriptions</code> from StoreKit&apos;s active
-              flag, as Expo and native do; billing grace reads inactive.
+              4.0.0 and MAUI 3.0.0 (id-filtered calls) now answer{' '}
+              <code>hasActiveSubscriptions</code> from OpenIAP&apos;s active
+              flag (expiration in the future).
+            </li>
+            <li>
+              On iOS, a subscriber in billing grace reads inactive, as in Expo
+              and native.
             </li>
             <li>
               <strong>KMP 4.0.0</strong> adds <code>UNKNOWN</code> to the public{' '}

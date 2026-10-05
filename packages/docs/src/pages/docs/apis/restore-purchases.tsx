@@ -37,13 +37,17 @@ function RestorePurchases() {
         >
           Apple docs
         </a>
-        . <strong>Android:</strong> Queries owned purchases (Play:{' '}
-        <code>queryPurchasesAsync</code>; Amazon: <code>PurchaseUpdates</code>)
-        with no system-level UI prompt. React Native, Expo, Flutter and MAUI run
-        the provider&apos;s restore first; Play and Amazon restores deliver
-        nothing by themselves, while Horizon&apos;s restore delivers each owned
-        purchase to the purchase listeners (React Native, Expo, Flutter and
-        MAUI). Godot signals each owned purchase once on every store.{' '}
+        . <strong>Android:</strong> Reads owned purchases from the store (Play:{' '}
+        <code>queryPurchasesAsync</code>; Amazon:{' '}
+        <code>PurchasingService.getPurchaseUpdates</code>) with no system-level
+        UI prompt. React Native, Expo, Flutter, MAUI, and KMP (Amazon, Horizon,
+        and community-provider builds) call the provider&apos;s restore;
+        KMP&apos;s Play build queries ownership directly. Play and Amazon
+        restores deliver nothing by themselves, while Horizon&apos;s restore
+        delivers each owned purchase to the purchase listeners (React Native,
+        Expo, Flutter, MAUI, and KMP). Godot emits no{' '}
+        <code>purchase_updated</code> signal; read owned purchases with{' '}
+        <code>get_available_purchases</code>.{' '}
         <a
           href="https://developer.android.com/google/play/billing/integrate"
           target="_blank"

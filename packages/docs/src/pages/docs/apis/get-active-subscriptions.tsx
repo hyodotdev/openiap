@@ -34,9 +34,7 @@ function GetActiveSubscriptions() {
           Apple docs
         </a>
         . <strong>Android:</strong> Calls <code>queryPurchasesAsync(SUBS)</code>{' '}
-        and treats{' '}
-        <code>purchaseState == PURCHASED &amp;&amp; autoRenewing</code> as
-        active.{' '}
+        and treats <code>purchaseState == PURCHASED</code> as active.{' '}
         <a
           href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
           target="_blank"

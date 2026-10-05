@@ -1227,7 +1227,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
  * `getAvailablePurchases` or from hook state.
  *
  * - iOS: sync (or Onside restore when OnsideKit is active), then fetch available purchases.
- * - Android: fetch available purchases; the query itself restores them.
+ * - Android: run the provider's restore, then fetch available purchases.
  *
  * @see {@link https://openiap.dev/docs/apis/restore-purchases}
  */
