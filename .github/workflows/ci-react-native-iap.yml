@@ -266,7 +266,10 @@ jobs:
 
       - name: Install CocoaPods dependencies
         working-directory: libraries/react-native-iap/example/ios
-        run: bundle exec pod install --repo-update
+        run: |
+          CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(bundle exec pod --version)"
+          export CP_CACHE_DIR
+          bundle exec pod install --repo-update
 
       - name: Build scene-based iOS example
         working-directory: libraries/react-native-iap/example/ios

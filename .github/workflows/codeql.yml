@@ -521,6 +521,9 @@ jobs:
           cd example
           BUNDLE_FROZEN=true bundle install
           cd ios
+          # CocoaPods clears its cache when another tool version uses it.
+          CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(bundle exec pod --version)"
+          export CP_CACHE_DIR
           bundle exec pod install --repo-update
           xcodebuild build \
             -workspace example.xcworkspace \
@@ -540,6 +543,8 @@ jobs:
           bun run build:plugin
           cd example
           bun install --frozen-lockfile
+          CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(pod --version)"
+          export CP_CACHE_DIR
           npx expo prebuild --platform ios --clean
           cd ios
           pod install --repo-update

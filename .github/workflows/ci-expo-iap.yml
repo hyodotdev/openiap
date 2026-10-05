@@ -158,7 +158,11 @@ jobs:
 
       - name: Generate scene-based iOS project
         working-directory: libraries/expo-iap/example
-        run: npx expo prebuild --platform ios --clean
+        run: |
+          CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(pod --version)"
+          export CP_CACHE_DIR
+          printf 'CP_CACHE_DIR=%s\n' "$CP_CACHE_DIR" >> "$GITHUB_ENV"
+          npx expo prebuild --platform ios --clean
 
       - name: Install CocoaPods dependencies
         working-directory: libraries/expo-iap/example/ios
