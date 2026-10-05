@@ -1084,7 +1084,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 productId: productId,
                 state: parsedState,
                 store: parsedStore,
-                storeId: parsedStore == .google ? "play" : parsedStore.rawValue,
+                storeId: parsedStore == .google ? "play" : parsedStore.rawValue
             )
         }
         try await ensureConnection()

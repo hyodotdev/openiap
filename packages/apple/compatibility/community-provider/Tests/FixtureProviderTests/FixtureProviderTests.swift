@@ -5,7 +5,7 @@ import OpenIapConformance
 import FixtureProvider
 
 private struct Adapter: ProviderConformanceAdapter {
-    let factory: any OpenIapProviderFactory = FixtureFactory()
+    var factory: any OpenIapProviderFactory = FixtureFactory()
     let module: FixtureModule
     var omitCapability: String?
     var provider: any OpenIapModuleProtocol { module }
@@ -223,6 +223,83 @@ final class FixtureProviderTests: XCTestCase {
         XCTAssertTrue(disconnected)
     }
 
+    func testUnknownDeclaredCapabilityFailsConformance() async {
+        let report = await ProviderConformanceSuite(
+            adapter: Adapter(factory: UnknownCapabilityFactory(), module: FixtureModule()), eventTimeout: 0.05
+        ).run()
+        XCTAssertFalse(report.conformant)
+        XCTAssertTrue(report.capabilities.contains("mysteryCapability"))
+        XCTAssertEqual(report.results.first { $0.id == "provider.unknown-capability.mysteryCapability" }?.outcome, "fail")
+        XCTAssertEqual(report.results.first { $0.id == "capabilities.declared-capabilities-match-the-matrix" }?.outcome, "fail")
+    }
+
+    func testUnknownDeclaredCapabilityFailsEvenWhenConnectionFails() async {
+        let provider = FixtureModule()
+        provider.connectionResult = false
+        let report = await ProviderConformanceSuite(
+            adapter: Adapter(factory: UnknownCapabilityFactory(), module: provider), eventTimeout: 0.05
+        ).run()
+        XCTAssertFalse(report.conformant)
+        XCTAssertEqual(report.results.first { $0.id == "provider.unknown-capability.mysteryCapability" }?.outcome, "fail")
+        XCTAssertEqual(report.results.first { $0.id == "provider.connection" }?.outcome, "fail")
+    }
+
+    func testLegacyCompletionFinishesAnUnfinishedPurchase() async throws {
+        let provider = FixtureModule()
+        let module = OpenIapModule(factory: FixedFactory(provider))
+        _ = try await module.initConnection()
+        let request = try OpenIapSerialization.decode(object: ["type": "in-app", "requestPurchase": ["apple": ["sku": "conformance.second"]]], as: RequestPurchaseProps.self)
+        _ = try await module.requestPurchase(request)
+        let owned = try await module.getAvailablePurchases(nil)
+        let purchase = try XCTUnwrap(owned.first { $0.productId == "conformance.second" })
+        XCTAssertNil(provider.finished[purchase.id])
+        let completed = expectation(description: "Legacy completion finishes")
+        module.finishTransactionWithPurchaseId(purchase.id, productId: purchase.productId, isConsumable: false) { error in
+            XCTAssertNil(error)
+            completed.fulfill()
+        }
+        await fulfillment(of: [completed], timeout: 2)
+        XCTAssertEqual(provider.finished[purchase.id]?.purchaseToken, purchase.purchaseToken)
+    }
+
+    func testFinishRejectsPurchaseFromAnotherProvider() async throws {
+        let provider = FixtureModule()
+        let module = OpenIapModule(factory: FixedFactory(provider))
+        _ = try await module.initConnection()
+        let foreign = try OpenIapSerialization.decode(object: [
+            "id": "txn-other", "transactionId": "txn-other", "productId": "conformance.product",
+            "store": "apple", "storeId": "apple", "quantity": 1, "isAutoRenewing": false,
+            "purchaseState": "purchased", "purchaseToken": "token-other", "transactionDate": 1.0,
+        ], as: PurchaseIOS.self)
+        do {
+            try await module.finishTransaction(purchase: .purchaseIos(foreign), isConsumable: false)
+            XCTFail("A purchase from another provider must not finish")
+        } catch let error as PurchaseError {
+            XCTAssertEqual(error.code, .developerError)
+            XCTAssertTrue(error.message.contains("differs"), "wrong guard: \(error.message)")
+        }
+        XCTAssertTrue(provider.finished.isEmpty)
+    }
+
+    func testFinishRejectsNonIOSPurchase() async throws {
+        let provider = FixtureModule()
+        let module = OpenIapModule(factory: FixedFactory(provider))
+        _ = try await module.initConnection()
+        let android = Purchase.purchaseAndroid(PurchaseAndroid(
+            id: "txn-android", isAutoRenewing: false, productId: "conformance.product",
+            purchaseState: .purchased, purchaseToken: "fixture-token-android", quantity: 1,
+            store: .unknown, storeId: "community-fixture", transactionDate: 1.0
+        ))
+        do {
+            try await module.finishTransaction(purchase: android, isConsumable: false)
+            XCTFail("A non-iOS purchase must not finish")
+        } catch let error as PurchaseError {
+            XCTAssertEqual(error.code, .developerError)
+            XCTAssertTrue(error.message.contains("iOS purchase"), "wrong guard: \(error.message)")
+        }
+        XCTAssertTrue(provider.finished.isEmpty)
+    }
+
     func testRemovingListenersStopsProviderEvents() async throws {
         let provider = FixtureModule()
         let count = Count()
@@ -240,6 +317,15 @@ private final class Count: @unchecked Sendable {
     private var count = 0
     func increment() { lock.lock(); count += 1; lock.unlock() }
     var value: Int { lock.lock(); defer { lock.unlock() }; return count }
+}
+private final class UnknownCapabilityFactory: OpenIapProviderFactory {
+    private let base = FixtureFactory()
+    required init() {}
+    var storeId: String { base.storeId }
+    var coreVersion: String { base.coreVersion }
+    var clientProtocolVersion: String { base.clientProtocolVersion }
+    var capabilities: Set<String> { base.capabilities.union(["mysteryCapability"]) }
+    func create() throws -> any OpenIapModuleProtocol { FixtureModule() }
 }
 private final class FixedFactory: OpenIapProviderFactory {
     let module: FixtureModule

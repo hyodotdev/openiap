@@ -102,6 +102,9 @@ public struct ProviderConformanceSuite {
         let required = (ProviderBehaviors.mapping + ProviderBehaviors.runtime
             + capabilities.compactMap { ProviderBehaviors.capabilities[$0] }).sorted()
         var results: [String: String] = [:]
+        for capability in capabilities where ProviderBehaviors.capabilities[capability] == nil {
+            results["provider.unknown-capability.\(capability)"] = "fail"
+        }
         func check(_ id: String, _ operation: () async throws -> Bool) async {
             do { results[id] = try await operation() ? "pass" : "fail" }
             catch { results[id] = "fail" }
@@ -253,10 +256,8 @@ public struct ProviderConformanceSuite {
             return true
         }
         for capability in capabilities {
-            guard let id = ProviderBehaviors.capabilities[capability] else {
-                results["provider.unknown-capability.\(capability)"] = "fail"
-                continue
-            }
+            // Unknown capabilities already failed above, before any early return.
+            guard let id = ProviderBehaviors.capabilities[capability] else { continue }
             await check(id) {
                 let probe = EventProbe<ProviderEvent>()
                 let subscription = capability == "subscriptionBillingIssue"

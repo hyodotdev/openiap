@@ -253,7 +253,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             productId: "premium.monthly",
             state: .entitled,
             store: .apple,
-            storeId: "apple",
+            storeId: "apple"
         )
         let module = FakeVerifyPurchaseModule(
             validateResult: VerifyPurchaseResult.verifyPurchaseResultIos(

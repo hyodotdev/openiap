@@ -176,13 +176,49 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
         try await store.initConnection()
         let ending = Task { try await store.endConnection() }
         await gate.waitUntilEntered()
-        provider.emit(.purchaseIos(try FixtureModule().makePurchase()))
+        provider.emit(try makeSubscriptionPurchase())
         await fulfillment(of: [delivered], timeout: 1)
         await fulfillment(of: [unexpected], timeout: 0.05)
         await gate.release()
         try await ending.value
         XCTAssertFalse(store.isConnected)
         XCTAssertEqual(provider.listenerCount, 0)
+    }
+
+    @MainActor
+    func testSubscriptionPurchaseUpdatesActiveSubscriptionsBeforeRefreshCompletes() async throws {
+        let gate = PurchaseQueryGate()
+        let refreshed = expectation(description: "Refresh completes")
+        let provider = LifecycleProvider(gates: [gate], onActiveRead: { refreshed.fulfill() })
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        let subscription = try makeSubscriptionPurchase()
+        provider.emit(subscription)
+        await gate.waitUntilEntered()
+        XCTAssertEqual(store.activeSubscriptions.map(\.transactionId), [subscription.id])
+        XCTAssertEqual(store.activeSubscriptions.first?.isActive, true)
+        await gate.release([])
+        await fulfillment(of: [refreshed], timeout: 1)
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testConsumablePurchaseDoesNotTriggerRefresh() async throws {
+        let availableRead = expectation(description: "No available-purchases query for consumables")
+        availableRead.isInverted = true
+        let activeRead = expectation(description: "No subscription query for consumables")
+        activeRead.isInverted = true
+        let provider = LifecycleProvider(onAvailableRead: { availableRead.fulfill() }, onActiveRead: { activeRead.fulfill() })
+        let delivered = expectation(description: "Consumable still delivered")
+        let store = OpenIapStore(onPurchaseSuccess: { _ in delivered.fulfill() }, module: provider)
+        try await store.initConnection()
+        let consumable = Purchase.purchaseIos(try FixtureModule().makePurchase(sku: "consumable"))
+        provider.emit(consumable)
+        await fulfillment(of: [delivered], timeout: 1)
+        await fulfillment(of: [availableRead, activeRead], timeout: 0.05)
+        XCTAssertEqual(store.availablePurchases.map(\.id), [consumable.id])
+        XCTAssertTrue(store.activeSubscriptions.isEmpty)
+        try await store.endConnection()
     }
 
     @MainActor
@@ -210,13 +246,14 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
         let provider = LifecycleProvider(gates: [gate], onActiveRead: { unexpected.fulfill() })
         let store = OpenIapStore(module: provider)
         try await store.initConnection()
-        let original = Purchase.purchaseIos(try FixtureModule().makePurchase(sku: "original"))
+        let original = try makeSubscriptionPurchase(sku: "original")
         provider.emit(original)
         await gate.waitUntilEntered()
         try await store.endConnection()
         await gate.release([.purchaseIos(try FixtureModule().makePurchase(sku: "stale"))])
         await fulfillment(of: [unexpected], timeout: 0.05)
         XCTAssertEqual(store.availablePurchases.map(\.id), [original.id])
+        XCTAssertEqual(store.activeSubscriptions.map(\.transactionId), [original.id])
         XCTAssertFalse(store.isConnected)
         XCTAssertEqual(provider.connectionCount, 1)
     }
@@ -227,7 +264,7 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
         let provider = LifecycleProvider(gates: [gate])
         var store: OpenIapStore? = OpenIapStore(module: provider)
         try await store?.initConnection()
-        provider.emit(.purchaseIos(try FixtureModule().makePurchase()))
+        provider.emit(try makeSubscriptionPurchase())
         await gate.waitUntilEntered()
         weak var releasedStore = store
         store = nil
@@ -244,9 +281,9 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
         let provider = LifecycleProvider(gates: [first, second], onActiveRead: { refreshed.fulfill() })
         let store = OpenIapStore(module: provider)
         try await store.initConnection()
-        provider.emit(.purchaseIos(try FixtureModule().makePurchase(sku: "first")))
+        provider.emit(try makeSubscriptionPurchase(sku: "first"))
         await first.waitUntilEntered()
-        provider.emit(.purchaseIos(try FixtureModule().makePurchase(sku: "second")))
+        provider.emit(try makeSubscriptionPurchase(sku: "second"))
         await second.waitUntilEntered()
         let latest = Purchase.purchaseIos(try FixtureModule().makePurchase(sku: "latest"))
         await second.release([latest])
@@ -273,6 +310,14 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
         await fulfillment(of: [replayed], timeout: 1)
         XCTAssertEqual(store.currentPurchase?.id, replay.id)
         try await store.endConnection()
+    }
+
+    private func makeSubscriptionPurchase(sku: String = "conformance.subscription") throws -> Purchase {
+        var ios = try FixtureModule().makePurchase(sku: sku)
+        ios.isAutoRenewing = true
+        ios.expirationDateIOS = Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000
+        ios.subscriptionGroupIdIOS = "group-\(sku)"
+        return .purchaseIos(ios)
     }
 
     @MainActor

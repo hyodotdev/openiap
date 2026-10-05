@@ -64,13 +64,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws -> Void {
+        let active = try provider
         guard case .purchaseIos = purchase else {
             throw PurchaseError.make(code: .developerError, message: "Apple providers require an iOS purchase.")
         }
         guard purchase.storeId == storeId else {
             throw PurchaseError.make(code: .developerError, message: "Purchase storeId differs from the selected provider.")
         }
-        try await provider.finishTransaction(purchase: purchase, isConsumable: isConsumable)
+        try await active.finishTransaction(purchase: purchase, isConsumable: isConsumable)
     }
 
     public func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {

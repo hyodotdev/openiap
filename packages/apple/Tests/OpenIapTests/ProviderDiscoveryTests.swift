@@ -61,6 +61,10 @@ final class ProviderDiscoveryTests: XCTestCase {
     }
 
     func testMalformedSelectionFailsAtConnectionWithoutFallback() async throws {
+        let purchase = try OpenIapSerialization.purchaseInput(from: [
+            "store": "apple", "id": "txn", "transactionId": "txn", "productId": "sku",
+            "quantity": 1, "isAutoRenewing": false, "purchaseState": "purchased", "transactionDate": 1.0,
+        ])
         for value in ["", "MissingFactory", "NSObject", 123] as [Any] {
             let selection = try withBundle(value: value) { OpenIapProvider.select(bundle: $0) }
             let module = OpenIapModule(selection: selection)
@@ -70,6 +74,53 @@ final class ProviderDiscoveryTests: XCTestCase {
             XCTAssertNil(module.storeId)
             do { _ = try await module.initConnection(); XCTFail("Invalid provider must not connect") }
             catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+            do {
+                try await module.finishTransaction(purchase: purchase, isConsumable: false)
+                XCTFail("Finish on a failed selection must report the configuration cause")
+            } catch let error as PurchaseError {
+                XCTAssertEqual(error.code, .developerError)
+                XCTAssertTrue(error.message.contains("Info.plist"), "finish hid the cause: \(error.message)")
+            }
+        }
+    }
+
+    func testSelectRejectsFactoryWithIncompatibleContract() async throws {
+        for factory in [DiscoveryIncompatibleCoreFactory(), DiscoveryIncompatibleClientProtocolFactory()] as [any OpenIapProviderFactory] {
+            do {
+                _ = try OpenIapProvider.select(factory: factory).get()
+                XCTFail("Incompatible factory must not be selected")
+            } catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+            let module = OpenIapModule(factory: factory)
+            do { _ = try await module.initConnection(); XCTFail("Incompatible factory must not connect") }
+            catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+        }
+    }
+
+    func testSelectSurfacesFactoryCreateFailure() async throws {
+        let factory = DiscoveryThrowingCreateFactory()
+        do {
+            _ = try OpenIapProvider.select(factory: factory).get()
+            XCTFail("Factory that cannot create must not be selected")
+        } catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+        let module = OpenIapModule(factory: factory)
+        do { _ = try await module.initConnection(); XCTFail("Factory that cannot create must not connect") }
+        catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+    }
+
+    func testInfoPlistSelectionOfFailingFactoryFailsOperations() async throws {
+        let purchase = try OpenIapSerialization.purchaseInput(from: [
+            "store": "apple", "id": "txn", "transactionId": "txn", "productId": "sku",
+            "quantity": 1, "isAutoRenewing": false, "purchaseState": "purchased", "transactionDate": 1.0,
+        ])
+        for name in ["DiscoveryIncompatibleCoreFactory", "DiscoveryThrowingCreateFactory"] {
+            let module = try withBundle(value: name) { OpenIapModule(selection: OpenIapProvider.select(bundle: $0)) }
+            XCTAssertNil(module.storeId)
+            do { _ = try await module.initConnection(); XCTFail("\(name) must not connect") }
+            catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+            do {
+                try await module.finishTransaction(purchase: purchase, isConsumable: false)
+                XCTFail("\(name) must not finish")
+            } catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
         }
     }
 
@@ -125,6 +176,35 @@ final class ProviderDiscoveryTests: XCTestCase {
         let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
         try data.write(to: url.appendingPathComponent("Info.plist"))
         return try operation(XCTUnwrap(Bundle(url: url)))
+    }
+}
+
+@objc(DiscoveryIncompatibleCoreFactory)
+private final class DiscoveryIncompatibleCoreFactory: NSObject, OpenIapProviderFactory {
+    required override init() { super.init() }
+    var storeId: String { "community-fixture" }
+    var coreVersion: String { "999.0.0" }
+    var clientProtocolVersion: String { OpenIapVersion.clientProtocolVersion }
+    func create() throws -> any OpenIapModuleProtocol { OpenIapStoreKitModule() }
+}
+
+@objc(DiscoveryIncompatibleClientProtocolFactory)
+private final class DiscoveryIncompatibleClientProtocolFactory: NSObject, OpenIapProviderFactory {
+    required override init() { super.init() }
+    var storeId: String { "community-fixture" }
+    var coreVersion: String { OpenIapVersion.current }
+    var clientProtocolVersion: String { "0.99.0" }
+    func create() throws -> any OpenIapModuleProtocol { OpenIapStoreKitModule() }
+}
+
+@objc(DiscoveryThrowingCreateFactory)
+private final class DiscoveryThrowingCreateFactory: NSObject, OpenIapProviderFactory {
+    required override init() { super.init() }
+    var storeId: String { "community-fixture" }
+    var coreVersion: String { OpenIapVersion.current }
+    var clientProtocolVersion: String { OpenIapVersion.clientProtocolVersion }
+    func create() throws -> any OpenIapModuleProtocol {
+        throw PurchaseError.make(code: .developerError, message: "Fixture factory cannot create a module")
     }
 }
 

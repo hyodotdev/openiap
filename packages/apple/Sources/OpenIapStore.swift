@@ -209,6 +209,37 @@ public final class OpenIapStore: ObservableObject {
 
         onPurchaseSuccess?(purchase)
 
+        guard let ios = purchase.asIOS() else { return }
+        let shouldRefresh = ios.expirationDateIOS != nil
+            || ios.isAutoRenewing
+            || (ios.subscriptionGroupIdIOS?.isEmpty == false)
+        guard shouldRefresh else { return }
+
+        // Update activeSubscriptions directly from purchase data (avoid calling getActiveSubscriptions)
+        // Skip if this transaction is upgraded - it means it's been replaced by a new subscription
+        if let expirationDate = ios.expirationDateIOS, ios.isUpgradedIOS != true {
+            let isActive = Date(timeIntervalSince1970: expirationDate / 1000) > Date()
+
+            let newSubscription = ActiveSubscription(
+                autoRenewingAndroid: nil,
+                currentPlanId: ios.productId,
+                daysUntilExpirationIOS: nil,
+                environmentIOS: ios.environmentIOS,
+                expirationDateIOS: expirationDate,
+                isActive: isActive,
+                productId: ios.productId,
+                purchaseToken: ios.purchaseToken,
+                renewalInfoIOS: ios.renewalInfoIOS,
+                transactionDate: ios.transactionDate,
+                transactionId: ios.transactionId
+            )
+
+            // Remove duplicates by transactionId
+            activeSubscriptions = activeSubscriptions.filter { existing in
+                existing.transactionId != ios.transactionId
+            } + [newSubscription]
+        }
+
         guard endConnectionTask == nil else { return }
         purchaseRefreshTask?.cancel()
         let generation = listenerGeneration
