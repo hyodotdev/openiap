@@ -37,7 +37,7 @@ const INLINE = new Set([
   'sup',
 ]);
 
-// Decode dash entities so `;` is not misread.
+// JSX text decodes entities so `;` is not misread; literals stay as written.
 const MDASH_ENTITY = /&(?:mdash|#8212|#x2014);/gi;
 const NDASH_ENTITY = /&(ndash|#8211|#x2013);/gi;
 const DASH = /[—–]/;
@@ -88,8 +88,7 @@ function edgeText(element, first) {
     } else if (ts.isJsxExpression(child)) {
       const inner = child.expression;
       if (inner && ts.isStringLiteral(inner)) {
-        const text = decodeDashes(inner.text);
-        if (text) return text;
+        if (inner.text) return inner.text;
       } else if (inner) {
         return null;
       }
@@ -147,7 +146,7 @@ function scanSource(text, path) {
         if (!inner) continue;
         if (!ts.isStringLiteral(inner)) endUnknown = true;
         else if (!inner.text) continue;
-        else end = joinEdge(decodeDashes(inner.text), false);
+        else end = joinEdge(inner.text, false);
       } else {
         continue;
       }
@@ -163,7 +162,7 @@ function scanSource(text, path) {
         if (!inner) continue;
         if (!ts.isStringLiteral(inner)) startUnknown = true;
         else if (!inner.text) continue;
-        else start = joinEdge(decodeDashes(inner.text), true);
+        else start = joinEdge(inner.text, true);
       } else {
         continue;
       }
@@ -354,14 +353,71 @@ test('element-wrapped dash edges follow the same spacing rule', () => {
 test('string-literal dash edges follow the same spacing rule', () => {
   const clean = page(`      <p>
         {'x—'}
-        <code>y</code>
+        word
+      </p>
+      <p>
+        word
+        <em>{'—x'}</em>
       </p>`);
   assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
   const flagged = page(`      <p>
         word
         {'— x'}
+      </p>
+      <p>
+        {'x —'}
+        word
+      </p>
+      <p>
+        word
+        <em>{'— x'}</em>
+      </p>`);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 3);
+});
+
+test('string literals keep entities as written', () => {
+  const flagged = page(`      <p>
+        {'x&mdash;'}
+        word
       </p>`);
   assert.equal(scanSource(flagged, 'fixture.tsx').length, 1);
+  const clean = page(`      <p>
+        word
+        {'&mdash; x'}
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+});
+
+test('element edges use the nearest text in each direction', () => {
+  const flagged = page(`      <p>
+        <em>a <code>b</code> c</em>
+        word
+      </p>
+      <p>
+        word
+        <em>a <code>b</code> c</em>
+      </p>`);
+  const findings = scanSource(flagged, 'fixture.tsx');
+  assert.equal(findings.length, 2);
+  assert.ok(findings[0].includes("'c' + 'w'"));
+  assert.ok(findings[1].includes("'d' + 'a'"));
+});
+
+test('element edges skip comments and empty literals', () => {
+  const flagged = page(`      <p>
+        word
+        <em>{/* c */}x</em>
+      </p>
+      <p>
+        word
+        <em>{''}x</em>
+      </p>`);
+  assert.equal(scanSource(flagged, 'fixture.tsx').length, 2);
+  const clean = page(`      <p>
+        word
+        <em>{value}x</em>
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
 });
 
 test('element-only joins stay unchecked', () => {
