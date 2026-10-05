@@ -49,7 +49,7 @@ function GetActiveSubscriptions() {
       <p>
         <strong>Fire OS:</strong> uses the Amazon adapter's purchase-update
         stream under the Android API shape. App code still passes the same
-        subscription SKU list and reads the same <code>ActiveSubscription</code>
+        subscription SKU list and reads the same <code>ActiveSubscription</code>{' '}
         fields; the adapter handles Amazon receipt IDs and the in-flight
         purchase response correlation so examples and framework apps do not need
         ad-hoc SKU alias logic.

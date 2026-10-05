@@ -34,7 +34,7 @@ exactly one canonical error event before a failed purchase request returns an
 empty result or throws.
 Negative cases reject missing, duplicate, and contradictory events. Swift
 ownership reads must retain the token from the original purchase callback;
-matching later reads alone cannot pass. The final fixture checks ran 15 Swift
+matching later reads alone cannot pass. The final fixture checks ran 29 Swift
 tests and 26 Android tests, with no failures.
 
 MAUI uses Gradle to resolve and verify the provider's dependency graph,

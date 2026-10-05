@@ -489,15 +489,15 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'community-android-providers-2026-10-01',
+      id: 'community-store-providers-2026-10-02',
       aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag),
       date: new Date('2026-10-02'),
       element: (
-        <div key="community-android-providers-2026-10-01" style={noteCardStyle}>
+        <div key="community-store-providers-2026-10-02" style={noteCardStyle}>
           {COMMUNITY_PROVIDER_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="community-android-providers-2026-10-01" level="h4">
+          <AnchorLink id="community-store-providers-2026-10-02" level="h4">
             October 2, 2026 - Community store providers
           </AnchorLink>
           <p>
@@ -525,55 +525,71 @@ function Releases() {
           <h5>Protocols and native packages</h5>
           <ul>
             <li>
-              Client Protocol 0.2.0 defines store identity and shared provider
-              metadata. OpenIAP Apple 4.0.0 adds factory discovery and the
-              public
-              <code>OpenIapConformance</code> Swift suite.
+              <strong>Client Protocol 0.2.0</strong> defines store identity and
+              shared provider metadata.
             </li>
             <li>
-              Apple delivers purchase errors before returning. SwiftUI
-              serializes connection and teardown, preserves active sessions
-              during failed or cancelled reinitialization, cancels stale
-              refreshes, receives ownership replays and keeps failed teardown
-              retryable.
+              <strong>CLI 0.2.0</strong> checks community store selection and
+              provider coordinates with <code>openiap doctor</code>.
             </li>
             <li>
-              OpenIAP Google 4.0.0 publishes <code>openiap-core</code> and the
-              Kotlin <code>openiap-conformance</code> suite alongside the three
+              <strong>OpenIAP Apple 4.0.0</strong>
+              <ul>
+                <li>
+                  Adds factory discovery and the public{' '}
+                  <code>OpenIapConformance</code> Swift suite.
+                </li>
+                <li>Requires tvOS 16.0+.</li>
+                <li>
+                  Delivers purchase errors before returning, and the SwiftUI
+                  store preserves sessions across failed or cancelled reconnects
+                  with retryable teardown.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>OpenIAP Google 4.0.0</strong> publishes{' '}
+              <code>openiap-core</code> and the Kotlin{' '}
+              <code>openiap-conformance</code> suite alongside the three
               official store artifacts, with shared provider discovery and
               compatibility checks.
-            </li>
-            <li>
-              CLI 0.2.0 checks community store selection and provider
-              coordinates with <code>openiap doctor</code>.
             </li>
           </ul>
           <h5>Framework libraries</h5>
           <ul>
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
-              4.0.0, and MAUI 3.0.0 support external Apple and Android providers
-              and preserve purchase identities and normalized verification
-              errors, including unsupported receipt verification.
+              4.0.0, and MAUI 3.0.0 support external providers, preserving
+              purchase identity and normalized verification errors, including
+              unsupported receipt verification.
             </li>
             <li>
-              React Native preserves unknown Android renewal as{' '}
-              <code>null</code>; required Boolean hints do not establish
-              cancellation or entitlement.
+              <strong>React Native 17.0.0</strong>
+              <ul>
+                <li>
+                  Preserves unknown Android renewal as <code>null</code>;
+                  required Boolean hints do not establish cancellation or
+                  entitlement.
+                </li>
+                <li>
+                  Preserves normalized provider errors when opening subscription
+                  management and delivers each repeated Apple purchase failure.
+                </li>
+              </ul>
             </li>
             <li>
-              React Native preserves normalized provider errors when opening
-              subscription management and delivers each repeated Apple purchase
-              failure.
-            </li>
-            <li>
-              Godot keeps Apple listeners when provider disconnection fails and
-              fixes iOS source builds with SwiftPM generators.
-            </li>
-            <li>
-              Godot rejects invalid Android provider selection during export,
-              emits one error for Apple restore failures, and never signals
-              connection success after initialization fails.
+              <strong>Godot 4.0.0</strong>
+              <ul>
+                <li>
+                  Keeps Apple listeners when provider disconnection fails and
+                  fixes iOS source builds with SwiftPM generators.
+                </li>
+                <li>
+                  Rejects invalid Android provider selection during export,
+                  emits one error for Apple restore failures, and never signals
+                  connection success after initialization fails.
+                </li>
+              </ul>
             </li>
           </ul>
           <h5>Integration notes</h5>
@@ -588,11 +604,11 @@ function Releases() {
               <Link to="/docs/guides/store-providers">
                 Store provider guide
               </Link>{' '}
-              for architecture diagrams, actual Amazon example screens, a source
-              walkthrough and an acceptance brief for provider authors and AI
-              coding agents. Provider-specific settings belong to its manifest
-              or resources. The Amazon community package is an educational
-              example; use the{' '}
+              to build a provider; provider-specific settings belong to its
+              manifest or resources.
+            </li>
+            <li>
+              The Amazon community package is an educational example; use the{' '}
               <Link to="/docs/setup/store/amazon">
                 official Amazon integration
               </Link>{' '}
@@ -9436,7 +9452,7 @@ function Releases() {
               <strong>Framework SDK patches</strong> — Expo, React Native,
               Flutter, and KMP patch releases pick up the new native
               Apple/Google versions and ship the synchronized examples and
-              tests. React Native's latest published patch for this rollout is
+              tests. React Native's latest published patch for this rollout is{' '}
               <code>15.2.1</code>. No breaking JS, Dart, or Kotlin API changes
               are required for this parity patch.
             </li>
@@ -10658,7 +10674,7 @@ function Releases() {
                 the Android side. <code>makePurchaseError(...)</code> accepts a{' '}
                 <code>debugMessage:</code> parameter, and the StoreKit catch
                 sites (product query, promoted product, promotional offer
-                failure) now forward <code>error.localizedDescription</code>
+                failure) now forward <code>error.localizedDescription</code>{' '}
                 into it so iOS callers get the same structured diagnostic shape.
               </li>
               <li>

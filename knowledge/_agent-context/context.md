@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-30T12:11:48.065Z
+> Last updated: 2026-10-05T13:59:40.246Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -340,6 +340,36 @@ not a third specification.
 mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
 native package versions. A version like `3.4.0` there is a native package
 version, not a protocol version.
+
+## Store Providers
+
+Apple and Android share one provider contract. `StoreProviderDescriptor`
+(`specs/client/src/type.graphql`) names the store id, platform, native core
+version, Client Protocol version, and capability ids. Each native binding
+exposes a factory (`OpenIapProviderFactory`) with a public no-argument
+initializer; the app selects one provider and every SDK dispatches its
+existing purchase APIs through it.
+
+Discovery uses one metadata key, `dev.hyo.openiap.PROVIDER`: an Android
+manifest `meta-data` entry naming the factory class, or an Info.plist string
+naming the Objective-C factory class. A missing Apple key uses the App Store
+factory; any other invalid selection fails with a developer error, never a
+fallback.
+
+`IapStore` is frozen: no new cases. Every purchase and verification result
+carries a required `storeId`. Official ids are `apple`, `play`, `horizon`,
+and `amazon` (Play keeps the `google` enum wire value). A new external store
+uses `unknown` with its own stable id; a provider serving an existing store
+reports that store's canonical id and legacy value.
+
+Registration is optional. `specs/client/src/store-registry.json` owns ids,
+aliases, tiers, maintainers, repositories, coordinates, and latest conformance
+reports. `experimental` entries have no passing report; `community` entries
+carry passing reports for every platform binding on the current suite major;
+`official` entries live in this monorepo. Conformance suites
+(`packages/conformance`: JS runner, Kotlin `ProviderConformanceSuite`, Swift
+`ProviderConformanceSuite`) assert the provider profile behaviors; a report
+passes only when every required behavior passes with a matching verdict.
 
 ## Directory Ownership Guardrail
 
@@ -1269,6 +1299,27 @@ bridges and exercises source-first mappings and round trips. When a generated
 payload field or bridge changes, update the real platform mapping and a focused
 regression fixture before extending the audit expectation.
 
+### Provider identity and selection
+
+Every output that carries `IapStore` also carries a required `storeId`
+(purchases, verification results, descriptors). Every SDK bridge preserves
+both fields through events, reads, JSON, and completion, and completes with
+the full purchase; the Apple ID-only selector resolves the owned purchase
+first and otherwise points to the full-purchase selector.
+
+External selection pairs a community id with fixed coordinates in every SDK:
+`openiapStore` + `openiapProvider` (Gradle, React Native, Flutter, KMP),
+`android.store` + `android.provider` (Expo), `OpenIapStore` +
+`OpenIapProvider` (MAUI), `openiap/android_store` +
+`openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
+Official ids and their aliases are rejected with coordinates. Alias tables
+and `StoreIds` constants are generated from the registry with
+`bun run stores:generate`; never hand-edit a generated block.
+
+SDK and shared code reaches the store through `OpenIapProvider` discovery on
+Android and the `OpenIapModule` facade on Apple. Never import a flavor module
+class from shared code; the build links the selected flavor.
+
 ### The bug pattern
 
 A symptom like "interface exists in `types.dart` / `types.ts` / `Types.kt` but calling it does nothing / throws" means one or more of these layers is missing:
@@ -1439,10 +1490,10 @@ file into its jar at build time. Every other build system reads the same names:
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
-`bun audit:parity` compares all five alias tables — the resolver, the doctor,
-the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
-targets — because a store that resolves differently in two layers of one build
-is exactly what this mechanism exists to prevent.
+`bun audit:parity` compares all six alias tables — the resolver, the doctor,
+the Godot helper, the Expo plugin, the runtime facade in `OpenIapStore.kt`
+and the MAUI package targets — because a store that resolves differently in
+two layers of one build is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by
 `packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test

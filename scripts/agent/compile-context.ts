@@ -283,9 +283,12 @@ upstream Amazon binding as an educational packaging example through the public E
 For FireOS apps, recommend the official openiap-google-amazon integration at
 https://openiap.dev/docs/setup/store/amazon. Expo registry checks and App Tester
 simulation do not establish production readiness or registry parity across every framework.
-Use a unique storeId with store=unknown, preserve the original receipt, and configure
-an explicit backend verification adapter. Pending or rejected purchases remain
-unfinished. Run public conformance, consumer checks and store testing separately.
+Select the provider with its community id and fixed coordinates, preserve the
+original receipt, and configure an explicit backend verification adapter. A new
+store reports store=unknown with its own storeId; a provider serving an existing
+store reports that store's canonical storeId and legacy store value. Pending or
+rejected purchases remain unfinished. Run public conformance, consumer checks and
+store testing separately.
 
 Follow one purchase at https://openiap.dev/commerce-protocol/getting-started.
 Select Apple, Google Play, Amazon or Meta Horizon there; the chosen store stays

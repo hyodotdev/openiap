@@ -29,6 +29,9 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
   parallel field lists.
 - `generated-sync-manifest.mjs` is the only generated source/target path map
   used by platform sync and commit-time drift checks.
+- `src/store-registry.json` owns provider ids, aliases, tiers, and reports; see
+  [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers)
+  and regenerate consumers with `bun run stores:generate` from the repo root.
 - `src/type.graphql`: common cross‑platform SDL only.
 - `src/type-ios.graphql`: iOS‑specific SDL only.
 - `src/type-android.graphql`: Android‑specific SDL only.

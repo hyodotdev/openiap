@@ -187,6 +187,27 @@ bridges and exercises source-first mappings and round trips. When a generated
 payload field or bridge changes, update the real platform mapping and a focused
 regression fixture before extending the audit expectation.
 
+### Provider identity and selection
+
+Every output that carries `IapStore` also carries a required `storeId`
+(purchases, verification results, descriptors). Every SDK bridge preserves
+both fields through events, reads, JSON, and completion, and completes with
+the full purchase; the Apple ID-only selector resolves the owned purchase
+first and otherwise points to the full-purchase selector.
+
+External selection pairs a community id with fixed coordinates in every SDK:
+`openiapStore` + `openiapProvider` (Gradle, React Native, Flutter, KMP),
+`android.store` + `android.provider` (Expo), `OpenIapStore` +
+`OpenIapProvider` (MAUI), `openiap/android_store` +
+`openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
+Official ids and their aliases are rejected with coordinates. Alias tables
+and `StoreIds` constants are generated from the registry with
+`bun run stores:generate`; never hand-edit a generated block.
+
+SDK and shared code reaches the store through `OpenIapProvider` discovery on
+Android and the `OpenIapModule` facade on Apple. Never import a flavor module
+class from shared code; the build links the selected flavor.
+
 ### The bug pattern
 
 A symptom like "interface exists in `types.dart` / `types.ts` / `Types.kt` but calling it does nothing / throws" means one or more of these layers is missing:
@@ -357,10 +378,10 @@ file into its jar at build time. Every other build system reads the same names:
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
-`bun audit:parity` compares all five alias tables — the resolver, the doctor,
-the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
-targets — because a store that resolves differently in two layers of one build
-is exactly what this mechanism exists to prevent.
+`bun audit:parity` compares all six alias tables — the resolver, the doctor,
+the Godot helper, the Expo plugin, the runtime facade in `OpenIapStore.kt`
+and the MAUI package targets — because a store that resolves differently in
+two layers of one build is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by
 `packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test

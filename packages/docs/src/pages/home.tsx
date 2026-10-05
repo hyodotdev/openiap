@@ -627,8 +627,7 @@ function Home() {
           <div className="home-sponsor-ledger">
             <div className="home-sponsor-featured">
               <span className="home-sponsor-label">
-                <span>01</span>
-                Sponsors
+                <span>01</span> Sponsors
               </span>
               <div className="home-sponsor-meta">
                 {CURRENT_SPONSORS.map((sponsor) => {

@@ -683,7 +683,7 @@ function Migration() {
         </AnchorLink>
         <p>
           <code>PurchaseAndroid.dataAndroid</code> is the only public,
-          schema-defined field for Google Play&apos;s raw signed purchase JSON.
+          schema-defined field for Google Play&apos;s raw signed purchase JSON.{' '}
           <code>originalJsonAndroid</code> is not a public Purchase field and is
           never the preferred output key.
         </p>

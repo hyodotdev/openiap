@@ -106,7 +106,7 @@ function InitConnection() {
           — <strong>Android.</strong> Enable a Play Billing program at
           connection time. <code>EXTERNAL_CONTENT_LINK</code> and{' '}
           <code>EXTERNAL_OFFER</code> require Billing 8.2.0+;{' '}
-          <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);
+          <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);{' '}
           <code>BILLING_CHOICE</code> is available in OpenIAP 2.1.0 /{' '}
           <code>openiap-google</code> 2.3.0 and requires Billing 9.1.0+.
         </li>

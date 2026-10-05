@@ -119,3 +119,7 @@ Some implementation helpers exist only on specific Android flavors:
   ./gradlew :openiap:compileHorizonDebugKotlin
   ./gradlew :openiap:compileAmazonDebugKotlin
   ```
+
+## Store Providers
+
+Android reaches the selected store only through `OpenIapProvider` manifest discovery; the contract, identity rules, and parity checklist live in [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers) and [04-platform-packages.md](../../knowledge/internal/04-platform-packages.md#provider-identity-and-selection).

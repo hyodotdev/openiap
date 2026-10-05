@@ -98,10 +98,8 @@ function CommerceConformance() {
             Implement the <code>EventsAdapter</code> interface in the installed
             <code> conformance/index.d.ts</code> against your own emitter. An
             advertised events profile without this adapter fails the run. Read
-            <code> report.results</code> and <code>report.parityFailures</code>
-            for failures; the script exits nonzero when <code>
-              report.ok
-            </code>{' '}
+            <code> report.results</code> and <code>report.parityFailures</code>{' '}
+            for failures; the script exits nonzero when <code>report.ok</code>{' '}
             is false.
           </p>
         </details>

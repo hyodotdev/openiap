@@ -62,6 +62,36 @@ mirrored from `specs/client/package.json` — alongside `google` and `apple`, th
 native package versions. A version like `3.4.0` there is a native package
 version, not a protocol version.
 
+## Store Providers
+
+Apple and Android share one provider contract. `StoreProviderDescriptor`
+(`specs/client/src/type.graphql`) names the store id, platform, native core
+version, Client Protocol version, and capability ids. Each native binding
+exposes a factory (`OpenIapProviderFactory`) with a public no-argument
+initializer; the app selects one provider and every SDK dispatches its
+existing purchase APIs through it.
+
+Discovery uses one metadata key, `dev.hyo.openiap.PROVIDER`: an Android
+manifest `meta-data` entry naming the factory class, or an Info.plist string
+naming the Objective-C factory class. A missing Apple key uses the App Store
+factory; any other invalid selection fails with a developer error, never a
+fallback.
+
+`IapStore` is frozen: no new cases. Every purchase and verification result
+carries a required `storeId`. Official ids are `apple`, `play`, `horizon`,
+and `amazon` (Play keeps the `google` enum wire value). A new external store
+uses `unknown` with its own stable id; a provider serving an existing store
+reports that store's canonical id and legacy value.
+
+Registration is optional. `specs/client/src/store-registry.json` owns ids,
+aliases, tiers, maintainers, repositories, coordinates, and latest conformance
+reports. `experimental` entries have no passing report; `community` entries
+carry passing reports for every platform binding on the current suite major;
+`official` entries live in this monorepo. Conformance suites
+(`packages/conformance`: JS runner, Kotlin `ProviderConformanceSuite`, Swift
+`ProviderConformanceSuite`) assert the provider profile behaviors; a report
+passes only when every required behavior passes with a matching verdict.
+
 ## Directory Ownership Guardrail
 
 Keep each project surface under its canonical owner:

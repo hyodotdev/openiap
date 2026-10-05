@@ -339,9 +339,11 @@ export default function StoreProviders() {
           Select an Android provider
         </AnchorLink>
         <p>
-          Use the id and fixed version supplied by the provider maintainer. Add
-          its Maven repository to your app if it is hosted outside Maven
-          Central. Select one provider per Android build.
+          Use the community id and fixed Maven coordinates supplied by the
+          provider maintainer; official store ids and their aliases are rejected
+          with provider coordinates. Add its Maven repository to your app if it
+          is hosted outside Maven Central. Select one provider per Android
+          build.
         </p>
         <p>
           Implement the store SDK once in a native Android provider AAR. A
@@ -438,11 +440,12 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
         <p>
           <code>IapStore</code> has a fixed set of values. New stores use{' '}
           <code>store = 'unknown'</code> and their own nonempty{' '}
-          <code>storeId</code>. Adapters for existing stores keep the matching
-          legacy value and canonical id, regardless of publisher. Official ids
-          are <code>apple</code>, <code>play</code>, <code>horizon</code>, and{' '}
-          <code>amazon</code>; Play’s existing enum wire value remains{' '}
-          <code>'google'</code>.
+          <code>storeId</code>. A provider that serves an existing store reports
+          that store&apos;s canonical <code>storeId</code> and legacy{' '}
+          <code>store</code> value in its purchases, independent of the
+          community id used to select it. Official ids are <code>apple</code>,{' '}
+          <code>play</code>, <code>horizon</code>, and <code>amazon</code>;
+          Play’s existing enum wire value remains <code>'google'</code>.
         </p>
         <p>
           Use <code>purchase.storeId</code> when routing a purchase to your
@@ -496,8 +499,7 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           Apple-platform purchase arguments, including community stores.
           Preserve opaque transaction IDs and receipts through listeners,
           ownership reads, and completion. Optional StoreKit-only methods
-          default to
-          <code>feature-not-supported</code>.
+          default to <code>feature-not-supported</code>.
         </p>
         <p>
           On either platform, a failed <code>requestPurchase</code> emits one
@@ -519,11 +521,10 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           Consume the <code>OpenIapConformance</code> Swift product in your test
           target. Implement <code>ProviderConformanceAdapter</code> with your
           real error and entitlement mappers and sandbox capability triggers.
-          Run
-          <code>ProviderConformanceSuite(adapter: adapter).run()</code>, assert
-          <code>report.conformant</code>, and write the Codable report. The
-          <code>apple-provider</code> and <code>android-provider</code> profiles
-          share lifecycle, identity, error, ownership and capability
+          Run <code>ProviderConformanceSuite(adapter: adapter).run()</code>,
+          assert <code>report.conformant</code>, and write the Codable report.
+          The <code>apple-provider</code> and <code>android-provider</code>{' '}
+          profiles share lifecycle, identity, error, ownership and capability
           requirements. Apple App Store advertises only capabilities supported
           by the current platform and OS version.
         </p>
@@ -580,12 +581,14 @@ class YourStoreFactory : OpenIapProviderFactory {
           Choose a stable lowercase id containing letters, digits, and single
           dot, underscore, or hyphen separators. A new store uses a custom id
           with <code>store: 'unknown'</code>; avoid registry alias collisions.
-          Existing store ids identify the billing store, not the provider’s
-          publisher. An adapter for an existing store uses its canonical id and
-          matching legacy <code>store</code> value. Android rejects{' '}
-          <code>apple</code>, <code>google</code>, <code>auto</code>,{' '}
-          <code>none</code>, and <code>unknown</code> as provider ids. Store
-          identity does not replace backend receipt verification.
+          Build selection requires a community id: official ids and their
+          aliases are rejected with provider coordinates. The runtime only
+          rejects <code>auto</code>, <code>none</code>, <code>apple</code>,{' '}
+          <code>google</code>, and <code>unknown</code>, so a provider that
+          serves an existing store reports that store&apos;s canonical{' '}
+          <code>storeId</code> and legacy <code>store</code> value in its
+          purchases. Store identity does not replace backend receipt
+          verification.
         </p>
         <p>
           <code>OpenIapProtocol</code> and its referenced types are public API
@@ -680,7 +683,9 @@ class YourStoreFactory : OpenIapProviderFactory {
           JSON. Apple coordinates specify a Swift package URL, product, and
           exact version. A store supporting both platforms uses one id and a
           bindings object; each binding owns its coordinates, capabilities, and
-          report.
+          report. Each non-official binding’s report must carry the entry’s id
+          as <code>storeId</code> with <code>store</code> unknown, match its
+          declared capabilities, and cover the profile’s required behaviors.
         </p>
         <CodeBlock
           language="bash"
