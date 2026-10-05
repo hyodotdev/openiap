@@ -122,11 +122,17 @@ internal fun rejectDisconnectedPurchase(
 internal suspend fun endRnConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
-): Boolean {
-    val result = endConnection()
+): Boolean = try {
+    endConnection()
+} finally {
     cleanup()
-    return result
 }
+
+internal fun mapEndConnectionError(error: Exception): OpenIapError =
+    error as? OpenIapError ?: OpenIapError.ServiceDisconnected(error.message)
+
+internal fun mapInitConnectionError(error: Exception, linkedStoreId: String?): OpenIapError =
+    error as? OpenIapError ?: OpenIapError.InitConnection.forStore(linkedStoreId)
 
 /**
  * Removes the singleton JS fan-out listener without relying on callback identity.
@@ -286,7 +292,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: CancellationException) {
                 throw err
             } catch (err: Exception) {
-                val error = err as? OpenIapError ?: OpenIapError.InitConnection
+                val error = mapInitConnectionError(err, linkedStoreId)
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.setActivity", err)
                 throw OpenIapException(
@@ -389,7 +395,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 throw err
             } catch (err: Exception) {
                 listenersAttached = false
-                val error = err as? OpenIapError ?: OpenIapError.InitConnection
+                val error = mapInitConnectionError(err, linkedStoreId)
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.listeners", err)
                 val wrapped = OpenIapException(
@@ -423,7 +429,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 } catch (err: CancellationException) {
                     throw err
                 } catch (err: Exception) {
-                    val error = err as? OpenIapError ?: OpenIapError.InitConnection.forStore(linkedStoreId)
+                    val error = mapInitConnectionError(err, linkedStoreId)
                     RnIapLog.failure("initConnection.native", err)
                     throw OpenIapException(
                         toErrorJson(
@@ -469,29 +475,38 @@ class HybridRnIap : HybridRnIapSpec() {
         )
         val invocation = connectionLifecycleQueue.enqueueEnd(pendingInitError) {
             RnIapLog.payload("endConnection", null)
-            val result = endRnConnectionWithCleanup(
-                endConnection = { openIap.endConnection() },
-                cleanup = {
-                    productTypeBySku.clear()
-                    isInitialized = false
-                    // Native listener sets persist; clear only bridge callbacks and
-                    // the pending event queues.
-                    synchronized(purchaseUpdatedListeners) {
-                        purchaseUpdatedListeners.clear()
-                        pendingPurchaseUpdates.clear()
-                    }
-                    synchronized(purchaseErrorListeners) {
-                        purchaseErrorListeners.clear()
-                        pendingPurchaseErrors.clear()
-                    }
-                    promotedProductListenersIOS.clear()
-                    synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
-                    synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
-                    clearSubscriptionBillingIssueListeners()
-                },
-            )
-            RnIapLog.result("endConnection", result)
-            result
+            try {
+                val result = endRnConnectionWithCleanup(
+                    endConnection = { openIap.endConnection() },
+                    cleanup = {
+                        productTypeBySku.clear()
+                        isInitialized = false
+                        // Native listener sets persist; clear only bridge callbacks and
+                        // the pending event queues.
+                        synchronized(purchaseUpdatedListeners) {
+                            purchaseUpdatedListeners.clear()
+                            pendingPurchaseUpdates.clear()
+                        }
+                        synchronized(purchaseErrorListeners) {
+                            purchaseErrorListeners.clear()
+                            pendingPurchaseErrors.clear()
+                        }
+                        promotedProductListenersIOS.clear()
+                        synchronized(userChoiceBillingListenersAndroid) { userChoiceBillingListenersAndroid.clear() }
+                        synchronized(developerProvidedBillingListenersAndroid) { developerProvidedBillingListenersAndroid.clear() }
+                        clearSubscriptionBillingIssueListeners()
+                    },
+                )
+                RnIapLog.result("endConnection", result)
+                result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: OpenIapException) {
+                throw e
+            } catch (e: Exception) {
+                RnIapLog.failure("endConnection", e)
+                throw OpenIapException(toErrorJson(mapEndConnectionError(e)))
+            }
         }
         return Promise.async {
             invocation.await()

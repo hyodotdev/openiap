@@ -217,6 +217,25 @@ const STORE_PROPERTY_KEYS = [
   'fireOsEnabled',
 ];
 
+// Same table as packages/google/gradle/openiap-store.gradle.
+const ANDROID_STORE_ALIASES: Record<string, string> = {
+  "play": "play",
+  "google": "play",
+  "gplay": "play",
+  "googleplay": "play",
+  "google-play": "play",
+  "gms": "play",
+  "horizon": "horizon",
+  "meta": "horizon",
+  "quest": "horizon",
+  "amazon": "amazon",
+  "fire": "amazon",
+  "fireos": "amazon",
+  "fire-os": "amazon",
+  "auto": "auto",
+  "none": "none",
+};
+
 type GradleProperty = {type: string; key?: string; value?: string};
 
 // A pin outranks everything else, so a key an earlier prebuild left is removed.
@@ -739,6 +758,57 @@ export function resolvePinnedAndroidStore(
       : null;
 }
 
+export type AndroidStoreSelection = {
+  pinnedStore: AndroidStorePin;
+  provider?: string;
+};
+
+// A registry alias behaves as its official store; a community id needs provider coordinates.
+export function resolveAndroidStoreSelection(
+  options: ExpoIapPluginOptions | void,
+  legacyPin: AndroidStorePin,
+): AndroidStoreSelection {
+  const requestedStore = options?.android?.store?.trim().toLowerCase();
+  const provider = options?.android?.provider?.trim();
+  const normalizedStore =
+    requestedStore == null
+      ? undefined
+      : (ANDROID_STORE_ALIASES[requestedStore] ?? requestedStore);
+  const official = ['play', 'horizon', 'amazon', 'auto'];
+  if (provider && (!normalizedStore || official.includes(normalizedStore))) {
+    throw new Error(
+      'expo-iap: android.provider requires a community android.store id',
+    );
+  }
+  if (
+    normalizedStore &&
+    (['apple', 'none', 'unknown'].includes(normalizedStore) ||
+      !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(normalizedStore) ||
+      (!official.includes(normalizedStore) && !provider))
+  ) {
+    throw new Error(
+      'expo-iap: a community android.store requires android.provider coordinates',
+    );
+  }
+  if (
+    provider &&
+    (!/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider) ||
+      provider.startsWith('io.github.hyochan.openiap:openiap-'))
+  ) {
+    throw new Error(
+      'expo-iap: android.provider must be fixed group:artifact:version coordinates',
+    );
+  }
+  const pinnedStore =
+    normalizedStore && normalizedStore !== 'auto' ? normalizedStore : legacyPin;
+  if (legacyPin && pinnedStore !== legacyPin) {
+    throw new Error(
+      `expo-iap: android.store=${pinnedStore} conflicts with the ${legacyPin} module pin`,
+    );
+  }
+  return {pinnedStore, provider};
+}
+
 const REMOVED_IN = `removed in the next major release (expo-iap ${
   Number(String(pkg.version).split('.')[0]) + 1
 }.0.0)`;
@@ -827,40 +897,10 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     isFireOsEnabled,
     isHorizonEnabled,
   });
-  const requestedStore = options?.android?.store?.trim().toLowerCase();
-  const provider = options?.android?.provider?.trim();
-  const official = ['play', 'horizon', 'amazon', 'auto'];
-  if (provider && (!requestedStore || official.includes(requestedStore))) {
-    throw new Error(
-      'expo-iap: android.provider requires a community android.store id',
-    );
-  }
-  if (
-    requestedStore &&
-    (['apple', 'none', 'unknown'].includes(requestedStore) ||
-      !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(requestedStore) ||
-      (!official.includes(requestedStore) && !provider))
-  ) {
-    throw new Error(
-      'expo-iap: a community android.store requires android.provider coordinates',
-    );
-  }
-  if (
-    provider &&
-    (!/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider) ||
-      provider.startsWith('io.github.hyochan.openiap:openiap-'))
-  ) {
-    throw new Error(
-      'expo-iap: android.provider must be fixed group:artifact:version coordinates',
-    );
-  }
-  const pinnedStore =
-    requestedStore && requestedStore !== 'auto' ? requestedStore : legacyPin;
-  if (legacyPin && pinnedStore !== legacyPin) {
-    throw new Error(
-      `expo-iap: android.store=${pinnedStore} conflicts with the ${legacyPin} module pin`,
-    );
-  }
+  const {pinnedStore, provider} = resolveAndroidStoreSelection(
+    options,
+    legacyPin,
+  );
 
   try {
     // Add iapkitApiKey to extra if provided

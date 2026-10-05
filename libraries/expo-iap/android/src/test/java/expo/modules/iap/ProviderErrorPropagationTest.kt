@@ -1,6 +1,7 @@
 package expo.modules.iap
 
 import android.os.Looper
+import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.OpenIapError
@@ -81,5 +82,54 @@ class ProviderErrorPropagationTest {
                 assertEquals(1, responses)
             }
         }
+    }
+
+    @Test
+    fun `initConnection preserves provider errors instead of reporting init failure`() {
+        val error = OpenIapError.ProviderConfiguration("No Android store provider registered.")
+        val init: MutationInitConnectionHandler = { throw error }
+        val provider =
+            Proxy.newProxyInstance(OpenIapProtocol::class.java.classLoader, arrayOf(OpenIapProtocol::class.java)) { _, method, _ ->
+                when (method.name) {
+                    "getInitConnection" -> init
+                    else -> null
+                }
+            } as OpenIapProtocol
+        val module = ExpoIapModule()
+        module.javaClass
+            .getDeclaredField("openIap\$delegate")
+            .apply { isAccessible = true }
+            .set(module, lazy { provider })
+        var responses = 0
+        val promise =
+            object : Promise {
+                override fun resolve(value: Any?) {
+                    fail("A throwing provider must reject")
+                }
+
+                override fun reject(
+                    code: String?,
+                    message: String?,
+                    cause: Throwable?,
+                ) {
+                    assertEquals(error.code, code)
+                    assertEquals(error.message, message)
+                    responses++
+                }
+            }
+        val function = module.definition().asyncFunctions.getValue("initConnection")
+
+        @Suppress("UNCHECKED_CAST")
+        val body =
+            function.javaClass
+                .getDeclaredField("body")
+                .apply { isAccessible = true }
+                .get(function) as (
+                Array<out Any?>,
+                Promise,
+            ) -> Unit
+        body(arrayOf(null), promise)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1, responses)
     }
 }

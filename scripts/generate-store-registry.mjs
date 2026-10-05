@@ -59,6 +59,14 @@ update("packages/cli/src/checks.mjs", (source) =>
     "doctor aliases",
   ),
 );
+update("libraries/expo-iap/plugin/src/withIAP.ts", (source) =>
+  replaceBlock(
+    source,
+    /const ANDROID_STORE_ALIASES: Record<string, string> = \{[\s\S]*?\n\};/,
+    `const ANDROID_STORE_ALIASES: Record<string, string> = {\n${[...aliases, ...controls].map(([alias, id]) => `  "${alias}": "${id}",`).join("\n")}\n};`,
+    "Expo plugin aliases",
+  ),
+);
 update(
   "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt",
   (source) =>

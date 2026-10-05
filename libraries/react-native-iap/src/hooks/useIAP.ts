@@ -2,7 +2,10 @@
 import {useCallback, useEffect, useState, useRef} from 'react';
 import {Platform} from 'react-native';
 import {RnIapConsole} from '../utils/debug';
-import {restorePurchasesNative} from '../utils/restore-purchases';
+import {
+  restorePurchasesNative,
+  toRestorePurchaseError,
+} from '../utils/restore-purchases';
 
 // Internal modules
 import {
@@ -553,9 +556,10 @@ export function useIAP(options?: UseIapOptions): UseIap {
       try {
         await restorePurchasesNative();
       } catch (error) {
+        const purchaseError = toRestorePurchaseError(error);
         RnIapConsole.warn('Failed to restore purchases:', error);
-        invokeOnError(error);
-        throw error;
+        invokeOnError(purchaseError);
+        throw purchaseError;
       }
       // The query helper reports and rethrows its own error, avoiding a second
       // onError call while keeping restore failure observable to the caller.

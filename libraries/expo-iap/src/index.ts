@@ -1189,13 +1189,15 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
  */
 export const finishTransaction: MutationField<'finishTransaction'> = async ({
   purchase,
-  isConsumable = false,
+  isConsumable,
 }) => {
+  // The schema allows explicit null; the native boolean cannot take it.
+  const consumable = isConsumable ?? false;
   if (
     Platform.OS === 'ios' ||
     (isAndroidStoreRuntime() && purchase.store === 'unknown')
   ) {
-    await ExpoIapModule.finishTransaction(purchase, isConsumable);
+    await ExpoIapModule.finishTransaction(purchase, consumable);
   } else if (isAndroidStoreRuntime()) {
     const token = purchase.purchaseToken ?? undefined;
 
@@ -1208,7 +1210,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
       });
     }
 
-    if (isConsumable) {
+    if (consumable) {
       await ExpoIapModule.consumePurchaseAndroid(token);
     } else {
       await ExpoIapModule.acknowledgePurchaseAndroid(token);

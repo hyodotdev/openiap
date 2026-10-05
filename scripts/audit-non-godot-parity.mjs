@@ -3634,7 +3634,7 @@ function checkBillingChoiceFieldBindings() {
   );
   expectMatch(
     "libraries/react-native-iap/src/hooks/useIAP.ts",
-    /const restorePurchases[\s\S]*?await restorePurchasesNative\(\);[\s\S]*?invokeOnError\(error\);\s*throw error;[\s\S]*?await getAvailablePurchasesInternal\(options\);/,
+    /const restorePurchases[\s\S]*?await restorePurchasesNative\(\);[\s\S]*?invokeOnError\(purchaseError\);\s*throw purchaseError;[\s\S]*?await getAvailablePurchasesInternal\(options\);/,
     "RN restore hook failure propagation",
   );
   expectMatch(
@@ -7585,7 +7585,7 @@ function checkFrameworkDependencyHygiene() {
         "Android wrappers must read the store only through openiap-store.gradle",
       );
     }
-    // Five store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild) cannot
+    // Six store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild, TS) cannot
     // share code, so they must match entry for entry.
     const aliasTables = {
       "packages/google/gradle/openiap-store.gradle": (text) => {
@@ -7602,6 +7602,19 @@ function checkFrameworkDependencyHygiene() {
       },
       "packages/cli/src/checks.mjs": (text) => {
         const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
+        return block
+          ? [
+              ...block.matchAll(
+                /"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z][a-z0-9._-]*)"/g,
+              ),
+            ].map((one) => [one[1], one[2]])
+          : null;
+      },
+      "libraries/expo-iap/plugin/src/withIAP.ts": (text) => {
+        const block =
+          /const ANDROID_STORE_ALIASES: Record<string, string> = \{([\s\S]*?)\n\};/.exec(
+            text,
+          )?.[1];
         return block
           ? [
               ...block.matchAll(

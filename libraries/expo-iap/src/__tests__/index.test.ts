@@ -1487,6 +1487,22 @@ describe('Public API (index.ts)', () => {
         true,
       );
     });
+    it('passes a boolean when isConsumable is null', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const purchase = nativePurchase('opaque-id', {
+        store: 'unknown',
+        storeId: 'community-fixture',
+        purchaseToken: 'opaque-receipt',
+      });
+      (ExpoIapModule.finishTransaction as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(null);
+      await finishTransaction({purchase, isConsumable: null});
+      expect(ExpoIapModule.finishTransaction).toHaveBeenCalledWith(
+        purchase,
+        false,
+      );
+    });
     it('iOS forwards purchase payload to native finishTransaction', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const basePurchase: PurchaseInput = {

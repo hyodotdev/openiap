@@ -25,7 +25,7 @@ class ConnectionLifecycleQueueTest {
     }
 
     @Test(timeout = 5_000)
-    fun `end failure preserves connection state`() = runBlocking {
+    fun `end failure still cleans up`() = runBlocking {
         val failure = IllegalStateException("teardown failed")
         val cleanedUp = AtomicBoolean(false)
 
@@ -37,7 +37,7 @@ class ConnectionLifecycleQueueTest {
         }
 
         assertEquals(failure, result.exceptionOrNull())
-        assertFalse(cleanedUp.get())
+        assertTrue(cleanedUp.get())
     }
 
     @Test(timeout = 5_000)

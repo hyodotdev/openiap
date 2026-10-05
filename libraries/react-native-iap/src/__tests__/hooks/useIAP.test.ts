@@ -790,8 +790,9 @@ describe('hooks/useIAP (renderer)', () => {
     });
 
     it('calls onError when restorePurchases fails (provider error on iOS)', async () => {
-      const restoreError = new Error('Failed to restore');
-      mockRestorePurchases.mockRejectedValueOnce(restoreError);
+      mockRestorePurchases.mockRejectedValueOnce(
+        new Error('Failed to restore'),
+      );
 
       let api: any;
       const onError = jest.fn();
@@ -815,9 +816,46 @@ describe('hooks/useIAP (renderer)', () => {
       });
 
       expect(mockRestorePurchases).toHaveBeenCalled();
-      expect(onError).toHaveBeenCalledWith(restoreError);
       expect(onError).toHaveBeenCalledTimes(1);
-      expect(thrown).toBe(restoreError);
+      expect(onError).toHaveBeenCalledWith(thrown);
+      expect(thrown).toMatchObject({
+        code: IAP.ErrorCode.Unknown,
+        message: 'Failed to restore',
+      });
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
+    });
+
+    it('keeps the native error code on a cancelled restore', async () => {
+      mockRestorePurchases.mockRejectedValueOnce(
+        new Error('{"code":"user-cancelled","message":"User cancelled"}'),
+      );
+
+      let api: any;
+      const onError = jest.fn();
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await api.restorePurchases();
+        } catch (error) {
+          thrown = error;
+        }
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(thrown);
+      expect(thrown).toMatchObject({code: IAP.ErrorCode.UserCancelled});
+      expect(IAP.isUserCancelledError(thrown)).toBe(true);
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
     });
 
     it('rejects when restorePurchases rejects an incomplete provider restore', async () => {

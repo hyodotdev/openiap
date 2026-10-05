@@ -10,6 +10,7 @@ import plugin, {
   resolveAlternativeBillingIOS,
   resolveAmazonAppstoreKey,
   resolveAmazonPlatformFlags,
+  resolveAndroidStoreSelection,
   resolveHorizonAppId,
   resolveModuleSelection,
   resolvePinnedAndroidStore,
@@ -570,6 +571,241 @@ describe('android configuration', () => {
       },
     ]);
     expect(storeGradleProperties(result, null)).toEqual([]);
+  });
+
+  it('leaves the pin to the module flag without an android.store', () => {
+    expect(resolveAndroidStoreSelection(undefined, null)).toEqual({
+      pinnedStore: null,
+      provider: undefined,
+    });
+    expect(resolveAndroidStoreSelection({}, 'amazon')).toEqual({
+      pinnedStore: 'amazon',
+      provider: undefined,
+    });
+    expect(
+      resolveAndroidStoreSelection({android: {store: 'auto'}}, 'amazon'),
+    ).toEqual({pinnedStore: 'amazon', provider: undefined});
+  });
+
+  it('pins an official store id', () => {
+    expect(
+      resolveAndroidStoreSelection({android: {store: 'horizon'}}, null),
+    ).toEqual({pinnedStore: 'horizon', provider: undefined});
+  });
+
+  it.each([
+    ['google', 'play'],
+    ['gplay', 'play'],
+    ['googleplay', 'play'],
+    ['google-play', 'play'],
+    ['gms', 'play'],
+    ['meta', 'horizon'],
+    ['quest', 'horizon'],
+    ['fire', 'amazon'],
+    ['fireos', 'amazon'],
+    ['fire-os', 'amazon'],
+  ])(
+    'resolves the %s alias to %s without provider coordinates',
+    (alias, canonical) => {
+      expect(
+        resolveAndroidStoreSelection({android: {store: alias}}, null),
+      ).toEqual({pinnedStore: canonical, provider: undefined});
+    },
+  );
+
+  it('trims and lowercases the store id before resolving it', () => {
+    expect(
+      resolveAndroidStoreSelection({android: {store: ' Google '}}, null),
+    ).toEqual({pinnedStore: 'play', provider: undefined});
+  });
+
+  it('accepts a community id with provider coordinates', () => {
+    expect(
+      resolveAndroidStoreSelection(
+        {
+          android: {
+            store: 'fixture',
+            provider: 'dev.example:provider:1.0.0',
+          },
+        },
+        null,
+      ),
+    ).toEqual({
+      pinnedStore: 'fixture',
+      provider: 'dev.example:provider:1.0.0',
+    });
+  });
+
+  it('rejects provider coordinates without a store id', () => {
+    expect(() =>
+      resolveAndroidStoreSelection(
+        {android: {provider: 'dev.example:provider:1.0.0'}},
+        null,
+      ),
+    ).toThrow(
+      'expo-iap: android.provider requires a community android.store id',
+    );
+  });
+
+  it.each([
+    ['play'],
+    ['google'],
+    ['horizon'],
+    ['quest'],
+    ['amazon'],
+    ['fire-os'],
+    ['auto'],
+  ])('rejects provider coordinates with the official %s store', (store) => {
+    expect(() =>
+      resolveAndroidStoreSelection(
+        {
+          android: {store, provider: 'dev.example:provider:1.0.0'},
+        },
+        null,
+      ),
+    ).toThrow(
+      'expo-iap: android.provider requires a community android.store id',
+    );
+  });
+
+  it.each([['apple'], ['none'], ['unknown']])(
+    'rejects the reserved %s store id',
+    (store) => {
+      expect(() =>
+        resolveAndroidStoreSelection({android: {store}}, null),
+      ).toThrow(
+        'expo-iap: a community android.store requires android.provider coordinates',
+      );
+    },
+  );
+
+  it.each([['1store'], ['has space'], ['upper!'], ['a..b']])(
+    'rejects the invalid %s store id grammar',
+    (store) => {
+      expect(() =>
+        resolveAndroidStoreSelection({android: {store}}, null),
+      ).toThrow(
+        'expo-iap: a community android.store requires android.provider coordinates',
+      );
+    },
+  );
+
+  it('rejects a community id without provider coordinates', () => {
+    expect(() =>
+      resolveAndroidStoreSelection({android: {store: 'fixture'}}, null),
+    ).toThrow(
+      'expo-iap: a community android.store requires android.provider coordinates',
+    );
+  });
+
+  it.each([
+    ['nogroup'],
+    ['group:artifact'],
+    ['group:artifact:xyz'],
+    ['group:artifact:1.0:extra'],
+  ])('rejects the invalid %s provider coordinates', (provider) => {
+    expect(() =>
+      resolveAndroidStoreSelection(
+        {android: {store: 'fixture', provider}},
+        null,
+      ),
+    ).toThrow(
+      'expo-iap: android.provider must be fixed group:artifact:version coordinates',
+    );
+  });
+
+  it('rejects official-artifact provider coordinates', () => {
+    expect(() =>
+      resolveAndroidStoreSelection(
+        {
+          android: {
+            store: 'fixture',
+            provider: 'io.github.hyochan.openiap:openiap-google:1.0.0',
+          },
+        },
+        null,
+      ),
+    ).toThrow(
+      'expo-iap: android.provider must be fixed group:artifact:version coordinates',
+    );
+  });
+
+  it('rejects a store pin that conflicts with the module pin', () => {
+    expect(() =>
+      resolveAndroidStoreSelection({android: {store: 'play'}}, 'amazon'),
+    ).toThrow(
+      'expo-iap: android.store=play conflicts with the amazon module pin',
+    );
+    expect(() =>
+      resolveAndroidStoreSelection({android: {store: 'google'}}, 'amazon'),
+    ).toThrow(
+      'expo-iap: android.store=play conflicts with the amazon module pin',
+    );
+  });
+
+  it('accepts an alias that matches the module pin', () => {
+    expect(
+      resolveAndroidStoreSelection({android: {store: 'fire'}}, 'amazon'),
+    ).toEqual({pinnedStore: 'amazon', provider: undefined});
+  });
+
+  it('fails the prebuild on an alias with provider coordinates', () => {
+    expect(() =>
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+        android: {store: 'google', provider: 'dev.example:provider:1.0.0'},
+      }),
+    ).toThrow(
+      'expo-iap: android.provider requires a community android.store id',
+    );
+  });
+
+  it('fails the prebuild on an alias that conflicts with the module pin', () => {
+    expect(() =>
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+        modules: {amazon: {fireOS: true}},
+        android: {store: 'google'},
+      }),
+    ).toThrow(
+      'expo-iap: android.store=play conflicts with the amazon module pin',
+    );
+  });
+
+  it('pins the canonical store for an alias on prebuild', async () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const projectRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'expo-iap-store-'),
+    );
+    try {
+      const android = path.join(projectRoot, 'android');
+      fs.mkdirSync(path.join(android, 'app', 'src', 'main'), {recursive: true});
+      fs.writeFileSync(
+        path.join(android, 'settings.gradle'),
+        "rootProject.name = 'app'\ninclude ':app'\n",
+      );
+      fs.writeFileSync(path.join(android, 'build.gradle'), rootBuild);
+      fs.writeFileSync(path.join(android, 'app', 'build.gradle'), appBuild);
+      fs.writeFileSync(
+        path.join(android, 'gradle.properties'),
+        'org.gradle.jvmargs=-Xmx2g\n',
+      );
+      fs.writeFileSync(
+        path.join(android, 'app', 'src', 'main', 'AndroidManifest.xml'),
+        '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
+      );
+      await compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+          android: {store: 'google'},
+        }) as ExpoConfig,
+        {projectRoot, platforms: ['android']},
+      );
+      expect(
+        fs.readFileSync(path.join(android, 'gradle.properties'), 'utf8'),
+      ).toContain('openiapStore=play');
+    } finally {
+      fs.rmSync(projectRoot, {recursive: true, force: true});
+    }
   });
 
   it('reads the Amazon Appstore key path from android.amazon', () => {

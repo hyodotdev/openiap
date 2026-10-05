@@ -85,6 +85,7 @@ class HybridRnIap: HybridRnIapSpec {
     private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
     private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
     private var pendingOnDemandInitErrorSuppressions: [String: Int] = [:]
+    private var enqueuedPurchaseErrorDeliveries: UInt64 = 0
     private let pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(
         capacity: HybridRnIap.maxPendingEvents,
         label: "pendingPurchaseUpdates"
@@ -370,7 +371,7 @@ class HybridRnIap: HybridRnIapSpec {
                     "requestPurchase.native", iosPayload
                 )
 
-                let result = try await self.runRequestPurchaseOperation {
+                let result = try await self.runRequestPurchaseOperation(productId: iosRequest.sku) {
                     try await OpenIapModule.shared.requestPurchase(props)
                 }
                 if result != nil {
@@ -1476,10 +1477,14 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     func runRequestPurchaseOperation(
+        productId: String? = nil,
         _ operation: @escaping () async throws -> OpenIAP.RequestPurchaseResult?
     ) async throws -> OpenIAP.RequestPurchaseResult? {
         try await runConnectedOperation {
             let epoch = self.currentConnectionEpoch()
+            let enqueuedErrorsBefore = self.listenerLock.withLock {
+                self.enqueuedPurchaseErrorDeliveries
+            }
             do {
                 let result = try await operation()
                 await self.deliverRequestPurchaseResultIfNeeded(
@@ -1491,8 +1496,20 @@ class HybridRnIap: HybridRnIapSpec {
                 self.deliverRequestPurchaseError(purchaseError)
                 throw purchaseError
             } catch {
-                // Providers own purchase-error delivery after dispatch.
+                // A provider that enqueued its own error owns delivery.
                 RnIapLog.failure("requestPurchase", error: error)
+                let enqueuedErrorsAfter = self.listenerLock.withLock {
+                    self.enqueuedPurchaseErrorDeliveries
+                }
+                if enqueuedErrorsAfter == enqueuedErrorsBefore {
+                    self.deliverRequestPurchaseError(
+                        PurchaseError.wrap(
+                            error,
+                            fallback: .purchaseError,
+                            productId: productId
+                        )
+                    )
+                }
                 return nil
             }
         }
@@ -1686,6 +1703,7 @@ class HybridRnIap: HybridRnIapSpec {
         _ error: PurchaseError,
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
+        listenerLock.withLock { enqueuedPurchaseErrorDeliveries &+= 1 }
         return enqueueLifecycleOperation {
             guard self.isCurrentEpoch(expectedEpoch),
                   !self.consumeOnDemandInitErrorSuppression(error),

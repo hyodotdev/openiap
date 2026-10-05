@@ -540,6 +540,20 @@ final class ConnectOnDemandTests: XCTestCase {
         XCTAssertEqual(probe.events, Array(repeating: ErrorCode.networkError.rawValue, count: 2))
     }
 
+    func testGenericProviderThrowWithoutDeliveryEmitsOneFallbackError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+
+        let result = try await hybrid.runRequestPurchaseOperation {
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, [ErrorCode.purchaseError.rawValue])
+    }
+
     func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()

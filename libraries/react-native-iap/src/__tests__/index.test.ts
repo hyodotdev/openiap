@@ -429,6 +429,59 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).not.toHaveBeenCalled();
     });
 
+    it('purchaseUpdatedListener reports an undecodable store identity instead of throwing', () => {
+      const purchaseListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.purchaseUpdatedListener(purchaseListener);
+      IAP.purchaseErrorListener(errorListener);
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'unknown',
+        storeId: '!!!',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      expect(() => nativeHandler(nitroPurchase)).not.toThrow();
+      expect(purchaseListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.BillingResponseJsonParseError,
+          productId: 'p1',
+        }),
+      );
+    });
+
+    it('purchaseUpdatedListener reports a missing iOS transactionId instead of throwing', () => {
+      const purchaseListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.purchaseUpdatedListener(purchaseListener);
+      IAP.purchaseErrorListener(errorListener);
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'unknown',
+        storeId: 'community.shop',
+        platform: 'ios',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      expect(() => nativeHandler(nitroPurchase)).not.toThrow();
+      expect(purchaseListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.BillingResponseJsonParseError,
+          productId: 'p1',
+        }),
+      );
+    });
+
     it('multiple purchaseUpdatedListeners all receive events from single native handler', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();

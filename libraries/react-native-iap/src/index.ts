@@ -6,7 +6,10 @@ import {
   isNativeIapReady,
   toErrorMessage,
 } from './utils/native-instance';
-import {restorePurchasesNative} from './utils/restore-purchases';
+import {
+  restorePurchasesNative,
+  toRestorePurchaseError,
+} from './utils/restore-purchases';
 
 // Internal modules
 import type {
@@ -247,20 +250,26 @@ const emitPurchaseUpdateToListeners = (
   nitroPurchase: Parameters<NitroPurchaseListener>[0],
   listeners: Set<(purchase: Purchase) => void>,
 ) => {
-  if (validateNitroPurchase(nitroPurchase)) {
-    const convertedPurchase = convertNitroPurchaseToPurchase(nitroPurchase);
-    for (const listener of listeners) {
-      try {
-        listener(convertedPurchase);
-      } catch (e) {
-        RnIapConsole.error('[purchaseUpdatedListener] callback threw:', e);
-      }
-    }
-  } else {
+  if (!validateNitroPurchase(nitroPurchase)) {
     RnIapConsole.error(
       'Invalid purchase data received from native — productId:',
       nitroPurchase?.productId ?? 'unknown',
     );
+    return;
+  }
+  let convertedPurchase: Purchase;
+  try {
+    convertedPurchase = convertNitroPurchaseToPurchase(nitroPurchase);
+  } catch (error) {
+    emitPurchaseDecodeError(nitroPurchase, error);
+    return;
+  }
+  for (const listener of listeners) {
+    try {
+      listener(convertedPurchase);
+    } catch (e) {
+      RnIapConsole.error('[purchaseUpdatedListener] callback threw:', e);
+    }
   }
 };
 const purchaseUpdateNativeHandler: NitroPurchaseListener = (nitroPurchase) => {
@@ -331,6 +340,29 @@ const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
   for (const listener of purchaseErrorJsListeners) {
     try {
       listener(normalized);
+    } catch (e) {
+      RnIapConsole.error('[purchaseErrorListener] callback threw:', e);
+    }
+  }
+};
+
+// A malformed event payload reports the same code a failed read throws.
+const emitPurchaseDecodeError = (
+  nitroPurchase: Parameters<NitroPurchaseListener>[0],
+  cause: unknown,
+): void => {
+  const error: PurchaseError = {
+    code: ErrorCode.BillingResponseJsonParseError,
+    message: 'Malformed purchase payload received from the native bridge',
+    productId: nitroPurchase.productId,
+  };
+  RnIapConsole.error(
+    '[purchaseUpdatedListener] failed to decode purchase:',
+    cause,
+  );
+  for (const listener of purchaseErrorJsListeners) {
+    try {
+      listener(error);
     } catch (e) {
       RnIapConsole.error('[purchaseErrorListener] callback threw:', e);
     }
@@ -736,7 +768,13 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
       );
       return;
     }
-    const purchase = convertNitroPurchaseToPurchase(nitroPurchase);
+    let purchase: Purchase;
+    try {
+      purchase = convertNitroPurchaseToPurchase(nitroPurchase);
+    } catch (error) {
+      emitPurchaseDecodeError(nitroPurchase, error);
+      return;
+    }
     for (const listener of subscriptionBillingIssueJsListeners) {
       try {
         listener(purchase);
@@ -1597,16 +1635,8 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
       onlyIncludeActiveItemsIOS: true,
     });
   } catch (error) {
-    const parsedError = parseErrorAndLogIfNeeded(
-      'Failed to restore purchases:',
-      error,
-    );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
+    parseErrorAndLogIfNeeded('Failed to restore purchases:', error);
+    throw toRestorePurchaseError(error);
   }
 };
 
