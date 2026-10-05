@@ -15,6 +15,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import braces from "braces";
+import { parseDocument } from "yaml";
 
 import {
   BUN_AUDIT_ATTEMPTS,
@@ -33,6 +34,54 @@ import {
   runBunAudit,
   summarizeAdvisories,
 } from "./audit-security.mjs";
+
+test("coverage CLI wrapper preserves arguments and bounds stalled uploads", () => {
+  const source = readFileSync(
+    new URL("../.github/actions/coverage-report/action.yml", import.meta.url),
+    "utf8",
+  );
+  const steps = parseDocument(source).toJS().runs.steps;
+  const wrapper = steps
+    .find(({ id }) => id === "codecov-cli")
+    .run.match(/<<'EOF'\n([\s\S]*?)\nEOF/u)?.[1];
+  assert.ok(wrapper);
+  const fixture = mkdtempSync(resolve(tmpdir(), "openiap-coverage-timeout-"));
+  try {
+    const executable = resolve(fixture, "codecov");
+    writeFileSync(executable, `${wrapper}\n`);
+    writeFileSync(
+      `${executable}-cli`,
+      '#!/usr/bin/env bash\ncase "$1" in --hang) exec sleep 5;; --fail) exit 17;; esac\nprintf "%s\\n" "$@"\n',
+    );
+    const timeout = resolve(fixture, "timeout");
+    writeFileSync(
+      timeout,
+      '#!/usr/bin/env bash\n[[ "$1" == 120s ]] || exit 99\nshift\nexec "$COVERAGE_TEST_TIMEOUT" 1s "$@"\n',
+    );
+    for (const filename of [executable, `${executable}-cli`, timeout])
+      chmodSync(filename, 0o755);
+    const command = process.platform === "darwin" ? "gtimeout" : "timeout";
+    const env = {
+      ...process.env,
+      PATH: `${fixture}:${process.env.PATH}`,
+      COVERAGE_TEST_TIMEOUT: spawnSync(
+        "bash",
+        ["-c", `command -v ${command}`],
+        { encoding: "utf8" },
+      ).stdout.trim(),
+    };
+    assert.ok(env.COVERAGE_TEST_TIMEOUT);
+    const invoke = (args) =>
+      spawnSync(executable, args, { env, encoding: "utf8", timeout: 4000 });
+    const success = invoke(["--file", "a file.info", "--flag", "expo-iap"]);
+    assert.equal(success.status, 0, success.stderr);
+    assert.equal(success.stdout, "--file\na file.info\n--flag\nexpo-iap\n");
+    assert.equal(invoke(["--fail"]).status, 17);
+    assert.equal(invoke(["--hang"]).status, 124);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
 
 test("verified tool installation rejects failed and corrupted downloads", () => {
   const fixture = mkdtempSync(resolve(tmpdir(), "openiap-tool-download-"));
@@ -328,6 +377,34 @@ steps:
       "fixture.yml",
     ),
     ["fixture.yml:5: unpinned action actions/checkout@v7"],
+  );
+});
+
+test("local composite actions retain immutable dependencies and checkout guards", () => {
+  const filename = ".github/actions/coverage-report/action.yml";
+  const action = `runs:\n  using: composite\n  steps:\n    - uses: actions/upload-artifact@${"a".repeat(40)} # v7\n`;
+  assert.deepEqual(findWorkflowDependencyFindings(action, filename), []);
+  assert.match(
+    findWorkflowDependencyFindings(
+      action.replace("a".repeat(40), "v7"),
+      filename,
+    ).join("\n"),
+    /unpinned action/,
+  );
+  assert.match(
+    findWorkflowDependencyFindings(
+      `permissions: write-all\n${action}`,
+      filename,
+    ).join("\n"),
+    /inherit permissions/,
+  );
+  const checkout = action.replace(
+    "actions/upload-artifact",
+    "actions/checkout",
+  );
+  assert.match(
+    findWorkflowDependencyFindings(checkout, filename).join("\n"),
+    /disable persisted credentials/,
   );
 });
 

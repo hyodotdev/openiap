@@ -72,10 +72,25 @@ export function listWorkflowFiles(
   directory = resolve(repoRoot, ".github/workflows"),
   prefix = ".github/workflows",
 ) {
-  return readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && /\.ya?ml$/iu.test(entry.name))
-    .map((entry) => `${prefix}/${entry.name}`)
-    .sort();
+  const files = readdirSync(directory, { withFileTypes: true }).flatMap(
+    (entry) =>
+      entry.isDirectory()
+        ? listWorkflowFiles(
+            resolve(directory, entry.name),
+            `${prefix}/${entry.name}`,
+          )
+        : /\.ya?ml$/iu.test(entry.name)
+          ? [`${prefix}/${entry.name}`]
+          : [],
+  );
+  const actions = resolve(repoRoot, ".github/actions");
+  if (
+    directory === resolve(repoRoot, ".github/workflows") &&
+    existsSync(actions)
+  ) {
+    files.push(...listWorkflowFiles(actions, ".github/actions"));
+  }
+  return files.sort();
 }
 
 export function findUnpinnedDockerBases(source) {
@@ -117,9 +132,14 @@ export function findWorkflowDependencyFindings(
   } catch (error) {
     return [`${filename}: invalid YAML (${error.message})`];
   }
-  if (!Object.hasOwn(workflow ?? {}, "permissions")) {
+  const isAction =
+    filename.startsWith(".github/actions/") &&
+    /\/action\.ya?ml$/u.test(filename);
+  if (isAction && Object.hasOwn(workflow ?? {}, "permissions")) {
+    findings.push(`${filename}: actions inherit permissions from their caller`);
+  } else if (!isAction && !Object.hasOwn(workflow ?? {}, "permissions")) {
     findings.push(`${filename}: missing top-level permissions`);
-  } else {
+  } else if (!isAction) {
     const permissions = workflow.permissions;
     const values =
       permissions && typeof permissions === "object"
@@ -135,7 +155,10 @@ export function findWorkflowDependencyFindings(
     }
   }
 
-  for (const [jobName, job] of Object.entries(workflow?.jobs ?? {})) {
+  const jobs = isAction
+    ? { composite: workflow?.runs }
+    : (workflow?.jobs ?? {});
+  for (const [jobName, job] of Object.entries(jobs)) {
     if (!Object.hasOwn(job ?? {}, "permissions")) continue;
     const permissions = job.permissions;
     if (permissions === "write-all") {
@@ -155,7 +178,7 @@ export function findWorkflowDependencyFindings(
     }
   }
 
-  for (const [jobName, job] of Object.entries(workflow?.jobs ?? {})) {
+  for (const [jobName, job] of Object.entries(jobs)) {
     for (const step of job?.steps ?? []) {
       const action = String(step?.uses ?? "").toLowerCase();
       if (!action.startsWith("actions/checkout@")) continue;
@@ -522,11 +545,13 @@ export function findActionFamilyDrift(sources, exempt = LOCKSTEP_EXEMPT) {
       continue;
     }
 
-    // Only the two places a workflow can name an action: a job calling a
-    // reusable workflow, and a step. Visiting every `uses:` key also picked up
-    // `env: { uses: … }`, which is a variable, not a reference.
+    // Inspect action references, not variables named uses.
     const references = [];
-    for (const job of Object.values(workflow?.jobs ?? {})) {
+    const jobs =
+      workflow?.runs?.using === "composite"
+        ? [workflow.runs]
+        : Object.values(workflow?.jobs ?? {});
+    for (const job of jobs) {
       if (typeof job?.uses === "string") references.push(job.uses);
       for (const step of Array.isArray(job?.steps) ? job.steps : []) {
         if (typeof step?.uses === "string") references.push(step.uses);

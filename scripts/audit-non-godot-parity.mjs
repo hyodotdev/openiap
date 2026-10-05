@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 import {
   GENERATED_SYNC_MANIFEST,
   gqlPackageRelativePath,
@@ -701,8 +702,8 @@ function checkFrameworkCiAndCoverageBadges() {
       codecovTargetPath: "packages/kit/server",
       codecovConfigPush: false,
       coverageAssertions: [
-        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90 server/",
-        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/",
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-server",
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-convex",
       ],
       componentId: "iapkit-server",
       componentName: "IAPKit Server",
@@ -716,7 +717,6 @@ function checkFrameworkCiAndCoverageBadges() {
       testCommand: "run: bun run test:coverage",
       testJob: "verify",
       uploadFlag: "iapkit",
-      uploadName: "iapkit",
       workflowFile: "deploy-kit.yml",
     },
   ];
@@ -905,6 +905,13 @@ function checkFrameworkCiAndCoverageBadges() {
 
   if (exists("codecov.yml")) {
     const codecovConfig = read("codecov.yml");
+    const errors = parseDocument(codecovConfig).errors;
+    if (errors.length) {
+      fail(
+        `codecov.yml is invalid YAML: ${errors.map(({ message }) => message).join("; ")}`,
+      );
+      return;
+    }
     const lcovParserBlock = [
       "parsers:",
       "  lcov:",
@@ -1000,6 +1007,70 @@ function checkFrameworkCiAndCoverageBadges() {
     }
   }
 
+  const reportActionPath = ".github/actions/coverage-report/action.yml";
+  expectFile(reportActionPath);
+  if (exists(reportActionPath)) {
+    const reportAction = read(reportActionPath);
+    for (const needle of [
+      "using: composite",
+      "uses: actions/upload-artifact@",
+      "name: coverage-${{ inputs.flag }}",
+      "path: ${{ github.workspace }}/${{ inputs.package-path }}/coverage/lcov.info",
+      "if-no-files-found: error",
+      "retention-days: 14",
+      "id: codecov-cli",
+      "working-directory: ${{ github.workspace }}",
+      'timeout 120s scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov-cli"',
+      'exec timeout 120s "${BASH_SOURCE[0]}-cli" "$@"',
+      "id: codecov-upload",
+      "if: steps.codecov-cli.outcome == 'success'",
+      "uses: codecov/codecov-action@",
+      "binary: ${{ runner.temp }}/codecov",
+      "use_oidc: ${{ inputs.use-oidc }}",
+      "fail_ci_if_error: true",
+      "disable_search: true",
+      "files: coverage/lcov.info",
+      "flags: ${{ inputs.flag }}",
+      "network_prefix: ${{ inputs.package-path }}/",
+      "working-directory: ${{ inputs.package-path }}",
+      "steps.codecov-cli.outcome == 'failure' || steps.codecov-upload.outcome == 'failure'",
+      "::warning::Codecov reporting failed.",
+      "$GITHUB_STEP_SUMMARY",
+    ]) {
+      if (!reportAction.includes(needle)) {
+        fail(`${reportActionPath} must include ${JSON.stringify(needle)}`);
+      }
+    }
+    const parsedAction = parseDocument(reportAction);
+    const steps = parsedAction.toJS()?.runs?.steps;
+    if (
+      parsedAction.errors.length ||
+      !Array.isArray(steps) ||
+      steps.length !== 4
+    ) {
+      fail(`${reportActionPath} must define four valid composite steps`);
+    } else if (
+      steps.some((step, index) =>
+        [1, 2].includes(index)
+          ? step["continue-on-error"] !== true ||
+            step.id !== ["codecov-cli", "codecov-upload"][index - 1]
+          : "continue-on-error" in step || ("if" in step && index === 0),
+      )
+    ) {
+      fail(
+        `${reportActionPath} may soften only the Codecov installer and upload`,
+      );
+    }
+    if (
+      reportAction.indexOf("uses: actions/upload-artifact@") >=
+      reportAction.indexOf("id: codecov-cli")
+    ) {
+      fail(
+        `${reportActionPath} must archive coverage before optional reporting`,
+      );
+    }
+  }
+
   for (const contract of contracts) {
     const workflowPath = `.github/workflows/${contract.workflowFile}`;
     expectFile(workflowPath);
@@ -1027,24 +1098,18 @@ function checkFrameworkCiAndCoverageBadges() {
       continue;
     }
     const coverageAssertions = contract.coverageAssertions ?? [
-      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+      `run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component ${contract.componentId}`,
     ];
     for (const needle of [
       "permissions:\n      contents: read\n      id-token: write",
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
       ...coverageAssertions,
-      'run: scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov"',
-      "uses: codecov/codecov-action@",
-      "binary: ${{ runner.temp }}/codecov",
-      "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
-      "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
-      "disable_search: true",
-      "files: coverage/lcov.info",
-      `flags: ${contract.uploadFlag ?? contract.componentId}`,
-      `name: ${contract.uploadName ?? contract.componentId}`,
-      `network_prefix: ${contract.libraryPath}/`,
-      `working-directory: ${contract.libraryPath}`,
+      "COVERAGE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}",
+      "uses: ./.github/actions/coverage-report",
+      "use-oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
+      `flag: ${contract.uploadFlag ?? contract.componentId}`,
+      `package-path: ${contract.libraryPath}`,
     ]) {
       if (!testJob.includes(needle)) {
         fail(
@@ -1053,27 +1118,36 @@ function checkFrameworkCiAndCoverageBadges() {
       }
     }
     if (
-      (testJob.match(/codecov\/codecov-action@[0-9a-f]{40}\s+# v7/g) ?? [])
+      !workflowSource.includes(
+        `defaults:\n  run:\n    working-directory: ${contract.libraryPath}`,
+      ) &&
+      !testJob.includes(
+        `defaults:\n      run:\n        working-directory: ${contract.libraryPath}`,
+      )
+    ) {
+      fail(
+        `${workflowPath} coverage commands must run in ${contract.libraryPath}`,
+      );
+    }
+    if (
+      (testJob.match(/uses: \.\/\.github\/actions\/coverage-report/g) ?? [])
         .length !== 1
     ) {
       fail(
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
-    const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
-    const installIndex = testJob.indexOf(
-      'run: scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov"',
+    const uploadIndex = testJob.indexOf(
+      "uses: ./.github/actions/coverage-report",
     );
-    if (
-      installIndex < 0 ||
-      uploadIndex <= installIndex ||
-      !testJob
-        .slice(0, installIndex)
-        .trimEnd()
-        .endsWith("working-directory: ${{ github.workspace }}")
-    ) {
+    if (/\n      - /u.test(testJob.slice(uploadIndex))) {
       fail(
-        `${workflowPath} must install verified Codecov from the workspace root before upload`,
+        `${workflowPath} must finish required checks before coverage reporting`,
+      );
+    }
+    if (/continue-on-error:/u.test(testJob)) {
+      fail(
+        `${workflowPath} must keep tests, coverage, builds and security checks mandatory`,
       );
     }
     for (const coverageAssertion of coverageAssertions) {
@@ -1095,10 +1169,14 @@ function checkFrameworkCiAndCoverageBadges() {
       fail(`${workflowPath} pull_request paths must include root codecov.yml`);
     }
     for (const event of ["push", "pull_request"]) {
-      if (!eventBlock(event).includes('- "scripts/install-security-tool.sh"')) {
-        fail(
-          `${workflowPath} ${event} paths must include the coverage tool installer`,
-        );
+      for (const trigger of [
+        "scripts/install-security-tool.sh",
+        "scripts/assert-lcov-coverage.mjs",
+        ".github/actions/coverage-report/**",
+      ]) {
+        if (!eventBlock(event).includes(`- "${trigger}"`)) {
+          fail(`${workflowPath} ${event} paths must include ${trigger}`);
+        }
       }
     }
     const pushIncludesCodecov = eventBlock("push").includes('- "codecov.yml"');
@@ -1115,7 +1193,9 @@ function checkFrameworkCiAndCoverageBadges() {
       const filterIndex = testJob.indexOf(
         "run: dart run tool/filter_coverage.dart",
       );
-      const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
+      const uploadIndex = testJob.indexOf(
+        "uses: ./.github/actions/coverage-report",
+      );
       if (
         testIndex < 0 ||
         filterIndex <= testIndex ||

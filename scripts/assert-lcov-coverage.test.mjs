@@ -1,13 +1,247 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 
 import {
   assertLcovLineCoverage,
+  normalizeCoverageBase,
+  readChangedLines,
+  readComponentCoverage,
+  readCoveragePolicy,
   readLcovLineCoverage,
 } from "./assert-lcov-coverage.mjs";
+
+describe("local project and patch coverage", () => {
+  const root = "/workspace/openiap";
+  const directory = `${root}/libraries/expo-iap`;
+  const config = readFileSync(
+    new URL("../codecov.yml", import.meta.url),
+    "utf8",
+  );
+  const policy = readCoveragePolicy(config, "expo-iap");
+  function record(filename, hits) {
+    return [
+      `SF:${filename}`,
+      ...hits.map((count, index) => `DA:${index + 1},${count}`),
+      `LF:${hits.length}`,
+      `LH:${hits.filter((count) => count > 0).length}`,
+      "end_of_record",
+    ].join("\n");
+  }
+  function patch(filename, start, count) {
+    return [
+      `diff --git a/${filename} b/${filename}`,
+      `--- a/${filename}`,
+      `+++ b/${filename}`,
+      `@@ -${start},${count} +${start},${count} @@`,
+      ...Array.from({ length: count }, () => "+changed"),
+    ].join("\n");
+  }
+  const filename = "libraries/expo-iap/src/index.ts";
+
+  it("uses canonical project and patch targets, flag scopes and ignores", () => {
+    assert.equal(policy.projectMinimum, 90);
+    assert.equal(policy.patchMinimum, 90);
+    assert.deepEqual(policy.paths, ["libraries/expo-iap/src/**"]);
+    assert.ok(policy.ignore.includes("libraries/expo-iap/src/types.ts"));
+    const convex = readCoveragePolicy(config, "iapkit-convex");
+    assert.equal(convex.patchMinimum, 48);
+    assert.deepEqual(convex.paths, ["packages/kit/convex/**"]);
+  });
+
+  it("rejects changed uncovered lines even when project coverage passes", () => {
+    const source = record("src/index.ts", [...Array(9).fill(1), 0]);
+    assert.throws(
+      () =>
+        readComponentCoverage(
+          source,
+          patch(filename, 10, 1),
+          policy,
+          directory,
+          root,
+        ),
+      /Patch coverage 0\.00%.*below 90\.00%/,
+    );
+  });
+
+  it("enforces project coverage when every changed line is covered", () => {
+    assert.throws(
+      () =>
+        readComponentCoverage(
+          record("src/index.ts", [1, 0]),
+          patch(filename, 1, 1),
+          policy,
+          directory,
+          root,
+        ),
+      /Project coverage 50\.00%.*below 90\.00%/,
+    );
+  });
+
+  it("accepts exact thresholds and positive partial hits", () => {
+    const coverage = readComponentCoverage(
+      record("src/index.ts", [...Array(9).fill(1), 0]),
+      patch(filename, 1, 10),
+      policy,
+      directory,
+      root,
+    );
+    assert.deepEqual(coverage.project, { found: 10, hit: 9, percentage: 90 });
+    assert.deepEqual(coverage.patch, { found: 10, hit: 9, percentage: 90 });
+  });
+
+  it("excludes generated files from project and patch totals", () => {
+    const coverage = readComponentCoverage(
+      `${record("src/index.ts", [1])}\n${record("src/types.ts", [0, 0])}`,
+      `${patch(filename, 1, 1)}\n${patch("libraries/expo-iap/src/types.ts", 1, 2)}`,
+      policy,
+      directory,
+      root,
+    );
+    assert.deepEqual(coverage.patch, { found: 1, hit: 1, percentage: 100 });
+    assert.equal(coverage.project.found, 1);
+  });
+
+  it("reports no executable diff explicitly without exempting the project gate", () => {
+    const coverage = readComponentCoverage(
+      record("src/index.ts", [1]),
+      patch(filename, 2, 1),
+      policy,
+      directory,
+      root,
+    );
+    assert.deepEqual(coverage.patch, { found: 0, hit: 0, percentage: null });
+    assert.throws(
+      () =>
+        readComponentCoverage(
+          record("src/index.ts", [0]),
+          "",
+          policy,
+          directory,
+          root,
+        ),
+      /Project coverage/,
+    );
+  });
+
+  it("counts only added new-side lines, including spaced and Unicode paths", () => {
+    const diff = [
+      "diff --git a/source ü.ts b/source ü.ts",
+      "--- a/source ü.ts",
+      "+++ b/source ü.ts",
+      "@@ -1,3 +1,3 @@",
+      " same",
+      "-removed",
+      "+added",
+      " same",
+      "@@ -10,2 +10,0 @@",
+      "-removed",
+      "-removed",
+    ].join("\n");
+    assert.deepEqual([...readChangedLines(diff).get("source ü.ts")], [2]);
+  });
+
+  it("merges repeated line records using positive hits", () => {
+    const coverage = readComponentCoverage(
+      `${record("src/index.ts", [0])}\n${record("src/index.ts", [2])}`,
+      patch(filename, 1, 1),
+      policy,
+      directory,
+      root,
+    );
+    assert.deepEqual(coverage.project, { found: 1, hit: 1, percentage: 100 });
+  });
+
+  it("excludes deleted files from the new-side diff", () => {
+    const deleted =
+      "diff --git a/old.ts b/old.ts\n--- a/old.ts\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n";
+    assert.equal(readChangedLines(deleted).size, 0);
+  });
+
+  it("fails malformed, empty, unterminated or unmapped reports", () => {
+    for (const source of [
+      "",
+      record("src/index.ts", [1]).replace("DA:1,1", "DA:0,1"),
+      record("src/index.ts", [1]).replace("DA:1,1", "DA:1,-1"),
+      record("src/index.ts", [1]).replace("LF:1", "LF:2"),
+      record("src/index.ts", [1]).replace("end_of_record", ""),
+      record("/another/repo/src/index.ts", [1]),
+    ]) {
+      assert.throws(() =>
+        readComponentCoverage(source, "", policy, directory, root),
+      );
+    }
+  });
+
+  it("fails missing targets and unsupported policy changes", () => {
+    assert.throws(() => readCoveragePolicy(config, "unknown-component"));
+    assert.throws(() =>
+      readCoveragePolicy(
+        config.replaceAll("threshold: 0%", "threshold: 1%"),
+        "expo-iap",
+      ),
+    );
+    assert.throws(() =>
+      readCoveragePolicy(
+        config.replace("partials_as_hits: true", "partials_as_hits: false"),
+        "expo-iap",
+      ),
+    );
+  });
+
+  it("rejects duplicate blocks and malformed or duplicate policy fields", () => {
+    for (const source of [
+      config.replace(
+        "      react-native-iap:",
+        "      react-native-iap:\n        target: 10%\n        threshold: 0%\n        flags:\n          - react-native-iap\n      react-native-iap:",
+      ),
+      config.replace("        threshold: 0%", "        threshold: 0%not-valid"),
+      config.replace(
+        "        target: 90%",
+        "        target: 10%\n        target: 90%",
+      ),
+      config.replace(
+        "        threshold: 0%",
+        "        threshold: 0%\n        threshold: 1%",
+      ),
+      config.replace(
+        "    partials_as_hits: true",
+        "    partials_as_hits: true\n    partials_as_hits: false",
+      ),
+    ]) {
+      assert.throws(() => readCoveragePolicy(source, "react-native-iap"));
+    }
+  });
+
+  it("rejects outside-workspace and empty sources even alongside valid records", () => {
+    for (const filename of [
+      "/another/repo/src/index.ts",
+      "../../../outside.ts",
+      "",
+    ]) {
+      assert.throws(
+        () =>
+          readComponentCoverage(
+            `${record("src/index.ts", [1])}\n${record(filename, [1])}`,
+            "",
+            policy,
+            directory,
+            root,
+          ),
+        /outside the workspace/,
+      );
+    }
+  });
+
+  it("normalizes initial branch pushes without weakening missing-base checks", () => {
+    assert.equal(normalizeCoverageBase("0".repeat(40)), "HEAD^");
+    assert.equal(normalizeCoverageBase("a".repeat(40)), "a".repeat(40));
+    assert.throws(() => normalizeCoverageBase(""), /required/);
+    assert.throws(() => normalizeCoverageBase(undefined), /required/);
+  });
+});
 
 describe("LCOV line coverage guard", () => {
   const temporaryPaths = [];
