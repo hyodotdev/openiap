@@ -203,6 +203,89 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
     }
 
     @MainActor
+    func testAuthoritativeRefreshReplacesOptimisticEntry() async throws {
+        let gate = PurchaseQueryGate()
+        let refreshed = expectation(description: "Refresh reaches authoritative read")
+        let provider = LifecycleProvider(gates: [gate], onActiveRead: { refreshed.fulfill() })
+        provider.activeSubscriptionsResult = [
+            ActiveSubscription(
+                isActive: true,
+                productId: "authoritative.sku",
+                transactionDate: 2.0,
+                transactionId: "authoritative-txn"
+            )
+        ]
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        let subscription = try makeSubscriptionPurchase()
+        provider.emit(subscription)
+        await gate.waitUntilEntered()
+        XCTAssertEqual(store.activeSubscriptions.map(\.transactionId), [subscription.id])
+        await gate.release([])
+        await fulfillment(of: [refreshed], timeout: 1)
+        await waitForActiveTransactionIds(store, ["authoritative-txn"])
+        XCTAssertEqual(store.activeSubscriptions.map(\.transactionId), ["authoritative-txn"])
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testEmptyAuthoritativeRefreshClearsOptimisticEntry() async throws {
+        let gate = PurchaseQueryGate()
+        let refreshed = expectation(description: "Empty refresh reaches authoritative read")
+        let provider = LifecycleProvider(gates: [gate], onActiveRead: { refreshed.fulfill() })
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        let subscription = try makeSubscriptionPurchase()
+        provider.emit(subscription)
+        await gate.waitUntilEntered()
+        XCTAssertEqual(store.activeSubscriptions.map(\.transactionId), [subscription.id])
+        await gate.release([])
+        await fulfillment(of: [refreshed], timeout: 1)
+        await waitForActiveTransactionIds(store, [])
+        XCTAssertTrue(store.activeSubscriptions.isEmpty)
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testUpgradedTransactionSkipsOptimisticEntry() async throws {
+        let gate = PurchaseQueryGate()
+        let provider = LifecycleProvider(gates: [gate])
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        var ios = try FixtureModule().makePurchase(sku: "upgraded.subscription")
+        ios.isAutoRenewing = true
+        ios.expirationDateIOS = Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000
+        ios.subscriptionGroupIdIOS = "group-upgraded"
+        ios.isUpgradedIOS = true
+        provider.emit(.purchaseIos(ios))
+        await gate.waitUntilEntered()
+        XCTAssertTrue(store.activeSubscriptions.isEmpty)
+        await gate.release([])
+        await waitForActiveTransactionIds(store, [])
+        XCTAssertTrue(store.activeSubscriptions.isEmpty)
+        try await store.endConnection()
+    }
+
+    @MainActor
+    func testDuplicateTransactionDoesNotDuplicateOptimisticEntry() async throws {
+        let first = PurchaseQueryGate()
+        let second = PurchaseQueryGate()
+        let provider = LifecycleProvider(gates: [first, second])
+        let store = OpenIapStore(module: provider)
+        try await store.initConnection()
+        let subscription = try makeSubscriptionPurchase()
+        provider.emit(subscription)
+        await first.waitUntilEntered()
+        provider.emit(subscription)
+        await second.waitUntilEntered()
+        XCTAssertEqual(store.activeSubscriptions.map(\.transactionId), [subscription.id])
+        await second.release([])
+        await first.release([])
+        await waitForActiveTransactionIds(store, [])
+        try await store.endConnection()
+    }
+
+    @MainActor
     func testConsumablePurchaseDoesNotTriggerRefresh() async throws {
         let availableRead = expectation(description: "No available-purchases query for consumables")
         availableRead.isInverted = true
@@ -321,6 +404,14 @@ final class OpenIapStoreLifecycleTests: XCTestCase {
     }
 
     @MainActor
+    private func waitForActiveTransactionIds(_ store: OpenIapStore, _ ids: [String]) async {
+        let deadline = Date().addingTimeInterval(1)
+        while store.activeSubscriptions.map(\.transactionId) != ids, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    @MainActor
     func testCapturedCallbackIsIgnoredAfterDisconnect() async throws {
         let provider = LifecycleProvider()
         let unexpected = expectation(description: "Removed listener stays removed")
@@ -404,6 +495,7 @@ private final class LifecycleProvider: OpenIapModuleProtocol, @unchecked Sendabl
         set { synchronized { disconnectError = newValue } }
     }
     var initReplay: Purchase?
+    var activeSubscriptionsResult: [ActiveSubscription] = []
     private var activeRead: @Sendable () -> Void
     var onActiveRead: @Sendable () -> Void {
         get { synchronized { activeRead } }
@@ -458,7 +550,10 @@ private final class LifecycleProvider: OpenIapModuleProtocol, @unchecked Sendabl
         return index < gates.count ? await gates[index].read() : []
     }
     func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws {}
-    func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] { onActiveRead(); return [] }
+    func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] {
+        onActiveRead()
+        return synchronized { activeSubscriptionsResult }
+    }
     func hasActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> Bool { false }
     func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult { try await fixture.verifyPurchase(props) }
     func getStorefront() async throws -> String { "US" }

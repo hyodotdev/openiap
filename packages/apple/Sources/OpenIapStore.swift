@@ -215,7 +215,7 @@ public final class OpenIapStore: ObservableObject {
             || (ios.subscriptionGroupIdIOS?.isEmpty == false)
         guard shouldRefresh else { return }
 
-        // Update activeSubscriptions directly from purchase data (avoid calling getActiveSubscriptions)
+        // Optimistic fast path; the provider refresh below replaces it with the authoritative list.
         // Skip if this transaction is upgraded - it means it's been replaced by a new subscription
         if let expirationDate = ios.expirationDateIOS, ios.isUpgradedIOS != true {
             let isActive = Date(timeIntervalSince1970: expirationDate / 1000) > Date()
@@ -244,6 +244,7 @@ public final class OpenIapStore: ObservableObject {
         purchaseRefreshTask?.cancel()
         let generation = listenerGeneration
         let module = module
+        // Known gap: a non-subscription purchase during a refresh does not restart it.
         purchaseRefreshTask = Task { [weak self] in
             guard !Task.isCancelled, self?.listenerGeneration == generation else { return }
             do {
