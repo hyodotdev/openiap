@@ -1034,7 +1034,9 @@ function checkFrameworkCiAndCoverageBadges() {
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
       ...coverageAssertions,
+      'run: scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov"',
       "uses: codecov/codecov-action@",
+      "binary: ${{ runner.temp }}/codecov",
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "disable_search: true",
@@ -1059,6 +1061,21 @@ function checkFrameworkCiAndCoverageBadges() {
       );
     }
     const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
+    const installIndex = testJob.indexOf(
+      'run: scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov"',
+    );
+    if (
+      installIndex < 0 ||
+      uploadIndex <= installIndex ||
+      !testJob
+        .slice(0, installIndex)
+        .trimEnd()
+        .endsWith("working-directory: ${{ github.workspace }}")
+    ) {
+      fail(
+        `${workflowPath} must install verified Codecov from the workspace root before upload`,
+      );
+    }
     for (const coverageAssertion of coverageAssertions) {
       const coverageAssertionIndex = testJob.indexOf(coverageAssertion);
       if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
@@ -1076,6 +1093,13 @@ function checkFrameworkCiAndCoverageBadges() {
       )?.[0] ?? "";
     if (!eventBlock("pull_request").includes('- "codecov.yml"')) {
       fail(`${workflowPath} pull_request paths must include root codecov.yml`);
+    }
+    for (const event of ["push", "pull_request"]) {
+      if (!eventBlock(event).includes('- "scripts/install-security-tool.sh"')) {
+        fail(
+          `${workflowPath} ${event} paths must include the coverage tool installer`,
+        );
+      }
     }
     const pushIncludesCodecov = eventBlock("push").includes('- "codecov.yml"');
     if (contract.codecovConfigPush === false && pushIncludesCodecov) {

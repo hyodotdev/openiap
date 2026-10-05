@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -9,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import braces from "braces";
 
 import {
@@ -28,6 +33,82 @@ import {
   runBunAudit,
   summarizeAdvisories,
 } from "./audit-security.mjs";
+
+test("verified tool installation rejects failed and corrupted downloads", () => {
+  const fixture = mkdtempSync(resolve(tmpdir(), "openiap-tool-download-"));
+  try {
+    const bin = resolve(fixture, "bin");
+    mkdirSync(bin);
+    if (process.platform === "darwin") {
+      const sha256sum = resolve(bin, "sha256sum");
+      writeFileSync(sha256sum, '#!/bin/sh\nexec shasum -a 256 "$@"\n');
+      chmodSync(sha256sum, 0o755);
+    }
+    const curl = resolve(bin, "curl");
+    writeFileSync(
+      curl,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$@" > "$TOOL_TEST_ARGUMENTS"
+if [[ "$TOOL_TEST_DOWNLOAD_EXIT" != 0 ]]; then
+  exit "$TOOL_TEST_DOWNLOAD_EXIT"
+fi
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == --output ]]; then
+    printf 'corrupted executable' > "$2"
+    exit 0
+  fi
+  shift
+done
+exit 2
+`,
+    );
+    chmodSync(curl, 0o755);
+    for (const downloadExit of [22, 0]) {
+      const target = resolve(fixture, `codecov-${downloadExit}`);
+      const argumentsFile = resolve(fixture, "arguments");
+      const result = spawnSync(
+        "bash",
+        [
+          fileURLToPath(new URL("./install-security-tool.sh", import.meta.url)),
+          "codecov",
+          target,
+        ],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: `${bin}:${process.env.PATH}`,
+            TOOL_TEST_ARGUMENTS: argumentsFile,
+            TOOL_TEST_DOWNLOAD_EXIT: String(downloadExit),
+          },
+        },
+      );
+      assert.equal(result.status, downloadExit || 1, result.stderr);
+      assert.equal(existsSync(target), false);
+      const args = readFileSync(argumentsFile, "utf8").trim().split("\n");
+      for (const [option, value] of [
+        ["--proto", "=https"],
+        ["--retry", "3"],
+        ["--connect-timeout", "15"],
+        ["--max-time", "300"],
+      ])
+        assert.equal(args[args.indexOf(option) + 1], value);
+      assert.ok(args.includes("--tlsv1.2"));
+      assert.ok(args.includes("--retry-all-errors"));
+      assert.match(
+        args.at(-1),
+        /^https:\/\/github\.com\/codecov\/codecov-cli\/releases\/download\/v\d+\.\d+\.\d+\/codecovcli_linux$/u,
+      );
+      if (downloadExit === 0)
+        assert.match(
+          result.stdout + result.stderr,
+          /checksum.*(match|FAILED)/iu,
+        );
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
 
 test("brace processing rejects excessive nesting before recursive evaluation", () => {
   for (const delimiter of ["{}", "()"])

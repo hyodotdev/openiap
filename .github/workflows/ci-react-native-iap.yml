@@ -17,6 +17,7 @@ on:
       - "packages/google/gradle/openiap-store.gradle"
       - "libraries-versions.jsonc"
       - "codecov.yml"
+      - "scripts/install-security-tool.sh"
       - "scripts/test-ios-log-sanitizers.sh"
       - ".github/workflows/ci-react-native-iap.yml"
       - "!**/*.md"
@@ -36,6 +37,7 @@ on:
       - "packages/google/gradle/openiap-store.gradle"
       - "libraries-versions.jsonc"
       - "codecov.yml"
+      - "scripts/install-security-tool.sh"
       - "scripts/test-ios-log-sanitizers.sh"
       - ".github/workflows/ci-react-native-iap.yml"
       - "!**/*.md"
@@ -123,9 +125,14 @@ jobs:
       - name: Enforce line coverage
         run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90
 
+      - name: Install verified Codecov CLI
+        working-directory: ${{ github.workspace }}
+        run: scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov"
+
       - name: Upload coverage
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
+          binary: ${{ runner.temp }}/codecov
           use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           disable_search: true
