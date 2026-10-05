@@ -3867,6 +3867,33 @@ describe('Public API (src/index.ts)', () => {
         'native failure',
       );
     });
+
+    it('reports an undecodable purchase instead of throwing', () => {
+      const billingIssueListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.subscriptionBillingIssueListener(billingIssueListener);
+      IAP.purchaseErrorListener(errorListener);
+      const nativeHandler =
+        mockIap.addSubscriptionBillingIssueListener.mock.calls[0][0];
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'unknown',
+        storeId: '!!!',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      expect(() => nativeHandler(nitroPurchase)).not.toThrow();
+      expect(billingIssueListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.BillingResponseJsonParseError,
+          productId: 'p1',
+        }),
+      );
+    });
   });
 
   describe('native failure normalization', () => {

@@ -370,14 +370,14 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             if (ok) {
                                 safe.success("Billing client ready")
                             } else {
-                                val initError = OpenIapError.InitConnection.forStore(linkedStoreId)
+                                val initError = initConnectionError()
                                 safe.error(initError.code, initError.message, "responseCode: -1")
                             }
                         } catch (e: OpenIapError) {
                             safe.error(e.code, e.message, serializeOpenIapError(e))
                         } catch (e: Exception) {
                             OpenIapLog.error("Error during initConnection: ${e.message}", e)
-                            val initError = OpenIapError.InitConnection.forStore(linkedStoreId)
+                            val initError = initConnectionError()
                             safe.error(initError.code, initError.message, e.message)
                         }
                     }
@@ -1067,7 +1067,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         connectionReady = ok
                         emitConnectionUpdated(ok)
                         if (!ok) {
-                            val initError = OpenIapError.InitConnection.forStore(linkedStoreId)
+                            val initError = initConnectionError()
                             safe.error(initError.code, initError.message, "Failed to initialize connection")
                             return
                         }
@@ -1087,14 +1087,12 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         block()
     }
 
-    // The store this binary links, for init-failure messages.
-    private var linkedStoreId: String? = null
+    private fun initConnectionError(): OpenIapError =
+        context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection
 
     private fun requireOpenIap(): OpenIapProtocol = openIap ?: run {
         val ctx = context ?: throw OpenIapError.NotPrepared
-        val factory = OpenIapProvider.factory(ctx)
-        linkedStoreId = factory.storeId
-        OpenIapProvider.create(ctx, factory).also {
+        OpenIapProvider.create(ctx).also {
             it.setActivity(activity)
             openIap = it
         }

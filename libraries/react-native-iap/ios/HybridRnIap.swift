@@ -85,6 +85,7 @@ class HybridRnIap: HybridRnIapSpec {
     private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
     private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
     private var pendingOnDemandInitErrorSuppressions: [String: Int] = [:]
+    // Shared across requests; concurrent requests may observe each other's count.
     private var enqueuedPurchaseErrorDeliveries: UInt64 = 0
     private let pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(
         capacity: HybridRnIap.maxPendingEvents,
@@ -1502,7 +1503,7 @@ class HybridRnIap: HybridRnIapSpec {
                     self.enqueuedPurchaseErrorDeliveries
                 }
                 if enqueuedErrorsAfter == enqueuedErrorsBefore {
-                    self.deliverRequestPurchaseError(
+                    self.deliverRequestPurchaseFallbackError(
                         PurchaseError.wrap(
                             error,
                             fallback: .purchaseError,
@@ -1665,12 +1666,6 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     private func deliverRequestPurchaseError(_ error: PurchaseError) {
-        let result = RnIapHelper.makePurchaseErrorResult(
-            code: error.code,
-            message: error.message,
-            error.productId,
-            debugMessage: error.debugMessage
-        )
         let key = RnIapHelper.makeErrorDedupKey(
             code: error.code.rawValue,
             productId: error.productId
@@ -1678,6 +1673,17 @@ class HybridRnIap: HybridRnIapSpec {
         listenerLock.withLock {
             pendingRequestPurchaseErrorSuppressions[key, default: 0] += 1
         }
+        deliverRequestPurchaseFallbackError(error)
+    }
+
+    // No suppression: a fallback provider never emits the same error later.
+    private func deliverRequestPurchaseFallbackError(_ error: PurchaseError) {
+        let result = RnIapHelper.makePurchaseErrorResult(
+            code: error.code,
+            message: error.message,
+            error.productId,
+            debugMessage: error.debugMessage
+        )
         sendPurchaseError(result, productId: error.productId, dedupe: false)
     }
 
@@ -1703,7 +1709,11 @@ class HybridRnIap: HybridRnIapSpec {
         _ error: PurchaseError,
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
-        listenerLock.withLock { enqueuedPurchaseErrorDeliveries &+= 1 }
+        listenerLock.withLock {
+            if connectionEpoch == expectedEpoch {
+                enqueuedPurchaseErrorDeliveries &+= 1
+            }
+        }
         return enqueueLifecycleOperation {
             guard self.isCurrentEpoch(expectedEpoch),
                   !self.consumeOnDemandInitErrorSuppression(error),

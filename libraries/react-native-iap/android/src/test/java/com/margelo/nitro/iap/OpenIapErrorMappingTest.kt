@@ -53,20 +53,12 @@ class OpenIapErrorMappingTest {
     fun `initConnection preserves a provider configuration error`() {
         val failure = OpenIapError.ProviderConfiguration("No Android store provider registered.")
 
-        assertSame(failure, mapInitConnectionError(failure, "horizon"))
+        assertSame(failure, mapInitConnectionError(failure, null))
         assertEquals("developer-error", failure.code)
     }
 
     @Test
     fun `initConnection maps an unexpected failure to init connection`() {
         assertSame(OpenIapError.InitConnection, mapInitConnectionError(IllegalStateException("boom"), null))
-    }
-
-    @Test
-    fun `initConnection names the linked store for an unexpected failure`() {
-        val mapped = mapInitConnectionError(IllegalStateException("boom"), "horizon")
-
-        assertEquals(OpenIapError.InitConnection.CODE, mapped.code)
-        assertEquals(OpenIapError.InitConnection.messageFor("horizon"), mapped.message)
     }
 }

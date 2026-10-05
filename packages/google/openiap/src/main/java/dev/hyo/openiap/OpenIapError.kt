@@ -1,5 +1,7 @@
 package dev.hyo.openiap
 
+import android.content.Context
+
 /**
  * OpenIAP specific exceptions
  */
@@ -185,6 +187,14 @@ sealed class OpenIapError : Exception() {
         /** Names the linked store; Play and unknown stores keep the plain message. */
         fun forStore(storeId: String?): OpenIapError =
             if (storeId.isNullOrBlank() || storeId == "play") this else StoreConnectionFailure(storeId)
+
+        /** Names the linked store at failure time; an unreadable provider keeps the plain message. */
+        fun forProvider(context: Context): OpenIapError =
+            try {
+                forStore(OpenIapProvider.factory(context).storeId)
+            } catch (_: Exception) {
+                this
+            }
 
         fun messageFor(storeId: String): String =
             if (storeId == "play") MESSAGE

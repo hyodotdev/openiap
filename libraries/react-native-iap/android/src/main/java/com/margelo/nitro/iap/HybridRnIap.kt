@@ -1,5 +1,6 @@
 package com.margelo.nitro.iap
 
+import android.content.Context
 import com.facebook.react.bridge.ReactApplicationContext
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.core.NullType
@@ -122,17 +123,29 @@ internal fun rejectDisconnectedPurchase(
 internal suspend fun endRnConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
-): Boolean = try {
-    endConnection()
-} finally {
+): Boolean {
+    val result = endConnection()
     cleanup()
+    return result
+}
+
+internal suspend fun endRnConnectionOrReset(
+    hasProvider: Boolean,
+    endConnection: suspend () -> Boolean,
+    cleanup: () -> Unit,
+): Boolean {
+    if (!hasProvider) {
+        cleanup()
+        return true
+    }
+    return endRnConnectionWithCleanup(endConnection, cleanup)
 }
 
 internal fun mapEndConnectionError(error: Exception): OpenIapError =
     error as? OpenIapError ?: OpenIapError.ServiceDisconnected(error.message)
 
-internal fun mapInitConnectionError(error: Exception, linkedStoreId: String?): OpenIapError =
-    error as? OpenIapError ?: OpenIapError.InitConnection.forStore(linkedStoreId)
+internal fun mapInitConnectionError(error: Exception, context: Context?): OpenIapError =
+    error as? OpenIapError ?: (context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection)
 
 /**
  * Removes the singleton JS fan-out listener without relying on callback identity.
@@ -210,14 +223,8 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     // OpenIAP backend + local cache for product types
-    private val openIap: OpenIapProtocol by lazy {
-        val factory = OpenIapProvider.factory(context)
-        linkedStoreId = factory.storeId
-        OpenIapProvider.create(context, factory)
-    }
-
-    // The store this binary links, for init-failure messages.
-    private var linkedStoreId: String? = null
+    private val openIapLazy: Lazy<OpenIapProtocol> = lazy { OpenIapProvider.create(context) }
+    private val openIap: OpenIapProtocol get() = openIapLazy.value
     private val productTypeBySku = mutableMapOf<String, String>()
 
     // Event listeners
@@ -292,7 +299,7 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (err: CancellationException) {
                 throw err
             } catch (err: Exception) {
-                val error = mapInitConnectionError(err, linkedStoreId)
+                val error = mapInitConnectionError(err, context)
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.setActivity", err)
                 throw OpenIapException(
@@ -395,7 +402,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 throw err
             } catch (err: Exception) {
                 listenersAttached = false
-                val error = mapInitConnectionError(err, linkedStoreId)
+                val error = mapInitConnectionError(err, context)
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.listeners", err)
                 val wrapped = OpenIapException(
@@ -429,7 +436,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 } catch (err: CancellationException) {
                     throw err
                 } catch (err: Exception) {
-                    val error = mapInitConnectionError(err, linkedStoreId)
+                    val error = mapInitConnectionError(err, context)
                     RnIapLog.failure("initConnection.native", err)
                     throw OpenIapException(
                         toErrorJson(
@@ -440,7 +447,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     )
                 }
                 if (!ok) {
-                    val error = OpenIapError.InitConnection.forStore(linkedStoreId)
+                    val error = OpenIapError.InitConnection.forProvider(context)
                     RnIapLog.failure("initConnection.native", Exception(error.message))
                     // No override: the error names the store this binary links,
                     // which a fixed string here would throw away.
@@ -476,7 +483,8 @@ class HybridRnIap : HybridRnIapSpec() {
         val invocation = connectionLifecycleQueue.enqueueEnd(pendingInitError) {
             RnIapLog.payload("endConnection", null)
             try {
-                val result = endRnConnectionWithCleanup(
+                val result = endRnConnectionOrReset(
+                    hasProvider = openIapLazy.isInitialized(),
                     endConnection = { openIap.endConnection() },
                     cleanup = {
                         productTypeBySku.clear()

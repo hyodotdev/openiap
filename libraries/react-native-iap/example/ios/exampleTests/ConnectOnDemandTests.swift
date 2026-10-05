@@ -554,6 +554,58 @@ final class ConnectOnDemandTests: XCTestCase {
         XCTAssertEqual(probe.events, [ErrorCode.purchaseError.rawValue])
     }
 
+    func testFallbackErrorLeavesNoSuppressionForLaterProviderError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+
+        let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+
+        let providerError = PurchaseError.make(
+            code: .purchaseError,
+            productId: "premium",
+            message: "Provider failure"
+        )
+        let delivery = hybrid.enqueuePurchaseErrorDelivery(
+            providerError,
+            expectedEpoch: hybrid.currentConnectionEpoch()
+        )
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(
+            probe.events,
+            [ErrorCode.purchaseError.rawValue, ErrorCode.purchaseError.rawValue]
+        )
+    }
+
+    func testStaleEpochDeliveryDoesNotSuppressFallbackError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        let result = try await hybrid.runRequestPurchaseOperation {
+            let delivery = hybrid.enqueuePurchaseErrorDelivery(
+                PurchaseError.make(code: .networkError, message: "Stale"),
+                expectedEpoch: epoch + 1
+            )
+            await holder.set(delivery)
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        let heldTask = await holder.task
+        let delivery = try XCTUnwrap(heldTask)
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, [ErrorCode.purchaseError.rawValue])
+    }
+
     func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()

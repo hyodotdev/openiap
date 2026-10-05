@@ -120,14 +120,7 @@ class ExpoIapModule : Module() {
     private val currentActivity
         get() = appContext.activityProvider?.currentActivity ?: throw Exceptions.MissingActivity()
 
-    private val openIap: OpenIapProtocol by lazy {
-        val factory = OpenIapProvider.factory(context)
-        linkedStoreId = factory.storeId
-        OpenIapProvider.create(context, factory)
-    }
-
-    // The store this binary links, for init-failure messages.
-    private var linkedStoreId: String? = null
+    private val openIap: OpenIapProtocol by lazy { OpenIapProvider.create(context) }
 
     // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }
@@ -194,7 +187,7 @@ class ExpoIapModule : Module() {
                                 // Clear any buffered events from a failed init
                                 pendingEvents.clear()
                                 ExpoIapLog.failure("initConnection", IllegalStateException("Failed to initialize connection"))
-                                val error = OpenIapError.InitConnection.forStore(linkedStoreId)
+                                val error = OpenIapError.InitConnection.forProvider(context)
                                 promise.reject(
                                     error.code,
                                     error.message,
