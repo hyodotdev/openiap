@@ -564,6 +564,29 @@ function Releases() {
               unsupported receipt verification.
             </li>
             <li>
+              Expo 6.0.0 and Flutter 11.0.0 report the provider&apos;s own
+              Android error code and store-aware init message instead of fixed
+              codes (Horizon without an Activity reports{' '}
+              <code>activity-unavailable</code>).
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
+              provider&apos;s Android restore before querying ownership; on
+              Horizon <code>restorePurchases()</code> also triggers{' '}
+              <code>purchaseUpdated</code> / <code>onPurchaseSuccess</code> for
+              every owned item.
+            </li>
+            <li>
+              Flutter 11.0.0, KMP 4.0.0, and MAUI 3.0.0 check StoreKit&apos;s
+              active flag for id-filtered <code>hasActiveSubscriptions</code>{' '}
+              calls on iOS; a subscriber in billing grace period reads inactive.
+            </li>
+            <li>
+              <strong>KMP 4.0.0</strong> adds <code>UNKNOWN</code> to the public{' '}
+              <code>Store</code> enum; an exhaustive{' '}
+              <code>when (getStore())</code> needs a new branch.
+            </li>
+            <li>
               <strong>React Native 17.0.0</strong>
               <ul>
                 <li>

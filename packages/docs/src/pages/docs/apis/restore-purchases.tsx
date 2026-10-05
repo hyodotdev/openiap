@@ -37,9 +37,11 @@ function RestorePurchases() {
         >
           Apple docs
         </a>
-        . <strong>Android:</strong> Calls <code>queryPurchasesAsync</code> for
-        both <code>INAPP</code> and <code>SUBS</code>. No system-level UI prompt
-        — Play has no concept of an explicit "restore" action.{' '}
+        . <strong>Android:</strong> Runs the provider&apos;s restore first, then
+        calls <code>queryPurchasesAsync</code> for both <code>INAPP</code> and{' '}
+        <code>SUBS</code>. No system-level UI prompt — Play and Amazon send
+        nothing extra, while Horizon delivers each owned purchase to the
+        purchase listeners.{' '}
         <a
           href="https://developer.android.com/google/play/billing/integrate"
           target="_blank"

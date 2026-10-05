@@ -560,7 +560,7 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   env for EAS and release builds, which have no device to follow.
   \`modules.amazon.fireOS\` also pins Amazon, ahead of the device. The
   \`EXPO_IAP_*\` environment flags are deprecated and removed in expo-iap
-  6.0.0; an \`app.config.js\` can read the EAS profile env and set the plugin
+  7.0.0; an \`app.config.js\` can read the EAS profile env and set the plugin
   option instead. The config plugin otherwise carries store values only:
   \`android.horizon.appId\`, \`android.amazon.appstoreKey\`, the opt-in
   \`modules.onside\`, and optional \`android.amazon.vegaOS\` metadata. A

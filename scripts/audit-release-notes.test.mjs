@@ -119,3 +119,46 @@ test("the audit reads only the branch's own changes after the base moved on", ()
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+function cardText() {
+  const source = fs.readFileSync(path.join(repoRoot, RELEASE_NOTES), "utf8");
+  const start = source.indexOf("id: 'community-store-providers-2026-10-02'");
+  const end = source.indexOf("id: '", start + 1);
+  const card = source.slice(start, end === -1 ? undefined : end);
+  return card.replaceAll("&apos;", "'").replaceAll("{' '}", " ").replaceAll(/\s+/g, " ");
+}
+
+test("the community provider card discloses the Android restore, error, Store, and subscription behaviors", () => {
+  const card = cardText();
+  for (const disclosure of [
+    "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore before querying ownership",
+    "purchaseUpdated",
+    "onPurchaseSuccess",
+    "report the provider's own Android error code and store-aware init message",
+    "activity-unavailable",
+    "adds <code>UNKNOWN</code> to the public <code>Store</code> enum",
+    "when (getStore())",
+    "check StoreKit's active flag for id-filtered",
+    "billing grace period reads inactive",
+  ]) {
+    assert.ok(card.includes(disclosure), `card is missing: ${disclosure}`);
+  }
+});
+
+test("the restore-purchases page documents the provider-first Android restore", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, "packages/docs/src/pages/docs/apis/restore-purchases.tsx"),
+    "utf8",
+  );
+  const page = source.replaceAll("&apos;", "'").replaceAll("{' '}", " ").replaceAll(/\s+/g, " ");
+  assert.ok(page.includes("Runs the provider's restore first"));
+  assert.ok(
+    page.includes("Horizon delivers each owned purchase to the purchase listeners"),
+  );
+  assert.ok(
+    !page.includes("Play has no concept of an explicit"),
+    "stale restore claim is still present",
+  );
+});
