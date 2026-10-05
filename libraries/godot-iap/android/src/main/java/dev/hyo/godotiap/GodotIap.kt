@@ -36,6 +36,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     private lateinit var openIap: OpenIapProtocol
     private lateinit var store: OpenIapStore
+    private var lastInitError: OpenIapError.ProviderConfiguration? = null
     private val connectionLifecycle = GodotIapConnectionLifecycle()
     private val isInitialized: Boolean
         get() = connectionLifecycle.isConnected
@@ -101,6 +102,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun initConnectionWithConfig(configJson: String): Boolean {
+        // A malformed config returns below, so clear before parsing.
+        lastInitError = null
         val config = try {
             InitConnectionConfig.fromJson(
                 GodotIapHelper.jsonObjectToMap(JSONObject(configJson))
@@ -112,8 +115,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return initConnectionInternal(config)
     }
 
+    // Render-thread signals arrive after initConnection returns; the wrapper log reads this.
+    @UsedByGodot
+    fun getLastInitError(): String = GodotIapHelper.lastInitErrorJson(lastInitError)
+
     private fun initConnectionInternal(config: InitConnectionConfig?): Boolean {
         GodotIapLog.debug("initConnection called")
+        // A stale cause must not leak into the next attempt's log.
+        lastInitError = null
 
         val activity = activity ?: run {
             GodotIapLog.failure("initConnection", Exception("Activity is null"))
@@ -159,6 +168,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             )
         } catch (error: Exception) {
             GodotIapLog.failure("initConnection", error)
+            // A missing or incompatible provider is a build mistake, not a store outage.
+            (error as? OpenIapError.ProviderConfiguration)?.let {
+                lastInitError = it
+                purchaseErrorListener.onPurchaseError(it)
+            }
             GodotIapConnectionLifecycle.InitResult(false, false)
         }
 
@@ -385,6 +399,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }.toString()
     }
 
+    /** Store id of the linked provider, or null when it cannot be read. */
+    private fun connectedProviderStoreId(): String? =
+        runCatching { activity?.let { OpenIapProvider.factory(it).storeId } }.getOrNull()
+
     @UsedByGodot
     fun finishTransaction(purchaseJson: String, isConsumable: Boolean): String {
         GodotIapLog.payload("finishTransaction", mapOf("purchaseJson" to purchaseJson, "isConsumable" to isConsumable))
@@ -399,7 +417,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val requestedPurchase = PurchaseAndroid.fromJson(
-                    GodotIapHelper.jsonObjectToMap(JSONObject(purchaseJson))
+                    GodotIapHelper.withProviderStoreIdentity(
+                        GodotIapHelper.jsonObjectToMap(JSONObject(purchaseJson)),
+                    ) { connectedProviderStoreId() }
                 )
                 val purchase = if (!requestedPurchase.purchaseToken.isNullOrBlank()) {
                     requestedPurchase

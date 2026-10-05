@@ -189,6 +189,21 @@ class FakeImmediateApplePlugin:
 	func presentCodeRedemptionSheetIOS() -> String:
 		return _respond("presentCodeRedemptionSheetIOS", "0")
 
+	func getPendingTransactionsIOS() -> String:
+		return _respond("getPendingTransactionsIOS", "0")
+
+	func getAllTransactionsIOS() -> String:
+		return _respond("getAllTransactionsIOS", "0")
+
+	func showManageSubscriptionsIOS() -> String:
+		return _respond("showManageSubscriptionsIOS", "0")
+
+	func currentEntitlementIOS(_sku: String) -> String:
+		return _respond("currentEntitlementIOS", "0")
+
+	func latestTransactionIOS(_sku: String) -> String:
+		return _respond("latestTransactionIOS", "0")
+
 
 func _init() -> void:
 	_run_suite.call_deferred()
@@ -264,6 +279,7 @@ func _run_all_tests() -> void:
 	await test_ios_immediate_payload_envelope()
 	await test_ios_missing_request_id_envelope()
 	await test_ios_open_redeem_offer_code_envelope()
+	await test_ios_transaction_lists_skip_invalid_store_identities()
 	await test_macos_shared_api_routing()
 
 
@@ -1381,6 +1397,62 @@ func test_ios_open_redeem_offer_code_envelope() -> void:
 
 	fake.responses["presentCodeRedemptionSheetIOS"] = JSON.stringify({"success": false, "error": "cancelled"})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Failure envelopes should resolve null")
+	_uninstall_fake()
+
+
+func _purchase_payload(product_id: String, transaction_id: String) -> Dictionary:
+	return {
+		"id": transaction_id,
+		"productId": product_id,
+		"transactionDate": 1.0,
+		"transactionId": transaction_id,
+		"purchaseState": "purchased",
+		"quantity": 1,
+		"isAutoRenewing": false,
+		"platform": "ios",
+		"store": "apple",
+	}
+
+
+func test_ios_transaction_lists_skip_invalid_store_identities() -> void:
+	var fake = _install_ios_fake()
+	var valid := _purchase_payload("valid.sku", "valid-tx")
+	var mismatched := _purchase_payload("mismatched.sku", "mismatched-tx")
+	mismatched["storeId"] = "play"
+	var missing := _purchase_payload("missing.sku", "missing-tx")
+	missing.erase("store")
+	var mixed := [valid, mismatched, missing]
+
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({
+		"success": true,
+		"transactionsJson": JSON.stringify(mixed),
+	})
+	fake.responses["getAllTransactionsIOS"] = JSON.stringify({
+		"success": true,
+		"transactionsJson": JSON.stringify(mixed),
+	})
+	fake.responses["showManageSubscriptionsIOS"] = JSON.stringify({
+		"success": true,
+		"purchasesJson": JSON.stringify(mixed),
+	})
+
+	var pending = await GodotIapPlugin.get_pending_transactions_ios()
+	_assert_equal(pending.size(), 1, "Pending transactions should skip invalid store identities")
+	_assert_true(pending[0] is Types.PurchaseIOS, "Pending transactions should stay typed")
+	_assert_equal(pending[0].product_id, "valid.sku", "Valid pending transactions should be unchanged")
+
+	var history = await GodotIapPlugin.get_all_transactions_ios()
+	_assert_equal(history.size(), 1, "All transactions should skip invalid store identities")
+	_assert_true(history[0] is Types.PurchaseIOS, "All transactions should stay typed")
+	_assert_equal(history[0].product_id, "valid.sku", "Valid history transactions should be unchanged")
+
+	var changed = await GodotIapPlugin.show_manage_subscriptions_ios()
+	_assert_equal(changed.size(), 1, "Manage-subscriptions results should skip invalid store identities")
+	_assert_true(changed[0] is Types.PurchaseIOS, "Manage-subscriptions results should stay typed")
+	_assert_equal(changed[0].product_id, "valid.sku", "Valid manage-subscriptions results should be unchanged")
+
+	for list in [pending, history, changed]:
+		_assert_false(list.has(null), "Transaction lists must never contain null")
 	_uninstall_fake()
 
 

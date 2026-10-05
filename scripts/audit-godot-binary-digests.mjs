@@ -2,7 +2,7 @@
 // The godot-iap addon ships native frameworks that are committed to the
 // repository, and the release does not rebuild them, so nothing in the release
 // pipeline otherwise records or verifies the bytes users execute. This audit
-// pins them.
+// pins them, plus the committed Android archives an export embeds as-is.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,6 +11,10 @@ import { pathToFileURL } from "node:url";
 export const GODOT_ROOT = "libraries/godot-iap";
 export const DIGEST_MANIFEST = `${GODOT_ROOT}/prebuilt-binaries.sha256`;
 const BINARY_ROOT = `${GODOT_ROOT}/addons/godot-iap/bin`;
+const ANDROID_ROOT = `${GODOT_ROOT}/addons/godot-iap/android`;
+// The Android directory also holds the export metadata the build rewrites on
+// every version bump, so only the archives are pinned.
+const ANDROID_PAYLOAD = /\.aar$/;
 // Identify payloads by Mach-O magic rather than by extension, so editor
 // metadata and future file types classify themselves.
 const MACH_O_MAGIC = new Set([
@@ -71,16 +75,17 @@ const walk = (dir, acc = []) => {
   return acc;
 };
 
+const relativeToGodotRoot = (repoRoot, file) =>
+  path
+    .relative(path.resolve(repoRoot, GODOT_ROOT), file)
+    .split(path.sep)
+    .join("/");
+
 // Every file under the binary root, relative to GODOT_ROOT.
 export function listBinaryRootFiles(repoRoot) {
   const root = path.resolve(repoRoot, BINARY_ROOT);
   return walk(root)
-    .map((file) =>
-      path
-        .relative(path.resolve(repoRoot, GODOT_ROOT), file)
-        .split(path.sep)
-        .join("/"),
-    )
+    .map((file) => relativeToGodotRoot(repoRoot, file))
     .sort();
 }
 
@@ -88,12 +93,16 @@ export function listTrackedBinaries(repoRoot) {
   const root = path.resolve(repoRoot, BINARY_ROOT);
   return walk(root)
     .filter((file) => isMachO(file))
-    .map((file) =>
-      path
-        .relative(path.resolve(repoRoot, GODOT_ROOT), file)
-        .split(path.sep)
-        .join("/"),
-    )
+    .map((file) => relativeToGodotRoot(repoRoot, file))
+    .sort();
+}
+
+// The committed Android archives, relative to GODOT_ROOT.
+export function listAndroidBinaries(repoRoot) {
+  const root = path.resolve(repoRoot, ANDROID_ROOT);
+  return walk(root)
+    .filter((file) => ANDROID_PAYLOAD.test(file))
+    .map((file) => relativeToGodotRoot(repoRoot, file))
     .sort();
 }
 
@@ -110,11 +119,12 @@ export function digestOf(repoRoot, relativeFile) {
 // excused nor renderable otherwise, so `--write` could not produce a manifest
 // the audit accepts.
 export function listFilesRequiringDigests(repoRoot) {
-  return listBinaryRootFiles(repoRoot).filter((file) => {
+  const binaries = listBinaryRootFiles(repoRoot).filter((file) => {
     if (!NON_PAYLOAD.some((pattern) => pattern.test(file))) return true;
     // An excused name still needs a digest when it holds executable code.
     return isMachO(path.resolve(repoRoot, GODOT_ROOT, file));
   });
+  return [...binaries, ...listAndroidBinaries(repoRoot)].sort();
 }
 export function collectGodotBinaryDigestFailures(repoRoot) {
   const manifestPath = path.resolve(repoRoot, DIGEST_MANIFEST);
@@ -144,7 +154,10 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
   // Scan every shipped file rather than only the ones that still look like
   // Mach-O: corrupting an executable would otherwise drop it from this set,
   // and deleting its digest line would then leave it unnoticed by both checks.
-  for (const file of listBinaryRootFiles(repoRoot)) {
+  for (const file of [
+    ...listBinaryRootFiles(repoRoot),
+    ...listAndroidBinaries(repoRoot),
+  ]) {
     if (recorded.has(file)) continue;
     // The exclusion is by name, so it has to be checked against content too:
     // a Mach-O copied to Payload.gdextension would otherwise be excused by
@@ -212,7 +225,7 @@ if (
     );
     process.exit(1);
   }
-  console.log(
-    `Godot prebuilt binary digests verified (${listTrackedBinaries(repoRoot).length} binaries).`,
-  );
+  const binaries =
+    listTrackedBinaries(repoRoot).length + listAndroidBinaries(repoRoot).length;
+  console.log(`Godot prebuilt binary digests verified (${binaries} binaries).`);
 }

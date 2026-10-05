@@ -2,7 +2,10 @@ package dev.hyo.godotiap
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
+import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductQueryType
+import dev.hyo.openiap.StoreIds
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import org.json.JSONArray
@@ -236,6 +239,40 @@ internal object GodotIapHelper {
             "keep_existing" -> SubscriptionReplacementModeAndroid.KeepExisting
             else -> null
         }
+    }
+
+    /** Synchronous init failure for the wrapper log; the signal arrives a frame late. */
+    fun lastInitErrorJson(error: OpenIapError.ProviderConfiguration?): String {
+        if (error == null) return ""
+        return JSONObject().apply {
+            put("code", error.code)
+            put("message", error.message)
+        }.toString()
+    }
+
+    /**
+     * Hand-built finish inputs carry no store identity; stamp the connected
+     * provider's so decoding reaches the purchase token.
+     */
+    fun withProviderStoreIdentity(
+        purchase: Map<String, Any?>,
+        providerStoreId: () -> String?,
+    ): Map<String, Any?> {
+        if (purchase["store"] != null || purchase["storeId"] != null) {
+            return purchase
+        }
+        val storeId = providerStoreId() ?: return purchase
+        return purchase + mapOf(
+            "store" to legacyStoreFor(storeId),
+            "storeId" to storeId,
+        )
+    }
+
+    private fun legacyStoreFor(providerStoreId: String): String = when (providerStoreId) {
+        StoreIds.Play -> IapStore.Google.toJson()
+        StoreIds.Horizon -> IapStore.Horizon.toJson()
+        StoreIds.Amazon -> IapStore.Amazon.toJson()
+        else -> IapStore.Unknown.toJson()
     }
 
     /**

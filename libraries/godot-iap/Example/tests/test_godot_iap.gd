@@ -146,6 +146,74 @@ class FakeOldApplePlugin:
 		return JSON.stringify({"success": true})
 
 
+## Canned purchase envelopes returned as immediate payloads, without a requestId.
+class FakePurchasePayloadPlugin:
+	extends RefCounted
+	var responses: Dictionary = {}
+
+	func _respond(method: String) -> String:
+		return responses.get(method, "0")
+
+	func requestPurchase(_params_json: String) -> String:
+		return _respond("requestPurchase")
+
+	func requestPurchaseWithPayload(_payload_json: String) -> String:
+		return _respond("requestPurchaseWithPayload")
+
+	func getPendingTransactionsIOS() -> String:
+		return _respond("getPendingTransactionsIOS")
+
+	func getAllTransactionsIOS() -> String:
+		return _respond("getAllTransactionsIOS")
+
+	func showManageSubscriptionsIOS() -> String:
+		return _respond("showManageSubscriptionsIOS")
+
+	func presentCodeRedemptionSheetIOS() -> String:
+		return _respond("presentCodeRedemptionSheetIOS")
+
+	func currentEntitlementIOS(_sku: String) -> String:
+		return _respond("currentEntitlementIOS")
+
+	func latestTransactionIOS(_sku: String) -> String:
+		return _respond("latestTransactionIOS")
+
+
+## Android init that always fails, modeling the real render-thread timing:
+## the cause is readable synchronously, the signal arrives on a later frame.
+class FakeFailingAndroidInitPlugin:
+	extends RefCounted
+	var last_init_error := ""
+	var error_json := ""
+	var notify: Callable = Callable()
+
+	func initConnection() -> bool:
+		if notify.is_valid() and not error_json.is_empty():
+			notify.call_deferred(error_json)
+		return false
+
+	func initConnectionWithConfig(_config_json: String) -> bool:
+		return initConnection()
+
+	func getLastInitError() -> String:
+		return last_init_error
+
+
+## Android init from before the synchronous cause existed. A JNISingleton
+## answers null when call() names a method the AAR does not export.
+class FakeLegacyAndroidInitPlugin:
+	extends RefCounted
+
+	func initConnection() -> bool:
+		return false
+
+	func initConnectionWithConfig(_config_json: String) -> bool:
+		return false
+
+	func getLastInitError():
+		return null
+
+
 class LogCapture:
 	extends Logger
 	var messages: Array[String] = []
@@ -195,6 +263,9 @@ func _run_all_tests() -> void:
 	# Connection tests (run BEFORE guard tests to avoid state leakage)
 	await test_init_connection_mock()
 	await test_end_connection_mock()
+	await test_init_connection_reports_provider_configuration_errors()
+	await test_init_connection_keeps_generic_text_for_other_failures()
+	await test_init_connection_without_init_error_getter_keeps_generic_text()
 
 	# Initialization guard tests
 	test_ready_guard_prevents_double_init()
@@ -216,6 +287,9 @@ func _run_all_tests() -> void:
 	await test_storefront_error_contract()
 	test_native_purchase_payload_safety()
 	test_community_apple_purchase_identity()
+	await test_ios_transaction_lists_report_invalid_store_identities()
+	await test_ios_single_purchase_reads_report_invalid_store_identities()
+	test_request_purchase_reports_invalid_store_identities()
 	test_freed_object_options_are_ignored()
 	test_sensitive_values_are_not_logged()
 
@@ -275,6 +349,103 @@ func test_init_connection_idempotent() -> void:
 
 	var result2 = await GodotIapPlugin.init_connection()
 	_assert_false(result2, "Second init_connection should remain unavailable")
+
+
+func _failing_android_init() -> FakeFailingAndroidInitPlugin:
+	var fake := FakeFailingAndroidInitPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+	fake.notify = func(payload: String) -> void:
+		GodotIapPlugin._on_android_purchase_error(payload)
+	return fake
+
+
+func test_init_connection_reports_provider_configuration_errors() -> void:
+	var fake := _failing_android_init()
+	var payload := JSON.stringify({
+		"code": "developer-error",
+		"message": "No Android store provider registered. Select openiapStore and link its provider artifact.",
+	})
+	fake.last_init_error = payload
+	fake.error_json = payload
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	var result = await GodotIapPlugin.init_connection()
+	var config = Types.InitConnectionConfig.new()
+	var configured_result = await GodotIapPlugin.init_connection(config)
+	_assert_true(errors.is_empty(), "The init error signal arrives after initConnection returns")
+	OS.remove_logger(capture)
+	await process_frame
+
+	_assert_false(result, "Failed Android init should return false")
+	_assert_false(configured_result, "Failed configured Android init should return false")
+	_assert_equal(errors.size(), 2, "Provider misconfiguration should emit purchase_error")
+	for error in errors:
+		_assert_equal(error.get("code"), "developer-error", "Provider misconfiguration should use developer-error")
+	var reported = capture.messages.filter(func(message: String) -> bool: return message.contains("No Android store provider registered"))
+	_assert_equal(reported.size(), 2, "Failed init should print the synchronously reported message")
+	var generic = capture.messages.filter(func(message: String) -> bool: return message.contains("Check Google Play Services"))
+	_assert_equal(generic, [], "A reported developer error should replace the generic Play text")
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+	GodotIapPlugin._is_connected = false
+
+
+func test_init_connection_keeps_generic_text_for_other_failures() -> void:
+	var fake := _failing_android_init()
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	fake.last_init_error = ""
+	fake.error_json = ""
+	_assert_false(await GodotIapPlugin.init_connection(), "Silent Android init failure should return false")
+	fake.last_init_error = "not json"
+	fake.error_json = ""
+	_assert_false(await GodotIapPlugin.init_connection(), "Unparseable init cause should return false")
+	fake.last_init_error = JSON.stringify({"code": "service-error", "message": "Billing unavailable"})
+	fake.error_json = fake.last_init_error
+	_assert_false(await GodotIapPlugin.init_connection(), "Non-developer init failure should return false")
+	OS.remove_logger(capture)
+	await process_frame
+
+	_assert_equal(errors.size(), 1, "Only the reported failure should emit purchase_error")
+	var generic = capture.messages.filter(func(message: String) -> bool: return message.contains("Check Google Play Services"))
+	_assert_equal(generic.size(), 3, "Failures without a developer error should keep the generic Play text")
+	var leaked = capture.messages.filter(func(message: String) -> bool: return message.contains("Billing unavailable"))
+	_assert_equal(leaked, [], "Non-developer errors should not replace the init guidance")
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+	GodotIapPlugin._is_connected = false
+
+
+func test_init_connection_without_init_error_getter_keeps_generic_text() -> void:
+	GodotIapPlugin._native_plugin = FakeLegacyAndroidInitPlugin.new()
+	GodotIapPlugin._platform = "Android"
+
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	_assert_false(await GodotIapPlugin.init_connection(), "Legacy Android init failure should return false")
+	OS.remove_logger(capture)
+
+	var generic = capture.messages.filter(func(message: String) -> bool: return message.contains("Check Google Play Services"))
+	_assert_equal(generic.size(), 1, "A plugin without the cause getter should keep the generic Play text")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+	GodotIapPlugin._is_connected = false
 
 
 func test_no_duplicate_signal_connections() -> void:
@@ -468,6 +639,156 @@ func test_community_apple_purchase_identity() -> void:
 	payload["storeId"] = "apple"
 	_assert_false(GodotIapPlugin._validated_purchase_batch([payload], "iOS").get("success", false), "Community purchases cannot claim an official identity")
 	GodotIapPlugin._platform = original_platform
+
+
+func _identity_purchase(product_id: String, transaction_id: String, store: String) -> Dictionary:
+	return {
+		"id": transaction_id,
+		"productId": product_id,
+		"transactionDate": 1.0,
+		"transactionId": transaction_id,
+		"purchaseState": "purchased",
+		"quantity": 1,
+		"isAutoRenewing": false,
+		"store": store,
+	}
+
+
+func test_ios_transaction_lists_report_invalid_store_identities() -> void:
+	var fake := FakePurchasePayloadPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "iOS"
+	var valid := _identity_purchase("valid.sku", "valid-tx", "apple")
+	var mismatched := _identity_purchase("mismatched.sku", "mismatched-tx", "apple")
+	mismatched["storeId"] = "play"
+	var mixed := [valid, mismatched]
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify(mixed)})
+	fake.responses["getAllTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify(mixed)})
+	fake.responses["showManageSubscriptionsIOS"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify(mixed)})
+
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	var pending = await GodotIapPlugin.get_pending_transactions_ios()
+	var history = await GodotIapPlugin.get_all_transactions_ios()
+	var changed = await GodotIapPlugin.show_manage_subscriptions_ios()
+	OS.remove_logger(capture)
+
+	for list in [pending, history, changed]:
+		_assert_equal(list.size(), 1, "Transaction lists should skip invalid store identities")
+		_assert_true(list[0] is Types.PurchaseIOS, "Transaction lists should stay typed")
+		_assert_equal(list[0].product_id, "valid.sku", "Valid transactions should be unchanged")
+	_assert_equal(capture.errors.size(), 3, "Each skipped transaction should log once")
+	for error in capture.errors:
+		_assert_true(error.contains("mismatched.sku"), "Skipped transactions should name the product")
+		_assert_true(error.contains("mismatched-tx"), "Skipped transactions should name the transaction")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
+
+func test_ios_single_purchase_reads_report_invalid_store_identities() -> void:
+	var fake := FakePurchasePayloadPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "iOS"
+	var invalid := _identity_purchase("stale.sku", "stale-tx", "apple")
+	invalid["storeId"] = "play"
+	var invalid_json := JSON.stringify({"success": true, "purchaseJson": JSON.stringify(invalid)})
+	fake.responses["presentCodeRedemptionSheetIOS"] = invalid_json
+	fake.responses["currentEntitlementIOS"] = invalid_json
+	fake.responses["latestTransactionIOS"] = invalid_json
+
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	var redeemed = await GodotIapPlugin.present_code_redemption_sheet_ios()
+	var entitlement = await GodotIapPlugin.current_entitlement_ios("stale.sku")
+	var latest = await GodotIapPlugin.latest_transaction_ios("stale.sku")
+	OS.remove_logger(capture)
+
+	_assert_equal(redeemed, null, "Redemption with an invalid identity should stay null")
+	_assert_equal(entitlement, null, "Entitlement with an invalid identity should stay null")
+	_assert_equal(latest, null, "Latest transaction with an invalid identity should stay null")
+	_assert_equal(capture.errors.size(), 3, "Each invalid single read should log once")
+	for error in capture.errors:
+		_assert_true(error.contains("stale.sku"), "Invalid single reads should name the product")
+		_assert_true(error.contains("stale-tx"), "Invalid single reads should name the transaction")
+
+	var valid := _identity_purchase("valid.sku", "valid-tx", "apple")
+	var valid_json := JSON.stringify({"success": true, "purchaseJson": JSON.stringify(valid)})
+	fake.responses["presentCodeRedemptionSheetIOS"] = valid_json
+	fake.responses["currentEntitlementIOS"] = valid_json
+	fake.responses["latestTransactionIOS"] = valid_json
+	var valid_capture := LogCapture.new()
+	OS.add_logger(valid_capture)
+	var valid_redeemed = await GodotIapPlugin.present_code_redemption_sheet_ios()
+	var valid_entitlement = await GodotIapPlugin.current_entitlement_ios("valid.sku")
+	var valid_latest = await GodotIapPlugin.latest_transaction_ios("valid.sku")
+	OS.remove_logger(valid_capture)
+	for purchase in [valid_redeemed, valid_entitlement, valid_latest]:
+		_assert_true(purchase is Types.PurchaseIOS, "Valid single reads should stay typed")
+	_assert_equal(valid_capture.errors, [], "Valid single reads should not log")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
+
+
+func test_request_purchase_reports_invalid_store_identities() -> void:
+	var fake := FakePurchasePayloadPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+
+	GodotIapPlugin._platform = "Android"
+	var android_invalid := _identity_purchase("android.sku", "android-tx", "google")
+	android_invalid["storeId"] = "horizon"
+	android_invalid["purchaseToken"] = "token-1"
+	android_invalid["success"] = true
+	fake.responses["requestPurchase"] = JSON.stringify(android_invalid)
+	var android_capture := LogCapture.new()
+	OS.add_logger(android_capture)
+	var android_purchase = GodotIapPlugin.request_purchase({
+		"requestPurchase": {"google": {"skus": ["android.sku"]}},
+		"type": "in-app",
+	})
+	OS.remove_logger(android_capture)
+	_assert_equal(android_purchase, null, "Android purchases with an invalid identity should stay null")
+	_assert_equal(android_capture.errors.size(), 1, "Invalid Android purchases should log once")
+	# Indexing an empty array aborts the test and leaks the fake into later tests.
+	if android_capture.errors.size() == 1:
+		_assert_true(android_capture.errors[0].contains("android.sku"), "Invalid Android purchases should name the product")
+		_assert_true(android_capture.errors[0].contains("android-tx"), "Invalid Android purchases should name the transaction")
+
+	GodotIapPlugin._platform = "iOS"
+	var apple_invalid := _identity_purchase("apple.sku", "apple-tx", "apple")
+	apple_invalid.erase("store")
+	apple_invalid["success"] = true
+	fake.responses["requestPurchaseWithPayload"] = JSON.stringify(apple_invalid)
+	var apple_capture := LogCapture.new()
+	OS.add_logger(apple_capture)
+	var apple_purchase = GodotIapPlugin.request_purchase({
+		"requestPurchase": {"apple": {"sku": "apple.sku"}},
+		"type": "in-app",
+	})
+	OS.remove_logger(apple_capture)
+	_assert_equal(apple_purchase, null, "Apple purchases with an invalid identity should stay null")
+	_assert_equal(apple_capture.errors.size(), 1, "Invalid Apple purchases should log once")
+	if apple_capture.errors.size() == 1:
+		_assert_true(apple_capture.errors[0].contains("apple.sku"), "Invalid Apple purchases should name the product")
+
+	GodotIapPlugin._platform = "Android"
+	var android_valid := _identity_purchase("android.sku", "android-tx", "google")
+	android_valid["purchaseToken"] = "token-1"
+	android_valid["success"] = true
+	fake.responses["requestPurchase"] = JSON.stringify(android_valid)
+	var valid_capture := LogCapture.new()
+	OS.add_logger(valid_capture)
+	var valid_purchase = GodotIapPlugin.request_purchase({
+		"requestPurchase": {"google": {"skus": ["android.sku"]}},
+		"type": "in-app",
+	})
+	OS.remove_logger(valid_capture)
+	_assert_true(valid_purchase is Types.PurchaseAndroid, "Valid Android purchases should stay typed")
+	_assert_equal(valid_capture.errors, [], "Valid purchases should not log")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
 
 
 func test_freed_object_options_are_ignored() -> void:

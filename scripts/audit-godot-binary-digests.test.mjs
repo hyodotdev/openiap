@@ -8,6 +8,7 @@ import {
   collectGodotBinaryDigestFailures,
   renderDigestManifest,
   digestOf,
+  listAndroidBinaries,
   listTrackedBinaries,
   parseDigestManifest,
 } from "./audit-godot-binary-digests.mjs";
@@ -29,6 +30,11 @@ const stageFixture = (scratch) => {
     path.join(target, "addons/godot-iap/bin"),
     { recursive: true },
   );
+  fs.cpSync(
+    path.join(repoRoot, "libraries/godot-iap/addons/godot-iap/android"),
+    path.join(target, "addons/godot-iap/android"),
+    { recursive: true },
+  );
   return target;
 };
 
@@ -44,11 +50,21 @@ test("every binary that ships is covered", () => {
       .filter((entry) => entry.digest)
       .map((entry) => entry.file),
   );
-  const shipped = listTrackedBinaries(repoRoot);
+  const shipped = [
+    ...listTrackedBinaries(repoRoot),
+    ...listAndroidBinaries(repoRoot),
+  ];
   assert.ok(shipped.length > 0, "no binaries were discovered");
   for (const file of shipped) {
     assert.ok(covered.has(file), `${file} has no recorded digest`);
   }
+});
+
+test("exactly the two Android archives are pinned", () => {
+  assert.deepEqual(listAndroidBinaries(repoRoot), [
+    "addons/godot-iap/android/GodotIap.debug.aar",
+    "addons/godot-iap/android/GodotIap.release.aar",
+  ]);
 });
 
 test("comments and blank lines are ignored, malformed lines are not", () => {
@@ -63,6 +79,29 @@ test("comments and blank lines are ignored, malformed lines are not", () => {
 
 test("a changed binary is reported with both digests", () => {
   const file = listTrackedBinaries(repoRoot)[0];
+  const real = digestOf(repoRoot, file);
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    // Copy the addon tree, then rewrite the manifest with one wrong digest.
+    stageFixture(scratch);
+    const manifest = path.join(scratch, DIGEST_MANIFEST);
+    fs.writeFileSync(
+      manifest,
+      fs.readFileSync(manifest, "utf8").replace(real, "0".repeat(64)),
+    );
+    const failures = collectGodotBinaryDigestFailures(scratch);
+    assert.equal(failures.length, 1);
+    assert.match(
+      failures[0],
+      new RegExp(`^${file} changed: recorded 0{64}, found ${real}$`),
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("a changed Android archive is reported with both digests", () => {
+  const file = listAndroidBinaries(repoRoot)[0];
   const real = digestOf(repoRoot, file);
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
   try {

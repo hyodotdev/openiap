@@ -304,7 +304,11 @@ func init_connection(config = null) -> bool:
 			else:
 				_is_connected = _native_plugin.call("initConnection")
 			if not _is_connected:
-				print("[GodotIap] ERROR: initConnection failed. Check Google Play Services and billing setup.")
+				var reported_message = _last_android_init_error_message()
+				if not reported_message.is_empty():
+					print("[GodotIap] ERROR: initConnection failed. %s" % reported_message)
+				else:
+					print("[GodotIap] ERROR: initConnection failed. Check Google Play Services and billing setup.")
 			else:
 				print("[GodotIap] initConnection result: ", _is_connected)
 		elif _is_apple():
@@ -323,6 +327,24 @@ func init_connection(config = null) -> bool:
 	# No native plugin available
 	print("[GodotIap] ERROR: Cannot init connection — native plugin not available.")
 	return false
+
+
+# The error signal queues on the render thread, so read the stored cause back.
+func _last_android_init_error_message() -> String:
+	# has_method() doesn't work reliably with JNISingleton, so call directly.
+	var raw = _native_plugin.call("getLastInitError")
+	if not (raw is String) or raw.is_empty():
+		return ""
+	var reported = JSON.parse_string(raw)
+	if not (reported is Dictionary):
+		return ""
+	var message = reported.get("message", "")
+	if reported.get("code", "") != "developer-error" \
+		or not (message is String) \
+		or message.is_empty():
+		return ""
+	return message
+
 
 ## End the IAP connection.
 ## @return bool - true if disconnection was successful
@@ -523,9 +545,15 @@ func request_purchase(props) -> Variant:
 		return null
 	if result.get("success", false):
 		if _platform == "Android":
-			return Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(result))
+			var purchase_android = Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(result))
+			if purchase_android == null:
+				_log_dropped_purchase(result)
+			return purchase_android
 		elif _is_apple():
-			return Types.PurchaseIOS.from_dict(_normalize_purchase_dict(result))
+			var purchase_apple = Types.PurchaseIOS.from_dict(_normalize_purchase_dict(result))
+			if purchase_apple == null:
+				_log_dropped_purchase(result)
+			return purchase_apple
 		# A success envelope on an unrecognized platform cannot be mapped to a
 		# typed purchase. Report it instead of returning a bare null, which is
 		# the silent-failure shape this contract forbids.
@@ -981,6 +1009,15 @@ func _normalize_android_purchase_dict(purchase_dict: Dictionary) -> Dictionary:
 	if not normalized.has("isAcknowledgedAndroid") and normalized.has("isAcknowledged"):
 		normalized["isAcknowledgedAndroid"] = normalized["isAcknowledged"]
 	return normalized
+
+
+# from_dict returns null when the store identity is rejected. Name the payload
+# so a skipped transaction can be traced back to the store.
+func _log_dropped_purchase(purchase_dict: Dictionary) -> void:
+	push_error(
+		"[GodotIap] Dropping purchase with invalid store identity (productId=%s, transactionId=%s)."
+		% [purchase_dict.get("productId", "?"), purchase_dict.get("transactionId", purchase_dict.get("id", "?"))]
+	)
 
 
 func _as_dictionary(value) -> Dictionary:
@@ -1478,7 +1515,11 @@ func get_pending_transactions_ios() -> Array:
 			if transactions is Array:
 				for tx in transactions:
 					if tx is Dictionary:
-						purchases.append(Types.PurchaseIOS.from_dict(tx))
+						var purchase = Types.PurchaseIOS.from_dict(tx)
+						if purchase == null:
+							_log_dropped_purchase(tx)
+							continue
+						purchases.append(purchase)
 	return purchases
 
 ## Get all transactions including finished consumables (iOS only).
@@ -1496,7 +1537,11 @@ func get_all_transactions_ios() -> Array:
 			if transactions is Array:
 				for tx in transactions:
 					if tx is Dictionary:
-						purchases.append(Types.PurchaseIOS.from_dict(tx))
+						var purchase = Types.PurchaseIOS.from_dict(tx)
+						if purchase == null:
+							_log_dropped_purchase(tx)
+							continue
+						purchases.append(purchase)
 	return purchases
 
 ## Present the code redemption sheet (iOS only).
@@ -1518,9 +1563,12 @@ func present_code_redemption_sheet_ios() -> Variant:
 		return null
 	var purchase_json = payload.get("purchaseJson", "")
 	if purchase_json is String and not purchase_json.is_empty():
-		var purchase = JSON.parse_string(purchase_json)
-		if purchase is Dictionary:
-			return Types.PurchaseIOS.from_dict(purchase)
+		var parsed = JSON.parse_string(purchase_json)
+		if parsed is Dictionary:
+			var purchase = Types.PurchaseIOS.from_dict(parsed)
+			if purchase == null:
+				_log_dropped_purchase(parsed)
+			return purchase
 	return null
 
 ## Show manage subscriptions UI (iOS only).
@@ -1539,7 +1587,11 @@ func show_manage_subscriptions_ios() -> Array:
 			if parsed is Array:
 				for p in parsed:
 					if p is Dictionary:
-						purchases.append(Types.PurchaseIOS.from_dict(p))
+						var purchase = Types.PurchaseIOS.from_dict(p)
+						if purchase == null:
+							_log_dropped_purchase(p)
+							continue
+						purchases.append(purchase)
 	return purchases
 
 ## Begin refund request (iOS only).
@@ -1570,7 +1622,10 @@ func current_entitlement_ios(sku: String) -> Variant:
 			if purchase_json != "null":
 				var parsed = JSON.parse_string(purchase_json)
 				if parsed is Dictionary:
-					return Types.PurchaseIOS.from_dict(parsed)
+					var purchase = Types.PurchaseIOS.from_dict(parsed)
+					if purchase == null:
+						_log_dropped_purchase(parsed)
+					return purchase
 	return null
 
 ## Get the latest transaction for a product (iOS only).
@@ -1586,7 +1641,10 @@ func latest_transaction_ios(sku: String) -> Variant:
 			if purchase_json != "null":
 				var parsed = JSON.parse_string(purchase_json)
 				if parsed is Dictionary:
-					return Types.PurchaseIOS.from_dict(parsed)
+					var purchase = Types.PurchaseIOS.from_dict(parsed)
+					if purchase == null:
+						_log_dropped_purchase(parsed)
+					return purchase
 	return null
 
 ## Get app transaction (iOS 16+).
