@@ -1,0 +1,32 @@
+// A mixed-flavor app: official platform flavors plus the community provider.
+// The two properties select the provider flavor only; each official flavor
+// keeps linking its own store.
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.mixed'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+  }
+  flavorDimensions = ['platform']
+  productFlavors {
+    play { dimension 'platform' }
+    horizon { dimension 'platform' }
+    provider { dimension 'platform' }
+  }
+}
+
+dependencies {
+  playImplementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
+  horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.6.1'
+  providerImplementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
+}
+
+apply from: rootProject.file('../store-plugin/print-stores.gradle')
+// The store in the task name is what the resolver reads, as with assemble.
+openIapFixturePrint('printPlayStores', 'playDebugRuntimeClasspath')
+openIapFixturePrint('printHorizonStores', 'horizonDebugRuntimeClasspath')
+openIapFixturePrint('printProviderStores', 'providerDebugRuntimeClasspath')

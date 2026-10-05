@@ -13,7 +13,10 @@ android {
 
 dependencies {
   implementation 'io.github.hyochan.openiap:openiap-google'
-  implementation 'io.github.hyochan:kmp-iap:3.6.1'
+  // The published kmp-iap has no provider variant, so a provider build skips it.
+  if (!project.findProperty('fixtureCommunityRepository') || project.findProperty('fixtureKmpVersion')) {
+    implementation "io.github.hyochan:kmp-iap:${project.findProperty('fixtureKmpVersion') ?: '3.6.1'}"
+  }
 }
 
 apply from: rootProject.file('print-stores.gradle')
