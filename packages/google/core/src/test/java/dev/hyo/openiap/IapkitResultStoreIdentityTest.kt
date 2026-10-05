@@ -65,6 +65,14 @@ class IapkitResultStoreIdentityTest {
         assertThrows(IllegalArgumentException::class.java) { google.copy(store = IapStore.Amazon, storeId = "play") }
     }
 
+    @Test fun `copy keeps a community store id when the store is unchanged`() {
+        val community = RequestVerifyPurchaseWithIapkitResult(true, IapkitPurchaseState.Entitled, IapStore.Unknown, null, null, null, "amazon-example")
+        val updated = community.copy(isValid = false)
+        assertEquals(false, updated.isValid)
+        assertEquals(IapStore.Unknown, updated.store)
+        assertEquals("amazon-example", updated.storeId)
+    }
+
     @Test fun `descriptor rejects missing or blank identities`() {
         val valid = mapOf<String, Any?>(
             "capabilities" to listOf("pendingPurchases"),

@@ -153,7 +153,7 @@ export function androidStoreChecks(root, framework) {
     findings.push(finding(
       "android-store-unknown", "error", "android/gradle.properties",
       "Community provider selection is incomplete or invalid.",
-      "Pair a lowercase community openiapStore id with fixed openiapProvider=group:artifact:version coordinates.",
+      "Use play, horizon, amazon, or auto; or pair a lowercase community openiapStore id with fixed openiapProvider=group:artifact:version coordinates.",
       {line: providerEntry?.line ?? storeEntry?.line},
     ));
   }

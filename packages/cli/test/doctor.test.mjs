@@ -2894,10 +2894,14 @@ test("doctor rejects incomplete or conflicting provider coordinates", () => {
   ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => assert.ok(ids(root).includes("android-store-unknown")));
 });
 
-test("a community id without openiapProvider names the missing coordinates", () => {
-  withProject({...EXPO, "android/gradle.properties": "openiapStore=community-fixture\n"}, (root) => {
+test("a community id without openiapProvider names both fixes", () => {
+  for (const properties of [
+    "openiapStore=community-fixture\n",
+    "openiapStore=goggle\n",
+  ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => {
     const unknown = doctor(root).findings.find((one) => one.id === "android-store-unknown");
     assert.match(unknown.message, /Community provider selection is incomplete or invalid/);
+    assert.match(unknown.fix, /play, horizon, amazon, or auto/);
     assert.match(unknown.fix, /openiapProvider/);
     assert.match(unknown.fix, /group:artifact:version/);
   });

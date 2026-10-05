@@ -24,17 +24,10 @@ const commonV4 = Object.freeze({
   capabilities: {
     pendingPurchases:
       "purchases.pending-purchase-is-not-delivered-as-purchased",
-    subscriptionBillingIssue: "provider.subscription-billing-issue",
-    offerCodeRedemption: "provider.offer-code-redemption",
   },
 });
 
 const profiles = new Map([[4, commonV4]]);
-export const PROVIDER_PROFILE = profiles.get(
-  Number(SUITE_VERSION.split(".")[0]),
-);
-if (!PROVIDER_PROFILE)
-  throw new Error(`Missing provider profile for suite ${SUITE_VERSION}`);
 
 export function providerProfile(
   platform,

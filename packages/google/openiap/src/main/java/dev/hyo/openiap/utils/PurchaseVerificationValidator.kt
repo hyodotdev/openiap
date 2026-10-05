@@ -426,14 +426,15 @@ suspend fun verifyPurchaseWithIapkit(
                 OpenIapLog.warn("Ignoring an IAPKit environment this build cannot read", tag)
             }
 
+            // The constructor derives storeId from store; passing it here would
+            // duplicate the generated mapping.
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload = clientPayload,
                 environment = environment,
                 isValid = isValid,
                 productId = productId,
                 state = parsedState,
-                store = responseStore,
-                storeId = when (responseStore) { IapStore.Apple -> "apple"; IapStore.Google -> "play"; IapStore.Horizon -> "horizon"; IapStore.Amazon -> "amazon"; IapStore.Unknown -> "unknown" }
+                store = responseStore
             )
         }
 
