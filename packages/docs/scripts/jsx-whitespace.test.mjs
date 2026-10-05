@@ -420,6 +420,28 @@ test('element edges skip comments and empty literals', () => {
   assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
 });
 
+test('nested element edges recurse inward in the right direction', () => {
+  const literal = page(`      <p>
+        <em>{'x&mdash;'}</em>
+        word
+      </p>`);
+  const literalFindings = scanSource(literal, 'fixture.tsx');
+  assert.equal(literalFindings.length, 1);
+  assert.ok(literalFindings[0].includes("';' + 'w'"));
+  const nested = page(`      <p>
+        word
+        <a><code>x</code></a>
+      </p>`);
+  const nestedFindings = scanSource(nested, 'fixture.tsx');
+  assert.equal(nestedFindings.length, 1);
+  assert.ok(nestedFindings[0].includes("'d' + 'x'"));
+  const clean = page(`      <p>
+        word
+        <em><code>{'.'}x</code></em>
+      </p>`);
+  assert.deepEqual(scanSource(clean, 'fixture.tsx'), []);
+});
+
 test('element-only joins stay unchecked', () => {
   const clean = page(`      <p>
         <code>a</code>
