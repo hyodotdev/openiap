@@ -573,8 +573,11 @@ function Releases() {
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
               report the provider&apos;s own Android error code instead of fixed
-              codes; React Native, Expo, and Flutter also report a store-aware
-              init message (Horizon without an Activity reports{' '}
+              codes.
+            </li>
+            <li>
+              React Native, Expo, and Flutter also report a store-aware init
+              message (Horizon without an Activity reports{' '}
               <code>activity-unavailable</code>).
             </li>
             <li>
