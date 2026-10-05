@@ -546,8 +546,10 @@ function Releases() {
                   with retryable teardown.
                 </li>
                 <li>
-                  Cancelled tasks rethrow <code>CancellationError</code> with no
-                  purchase-error event; <code>purchaseErrorListener</code> and{' '}
+                  Cancelling a <code>requestPurchase</code> task throws{' '}
+                  <code>CancellationError</code> without a purchase-error event
+                  (the same holds for the other operations that rethrow it);{' '}
+                  <code>purchaseErrorListener</code> and{' '}
                   <code>OpenIapStore.onPurchaseError</code> stay silent.
                 </li>
               </ul>
@@ -577,9 +579,11 @@ function Releases() {
             <li>
               React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
               provider&apos;s Android restore before querying ownership; on
-              Horizon each owned purchase reaches <code>purchaseUpdated</code> /{' '}
+              Horizon each owned purchase reaches{' '}
+              <code>purchaseUpdatedListener</code> /{' '}
               <code>onPurchaseSuccess</code> (React Native, Expo) and
-              Flutter&apos;s purchase-updated stream.
+              Flutter&apos;s purchase-updated stream; Godot 4.0.0 runs it too
+              and still signals each owned purchase once.
             </li>
             <li>
               On iOS, React Native 17.0.0 and Flutter 11.0.0 (every call), KMP

@@ -134,9 +134,9 @@ test("the community provider card discloses the Android restore, error, Store, a
   const card = cardText();
   for (const disclosure of [
     "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore before querying ownership",
-    "purchaseUpdated",
+    "purchaseUpdatedListener",
     "onPurchaseSuccess",
-    "<code>purchaseUpdated</code> / <code>onPurchaseSuccess</code> (React Native, Expo) and Flutter's purchase-updated stream",
+    "<code>purchaseUpdatedListener</code> / <code>onPurchaseSuccess</code> (React Native, Expo) and Flutter's purchase-updated stream; Godot 4.0.0 runs it too and still signals each owned purchase once",
     "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 report the provider's own Android error code",
     "report the provider's own Android error code and store-aware init message",
     "activity-unavailable",
@@ -146,7 +146,7 @@ test("the community provider card discloses the Android restore, error, Store, a
     "4.0.0 and MAUI 3.0.0 (id-filtered calls)",
     "from StoreKit's active flag, as Expo and native do",
     "billing grace reads inactive",
-    "Cancelled tasks rethrow <code>CancellationError</code> with no purchase-error event; <code>purchaseErrorListener</code> and <code>OpenIapStore.onPurchaseError</code> stay silent",
+    "Cancelling a <code>requestPurchase</code> task throws <code>CancellationError</code> without a purchase-error event (the same holds for the other operations that rethrow it); <code>purchaseErrorListener</code> and <code>OpenIapStore.onPurchaseError</code> stay silent",
   ]) {
     assert.ok(card.includes(disclosure), `card is missing: ${disclosure}`);
   }
@@ -158,17 +158,27 @@ test("the restore-purchases page documents the provider-first Android restore", 
     "utf8",
   );
   const page = source.replaceAll("&apos;", "'").replaceAll("{' '}", " ").replaceAll(/\s+/g, " ");
-  assert.ok(page.includes("Runs the provider's restore first"));
+  assert.ok(page.includes("Queries owned purchases"));
+  assert.ok(page.includes("with no system-level UI prompt"));
+  assert.ok(
+    page.includes(
+      "React Native, Expo, Flutter and MAUI run the provider's restore first",
+    ),
+  );
   assert.ok(page.includes("Amazon: <code>PurchaseUpdates</code>"));
   assert.ok(
     page.includes("Play and Amazon restores deliver nothing by themselves"),
   );
   assert.ok(
     page.includes(
-      "Horizon's restore delivers each owned purchase to the purchase listeners",
+      "Horizon's restore delivers each owned purchase to the purchase listeners (React Native, Expo, Flutter and MAUI)",
     ),
   );
   assert.ok(page.includes("Godot signals each owned purchase once on every store"));
+  assert.ok(
+    !page.includes("Runs the provider's restore first"),
+    "unqualified restore claim is still present",
+  );
   assert.ok(
     !page.includes("Play has no concept of an explicit"),
     "stale restore claim is still present",
