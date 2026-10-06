@@ -156,10 +156,23 @@ function breakingSlice() {
   return normalize(card.slice(start, end));
 }
 
+// Plain text of a JSX fragment. A depth counter drops nested or partial tags,
+// which a single regex pass would leave behind.
+function stripTags(text) {
+  let depth = 0;
+  let plain = "";
+  for (const char of text) {
+    if (char === "<") depth++;
+    else if (char === ">" && depth > 0) depth--;
+    else if (depth === 0) plain += char;
+  }
+  return plain;
+}
+
 function breakingBullets() {
   const slice = breakingSlice();
   return [...slice.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((match) =>
-    normalize(match[1].replace(/<[^>]+>/g, "")).trim(),
+    normalize(stripTags(match[1])).trim(),
   );
 }
 
