@@ -2466,8 +2466,8 @@ function checkFlutter() {
     "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift",
   ];
 
-  // The oldest openiap-apple with every symbol the plugin calls.
-  const flutterSwiftPackageFloor = "3.6.1";
+  // Oldest openiap-apple with OpenIapFirstPurchaseNotice and the storeId/StoreIds identity API.
+  const flutterSwiftPackageFloor = "4.0.0";
   for (const flutterSwiftPackage of flutterSwiftPackagePaths) {
     expectFile(flutterSwiftPackage);
     if (!exists(flutterSwiftPackage)) continue;
@@ -2485,7 +2485,7 @@ function checkFlutter() {
       fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
     } else if (openIapDependencyVersion !== flutterSwiftPackageFloor) {
       fail(
-        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with OpenIapFirstPurchaseNotice`,
+        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with OpenIapFirstPurchaseNotice and the storeId/StoreIds identity API`,
       );
     }
     if (
