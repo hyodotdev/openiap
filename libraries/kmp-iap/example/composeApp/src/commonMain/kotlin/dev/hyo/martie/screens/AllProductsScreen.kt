@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
@@ -29,7 +29,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun AllProductsScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val kmpIAP = remember { KmpIAP() }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
@@ -39,8 +38,8 @@ fun AllProductsScreen(navController: NavController) {
             loading = true
             message = null
             try {
-                kmpIAP.initConnection()
-                products = kmpIAP.fetchProducts {
+                kmpIapInstance.initConnection()
+                products = kmpIapInstance.fetchProducts {
                     skus = AllProductIds
                     type = ProductQueryType.All
                 }

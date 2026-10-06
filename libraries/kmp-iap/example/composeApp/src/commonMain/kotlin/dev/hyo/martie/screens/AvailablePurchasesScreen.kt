@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.toPurchaseInput
 import kotlin.time.Instant
@@ -30,9 +30,6 @@ import kotlinx.coroutines.*
 @Composable
 fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    
-    // Create IAP instance
-    val kmpIAP = remember { KmpIAP() }
     
     var isConnecting by remember { mutableStateOf(true) }
     var connected by remember { mutableStateOf(false) }
@@ -104,7 +101,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             isConnecting = true
             isLoading = true
             try {
-                val connectionResult = kmpIAP.initConnection()
+                val connectionResult = kmpIapInstance.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -117,7 +114,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 
                 // Load purchases with timeout
                 val purchasesResult = withTimeoutOrNull(10000) {
-                    kmpIAP.getAvailablePurchases()
+                    kmpIapInstance.getAvailablePurchases()
                 }
                 
                 if (purchasesResult != null) {
@@ -236,7 +233,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             scope.launch {
                                 isRefreshing = true
                                 try {
-                                    val purchases = kmpIAP.getAvailablePurchases()
+                                    val purchases = kmpIapInstance.getAvailablePurchases()
                                     availablePurchases = purchases
                                     activePurchases = filterActivePurchases(purchases)
                                     if (activePurchases.isEmpty()) {
@@ -366,7 +363,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                             }
                                         }
 
-                                        kmpIAP.finishTransaction(purchase.toPurchaseInput(), isConsumable = isConsumable)
+                                        kmpIapInstance.finishTransaction(purchase.toPurchaseInput(), isConsumable = isConsumable)
 
                                         val action = if (isConsumable) "consumed" else "acknowledged"
                                         consumeResult = "✅ Purchase $action: ${purchase.productId}"
@@ -376,7 +373,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
 
                                         // Refresh the purchases list
                                         try {
-                                            val refreshed = kmpIAP.getAvailablePurchases()
+                                            val refreshed = kmpIapInstance.getAvailablePurchases()
                                             availablePurchases = refreshed
                                             activePurchases = filterActivePurchases(refreshed)
                                         } catch (e: Exception) {

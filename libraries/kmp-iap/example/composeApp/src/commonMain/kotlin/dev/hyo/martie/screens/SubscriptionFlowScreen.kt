@@ -21,7 +21,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.config.AppConfig
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
@@ -78,9 +78,6 @@ private fun Long.toFormattedDate(): String {
 fun SubscriptionFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
 
-    // Create IAP instance
-    val kmpIAP = remember { KmpIAP() }
-    
     var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -105,7 +102,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     // Register purchase event listeners
     LaunchedEffect(Unit) {
         launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
 
                 when (purchase.purchaseState) {
@@ -132,7 +129,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     when (verificationMethodAtStart) {
                                         VerificationMethod.Local -> {
                                             val isIos = getCurrentPlatform() == IapPlatform.Ios
-                                            val result = kmpIAP.verifyPurchase(
+                                            val result = kmpIapInstance.verifyPurchase(
                                                 VerifyPurchaseProps(
                                                     apple = if (isIos) VerifyPurchaseAppleOptions(sku = purchase.productId) else null,
                                                     google = if (!isIos) VerifyPurchaseGoogleOptions(
@@ -177,7 +174,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                     verificationResult = "❌ No purchase token available for verification"
                                                 } else {
                                                     val isIos = getCurrentPlatform() == IapPlatform.Ios
-                                                    val result = kmpIAP.verifyPurchaseWithProvider(
+                                                    val result = kmpIapInstance.verifyPurchaseWithProvider(
                                                         VerifyPurchaseWithProviderProps(
                                                             provider = PurchaseVerificationProvider.Iapkit,
                                                             iapkit = RequestVerifyPurchaseWithIapkitProps(
@@ -221,14 +218,14 @@ fun SubscriptionFlowScreen(navController: NavController) {
 
                             // Finish the transaction
                             try {
-                                kmpIAP.finishTransaction(
+                                kmpIapInstance.finishTransaction(
                                     purchase = purchase.toPurchaseInput(),
                                     isConsumable = false
                                 )
                                 purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
 
-                                activeSubscriptions = kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
-                                hasActiveSubscription = kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
+                                activeSubscriptions = kmpIapInstance.getActiveSubscriptions(SUBSCRIPTION_IDS)
+                                hasActiveSubscription = kmpIapInstance.hasActiveSubscriptions(SUBSCRIPTION_IDS)
                             } catch (e: Exception) {
                                 purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
                             }
@@ -247,7 +244,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
         }
         
         launch {
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIapInstance.purchaseErrorListener.collect { error ->
                 isProcessing = false
                 currentError = error
                 purchaseResult = when (error.code) {
@@ -264,7 +261,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = kmpIAP.initConnection()
+                val connectionResult = kmpIapInstance.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -279,7 +276,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 // Load active subscriptions and subscription products in parallel
                 val activeSubscriptionsDeferred = async {
                     try {
-                        kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
+                        kmpIapInstance.getActiveSubscriptions(SUBSCRIPTION_IDS)
                     } catch (e: Exception) {
                         println("Failed to get active subscriptions: ${e.message}")
                         emptyList()
@@ -288,7 +285,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val hasActiveSubDeferred = async {
                     try {
-                        kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
+                        kmpIapInstance.hasActiveSubscriptions(SUBSCRIPTION_IDS)
                     } catch (e: Exception) {
                         println("Failed to check active subscriptions: ${e.message}")
                         false
@@ -297,7 +294,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val subscriptionProductsDeferred = async {
                     try {
-                        val result = (kmpIAP as QueryResolver).fetchProducts(
+                        val result = (kmpIapInstance as QueryResolver).fetchProducts(
                             ProductRequest(
                                 skus = SUBSCRIPTION_IDS,
                                 type = ProductQueryType.Subs
@@ -804,7 +801,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     isProcessing = true
                                     purchaseResult = null
                                     try {
-                                        val purchase = kmpIAP.requestPurchase {
+                                        val purchase = kmpIapInstance.requestPurchase {
                                             type = ProductType.Subs
                                             apple {
                                                 sku = subscription.id

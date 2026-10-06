@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
 import kotlinx.coroutines.launch
@@ -32,12 +32,9 @@ fun HomeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     var storefrontInfo by remember { mutableStateOf<String?>(null) }
     
-    // Create IAP instance using constructor
-    val kmpIAP = remember { KmpIAP() }
-    
     LaunchedEffect(Unit) {
         try {
-            val storefront = kmpIAP.getStorefront()
+            val storefront = kmpIapInstance.getStorefront()
             storefrontInfo = "Storefront: $storefront"
         } catch (e: Exception) {
             // Ignore

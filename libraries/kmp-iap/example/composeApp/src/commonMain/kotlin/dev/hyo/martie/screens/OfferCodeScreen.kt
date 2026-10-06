@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.getCurrentPlatform
@@ -29,16 +29,13 @@ fun OfferCodeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val platform = getCurrentPlatform()
     
-    // Create IAP instance
-    val kmpIAP = remember { KmpIAP() }
-    
     var isConnected by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try {
-            kmpIAP.initConnection()
+            kmpIapInstance.initConnection()
             isConnected = true
         } catch (e: Exception) {
             result = "Connection failed: ${e.message}"
@@ -132,7 +129,7 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    val purchase = kmpIAP.openRedeemOfferCode()
+                                    val purchase = kmpIapInstance.openRedeemOfferCode()
                                     result = if (purchase != null) {
                                         "Verified redemption: ${purchase.productId} (${purchase.id})"
                                     } else {
@@ -194,7 +191,7 @@ fun OfferCodeScreen(navController: NavController) {
                                 isLoading = true
                                 try {
                                     // Only Google Play has a redeem page; Amazon and Horizon resolve null.
-                                    kmpIAP.openRedeemOfferCode()
+                                    kmpIapInstance.openRedeemOfferCode()
                                     result = "Redemption requested. Google Play opens its redeem page; stores without one open nothing. Refresh purchases after redeeming"
                                 } catch (e: Exception) {
                                     result = "Failed to open the redemption flow: ${e.message}"
