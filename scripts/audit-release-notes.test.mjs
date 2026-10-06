@@ -196,7 +196,7 @@ const BREAKING_BULLETS = [
   "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore first, and on Horizon deliver each owned purchase to purchase listeners; make the handler idempotent.",
   "React Native 17.0.0 and Flutter 11.0.0 (every call), KMP 4.0.0 and MAUI 3.0.0 (id-filtered calls) answer <code>hasActiveSubscriptions</code> on iOS from the active flag; a subscriber in billing grace reads inactive.",
   "Godot 4.0.0 emits one <code>purchase_error</code>, not two, for a failed Apple restore, and one for a failed <code>verify_purchase</code> (on Android only when the result carries a code).",
-  "Godot 4.0.0 reports OpenIAP's error code for failed Apple <code>get_storefront</code> calls, which reported <code>service-error</code>, and adds it to <code>fetch_products</code> and iOS-only failure payloads, which had no code; match specific codes.",
+  "Godot 4.0.0 reports OpenIAP's error code in failed Apple <code>products_fetched</code> payloads for <code>get_storefront</code>, <code>fetch_products</code>, and iOS-only calls, which carried <code>service-error</code> or no code; match specific codes.",
   "Godot 4.0.0 fails the Android export when <code>openiap/android_store</code> is unrecognized instead of falling back to Play; fix the store value.",
 ];
 
@@ -341,10 +341,16 @@ test("the migration guide covers the provider contract upgrade", () => {
     "grantOnce(purchase.purchaseToken",
     "get_available_purchases_result",
     "verify_purchase</code> now emits",
-    "get_storefront</code> failures",
-    "failures now carry OpenIAP's code instead of always",
-    "now carry a code where they had none",
+    "get_storefront</code> failures,",
+    "failure payloads for",
+    "failure results of the iOS-only methods now carry",
+    "now carry OpenIAP's code instead of",
+    "or no code",
     "openiap/android_store",
+    "no longer checks init in Dart",
+    "connect and answer instead of throwing",
+    "Play and Horizon report the provider's",
+    "or call it before",
     "Failed to check active subscriptions [code]",
     "Failed to get active subscriptions [code]",
     "Flutter on iOS and macOS",
@@ -380,6 +386,8 @@ test("the migration guide covers the provider contract upgrade", () => {
     "AppStore.sync",
     "empty id list means all",
     "const granted",
+    "failures now carry OpenIAP's code instead of always",
+    "now carry a code where they had none",
   ]) {
     assert.ok(!page.includes(dropped), `removed claim is still present: ${dropped}`);
   }

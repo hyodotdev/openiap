@@ -580,11 +580,11 @@ function Releases() {
               carries a code).
             </li>
             <li>
-              Godot 4.0.0 reports OpenIAP&apos;s error code for failed Apple{' '}
-              <code>get_storefront</code> calls, which reported{' '}
-              <code>service-error</code>, and adds it to{' '}
-              <code>fetch_products</code> and iOS-only failure payloads, which
-              had no code; match specific codes.
+              Godot 4.0.0 reports OpenIAP&apos;s error code in failed Apple{' '}
+              <code>products_fetched</code> payloads for{' '}
+              <code>get_storefront</code>, <code>fetch_products</code>, and
+              iOS-only calls, which carried <code>service-error</code> or no
+              code; match specific codes.
             </li>
             <li>
               Godot 4.0.0 fails the Android export when{' '}

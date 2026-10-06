@@ -991,11 +991,11 @@ purchaseUpdatedListener((purchase) => {
           <code>verify_purchase</code> now emits <code>purchase_error</code> on
           failure instead of returning null silently (on Apple every failure, on
           Android when the native result carries a code). On Apple,{' '}
-          <code>get_storefront</code> failures now carry OpenIAP&apos;s code
-          instead of always <code>service-error</code>, and the{' '}
-          <code>products_fetched</code> failure payloads of{' '}
-          <code>fetch_products</code> and the iOS-only methods now carry a code
-          where they had none.
+          <code>get_storefront</code> failures, the{' '}
+          <code>products_fetched</code> failure payloads for{' '}
+          <code>fetch_products</code>, and the failure results of the iOS-only
+          methods now carry OpenIAP&apos;s code instead of{' '}
+          <code>service-error</code> or no code.
         </p>
         <p>
           <strong>Who is affected:</strong> Godot apps that count restore
@@ -1033,14 +1033,19 @@ purchaseUpdatedListener((purchase) => {
           future): React Native and Flutter on every call (Flutter on iOS and
           macOS), KMP and MAUI on id-filtered calls (MAUI also on Mac Catalyst),
           as Expo, Godot, and native already did. A subscriber in billing grace
-          reads inactive. Flutter <code>hasActiveSubscriptions</code> failures
-          now read <code>Failed to check active subscriptions [code]: ...</code>{' '}
-          instead of <code>Failed to get active subscriptions [code]: ...</code>
-          ; match codes, not messages.
+          reads inactive. Flutter <code>hasActiveSubscriptions</code> no longer
+          checks init in Dart: before <code>initConnection</code>, iOS and macOS
+          connect and answer instead of throwing <code>not-prepared</code>, Play
+          and Horizon report the provider&apos;s <code>not-prepared</code>, and
+          failures read{' '}
+          <code>Failed to check active subscriptions [code]: ...</code> instead
+          of <code>Failed to get active subscriptions [code]: ...</code>; match
+          codes, not messages.
         </p>
         <p>
           <strong>Who is affected:</strong> apps that grant access during
-          billing grace, and Flutter apps that match the failure message.
+          billing grace, and Flutter apps that match the failure message or call
+          it before <code>initConnection</code>.
         </p>
         <p>
           <strong>What to do:</strong> to keep grace access, read the renewal
