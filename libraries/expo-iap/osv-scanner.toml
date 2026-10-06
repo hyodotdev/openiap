@@ -7,3 +7,8 @@ reason = "No patched node-forge release is available. Expo's development CLI use
 id = "GHSA-vfj7-8cjw-p6xm"
 ignoreUntil = 2026-10-30
 reason = "No patched braces release exists. It is reached only by build, test, and CLI tooling that parses repository-controlled glob patterns; the published SDK package declares no runtime npm dependencies: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
+
+[[IgnoredVulns]]
+id = "GHSA-hp3w-g68c-fv3c"
+ignoreUntil = 2026-10-30
+reason = "No patched sprintf-js release exists; 1.1.3 is both npm latest and still affected. It is reached only via argparse 1 and js-yaml 3 in Jest coverage tooling; the published SDK package declares no runtime npm dependencies: https://github.com/advisories/GHSA-hp3w-g68c-fv3c."

@@ -1,14 +1,19 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-10-14
-reason = "No patched image-size release exists; Metro uses it only during trusted Vega builds."
+ignoreUntil = 2026-10-30
+reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted Vega builds."
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-10-14
-reason = "No patched image-size release exists; Metro uses it only during trusted Vega builds."
+ignoreUntil = 2026-10-30
+reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted Vega builds."
 
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"
 ignoreUntil = 2026-10-30
 reason = "No patched braces release exists. It is reached only by build tooling that parses repository-controlled glob patterns during trusted Vega builds: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
+
+[[IgnoredVulns]]
+id = "GHSA-hp3w-g68c-fv3c"
+ignoreUntil = 2026-10-30
+reason = "No patched sprintf-js release exists; 1.1.3 is both npm latest and still affected. It is reached only via argparse 1 and js-yaml 3 in Metro and React Native CLI config tooling during trusted Vega builds: https://github.com/advisories/GHSA-hp3w-g68c-fv3c."

@@ -1,4 +1,9 @@
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"
 ignoreUntil = 2026-10-30
-reason = "No patched braces release exists. It is reached only by build, test, and lint tooling that parses repository-controlled glob patterns; the published SDK packages declare no runtime npm dependencies and the Kit runtime image is a compiled binary: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
+reason = "No patched braces release exists. It is reached only by @graphql-codegen/cli (via micromatch / fast-glob, in specs/client), which parses repository-controlled glob patterns; the published SDK packages declare no runtime npm dependencies and the Kit runtime image is a compiled binary: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
+
+[[IgnoredVulns]]
+id = "GHSA-7mx3-vvmw-hjmv"
+ignoreUntil = 2026-10-30
+reason = "Patched in @graphql-tools/utils 12.0.1, but the graphql-codegen chain still pins ^11 and no in-range fix exists. Reached only by local type generation over repository schema files: https://github.com/advisories/GHSA-7mx3-vvmw-hjmv."

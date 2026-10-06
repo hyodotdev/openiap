@@ -579,9 +579,9 @@ test("Bun lock exceptions require usage in either feed and expire on their date"
       ? { id: "CVE-2026-85393", aliases: [id], summary: "certificate issue" }
       : { id },
   );
-  const lastExpiry = [...exceptions.values()]
+  const firstExpiry = [...exceptions.values()]
     .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
-    .reduce((a, b) => Math.max(a, b));
+    .reduce((a, b) => Math.min(a, b));
   const scanner = (bun, vulnerabilities) => (command, args) => {
     if (command === "bun")
       return { status: bun === "{}" ? 0 : 1, stdout: bun, stderr: "" };
@@ -607,12 +607,21 @@ test("Bun lock exceptions require usage in either feed and expire on their date"
     () => auditDependencies(scanner("{}", []), projects, beforeExpiry),
     /unused dependency exception/u,
   );
+  // ignoreUntil is the first expired day, so the boundary pins the earliest
+  // entry: at the latest one every entry is already expired.
+  assert.doesNotThrow(() =>
+    auditDependencies(
+      scanner("{}", osvFindings),
+      projects,
+      new Date(firstExpiry - 1),
+    ),
+  );
   assert.throws(
     () =>
       auditDependencies(
         scanner("{}", osvFindings),
         projects,
-        new Date(lastExpiry),
+        new Date(firstExpiry),
       ),
     /expired dependency exception/u,
   );
@@ -714,9 +723,11 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
     ),
   );
   assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
-  const lastExpiry = [...exceptions.values()]
-    .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
-    .reduce((a, b) => Math.max(a, b));
+  const expiries = [...exceptions.values()].map((entry) =>
+    Date.parse(`${entry.ignoreUntil}T00:00:00Z`),
+  );
+  const firstExpiry = Math.min(...expiries);
+  const lastExpiry = Math.max(...expiries);
   const dayAfterLastExpiry = new Date(lastExpiry + 24 * 60 * 60 * 1000);
   const activeReport = JSON.stringify({
     results: [
@@ -762,8 +773,13 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   // OSV-Scanner stops honouring a window on the ignoreUntil date itself. This
   // audit once called that same day live, so a lapsed exception failed CI while
   // this stayed silent; the boundary is pinned rather than left to a comparison.
+  // It pins the earliest entry: at the latest one every entry is already
+  // expired, so that assertion cannot catch an off-by-one.
+  assert.doesNotThrow(() =>
+    auditDependencies(scanner, [], new Date(firstExpiry - 1), [yarnLock]),
+  );
   assert.throws(
-    () => auditDependencies(scanner, [], new Date(lastExpiry), [yarnLock]),
+    () => auditDependencies(scanner, [], new Date(firstExpiry), [yarnLock]),
     /expired dependency exception/u,
   );
   const unaccepted = JSON.parse(activeReport);

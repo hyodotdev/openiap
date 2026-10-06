@@ -105,22 +105,16 @@ the kit Dockerfile, and the React Native CocoaPods toolchain:
 
 ## Temporary dependency exceptions
 
-Some locked dependencies have published advisories with no fixed release.
-Each exception lives in the `osv-scanner.toml` next to its lock, with a
-reason and an `ignoreUntil` date. `audit:dependencies` fails on an expired
-or unused exception.
+An exception is an advisory the lock cannot clear: no fixed release
+exists, or the fix is outside the dependents' version ranges. Each
+exception lives in the `osv-scanner.toml` next to its lock, with a reason
+and an `ignoreUntil` date — the first expired day. `audit:dependencies`
+fails on an expired or unused exception, and each exception is rechecked
+by its date:
 
-- `braces` 3.0.3
-  ([`GHSA-vfj7-8cjw-p6xm`](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)),
-  rechecked by 2026-10-30. Only build, test, and CLI tooling parses
-  repository-controlled glob patterns; the published SDK packages declare no
-  runtime npm dependencies.
-- `node-forge` 1.4.0
-  ([`GHSA-86w9-cpqp-85rv`](https://github.com/advisories/GHSA-86w9-cpqp-85rv)),
-  rechecked by 2026-10-30. Only development certificate tooling uses it.
-- `image-size` (`GHSA-5p2g-fcmc-qvqq`, `GHSA-w3rx-r6r6-pgpr`), rechecked by
-  2026-10-14.
-- `decode-uri-component` (`GHSA-vcc3-ghjq-m6fr`), rechecked by 2026-12-15.
+```sh
+git grep -n ignoreUntil -- '*osv-scanner.toml'
+```
 
 ## GitHub dependency graph
 
@@ -315,9 +309,11 @@ Every pull request installs all committed Bun locks plus the React Native Yarn
 and Ruby locks without mutation. It then runs Bun's advisory audit across all
 Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
 build.
-Upstream-unpatched, build-only findings may be accepted only in the owning
-project's `osv-scanner.toml` with a reason and expiry; expired or stale
-exceptions fail the dependency audit, and OSV enforces the same expiry. The IAPKit
+Temporary exceptions for advisories the lock cannot clear (no fixed
+release, or a fix outside the dependents' ranges) may be accepted only in
+the owning project's `osv-scanner.toml` with a reason and expiry; expired
+or stale exceptions fail the dependency audit, and OSV enforces the same
+expiry. The IAPKit
 deployment repeats the Bun gate. The submitted dependency graph provides hosted
 Dependabot monitoring, while CodeQL covers source and workflow vulnerabilities
 in its configured languages.
