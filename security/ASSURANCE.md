@@ -25,8 +25,9 @@ workflow token do not recursively start CodeQL, so they inherit source-analysis
 evidence from the reviewed source commit rather than claiming a second scan:
 
 - no unaccepted advisory in any committed dependency lock graph; temporary
-  exceptions for advisories the lock cannot clear (no fixed release, or a
-  fix outside the dependents' ranges) must be scoped, justified, and expiring;
+  exceptions for advisories the lock does not clear yet (no fixed release,
+  a fix outside the dependents' ranges, or a dependency bump that is not
+  tested in this change) must be scoped, justified, and expiring;
 - immutable external GitHub Action references and explicit workflow token
   permissions;
 - CodeQL analysis of the hosted/web, C#, workflow, JVM Kotlin core/wrapper, and

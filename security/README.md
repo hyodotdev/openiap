@@ -105,12 +105,12 @@ the kit Dockerfile, and the React Native CocoaPods toolchain:
 
 ## Temporary dependency exceptions
 
-An exception is an advisory the lock cannot clear: no fixed release
-exists, or the fix is outside the dependents' version ranges. Each
-exception lives in the `osv-scanner.toml` next to its lock, with a reason
-and an `ignoreUntil` date — the first expired day. `audit:dependencies`
-fails on an expired or unused exception, and each exception is rechecked
-by its date:
+An exception is an advisory the lock does not clear yet (no fixed
+release, a fix outside the dependents' version ranges, or a dependency
+bump that is not tested in this change). Each exception lives in the
+`osv-scanner.toml` next to its lock, with a reason and an `ignoreUntil`
+date — the first expired day. `audit:dependencies` fails on an expired
+or unused exception, and each exception is rechecked by its date:
 
 ```sh
 git grep -n ignoreUntil -- '*osv-scanner.toml'
@@ -309,9 +309,10 @@ Every pull request installs all committed Bun locks plus the React Native Yarn
 and Ruby locks without mutation. It then runs Bun's advisory audit across all
 Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
 build.
-Temporary exceptions for advisories the lock cannot clear (no fixed
-release, or a fix outside the dependents' ranges) may be accepted only in
-the owning project's `osv-scanner.toml` with a reason and expiry; expired
+Temporary exceptions for advisories the lock does not clear yet (no
+fixed release, a fix outside the dependents' ranges, or a dependency
+bump that is not tested in this change) may be accepted only in the
+owning project's `osv-scanner.toml` with a reason and expiry; expired
 or stale exceptions fail the dependency audit, and OSV enforces the same
 expiry. The IAPKit
 deployment repeats the Bun gate. The submitted dependency graph provides hosted

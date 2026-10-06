@@ -1,7 +1,7 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
 ignoreUntil = 2026-10-30
-reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted local builds."
+reason = "image-size is reached only through Metro 0.84.4 (via @expo/metro 56.0.0). The advisories are fixed in image-size 2.0.3 and Metro 0.84.5 no longer depends on it, so a Metro bump clears them; until then Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-86w9-cpqp-85rv"
@@ -11,7 +11,7 @@ reason = "No patched node-forge release is available. Expo's development CLI use
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-10-30
-reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted local builds."
+reason = "image-size is reached only through Metro 0.84.4 (via @expo/metro 56.0.0). The advisories are fixed in image-size 2.0.3 and Metro 0.84.5 no longer depends on it, so a Metro bump clears them; until then Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"

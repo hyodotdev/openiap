@@ -451,9 +451,11 @@ test("dependency audit fails closed on findings and malformed output", () => {
   const projects = [{ directory: ".", lockfile: "bun.lock" }];
   // The mock marks the real root exceptions used (keyed by advisory id, as
   // in the Bun exception test), so only the unaccepted finding counts below.
-  const ignored = parseOsvIgnoredVulnerabilities(
-    readFileSync(resolve(import.meta.dirname, "..", "osv-scanner.toml"), "utf8"),
-  );
+  // A retired root file means no exceptions, as in the audit itself.
+  const rootConfig = resolve(import.meta.dirname, "..", "osv-scanner.toml");
+  const ignored = existsSync(rootConfig)
+    ? parseOsvIgnoredVulnerabilities(readFileSync(rootConfig, "utf8"))
+    : new Map();
   const findings = {
     hono: [
       {
@@ -489,7 +491,7 @@ test("dependency audit fails closed on findings and malformed output", () => {
         projects,
         new Date("2026-10-02T00:00:00Z"),
       ),
-    /1 dependency audit findings/u,
+    /(?<![0-9])1 dependency audit findings:/u,
   );
   assert.throws(
     () =>

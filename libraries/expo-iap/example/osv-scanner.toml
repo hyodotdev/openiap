@@ -6,12 +6,12 @@ reason = "No patched node-forge release is available. This example uses Expo's N
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
 ignoreUntil = 2026-10-30
-reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted local builds."
+reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-10-30
-reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted local builds."
+reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-vcc3-ghjq-m6fr"
