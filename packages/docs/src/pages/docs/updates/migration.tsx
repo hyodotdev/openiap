@@ -806,13 +806,20 @@ when (kmpIAP.getStore()) {
           <strong>What changed:</strong> cancelling the calling task of{' '}
           <code>requestPurchase</code> or another StoreKit operation now throws{' '}
           <code>CancellationError</code> with no purchase-error event.
-          Previously the cancellation was wrapped into a{' '}
-          <code>PurchaseError</code> and emitted. <code>initConnection</code>{' '}
-          still returns false when <code>endConnection</code> interrupts its
-          init task. The SwiftUI store&apos;s <code>getAvailablePurchases</code>{' '}
-          and <code>getActiveSubscriptions</code> also throw{' '}
-          <code>CancellationError</code> when the task is cancelled or{' '}
-          <code>endConnection</code> runs first.
+          Previously <code>requestPurchase</code>, <code>fetchProducts</code>,{' '}
+          <code>getPromotedProductIOS</code>, and{' '}
+          <code>subscriptionStatusIOS</code> wrapped the cancellation into an
+          emitted <code>PurchaseError</code>, and <code>syncIOS</code>,{' '}
+          <code>restorePurchases</code>, and <code>openRedeemOfferCode</code>{' '}
+          threw it as a <code>PurchaseError</code> without an event.{' '}
+          <code>initConnection</code> still returns false when{' '}
+          <code>endConnection</code> interrupts its init task. The SwiftUI
+          store&apos;s <code>getAvailablePurchases</code> and{' '}
+          <code>getActiveSubscriptions</code> also throw{' '}
+          <code>CancellationError</code>, without updating state, when the task
+          is cancelled or <code>endConnection</code> completes while they wait;
+          its <code>initConnection</code> throws it when its task is cancelled,
+          even after connecting.
         </p>
         <p>
           <strong>Who is affected:</strong> Swift apps that call OpenIAP from a
@@ -861,16 +868,18 @@ when (kmpIAP.getStore()) {
             errors arrive as OpenIAP errors.
           </li>
           <li>
-            Expo: Android calls before init now report the provider&apos;s code
-            (<code>not-prepared</code> on Play and Horizon; Amazon queries work
-            before init) instead of <code>service-error</code>; thrown init
-            errors and verification forward the provider&apos;s code.
+            Expo: Android calls that rejected every failure with{' '}
+            <code>service-error</code> now forward the provider&apos;s code (
+            <code>not-prepared</code> before init on Play and Horizon; Amazon
+            queries work before init); thrown init errors and verification
+            forward it too.
           </li>
           <li>
-            Flutter: Dart-guarded calls already threw <code>not-prepared</code>;
-            native-only calls now report the provider&apos;s code instead of{' '}
-            <code>service-error</code>, and thrown init errors now forward the
-            provider&apos;s code (previously <code>init-connection</code>).
+            Flutter: calls that answered native failures with{' '}
+            <code>service-error</code> now forward the provider&apos;s code
+            (Dart-guarded calls still throw <code>not-prepared</code> before
+            init), and thrown init errors forward it instead of{' '}
+            <code>init-connection</code>.
           </li>
           <li>
             Godot: failure results now carry a <code>code</code> field (the
@@ -982,9 +991,11 @@ purchaseUpdatedListener((purchase) => {
           <code>verify_purchase</code> now emits <code>purchase_error</code> on
           failure instead of returning null silently (on Apple every failure, on
           Android when the native result carries a code). On Apple,{' '}
-          <code>get_storefront</code> failures and async failure payloads in{' '}
-          <code>products_fetched</code> now carry OpenIAP&apos;s code instead of
-          always <code>service-error</code>.
+          <code>get_storefront</code> failures now carry OpenIAP&apos;s code
+          instead of always <code>service-error</code>, and the{' '}
+          <code>products_fetched</code> failure payloads of{' '}
+          <code>fetch_products</code> and the iOS-only methods now carry a code
+          where they had none.
         </p>
         <p>
           <strong>Who is affected:</strong> Godot apps that count restore
@@ -1022,11 +1033,14 @@ purchaseUpdatedListener((purchase) => {
           future): React Native and Flutter on every call (Flutter on iOS and
           macOS), KMP and MAUI on id-filtered calls (MAUI also on Mac Catalyst),
           as Expo, Godot, and native already did. A subscriber in billing grace
-          reads inactive.
+          reads inactive. Flutter <code>hasActiveSubscriptions</code> failures
+          now read <code>Failed to check active subscriptions [code]: ...</code>{' '}
+          instead of <code>Failed to get active subscriptions [code]: ...</code>
+          ; match codes, not messages.
         </p>
         <p>
           <strong>Who is affected:</strong> apps that grant access during
-          billing grace.
+          billing grace, and Flutter apps that match the failure message.
         </p>
         <p>
           <strong>What to do:</strong> to keep grace access, read the renewal

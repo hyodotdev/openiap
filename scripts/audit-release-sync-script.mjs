@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Every release lane calls sync-release-generated.sh and nothing else runs it,
-// so a dropped line continuation in its `git add` shipped once and only
+// Every release lane calls sync-release-generated.sh, and a Client Protocol
+// feature PR runs it by hand, so a dropped line continuation in its `git add`
+// shipped once and only
 // surfaced mid-release: bash ended the command early and ran the next path as
 // a command (exit 126, "is a directory"). Neither `bash -n` nor shellcheck
 // flags that — an orphaned path is a syntactically valid command — so this

@@ -125,9 +125,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 function normalize(text) {
   // JSX drops whitespace around newlines, so `word\n;` renders "word;".
   // Same-line spaces survive, so a rendered "storeId ;" must fail.
+  // Versions drift after release, so needles pin words, not digits.
   return text
     .replaceAll("&apos;", "'")
     .replaceAll("{' '}", " ")
+    .replace(/\d+\.\d+\.\d+/g, "0.0.0")
     .replace(/[ \t]*\n\s*([;,.!?)%])/g, "$1")
     .replaceAll(/\s+/g, " ");
 }
@@ -194,7 +196,7 @@ const BREAKING_BULLETS = [
   "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore first, and on Horizon deliver each owned purchase to purchase listeners; make the handler idempotent.",
   "React Native 17.0.0 and Flutter 11.0.0 (every call), KMP 4.0.0 and MAUI 3.0.0 (id-filtered calls) answer <code>hasActiveSubscriptions</code> on iOS from the active flag; a subscriber in billing grace reads inactive.",
   "Godot 4.0.0 emits one <code>purchase_error</code>, not two, for a failed Apple restore, and one for a failed <code>verify_purchase</code> (on Android only when the result carries a code).",
-  "Godot 4.0.0 reports OpenIAP's error code, not always <code>service-error</code>, for failed Apple <code>get_storefront</code> calls and async failure payloads in <code>products_fetched</code>; match specific codes.",
+  "Godot 4.0.0 reports OpenIAP's error code for failed Apple <code>get_storefront</code> calls, which reported <code>service-error</code>, and adds it to <code>fetch_products</code> and iOS-only failure payloads, which had no code; match specific codes.",
   "Godot 4.0.0 fails the Android export when <code>openiap/android_store</code> is unrecognized instead of falling back to Play; fix the store value.",
 ];
 
@@ -206,7 +208,10 @@ test("the community provider card carries an explicit Breaking changes section",
     "card is missing the migration guide link",
   );
   for (const bullet of BREAKING_BULLETS) {
-    assert.ok(breaking.includes(bullet), `Breaking list is missing: ${bullet}`);
+    assert.ok(
+      breaking.includes(normalize(bullet)),
+      `Breaking list is missing: ${bullet}`,
+    );
   }
   for (const moved of [
     "Purchases and verification outputs include a required",
@@ -239,7 +244,7 @@ test("the community provider card carries an explicit Breaking changes section",
     "store-aware init message",
   ]) {
     assert.ok(
-      !card.toLowerCase().includes(moved.toLowerCase()),
+      !card.toLowerCase().includes(normalize(moved).toLowerCase()),
       `moved fact is duplicated outside Breaking changes: ${moved}`,
     );
   }
@@ -317,8 +322,15 @@ test("the migration guide covers the provider contract upgrade", () => {
     "CancellationError",
     "can be cancelled, such as a SwiftUI",
     "user-cancelled",
+    "wrapped the cancellation into an emitted",
+    "threw it as a <code>PurchaseError</code> without an event",
+    "without updating state",
+    "even after connecting",
     "cannot make payments",
     "not-prepared",
+    "rejected every failure with",
+    "answered native failures with",
+    "Dart-guarded calls still throw",
     "StoreConnectionFailure",
     "verification without a userId",
     "transaction-validation-failed",
@@ -330,7 +342,11 @@ test("the migration guide covers the provider contract upgrade", () => {
     "get_available_purchases_result",
     "verify_purchase</code> now emits",
     "get_storefront</code> failures",
+    "failures now carry OpenIAP's code instead of always",
+    "now carry a code where they had none",
     "openiap/android_store",
+    "Failed to check active subscriptions [code]",
+    "Failed to get active subscriptions [code]",
     "Flutter on iOS and macOS",
     "Godot on iOS and Android",
     "MAUI also on Mac",
@@ -340,6 +356,11 @@ test("the migration guide covers the provider contract upgrade", () => {
     assert.ok(page.includes(substance), `migration guide is missing: ${substance}`);
   }
   for (const dropped of [
+    "the cancellation was wrapped into a",
+    "endConnection</code> runs first",
+    "calls before init now report",
+    "native-only calls now report",
+    "failures and async failure payloads in",
     "KMP and MAUI also treat an empty id list",
     "pass an explicit empty id list",
     "pass explicit ids or omit the filter",
@@ -517,6 +538,32 @@ test("the registry note keeps a major's profile while any entry cites it", () =>
   assert.ok(
     !profile.includes("until the registry window ends"),
     "stale registry window claim is still present",
+  );
+});
+
+test("the Client Protocol feature-PR rule refreshes the lockfile", () => {
+  for (const file of [
+    "knowledge/internal/04-platform-packages.md",
+    "knowledge/internal/06-git-deployment.md",
+    ".claude/commands/release.md",
+  ]) {
+    const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
+    assert.ok(
+      source.includes("bun install --lockfile-only --ignore-scripts"),
+      `${file} is missing the lockfile refresh`,
+    );
+  }
+  const guide = fs.readFileSync(
+    path.join(repoRoot, "knowledge/internal/04-platform-packages.md"),
+    "utf8",
+  );
+  assert.ok(
+    guide.includes("refresh `bun.lock` and run"),
+    "the Client Protocol update steps skip the lockfile refresh",
+  );
+  assert.ok(
+    !guide.includes("mirrors it into `openiap-versions.json`"),
+    "stale sync-mirror claim is still present",
   );
 });
 

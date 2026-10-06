@@ -549,9 +549,10 @@ issues. Use the GitHub Actions release workflows and repository sync automation.
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
 **Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
-`specs/client/package.json` and run `./scripts/sync-release-generated.sh` when
-the in-tree code needs the new Client Protocol version; never hand-edit the
-`clientProtocol` mirror. Stable version changes happen via:
+`specs/client/package.json`, run `bun install --lockfile-only --ignore-scripts`
+and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the
+staged files, when the in-tree code needs the new Client Protocol version;
+never hand-edit the `clientProtocol` mirror. Stable version changes happen via:
 
 1. Release workflows (Apple Release, Google Release, and Client Protocol
    releases with `version=patch`, `minor`, or `major`)

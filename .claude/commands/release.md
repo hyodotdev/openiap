@@ -21,9 +21,11 @@ Inspect the complete public payload before publishing it.
   production docs deployment from `main`.
 - `clientProtocol` mirrors `specs/client/package.json`. Never edit the mirror
   directly; the audits reject a committed mismatch. A feature PR may set the
-  manifest and run `scripts/sync-release-generated.sh` when the in-tree code
-  needs the new Client Protocol version; the release then dispatches with
-  `version=current`, which publishes that version without bumping again.
+  manifest, run `bun install --lockfile-only --ignore-scripts` and then
+  `scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
+  files, when the in-tree code needs the new Client Protocol version; the
+  release then dispatches with `version=current`, which publishes that version
+  without bumping again.
 - `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
   `next` releases from `next` only.
 - `next` may be absent between prerelease trains. Create it from current `main`
@@ -200,8 +202,10 @@ Train rules (mistake guards):
   versions and links against the
   published releases and correct any that differ; if that needs an edit,
   commit it directly to `main` together with any release-process doc updates,
-  and do not open a PR for that post-release docs-only commit. Run the docs
-  deployment; to deploy before publication, use the explicit flag in
+  and do not open a PR for that post-release docs-only commit. Card edits that
+  change wording come with the matching `scripts/audit-release-notes.test.mjs`
+  needles. Run the docs deployment; to deploy before publication, use the
+  explicit flag in
   `knowledge/internal/06-git-deployment.md#deploying-documentation`.
   If a train will not resume, trim its card to what published. CI's release
   note audit (`bun run audit:release-notes`) fails a PR into `main` that

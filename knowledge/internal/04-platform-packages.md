@@ -39,10 +39,11 @@ Version is managed in `openiap-versions.json`:
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
 `"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
-set the manifest and run `./scripts/sync-release-generated.sh` when the in-tree
-code needs the new Client Protocol version (`sync-versions.sh` alone skips the
-conformance behavior ids, which embed the protocol version); do not edit the
-mirror by hand.
+set the manifest, run `bun install --lockfile-only --ignore-scripts` and then
+`./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
+files, when the in-tree code needs the new Client Protocol version
+(`sync-versions.sh` alone skips the conformance behavior ids, which embed the
+protocol version); do not edit the mirror by hand.
 `"google"` and `"apple"` are CI-managed native package versions and do not
 constrain it. Release-state, docs, and parity audits reject drift between the
 mirror and the publishing manifest.
@@ -565,11 +566,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A schema change that alters the contract may
-   bump the Client Protocol version in `specs/client/package.json`; sync then
-   mirrors it into `openiap-versions.json` (the audits, not the sync script,
-   reject drift). The release dispatches with `version=current`, which
-   publishes the in-tree version without bumping again.
+1. Update the canonical schema. A contract change may bump the Client Protocol
+   in `specs/client/package.json`; refresh `bun.lock` and run
+   `./scripts/sync-release-generated.sh` to mirror it (the audits reject
+   drift), then release with `version=current`.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
