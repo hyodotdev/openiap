@@ -103,23 +103,24 @@ the kit Dockerfile, and the React Native CocoaPods toolchain:
   direct dependency contract; a toolchain resolver export can add transitive
   entries for a consuming application.
 
-## Pinned brace parser replacement
+## Temporary dependency exceptions
 
-The six affected Bun/Yarn graphs replace `braces` with the published MIT
-derivative [`@dieub/braces-depth-guard@3.0.3-pn.3`](https://www.npmjs.com/package/@dieub/braces-depth-guard/v/3.0.3-pn.3).
-It bounds parser and AST nesting to address
-[`GHSA-vfj7-8cjw-p6xm`](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
-which has no patched upstream release. The exact version and registry integrity
-are locked; published files match
-[source commit `305a2e4`](https://github.com/dieub/braces-depth-guard/tree/305a2e4bfe324bb53c336c1b03387ee1251c926f),
-and npm registry signatures and provenance were verified. This is a reviewed
-derivative with a short maintenance history, not an upstream release.
+Some locked dependencies have published advisories with no fixed release.
+Each exception lives in the `osv-scanner.toml` next to its lock, with a
+reason and an `ignoreUntil` date. `audit:dependencies` fails on an expired
+or unused exception.
 
-Bun, OSV and dependency snapshots retain the replacement's actual npm identity
-and transitive dependencies. No advisory is suppressed. Security regression
-tests exercise deep strings and ASTs through the installed package. Return to
-upstream when a supported fix passes those checks; the depth guard does not
-bound every possible expansion size.
+- `braces` 3.0.3
+  ([`GHSA-vfj7-8cjw-p6xm`](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)),
+  rechecked by 2026-10-30. Only build, test, and CLI tooling parses
+  repository-controlled glob patterns; the published SDK packages declare no
+  runtime npm dependencies.
+- `node-forge` 1.4.0
+  ([`GHSA-86w9-cpqp-85rv`](https://github.com/advisories/GHSA-86w9-cpqp-85rv)),
+  rechecked by 2026-10-30. Only development certificate tooling uses it.
+- `image-size` (`GHSA-5p2g-fcmc-qvqq`, `GHSA-w3rx-r6r6-pgpr`), rechecked by
+  2026-10-14.
+- `decode-uri-component` (`GHSA-vcc3-ghjq-m6fr`), rechecked by 2026-12-15.
 
 ## GitHub dependency graph
 

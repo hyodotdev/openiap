@@ -14,7 +14,6 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import braces from "braces";
 import { parseDocument } from "yaml";
 
 import {
@@ -157,74 +156,6 @@ exit 2
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
-});
-
-test("brace processing rejects excessive nesting before recursive evaluation", () => {
-  for (const delimiter of ["{}", "()"])
-    for (const depth of [101, 1000]) {
-      const input =
-        delimiter[0].repeat(depth) + "a" + delimiter[1].repeat(depth);
-      for (const operation of ["parse", "compile", "expand", "stringify"])
-        assert.throws(() => braces[operation](input), {
-          name: "SyntaxError",
-          message: /Input depth .* exceeds max depth/,
-        });
-    }
-});
-
-test("brace AST processing rejects excessive depth and cyclic child graphs", () => {
-  const ast = { type: "root", nodes: [] };
-  let node = ast;
-  for (let depth = 0; depth < 1000; depth++) {
-    const child = { type: "brace", nodes: [], parent: node };
-    node.nodes.push(child);
-    node = child;
-  }
-  node.nodes.push({ type: "text", value: "a" });
-  for (const operation of ["compile", "expand", "stringify"])
-    assert.throws(() => braces[operation](ast), {
-      name: "RangeError",
-      message: /AST depth .* exceeds max depth/,
-    });
-
-  const cycle = { type: "root", nodes: [] };
-  cycle.nodes.push(cycle);
-  for (const operation of ["compile", "expand", "stringify"])
-    assert.throws(() => braces[operation](cycle), {
-      name: "RangeError",
-      message: /AST depth .* exceeds max depth/,
-    });
-});
-
-test("brace length and depth options cannot bypass bounds", () => {
-  assert.throws(() => braces.parse("a".repeat(10001), { maxLength: NaN }), {
-    name: "RangeError",
-  });
-  let reads = 0;
-  assert.throws(
-    () =>
-      braces.parse("{".repeat(101) + "a" + "}".repeat(101), {
-        get maxDepth() {
-          return reads++ === 0 ? 100 : Infinity;
-        },
-      }),
-    { name: "SyntaxError", message: /Input depth .* exceeds max depth/ },
-  );
-  assert.equal(reads, 1);
-  assert.deepEqual(braces.expand("src/{apple,google}/{1..2}.ts"), [
-    "src/apple/1.ts",
-    "src/apple/2.ts",
-    "src/google/1.ts",
-    "src/google/2.ts",
-  ]);
-  assert.equal(
-    braces.compile("src/{apple,google}.ts"),
-    "src/(apple|google).ts",
-  );
-  assert.equal(
-    braces.stringify(braces.parse("src/{apple,google}.ts")),
-    "src/{apple,google}.ts",
-  );
 });
 
 test("workflow scan detects expressions in scalar and block run steps", () => {
@@ -518,6 +449,28 @@ test("bun audit parsing tolerates the CLI banner", () => {
 
 test("dependency audit fails closed on findings and malformed output", () => {
   const projects = [{ directory: ".", lockfile: "bun.lock" }];
+  // The mock marks the real root exceptions used (keyed by advisory id, as
+  // in the Bun exception test), so only the unaccepted finding counts below.
+  const ignored = parseOsvIgnoredVulnerabilities(
+    readFileSync(resolve(import.meta.dirname, "..", "osv-scanner.toml"), "utf8"),
+  );
+  const findings = {
+    hono: [
+      {
+        severity: "high",
+        title: "unsafe version",
+        url: "https://github.com/advisories/GHSA-test-test-test",
+      },
+    ],
+  };
+  for (const id of ignored.keys())
+    findings[id] = [
+      {
+        severity: "high",
+        title: "ignored issue",
+        url: `https://github.com/advisories/${id}`,
+      },
+    ];
   assert.throws(
     () =>
       auditDependencies(
@@ -530,11 +483,11 @@ test("dependency audit fails closed on findings and malformed output", () => {
               }
             : {
                 status: 1,
-                stdout:
-                  '{"hono":[{"severity":"high","title":"unsafe version","url":"https://github.com/advisories/GHSA-test-test-test"}]}',
+                stdout: JSON.stringify(findings),
                 stderr: "",
               },
         projects,
+        new Date("2026-10-02T00:00:00Z"),
       ),
     /1 dependency audit findings/u,
   );
@@ -596,21 +549,39 @@ reason = "Invalid date."
 test("Bun lock exceptions require usage in either feed and expire on their date", () => {
   const lockfile = "libraries/expo-iap/bun.lock";
   const projects = [{ directory: "libraries/expo-iap", lockfile }];
-  const id = "GHSA-86w9-cpqp-85rv";
-  const bunFinding = JSON.stringify({
-    "node-forge": [
-      {
-        severity: "high",
-        title: "certificate issue",
-        url: `https://github.com/advisories/${id}`,
-      },
-    ],
-  });
-  const osvFinding = {
-    id: "CVE-2026-85393",
-    aliases: [id],
-    summary: "certificate issue",
-  };
+  // Ids and expiry come from the real exception file, so adding, retiring,
+  // or renewing one needs no edit here. Bun finding keys are the ids: the
+  // audit matches on the advisory URL, never the package name.
+  const exceptions = parseOsvIgnoredVulnerabilities(
+    readFileSync(
+      resolve(import.meta.dirname, "..", "libraries/expo-iap/osv-scanner.toml"),
+      "utf8",
+    ),
+  );
+  assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
+  const forgeId = "GHSA-86w9-cpqp-85rv";
+  const bunFinding = JSON.stringify(
+    Object.fromEntries(
+      [...exceptions.keys()].map((id) => [
+        id,
+        [
+          {
+            severity: "high",
+            title: "ignored issue",
+            url: `https://github.com/advisories/${id}`,
+          },
+        ],
+      ]),
+    ),
+  );
+  const osvFindings = [...exceptions.keys()].map((id) =>
+    id === forgeId
+      ? { id: "CVE-2026-85393", aliases: [id], summary: "certificate issue" }
+      : { id },
+  );
+  const lastExpiry = [...exceptions.values()]
+    .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
+    .reduce((a, b) => Math.max(a, b));
   const scanner = (bun, vulnerabilities) => (command, args) => {
     if (command === "bun")
       return { status: bun === "{}" ? 0 : 1, stdout: bun, stderr: "" };
@@ -620,16 +591,14 @@ test("Bun lock exceptions require usage in either feed and expire on their date"
     return {
       status: vulnerabilities.length ? 1 : 0,
       stdout: JSON.stringify({
-        results: [
-          { packages: [{ package: { name: "node-forge" }, vulnerabilities }] },
-        ],
+        results: [{ packages: [{ vulnerabilities }] }],
       }),
       stderr: "",
     };
   };
   const beforeExpiry = new Date("2026-10-02T00:00:00Z");
   assert.doesNotThrow(() =>
-    auditDependencies(scanner("{}", [osvFinding]), projects, beforeExpiry),
+    auditDependencies(scanner("{}", osvFindings), projects, beforeExpiry),
   );
   assert.doesNotThrow(() =>
     auditDependencies(scanner(bunFinding, []), projects, beforeExpiry),
@@ -641,16 +610,16 @@ test("Bun lock exceptions require usage in either feed and expire on their date"
   assert.throws(
     () =>
       auditDependencies(
-        scanner("{}", [osvFinding]),
+        scanner("{}", osvFindings),
         projects,
-        new Date("2026-10-09T00:00:00Z"),
+        new Date(lastExpiry),
       ),
     /expired dependency exception/u,
   );
   assert.throws(
     () =>
       auditDependencies(
-        scanner("{}", [osvFinding, { id: "GHSA-unaccepted" }]),
+        scanner("{}", [...osvFindings, { id: "GHSA-unaccepted" }]),
         projects,
         beforeExpiry,
       ),

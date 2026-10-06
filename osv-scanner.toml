@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-10-30
+reason = "No patched braces release exists. It is reached only by build, test, and lint tooling that parses repository-controlled glob patterns; the published SDK packages declare no runtime npm dependencies and the Kit runtime image is a compiled binary: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
