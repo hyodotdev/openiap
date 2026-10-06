@@ -153,6 +153,9 @@ function VerifyPurchaseWithProviderResult() {
                 Required stable store id.{' '}
                 <Link to="/docs/guides/store-providers#identity">
                   Preserve it when routing verification results.
+                </Link>{' '}
+                <Link to="/docs/updates/migration#provider-contract-store-id">
+                  Upgrade notes.
                 </Link>
               </td>
             </tr>

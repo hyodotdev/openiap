@@ -175,6 +175,13 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           cycle.
         </li>
       </ul>
+      <p>
+        When upgrading from an older major, see the{' '}
+        <Link to="/docs/updates/migration#provider-contract-subscription-flag">
+          subscription-check upgrade notes
+        </Link>
+        .
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

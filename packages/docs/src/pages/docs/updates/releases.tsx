@@ -505,13 +505,94 @@ function Releases() {
             contract. Build and test integrations in your own repository, then
             select a linked provider without changing app purchase APIs.
           </p>
-          <h5>Common changes</h5>
+          <h5>Breaking changes</h5>
+          <p>
+            See the{' '}
+            <Link to="/docs/updates/migration#provider-contract-upgrade">
+              provider contract upgrade guide
+            </Link>{' '}
+            for what to change.
+          </p>
           <ul>
             <li>
-              Purchases and verification outputs include a required{' '}
-              <code>storeId</code>; community stores use <code>Unknown</code> in
-              the frozen <code>IapStore</code> enum.
+              Client Protocol 0.2.0 makes <code>storeId</code> required on
+              purchases and IAPKit results; set it on hand-built values (C# and
+              the Kotlin IAPKit result infer official ids).
             </li>
+            <li>
+              KMP 4.0.0 adds <code>UNKNOWN</code> to the public{' '}
+              <code>Store</code> enum; add the branch to every exhaustive{' '}
+              <code>when (getStore())</code>.
+            </li>
+            <li>
+              OpenIAP Google 4.0.0 and KMP 4.0.0 make the Kotlin{' '}
+              <code>RequestVerifyPurchaseWithIapkitResult</code> a plain class
+              whose constructor and <code>copy</code> carry <code>storeId</code>
+              ; recompile code that copies results or constructs or copies
+              purchases.
+            </li>
+            <li>
+              OpenIAP Google 4.0.0 moves shared classes into the{' '}
+              <code>openiap-core</code> artifact; apps linking the AAR by file
+              must add it (Maven consumers get it transitively).
+            </li>
+            <li>
+              OpenIAP Apple 4.0.0 requires tvOS 16.0+ (SwiftPM; CocoaPods
+              already required 16.0); raise the deployment target of tvOS apps.
+            </li>
+            <li>
+              OpenIAP Apple 4.0.0 throws <code>CancellationError</code>, with no
+              purchase-error event, when the calling task of{' '}
+              <code>requestPurchase</code> or another StoreKit operation is
+              cancelled; catch it at the call site.
+            </li>
+            <li>
+              Flutter 11.0.0 <code>initConnection()</code> now returns false on
+              iOS and macOS when StoreKit cannot make payments; it returned true
+              before.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
+              forward the provider&apos;s Android error code where they returned
+              fixed codes; handle specific codes such as{' '}
+              <code>not-prepared</code>.
+            </li>
+            <li>
+              Flutter 11.0.0 and Godot 4.0.0 (and KMP 4.0.0 on iOS) report the
+              native error code from failed verification instead of always{' '}
+              <code>purchase-verification-failed</code>; match specific codes.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
+              provider&apos;s Android restore first, and on Horizon deliver each
+              owned purchase to purchase listeners; make the handler idempotent.
+            </li>
+            <li>
+              React Native 17.0.0 and Flutter 11.0.0 (every call), KMP 4.0.0 and
+              MAUI 3.0.0 (id-filtered calls) answer{' '}
+              <code>hasActiveSubscriptions</code> on iOS from the active flag; a
+              subscriber in billing grace reads inactive.
+            </li>
+            <li>
+              Godot 4.0.0 emits one <code>purchase_error</code>, not two, for a
+              failed Apple restore, and one for a failed{' '}
+              <code>verify_purchase</code> (on Android only when the result
+              carries a code).
+            </li>
+            <li>
+              Godot 4.0.0 reports OpenIAP&apos;s error code, not always{' '}
+              <code>service-error</code>, for failed Apple{' '}
+              <code>get_storefront</code> calls and async failure payloads in{' '}
+              <code>products_fetched</code>; match specific codes.
+            </li>
+            <li>
+              Godot 4.0.0 fails the Android export when{' '}
+              <code>openiap/android_store</code> is unrecognized instead of
+              falling back to Play; fix the store value.
+            </li>
+          </ul>
+          <h5>Common changes</h5>
+          <ul>
             <li>
               The optional registry lists provider capabilities, maintenance
               tiers, and conformance reports; unregistered providers work with
@@ -539,18 +620,10 @@ function Releases() {
                   Adds factory discovery and the public{' '}
                   <code>OpenIapConformance</code> Swift suite.
                 </li>
-                <li>Requires tvOS 16.0+.</li>
                 <li>
                   Delivers purchase errors before returning, and the SwiftUI
                   store preserves sessions across failed or cancelled reconnects
                   with retryable teardown.
-                </li>
-                <li>
-                  Cancelling a <code>requestPurchase</code> task throws{' '}
-                  <code>CancellationError</code> without a purchase-error event
-                  (the same holds for the other operations that rethrow it);{' '}
-                  <code>purchaseErrorListener</code> and{' '}
-                  <code>OpenIapStore.onPurchaseError</code> stay silent.
                 </li>
               </ul>
             </li>
@@ -571,39 +644,9 @@ function Releases() {
               unsupported receipt verification.
             </li>
             <li>
-              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
-              report the provider&apos;s own Android error code instead of fixed
-              codes.
-            </li>
-            <li>
-              React Native, Expo, and Flutter also report a store-aware init
-              message (Horizon without an Activity reports{' '}
-              <code>activity-unavailable</code>).
-            </li>
-            <li>
-              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
-              run the provider&apos;s Android restore before querying ownership.
-            </li>
-            <li>
-              On Horizon, each owned purchase then reaches{' '}
-              <code>purchaseUpdatedListener</code> /{' '}
-              <code>onPurchaseSuccess</code> (React Native, Expo) and
-              Flutter&apos;s purchase-updated stream.
-            </li>
-            <li>
-              On iOS, React Native 17.0.0 and Flutter 11.0.0 (every call), KMP
-              4.0.0 and MAUI 3.0.0 (id-filtered calls) now answer{' '}
-              <code>hasActiveSubscriptions</code> from OpenIAP&apos;s active
-              flag (expiration in the future).
-            </li>
-            <li>
-              On iOS, a subscriber in billing grace reads inactive, as in Expo
-              and native.
-            </li>
-            <li>
-              <strong>KMP 4.0.0</strong> adds <code>UNKNOWN</code> to the public{' '}
-              <code>Store</code> enum; an exhaustive{' '}
-              <code>when (getStore())</code> needs a new branch.
+              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 name a
+              community provider&apos;s store in init-failure messages, as they
+              already did for Horizon and Amazon.
             </li>
             <li>
               <strong>React Native 17.0.0</strong>
@@ -617,6 +660,12 @@ function Releases() {
                   Preserves normalized provider errors when opening subscription
                   management and delivers each repeated Apple purchase failure.
                 </li>
+                <li>
+                  <code>getAvailablePurchases</code> honors{' '}
+                  <code>includeSuspendedAndroid</code> and reports suspended
+                  Play subscriptions through{' '}
+                  <code>subscriptionBillingIssueListener</code>.
+                </li>
               </ul>
             </li>
             <li>
@@ -627,20 +676,13 @@ function Releases() {
                   fixes iOS source builds with SwiftPM generators.
                 </li>
                 <li>
-                  Rejects invalid Android provider selection during export,
-                  emits one error for Apple restore failures, and never signals
-                  connection success after initialization fails.
+                  Never signals connection success after initialization fails.
                 </li>
               </ul>
             </li>
           </ul>
           <h5>Integration notes</h5>
           <ul>
-            <li>
-              Add <code>storeId</code> to manually constructed purchase and
-              verification values; official legacy JSON still infers its
-              canonical ID, while community values require an explicit ID.
-            </li>
             <li>
               Follow the{' '}
               <Link to="/docs/guides/store-providers">
@@ -2793,7 +2835,7 @@ function Releases() {
           >
             <li>
               <strong>godot-iap 3.3.3</strong> - replaces{' '}
-              <code>supported_platforms</code>, which is not part of the
+              <code>supported_platforms</code>, which is not part of the{' '}
               <code>.gdextension</code> format and never gated anything, with{' '}
               <code>include_tags</code> (
               <a

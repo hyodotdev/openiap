@@ -218,8 +218,7 @@ Vercel builds.
 The root `openiap-versions.json` is also a version contract. `clientProtocol`
 must equal the version in `specs/client/package.json`, the manifest that
 publishes the protocol; `google` and `apple` are independent native package
-versions. `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
-silently normalizing it.
+versions. The audits, not the sync script, reject a committed mismatch.
 
 Framework package versions and Android SDK constants used by docs must flow
 through `packages/docs/src/generated/version-metadata.json`, which is generated

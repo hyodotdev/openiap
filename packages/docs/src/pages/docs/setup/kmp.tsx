@@ -215,8 +215,8 @@ kotlin {
 
         <h4 id="android-store">Pick the Android store</h4>
         <p>
-          kmp-iap publishes a Play, Horizon, and Amazon build of its Android
-          library, and Gradle stops with{' '}
+          kmp-iap publishes Play, Horizon, Amazon, and provider builds of its
+          Android library, and Gradle stops with{' '}
           <code>
             Cannot choose between the following variants of
             io.github.hyochan:kmp-iap
@@ -255,8 +255,16 @@ openiapStore=horizon`}
           <a href="/docs/setup/store#selection">How the Store Is Selected</a>{' '}
           for the full rule. At runtime, <code>getStore()</code> reports the
           linked store: <code>Store.HORIZON</code> on a Horizon build,{' '}
-          <code>Store.AMAZON</code> on an Amazon build, and{' '}
-          <code>Store.PLAY_STORE</code> otherwise.
+          <code>Store.AMAZON</code> on an Amazon build,{' '}
+          <code>Store.PLAY_STORE</code> on a Play build,{' '}
+          <code>Store.APP_STORE</code> on iOS, and <code>Store.UNKNOWN</code> on
+          a community-provider build or when the Apple provider selection fails.
+          From 4.0.0, handle <code>UNKNOWN</code> in every exhaustive{' '}
+          <code>when</code>; see the{' '}
+          <a href="/docs/updates/migration#provider-contract-kmp-store">
+            upgrade notes
+          </a>
+          .
         </p>
 
         <h4>R8 and ProGuard</h4>

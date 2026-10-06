@@ -192,6 +192,10 @@ function Purchase() {
                 community provider id.{' '}
                 <Link to="/docs/guides/store-providers#identity">
                   Store identity
+                </Link>{' '}
+                ·{' '}
+                <Link to="/docs/updates/migration#provider-contract-store-id">
+                  upgrade notes
                 </Link>
               </td>
             </tr>

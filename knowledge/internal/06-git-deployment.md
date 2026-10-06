@@ -339,9 +339,9 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `<apple-version>` (bare semver)
 5. Builds and tests Swift package
@@ -366,9 +366,9 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `google-<google-version>`
 5. Builds and tests Android library
@@ -526,9 +526,9 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
-  release bumps that manifest and `scripts/sync-versions.sh` writes the new
-  value into `openiap-versions.json` and its copies
+- `clientProtocol` mirrors `specs/client/package.json`; a feature PR or a Client
+  Protocol release sets that manifest and the sync writes the mirror into
+  `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
 - The docs site has no version: it deploys whatever `main` holds
@@ -548,10 +548,13 @@ issues. Use the GitHub Actions release workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `clientProtocol`, `google`, or `apple`. Stable
-version changes happen via:
+**Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
+`specs/client/package.json` and run `./scripts/sync-release-generated.sh` when
+the in-tree code needs the new Client Protocol version; never hand-edit the
+`clientProtocol` mirror. Stable version changes happen via:
 
-1. Release workflows (Apple Release, Google Release)
-2. A Client Protocol release bumping `specs/client/package.json`, followed by
-   sync propagation
+1. Release workflows (Apple Release, Google Release, and Client Protocol
+   releases with `version=patch`, `minor`, or `major`)
+2. A feature PR setting `specs/client/package.json`, published by a Client
+   Protocol release with `version=current`
 3. CI auto-bump after merge where configured

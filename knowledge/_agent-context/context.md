@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-05T21:27:58.610Z
+> Last updated: 2026-10-06T02:34:18.474Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1151,9 +1151,12 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
-Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
-mirror by hand. `"google"` and `"apple"` are native package versions and do not
+`"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
+set the manifest and run `./scripts/sync-release-generated.sh` when the in-tree
+code needs the new Client Protocol version (`sync-versions.sh` alone skips the
+conformance behavior ids, which embed the protocol version); do not edit the
+mirror by hand.
+`"google"` and `"apple"` are CI-managed native package versions and do not
 constrain it. Release-state, docs, and parity audits reject drift between the
 mirror and the publishing manifest.
 
@@ -1675,10 +1678,11 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A schema change that alters the contract is a
-   Client Protocol version bump in `specs/client/package.json`; sync then
-   mirrors it into `openiap-versions.json` and fails instead of silently
-   repairing drift.
+1. Update the canonical schema. A schema change that alters the contract may
+   bump the Client Protocol version in `specs/client/package.json`; sync then
+   mirrors it into `openiap-versions.json` (the audits, not the sync script,
+   reject drift). The release dispatches with `version=current`, which
+   publishes the in-tree version without bumping again.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -2774,9 +2778,9 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `<apple-version>` (bare semver)
 5. Builds and tests Swift package
@@ -2801,9 +2805,9 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `google-<google-version>`
 5. Builds and tests Android library
@@ -2961,9 +2965,9 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
-  release bumps that manifest and `scripts/sync-versions.sh` writes the new
-  value into `openiap-versions.json` and its copies
+- `clientProtocol` mirrors `specs/client/package.json`; a feature PR or a Client
+  Protocol release sets that manifest and the sync writes the mirror into
+  `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
 - The docs site has no version: it deploys whatever `main` holds
@@ -2983,12 +2987,15 @@ issues. Use the GitHub Actions release workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `clientProtocol`, `google`, or `apple`. Stable
-version changes happen via:
+**Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
+`specs/client/package.json` and run `./scripts/sync-release-generated.sh` when
+the in-tree code needs the new Client Protocol version; never hand-edit the
+`clientProtocol` mirror. Stable version changes happen via:
 
-1. Release workflows (Apple Release, Google Release)
-2. A Client Protocol release bumping `specs/client/package.json`, followed by
-   sync propagation
+1. Release workflows (Apple Release, Google Release, and Client Protocol
+   releases with `version=patch`, `minor`, or `major`)
+2. A feature PR setting `specs/client/package.json`, published by a Client
+   Protocol release with `version=current`
 3. CI auto-bump after merge where configured
 
 
@@ -3216,8 +3223,7 @@ Vercel builds.
 The root `openiap-versions.json` is also a version contract. `clientProtocol`
 must equal the version in `specs/client/package.json`, the manifest that
 publishes the protocol; `google` and `apple` are independent native package
-versions. `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
-silently normalizing it.
+versions. The audits, not the sync script, reject a committed mismatch.
 
 Framework package versions and Android SDK constants used by docs must flow
 through `packages/docs/src/generated/version-metadata.json`, which is generated

@@ -19,10 +19,11 @@ Inspect the complete public payload before publishing it.
 
 - `main` contains stable package metadata only. Run stable package releases and
   production docs deployment from `main`.
-- `clientProtocol` mirrors `specs/client/package.json`. Never edit it directly
-  in a feature PR, release command, or docs deployment. A Client Protocol
-  release bumps the publishing manifest; `scripts/sync-versions.sh` writes the
-  mirror, and the audits reject a committed mismatch.
+- `clientProtocol` mirrors `specs/client/package.json`. Never edit the mirror
+  directly; the audits reject a committed mismatch. A feature PR may set the
+  manifest and run `scripts/sync-release-generated.sh` when the in-tree code
+  needs the new Client Protocol version; the release then dispatches with
+  `version=current`, which publishes that version without bumping again.
 - `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
   `next` releases from `next` only.
 - `next` may be absent between prerelease trains. Create it from current `main`
@@ -48,10 +49,9 @@ node --test scripts/release-branch-policy.test.mjs
 ```
 
 Every release lane's version-bump commit also runs
-`scripts/sync-release-generated.sh`, which regenerates and stages the files
-derived from version metadata (`packages/docs/src/generated/version-metadata.json`,
-`packages/docs/public/llms.txt`, `packages/docs/public/llms-full.txt`,
-`knowledge/_agent-context/context.md`). Expect these paths in bump commits;
+`scripts/sync-release-generated.sh`, which regenerates and stages every file
+that embeds release version metadata (see its `git add` list). Expect those
+paths in bump commits;
 they are not worktree drift. Skipping this regeneration leaves `main` stale and
 fails the `Audit SDK Parity` / `Test Agent Scripts` clean-worktree checks on
 every subsequent PR.
@@ -127,8 +127,9 @@ For a multi-package release train, use this order when affected:
 8. `release-maui.yml`
 9. `release-openiap.yml` — select one affected package per run:
    - `client-protocol`: `@hyodotdev/openiap-client-protocol`. Its package
-     version *is* the Client Protocol version; a release moves `clientProtocol`
-     in `openiap-versions.json` through sync.
+     version *is* the Client Protocol version; a release with patch, minor,
+     major, rc-bump or exact moves `clientProtocol` through sync, while
+     `current` publishes the in-tree version.
    - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
      package version, released when its contract, runner, or artifacts change.
    - `cli`: `@hyodotdev/openiap`; independent package version.

@@ -57,6 +57,13 @@ function RestorePurchases() {
         </a>
         .
       </p>
+      <p>
+        When upgrading from an older major, see the{' '}
+        <Link to="/docs/updates/migration#provider-contract-restore">
+          restore upgrade notes
+        </Link>
+        .
+      </p>
 
       <StoreConnectionCallout />
 

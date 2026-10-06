@@ -464,6 +464,13 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           . Use the provider&apos;s authenticated server integration for receipt
           verification.
         </p>
+        <p>
+          When upgrading from an older major, see the{' '}
+          <Link to="/docs/updates/migration#provider-contract-store-id">
+            storeId upgrade notes
+          </Link>
+          .
+        </p>
       </section>
       <section>
         <AnchorLink id="apple-authoring" level="h2">
