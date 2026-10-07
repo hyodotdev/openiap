@@ -147,17 +147,17 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 endDelegatedConnectionWithCleanup(
                     endConnection = { openModule.endConnection() },
                     cleanup = {
-                    try {
-                        unregisterListeners(openModule)
-                    } finally {
-                        isConnected = false
-                        module = null
-                        val disposer = activityCallbacksDisposer
-                        activityCallbacksDisposer = null
-                        context = null
-                        currentActivity = null
-                        disposer?.invoke()
-                    }
+                        try {
+                            unregisterListeners(openModule)
+                        } finally {
+                            isConnected = false
+                            module = null
+                            val disposer = activityCallbacksDisposer
+                            activityCallbacksDisposer = null
+                            context = null
+                            currentActivity = null
+                            disposer?.invoke()
+                        }
                     },
                 )
             } catch (error: CancellationException) {

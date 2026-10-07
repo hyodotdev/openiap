@@ -1,4 +1,5 @@
 import registry from "../../src/store-registry.json";
+import { storeConstantName } from "../../store-registry.mjs";
 import { SWIFT_KEYWORDS } from "./utils.js";
 
 import type { IRField } from "./types.js";
@@ -30,19 +31,11 @@ type StoreIdLanguage =
   | "dart"
   | "gdscript"
   | "csharp";
-const member = (id: string) =>
-  id
-    .split(/[._-]/)
-    // A valid id can repeat or trail underscores; empty parts carry no name.
-    .filter((part) => part.length > 0)
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join("");
-
 /** Registry ids are additive constants; they never extend IapStore. */
 export function renderStoreIds(language: StoreIdLanguage): string {
   const rows = registry.stores
     .map(({ id }) => {
-      const name = member(id);
+      const name = storeConstantName(id);
       switch (language) {
         case "typescript":
           return `  ${name}: '${id}',`;

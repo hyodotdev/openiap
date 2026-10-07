@@ -282,3 +282,25 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Test iOS bridge lifecycle and purchase delivery
+        working-directory: libraries/react-native-iap/example/ios
+        run: |
+          set -euo pipefail
+          iap_test_simulator=$(xcrun simctl list devices available -j | node -e '
+            const {readFileSync} = require("node:fs");
+            const devices = JSON.parse(readFileSync(0, "utf8")).devices;
+            const device = Object.values(devices).flat().find(
+              device => device.isAvailable && device.name.startsWith("iPhone")
+            );
+            if (!device) throw new Error("No available iPhone simulator");
+            process.stdout.write(device.udid);
+          ')
+          xcodebuild test \
+            -workspace example.xcworkspace \
+            -scheme example \
+            -destination "platform=iOS Simulator,id=$iap_test_simulator" \
+            -configuration Debug \
+            -only-testing:exampleTests/ConnectOnDemandTests \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO

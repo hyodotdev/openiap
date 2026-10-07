@@ -5,9 +5,9 @@ import {
   SUITE_MAJOR_RELEASE_DATE,
 } from "../../packages/conformance/src/spec/suite-version.mjs";
 import {
-  ANDROID_PROVIDER_PROFILE,
+  providerProfile,
   requiredProviderBehaviors,
-} from "../../packages/conformance/src/spec/android-provider-profile.mjs";
+} from "../../packages/conformance/src/spec/provider-profile.mjs";
 
 // Same grammar as the Commerce Protocol store key.
 export const STORE_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -18,7 +18,7 @@ export const PROVIDER_COORDINATE_PATTERN =
   /^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/;
 const SEMVER =
   /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-const capabilities = Object.keys(ANDROID_PROVIDER_PROFILE.capabilities);
+const capabilities = Object.keys(providerProfile("android").capabilities);
 const discriminators = {
   apple: "Apple",
   play: "Google",
@@ -158,6 +158,15 @@ export function maintenanceStatus(
     : "outdated";
 }
 
+export function storeConstantName(id) {
+  return id
+    .split(/[._-]/)
+    // Repeated and trailing underscores leave empty parts.
+    .filter((part) => part.length > 0)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join("");
+}
+
 /** Optional registration adds discovery metadata, never a runtime dependency. */
 export function validateStoreRegistry(registry) {
   requireThat(
@@ -184,12 +193,7 @@ export function validateStoreRegistry(registry) {
         !names.has(store.id),
       `Invalid or duplicate store id: ${store.id}`,
     );
-    const member = store.id
-      .split(/[._-]/)
-      // A valid id can repeat or trail underscores; empty parts carry no name.
-      .filter((part) => part.length > 0)
-      .map((part) => part[0].toUpperCase() + part.slice(1))
-      .join("");
+    const member = storeConstantName(store.id);
     const dartMember = member[0].toLowerCase() + member.slice(1);
     requireThat(
       !members.has(member) &&

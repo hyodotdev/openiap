@@ -617,6 +617,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     // MARK: - Transaction Management
     
     private func finishTransaction(purchaseDict: [String: Any], isConsumable: Bool?, result: @escaping FlutterResult) {
+        func fallbackTransactionId() -> String? {
+            guard OpenIapModule.shared.storeId == StoreIds.Apple,
+                  purchaseDict["store"] == nil || purchaseDict["store"] as? String == "apple",
+                  purchaseDict["storeId"] == nil || purchaseDict["storeId"] as? String == StoreIds.Apple else {
+                return nil
+            }
+            return resolveTransactionId(from: purchaseDict)
+        }
+
         FlutterIapLog.payload("finishTransaction", payload: [
             "purchase": purchaseDict,
             "isConsumable": isConsumable as Any
@@ -627,10 +636,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 purchase = try FlutterIapHelper.decodePurchaseInput(from: purchaseDict)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("finishTransactionDecode", error: purchaseError)
-                if OpenIapModule.shared.storeId == StoreIds.Apple,
-                   purchaseDict["store"] == nil || purchaseDict["store"] as? String == "apple",
-                   purchaseDict["storeId"] == nil || purchaseDict["storeId"] as? String == StoreIds.Apple,
-                   let transactionId = resolveTransactionId(from: purchaseDict) {
+                if let transactionId = fallbackTransactionId() {
                     finishTransaction(transactionId: transactionId, result: result)
                     return
                 }
@@ -638,10 +644,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 return
             } catch {
                 FlutterIapLog.failure("finishTransactionDecode", error: error)
-                if OpenIapModule.shared.storeId == StoreIds.Apple,
-                   purchaseDict["store"] == nil || purchaseDict["store"] as? String == "apple",
-                   purchaseDict["storeId"] == nil || purchaseDict["storeId"] as? String == StoreIds.Apple,
-                   let transactionId = resolveTransactionId(from: purchaseDict) {
+                if let transactionId = fallbackTransactionId() {
                     finishTransaction(transactionId: transactionId, result: result)
                     return
                 }

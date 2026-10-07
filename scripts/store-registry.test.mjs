@@ -8,7 +8,7 @@ import {
   validateProviderReport,
   validateStoreRegistry,
 } from "../specs/client/store-registry.mjs";
-import { requiredProviderBehaviors } from "../packages/conformance/src/spec/android-provider-profile.mjs";
+import { requiredProviderBehaviors } from "../packages/conformance/src/spec/provider-profile.mjs";
 import { SUITE_VERSION } from "../packages/conformance/src/spec/suite-version.mjs";
 
 const registry = () =>

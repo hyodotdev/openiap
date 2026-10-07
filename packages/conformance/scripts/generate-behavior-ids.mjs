@@ -11,10 +11,11 @@ import {
   CAPABILITY_MATRIX,
   CAPABILITY_STORES,
 } from "../../../specs/client/src/capability-matrix.mjs";
-import { ANDROID_PROVIDER_PROFILE } from "../src/spec/android-provider-profile.mjs";
 import { providerProfile } from "../src/spec/provider-profile.mjs";
 import { BEHAVIORS } from "../src/spec/behaviors.mjs";
 import { SUITE_VERSION } from "../src/spec/suite-version.mjs";
+
+const androidProfile = providerProfile("android");
 
 const defined = new Set(BEHAVIORS.map((behavior) => behavior.id));
 const profileIds = ["android", "ios"].flatMap((platform) => {
@@ -80,7 +81,7 @@ export function capabilityLevel(behavior, store) {
       const constants = [
         ...new Set([
           ...BEHAVIORS.map((behavior) => behavior.id),
-          ...ANDROID_PROVIDER_PROFILE.runtime,
+          ...androidProfile.runtime,
         ]),
       ]
         .map((id) => `    const val ${symbol(id)} = "${id}"`)
@@ -110,10 +111,10 @@ export function capabilityLevel(behavior, store) {
 object ConformanceBehaviors {
     const val SUITE_VERSION = "${SUITE_VERSION}"
     const val CLIENT_PROTOCOL_VERSION = "${JSON.parse(readFileSync(new URL("specs/client/package.json", ROOT), "utf8")).version}"
-    val ANDROID_MAPPING_BEHAVIORS = setOf(${ANDROID_PROVIDER_PROFILE.mapping.map(JSON.stringify).join(", ")})
-    val ANDROID_PROVIDER_BEHAVIORS = setOf(${ANDROID_PROVIDER_PROFILE.runtime.map(JSON.stringify).join(", ")})
+    val ANDROID_MAPPING_BEHAVIORS = setOf(${androidProfile.mapping.map(JSON.stringify).join(", ")})
+    val ANDROID_PROVIDER_BEHAVIORS = setOf(${androidProfile.runtime.map(JSON.stringify).join(", ")})
     val PROVIDER_CAPABILITY_BEHAVIORS = mapOf(${Object.entries(
-      ANDROID_PROVIDER_PROFILE.capabilities,
+      androidProfile.capabilities,
     )
       .map(
         ([key, value]) => `${JSON.stringify(key)} to ${JSON.stringify(value)}`,

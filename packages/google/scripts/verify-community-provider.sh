@@ -21,12 +21,13 @@ node --input-type=module - "$repo_root" "$fixture_root" <<'JS'
 import {readFileSync} from 'node:fs';
 const [root, fixture] = process.argv.slice(2);
 const {validateProviderReport} = await import(`${root}/specs/client/store-registry.mjs`);
-const {ANDROID_PROVIDER_PROFILE} = await import(`${root}/packages/conformance/src/spec/android-provider-profile.mjs`);
+const {providerProfile} = await import(`${root}/packages/conformance/src/spec/provider-profile.mjs`);
+const profile = providerProfile('android');
 const report = JSON.parse(readFileSync(`${fixture}/provider/build/reports/openiap/community_fixture.json`, 'utf8'));
 if (!validateProviderReport(report, ['pendingPurchases', 'subscriptionBillingIssue', 'offerCodeRedemption'])) throw new Error('Fixture report did not pass');
 const negative = JSON.parse(readFileSync(`${fixture}/provider/build/reports/openiap/missing-capability.json`, 'utf8'));
 const failed = negative.results.filter((result) => result.outcome === 'fail');
-if (validateProviderReport(negative, report.capabilities) || failed.length !== 1 || failed[0].id !== ANDROID_PROVIDER_PROFILE.capabilities.subscriptionBillingIssue) throw new Error('Missing capability did not fail its required behavior');
+if (validateProviderReport(negative, report.capabilities) || failed.length !== 1 || failed[0].id !== profile.capabilities.subscriptionBillingIssue) throw new Error('Missing capability did not fail its required behavior');
 if (report.store !== 'unknown' || report.storeId !== 'community_fixture') throw new Error('Fixture identity was lost');
 const mapping = readFileSync(`${fixture}/host/build/outputs/mapping/release/mapping.txt`, 'utf8');
 if (!mapping.includes('community.fixture.FixtureFactory -> community.fixture.FixtureFactory:')) throw new Error('R8 did not preserve the factory');

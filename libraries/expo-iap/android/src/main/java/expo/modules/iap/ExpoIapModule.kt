@@ -135,7 +135,7 @@ class ExpoIapModule : Module() {
     private val openIapLazy: Lazy<OpenIapProtocol> = lazy { OpenIapProvider.create(context) }
     private val openIap: OpenIapProtocol get() = openIapLazy.value
 
-    // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
+    // The bridge and store share one provider instance.
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }
     private var listenerHandles: ExpoIapHelper.ListenerHandles? = null
     private val pendingEvents = ConcurrentLinkedQueue<Pair<String, Map<String, Any?>>>()

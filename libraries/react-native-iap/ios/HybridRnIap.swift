@@ -85,8 +85,7 @@ class HybridRnIap: HybridRnIapSpec {
     private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
     private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
     private var pendingOnDemandInitErrorSuppressions: [String: Int] = [:]
-    // Shared across requests; concurrent requests may observe each other's count.
-    private var enqueuedPurchaseErrorDeliveries: UInt64 = 0
+    private var requestErrorObservation: (productId: String?, enqueued: Bool)?
     private let pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(
         capacity: HybridRnIap.maxPendingEvents,
         label: "pendingPurchaseUpdates"
@@ -1496,8 +1495,11 @@ class HybridRnIap: HybridRnIapSpec {
     ) async throws -> OpenIAP.RequestPurchaseResult? {
         try await runConnectedOperation {
             let epoch = self.currentConnectionEpoch()
-            let enqueuedErrorsBefore = self.listenerLock.withLock {
-                self.enqueuedPurchaseErrorDeliveries
+            self.listenerLock.withLock {
+                self.requestErrorObservation = (productId, false)
+            }
+            defer {
+                self.listenerLock.withLock { self.requestErrorObservation = nil }
             }
             do {
                 let result = try await operation()
@@ -1512,10 +1514,10 @@ class HybridRnIap: HybridRnIapSpec {
             } catch {
                 // A provider that enqueued its own error owns delivery.
                 RnIapLog.failure("requestPurchase", error: error)
-                let enqueuedErrorsAfter = self.listenerLock.withLock {
-                    self.enqueuedPurchaseErrorDeliveries
+                let providerEnqueuedError = self.listenerLock.withLock {
+                    self.requestErrorObservation?.enqueued ?? false
                 }
-                if enqueuedErrorsAfter == enqueuedErrorsBefore {
+                if !providerEnqueuedError {
                     self.deliverRequestPurchaseFallbackError(
                         PurchaseError.wrap(
                             error,
@@ -1723,8 +1725,10 @@ class HybridRnIap: HybridRnIapSpec {
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
         listenerLock.withLock {
-            if connectionEpoch == expectedEpoch {
-                enqueuedPurchaseErrorDeliveries &+= 1
+            if connectionEpoch == expectedEpoch,
+               let observation = requestErrorObservation,
+               observation.productId == error.productId {
+                requestErrorObservation?.enqueued = true
             }
         }
         return enqueueLifecycleOperation {

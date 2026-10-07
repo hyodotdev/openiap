@@ -669,7 +669,9 @@ function Releases() {
                 </li>
                 <li>
                   Preserves normalized provider errors when opening subscription
-                  management and delivers each repeated Apple purchase failure.
+                  management and delivers each repeated Apple purchase failure,
+                  including failures during another product&apos;s background
+                  error.
                 </li>
                 <li>
                   <code>getAvailablePurchases</code> honors{' '}

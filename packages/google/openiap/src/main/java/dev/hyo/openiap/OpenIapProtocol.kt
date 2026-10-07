@@ -8,10 +8,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 
-/**
- * Shared contract implemented by platform-specific OpenIAP billing modules.
- * Provides access to generated handler typealiases so the store can remain provider-agnostic.
- */
+/** Store providers implement the generated handlers and public operations. */
 interface OpenIapProtocol {
     val initConnection: MutationInitConnectionHandler
     val endConnection: MutationEndConnectionHandler
@@ -50,23 +47,11 @@ interface OpenIapProtocol {
     fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
     fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
 
-    // Developer Provided Billing (Google Play Billing Library 8.3.0+)
-    /**
-     * Add listener for developer-provided billing selection events.
-     * Called when the user selects the developer's option in an enabled billing program.
-     */
+    /** Listen for developer-provided billing selections. */
     fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
     fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener)
 
-    // Subscription Billing Issues (Google Play Billing Library 8.1.0+)
-    /**
-     * Add listener for subscription billing-issue events.
-     * Fires once per session when a subscription is observed with isSuspended == true.
-     *
-     * - Play flavor: populated via Purchase.isSuspended (Billing 8.1+).
-     * - Horizon flavor: NEVER fires. The Horizon Billing Compatibility SDK targets
-     *   Play Billing 7.0 which does not expose a suspended-subscription signal.
-     */
+    /** Listen for subscription billing issues reported by the provider. */
     fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener)
     fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener)
 
@@ -76,13 +61,12 @@ interface OpenIapProtocol {
     // Billing Programs (Google Play Billing Library 8.2.0+)
     /**
      * Enable a billing program for the next connection; call before initConnection.
-     * Only Google Play acts on it, so other implementations need not override it.
+     * Providers that support billing programs override this default.
      */
     fun enableBillingProgram(program: BillingProgramAndroid) {}
 
     /**
      * Check if a billing program is available for this user/device.
-     * Checks whether the selected billing program is available.
      *
      * @param program The billing program to check, including BILLING_CHOICE on 9.1.0+
      * @return Result containing availability information
@@ -91,7 +75,6 @@ interface OpenIapProtocol {
 
     /**
      * Create reporting details for transactions made outside of Google Play Billing.
-     * Creates reporting details for the selected billing program.
      *
      * @param program The billing program, including BILLING_CHOICE on 9.1.0+
      * @return Reporting details containing the external transaction token
@@ -103,7 +86,6 @@ interface OpenIapProtocol {
 
     /**
      * Launch an external link for external offer or app download.
-     * Launches the selected external-link flow.
      *
      * @param activity Current activity context
      * @param params Parameters for the external link
