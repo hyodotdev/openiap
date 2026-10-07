@@ -87,7 +87,6 @@ const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'flutter-iap-10.7.3',
   },
   { name: 'godot-iap', version: '3.6.3', tag: 'godot-iap-3.6.3' },
-  { name: 'kmp-iap', version: '3.6.3', tag: 'kmp-iap-3.6.3' },
   { name: 'maui-iap', version: '2.6.3', tag: 'maui-iap-2.6.3' },
 ];
 
@@ -694,6 +693,10 @@ function Releases() {
           </ul>
           <h5>Common changes</h5>
           <ul>
+            <li>
+              OpenIAP Google 4.0.0 clears the purchase status SKU after an empty
+              completion, so later store errors do not inherit that SKU.
+            </li>
             <li>
               The optional registry lists provider capabilities, maintenance
               tiers, and conformance reports; unregistered providers work with

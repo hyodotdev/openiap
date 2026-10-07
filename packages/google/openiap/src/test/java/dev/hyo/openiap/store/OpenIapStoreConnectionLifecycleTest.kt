@@ -3,11 +3,16 @@ package dev.hyo.openiap.store
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.MutationEndConnectionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
+import dev.hyo.openiap.MutationRequestPurchaseHandler
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.QueryGetAvailablePurchasesHandler
+import dev.hyo.openiap.RequestPurchaseProps
+import dev.hyo.openiap.RequestPurchaseResult
+import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -21,12 +26,53 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OpenIapStoreConnectionLifecycleTest {
+    @Test
+    fun `an empty purchase completion does not label a later error with its sku`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+        module.purchaseResult = RequestPurchaseResultPurchases(emptyList())
+
+        try {
+            store.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+            )))
+            module.emitError(OpenIapError.PurchaseFailed("Unrelated store error"))
+
+            assertFalse(store.status.value.loadings.purchasing.contains("coins"))
+            assertNull(store.status.value.lastPurchaseResult?.productId)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a dispatched purchase without a result keeps its sku until its error event`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+
+        try {
+            store.requestPurchase(RequestPurchaseProps.fromJson(mapOf(
+                "requestPurchase" to mapOf("google" to mapOf("skus" to listOf("coins"))),
+            )))
+            module.emitError(OpenIapError.PurchaseFailed("Dispatched purchase failed"))
+
+            assertEquals("coins", store.status.value.lastPurchaseResult?.productId)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test
     fun `purchase updates survive a connection cycle`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -147,6 +193,7 @@ private class FakeOpenIapProtocol {
     var availablePurchaseRequests = 0
     var connectionResult = true
     var endConnectionError: Exception? = null
+    var purchaseResult: RequestPurchaseResult? = null
 
     private val initConnection: MutationInitConnectionHandler = { connectionResult }
     private val endConnection: MutationEndConnectionHandler = {
@@ -157,6 +204,7 @@ private class FakeOpenIapProtocol {
         availablePurchaseRequests += 1
         availablePurchases
     }
+    private val requestPurchase: MutationRequestPurchaseHandler = { purchaseResult }
 
     val protocol: OpenIapProtocol = Proxy.newProxyInstance(
         OpenIapProtocol::class.java.classLoader,
@@ -166,6 +214,7 @@ private class FakeOpenIapProtocol {
             "getInitConnection" -> initConnection
             "getEndConnection" -> endConnection
             "getGetAvailablePurchases" -> getAvailablePurchases
+            "getRequestPurchase" -> requestPurchase
             "addPurchaseUpdateListener" -> {
                 purchaseUpdateListeners += args.single() as OpenIapPurchaseUpdateListener
                 Unit
@@ -207,6 +256,12 @@ private class FakeOpenIapProtocol {
     fun emitBillingServiceDisconnected() {
         for (listener in connectionStateListeners) {
             listener.onBillingServiceDisconnected()
+        }
+    }
+
+    fun emitError(error: OpenIapError) {
+        for (listener in purchaseErrorListeners) {
+            listener.onPurchaseError(error)
         }
     }
 }

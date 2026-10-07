@@ -477,7 +477,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         }
 
         try {
-            module.requestPurchase(props)
+            module.requestPurchase(props).also { result ->
+                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true &&
+                    pendingRequestProductId == skuForStatus
+                ) {
+                    pendingRequestProductId = null
+                }
+            }
         } finally {
             if (skuForStatus != null) removePurchasing(skuForStatus)
         }

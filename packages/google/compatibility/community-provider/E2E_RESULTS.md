@@ -72,6 +72,30 @@ in the private run manifest.
 | React Native | Amazon / VegaOS | PASS     | `51ad7378-ee91-491c-90ea-d9f00dc74760` | `d75d9e237205`   |
 | Expo         | Amazon / VegaOS | BLOCKED  | —                                      | `c6fb8ee304e5`   |
 
+## Supplemental receipts
+
+These checks supplement the matrix without changing its executed sources or
+22 passing cells. Both used the same local development IAPKit server.
+
+| App and source          | Channel                          | Result                                     | Server correlation id                  | Artifact SHA-256 |
+| ----------------------- | -------------------------------- | ------------------------------------------ | -------------------------------------- | ---------------- |
+| Native Play, `a77e4ed3` | Pixel license tester             | Purchase, verification and completion PASS | `c67b8a4e-5498-43b6-b62a-45128be4bc5b` | `b10155ee21d5`   |
+| Expo, October 3 LAT93   | Appstore-installed Test2 on Fire | Receipt recovery and completion PASS       | `aaabae46-397e-4700-8001-7f8592ce0ecb` | `0b7a8a7dc403`   |
+
+Native Play displayed a free test order, inserted one valid canonical receipt,
+consumed the item and restored only the existing non-consumable. The restore
+did not add a row or advance statistics. This checks the merged Play purchase
+path; it does not exercise the User Choice external-billing UI.
+
+LAT93's first verification failed while the local server and USB route were
+unavailable. Restoring that route and refreshing purchases verified and
+finished the same receipt without another checkout. A second user-initiated
+purchase also verified and finished (`eaecf3e8-97f5-4f55-a72e-4cf07def695c`).
+Each receipt added exactly one canonical row; subscriptions stayed unchanged.
+These are old Appstore-distributed source results, not current-source LAT
+coverage. The current Fire account remains enrolled, and a backup account's
+Test2 invitation was delivered.
+
 ## Lifecycle and recovery
 
 - Apple, Play and Fire rows retained the known non-consumable entitlement on
@@ -133,12 +157,15 @@ in the private run manifest.
   device failure was induced.
   Separately, Appstore-installed LAT version 93 opened the live foreground
   purchase Activity and cancelled without a verification call or backend change.
-  Its additional receipt check was withheld because the device account did not
-  match the track's delivered tester. The account and tester registration were
-  left unchanged. LAT purchases are
+  Its later receipt checks passed as recorded above. An initial account-mismatch
+  diagnosis incorrectly compared the device's Kindle address with the retail
+  account; the actual retail account matched the delivered tester.
+  LAT purchases are
   [free for enrolled testers](https://developer.amazon.com/docs/app-testing/live-app-testing-faq.html);
-  the displayed price alone was not the blocker. This proves the old build's
-  Activity path, not a live-channel receipt or the new, undistributed candidate.
+  the displayed price alone is not a blocker. LAT uses production receipt
+  services, so that receipt-environment label does not establish a paid order.
+  Current-source live-channel coverage still requires distributing its new
+  candidate through LAT.
 - **Onside:** Expo's unsigned device build embedded OnsideKit 0.7.5, the `onside`
   query scheme and `dev.hyo.martie.onside-auth` callback scheme. This is a
   build-only result, with no Onside runtime purchase claim.
