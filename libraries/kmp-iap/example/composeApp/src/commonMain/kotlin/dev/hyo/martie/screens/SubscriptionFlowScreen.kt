@@ -21,8 +21,8 @@ import androidx.navigation.NavController
 import dev.hyo.martie.config.AppConfig
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.PurchaseException
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.getCurrentPlatform
@@ -220,7 +220,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                             try {
                                 kmpIapInstance.finishTransaction(
                                     purchase = purchase.toPurchaseInput(),
-                                    isConsumable = false
+                                    isConsumable = purchase.productId in ConsumableProductIds
                                 )
                                 purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
 
@@ -261,7 +261,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = kmpIapInstance.initConnection()
+                val connectionResult = ensureExampleConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {

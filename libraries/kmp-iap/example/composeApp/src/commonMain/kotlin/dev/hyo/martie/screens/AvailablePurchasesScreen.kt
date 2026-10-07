@@ -101,7 +101,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             isConnecting = true
             isLoading = true
             try {
-                val connectionResult = kmpIapInstance.initConnection()
+                val connectionResult = ensureExampleConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {

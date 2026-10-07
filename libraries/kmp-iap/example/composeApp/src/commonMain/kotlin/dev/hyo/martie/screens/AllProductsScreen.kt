@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.fetchProducts
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import kotlinx.coroutines.launch
@@ -38,7 +38,7 @@ fun AllProductsScreen(navController: NavController) {
             loading = true
             message = null
             try {
-                kmpIapInstance.initConnection()
+                ensureExampleConnection()
                 products = kmpIapInstance.fetchProducts {
                     skus = AllProductIds
                     type = ProductQueryType.All

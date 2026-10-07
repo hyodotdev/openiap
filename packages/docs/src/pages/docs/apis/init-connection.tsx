@@ -125,6 +125,11 @@ function InitConnection() {
           <code>DEVELOPER_RENDERED</code> when your app owns the choice screen.
         </li>
       </ul>
+      <p>
+        Calling <code>initConnection(config)</code> on an already connected
+        client returns <code>true</code> and ignores the config, so end the
+        connection first to change the billing program.
+      </p>
 
       <AnchorLink id="returns" level="h2">
         Returns

@@ -16,10 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.kmpIapInstance
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.getCurrentPlatform
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import kotlinx.coroutines.launch
 
@@ -35,7 +35,7 @@ fun OfferCodeScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         try {
-            kmpIapInstance.initConnection()
+            ensureExampleConnection()
             isConnected = true
         } catch (e: Exception) {
             result = "Connection failed: ${e.message}"

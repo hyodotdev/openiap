@@ -136,6 +136,8 @@ kmpIAP.finishTransaction(
 )
 ```
 
+Keep one live client per process. On Meta Horizon a second live client kills the process when it queries purchases.
+
 ## Powered by OpenIAP
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>

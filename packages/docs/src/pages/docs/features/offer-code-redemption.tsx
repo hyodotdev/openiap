@@ -188,13 +188,16 @@ final class RedemptionManager {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-class RedemptionManager(private val scope: CoroutineScope) {
-    private val iap = KmpIAP()
+class RedemptionManager(
+    private val scope: CoroutineScope,
+    private val iap: KmpIAP = kmpIapInstance
+) {
     private var purchaseJob: Job? = null
 
     suspend fun start() {

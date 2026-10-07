@@ -79,10 +79,7 @@ fun defaultVerificationMethod(apiKey: String, localBaseUrl: String): Verificatio
 @Composable
 fun PurchaseFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    
-    // Use global IAP instance for this example
-    // This demonstrates using the pre-created singleton instance
-    
+
     var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -275,7 +272,7 @@ fun PurchaseFlowScreen(navController: NavController) {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = kmpIapInstance.initConnection()
+                val connectionResult = ensureExampleConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {

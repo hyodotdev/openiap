@@ -334,6 +334,10 @@ val kmpIAP = KmpIAP()
 scope.launch { kmpIAP.initConnection() }`}
         </CodeBlock>
         <p>
+          Keep one live client per process. On Meta Horizon a second live client
+          kills the process when it queries purchases.
+        </p>
+        <p>
           See{' '}
           <a href="/docs/apis/init-connection">
             <code>initConnection</code>
