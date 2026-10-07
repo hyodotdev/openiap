@@ -537,7 +537,7 @@ function Releases() {
               OpenIAP Google 4.0.0 and KMP 4.0.0 make the Kotlin{' '}
               <code>RequestVerifyPurchaseWithIapkitResult</code> a plain class
               whose constructor and <code>copy</code> carry <code>storeId</code>
-              ; recompile code that copies results or constructs or copies
+              {'; '}recompile code that copies results or constructs or copies
               purchases.
             </li>
             <li>
@@ -740,10 +740,6 @@ function Releases() {
               moves to the following major releases.
             </li>
           </ul>
-          <p>
-            IAPKit updates sharp and MCP SDK dependencies, and JavaScript build
-            tools use patched shell-quote versions.
-          </p>
           <div
             style={{
               marginTop: '1rem',

@@ -22,7 +22,7 @@ Provider selection does not add IAPKit server validation for a new store.
 | Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance                                                      |
 | Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                                                            |
 | Documentation         | Common provider authoring/selection guide, API/type consistency, affected release card, and production-site build                                                                                     |
-| Devices               | 31 original build cells; later 7/7 Apple, Play, and Amazon purchase/verify/finish re-verification; three fixture runtime flows; see E2E_RESULTS.md for revisions and limits                           |
+| Devices               | All 30 hardware cells attempted: 22 sandbox purchase/verify/finish passes, seven Horizon real-payment gates, one Vega tester failure; separate Onside build-only pass; see E2E_RESULTS.md             |
 
 See [E2E_RESULTS.md](E2E_RESULTS.md) for every device row and limitation.
 Use [README.md](README.md) and the Apple compatibility fixture to reproduce
@@ -82,8 +82,9 @@ workflows; local Maven/SPM checks do not claim public publication.
 
 Existing official aliases and deprecated configuration paths remain supported
 through this provider release. Their removal moves to the following major
-release. Commerce Protocol and IAPKit have no source/publication change in
-this task.
+release. Commerce Protocol has no publication change. This task adds no IAPKit
+store adapter or response-contract change. Dependency/lockfile updates still
+trigger the existing IAPKit deployment workflow on merge.
 
 CI applies to its recorded head SHA. Device rows name their executed revision
 in E2E_RESULTS.md; fixture checks and later report edits do not replace a device run.
