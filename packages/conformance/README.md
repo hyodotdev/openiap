@@ -57,8 +57,10 @@ Declare optional capabilities on the factory and adapter using
 a declared capability with no trigger or matching event fails.
 
 Set the test JVM property `openiap.conformanceReport` to an output file, such as
-`build/reports/openiap/{storeId}.json`. The report records executed assertions,
-`suiteVersion`, `clientProtocolVersion`, capabilities and required behaviors.
+`build/reports/openiap/{storeId}.json`. Instrumented runs do not receive the
+JVM property, so the report is only written from JVM/Robolectric runs. The
+report records executed assertions, `suiteVersion`, `clientProtocolVersion`,
+capabilities and required behaviors.
 A missing required result or any failing assertion makes `conformant` false.
 Upload the JSON together with a successful test run in the provider's CI.
 

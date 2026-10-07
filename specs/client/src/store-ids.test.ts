@@ -2,7 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./store-registry.json", () => ({
   default: {
-    stores: [{ id: "any" }, { id: "self" }, { id: "type" }, { id: "community-store" }],
+    stores: [
+      { id: "any" },
+      { id: "self" },
+      { id: "type" },
+      { id: "community_store" },
+      { id: "trailing_" },
+      { id: "double__underscore" },
+    ],
   },
 }));
 
@@ -15,7 +22,11 @@ describe("store identity constants", () => {
     expect(swift).toContain('public static let `Self` = "self"');
     expect(swift).toContain('public static let `Type` = "type"');
     expect(swift).toContain(
-      'public static let CommunityStore = "community-store"',
+      'public static let CommunityStore = "community_store"',
+    );
+    expect(swift).toContain('public static let Trailing = "trailing_"');
+    expect(swift).toContain(
+      'public static let DoubleUnderscore = "double__underscore"',
     );
   });
 
@@ -28,7 +39,7 @@ describe("store identity constants", () => {
       "gdscript",
       "csharp",
     ] as const) {
-      expect(renderStoreIds(language)).toContain("community-store");
+      expect(renderStoreIds(language)).toContain("community_store");
     }
   });
 });

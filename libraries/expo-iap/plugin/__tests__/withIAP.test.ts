@@ -693,7 +693,7 @@ describe('android configuration', () => {
     );
   });
 
-  it.each([['1store'], ['has space'], ['upper!'], ['a..b']])(
+  it.each([['1store'], ['has space'], ['upper!'], ['a..b'], ['with-hyphen']])(
     'rejects the invalid %s store id grammar',
     (store) => {
       expect(() =>

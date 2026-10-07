@@ -36,10 +36,10 @@ class IapkitResultMappingTest {
             clientPayload = null,
             productId = null,
             environment = null,
-            storeId = "community-fixture",
+            storeId = "community_fixture",
         ).toKmpIapkitResult()
         assertEquals(IapStore.Unknown, mapped.store)
-        assertEquals("community-fixture", mapped.storeId)
+        assertEquals("community_fixture", mapped.storeId)
     }
 
     @Test
@@ -51,7 +51,7 @@ class IapkitResultMappingTest {
             clientPayload = null,
             productId = null,
             environment = null,
-            storeId = "community-fixture",
+            storeId = "community_fixture",
         )
         // A drifted openiap-google may stamp an id this build rejects. Public
         // constructors forbid that today, so corrupt it reflectively.

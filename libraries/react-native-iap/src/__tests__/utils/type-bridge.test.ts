@@ -471,7 +471,7 @@ describe('type-bridge utilities', () => {
       const unknown = convertNitroPurchaseToPurchase(
         purchase({
           store: 'other' as never,
-          storeId: 'future-store',
+          storeId: 'future_store',
           purchaseState: 99 as never,
         }),
       );
@@ -613,18 +613,18 @@ describe('type-bridge utilities', () => {
 test('preserves a community provider storeId through the Nitro purchase bridge', () => {
   const nativePurchase = purchase({
     store: 'unknown',
-    storeId: 'community-fixture',
+    storeId: 'community_fixture',
   });
   const result = convertNitroPurchaseToPurchase(nativePurchase);
   expect(result.store).toBe('unknown');
-  expect(result.storeId).toBe('community-fixture');
+  expect(result.storeId).toBe('community_fixture');
 });
 
 test('preserves a community iOS purchase shape and opaque transaction identifier', () => {
   const result = convertNitroPurchaseToPurchase(
     purchase({
       store: 'unknown',
-      storeId: 'community-fixture',
+      storeId: 'community_fixture',
       platform: 'ios',
       transactionId: 'opaque-txn',
       quantityIOS: 2,
@@ -633,7 +633,7 @@ test('preserves a community iOS purchase shape and opaque transaction identifier
   );
   expect(result).toMatchObject({
     store: 'unknown',
-    storeId: 'community-fixture',
+    storeId: 'community_fixture',
     transactionId: 'opaque-txn',
     quantityIOS: 2,
     environmentIOS: 'Sandbox',

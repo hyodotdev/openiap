@@ -15,9 +15,29 @@ interface ProviderListing extends Omit<
   (typeof registry.stores)[number],
   'reports'
 > {
-  reports: { platform: string; url: string }[];
+  reports: { platform: string; url: string; suiteVersion: string }[];
 }
 const STORE_LISTINGS: ProviderListing[] = registry.stores;
+
+const suiteMajor = (version: string): number => Number(version.split('.')[0]);
+
+function providerStatus(
+  store: ProviderListing,
+  now: Date = new Date()
+): string {
+  if (store.tier !== 'community') return store.tier;
+  if (
+    store.reports.every(
+      (report) =>
+        suiteMajor(report.suiteVersion) === suiteMajor(registry.suiteVersion)
+    )
+  )
+    return 'community';
+  return now.getTime() - new Date(registry.suiteMajorAdoptionDate).getTime() >
+    registry.maintenanceWindowDays * 86_400_000
+    ? 'unmaintained'
+    : 'outdated';
+}
 
 const SELECTION: Record<string, string> = {
   'react-native-iap': 'Set both properties in android/gradle.properties.',
@@ -67,7 +87,7 @@ const STORE_COLUMNS: DataTableColumn<ProviderListing>[] = [
     header: 'Status',
     cell: (store) => (
       <>
-        {store.status}
+        {providerStatus(store)}
         {store.reports.map((report) => (
           <div key={report.platform}>
             <a href={report.url}>{report.platform} conformance report</a>
@@ -196,13 +216,13 @@ export default function StoreProviders() {
             </p>
             <CodeBlock
               language="javascript"
-              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon-example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', {\n          ...iapOptions,\n          openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n        }]\n      : ['expo-iap', {\n          ...iapOptions,\n          android: { ...iapOptions.android, store: 'play' },\n          enableLocalDev: true,\n          localPath: { android: '/absolute/path/to/openiap/packages/google' },\n        }],\n  ],\n});`}
+              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon_example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', {\n          ...iapOptions,\n          openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n        }]\n      : ['expo-iap', {\n          ...iapOptions,\n          android: { ...iapOptions.android, store: 'play' },\n          enableLocalDev: true,\n          localPath: { android: '/absolute/path/to/openiap/packages/google' },\n        }],\n  ],\n});`}
             />
             Use the same store setting in your EAS profiles:
             <CodeBlock
               language="json"
               children={
-                '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "google" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon-example" }\n    }\n  }\n}'
+                '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "google" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon_example" }\n    }\n  }\n}'
               }
             />
             For this snapshot, use EAS <code>--local</code> with the prepared
@@ -235,7 +255,7 @@ export default function StoreProviders() {
             <CodeBlock
               language="bash"
               children={
-                'export ORG_GRADLE_PROJECT_openiapStore=amazon-example\nbunx expo prebuild --platform android\nbunx expo run:android --device'
+                'export ORG_GRADLE_PROJECT_openiapStore=amazon_example\nbunx expo prebuild --platform android\nbunx expo run:android --device'
               }
             />
             Use <code>google</code> for a local Play build. Rerun prebuild and
@@ -246,7 +266,7 @@ export default function StoreProviders() {
             <code>useIAP</code>, product, purchase, restore and finish APIs stay
             the same. Purchases from this example carry{' '}
             <code>store: 'unknown'</code> and{' '}
-            <code>storeId: 'amazon-example'</code>. Configure the backend for
+            <code>storeId: 'amazon_example'</code>. Configure the backend for
             Amazon receipt verification, grant entitlement only after valid
             verification, then finish. The native package does not install a
             server verification adapter. Follow the{' '}
@@ -359,7 +379,7 @@ export default function StoreProviders() {
         <CodeBlock
           language="properties"
           children={
-            'openiapStore=your-store\nopeniapProvider=com.example:openiap-your-store:1.0.0'
+            'openiapStore=your_store\nopeniapProvider=com.example:openiap-your_store:1.0.0'
           }
         />
         <DataTable
@@ -374,8 +394,8 @@ export default function StoreProviders() {
           language="typescript"
           children={`plugins: [
   ['expo-iap', {android: {
-    store: 'your-store',
-    provider: 'com.example:openiap-your-store:1.0.0',
+    store: 'your_store',
+    provider: 'com.example:openiap-your_store:1.0.0',
   }}],
 ]`}
         />
@@ -408,8 +428,8 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
         <CodeBlock
           language="xml"
           children={`<PropertyGroup>
-  <OpenIapStore>your-store</OpenIapStore>
-  <OpenIapProvider>com.example:openiap-your-store:1.0.0</OpenIapProvider>
+  <OpenIapStore>your_store</OpenIapStore>
+  <OpenIapProvider>com.example:openiap-your_store:1.0.0</OpenIapProvider>
 </PropertyGroup>`}
         />
         <p>
@@ -445,7 +465,10 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           <code>store</code> value in its purchases, independent of the
           community id used to select it. Official ids are <code>apple</code>,{' '}
           <code>play</code>, <code>horizon</code>, and <code>amazon</code>;
-          Play’s existing enum wire value remains <code>'google'</code>.
+          Play’s existing enum wire value remains <code>'google'</code>. A
+          community <code>storeId</code> is the same string the Commerce
+          Protocol uses as the store key: lowercase, starting with a letter,
+          followed by letters, digits, or underscores.
         </p>
         <p>
           Use <code>purchase.storeId</code> when routing a purchase to your
@@ -491,7 +514,7 @@ import OpenIAP
 @objc(YourStoreProviderFactory)
 public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
   public required override init() { super.init() }
-  public var storeId: String { "your-store" }
+  public var storeId: String { "your_store" }
   public var coreVersion: String { "${OPENIAP_VERSIONS.apple}" }
   public var clientProtocolVersion: String { "${OPENIAP_VERSIONS.clientProtocol}" }
   public var capabilities: Set<String> { ["pendingPurchases"] }
@@ -564,7 +587,7 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           children={`package com.example.billing
 
 class YourStoreFactory : OpenIapProviderFactory {
-  override val storeId = "your-store"
+  override val storeId = "your_store"
   override val coreVersion = "${OPENIAP_VERSIONS.google}"
   override val clientProtocolVersion = "${OPENIAP_VERSIONS.clientProtocol}"
   override val capabilities = setOf("pendingPurchases")
@@ -712,7 +735,7 @@ class YourStoreFactory : OpenIapProviderFactory {
         </p>
         <p>
           After adoption of a new suite major, an older passing report is marked
-          outdated. CI marks it unmaintained after{' '}
+          outdated. The registry listing marks it unmaintained after{' '}
           {registry.maintenanceWindowDays} days. The current major adoption date
           is {registry.suiteMajorAdoptionDate}; update the report to restore
           current community status.

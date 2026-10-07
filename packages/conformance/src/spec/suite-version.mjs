@@ -8,5 +8,9 @@
  */
 export const SUITE_VERSION = '4.0.0';
 
-/** Current major's adoption date; starts the registry maintenance grace window. */
-export const SUITE_MAJOR_RELEASE_DATE = '2026-10-01';
+/**
+ * Publication date of the current suite major. The release that publishes a
+ * new major sets this to the publication date; the registry maintenance grace
+ * window starts from it. Never the date the bump was authored.
+ */
+export const SUITE_MAJOR_RELEASE_DATE = '2026-10-07';

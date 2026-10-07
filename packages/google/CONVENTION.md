@@ -123,3 +123,5 @@ Some implementation helpers exist only on specific Android flavors:
 ## Store Providers
 
 Android reaches the selected store only through `OpenIapProvider` manifest discovery; the contract, identity rules, and parity checklist live in [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers) and [04-platform-packages.md](../../knowledge/internal/04-platform-packages.md#provider-identity-and-selection).
+
+New `OpenIapProtocol` members must ship with a default implementation so existing providers keep linking; `OpenIapProtocolSurfaceTest` and `:openiap-core:apiCheck` enforce it.

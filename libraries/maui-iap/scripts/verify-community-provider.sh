@@ -56,7 +56,7 @@ cat > "$workspace/repository.targets" <<TARGETS
 TARGETS
 
 dotnet restore "$example" -p:TargetFrameworks=net10.0-android --nologo > "$workspace/restore.log" 2>&1
-args=(-nologo -p:TargetFramework=net10.0-android "-p:IntermediateOutputPath=$workspace/obj/" "-p:MavenCacheDirectory=$workspace/maven-cache" -p:OpenIapStore=community-fixture "-p:CustomAfterMicrosoftCommonTargets=$workspace/repository.targets")
+args=(-nologo -p:TargetFramework=net10.0-android "-p:IntermediateOutputPath=$workspace/obj/" "-p:MavenCacheDirectory=$workspace/maven-cache" -p:OpenIapStore=community_fixture "-p:CustomAfterMicrosoftCommonTargets=$workspace/repository.targets")
 dotnet msbuild "$example" "${args[@]}" -p:OpenIapProvider=community.fixture:provider:1.0.0 \
     -t:_CategorizeAndroidLibraries -getItem:AndroidLibrary,AndroidIgnoredJavaDependency > "$workspace/resolved.json" 2>&1
 python3 - "$workspace/resolved.json" <<'PY'

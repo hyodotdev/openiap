@@ -26,7 +26,7 @@ static func resolve_store_id(store: Variant, value: Variant) -> Variant:
 	if official != null:
 		return id if id == official else null
 	var pattern = RegEx.new()
-	pattern.compile("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
+	pattern.compile("^[a-z][a-z0-9_]*$")
 	return id if pattern.search(id) != null and pattern.search(id).get_string() == id and not id in ["auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon"] else null
 
 # ============================================================================

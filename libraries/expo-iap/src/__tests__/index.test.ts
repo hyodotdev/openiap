@@ -1326,14 +1326,14 @@ describe('Public API (index.ts)', () => {
       (ExpoIapModule.getAvailableItems as jest.Mock).mockResolvedValue([
         nativePurchase('community', {
           store: 'unknown',
-          storeId: 'community-fixture',
+          storeId: 'community_fixture',
           transactionId: 'opaque-txn',
         }),
       ]);
       expect(await getAvailablePurchases()).toEqual([
         expect.objectContaining({
           store: 'unknown',
-          storeId: 'community-fixture',
+          storeId: 'community_fixture',
           transactionId: 'opaque-txn',
         }),
       ]);
@@ -1387,13 +1387,13 @@ describe('Public API (index.ts)', () => {
       jest.mocked(ExpoIapModule.getAvailableItems).mockResolvedValue([
         nativePurchase('community', {
           store: 'unknown',
-          storeId: 'community-fixture',
+          storeId: 'community_fixture',
         }),
       ]);
       await expect(getAvailablePurchases()).resolves.toEqual([
         expect.objectContaining({
           store: 'unknown',
-          storeId: 'community-fixture',
+          storeId: 'community_fixture',
         }),
       ]);
       await expect(restorePurchases()).resolves.toBeUndefined();
@@ -1475,7 +1475,7 @@ describe('Public API (index.ts)', () => {
       Object.assign(Platform, {OS: 'android'});
       const purchase = nativePurchase('opaque-id', {
         store: 'unknown',
-        storeId: 'community-fixture',
+        storeId: 'community_fixture',
         purchaseToken: 'opaque-receipt',
       });
       (ExpoIapModule.finishTransaction as jest.Mock) = jest
@@ -1491,7 +1491,7 @@ describe('Public API (index.ts)', () => {
       Object.assign(Platform, {OS: 'android'});
       const purchase = nativePurchase('opaque-id', {
         store: 'unknown',
-        storeId: 'community-fixture',
+        storeId: 'community_fixture',
         purchaseToken: 'opaque-receipt',
       });
       (ExpoIapModule.finishTransaction as jest.Mock) = jest
@@ -2115,7 +2115,7 @@ describe('Public API (index.ts)', () => {
       ['apple', undefined, 'apple'],
       ['horizon', undefined, 'horizon'],
       ['amazon', undefined, 'amazon'],
-      ['unknown', 'community-store', 'community-store'],
+      ['unknown', 'community_store', 'community_store'],
     ])(
       'preserves verification identity for %s',
       async (store, storeId, expected) => {
@@ -2133,7 +2133,7 @@ describe('Public API (index.ts)', () => {
     it.each([
       ['unknown', undefined],
       ['unknown', 'unknown'],
-      ['google', 'community-store'],
+      ['google', 'community_store'],
       ['apple', 'play'],
     ])(
       'rejects contradictory verification identity for %s/%s',

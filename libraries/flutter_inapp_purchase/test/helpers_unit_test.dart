@@ -11,7 +11,7 @@ void main() {
             'transactionId': 'opaque-txn',
             'productId': 'premium',
             'store': 'unknown',
-            'storeId': 'community-fixture',
+            'storeId': 'community_fixture',
             'quantity': 1,
             'purchaseState': 'purchased',
             'isAutoRenewing': false,
@@ -23,7 +23,7 @@ void main() {
         acknowledgedAndroidPurchaseTokens: <String, bool>{},
         rejectMalformed: true);
     expect(result.single, isA<types.PurchaseIOS>());
-    expect(result.single.storeId, 'community-fixture');
+    expect(result.single.storeId, 'community_fixture');
   });
 
   test('preserves a community store identity in an Android purchase', () {
@@ -33,7 +33,7 @@ void main() {
           'productId': 'premium',
           'transactionDate': 1,
           'store': 'unknown',
-          'storeId': 'community-fixture',
+          'storeId': 'community_fixture',
           'quantity': 1,
           'purchaseState': 'purchased',
           'isAutoRenewing': false,
@@ -42,7 +42,7 @@ void main() {
         platformIsIOS: false,
         acknowledgedAndroidPurchaseTokens: <String, bool>{});
     expect(purchase.store, types.IapStore.Unknown);
-    expect(purchase.storeId, 'community-fixture');
+    expect(purchase.storeId, 'community_fixture');
   });
 
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -192,7 +192,7 @@ void main() {
       for (final storeId in [
         true,
         123,
-        ['community-fixture']
+        ['community_fixture']
       ]) {
         expect(
           () => convertToPurchase(

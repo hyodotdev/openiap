@@ -236,10 +236,10 @@ final class GodotIapHelperTests: XCTestCase {
     func testHandBuiltBlankIdentityStampsCommunityProvidersAsUnknown() throws {
         let stamped = GodotIapHelper.withProviderStoreIdentity(
             handBuiltPurchase(),
-            providerStoreId: { "community-fixture" }
+            providerStoreId: { "community_fixture" }
         )
         XCTAssertEqual(stamped["store"] as? String, "unknown")
-        XCTAssertEqual(stamped["storeId"] as? String, "community-fixture")
+        XCTAssertEqual(stamped["storeId"] as? String, "community_fixture")
         let decoded = try OpenIapSerialization.purchaseInput(from: stamped)
         guard case let .purchaseIos(purchase) = decoded else {
             return XCTFail("Expected an iOS purchase input")
@@ -268,7 +268,7 @@ final class GodotIapHelperTests: XCTestCase {
     func testExplicitStoreIdPassesThroughUntouched() throws {
         var lookups = 0
         let inputs: [[String: Any]] = [
-            handBuiltPurchase(store: "unknown", storeId: "community-fixture"),
+            handBuiltPurchase(store: "unknown", storeId: "community_fixture"),
             handBuiltPurchase(store: "apple", storeId: "apple"),
         ]
         for input in inputs {
@@ -283,12 +283,12 @@ final class GodotIapHelperTests: XCTestCase {
         }
         XCTAssertEqual(lookups, 0)
         let decoded = try OpenIapSerialization.purchaseInput(
-            from: handBuiltPurchase(store: "unknown", storeId: "community-fixture")
+            from: handBuiltPurchase(store: "unknown", storeId: "community_fixture")
         )
         guard case let .purchaseIos(purchase) = decoded else {
             return XCTFail("Expected an iOS purchase input")
         }
-        XCTAssertEqual(purchase.storeId, "community-fixture")
+        XCTAssertEqual(purchase.storeId, "community_fixture")
     }
 
     func testUnreadableProviderLeavesBlankIdentityUntouched() {

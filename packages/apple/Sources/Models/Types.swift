@@ -23,7 +23,7 @@ private func resolveStoreId(_ store: IapStore, _ value: String?) -> String? {
     }
     guard let id = value ?? official else { return nil }
     if let official { return id == official ? id : nil }
-    guard id.range(of: "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", options: .regularExpression) == id.startIndex..<id.endIndex,
+    guard id.range(of: "^[a-z][a-z0-9_]*$", options: .regularExpression) == id.startIndex..<id.endIndex,
           !["auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon"].contains(id) else { return nil }
     return id
 }

@@ -175,7 +175,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                 isReconnecting = true
                 purchaseResult = "Reconnecting with new billing program..."
 
-                // Reconnect ends the shared connection first when the program differs
                 val config = if (currentPlatform == "Android") {
                     InitConnectionConfig(
                         enableBillingProgramAndroid = program,
@@ -189,7 +188,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                 connected = ensureExampleConnection(config)
 
-                purchaseResult = "✅ Reconnected with ${
+                purchaseResult = "✅ Connected with ${
                     when (program) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing"
                         BillingProgramAndroid.BillingChoice -> "Billing Choice"

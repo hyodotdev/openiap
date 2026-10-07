@@ -125,7 +125,6 @@ const data = registry.stores.map((store) => {
     capabilities: [
       ...new Set(bindings.flatMap((binding) => binding.capabilities)),
     ],
-    status: maintenanceStatus(store, registry.maintenanceWindowDays),
     coordinates: bindings
       .map(
         (binding) =>
@@ -140,6 +139,7 @@ const data = registry.stores.map((store) => {
       .map((binding) => ({
         platform: binding.platform,
         url: binding.latestReport.url,
+        suiteVersion: binding.latestReport.report.suiteVersion,
       })),
   };
 });
@@ -168,11 +168,11 @@ if (previous !== docs) {
     console.log(`generated ${docsPath}`);
   }
 }
-for (const store of data.filter((store) =>
-  ["outdated", "unmaintained"].includes(store.status),
-)) {
+for (const store of registry.stores) {
+  const status = maintenanceStatus(store, registry.maintenanceWindowDays);
+  if (!["outdated", "unmaintained"].includes(status)) continue;
   console.warn(
-    `::warning title=OpenIAP provider ${store.status}::${store.id}: conformance report is behind the current suite major`,
+    `::warning title=OpenIAP provider ${status}::${store.id}: conformance report is behind the current suite major`,
   );
 }
 if (drift.length) {

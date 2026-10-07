@@ -33,9 +33,9 @@ class IapkitResultStoreIdentityTest {
     }
 
     @Test fun `explicit store ids must match their store`() {
-        val community = RequestVerifyPurchaseWithIapkitResult(true, IapkitPurchaseState.Entitled, IapStore.Unknown, null, null, null, "community-fixture")
-        assertEquals("community-fixture", community.storeId)
-        assertEquals("community-fixture", RequestVerifyPurchaseWithIapkitResult.fromJson(community.toJson()).storeId)
+        val community = RequestVerifyPurchaseWithIapkitResult(true, IapkitPurchaseState.Entitled, IapStore.Unknown, null, null, null, "community_fixture")
+        assertEquals("community_fixture", community.storeId)
+        assertEquals("community_fixture", RequestVerifyPurchaseWithIapkitResult.fromJson(community.toJson()).storeId)
         for (id in listOf("unknown", "", "auto", "none", "apple", "play", "Bad id")) {
             assertThrows(IllegalArgumentException::class.java) {
                 RequestVerifyPurchaseWithIapkitResult(true, IapkitPurchaseState.Entitled, IapStore.Unknown, null, null, null, id)
@@ -60,17 +60,17 @@ class IapkitResultStoreIdentityTest {
         assertEquals("amazon", amazon.storeId)
         assertEquals("play", google.copy().storeId)
         assertThrows(IllegalArgumentException::class.java) { google.copy(store = IapStore.Unknown) }
-        val community = google.copy(store = IapStore.Unknown, storeId = "community-fixture")
-        assertEquals("community-fixture", community.storeId)
+        val community = google.copy(store = IapStore.Unknown, storeId = "community_fixture")
+        assertEquals("community_fixture", community.storeId)
         assertThrows(IllegalArgumentException::class.java) { google.copy(store = IapStore.Amazon, storeId = "play") }
     }
 
     @Test fun `copy keeps a community store id when the store is unchanged`() {
-        val community = RequestVerifyPurchaseWithIapkitResult(true, IapkitPurchaseState.Entitled, IapStore.Unknown, null, null, null, "amazon-example")
+        val community = RequestVerifyPurchaseWithIapkitResult(true, IapkitPurchaseState.Entitled, IapStore.Unknown, null, null, null, "amazon_example")
         val updated = community.copy(isValid = false)
         assertEquals(false, updated.isValid)
         assertEquals(IapStore.Unknown, updated.store)
-        assertEquals("amazon-example", updated.storeId)
+        assertEquals("amazon_example", updated.storeId)
     }
 
     @Test fun `descriptor rejects missing or blank identities`() {
@@ -79,9 +79,9 @@ class IapkitResultStoreIdentityTest {
             "clientProtocolVersion" to "0.2.0",
             "coreVersion" to "3.6.2",
             "platform" to "android",
-            "storeId" to "community-fixture",
+            "storeId" to "community_fixture",
         )
-        assertEquals("community-fixture", StoreProviderDescriptor.fromJson(valid).storeId)
+        assertEquals("community_fixture", StoreProviderDescriptor.fromJson(valid).storeId)
         for (field in listOf("storeId", "coreVersion", "clientProtocolVersion")) {
             assertThrows(IllegalArgumentException::class.java) { StoreProviderDescriptor.fromJson(valid - field) }
             for (blank in listOf("", "   ")) {

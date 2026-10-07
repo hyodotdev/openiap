@@ -17,7 +17,7 @@ class OpenIapStoreProviderDispatchTest {
         var finishes = 0
         val purchase = PurchaseAndroid.fromJson(mapOf(
             "id" to "opaque", "productId" to "product", "purchaseToken" to "token",
-            "store" to "unknown", "storeId" to "community-fixture", "quantity" to 1,
+            "store" to "unknown", "storeId" to "community_fixture", "quantity" to 1,
             "purchaseState" to "purchased", "transactionDate" to 1.0, "isAutoRenewing" to false,
         ))
         val request: MutationRequestPurchaseHandler = { requests++; RequestPurchaseResultPurchase(purchase) }

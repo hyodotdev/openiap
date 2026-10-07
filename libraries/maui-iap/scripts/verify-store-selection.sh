@@ -91,13 +91,14 @@ run "and names the alias when it was set" "fail:OpenIapAndroidStore='bogus' is n
 run "even beside a valid OpenIapStore"   "fail:OpenIapAndroidStore='bogus' is not a store" $link -p:OpenIapStore=play -p:OpenIapAndroidStore=bogus
 
 echo "community provider"
-run "external pair selects the neutral core" "community-fixture:" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
+run "external pair selects the neutral core" "community_fixture:" $link -p:OpenIapStore=community_fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
 # Gradle lower-cases the id before matching, so a cased community id selects too.
-run "a community id ignores case" "community-fixture:" $link -p:OpenIapStore=Community-Fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
-run "external id needs coordinates" "fail:OpenIapStore='community-fixture' is not a store" $link -p:OpenIapStore=community-fixture
+run "a community id ignores case" "community_fixture:" $link -p:OpenIapStore=Community_Fixture -p:OpenIapProvider=community.fixture:provider:1.0.0
+run "external id needs coordinates" "fail:OpenIapStore='community_fixture' is not a store" $link -p:OpenIapStore=community_fixture
+run "a hyphenated id names no store" "fail:OpenIapStore='with-hyphen' is not a store" $link -p:OpenIapStore=with-hyphen -p:OpenIapProvider=community.fixture:provider:1.0.0
 run "official selection rejects an external pair" "fail:OpenIapProvider requires a community OpenIapStore id" $link -p:OpenIapStore=play -p:OpenIapProvider=community.fixture:provider:1.0.0
-run "provider version must be fixed" "fail:OpenIapProvider must be fixed group:artifact:version coordinates" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=community.fixture:provider:+
-run "official coordinates cannot pose as external" "fail:OpenIapProvider must name a community artifact" $link -p:OpenIapStore=community-fixture -p:OpenIapProvider=io.github.hyochan.openiap:openiap-google:3.6.2
+run "provider version must be fixed" "fail:OpenIapProvider must be fixed group:artifact:version coordinates" $link -p:OpenIapStore=community_fixture -p:OpenIapProvider=community.fixture:provider:+
+run "official coordinates cannot pose as external" "fail:OpenIapProvider must name a community artifact" $link -p:OpenIapStore=community_fixture -p:OpenIapProvider=io.github.hyochan.openiap:openiap-google:3.6.2
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus

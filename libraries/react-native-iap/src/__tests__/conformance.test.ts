@@ -27,7 +27,7 @@ const CATALOG: Record<string, 'in-app' | 'subs'> = {
 };
 
 // A community provider reports Unknown with its own stable id.
-const COMMUNITY_STORE_ID = 'community-fixture';
+const COMMUNITY_STORE_ID = 'community_fixture';
 
 const store = {
   owned: new Map<string, FakeRecord>(),

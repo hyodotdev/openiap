@@ -213,9 +213,8 @@ class RedemptionManager(
         iap.openRedeemOfferCode()
 
     suspend fun stop() {
+        // The connection is shared app-wide; only cancel this manager's listener.
         purchaseJob?.cancel()
-        val ended = iap.endConnection()
-        if (!ended) println("Store teardown did not complete")
     }
 }`}</CodeBlock>
                     ),

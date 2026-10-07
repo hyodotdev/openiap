@@ -148,7 +148,7 @@ class OpenIapErrorTest {
 
     @Test
     fun `InitConnection forStore names every non-Play store`() {
-        for (store in listOf("horizon", "amazon", "community-fixture")) {
+        for (store in listOf("horizon", "amazon", "community_fixture")) {
             val error = OpenIapError.InitConnection.forStore(store)
             assertEquals(OpenIapError.InitConnection.CODE, error.code)
             assertTrue(error.message.contains(store))

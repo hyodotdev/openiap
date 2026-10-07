@@ -646,7 +646,7 @@ func test_community_apple_purchase_identity() -> void:
 	GodotIapPlugin._platform = "iOS"
 	var payload = FakeIOSAsyncPlugin.new()._purchase("community")
 	payload["store"] = "unknown"
-	payload["storeId"] = "community-fixture"
+	payload["storeId"] = "community_fixture"
 	var decoded = GodotIapPlugin._validated_purchase_batch([payload], "iOS")
 	_assert_true(decoded.get("success", false), "Community Apple purchases should retain the Apple shape")
 	_assert_equal(payload["transactionId"], "tx-community", "Provider transaction ids may be opaque")

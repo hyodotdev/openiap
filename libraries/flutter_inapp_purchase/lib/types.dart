@@ -23,7 +23,7 @@ String _resolveStoreId(IapStore store, dynamic value) {
     IapStore.Unknown => null,
   };
   final id = value ?? official;
-  if (id is! String || (official != null ? id != official : RegExp(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$').firstMatch(id)?.end != id.length || const {'auto', 'none', 'unknown', 'apple', 'play', 'google', 'horizon', 'amazon'}.contains(id))) {
+  if (id is! String || (official != null ? id != official : RegExp(r'^[a-z][a-z0-9_]*$').firstMatch(id)?.end != id.length || const {'auto', 'none', 'unknown', 'apple', 'play', 'google', 'horizon', 'amazon'}.contains(id))) {
     throw const FormatException('Invalid store identity');
   }
   return id;

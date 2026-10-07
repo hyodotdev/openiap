@@ -23,7 +23,7 @@ private fun resolveStoreId(store: IapStore, value: Any?): String {
     }
     require(value == null || value is String) { "storeId must be a string" }
     val id = value as String? ?: official
-    require(id != null && if (official != null) id == official else id.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) && id !in setOf("auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon")) { "Invalid store identity" }
+    require(id != null && if (official != null) id == official else id.matches(Regex("[a-z][a-z0-9_]*")) && id !in setOf("auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon")) { "Invalid store identity" }
     return id
 }
 

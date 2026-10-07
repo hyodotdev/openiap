@@ -18,14 +18,14 @@ class PurchaseJsonBridgeTestIOS {
                 isAutoRenewing = renewing,
                 quantity = 1,
                 store = IapStore.Unknown,
-                storeId = "community-fixture",
+                storeId = "community_fixture",
                 transactionDate = 1_700_000_000_000.0,
             )
             val payload = purchase.toJson() + mapOf("nested" to listOf(mapOf("flag" to renewing)))
             val json = payload.toJsonStringIOS()
             assertContains(json, "\"isAutoRenewing\":$renewing")
             assertContains(json, "\"flag\":$renewing")
-            assertContains(json, "\"storeId\":\"community-fixture\"")
+            assertContains(json, "\"storeId\":\"community_fixture\"")
         }
     }
 }

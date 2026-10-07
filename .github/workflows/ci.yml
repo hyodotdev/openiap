@@ -592,6 +592,11 @@ jobs:
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap-core:test :openiap:test
 
+      - name: Check core API compatibility
+        working-directory: packages/google
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap-core:apiCheck
+
       - name: Build Play flavor
         working-directory: packages/google
         run: |

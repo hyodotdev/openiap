@@ -11,7 +11,7 @@ import OpenIAP
         try data.write(to: path.appendingPathComponent("Info.plist"))
         guard let bundle = Bundle(url: path) else { fatalError("Fixture bundle did not load") }
         let module = OpenIapModule(factory: try OpenIapProvider.factory(bundle: bundle))
-        guard module.storeId == "community-fixture", try await module.initConnection() else { fatalError("Provider did not load") }
+        guard module.storeId == "community_fixture", try await module.initConnection() else { fatalError("Provider did not load") }
         let request = try OpenIapSerialization.decode(object: ["type": "in-app", "requestPurchase": ["apple": ["sku": "conformance.product"]]], as: RequestPurchaseProps.self)
         _ = try await module.requestPurchase(request)
         guard let purchase = try await module.getAvailablePurchases(nil).first, purchase.store == .unknown else { fatalError("Provider purchase did not survive") }

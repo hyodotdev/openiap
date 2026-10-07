@@ -85,7 +85,7 @@ public enum OpenIapProvider {
     private static func validateVersion(
         storeId: String, providerVersion: String, runtimeVersion: String, clientProtocol: Bool
     ) throws {
-        guard storeId.range(of: "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", options: .regularExpression)
+        guard storeId.range(of: "^[a-z][a-z0-9_]*$", options: .regularExpression)
                 == storeId.startIndex..<storeId.endIndex,
               !["auto", "none", "unknown", "play", "google", "horizon", "amazon"].contains(storeId) else {
             throw configurationError("Invalid Apple provider storeId '\(storeId)'. Use a lowercase stable store id.")

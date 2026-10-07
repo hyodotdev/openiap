@@ -3,6 +3,7 @@ import { DART_KEYWORDS } from "../specs/client/codegen/core/dart-keywords.mjs";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  STORE_ID_PATTERN,
   maintenanceStatus,
   validateProviderReport,
   validateStoreRegistry,
@@ -23,7 +24,7 @@ const report = (capabilities = ["pendingPurchases"]) => {
     suiteVersion: SUITE_VERSION,
     clientProtocolVersion: "0.1.1",
     store: "unknown",
-    storeId: "community-fixture",
+    storeId: "community_fixture",
     capabilities,
     conformant: true,
     scope: {
@@ -35,7 +36,7 @@ const report = (capabilities = ["pendingPurchases"]) => {
   };
 };
 const community = () => ({
-  id: "community-fixture",
+  id: "community_fixture",
   platform: "android",
   displayName: "Fixture",
   tier: "community",
@@ -52,6 +53,53 @@ const community = () => ({
 
 test("the official registry matches the existing capability matrix", () =>
   validateStoreRegistry(registry()));
+test("registry ids equal the Commerce Protocol store key, except play", () => {
+  const primitives = readFileSync(
+    new URL(
+      "../specs/commerce-protocol/schema/01-primitives.graphql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const pattern = primitives.match(
+    /scalar Store[\s\S]*?pattern:\s*"([^"]+)"/,
+  )?.[1];
+  assert.ok(pattern, "Commerce Store pattern not found");
+  assert.equal(STORE_ID_PATTERN.source, pattern);
+  const commerceStore = new RegExp(pattern);
+  const data = registry();
+  for (const store of data.stores) {
+    assert.ok(
+      commerceStore.test(store.id),
+      `Registry id is not a Commerce store key: ${store.id}`,
+    );
+    if (store.commerceStore !== undefined)
+      assert.ok(
+        commerceStore.test(store.commerceStore),
+        `commerceStore is not a Commerce store key: ${store.id}`,
+      );
+  }
+  const facts = JSON.parse(
+    readFileSync(
+      new URL(
+        "../specs/commerce-protocol/examples/store-facts.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  const commerceKeys = data.stores
+    .filter((store) => store.tier === "official")
+    .map((store) => store.commerceStore ?? store.id)
+    .sort();
+  assert.deepEqual(commerceKeys, Object.keys(facts.stores).sort());
+  assert.deepEqual(
+    data.stores
+      .filter((store) => (store.commerceStore ?? store.id) !== store.id)
+      .map((store) => store.id),
+    ["play"],
+  );
+});
 test("registration accepts a passing independent provider or an experimental entry", () => {
   const data = registry();
   data.stores.push(community());
@@ -93,7 +141,7 @@ test("registered aliases and generated member names cannot collide", () => {
   const data = registry();
   data.stores.push(community(), {
     ...community(),
-    id: "community.fixture",
+    id: "community__fixture",
     aliases: [],
   });
   assert.throws(() => validateStoreRegistry(data), /constants collide/);

@@ -200,7 +200,7 @@ final class FixtureProviderTests: XCTestCase {
         _ = try await module.presentCodeRedemptionSheetIOS()
         let owned = try await module.getAvailablePurchases(nil)
         let purchase = try XCTUnwrap(owned.first)
-        XCTAssertEqual(purchase.storeId, "community-fixture")
+        XCTAssertEqual(purchase.storeId, "community_fixture")
         XCTAssertEqual(purchase.store, .unknown)
         let expectation = expectation(description: "Objective-C completion")
         let data = try JSONEncoder().encode(purchase)
@@ -288,7 +288,7 @@ final class FixtureProviderTests: XCTestCase {
         let android = Purchase.purchaseAndroid(PurchaseAndroid(
             id: "txn-android", isAutoRenewing: false, productId: "conformance.product",
             purchaseState: .purchased, purchaseToken: "fixture-token-android", quantity: 1,
-            store: .unknown, storeId: "community-fixture", transactionDate: 1.0
+            store: .unknown, storeId: "community_fixture", transactionDate: 1.0
         ))
         do {
             try await module.finishTransaction(purchase: android, isConsumable: false)
@@ -331,7 +331,7 @@ private final class FixedFactory: OpenIapProviderFactory {
     let module: FixtureModule
     required init() { module = FixtureModule() }
     init(_ module: FixtureModule) { self.module = module }
-    var storeId: String { "community-fixture" }
+    var storeId: String { "community_fixture" }
     var coreVersion: String { FixtureFactory().coreVersion }
     var clientProtocolVersion: String { FixtureFactory().clientProtocolVersion }
     func create() throws -> any OpenIapModuleProtocol { module }

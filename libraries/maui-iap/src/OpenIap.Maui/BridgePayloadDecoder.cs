@@ -98,7 +98,7 @@ internal static class BridgePayloadDecoder
     };
 
     private static bool ValidCommunityStoreId(string? id) => id is not null &&
-        Regex.IsMatch(id, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$") &&
+        Regex.IsMatch(id, "^[a-z][a-z0-9_]*$") &&
         id is not ("auto" or "none" or "unknown" or "google") &&
         id != StoreIds.Apple && id != StoreIds.Play &&
         id != StoreIds.Horizon && id != StoreIds.Amazon;

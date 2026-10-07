@@ -174,7 +174,7 @@ class GodotIapRestoreGateTest {
     @Test
     fun `suppression follows the connected provider`() {
         assertTrue(shouldSuppressRestoreListeners("horizon"))
-        listOf("play", "amazon", "community-fixture", "", "  ", null).forEach { storeId ->
+        listOf("play", "amazon", "community_fixture", "", "  ", null).forEach { storeId ->
             assertFalse("storeId=$storeId", shouldSuppressRestoreListeners(storeId))
         }
     }

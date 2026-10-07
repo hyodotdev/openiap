@@ -71,7 +71,7 @@ export const files = [
     title: 'Select it in the consumer',
     path: 'example/app.config.js',
     detail:
-      'The public Expo config plugin selects amazon-example and its artifact; the app imports expo-iap.',
+      'The public Expo config plugin selects amazon_example and its artifact; the app imports expo-iap.',
   },
   {
     icon: ShieldCheck,

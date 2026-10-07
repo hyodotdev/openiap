@@ -28,19 +28,24 @@ data class StoreErrorCase(
 )
 
 /**
- * The seam [StoreConformanceSuite] drives. Each Gradle flavor supplies one
- * implementation from its own test source set; this is the only place flavors
+ * The seam [StoreConformanceSuite] drives. Each store supplies one
+ * implementation from its own test source set; this is the only place stores
  * are allowed to differ.
  */
 interface StoreConformanceAdapter {
     /** The store discriminator this implementation must stamp on purchases. */
     val store: IapStore
-    val storeId: String get() = if (store == IapStore.Google) "play" else store.rawValue
+    val storeId: String
+        get() = when (store) {
+            IapStore.Google -> "play"
+            IapStore.Unknown -> error("storeId must be the provider's own id: override it when store is Unknown")
+            else -> store.rawValue
+        }
 
     /** Behaviors this store supports. See [StoreCapability]. */
     val capabilities: Set<StoreCapability>
 
-    /** The flavor's `toActiveSubscription()` binding. */
+    /** The store's `toActiveSubscription()` binding. */
     fun toActiveSubscription(purchase: PurchaseAndroid): ActiveSubscription
 
     /** Store-native failure values passed through the production mapper. */
@@ -50,6 +55,7 @@ interface StoreConformanceAdapter {
     val unrecognizedError: OpenIapError
 }
 
+/** Play Billing response codes with their spec mappings, for Play-compatible stores. */
 fun playBillingErrorCases(mapper: (Int) -> OpenIapError): List<StoreErrorCase> = listOf(
     StoreErrorCase("1", ErrorCode.UserCancelled, mapper(1)),
     StoreErrorCase("2", ErrorCode.ServiceError, mapper(2)),

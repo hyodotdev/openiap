@@ -104,7 +104,7 @@ export function androidStoreChecks(root, framework) {
   const storeValue = storeEntry?.value.trim().toLowerCase() ?? "";
   const providerEntry = properties?.get("openiapProvider");
   const provider = providerEntry?.value.trim() ?? "";
-  const validCommunityId = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(storeValue) &&
+  const validCommunityId = /^[a-z][a-z0-9_]*$/.test(storeValue) &&
     !["apple", "unknown"].includes(storeValue);
   // Recognize the id first so a missing provider reports its own fix.
   const explicit = storeValue === "" ? null : Object.hasOwn(STORE_ALIASES, storeValue)

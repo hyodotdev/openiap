@@ -67,7 +67,7 @@ object OpenIapProvider {
 
     // One version check serves both contracts; the flag only selects the wording.
     private fun validateVersion(storeId: String, providerVersion: String, runtimeVersion: String, clientProtocol: Boolean) {
-        if (!storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")) || storeId in setOf("auto", "none", "apple", "google", "unknown")) {
+        if (!storeId.matches(Regex("[a-z][a-z0-9_]*")) || storeId in setOf("auto", "none", "apple", "google", "unknown")) {
             throw OpenIapError.ProviderConfiguration("Invalid Android provider storeId '$storeId'. Use a lowercase stable store id.")
         }
         val version = Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?")

@@ -1381,7 +1381,7 @@ function checkStrictAppleFrameworkQuerySerialization() {
       "IapStore.Horizon => purchase.StoreId == StoreIds.Horizon",
       "IapStore.Amazon => purchase.StoreId == StoreIds.Amazon",
       "IapStore.Unknown => ValidCommunityStoreId(purchase.StoreId)",
-      'Regex.IsMatch(id, "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")',
+      'Regex.IsMatch(id, "^[a-z][a-z0-9_]*$")',
       'id is not ("auto" or "none" or "unknown" or "google")',
       "id != StoreIds.Apple && id != StoreIds.Play",
       "id != StoreIds.Horizon && id != StoreIds.Amazon",

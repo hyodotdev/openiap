@@ -1100,8 +1100,8 @@ func _test_store_identity() -> void:
 		var expected = "play" if store == "google" else store
 		_assert_equal(purchase.store_id, expected, "Legacy official identity should be inferred")
 		_assert_equal(Types.PurchaseAndroid.from_dict(purchase.to_dict()).store_id, expected, "Official identity should round trip")
-	var community = Types.PurchaseAndroid.from_dict({"store": "unknown", "storeId": "community-fixture"})
-	_assert_equal(Types.PurchaseAndroid.from_dict(community.to_dict()).store_id, "community-fixture", "Community identity should round trip")
+	var community = Types.PurchaseAndroid.from_dict({"store": "unknown", "storeId": "community_fixture"})
+	_assert_equal(Types.PurchaseAndroid.from_dict(community.to_dict()).store_id, "community_fixture", "Community identity should round trip")
 	for id in [null, "", "auto", "none", "unknown", "apple", "play", "google", "amazon", "horizon", "Bad id", "store\n", 42]:
 		_assert_equal(Types.PurchaseAndroid.from_dict({"store": "unknown", "storeId": id}), null, "Malformed community identity should fail")
 	_assert_equal(Types.PurchaseAndroid.from_dict({"store": "google", "storeId": "other"}), null, "Conflicting official identity should fail")

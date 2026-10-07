@@ -25,6 +25,7 @@ func _run() -> void:
 	_check("community provider accepts an arbitrary id", AndroidStore.normalize("fixture", "dev.example:provider:1.0.0") == "fixture")
 	_check("community providers cannot replace official ids", AndroidStore.normalize("google", "dev.example:provider:1.0.0") == "")
 	_check("community coordinates must be fixed", AndroidStore.normalize("fixture", "dev.example:provider:+") == "")
+	_check("hyphenated ids name no store", AndroidStore.normalize("with-hyphen", "dev.example:provider:1.0.0") == "")
 	_check("community exports link core", AndroidStore.artifact("io.github.hyochan.openiap:openiap-google:3.6.2", "fixture", "dev.example:provider:1.0.0") == "io.github.hyochan.openiap:openiap-core:3.6.2")
 
 	var registered := GDScript.new()

@@ -146,7 +146,7 @@ internal static class StoreIdentity
             _ => null,
         };
         var id = value ?? official;
-        if (id is null || (official is not null ? id != official : !System.Text.RegularExpressions.Regex.IsMatch(id, @"\A[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*\z") || id is "auto" or "none" or "unknown" or "apple" or "play" or "google" or "horizon" or "amazon"))
+        if (id is null || (official is not null ? id != official : !System.Text.RegularExpressions.Regex.IsMatch(id, @"\A[a-z][a-z0-9_]*\z") || id is "auto" or "none" or "unknown" or "apple" or "play" or "google" or "horizon" or "amazon"))
             throw new JsonException("Invalid store identity.");
         return id;
     }

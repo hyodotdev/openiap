@@ -129,7 +129,7 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
                 override val provider = object : OpenIapProtocol by actualProvider {
                     override val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
                         actualProvider.getAvailablePurchases(options).map { purchase ->
-                            PurchaseAndroid.fromJson(purchase.toJson() + (field to "altered-value"))
+                            PurchaseAndroid.fromJson(purchase.toJson() + (field to "altered_value"))
                         }
                     }
                 }

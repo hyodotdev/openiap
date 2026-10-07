@@ -5,24 +5,24 @@ import XCTest
 final class ProviderDiscoveryTests: XCTestCase {
     func testNativeVersionCompatibility() throws {
         for (built, runtime) in [("3.6.1", "3.6.2"), ("4.0.0", "4.1.0"), ("4.0.0-rc.1", "4.0.0-rc.1")] {
-            try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: built, runtimeCoreVersion: runtime)
+            try OpenIapProvider.validate(storeId: "community_fixture", providerCoreVersion: built, runtimeCoreVersion: runtime)
         }
         for (built, runtime) in [("3.6.3", "3.6.2"), ("3.6.1", "4.0.0"), ("4.0.0-rc.1", "4.0.0"), ("4.0.0", "4.0.0-rc.1"), ("bad", "4.0.0"), ("4.0", "4.0.0")] {
-            XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: built, runtimeCoreVersion: runtime))
+            XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community_fixture", providerCoreVersion: built, runtimeCoreVersion: runtime))
         }
-        for id in ["", "unknown", "google", "play", "none", "auto", "amazon", "horizon", "Bad id", "store\n"] {
+        for id in ["", "unknown", "google", "play", "none", "auto", "amazon", "horizon", "Bad id", "with-hyphen", "store\n"] {
             XCTAssertThrowsError(try OpenIapProvider.validate(storeId: id, providerCoreVersion: "4.0.0", runtimeCoreVersion: "4.0.0"))
         }
-        XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: "bad", runtimeCoreVersion: "4.0.0")) { error in
+        XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community_fixture", providerCoreVersion: "bad", runtimeCoreVersion: "4.0.0")) { error in
             XCTAssertEqual(
                 (error as? PurchaseError)?.message,
-                "Invalid core version 'bad' for provider 'community-fixture'. Use a complete semantic version."
+                "Invalid core version 'bad' for provider 'community_fixture'. Use a complete semantic version."
             )
         }
-        XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community-fixture", providerCoreVersion: "3.6.3", runtimeCoreVersion: "3.6.2")) { error in
+        XCTAssertThrowsError(try OpenIapProvider.validate(storeId: "community_fixture", providerCoreVersion: "3.6.3", runtimeCoreVersion: "3.6.2")) { error in
             XCTAssertEqual(
                 (error as? PurchaseError)?.message,
-                "Provider 'community-fixture' requires OpenIAP 3.6.3; this app links 3.6.2. Use a compatible provider or core version."
+                "Provider 'community_fixture' requires OpenIAP 3.6.3; this app links 3.6.2. Use a compatible provider or core version."
             )
         }
     }
@@ -252,7 +252,7 @@ final class ProviderDiscoveryTests: XCTestCase {
 @objc(DiscoveryIncompatibleCoreFactory)
 private final class DiscoveryIncompatibleCoreFactory: NSObject, OpenIapProviderFactory {
     required override init() { super.init() }
-    var storeId: String { "community-fixture" }
+    var storeId: String { "community_fixture" }
     var coreVersion: String { "999.0.0" }
     var clientProtocolVersion: String { OpenIapVersion.clientProtocolVersion }
     func create() throws -> any OpenIapModuleProtocol { OpenIapStoreKitModule() }
@@ -261,7 +261,7 @@ private final class DiscoveryIncompatibleCoreFactory: NSObject, OpenIapProviderF
 @objc(DiscoveryIncompatibleClientProtocolFactory)
 private final class DiscoveryIncompatibleClientProtocolFactory: NSObject, OpenIapProviderFactory {
     required override init() { super.init() }
-    var storeId: String { "community-fixture" }
+    var storeId: String { "community_fixture" }
     var coreVersion: String { OpenIapVersion.current }
     var clientProtocolVersion: String { "0.99.0" }
     func create() throws -> any OpenIapModuleProtocol { OpenIapStoreKitModule() }
@@ -270,7 +270,7 @@ private final class DiscoveryIncompatibleClientProtocolFactory: NSObject, OpenIa
 @objc(DiscoveryThrowingCreateFactory)
 private final class DiscoveryThrowingCreateFactory: NSObject, OpenIapProviderFactory {
     required override init() { super.init() }
-    var storeId: String { "community-fixture" }
+    var storeId: String { "community_fixture" }
     var coreVersion: String { OpenIapVersion.current }
     var clientProtocolVersion: String { OpenIapVersion.clientProtocolVersion }
     func create() throws -> any OpenIapModuleProtocol {

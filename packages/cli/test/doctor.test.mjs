@@ -2866,7 +2866,7 @@ test("store flags use Groovy boolean values for both Android stores", () => {
 });
 
 test("an unregistered community provider needs only a fixed coordinate pair", () => {
-  withProject({...EXPO, "android/gradle.properties": "openiapStore=community-fixture\nopeniapProvider=dev.example:provider:1.0.0\n"}, (root) => {
+  withProject({...EXPO, "android/gradle.properties": "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:1.0.0\n"}, (root) => {
     assert.ok(!ids(root).includes("android-store-unknown"));
     assert.ok(!ids(root).includes("android-store-flavor-mismatch"));
   });
@@ -2874,7 +2874,7 @@ test("an unregistered community provider needs only a fixed coordinate pair", ()
 
 test("a community store uses the neutral provider flavor and Play guidance removes the pair", () => {
   withProject({...EXPO,
-    "android/gradle.properties": "openiapStore=community-fixture\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "android/gradle.properties": "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:1.0.0\n",
     "android/app/build.gradle.kts": 'missingDimensionStrategy("platform", "provider")\n',
   }, (root) => {
     assert.ok(!ids(root).includes("android-store-flavor-mismatch"));
@@ -2886,17 +2886,18 @@ test("a community store uses the neutral provider flavor and Play guidance remov
 test("doctor rejects incomplete or conflicting provider coordinates", () => {
   for (const properties of [
     "openiapProvider=dev.example:provider:1.0.0\n",
-    "openiapStore=community-fixture\n",
+    "openiapStore=community_fixture\n",
     "openiapStore=play\nopeniapProvider=dev.example:provider:1.0.0\n",
-    "openiapStore=community-fixture\nopeniapProvider=dev.example:provider:+\n",
-    "openiapStore=community-fixture\nopeniapProvider=io.github.hyochan.openiap:openiap-google:3.6.2\n",
+    "openiapStore=with-hyphen\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:+\n",
+    "openiapStore=community_fixture\nopeniapProvider=io.github.hyochan.openiap:openiap-google:3.6.2\n",
     "openiapStore=unknown\nopeniapProvider=dev.example:provider:1.0.0\n",
   ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => assert.ok(ids(root).includes("android-store-unknown")));
 });
 
 test("a community id without openiapProvider names both fixes", () => {
   for (const properties of [
-    "openiapStore=community-fixture\n",
+    "openiapStore=community_fixture\n",
     "openiapStore=goggle\n",
   ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => {
     const unknown = doctor(root).findings.find((one) => one.id === "android-store-unknown");

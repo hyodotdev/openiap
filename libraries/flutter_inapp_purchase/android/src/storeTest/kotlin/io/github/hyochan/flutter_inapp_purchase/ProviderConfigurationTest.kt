@@ -139,7 +139,7 @@ class ProviderConfigurationTest {
 }
 
 class SubscriptionManagementFactory : OpenIapProviderFactory {
-    override val storeId = "test-subscription-management"
+    override val storeId = "test_subscription_management"
     override val coreVersion get() = OpenIapProvider.coreVersion
     override val clientProtocolVersion = "0.2.0"
 

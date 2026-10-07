@@ -40,7 +40,7 @@ ext.openIapNormalizeStore = { Object value, String label ->
   }
   def store = openIapStoreAliases[key]
   if (store != null) return store
-  if (key ==~ /[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*/ && !(key in ['apple', 'unknown']) && project.findProperty('openiapProvider')) return key
+  if (key ==~ /[a-z][a-z0-9_]*/ && !(key in ['apple', 'unknown']) && project.findProperty('openiapProvider')) return key
   throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, auto, or none where the library allows it, or supply openiapProvider for a lowercase community store id")
 }
 

@@ -17,6 +17,7 @@
     },
     {
       "id": "play",
+      "commerceStore": "google",
       "platform": "android",
       "displayName": "Google Play",
       "tier": "official",

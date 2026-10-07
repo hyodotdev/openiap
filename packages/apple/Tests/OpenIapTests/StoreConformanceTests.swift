@@ -136,7 +136,7 @@ final class StoreConformanceTests: XCTestCase {
           "purchaseState": "purchased",
           "quantity": 1,
           "store": "unknown",
-          "storeId": "community-fixture",
+          "storeId": "community_fixture",
           "transactionDate": 1700000000000,
           "transactionId": "txn-community-1"
         }
@@ -144,7 +144,7 @@ final class StoreConformanceTests: XCTestCase {
         let community = try JSONDecoder().decode(PurchaseIOS.self, from: Data(communityJson.utf8))
 
         XCTAssertEqual(community.store, .unknown)
-        XCTAssertEqual(community.storeId, "community-fixture")
+        XCTAssertEqual(community.storeId, "community_fixture")
         XCTAssertFalse(community.storeId.isEmpty, "storeId must never be empty")
     }
 

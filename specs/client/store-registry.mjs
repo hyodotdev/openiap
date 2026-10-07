@@ -9,7 +9,11 @@ import {
   requiredProviderBehaviors,
 } from "../../packages/conformance/src/spec/android-provider-profile.mjs";
 
-export const STORE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+// Same grammar as the Commerce Protocol store key.
+export const STORE_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
+// Aliases are build inputs, not identities, so the official hyphenated
+// selection aliases keep their own pattern.
+export const STORE_ALIAS_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 export const PROVIDER_COORDINATE_PATTERN =
   /^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/;
 const SEMVER =
@@ -182,6 +186,8 @@ export function validateStoreRegistry(registry) {
     );
     const member = store.id
       .split(/[._-]/)
+      // A valid id can repeat or trail underscores; empty parts carry no name.
+      .filter((part) => part.length > 0)
       .map((part) => part[0].toUpperCase() + part.slice(1))
       .join("");
     const dartMember = member[0].toLowerCase() + member.slice(1);
@@ -230,12 +236,19 @@ export function validateStoreRegistry(registry) {
     for (const alias of store.aliases) {
       requireThat(
         typeof alias === "string" &&
-          STORE_ID_PATTERN.test(alias) &&
+          STORE_ALIAS_PATTERN.test(alias) &&
           !names.has(alias),
         `Invalid or duplicate alias: ${alias}`,
       );
       names.add(alias);
     }
+    requireThat(
+      store.commerceStore === undefined ||
+        (typeof store.commerceStore === "string" &&
+          STORE_ID_PATTERN.test(store.commerceStore) &&
+          store.commerceStore !== store.id),
+      `Invalid commerceStore: ${store.id}`,
+    );
     let allBindingsPass = true;
     for (const binding of storeBindings(store)) {
       requireThat(

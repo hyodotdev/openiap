@@ -17,7 +17,7 @@ void main() {
       () async {
     final purchase = PurchaseAndroid.fromJson({
       'store': 'unknown',
-      'storeId': 'community-fixture',
+      'storeId': 'community_fixture',
       'id': 'opaque-id',
       'productId': 'sku',
       'quantity': 1,
@@ -78,8 +78,8 @@ void main() {
           acknowledgedAndroidPurchaseTokens: {},
           rejectMalformed: true,
         );
-    expect(decode('community-fixture').single.storeId, 'community-fixture');
-    for (final id in [null, 42, 'Bad id', 'apple']) {
+    expect(decode('community_fixture').single.storeId, 'community_fixture');
+    for (final id in [null, 42, 'Bad id', 'with-hyphen', 'apple']) {
       expect(() => decode(id), throwsFormatException);
     }
   });
@@ -98,11 +98,11 @@ void main() {
   });
 
   test('community identity is required and survives serialization', () {
-    final json = {...payload('unknown'), 'storeId': 'community-fixture'};
+    final json = {...payload('unknown'), 'storeId': 'community_fixture'};
     expect(
         PurchaseAndroid.fromJson(PurchaseAndroid.fromJson(json).toJson())
             .storeId,
-        'community-fixture');
+        'community_fixture');
     for (final id in [
       null,
       '',
@@ -115,6 +115,7 @@ void main() {
       'horizon',
       'amazon',
       'Bad id',
+      'with-hyphen',
       'store\n',
       42
     ]) {

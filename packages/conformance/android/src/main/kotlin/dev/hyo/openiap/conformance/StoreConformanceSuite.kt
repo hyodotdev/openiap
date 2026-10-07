@@ -15,7 +15,7 @@ import org.junit.Rule
 
 /**
  * Behavioral conformance expectations for every Android store, declared once
- * and compiled into the testPlay, testHorizon, and testAmazon source sets.
+ * and compiled into each store's test source set.
  *
  * Adding a store means adding a [StoreConformanceAdapter], not another copy of
  * these tests.
@@ -217,7 +217,7 @@ abstract class StoreConformanceSuite {
     @ConformanceBehavior(ConformanceBehaviors.IDENTIFIERS_PURCHASE_CARRIES_A_CONCRETE_STORE)
     fun `adapter declares a concrete store discriminator`() {
         val official = mapOf(IapStore.Google to "play", IapStore.Horizon to "horizon", IapStore.Amazon to "amazon")
-        assertTrue("storeId must be a stable Android provider id", adapter.storeId.matches(Regex("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*")))
+        assertTrue("storeId must be a stable Android provider id", adapter.storeId.matches(Regex("[a-z][a-z0-9_]*")))
         if (adapter.store == IapStore.Unknown) {
             assertTrue("community providers cannot reuse official ids", adapter.storeId !in official.values && adapter.storeId !in setOf("apple", "auto", "none", "unknown"))
         } else {

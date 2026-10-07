@@ -33,6 +33,8 @@ type StoreIdLanguage =
 const member = (id: string) =>
   id
     .split(/[._-]/)
+    // A valid id can repeat or trail underscores; empty parts carry no name.
+    .filter((part) => part.length > 0)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join("");
 
@@ -86,7 +88,8 @@ export function renderStoreIdentityResolver(language: StoreIdLanguage): string {
     "horizon",
     "amazon",
   ];
-  const pattern = "[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*";
+  // Same grammar as the Commerce Protocol store key.
+  const pattern = "[a-z][a-z0-9_]*";
   switch (language) {
     case "kotlin":
       return `private fun resolveStoreId(store: IapStore, value: Any?): String {

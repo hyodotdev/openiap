@@ -126,9 +126,11 @@ function InitConnection() {
         </li>
       </ul>
       <p>
-        Calling <code>initConnection(config)</code> on an already connected
-        client returns <code>true</code> and ignores the config, so end the
-        connection first to change the billing program.
+        On Google Play and Meta Horizon, calling{' '}
+        <code>initConnection(config)</code> on an already connected client
+        returns <code>true</code> and ignores the config, so end the connection
+        first to change the billing program; Godot Android instead returns{' '}
+        <code>false</code> and emits a developer error when the config differs.
       </p>
 
       <AnchorLink id="returns" level="h2">

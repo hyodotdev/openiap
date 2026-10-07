@@ -12,7 +12,7 @@ class FixtureFactory : OpenIapProviderFactory {
     override val clientProtocolVersion = "0.2.0"
     override val capabilities = setOf("pendingPurchases", "subscriptionBillingIssue", "offerCodeRedemption")
     override fun create(context: Context): OpenIapProtocol = FixtureProvider()
-    companion object { const val STORE_ID = "community-fixture" }
+    companion object { const val STORE_ID = "community_fixture" }
 }
 
 /** In-memory compatibility fixture, never a real store or receipt validator. */

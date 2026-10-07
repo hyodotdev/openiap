@@ -3560,12 +3560,12 @@ void main() {
             ),
           );
       expect((await verify()).iapkit!.storeId, 'play');
-      identity = {'store': 'unknown', 'storeId': 'community-store'};
-      expect((await verify()).iapkit!.storeId, 'community-store');
+      identity = {'store': 'unknown', 'storeId': 'community_store'};
+      expect((await verify()).iapkit!.storeId, 'community_store');
       for (final invalid in [
         {'store': 'unknown'},
         {'store': 'unknown', 'storeId': 'unknown'},
-        {'store': 'google', 'storeId': 'community-store'},
+        {'store': 'google', 'storeId': 'community_store'},
         {'store': 'apple', 'storeId': 'play'},
       ]) {
         identity = invalid;

@@ -40,7 +40,7 @@ export default function StoreProviderExample() {
         </a>
       </div>
       <div className="provider-example-identity">
-        <code>storeId: amazon-example</code>
+        <code>storeId: amazon_example</code>
         <code>store: unknown</code>
         <span>Community package · Amazon App Tester</span>
       </div>
@@ -91,7 +91,7 @@ export default function StoreProviderExample() {
       <p className="provider-example-evidence-note">
         This is a dated validation snapshot, not certification.{' '}
         <a href={source('VERIFICATION.md')}>Read the evidence and limits</a>,{' '}
-        <a href={source('reports/amazon-example.json')}>
+        <a href={source('reports/amazon_example.json')}>
           machine-readable conformance report
         </a>{' '}
         and <a href={`${repository}/actions/workflows/verify.yml`}>CI runs</a>.

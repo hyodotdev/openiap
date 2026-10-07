@@ -23,6 +23,7 @@ plugins {
     id("org.jetbrains.kotlin.android") apply false
     id("org.jetbrains.kotlin.plugin.compose") apply false
     id("com.vanniktech.maven.publish") apply false
+    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.18.2"
 }
 
 // AGP 9 provides built-in Kotlin, but Flutter 3.44's migrator can explicitly

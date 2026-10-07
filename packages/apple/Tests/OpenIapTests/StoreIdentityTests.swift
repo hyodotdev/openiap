@@ -22,8 +22,8 @@ final class StoreIdentityTests: XCTestCase {
 
     func testCommunityIdentityAndMalformedIdentity() throws {
         var value = payload("unknown")
-        value["storeId"] = "community-fixture"
-        XCTAssertEqual(try OpenIapSerialization.decode(object: value, as: PurchaseIOS.self).storeId, "community-fixture")
+        value["storeId"] = "community_fixture"
+        XCTAssertEqual(try OpenIapSerialization.decode(object: value, as: PurchaseIOS.self).storeId, "community_fixture")
         for id in ["", "auto", "none", "unknown", "apple", "play", "google", "amazon", "horizon", "Bad id", "store\n"] {
             value["storeId"] = id
             XCTAssertThrowsError(try OpenIapSerialization.decode(object: value, as: PurchaseIOS.self))

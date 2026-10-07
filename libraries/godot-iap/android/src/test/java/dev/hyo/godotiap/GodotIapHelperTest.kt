@@ -222,9 +222,9 @@ class GodotIapHelperTest {
     fun `missing store identity fills community providers as unknown`() {
         val filled = GodotIapHelper.withProviderStoreIdentity(
             mapOf("productId" to "coins", "purchaseToken" to "token"),
-        ) { "community-fixture" }
+        ) { "community_fixture" }
         assertEquals("unknown", filled["store"])
-        assertEquals("community-fixture", filled["storeId"])
+        assertEquals("community_fixture", filled["storeId"])
         assertEquals("token", PurchaseAndroid.fromJson(filled).purchaseToken)
     }
 
@@ -280,9 +280,9 @@ class GodotIapHelperTest {
     fun `hand-built blank store identity fills community providers as unknown`() {
         val filled = GodotIapHelper.withProviderStoreIdentity(
             mapOf("productId" to "coins", "purchaseToken" to "token", "store" to "unknown", "storeId" to ""),
-        ) { "community-fixture" }
+        ) { "community_fixture" }
         assertEquals("unknown", filled["store"])
-        assertEquals("community-fixture", filled["storeId"])
+        assertEquals("community_fixture", filled["storeId"])
         assertEquals("token", PurchaseAndroid.fromJson(filled).purchaseToken)
     }
 
@@ -305,17 +305,17 @@ class GodotIapHelperTest {
         var lookups = 0
         val provider = { lookups += 1; "play" }
         listOf(
-            mapOf("store" to "unknown", "storeId" to "community-fixture", "purchaseToken" to "token"),
+            mapOf("store" to "unknown", "storeId" to "community_fixture", "purchaseToken" to "token"),
             mapOf("store" to "google", "storeId" to "play", "purchaseToken" to "token"),
-            mapOf("storeId" to "community-fixture"),
+            mapOf("storeId" to "community_fixture"),
         ).forEach { input ->
             assertSame(input, GodotIapHelper.withProviderStoreIdentity(input, provider))
         }
         assertEquals(0, lookups)
         val community = PurchaseAndroid.fromJson(
-            mapOf("store" to "unknown", "storeId" to "community-fixture", "purchaseToken" to "token"),
+            mapOf("store" to "unknown", "storeId" to "community_fixture", "purchaseToken" to "token"),
         )
-        assertEquals("community-fixture", community.storeId)
+        assertEquals("community_fixture", community.storeId)
         assertEquals("token", community.purchaseToken)
     }
 

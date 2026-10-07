@@ -789,7 +789,7 @@ export function resolveAndroidStoreSelection(
         `expo-iap: android.store=${normalizedStore} is not an Android store id; use play, horizon, amazon, or auto, or a community id`,
       );
     }
-    if (!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(normalizedStore)) {
+    if (!/^[a-z][a-z0-9_]*$/.test(normalizedStore)) {
       throw new Error(
         `expo-iap: android.store=${normalizedStore} is not a store id; use play, horizon, amazon, or auto, or a lowercase community id`,
       );

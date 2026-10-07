@@ -1074,13 +1074,13 @@ func test_android_available_purchases_envelope() -> void:
 
 	var community_purchase := {
 		"id": "community", "productId": "owned.sku", "store": "unknown",
-		"storeId": "community-fixture", "purchaseState": "purchased",
+		"storeId": "community_fixture", "purchaseState": "purchased",
 		"transactionDate": 1.0, "quantity": 1, "isAutoRenewing": false,
 	}
 	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
 	var community_owned = await GodotIapPlugin.get_available_purchases()
 	_assert_equal(community_owned.size(), 1, "Community ownership should decode")
-	_assert_equal(community_owned[0].store_id, "community-fixture", "Community ownership should preserve store identity")
+	_assert_equal(community_owned[0].store_id, "community_fixture", "Community ownership should preserve store identity")
 	for store in ["google", "amazon", "horizon"]:
 		var mismatched = community_purchase.duplicate()
 		mismatched["store"] = store

@@ -26,9 +26,9 @@ class StoreIdentityTest {
     }
 
     @Test fun `community identity round trips and invalid identities fail`() {
-        val json = payload("unknown") + ("storeId" to "community-fixture")
-        assertEquals("community-fixture", PurchaseAndroid.fromJson(PurchaseAndroid.fromJson(json).toJson()).storeId)
-        for (id in listOf(null, "", "auto", "none", "unknown", "apple", "play", "google", "amazon", "horizon", "Bad id", "store\n", 42)) {
+        val json = payload("unknown") + ("storeId" to "community_fixture")
+        assertEquals("community_fixture", PurchaseAndroid.fromJson(PurchaseAndroid.fromJson(json).toJson()).storeId)
+        for (id in listOf(null, "", "auto", "none", "unknown", "apple", "play", "google", "amazon", "horizon", "Bad id", "with-hyphen", "store\n", 42)) {
             assertThrows(IllegalArgumentException::class.java) { PurchaseAndroid.fromJson(payload("unknown") + ("storeId" to id)) }
         }
         assertThrows(IllegalArgumentException::class.java) { PurchaseAndroid.fromJson(payload("google") + ("storeId" to "other")) }
@@ -42,7 +42,7 @@ class StoreIdentityTest {
                     "state" to "entitled",
                     "store" to "unknown",
                     "clientPayload" to mapOf("body" to "signed", "format" to "json", "updatedAt" to 1.0, "version" to 1.0),
-                    "storeId" to "community-fixture",
+                    "storeId" to "community_fixture",
                     "productId" to "sku",
                     "environment" to "sandbox",
                 ),
@@ -54,7 +54,7 @@ class StoreIdentityTest {
         assertEquals(original.clientPayload, copy.clientPayload)
         assertEquals(original, original.copy())
         assertEquals(original.hashCode(), original.copy().hashCode())
-        val other = RequestVerifyPurchaseWithIapkitResult.fromJson(original.toJson() + ("storeId" to "other-store"))
+        val other = RequestVerifyPurchaseWithIapkitResult.fromJson(original.toJson() + ("storeId" to "other_store"))
         assertNotEquals(original, other)
     }
 }

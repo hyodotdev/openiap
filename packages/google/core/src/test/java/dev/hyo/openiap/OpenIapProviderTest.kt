@@ -52,7 +52,7 @@ class OpenIapProviderTest {
     }
 
     @Test fun `stable provider works on newer core in its major`() {
-        OpenIapProvider.validate("fake-store", "3.6.2", "3.7.0")
+        OpenIapProvider.validate("fake_store", "3.6.2", "3.7.0")
         OpenIapProvider.validate("play", "3.6.2", "3.6.2")
     }
 

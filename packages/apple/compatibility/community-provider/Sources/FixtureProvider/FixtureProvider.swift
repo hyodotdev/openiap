@@ -4,7 +4,7 @@ import OpenIAP
 @objc(CommunityFixtureFactory)
 public final class FixtureFactory: NSObject, OpenIapProviderFactory {
     public required override init() { super.init() }
-    public var storeId: String { "community-fixture" }
+    public var storeId: String { "community_fixture" }
     public var coreVersion: String { FixtureBuildVersion.core }
     public var clientProtocolVersion: String { FixtureBuildVersion.clientProtocol }
     public var capabilities: Set<String> { ["pendingPurchases", "subscriptionBillingIssue", "offerCodeRedemption"] }
@@ -121,7 +121,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
         }
     }
     public func finishTransaction(purchase: PurchaseInput, isConsumable: Bool?) async throws {
-        guard purchase.storeId == "community-fixture", purchase.purchaseToken?.isEmpty == false else {
+        guard purchase.storeId == "community_fixture", purchase.purchaseToken?.isEmpty == false else {
             throw PurchaseError.make(code: .developerError, message: "Full provider identity and token are required")
         }
         synchronized { finished[purchase.id] = purchase }
@@ -144,7 +144,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     }
     public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         try OpenIapSerialization.decode(object: [
-            "provider": "iapkit", "iapkit": ["store": "unknown", "storeId": "community-fixture", "isValid": true, "state": "entitled"],
+            "provider": "iapkit", "iapkit": ["store": "unknown", "storeId": "community_fixture", "isValid": true, "state": "entitled"],
         ], as: VerifyPurchaseWithProviderResult.self)
     }
     public func getStorefront() async throws -> String { "US" }
@@ -187,7 +187,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     public func makePurchase(sku: String = "conformance.product", state: PurchaseState = .purchased) throws -> PurchaseIOS {
         try OpenIapSerialization.decode(object: [
             "id": "txn-\(sku)", "transactionId": "txn-\(sku)", "productId": sku,
-            "store": "unknown", "storeId": "community-fixture", "quantity": 1, "isAutoRenewing": false,
+            "store": "unknown", "storeId": "community_fixture", "quantity": 1, "isAutoRenewing": false,
             "purchaseState": state.rawValue, "purchaseToken": "fixture-token-\(sku)", "transactionDate": 1.0,
         ], as: PurchaseIOS.self)
     }

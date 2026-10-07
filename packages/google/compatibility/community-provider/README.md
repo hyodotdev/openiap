@@ -54,7 +54,7 @@ Add `/tmp/openiap-provider-maven` as a Maven repository in the consuming app,
 then build with both properties:
 
 ```properties
-openiapStore=community-fixture
+openiapStore=community_fixture
 openiapProvider=community.fixture:provider:1.0.0
 ```
 
@@ -63,7 +63,7 @@ Expo uses its usual Android debug task and Metro. KMP's example uses
 so pass `-Dmaven.repo.local=/tmp/openiap-provider-maven`. Give each test app a
 distinct application id suffix before installing it. Choose **None (Skip)**
 verification, request a fixture product, and finish it. This fixture has no
-receipt-validation service. Both examples display `community-fixture` on the
+receipt-validation service. Both examples display `community_fixture` on the
 purchase result or detail screen.
 
 To verify consumption of KMP's Maven metadata as well as its local example,
@@ -79,7 +79,7 @@ packages/google/gradlew -p packages/google/compatibility/store-plugin \
   :app:printDebugStores \
   -PfixtureCommunityRepository=/tmp/openiap-provider-maven \
   -PfixtureKmpVersion=<kmp-version> -PfixtureStrategy=provider \
-  -PopeniapStore=community-fixture \
+  -PopeniapStore=community_fixture \
   -PopeniapProvider=community.fixture:provider:1.0.0
 ```
 

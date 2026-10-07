@@ -50,11 +50,11 @@ public class BridgePayloadDecoderTests
     {
         var item = JsonNode.Parse(PurchaseIosJson)!;
         item["store"] = "unknown";
-        item["storeId"] = "community-fixture";
+        item["storeId"] = "community_fixture";
         item["transactionId"] = "opaque-txn";
         var decoded = BridgePayloadDecoder.DecodeRequiredArray<Purchase>(new JsonArray(item), "getAvailablePurchases");
         var purchase = Assert.IsType<PurchaseIOS>(Assert.Single(decoded));
-        Assert.Equal("community-fixture", purchase.StoreId);
+        Assert.Equal("community_fixture", purchase.StoreId);
         Assert.Equal("opaque-txn", purchase.TransactionId);
     }
 
@@ -176,9 +176,9 @@ public class BridgePayloadDecoderTests
     {
         var item = JsonNode.Parse(PurchaseJson)!;
         item["store"] = "unknown";
-        item["storeId"] = "community-fixture";
+        item["storeId"] = "community_fixture";
         var decoded = BridgePayloadDecoder.DecodeRequiredArray<Purchase>(new JsonArray(item), "getAvailablePurchases");
-        Assert.Equal("community-fixture", Assert.Single(decoded).StoreId);
+        Assert.Equal("community_fixture", Assert.Single(decoded).StoreId);
     }
 
     [Theory]
@@ -186,6 +186,7 @@ public class BridgePayloadDecoderTests
     [InlineData("play")]
     [InlineData("unknown")]
     [InlineData("Bad Store")]
+    [InlineData("with-hyphen")]
     public void CommunityPurchaseRequiresAValidIndependentId(string storeId)
     {
         var item = JsonNode.Parse(PurchaseJson)!;

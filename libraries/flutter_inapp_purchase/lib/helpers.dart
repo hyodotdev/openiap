@@ -458,7 +458,7 @@ bool _isValidAuthoritativePurchaseMap(
       store != 'horizon' &&
       !(store == 'unknown' &&
           value['storeId'] is String &&
-          RegExp(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')
+          RegExp(r'^[a-z][a-z0-9_]*$')
               .hasMatch(value['storeId'] as String))) {
     return false;
   }

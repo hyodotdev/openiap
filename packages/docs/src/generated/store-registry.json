@@ -1,7 +1,7 @@
 {
   "suiteVersion": "4.0.0",
   "maintenanceWindowDays": 90,
-  "suiteMajorAdoptionDate": "2026-10-01",
+  "suiteMajorAdoptionDate": "2026-10-07",
   "stores": [
     {
       "id": "apple",
@@ -18,11 +18,11 @@
         "offerCodeRedemption"
       ],
       "latestReport": null,
-      "status": "official",
       "reports": []
     },
     {
       "id": "play",
+      "commerceStore": "google",
       "platform": "android",
       "displayName": "Google Play",
       "tier": "official",
@@ -36,7 +36,6 @@
         "offerCodeRedemption"
       ],
       "latestReport": null,
-      "status": "official",
       "reports": []
     },
     {
@@ -50,7 +49,6 @@
       "coordinates": "io.github.hyochan.openiap:openiap-google-horizon:3.6.2",
       "capabilities": ["pendingPurchases"],
       "latestReport": null,
-      "status": "official",
       "reports": []
     },
     {
@@ -64,7 +62,6 @@
       "coordinates": "io.github.hyochan.openiap:openiap-google-amazon:3.6.2",
       "capabilities": ["pendingPurchases"],
       "latestReport": null,
-      "status": "official",
       "reports": []
     }
   ]
