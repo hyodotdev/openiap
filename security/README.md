@@ -296,7 +296,8 @@ Every pull request installs all committed Bun locks plus the React Native Yarn
 and Ruby locks without mutation. It then runs Bun's advisory audit across all
 Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
 build.
-Upstream-unpatched, build-only findings may be accepted only in the owning
+Temporary exceptions for advisories the lock cannot clear (no fixed release,
+or a fix outside the dependents' ranges) may be accepted only in the owning
 project's `osv-scanner.toml` with a reason and expiry; expired or stale
 exceptions fail the dependency audit, and OSV enforces the same expiry. The IAPKit
 deployment repeats the Bun gate. The submitted dependency graph provides hosted

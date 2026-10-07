@@ -1,0 +1,9 @@
+[[IgnoredVulns]]
+id = "GHSA-7mx3-vvmw-hjmv"
+ignoreUntil = 2026-10-30
+reason = "Patched in @graphql-tools/utils 12.0.1, but the graphql-codegen chain (cli, core, plugin-helpers, visitor-plugin-common, and the v11 @graphql-tools loaders) still pins ^11 and no in-range fix exists. Reached only by local type generation over repository schema files: https://github.com/advisories/GHSA-7mx3-vvmw-hjmv."
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-10-30
+reason = "No patched braces release exists; 3.0.3 is npm latest and still affected. Reached only via micromatch from @graphql-codegen/cli, @graphql-tools/git-loader, and fast-glob during local type generation over repository schema files; the published SDK packages declare no runtime npm dependencies: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."

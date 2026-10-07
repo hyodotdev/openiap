@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  existsSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -291,16 +292,44 @@ test("bun audit parsing tolerates the CLI banner", () => {
 
 test("dependency audit fails closed on findings and malformed output", () => {
   const projects = [{ directory: ".", lockfile: "bun.lock" }];
+  // Exception ids and the earliest expiry come from the real root file, so
+  // adding or retiring one needs no edit here. The mocked audit reports each
+  // live exception as used; otherwise the auditor flags it unused and the
+  // finding count below drifts with every exception rotation.
+  const rootToml = resolve(import.meta.dirname, "..", "osv-scanner.toml");
+  const exceptions = existsSync(rootToml)
+    ? parseOsvIgnoredVulnerabilities(readFileSync(rootToml, "utf8"))
+    : new Map();
+  const expiries = [...exceptions.values()].map((entry) =>
+    Date.parse(`${entry.ignoreUntil}T00:00:00Z`),
+  );
+  const beforeEarliestExpiry = new Date(
+    expiries.length > 0 ? Math.min(...expiries) - 1 : "2026-08-15T00:00:00Z",
+  );
+  const reported = {
+    hono: [
+      {
+        severity: "high",
+        title: "unsafe version",
+        url: "https://github.com/advisories/GHSA-test-test-test",
+      },
+    ],
+  };
+  for (const id of exceptions.keys()) {
+    reported[id] = [
+      {
+        severity: "high",
+        title: "excepted",
+        url: `https://github.com/advisories/${id}`,
+      },
+    ];
+  }
   assert.throws(
     () =>
       auditDependencies(
-        () => ({
-          status: 1,
-          stdout:
-            '{"hono":[{"severity":"high","title":"unsafe version","url":"https://github.com/advisories/GHSA-test-test-test"}]}',
-          stderr: "",
-        }),
+        () => ({ status: 1, stdout: JSON.stringify(reported), stderr: "" }),
         projects,
+        beforeEarliestExpiry,
       ),
     /1 dependency audit findings/u,
   );
