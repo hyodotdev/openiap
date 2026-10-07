@@ -72,6 +72,10 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '3.6.3', tag: 'google-3.6.3' },
+];
+
 const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-apple', version: '3.6.1', tag: '3.6.1' },
   { name: 'openiap-google', version: '3.6.2', tag: 'google-3.6.2' },
@@ -463,6 +467,48 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'user-choice-retry-2026-10-07',
+      aliases: USER_CHOICE_RETRY_RELEASES.map((release) => release.tag),
+      date: new Date('2026-10-07'),
+      element: (
+        <div key="user-choice-retry-2026-10-07" style={noteCardStyle}>
+          {USER_CHOICE_RETRY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="user-choice-retry-2026-10-07" level="h4">
+            October 7, 2026 - Retry purchases after choosing alternative billing
+          </AnchorLink>
+          <p>
+            Google Play User Choice Billing releases the pending purchase when
+            the user chooses alternative billing, so canceling an external
+            checkout no longer blocks the next purchase.
+          </p>
+          <p>
+            The selection event starts your checkout; it does not confirm
+            payment or grant an entitlement. See the{' '}
+            <Link to="/docs/events/android/user-choice-billing-listener-android">
+              User Choice Billing listener guide
+            </Link>
+            .
+          </p>
+          <h5>Package Releases</h5>
+          <ul>
+            {USER_CHOICE_RETRY_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'amazon-subscription-offers-2026-09-30',
       aliases: AMAZON_OFFER_FIX_RELEASES.map((release) => release.tag),

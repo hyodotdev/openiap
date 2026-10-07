@@ -24,6 +24,14 @@ function UserChoiceBillingListenerAndroid() {
         dialog on Android.
       </p>
       <p>
+        With <code>openiap-google</code> 3.6.3+, selecting alternative billing
+        completes the native purchase request without a Google Play purchase.
+        After your external checkout finishes or is canceled, you can call{' '}
+        <code>requestPurchase</code> again without reconnecting. This event does
+        not confirm payment; verify the external payment on your backend before
+        granting access.
+      </p>
+      <p>
         <code>originalExternalTransactionId</code> and{' '}
         <code>productDetailsAndroid</code> are available in OpenIAP 2.3.0 /{' '}
         <code>openiap-google</code> 2.3.1 (requires Play Billing 9.1+). Legacy
