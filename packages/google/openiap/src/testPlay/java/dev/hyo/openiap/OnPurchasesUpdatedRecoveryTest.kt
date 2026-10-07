@@ -38,6 +38,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import java.lang.reflect.Field
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -698,6 +699,121 @@ class OnPurchasesUpdatedRecoveryTest {
         assertEquals("the install path and outer catch must share one event gate", 1, errors.size)
         assertTrue(errors.single() is OpenIapError.ServiceDisconnected)
     }
+
+    @Test
+    fun `user choice completes the Play request without a purchase or error`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        val details = userChoiceDetails()
+
+        module.handleUserChoiceBilling(client, 0L, details)
+        module.handleUserChoiceBilling(client, 0L, details)
+
+        assertEquals(listOf(details), choices)
+        assertEquals(1, results.size)
+        assertTrue(results.single().getOrThrow().isEmpty())
+        assertTrue(updates.isEmpty())
+        assertTrue(errors.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `user choice releases the old request before a listener starts another`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val firstResults = mutableListOf<Result<List<Purchase>>>()
+        val nextResults = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(module, client, { firstResults += it }, setOf("product-id"), "inapp", 1.0)
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener {
+            assertNull("the next request must not be blocked", pendingPurchaseField().get(module))
+            installPendingPurchase(module, client, { nextResults += it }, setOf("product-id"), "inapp", 2.0)
+        })
+
+        module.handleUserChoiceBilling(client, 0L, userChoiceDetails())
+
+        assertEquals(1, firstResults.size)
+        assertTrue(firstResults.single().getOrThrow().isEmpty())
+        assertTrue("the UCB callback must not complete the new request", nextResults.isEmpty())
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "next-token", purchaseTime = 3)),
+        )
+        assertEquals(listOf("next-token"), nextResults.single().getOrThrow().map { it.purchaseToken })
+    }
+
+    @Test
+    fun `user choice ignores stale connections and generations`() {
+        val client = RecordingBillingClient()
+        val staleClient = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        val pending = pendingPurchaseField().get(module)
+
+        module.handleUserChoiceBilling(staleClient, 0L, userChoiceDetails())
+        module.handleUserChoiceBilling(client, -1L, userChoiceDetails())
+
+        assertEquals(pending, pendingPurchaseField().get(module))
+        assertTrue(results.isEmpty())
+        assertTrue(choices.isEmpty())
+    }
+
+    @Test
+    fun `user choice does not claim an unlaunched or different product request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        for ((product, launchedAt) in listOf("product-id" to null, "other-product" to 1.0)) {
+            installPendingPurchase(module, client, { results += it }, setOf(product), "inapp", launchedAt)
+            val pending = pendingPurchaseField().get(module)
+
+            module.handleUserChoiceBilling(client, 0L, userChoiceDetails())
+
+            assertEquals(pending, pendingPurchaseField().get(module))
+            assertTrue(results.isEmpty())
+            assertTrue(choices.isEmpty())
+        }
+    }
+
+    @Test
+    fun `throwing user choice listener cannot strand the purchase request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { error("listener failed") })
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+
+        module.handleUserChoiceBilling(client, 0L, userChoiceDetails())
+
+        assertEquals(1, choices.size)
+        assertEquals(1, results.size)
+        assertTrue(results.single().getOrThrow().isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    private fun userChoiceDetails() = UserChoiceBillingDetails(
+        externalTransactionToken = "external-token",
+        products = listOf("product-id"),
+    )
 
     private fun module(): OpenIapModule =
         OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
