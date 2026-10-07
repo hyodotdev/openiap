@@ -244,9 +244,9 @@ export function validateStoreRegistry(registry) {
     }
     requireThat(
       store.commerceStore === undefined ||
-        (typeof store.commerceStore === "string" &&
-          STORE_ID_PATTERN.test(store.commerceStore) &&
-          store.commerceStore !== store.id),
+        (store.tier === "official" &&
+          store.id === "play" &&
+          store.commerceStore === "google"),
       `Invalid commerceStore: ${store.id}`,
     );
     let allBindingsPass = true;

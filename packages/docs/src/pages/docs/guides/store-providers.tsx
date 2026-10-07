@@ -8,6 +8,7 @@ import StoreProviderExample from './StoreProviderExample';
 import { examplePackage, repository } from './StoreProviderExampleData';
 import { LIBRARIES } from '../../../lib/images';
 import { OPENIAP_VERSIONS } from '../../../lib/versioning';
+import { PROVIDER_RELEASE_VERSIONS } from '../updates/provider-release';
 import registry from '../../../generated/store-registry.json';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
@@ -414,7 +415,7 @@ export default function StoreProviders() {
         </p>
         <CodeBlock
           language="kotlin"
-          children={`plugins { id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}" }
+          children={`plugins { id("io.github.hyochan.openiap") version "${PROVIDER_RELEASE_VERSIONS.google}" }
 android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
         />
         <p>
@@ -468,7 +469,9 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           Play’s existing enum wire value remains <code>'google'</code>. A
           community <code>storeId</code> is the same string the Commerce
           Protocol uses as the store key: lowercase, starting with a letter,
-          followed by letters, digits, or underscores.
+          followed by letters, digits, or underscores. Play is the exception:
+          the registry maps client <code>play</code> to Commerce{' '}
+          <code>google</code>.
         </p>
         <p>
           Use <code>purchase.storeId</code> when routing a purchase to your
@@ -515,7 +518,7 @@ import OpenIAP
 public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
   public required override init() { super.init() }
   public var storeId: String { "your_store" }
-  public var coreVersion: String { "${OPENIAP_VERSIONS.apple}" }
+  public var coreVersion: String { "${PROVIDER_RELEASE_VERSIONS.apple}" }
   public var clientProtocolVersion: String { "${OPENIAP_VERSIONS.clientProtocol}" }
   public var capabilities: Set<String> { ["pendingPurchases"] }
   public func create() throws -> any OpenIapModuleProtocol { YourStoreModule() }
@@ -574,12 +577,31 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
         </AnchorLink>
         <p>
           Create an Android library in your own repository. Depend only on the
-          public core contract and your store SDK.
+          public core contract and your store SDK. The{' '}
+          <a href="https://github.com/hyodotdev/openiap/blob/main/packages/google/core/README.md">
+            core design note
+          </a>{' '}
+          explains the module boundary.
         </p>
+        <h3>Before the 4.0.0 release</h3>
+        <p>
+          Build from the PR checkout and publish locally from its root. Add{' '}
+          <code>mavenLocal()</code> before <code>mavenCentral()</code> in both
+          the provider and host repositories. Use <code>4.0.0</code> for the
+          core dependency and factory&apos;s <code>coreVersion</code>. Rebuild
+          and rerun conformance against the public 4.0.0 artifacts when
+          released.
+        </p>
+        <CodeBlock
+          language="bash"
+          children={`packages/google/gradlew -p packages/google \\
+  :openiap-core:publishToMavenLocal :openiap-conformance:publishToMavenLocal \\
+  -PopenIapVersion=4.0.0`}
+        />
         <CodeBlock
           language="kotlin"
           children={`dependencies {
-  api("io.github.hyochan.openiap:openiap-core:${OPENIAP_VERSIONS.google}")
+  api("io.github.hyochan.openiap:openiap-core:${PROVIDER_RELEASE_VERSIONS.google}")
 }`}
         />
         <CodeBlock
@@ -588,7 +610,7 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
 
 class YourStoreFactory : OpenIapProviderFactory {
   override val storeId = "your_store"
-  override val coreVersion = "${OPENIAP_VERSIONS.google}"
+  override val coreVersion = "${PROVIDER_RELEASE_VERSIONS.google}"
   override val clientProtocolVersion = "${OPENIAP_VERSIONS.clientProtocol}"
   override val capabilities = setOf("pendingPurchases")
   override fun create(context: Context): OpenIapProtocol = YourStore(context)
@@ -608,12 +630,13 @@ class YourStoreFactory : OpenIapProviderFactory {
           it with <code>tools:replace</code>.
         </p>
         <p>
-          Choose a stable lowercase id containing letters, digits, and single
-          dot, underscore, or hyphen separators. A new store uses a custom id
-          with <code>store: 'unknown'</code>; avoid registry alias collisions.
-          Build selection requires a community id: official ids and their
-          aliases are rejected with provider coordinates. The runtime only
-          rejects <code>auto</code>, <code>none</code>, <code>apple</code>,{' '}
+          Choose an id using the <a href="#identity">store identity rules</a>,
+          for example <code>huawei</code>, <code>rustore</code>,{' '}
+          <code>samsung</code>, or <code>xiaomi</code>. A new store uses{' '}
+          <code>store: 'unknown'</code>; avoid registry alias collisions. Build
+          selection requires a community id: official ids and their aliases are
+          rejected with provider coordinates. The runtime only rejects{' '}
+          <code>auto</code>, <code>none</code>, <code>apple</code>,{' '}
           <code>google</code>, and <code>unknown</code>, so a provider that
           serves an existing store reports that store&apos;s canonical{' '}
           <code>storeId</code> and legacy <code>store</code> value in its
@@ -645,6 +668,23 @@ class YourStoreFactory : OpenIapProviderFactory {
           has an unsupported default; prefer <code>getAvailablePurchases</code>.
         </p>
         <p>
+          Read Android purchase arguments from <code>request.google</code>,
+          including for community stores. Preserve opaque purchase tokens
+          through callbacks, owned-purchase reads, verification, and completion.
+          The platform argument name does not select Google Play.
+        </p>
+        <p>
+          <code>setActivity</code> receives the current host Activity. The
+          contract has no Activity-result callback or generic store
+          configuration map. Keep app ids and keys in your provider&apos;s
+          manifest or resources. For HMS IntentSender or RuStore deeplink
+          returns, use a provider-owned proxy Activity to launch the vendor flow
+          and handle its result. Declare it and its callback intent filters in
+          your library manifest according to the vendor&apos;s requirements.
+          Release Activity references and vendor listeners on{' '}
+          <code>endConnection</code>.
+        </p>
+        <p>
           An owned subscription does not establish automatic renewal. Leave{' '}
           <code>autoRenewingAndroid</code> null when the store cannot report it,
           and set the required compatibility hint <code>isAutoRenewing</code> to
@@ -662,15 +702,16 @@ class YourStoreFactory : OpenIapProviderFactory {
         <p>
           Extend <code>ProviderConformanceSuite</code> with your factory, a
           fresh provider, and a <code>StoreConformanceAdapter</code> bound to
-          your production error and entitlement mappers. Supply a sandbox SKU
-          and an isolated test account. Implement <code>triggerCapability</code>{' '}
-          to drive each declared capability after the suite attaches listeners.{' '}
-          Supply <code>redemptionActivity</code> from your host or Robolectric
-          test in both cases: when <code>offerCodeRedemption</code> is declared
-          the suite opens the real flow with that activity, and when it is
-          undeclared the suite calls the provider with that activity and asserts
-          the documented no-op. A missing provider or activity fails the run
-          with a message naming it.
+          your production error and entitlement mappers. For repeatable CI, use
+          a test double at the vendor SDK boundary with a purchasable test SKU;
+          also exercise real sandbox flows separately. Implement{' '}
+          <code>triggerCapability</code> to drive each declared capability after
+          the suite attaches listeners. Supply <code>redemptionActivity</code>{' '}
+          from your host or Robolectric test in both cases: when{' '}
+          <code>offerCodeRedemption</code> is declared the suite opens the real
+          flow with that activity, and when it is undeclared the suite calls the
+          provider with that activity and asserts the documented no-op. A
+          missing provider or activity fails the run with a message naming it.
         </p>
         <CodeBlock
           language="kotlin"
@@ -679,6 +720,24 @@ class YourStoreFactory : OpenIapProviderFactory {
     layout.buildDirectory.file("reports/openiap/{storeId}.json").get().asFile.path)
 }`}
         />
+        <p>
+          Override <code>testProductId</code> and, for a new store, the
+          adapter&apos;s <code>storeId</code>. The suite purchases one in-app
+          item, restores it, reads the same token twice, and calls{' '}
+          <code>finishTransaction(purchase, false)</code> twice. Keep that item
+          visible through both ownership reads and make completion idempotent.
+          The invalid request must emit exactly one normalized error before it
+          completes, with no purchase event. The default five-second timeout
+          suits test doubles; override <code>timeoutMillis</code> for slower
+          sandbox flows. Synthetic subscription purchases test your mapper; the
+          profile does not buy or renew a subscription.
+        </p>
+        <p>
+          The JVM property writes reports from JVM/Robolectric runs.
+          Instrumented runs do not receive it and do not automatically write
+          this JSON report. Publish the JSON with the successful CI run; a
+          passing mapping-only run is insufficient for registry promotion.
+        </p>
         <p>
           The report records executed results, <code>suiteVersion</code>,{' '}
           <code>clientProtocolVersion</code>, capabilities, and the required
@@ -700,6 +759,28 @@ class YourStoreFactory : OpenIapProviderFactory {
           </a>
           . It consumes local Maven artifacts and includes a failing-capability
           check, a minified host, and a duplicate-provider build check.
+        </p>
+      </section>
+      <section>
+        <AnchorLink id="server-facts" level="h2">
+          Document the store&apos;s server APIs
+        </AnchorLink>
+        <p>
+          Client provider registration does not register a Commerce Protocol
+          service or add IAPKit receipt validation. For a new store, contribute
+          evidence-backed entries to{' '}
+          <a href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/examples/store-facts.json">
+            store-facts.json
+          </a>{' '}
+          and its{' '}
+          <a href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/examples/store-event-mapping.json">
+            event mapping
+          </a>
+          . Record verification, server notifications, subscriptions, and event
+          support using vendor documentation and observed tests. Commerce{' '}
+          <Link to="/commerce-protocol/profiles">service profiles</Link>{' '}
+          describe a server&apos;s responsibilities; they are separate from
+          these store facts and the native provider conformance report.
         </p>
       </section>
       <section>

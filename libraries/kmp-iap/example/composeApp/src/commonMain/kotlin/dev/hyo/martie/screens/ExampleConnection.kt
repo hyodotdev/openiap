@@ -16,6 +16,7 @@ internal suspend fun ensureExampleConnection(config: InitConnectionConfig? = nul
     exampleConnectionMutex.withLock {
         if (exampleHasConnection && config != exampleConnectionConfig) {
             kmpIapInstance.endConnection()
+            exampleHasConnection = false
             delay(500)
         }
         exampleConnectionConfig = config

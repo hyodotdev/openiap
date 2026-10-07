@@ -53,6 +53,23 @@ const community = () => ({
 
 test("the official registry matches the existing capability matrix", () =>
   validateStoreRegistry(registry()));
+test("only official Play maps to a different Commerce store key", () => {
+  const data = registry();
+  data.stores.push({ ...community(), commerceStore: "google" });
+  assert.throws(() => validateStoreRegistry(data), /Invalid commerceStore/);
+  for (const [id, commerceStore] of [
+    ["apple", "app_store"],
+    ["play", "gplay"],
+  ]) {
+    const invalid = registry();
+    invalid.stores.find((store) => store.id === id).commerceStore =
+      commerceStore;
+    assert.throws(
+      () => validateStoreRegistry(invalid),
+      /Invalid commerceStore/,
+    );
+  }
+});
 test("registry ids equal the Commerce Protocol store key, except play", () => {
   const primitives = readFileSync(
     new URL(

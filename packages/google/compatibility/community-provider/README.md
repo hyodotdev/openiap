@@ -33,21 +33,22 @@ have `conformant: false`. The host APK is
 
 ## Use it in the SDK examples
 
-Keep a local Maven repository for device work. Read the current Google version
-from `openiap-versions.json` and the suite version from
-`packages/conformance/src/spec/suite-version.mjs`; use them for the two fixture
-version properties below.
+Keep a local Maven repository for device work. Before the 4.0.0 release,
+publish core at the release target below so your provider declares the core
+major it will ship against. The suite version comes from
+`packages/conformance/src/spec/suite-version.mjs` (4.0.0 for this contract).
+After release, rebuild and rerun against the public artifacts.
 
 ```sh
 packages/google/gradlew -p packages/google \
   :openiap-core:publishToMavenLocal :openiap-conformance:publishToMavenLocal \
-  -Dmaven.repo.local=/tmp/openiap-provider-maven
+  -Dmaven.repo.local=/tmp/openiap-provider-maven -PopenIapVersion=4.0.0
 
 packages/google/gradlew -p packages/google/compatibility/community-provider \
   :provider:negativeConformance :vendor-sdk:publishVendorPublicationToMavenLocal :provider:publishFixturePublicationToMavenLocal \
   -Dmaven.repo.local=/tmp/openiap-provider-maven \
   -PopenIapRepository=/tmp/openiap-provider-maven \
-  -PopenIapVersion=<google-version> -PconformanceVersion=<suite-version>
+  -PopenIapVersion=4.0.0 -PconformanceVersion=4.0.0
 ```
 
 Add `/tmp/openiap-provider-maven` as a Maven repository in the consuming app,

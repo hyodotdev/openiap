@@ -44,6 +44,18 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
         assertTrue(OpenIapProvider.create(context) is FixtureProvider)
     }
 
+    @Test fun `suite rejects the reserved Google id for a community provider`() {
+        val actualAdapter = adapter
+        val invalid = object : StoreConformanceSuite() {
+            override val adapter = object : StoreConformanceAdapter by actualAdapter {
+                override val storeId = "google"
+            }
+        }
+        assertThrows(AssertionError::class.java) {
+            invalid.`adapter declares a concrete store discriminator`()
+        }
+    }
+
     @Test fun `suite rejects an incompatible Client Protocol build`() {
         val actualFactory = factory
         val incompatible = object : FixtureConformanceTest() {

@@ -6,6 +6,7 @@ import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import Pagination from '../../../components/Pagination';
 import AnchorLink from '../../../components/AnchorLink';
+import { PROVIDER_RELEASE_VERSIONS } from './provider-release';
 
 const noteCardStyle = {
   background: 'var(--bg-secondary)',
@@ -103,8 +104,16 @@ const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
 ];
 
 const COMMUNITY_PROVIDER_RELEASES: readonly ReleaseMetadata[] = [
-  { name: 'openiap-apple', version: '4.0.0', tag: '4.0.0' },
-  { name: 'openiap-google', version: '4.0.0', tag: 'google-4.0.0' },
+  {
+    name: 'openiap-apple',
+    version: PROVIDER_RELEASE_VERSIONS.apple,
+    tag: '4.0.0',
+  },
+  {
+    name: 'openiap-google',
+    version: PROVIDER_RELEASE_VERSIONS.google,
+    tag: 'google-4.0.0',
+  },
   {
     name: 'react-native-iap',
     version: '17.0.0',
@@ -633,7 +642,8 @@ function Releases() {
               <code>openiap-core</code> and the Kotlin{' '}
               <code>openiap-conformance</code> suite alongside the three
               official store artifacts, with shared provider discovery and
-              compatibility checks.
+              compatibility checks. New protocol members require default
+              implementations so existing providers keep linking.
             </li>
           </ul>
           <h5>Framework libraries</h5>

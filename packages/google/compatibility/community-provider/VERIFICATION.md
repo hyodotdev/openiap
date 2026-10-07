@@ -13,39 +13,39 @@ Provider selection does not add IAPKit server validation for a new store.
 
 ## Verification coverage
 
-| Area                  | Executed coverage                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Android provider      | Independent local Maven publication, required behavioral profile, negative capability/platform/token cases, discovery, manifest conflicts, and optimized host |
-| Apple provider        | Independent Swift package, matching behavioral profile, explicit discovery failures, and optimized factory retention                                          |
+| Area                  | Executed coverage                                                                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android provider      | Independent local Maven publication, required behavioral profile, negative capability/platform/token cases, discovery, manifest conflicts, and optimized host                                         |
+| Apple provider        | Independent Swift package, matching behavioral profile, explicit discovery failures, and optimized factory retention                                                                                  |
 | SDK dispatch          | React Native, Expo, Flutter, Godot, KMP, and MAUI selection and identity handling; public storefront/redemption overrides, community KMP billing operations/events, ownership/restore, and completion |
-| Provider dependencies | Neutral Gradle consumer graphs and MAUI Maven runtime closure, including a separate vendor SDK and credits for existing app dependencies                      |
-| Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance              |
-| Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                    |
-| Documentation         | Common provider authoring/selection guide, API/type consistency, affected release card, and production-site build                                             |
-| Devices               | 31 official build cells, 21 complete sandbox purchase/verify/finish cells, three independent-provider runtime flows, and explicit external limits             |
+| Provider dependencies | Neutral Gradle consumer graphs and MAUI Maven runtime closure, including a separate vendor SDK and credits for existing app dependencies                                                              |
+| Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance                                                      |
+| Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                                                            |
+| Documentation         | Common provider authoring/selection guide, API/type consistency, affected release card, and production-site build                                                                                     |
+| Devices               | 31 original build cells; later 7/7 Apple, Play, and Amazon purchase/verify/finish re-verification; three fixture runtime flows; see E2E_RESULTS.md for revisions and limits                           |
 
 See [E2E_RESULTS.md](E2E_RESULTS.md) for every device row and limitation.
 Use [README.md](README.md) and the Apple compatibility fixture to reproduce
 independent publication and conformance. Artifacts and raw device/backend
 evidence remain in ignored build outputs or the private local run directory.
 
-Both independent fixtures pass all 18 common provider behaviors, including
+Both independent fixtures pass the 15 common provider behaviors and their
+three declared capability checks, including
 exactly one canonical error event before a failed purchase request returns an
 empty result or throws.
 Negative cases reject missing, duplicate, and contradictory events. Swift
 ownership reads must retain the token from the original purchase callback;
-matching later reads alone cannot pass. The final fixture checks ran 15 Swift
-tests and 26 Android tests, with no failures.
+matching later reads alone cannot pass. The reproduction commands run these fixture checks separately from the
+hardware matrix.
 
-MAUI uses Gradle to resolve and verify the provider's dependency graph,
-including Maven POMs, module-metadata runtime variants, BOMs, exclusions,
-and version conflicts. The bundled core retains its runtime dependencies.
-Restored NuGet artifact tags and the app's explicit Java artifact metadata
-identify dependencies already supplied by the app. A provider requiring a
-newer version fails instead of replacing those binaries or linking duplicates.
-Only restored NuGet modules use their already selected runtime closures.
-Resolved metadata redirects receive exact logical-artifact credits for the
-.NET Maven verifier; no missing dependency is ignored.
+MAUI resolves the provider's Maven runtime graph through Gradle, including
+transitive dependencies, BOMs, exclusions, and version conflicts. It credits
+binaries already supplied by restored NuGet packages or explicit app artifacts;
+a provider requiring a newer version fails instead of linking duplicates.
+
+Store ids follow the Commerce key grammar. The registry pins Play's
+`play` → `google` mapping. Core's binary API baseline and abstract-member test
+require new protocol members to provide default implementations.
 
 ## Boundaries
 
@@ -85,5 +85,5 @@ through this provider release. Their removal moves to the following major
 release. Commerce Protocol and IAPKit have no source/publication change in
 this task.
 
-PR review and CI must be evaluated at the exact current head. The maintainer
-retains final validation, merge, release, and deployment authority.
+CI applies to its recorded head SHA. Device rows name their executed revision
+in E2E_RESULTS.md; fixture checks and later report edits do not replace a device run.

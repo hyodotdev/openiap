@@ -15,8 +15,7 @@ packages/conformance/src/spec/        what each behavior must do   <- you are he
 ```
 
 See the [Conformance Testing Audit](https://github.com/hyodotdev/openiap/blob/main/packages/conformance/CONFORMANCE_AUDIT.md)
-for the repository assessment that led to this suite and the remediation
-history.
+for current coverage, reproduction commands, and evidence limits.
 
 ## Versioning
 

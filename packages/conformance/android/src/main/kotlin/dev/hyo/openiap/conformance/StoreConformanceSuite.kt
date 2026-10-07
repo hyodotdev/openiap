@@ -219,7 +219,7 @@ abstract class StoreConformanceSuite {
         val official = mapOf(IapStore.Google to "play", IapStore.Horizon to "horizon", IapStore.Amazon to "amazon")
         assertTrue("storeId must be a stable Android provider id", adapter.storeId.matches(Regex("[a-z][a-z0-9_]*")))
         if (adapter.store == IapStore.Unknown) {
-            assertTrue("community providers cannot reuse official ids", adapter.storeId !in official.values && adapter.storeId !in setOf("apple", "auto", "none", "unknown"))
+            assertTrue("community providers cannot reuse official ids", adapter.storeId !in official.values && adapter.storeId !in setOf("apple", "google", "auto", "none", "unknown"))
         } else {
             assertEquals(official[adapter.store], adapter.storeId)
         }
