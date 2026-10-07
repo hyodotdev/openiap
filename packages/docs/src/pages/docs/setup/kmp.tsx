@@ -410,9 +410,12 @@ scope.launch {
           </a>
         </h3>
         <p>
-          Fetch products once the connection is up, then request a purchase —
-          the result arrives on <code>purchaseUpdatedListener</code>, not as a
-          return value. See{' '}
+          Fetch products once the connection is up. Handle purchases on{' '}
+          <code>purchaseUpdatedListener</code> and cancellations on{' '}
+          <code>purchaseErrorListener</code>. Use the nullable{' '}
+          <code>requestPurchase(props)</code> form below for these event-driven
+          screens; the DSL form requires a purchase result and throws when none
+          is returned. See{' '}
           <a href="/docs/apis/fetch-products">
             <code>fetchProducts</code>
           </a>{' '}

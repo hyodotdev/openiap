@@ -53,6 +53,10 @@ plugins {
 
 ## 🚀 Quick Start
 
+For screens driven by `purchaseUpdatedListener` and `purchaseErrorListener`,
+use the nullable `requestPurchase(props)` form and handle request exceptions.
+The DSL form below requires a purchase result and throws when none is returned.
+
 ### Option 1: Using Global Instance (Simple)
 
 ```kotlin

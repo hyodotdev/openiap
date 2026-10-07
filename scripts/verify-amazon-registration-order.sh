@@ -1,20 +1,11 @@
 #!/usr/bin/env bash
-# Regression gate for issue #460: the Appstore SDK installs its lifecycle
-# callbacks inside the FIRST registerListener call and only launches the
-# purchase Activity from an Activity it has seen resume. Registering after the
-# host Activity resumed parks the purchase until the next onResume — no dialog,
-# then a 300s timeout.
-#
-# The ordering is observable on a cold start, so this needs no purchase, no
-# store install and no Amazon account. Run it on any Fire OS device.
+# Amazon must register before the first Activity resume to show checkout (#460).
+# Cold-start check on Fire OS 6+: no purchase or Amazon account required.
 #
 #   scripts/verify-amazon-registration-order.sh <serial> [package]
 #
-# It force-stops the app, clears logcat and relaunches, leaving it in the
-# foreground. Pass [package] for an example other than dev.hyo.martie.
-# Exit 0 on pass, 1 on failure. Needs Android 7+ (Fire OS 6 and later). Targets a
-# debug build: consumer R8 can strip android.util.Log from release builds, which
-# would remove the line this asserts on.
+# Force-stops, clears logcat, and relaunches the app. Exit 0 on pass, 1 on failure.
+# Use a debug build: release R8 can strip the required log messages.
 set -euo pipefail
 
 SERIAL="${1:?usage: $0 <adb-serial> [package]}"
@@ -56,6 +47,9 @@ elif [ -z "$resumed" ]; then
   echo "      later lifecycle point — and the purchase will be parked (#460)."
   echo "      After an Appstore SDK upgrade, first confirm it still logs"
   echo "      'Activity resumed' under tag Kiwi."
+  fail=1
+elif [ "$registered" -ge "$resumed" ]; then
+  echo "FAIL: Amazon registered after the first Activity resume (#460)."
   fail=1
 else
   echo "PASS: registered before the first Activity resume."

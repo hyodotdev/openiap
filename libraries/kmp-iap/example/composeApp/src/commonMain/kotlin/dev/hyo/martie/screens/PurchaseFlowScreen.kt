@@ -24,10 +24,13 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.fetchProducts
-import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
+import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseIosProps
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
@@ -525,16 +528,17 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 isProcessing = true
                                 purchaseResult = null
                                 try {
-                                    val purchase = kmpIapInstance.requestPurchase {
-                                        apple {
-                                            sku = product.id
-                                            quantity = 1
-                                        }
-                                        google {
-                                            skus = listOf(product.id)
-                                        }
-                                    }
-                                    // Purchase updates will be received through the Flow
+                                    kmpIapInstance.requestPurchase(
+                                        RequestPurchaseProps(
+                                            request = RequestPurchaseProps.Request.Purchase(
+                                                RequestPurchasePropsByPlatforms(
+                                                    apple = RequestPurchaseIosProps(sku = product.id, quantity = 1),
+                                                    google = RequestPurchaseAndroidProps(skus = listOf(product.id)),
+                                                )
+                                            ),
+                                            type = ProductQueryType.InApp,
+                                        )
+                                    )
                                 } catch (e: PurchaseException) {
                                     if (e.error.code != ErrorCode.UserCancelled) {
                                         purchaseResult = "Purchase failed: ${e.message}"
@@ -544,7 +548,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                     purchaseResult = "Purchase failed: ${e.message}"
                                     isProcessing = false
                                 }
-                        }
+                            }
                         },
                         isProcessing = isProcessing
                     )

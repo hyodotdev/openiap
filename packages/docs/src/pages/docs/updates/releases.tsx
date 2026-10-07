@@ -635,6 +635,10 @@ function Releases() {
                   store preserves sessions across failed or cancelled reconnects
                   with retryable teardown.
                 </li>
+                <li>
+                  The Swift example retries unfinished purchases after
+                  verification or transaction-finish failures.
+                </li>
               </ul>
             </li>
             <li>
@@ -648,6 +652,10 @@ function Releases() {
           </ul>
           <h5>Framework libraries</h5>
           <ul>
+            <li>
+              <strong>KMP 4.0.0</strong> examples preserve the store&apos;s
+              error message when a purchase request returns no result.
+            </li>
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
               4.0.0, and MAUI 3.0.0 support external providers, preserving

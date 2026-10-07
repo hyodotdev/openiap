@@ -23,21 +23,22 @@ import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.getCurrentPlatform
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
 import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
+import io.github.hyochan.kmpiap.openiap.RequestSubscriptionPropsByPlatforms
+import io.github.hyochan.kmpiap.openiap.RequestSubscriptionIosProps
+import io.github.hyochan.kmpiap.openiap.RequestSubscriptionAndroidProps
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductRequest
 import io.github.hyochan.kmpiap.openiap.ProductSubscription
-import io.github.hyochan.kmpiap.openiap.ProductType
 import io.github.hyochan.kmpiap.openiap.QueryResolver
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
-import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
@@ -801,18 +802,17 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     isProcessing = true
                                     purchaseResult = null
                                     try {
-                                        val purchase = kmpIapInstance.requestPurchase {
-                                            type = ProductType.Subs
-                                            apple {
-                                                sku = subscription.id
-                                                quantity = 1
-                                            }
-                                            google {
-                                                skus = listOf(subscription.id)
-                                            }
-                                        }
-                                        // Purchase updates will be received through the purchaseUpdatedListener
-                                        // The UI will be updated automatically when the listener triggers
+                                        kmpIapInstance.requestPurchase(
+                                            RequestPurchaseProps(
+                                                request = RequestPurchaseProps.Request.Subscription(
+                                                    RequestSubscriptionPropsByPlatforms(
+                                                        apple = RequestSubscriptionIosProps(sku = subscription.id, quantity = 1),
+                                                        google = RequestSubscriptionAndroidProps(skus = listOf(subscription.id)),
+                                                    )
+                                                ),
+                                                type = ProductQueryType.Subs,
+                                            )
+                                        )
                                     } catch (e: PurchaseException) {
                                         if (e.error.code != ErrorCode.UserCancelled) {
                                             purchaseResult = "Subscription failed: ${e.message}"
