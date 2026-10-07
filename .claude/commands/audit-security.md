@@ -51,7 +51,10 @@ The dependency audit fails on every unaccepted advisory severity, malformed
 audit output, and expired or unused exceptions. A temporary exception for
 an advisory the lock cannot clear (no fixed release, or a fix outside the
 dependents' ranges) must be justified and expiring in the owning
-`osv-scanner.toml`. A successful GitHub dependency-submission run is separate
+`osv-scanner.toml`, and must show either that the dependency is build-only
+(not reachable in a shipped package) or, for runtime-reachable advisories,
+a reviewed statement of exploitability and mitigation. A successful GitHub
+dependency-submission run is separate
 evidence that the hosted graph matches the exact Bun lock commit:
 
 ```bash

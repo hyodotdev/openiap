@@ -292,12 +292,12 @@ class OpenIapModule(
     // ConcurrentHashMap.newKeySet needs API 24.
     private val emittedBillingIssueTokens: MutableSet<String> =
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
+    // Deduplicate callbacks across reconnects for this module's lifetime.
     private val handledUserChoiceTokens = mutableSetOf<String>()
 
     private fun resetConnectionStateLocked() {
         productManager.clear()
         emittedBillingIssueTokens.clear()
-        handledUserChoiceTokens.clear()
         activeBillingClientMode = BillingClientMode.Standard
     }
 
@@ -2716,6 +2716,26 @@ class OpenIapModule(
         details: UserChoiceBillingDetails,
     ) {
         val owner = listenerOwner(sourceClient, sourceGeneration)
+        val missingField = when {
+            details.externalTransactionToken.isBlank() -> "external transaction token"
+            details.products.isEmpty() -> "products"
+            else -> null
+        }
+        if (missingField != null) {
+            // Unusable callback: fail the launched request instead of stranding it.
+            val pending = owner.claim {
+                pendingPurchase?.takeIf {
+                    it.generation == sourceGeneration &&
+                        (details.products.isEmpty() || details.products.any(it.requestedSkus::contains))
+                }?.let { claimPurchaseCallback(sourceClient, it.callback, requireLaunched = true) }
+            } ?: return
+            val error = OpenIapError.PurchaseFailed(
+                "Missing $missingField in user choice billing details",
+            ).withProductId(pending.requestedSkus.singleOrNull())
+            pending.errorEventGate.publishOnce(error)
+            pending.callback(Result.failure(error))
+            return
+        }
         val pending = owner.claim {
             if (details.externalTransactionToken in handledUserChoiceTokens) return@claim null
             val request = pendingPurchase?.takeIf {

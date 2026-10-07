@@ -861,9 +861,124 @@ class OnPurchasesUpdatedRecoveryTest {
         assertNull(pendingPurchaseField().get(module))
     }
 
-    private fun userChoiceDetails() = UserChoiceBillingDetails(
-        externalTransactionToken = "external-token",
-        products = listOf("product-id"),
+    @Test
+    fun `redelivered token cannot complete a later request after reconnect`() {
+        val firstClient = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, firstClient)
+        val firstResults = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(module, firstClient, { firstResults += it }, setOf("product-id"), "inapp", 1.0)
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { })
+        val details = userChoiceDetails()
+
+        module.handleUserChoiceBilling(firstClient, 0L, details)
+        assertEquals(1, firstResults.size)
+        assertTrue(firstResults.single().getOrThrow().isEmpty())
+
+        // Reconnect through the real transition path, then start a new request.
+        val replace = OpenIapModule::class.java.getDeclaredMethod(
+            "replaceBillingClientLocked",
+            BillingClient::class.java,
+        ).apply { isAccessible = true }
+        replace.invoke(module, null as Any?)
+        val nextClient = RecordingBillingClient()
+        replace.invoke(module, nextClient)
+        OpenIapModule::class.java.getDeclaredField("connectionGeneration").apply {
+            isAccessible = true
+            setLong(module, 1L)
+        }
+        val nextResults = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module, nextClient, { nextResults += it }, setOf("product-id"), "inapp", 2.0,
+            generation = 1L,
+        )
+        val pending = pendingPurchaseField().get(module)
+
+        module.handleUserChoiceBilling(nextClient, 1L, details)
+
+        assertEquals(pending, pendingPurchaseField().get(module))
+        assertTrue(nextResults.isEmpty())
+    }
+
+    @Test
+    fun `duplicate token in the same generation cannot complete a later request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val firstResults = mutableListOf<Result<List<Purchase>>>()
+        val nextResults = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(module, client, { firstResults += it }, setOf("product-id"), "inapp", 1.0)
+        val details = userChoiceDetails()
+
+        module.handleUserChoiceBilling(client, 0L, details)
+        assertEquals(1, firstResults.size)
+
+        installPendingPurchase(module, client, { nextResults += it }, setOf("product-id"), "inapp", 2.0)
+        val pending = pendingPurchaseField().get(module)
+        module.handleUserChoiceBilling(client, 0L, details)
+
+        assertEquals(pending, pendingPurchaseField().get(module))
+        assertTrue(nextResults.isEmpty())
+    }
+
+    @Test
+    fun `blank token fails the launched request instead of stranding it`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        val errors = mutableListOf<OpenIapError>()
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.handleUserChoiceBilling(client, 0L, userChoiceDetails(token = ""))
+
+        assertEquals(1, results.size)
+        val error = results.single().exceptionOrNull()
+        assertTrue(error is OpenIapError.PurchaseFailed)
+        assertEquals(listOf(error), errors)
+        assertTrue(choices.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+
+        // A blank token must not poison dedup: a valid token still completes the retry.
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 2.0)
+        module.handleUserChoiceBilling(client, 0L, userChoiceDetails())
+
+        assertEquals(2, results.size)
+        assertTrue(results.last().getOrThrow().isEmpty())
+        assertEquals(1, choices.size)
+    }
+
+    @Test
+    fun `empty products fail the launched request instead of stranding it`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        val errors = mutableListOf<OpenIapError>()
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.handleUserChoiceBilling(client, 0L, userChoiceDetails(products = emptyList()))
+
+        assertEquals(1, results.size)
+        val error = results.single().exceptionOrNull()
+        assertTrue(error is OpenIapError.PurchaseFailed)
+        assertEquals(listOf(error), errors)
+        assertTrue(choices.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    private fun userChoiceDetails(
+        token: String = "external-token",
+        products: List<String> = listOf("product-id"),
+    ) = UserChoiceBillingDetails(
+        externalTransactionToken = token,
+        products = products,
     )
 
     private fun module(): OpenIapModule =
@@ -890,6 +1005,7 @@ class OnPurchasesUpdatedRecoveryTest {
         productType: String,
         launchStartedAtMillis: Double?,
         selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
+        generation: Long = 0L,
     ) {
         val snapshotClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PendingPurchaseSnapshot")
         val gateClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PurchaseErrorEventGate")
@@ -910,7 +1026,7 @@ class OnPurchasesUpdatedRecoveryTest {
         constructor.isAccessible = true
         val snapshot = constructor.newInstance(
             client,
-            0L,
+            generation,
             callback,
             errorEventGate,
             skus,

@@ -298,7 +298,10 @@ Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
 build.
 Temporary exceptions for advisories the lock cannot clear (no fixed release,
 or a fix outside the dependents' ranges) may be accepted only in the owning
-project's `osv-scanner.toml` with a reason and expiry; expired or stale
+project's `osv-scanner.toml` with a reason and expiry, plus either build-only
+evidence (not reachable in a shipped package) or, for runtime-reachable
+advisories, a reviewed statement of exploitability and mitigation; expired
+or stale
 exceptions fail the dependency audit, and OSV enforces the same expiry. The IAPKit
 deployment repeats the Bun gate. The submitted dependency graph provides hosted
 Dependabot monitoring, while CodeQL covers source and workflow vulnerabilities
