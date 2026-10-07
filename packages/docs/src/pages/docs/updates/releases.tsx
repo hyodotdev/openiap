@@ -718,6 +718,10 @@ function Releases() {
               moves to the following major releases.
             </li>
           </ul>
+          <p>
+            IAPKit updates sharp and MCP SDK dependencies, and JavaScript build
+            tools use patched shell-quote versions.
+          </p>
           <div
             style={{
               marginTop: '1rem',

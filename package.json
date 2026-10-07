@@ -64,7 +64,8 @@
     "hono": "4.13.7",
     "ip-address": "10.7.2",
     "qs": "$qs",
-    "undici": "7.30.0"
+    "undici": "7.30.0",
+    "shell-quote": "1.12.0"
   },
   "packageManager": "bun@1.3.13",
   "dependencies": {
