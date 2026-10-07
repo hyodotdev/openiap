@@ -1134,15 +1134,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           'Amazon Vega notifyFulfillment timed out.',
         ),
       );
-      if (isSuccess('notify-fulfillment', response?.responseCode)) {
-        return {
-          responseCode: 0,
-          code: '',
-          message: '',
-          purchaseToken,
-        };
-      }
       lastResponse = response;
+      if (isSuccess('notify-fulfillment', response?.responseCode)) break;
       if (attempt < NOTIFY_FULFILLMENT_MAX_ATTEMPTS) {
         await delay(NOTIFY_FULFILLMENT_RETRY_DELAY_MS);
       }
