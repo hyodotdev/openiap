@@ -659,7 +659,7 @@ function Releases() {
             </li>
             <li>
               <strong>MAUI 3.0.0</strong> examples leave pending purchases and
-              failed local verification unfinished. <strong>Godot 4.0.0</strong>
+              failed local verification unfinished. <strong>Godot 4.0.0</strong>{' '}
               preserves Apple verification results and leaves unsupported Local
               (Device) purchases unfinished.
             </li>

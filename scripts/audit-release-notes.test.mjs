@@ -128,11 +128,17 @@ function normalize(text) {
   // Versions drift after release, so needles pin words, not digits.
   return text
     .replaceAll("&apos;", "'")
-    .replaceAll("{' '}", " ")
+    .replace(/\{'([^'\\]*)'\}/g, "$1")
     .replace(/\d+\.\d+\.\d+/g, "0.0.0")
     .replace(/[ \t]*\n\s*([;,.!?)%])/g, "$1")
     .replaceAll(/\s+/g, " ");
 }
+
+test("JSX punctuation normalization preserves intentional spacing", () => {
+  assert.equal(normalize("storeId\n{'; '}recompile"), "storeId; recompile");
+  assert.equal(normalize("storeId{' '}required"), "storeId required");
+  assert.notEqual(normalize("storeId ; recompile"), "storeId; recompile");
+});
 
 function cardSource() {
   const source = fs.readFileSync(path.join(repoRoot, RELEASE_NOTES), "utf8");
