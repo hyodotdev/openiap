@@ -74,6 +74,20 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
 
 const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.6.3', tag: 'google-3.6.3' },
+  {
+    name: 'react-native-iap',
+    version: '16.7.3',
+    tag: 'react-native-iap-16.7.3',
+  },
+  { name: 'expo-iap', version: '5.8.3', tag: 'expo-iap-5.8.3' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.7.3',
+    tag: 'flutter-iap-10.7.3',
+  },
+  { name: 'godot-iap', version: '3.6.3', tag: 'godot-iap-3.6.3' },
+  { name: 'kmp-iap', version: '3.6.3', tag: 'kmp-iap-3.6.3' },
+  { name: 'maui-iap', version: '2.6.3', tag: 'maui-iap-2.6.3' },
 ];
 
 const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
@@ -484,6 +498,29 @@ function Releases() {
             the user chooses alternative billing, so canceling an external
             checkout no longer blocks the next purchase.
           </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>openiap-google 3.6.3</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Repeated selection callbacks cannot complete a later purchase,
+                  including after reconnecting.
+                </li>
+                <li>
+                  A lost billing connection or unusable selection details fail
+                  the pending request so the app can retry.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p>
+            Upgrade to the framework patch below and rebuild the Android app; an
+            over-the-air JavaScript update cannot replace the native SDK.
+          </p>
           <p>
             The selection event starts your checkout; it does not confirm
             payment or grant an entitlement. See the{' '}
@@ -492,25 +529,28 @@ function Releases() {
             </Link>
             .
           </p>
-          <p>
-            Repeated selection callbacks cannot complete a later purchase. If
-            the billing connection ends before selection details are delivered,
-            the request fails with a disconnect error.
-          </p>
-          <h5>Package Releases</h5>
-          <ul>
-            {USER_CHOICE_RETRY_RELEASES.map((release) => (
-              <li key={release.tag}>
-                <a
-                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <strong>{getReleaseLabel(release)}</strong>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {USER_CHOICE_RETRY_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ),
     },
