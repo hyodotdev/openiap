@@ -408,6 +408,14 @@ public partial class PurchaseFlowPage : ContentPage
     private async Task OnPurchaseAsync(Purchase purchase)
     {
         var common = (PurchaseCommon)purchase;
+        if (common.PurchaseState != PurchaseState.Purchased)
+        {
+            _isProcessing = false;
+            UpdateResult($"Purchase is not completed (state: {common.PurchaseState.ToJson()}).");
+            RenderProducts();
+            return;
+        }
+
         // The request result and PurchaseUpdated both deliver the same purchase.
         if (!string.IsNullOrEmpty(common.Id) && !_handledTransactionIds.Add(common.Id)) return;
         _lastPurchase = purchase;
@@ -418,7 +426,6 @@ public partial class PurchaseFlowPage : ContentPage
         var verificationPassed = true;
         (string Title, string Message)? verificationAlert = null;
 
-        // Step 4: verify purchase (3 methods).
         if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
         {
             try
@@ -426,7 +433,7 @@ public partial class PurchaseFlowPage : ContentPage
                 var mutate = (MutationResolver)OpenIapClient.Instance;
                 if (_verification == VerificationMethod.Local)
                 {
-                    await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
+                    var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
                     {
                         Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
                         Google = new VerifyPurchaseGoogleOptions
@@ -437,6 +444,7 @@ public partial class PurchaseFlowPage : ContentPage
                             AccessToken = string.Empty,
                         },
                     });
+                    verificationPassed = result.IsValid;
                     Console.WriteLine("[PurchaseFlow] local verification completed");
                 }
                 else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)

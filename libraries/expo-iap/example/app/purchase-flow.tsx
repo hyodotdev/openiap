@@ -506,7 +506,7 @@ function PurchaseFlow({
             1. Make sure you're signed in with a Sandbox account
           </Text>
           <Text style={styles.instructionsText}>
-            2. Products must be configured in App Store Connect
+            2. Configure products in the selected store console
           </Text>
           <Text style={styles.instructionsText}>
             3. Tap "Purchase" to initiate the transaction

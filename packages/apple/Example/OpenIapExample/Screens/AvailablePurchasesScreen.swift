@@ -98,9 +98,7 @@ struct AvailablePurchasesScreen: View {
                 }
                 return true  // Show if no expiry info
             } else {
-                // Consumables: show if not acknowledged
-                OpenIapLog.debug("📦 Consumable product=\(purchase.productId) state=\(purchase.purchaseState.rawValue) isAcknowledged=\(purchase.purchaseState.isAcknowledged)")
-                return !purchase.purchaseState.isAcknowledged
+                return true
             }
         }
 

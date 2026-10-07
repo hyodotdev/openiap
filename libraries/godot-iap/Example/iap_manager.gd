@@ -278,9 +278,13 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 			verification_result.emit("%s — skipped" % label, true)
 			return true
 		IapkitConfig.Method.LOCAL_DEVICE:
-			# Trust the store's own purchase state; no server round trip.
-			verification_result.emit("%s — purchase state accepted" % label, true)
-			return true
+			if OS.get_name() not in ["iOS", "macOS"]:
+				verification_result.emit("%s — unavailable here; choose Local (IAPKit) or None (Skip)" % label, false)
+				return false
+			var local_result = await GodotIapPlugin.verify_purchase({"apple": {"sku": product_id}})
+			var is_valid: bool = local_result != null and local_result.is_valid
+			verification_result.emit("%s — valid: %s" % [label, str(is_valid)], is_valid)
+			return is_valid
 
 	var api_key := IapkitConfig.api_key()
 	if api_key.is_empty():

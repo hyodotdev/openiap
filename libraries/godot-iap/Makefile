@@ -213,7 +213,7 @@ all: android ios macos
 test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
 	@GODOT="$(GODOT)" bash scripts/run-godot-suite.sh test_native_extension test_types_only \
-		test_api_surface test_envelope_parsing test_godot_iap test_android_store
+		test_api_surface test_envelope_parsing test_godot_iap test_android_store test_purchase_verification
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts

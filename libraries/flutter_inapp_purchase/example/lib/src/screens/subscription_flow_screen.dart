@@ -149,52 +149,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
           return;
         }
 
-        // Handle the purchase - check multiple conditions
-        // purchaseState.purchased or purchaseStateAndroid == AndroidPurchaseState.Purchased or isAcknowledgedAndroid == false (new purchase)
-        bool isPurchased = false;
-
-        if (!kIsWeb &&
-            defaultTargetPlatform == TargetPlatform.android &&
-            purchase is PurchaseAndroid) {
-          // For Android, check multiple conditions since fields can be null
-          final bool condition1 =
-              purchase.purchaseState == PurchaseState.Purchased;
-          final bool condition2 = acknowledgedAndroid == false &&
-              purchase.purchaseToken != null &&
-              purchase.purchaseToken!.isNotEmpty &&
-              purchase.purchaseState == PurchaseState.Purchased;
-          final bool condition3 =
-              androidStateValue == AndroidPurchaseState.Purchased.value;
-
-          debugPrint('  Android condition checks:');
-          debugPrint('    purchaseState == purchased: $condition1');
-          debugPrint('    unacknowledged with token: $condition2');
-          debugPrint(
-              '    purchaseStateAndroid == AndroidPurchaseState.Purchased: $condition3');
-
-          isPurchased = condition1 || condition2 || condition3;
-          debugPrint('  Final isPurchased: $isPurchased');
-        } else if (purchase is PurchaseIOS) {
-          // For iOS - simpler logic like purchase_flow_screen.dart
-          // iOS purchase updates with valid tokens indicate successful purchases
-          final bool condition1 =
-              iosTransactionState == TransactionState.purchased;
-          bool condition2 = purchase.purchaseToken != null &&
-              purchase.purchaseToken!.isNotEmpty;
-          final bool condition3 = transactionId != null;
-
-          debugPrint('  iOS condition checks:');
-          debugPrint('    purchaseState == purchased: $condition1');
-          debugPrint('    has valid purchaseToken: $condition2');
-          debugPrint('    has valid transactionId: $condition3');
-
-          // For iOS, receiving a purchase update usually means success
-          // especially if we have either a valid token OR transaction ID
-          isPurchased = condition1 || condition2 || condition3;
-          debugPrint('  Final isPurchased: $isPurchased');
-        }
-
-        if (isPurchased) {
+        if (purchase.purchaseState == PurchaseState.Purchased) {
           // Claim the key before verifying, since a redelivery can land
           // mid-flight; a failed attempt releases it below.
           if (transactionKey.isNotEmpty &&
@@ -218,13 +173,6 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
             debugPrint('  ⚠️ Widget not mounted, cannot update UI');
           }
 
-          // Run server / local receipt verification if the user selected one.
-          // Subscriptions especially benefit from IAPKit because Google Play
-          // does not expose `expiryTime` / grace-period / billing-retry state
-          // client-side — IAPKit calls `purchases.subscriptionsv2.get` server
-          // side and reflects the canonical state back here. We do this before
-          // `finishTransaction` so a failed verification doesn't quietly
-          // acknowledge a non-validated purchase.
           var verificationOk = true;
           if (_verificationMethod.isIapkit) {
             verificationOk = await _verifyPurchaseWithIAPKit(purchase);

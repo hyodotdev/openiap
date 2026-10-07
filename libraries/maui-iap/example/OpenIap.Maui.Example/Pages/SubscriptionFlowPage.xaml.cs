@@ -630,6 +630,15 @@ public partial class SubscriptionFlowPage : ContentPage
         _lastPurchase = purchase;
         var purchaseId = common.Id;
 
+        if (common.PurchaseState != PurchaseState.Purchased)
+        {
+            CancelPurchaseWatchdog();
+            _isProcessing = false;
+            UpdateResult($"Subscription callback received but state is {common.PurchaseState.ToJson()}.");
+            RenderSubscriptions();
+            return;
+        }
+
         if (!string.IsNullOrEmpty(purchaseId) && !_handledPurchaseIds.Add(purchaseId))
         {
             CancelPurchaseWatchdog();
@@ -650,14 +659,6 @@ public partial class SubscriptionFlowPage : ContentPage
 
         _isHandlingPurchase = true;
         _isProcessing = false;
-
-        if (common.PurchaseState != PurchaseState.Purchased)
-        {
-            UpdateResult($"Subscription callback received but state is {common.PurchaseState.ToJson()}.");
-            _isHandlingPurchase = false;
-            RenderSubscriptions();
-            return;
-        }
 
         var isRestoration = IsRestoration(purchase);
         UpdateResult(isRestoration
@@ -726,7 +727,7 @@ public partial class SubscriptionFlowPage : ContentPage
             var mutate = (MutationResolver)OpenIapClient.Instance;
             if (_verification == VerificationMethod.Local)
             {
-                await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
+                var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
                 {
                     Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
                     Google = new VerifyPurchaseGoogleOptions
@@ -739,7 +740,7 @@ public partial class SubscriptionFlowPage : ContentPage
                     },
                 });
                 Console.WriteLine("[SubscriptionFlow] local verification completed");
-                return true;
+                return result.IsValid;
             }
             else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
             {

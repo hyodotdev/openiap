@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase_example/src/screens/subscription_flow_screen.dart';
 
 void main() {
@@ -50,6 +53,8 @@ void main() {
           return <Map<String, dynamic>>[];
         case 'requestPurchase':
           return null;
+        case 'finishTransaction':
+          return true;
         case 'endConnection':
           return true;
       }
@@ -62,7 +67,7 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  testWidgets('renders subscription tiles and triggers requestPurchase',
+  testWidgets('renders subscriptions and leaves pending purchases unfinished',
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: SubscriptionFlowScreen()),
@@ -71,8 +76,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(log.where((call) => call.method == 'fetchProducts'), isNotEmpty);
-    // The mock returns 1 subscription, so we should see it displayed
     expect(find.text('Premium Monthly'), findsOneWidget);
+
+    const purchase = PurchaseIOS(
+      id: 'pending-subscription',
+      transactionId: 'pending-subscription',
+      productId: 'dev.hyo.martie.premium',
+      purchaseToken: 'test-jws',
+      purchaseState: PurchaseState.Pending,
+      transactionDate: 1,
+      quantity: 1,
+      isAutoRenewing: true,
+      store: IapStore.Apple,
+      storeId: 'apple',
+    );
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+      channel.name,
+      const StandardMethodCodec().encodeMethodCall(
+        MethodCall('purchase-updated', jsonEncode(purchase.toJson())),
+      ),
+      (_) {},
+    );
+    await tester.pumpAndSettle();
+    expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
+    expect(log.where((call) => call.method == 'verifyPurchaseWithProvider'),
+        isEmpty);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

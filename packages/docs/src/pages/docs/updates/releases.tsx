@@ -637,7 +637,8 @@ function Releases() {
                 </li>
                 <li>
                   The Swift example retries unfinished purchases after
-                  verification or transaction-finish failures.
+                  verification or transaction-finish failures and keeps owned
+                  non-consumables visible.
                 </li>
               </ul>
             </li>
@@ -653,8 +654,19 @@ function Releases() {
           <h5>Framework libraries</h5>
           <ul>
             <li>
+              <strong>Flutter 11.0.0</strong> examples keep pending purchases
+              and failed local verification unfinished.
+            </li>
+            <li>
+              <strong>MAUI 3.0.0</strong> examples leave pending purchases and
+              failed local verification unfinished. <strong>Godot 4.0.0</strong>
+              &apos;s Local (Device) mode verifies Apple purchases and leaves
+              unsupported stores unfinished.
+            </li>
+            <li>
               <strong>KMP 4.0.0</strong> examples preserve the store&apos;s
-              error message when a purchase request returns no result.
+              error message when a purchase request returns no result and leave
+              failed verification unfinished.
             </li>
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
