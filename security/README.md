@@ -309,12 +309,13 @@ Every pull request installs all committed Bun locks plus the React Native Yarn
 and Ruby locks without mutation. It then runs Bun's advisory audit across all
 Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
 build.
-Temporary exceptions for advisories the lock does not clear yet (no
-fixed release, a fix outside the dependents' ranges, or a clearing
-dependency bump that has not been tested yet) may be accepted only in the
-owning project's `osv-scanner.toml` with a reason and expiry; expired
-or stale exceptions fail the dependency audit, and OSV enforces the same
-expiry. The IAPKit
+Temporary exceptions for advisories the lock does not clear yet (no fixed
+release, a fix outside the dependents' ranges, or a clearing dependency bump
+that has not been tested yet) may be accepted only in the owning project's
+`osv-scanner.toml` with a reason and expiry, plus either build-only evidence
+(not reachable in a shipped package) or, for runtime-reachable advisories, a
+reviewed statement of exploitability and mitigation; expired or stale
+exceptions fail the dependency audit, and OSV enforces the same expiry. The IAPKit
 deployment repeats the Bun gate. The submitted dependency graph provides hosted
 Dependabot monitoring, while CodeQL covers source and workflow vulnerabilities
 in its configured languages.

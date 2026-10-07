@@ -449,14 +449,21 @@ test("bun audit parsing tolerates the CLI banner", () => {
 
 test("dependency audit fails closed on findings and malformed output", () => {
   const projects = [{ directory: ".", lockfile: "bun.lock" }];
-  // The mock marks the real root exceptions used (keyed by advisory id, as
-  // in the Bun exception test), so only the unaccepted finding counts below.
-  // A retired root file means no exceptions, as in the audit itself.
-  const rootConfig = resolve(import.meta.dirname, "..", "osv-scanner.toml");
-  const ignored = existsSync(rootConfig)
-    ? parseOsvIgnoredVulnerabilities(readFileSync(rootConfig, "utf8"))
+  // Exception ids and the earliest expiry come from the real root file, so
+  // adding or retiring one needs no edit here. The mocked audit reports each
+  // live exception as used; otherwise the auditor flags it unused and the
+  // finding count below drifts with every exception rotation.
+  const rootToml = resolve(import.meta.dirname, "..", "osv-scanner.toml");
+  const exceptions = existsSync(rootToml)
+    ? parseOsvIgnoredVulnerabilities(readFileSync(rootToml, "utf8"))
     : new Map();
-  const findings = {
+  const expiries = [...exceptions.values()].map((entry) =>
+    Date.parse(`${entry.ignoreUntil}T00:00:00Z`),
+  );
+  const beforeEarliestExpiry = new Date(
+    expiries.length > 0 ? Math.min(...expiries) - 1 : "2026-08-15T00:00:00Z",
+  );
+  const reported = {
     hono: [
       {
         severity: "high",
@@ -465,14 +472,15 @@ test("dependency audit fails closed on findings and malformed output", () => {
       },
     ],
   };
-  for (const id of ignored.keys())
-    findings[id] = [
+  for (const id of exceptions.keys()) {
+    reported[id] = [
       {
         severity: "high",
-        title: "ignored issue",
+        title: "excepted",
         url: `https://github.com/advisories/${id}`,
       },
     ];
+  }
   assert.throws(
     () =>
       auditDependencies(
@@ -483,13 +491,9 @@ test("dependency audit fails closed on findings and malformed output", () => {
                 stdout: JSON.stringify({ results: [] }),
                 stderr: "",
               }
-            : {
-                status: 1,
-                stdout: JSON.stringify(findings),
-                stderr: "",
-              },
+            : { status: 1, stdout: JSON.stringify(reported), stderr: "" },
         projects,
-        new Date("2026-10-02T00:00:00Z"),
+        beforeEarliestExpiry,
       ),
     /(?<![0-9])1 dependency audit findings:/u,
   );

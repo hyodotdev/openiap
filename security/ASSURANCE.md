@@ -27,7 +27,10 @@ evidence from the reviewed source commit rather than claiming a second scan:
 - no unaccepted advisory in any committed dependency lock graph; temporary
   exceptions for advisories the lock does not clear yet (no fixed release,
   a fix outside the dependents' ranges, or a clearing dependency bump that
-  has not been tested yet) must be scoped, justified, and expiring;
+  has not been tested yet) must be scoped, justified, and expiring, and must
+  show either a build-only dependency (not reachable in a shipped package) or,
+  for runtime-reachable cases, a reviewed statement of exploitability and
+  mitigation;
 - immutable external GitHub Action references and explicit workflow token
   permissions;
 - CodeQL analysis of the hosted/web, C#, workflow, JVM Kotlin core/wrapper, and

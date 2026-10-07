@@ -292,6 +292,8 @@ class OpenIapModule(
     // ConcurrentHashMap.newKeySet needs API 24.
     private val emittedBillingIssueTokens: MutableSet<String> =
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
+    // Deduplicate callbacks across reconnects for this module's lifetime.
+    private val handledUserChoiceTokens = mutableSetOf<String>()
 
     private fun resetConnectionStateLocked() {
         productManager.clear()
@@ -2712,6 +2714,68 @@ class OpenIapModule(
         }
     }
 
+    internal fun handleUserChoiceBilling(
+        sourceClient: BillingClient,
+        sourceGeneration: Long,
+        details: UserChoiceBillingDetails,
+    ) {
+        val owner = listenerOwner(sourceClient, sourceGeneration)
+        val missingField = when {
+            details.externalTransactionToken.isBlank() -> "external transaction token"
+            details.products.isEmpty() -> "products"
+            else -> null
+        }
+        if (missingField != null) {
+            // Unusable callback: fail the launched request instead of stranding it.
+            val pending = owner.claim {
+                pendingPurchase?.takeIf {
+                    it.generation == sourceGeneration &&
+                        (details.products.isEmpty() || details.products.any(it.requestedSkus::contains))
+                }?.let { claimPurchaseCallback(sourceClient, it.callback, requireLaunched = true) }
+            } ?: return
+            val error = OpenIapError.PurchaseFailed(
+                "Missing $missingField in user choice billing details",
+            ).withProductId(pending.requestedSkus.singleOrNull())
+            pending.errorEventGate.publishOnce(error)
+            pending.callback(Result.failure(error))
+            return
+        }
+        val pending = owner.claim {
+            if (details.externalTransactionToken in handledUserChoiceTokens) return@claim null
+            val request = pendingPurchase?.takeIf {
+                it.generation == sourceGeneration &&
+                    details.products.any(it.requestedSkus::contains)
+            } ?: return@claim null
+            claimPurchaseCallback(sourceClient, request.callback, requireLaunched = true)?.also {
+                handledUserChoiceTokens.add(details.externalTransactionToken)
+            }
+        } ?: return
+
+        // Alternative billing ends the Play request before app listeners can start another.
+        var result = Result.success(emptyList<Purchase>())
+        try {
+            OpenIapLog.debug("User selected alternative billing", TAG)
+            val delivered = owner.deliver {
+                for (listener in userChoiceBillingListeners) {
+                    try {
+                        listener.onUserChoiceBilling(details)
+                    } catch (e: Exception) {
+                        OpenIapLog.warn("UserChoiceBilling listener error: ${e.message}", TAG)
+                    }
+                }
+            }
+            if (!delivered) {
+                val error = OpenIapError.ServiceDisconnected(
+                    "Billing connection ended before user choice billing details could be delivered"
+                ).withProductId(pending.requestedSkus.singleOrNull())
+                result = Result.failure(error)
+                pending.errorEventGate.publishOnce(error)
+            }
+        } finally {
+            pending.callback(result)
+        }
+    }
+
     private fun buildBillingClient(
         configuration: BillingConnectionConfiguration,
         sourceGeneration: Long,
@@ -2794,14 +2858,8 @@ class OpenIapModule(
                                         products = productIds
                                     )
 
-                                    eventOwner.deliver {
-                                        for (listener in userChoiceBillingListeners) {
-                                            try {
-                                                listener.onUserChoiceBilling(billingDetails)
-                                            } catch (e: Exception) {
-                                                OpenIapLog.warn("UserChoiceBilling listener error: ${e.message}", TAG)
-                                            }
-                                        }
+                                    clientRef.get()?.let { client ->
+                                        handleUserChoiceBilling(client, sourceGeneration, billingDetails)
                                     }
                                 } else {
                                     OpenIapLog.warn("Failed to extract user choice details", TAG)
