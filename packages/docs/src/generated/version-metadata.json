@@ -2,7 +2,7 @@
   "_generatedBy": "scripts/sync-versions.sh",
   "clientProtocolPackageVersion": "0.1.1",
   "commerceProtocolPackageVersion": "0.3.1",
-  "expoPackageVersion": "5.8.2",
+  "expoPackageVersion": "5.8.3",
   "reactNativePackageVersion": "16.7.3",
   "flutterPackageVersion": "10.7.2",
   "godotPackageVersion": "3.6.2",
