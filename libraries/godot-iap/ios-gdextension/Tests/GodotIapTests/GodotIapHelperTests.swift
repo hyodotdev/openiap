@@ -3,6 +3,32 @@ import OpenIAP
 @testable import GodotIap
 
 final class GodotIapHelperTests: XCTestCase {
+    func testAppleVerificationPayloadRetainsTopLevelValidityAndReceiptFields() throws {
+        for isValid in [false, true] {
+            let result = VerifyPurchaseResult.verifyPurchaseResultIos(
+                VerifyPurchaseResultIOS(
+                    isValid: isValid,
+                    jwsRepresentation: "test-jws",
+                    receiptData: "test-receipt"
+                )
+            )
+            let payload = try GodotIapHelper.encodeRequired(result)
+            XCTAssertEqual(payload["isValid"] as? Bool, isValid)
+            XCTAssertEqual(payload["jwsRepresentation"] as? String, "test-jws")
+            XCTAssertEqual(payload["receiptData"] as? String, "test-receipt")
+            XCTAssertEqual(payload["__typename"] as? String, "VerifyPurchaseResultIOS")
+        }
+    }
+
+    func testAppleVerificationRejectsANonAppleResult() {
+        let result = VerifyPurchaseResult.verifyPurchaseResultHorizon(
+            VerifyPurchaseResultHorizon(isValid: true, success: true)
+        )
+        XCTAssertThrowsError(try GodotIapHelper.encodeRequired(result)) { error in
+            XCTAssertEqual((error as? PurchaseError)?.code, .featureNotSupported)
+        }
+    }
+
     func testSuccessfulInvalidVerificationPreservesItsErrorNotification() async {
         let forwarded = expectation(description: "sku-not-found remains observable")
         let result = await GodotIapHelper.withCompletionErrors {

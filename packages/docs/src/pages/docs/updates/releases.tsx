@@ -660,8 +660,8 @@ function Releases() {
             <li>
               <strong>MAUI 3.0.0</strong> examples leave pending purchases and
               failed local verification unfinished. <strong>Godot 4.0.0</strong>
-              &apos;s Local (Device) mode verifies Apple purchases and leaves
-              unsupported stores unfinished.
+              preserves Apple verification results and leaves unsupported Local
+              (Device) purchases unfinished.
             </li>
             <li>
               <strong>KMP 4.0.0</strong> examples preserve the store&apos;s

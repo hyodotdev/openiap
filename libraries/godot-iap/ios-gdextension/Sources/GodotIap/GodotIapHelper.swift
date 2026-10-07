@@ -177,6 +177,16 @@ enum GodotIapHelper {
         return encoded
     }
 
+    static func encodeRequired(_ result: VerifyPurchaseResult) throws -> [String: Any] {
+        guard case let .verifyPurchaseResultIos(value) = result else {
+            throw PurchaseError.make(
+                code: .featureNotSupported,
+                message: "Expected an Apple verification result"
+            )
+        }
+        return try encodeRequired(value)
+    }
+
     static func purchasesRequired(_ purchases: [Purchase]) throws -> [[String: Any]] {
         try purchases.map { purchase in
             let encoded = OpenIapSerialization.purchase(purchase)

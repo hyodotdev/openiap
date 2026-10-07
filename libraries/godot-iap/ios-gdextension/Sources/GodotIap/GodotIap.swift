@@ -1345,13 +1345,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let result = try await GodotIapHelper.withCompletionErrors {
                     try await self.openIap.verifyPurchase(props)
                 }
+                let resultDict = try GodotIapHelper.encodeRequired(result)
 
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("verifyPurchase")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
-                    let resultDict = OpenIapSerialization.encode(result)
                     if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
                        let jsonString = String(data: jsonData, encoding: .utf8) {
                         dict["resultJson"] = Variant(jsonString)
