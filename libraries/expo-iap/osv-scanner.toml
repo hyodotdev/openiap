@@ -1,0 +1,14 @@
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2026-10-30
+reason = "No patched node-forge release exists; 1.4.0 is npm latest and still affected. Reached only via @expo/cli and @expo/code-signing-certificates for development certificate tooling; the published SDK and config plugin do not import it. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
+
+[[IgnoredVulns]]
+id = "GHSA-hp3w-g68c-fv3c"
+ignoreUntil = 2026-10-30
+reason = "No patched sprintf-js release exists; 1.1.3 is both npm latest and still affected. Reached only via argparse 1 and js-yaml 3 in istanbul/Jest coverage tooling; the published SDK package declares no runtime npm dependencies: https://github.com/advisories/GHSA-hp3w-g68c-fv3c."
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-10-30
+reason = "No patched braces release exists; 3.0.3 is npm latest and still affected. Reached only via micromatch from Jest and Metro file-map tooling, and via chokidar from Babel CLI, which parse repository-controlled glob patterns; the published SDK package declares no runtime npm dependencies: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm."
