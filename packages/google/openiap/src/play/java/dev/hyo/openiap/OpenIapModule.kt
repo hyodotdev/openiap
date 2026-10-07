@@ -292,10 +292,12 @@ class OpenIapModule(
     // ConcurrentHashMap.newKeySet needs API 24.
     private val emittedBillingIssueTokens: MutableSet<String> =
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
+    private val handledUserChoiceTokens = mutableSetOf<String>()
 
     private fun resetConnectionStateLocked() {
         productManager.clear()
         emittedBillingIssueTokens.clear()
+        handledUserChoiceTokens.clear()
         activeBillingClientMode = BillingClientMode.Standard
     }
 
@@ -2715,16 +2717,21 @@ class OpenIapModule(
     ) {
         val owner = listenerOwner(sourceClient, sourceGeneration)
         val pending = owner.claim {
+            if (details.externalTransactionToken in handledUserChoiceTokens) return@claim null
             val request = pendingPurchase?.takeIf {
                 it.generation == sourceGeneration &&
                     details.products.any(it.requestedSkus::contains)
             } ?: return@claim null
-            claimPurchaseCallback(sourceClient, request.callback, requireLaunched = true)
+            claimPurchaseCallback(sourceClient, request.callback, requireLaunched = true)?.also {
+                handledUserChoiceTokens.add(details.externalTransactionToken)
+            }
         } ?: return
 
         // Alternative billing ends the Play request before app listeners can start another.
+        var result = Result.success(emptyList<Purchase>())
         try {
-            owner.deliver {
+            OpenIapLog.debug("User selected alternative billing", TAG)
+            val delivered = owner.deliver {
                 for (listener in userChoiceBillingListeners) {
                     try {
                         listener.onUserChoiceBilling(details)
@@ -2733,8 +2740,15 @@ class OpenIapModule(
                     }
                 }
             }
+            if (!delivered) {
+                val error = OpenIapError.ServiceDisconnected(
+                    "Billing connection ended before user choice billing details could be delivered"
+                ).withProductId(pending.requestedSkus.singleOrNull())
+                result = Result.failure(error)
+                pending.errorEventGate.publishOnce(error)
+            }
         } finally {
-            pending.callback(Result.success(emptyList()))
+            pending.callback(result)
         }
     }
 

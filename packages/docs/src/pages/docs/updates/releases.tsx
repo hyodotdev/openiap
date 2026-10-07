@@ -492,6 +492,11 @@ function Releases() {
             </Link>
             .
           </p>
+          <p>
+            Repeated selection callbacks cannot complete a later purchase. If
+            the billing connection ends before selection details are delivered,
+            the request fails with a disconnect error.
+          </p>
           <h5>Package Releases</h5>
           <ul>
             {USER_CHOICE_RETRY_RELEASES.map((release) => (

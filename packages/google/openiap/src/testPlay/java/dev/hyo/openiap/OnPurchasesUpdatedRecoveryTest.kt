@@ -55,18 +55,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLooper
 
 /**
- * Covers the asynchronous PurchasesUpdatedListener path of the Play-flavor
- * OpenIapModule (GitHub issue #166):
- *
- * - Ambiguous, retriable purchase-flow errors must query current ownership and
- *   recover only matching purchases created during the in-flight request.
- * - ITEM_ALREADY_OWNED delivered via the listener (instead of the synchronous
- *   launchBillingFlow result) must recover the owned purchases, notify
- *   purchase-update listeners, and resolve the pending request.
- * - Without a pending request the pre-existing failure behavior stays intact.
- * - A successful purchase update must reach purchase-update listeners even
- *   when the pending request was claimed/cleared concurrently (the old
- *   `?: return` dropped the event entirely).
+ * Covers Play purchase recovery, request ownership, and alternative billing.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [29])
@@ -734,13 +723,19 @@ class OnPurchasesUpdatedRecoveryTest {
         val firstResults = mutableListOf<Result<List<Purchase>>>()
         val nextResults = mutableListOf<Result<List<Purchase>>>()
         installPendingPurchase(module, client, { firstResults += it }, setOf("product-id"), "inapp", 1.0)
+        val details = userChoiceDetails()
+        val choices = mutableListOf<UserChoiceBillingDetails>()
         module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener {
+            choices += it
             assertNull("the next request must not be blocked", pendingPurchaseField().get(module))
             installPendingPurchase(module, client, { nextResults += it }, setOf("product-id"), "inapp", 2.0)
+            if (choices.size == 1) module.handleUserChoiceBilling(client, 0L, details)
         })
 
-        module.handleUserChoiceBilling(client, 0L, userChoiceDetails())
+        module.handleUserChoiceBilling(client, 0L, details)
+        module.handleUserChoiceBilling(client, 0L, details)
 
+        assertEquals(listOf(details), choices)
         assertEquals(1, firstResults.size)
         assertTrue(firstResults.single().getOrThrow().isEmpty())
         assertTrue("the UCB callback must not complete the new request", nextResults.isEmpty())
@@ -749,6 +744,62 @@ class OnPurchasesUpdatedRecoveryTest {
             listOf(billingPurchase("product-id", "next-token", purchaseTime = 3)),
         )
         assertEquals(listOf("next-token"), nextResults.single().getOrThrow().map { it.purchaseToken })
+    }
+
+    @Test
+    fun `a fresh user choice token completes the next request for the same product`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        val firstChoice = userChoiceDetails()
+        val nextChoice = firstChoice.copy(externalTransactionToken = "next-external-token")
+
+        for (details in listOf(firstChoice, nextChoice)) {
+            installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+            module.handleUserChoiceBilling(client, 0L, details)
+            module.handleUserChoiceBilling(client, 0L, details)
+        }
+
+        assertEquals(listOf(firstChoice, nextChoice), choices)
+        assertEquals(2, results.size)
+        assertTrue(results.all { it.getOrThrow().isEmpty() })
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `user choice fails when the connection ends after claiming the request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        val choices = mutableListOf<UserChoiceBillingDetails>()
+        val errors = mutableListOf<OpenIapError>()
+        installPendingPurchase(module, client, { results += it }, setOf("product-id"), "inapp", 1.0)
+        module.addUserChoiceBillingListener(OpenIapUserChoiceBillingListener { choices += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        val disconnected = AtomicBoolean(false)
+        OpenIapLog.enable(true)
+        OpenIapLog.setHandler { _, message, _ ->
+            if (message == "User selected alternative billing" &&
+                disconnected.compareAndSet(false, true)
+            ) {
+                assertNull("the request must already be claimed", pendingPurchaseField().get(module))
+                runBlocking { module.endConnection() }
+            }
+        }
+
+        module.handleUserChoiceBilling(client, 0L, userChoiceDetails())
+
+        assertTrue("test hook must end the connection", disconnected.get())
+        assertTrue(choices.isEmpty())
+        assertEquals(1, results.size)
+        val error = results.single().exceptionOrNull()
+        assertTrue(error is OpenIapError.ServiceDisconnected)
+        assertEquals(listOf(error), errors)
+        assertNull(pendingPurchaseField().get(module))
     }
 
     @Test
@@ -830,10 +881,7 @@ class OnPurchasesUpdatedRecoveryTest {
             isAccessible = true
         }
 
-    /**
-     * Installs the module-private PendingPurchaseSnapshot the way a launched
-     * requestPurchase would leave it (generation 0 matches a fresh module).
-     */
+    /** Generation 0 matches a fresh module's launched request. */
     private fun installPendingPurchase(
         module: OpenIapModule,
         client: BillingClient,
