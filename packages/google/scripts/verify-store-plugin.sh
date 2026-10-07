@@ -139,12 +139,13 @@ run "and one that agrees is kept"           "mixed:debugRuntimeClasspath=openiap
 # The swap needs a version of its own; one borrowed from another edge is not it.
 run "an unversioned openiap-google says so"  "fail:openiap-google is declared without a version" :unversioned:printDebugStores -PopeniapStore=horizon
 # A provider build links openiap-core, not a store artifact, so the error names it.
-run "and in a provider build it names core"  "fail:declare a version so the plugin can link openiap-core" :unversioned:printDebugStores -PfixtureCommunityRepository="$fake_repo" -PopeniapStore=fixture-provider -PopeniapProvider=dev.example:provider:1.0.0
+run "and in a provider build it names core"  "fail:declare a version so the plugin can link openiap-core" :unversioned:printDebugStores -PfixtureCommunityRepository="$fake_repo" -PopeniapStore=fixture_provider -PopeniapProvider=dev.example:provider:1.0.0
+run "a hyphenated provider id fails"        "fail:unknown openiapStore" :app:printDebugStores -PfixtureCommunityRepository="$fake_repo" -PopeniapStore=fixture-provider -PopeniapProvider=dev.example:provider:1.0.0
 
 # A mixed-flavor app: the two properties select the provider flavor only, so an
 # official flavor's task never conflicts with the community pin.
 case_fixture="$fixture_mixed"
-mixed=(-PfixtureCommunityRepository="$fake_repo" -PopeniapStore=fixture-provider -PopeniapProvider=dev.example:provider:1.0.0)
+mixed=(-PfixtureCommunityRepository="$fake_repo" -PopeniapStore=fixture_provider -PopeniapProvider=dev.example:provider:1.0.0)
 run "a provider pin beside a play task"      "app:playDebugRuntimeClasspath=openiap-google" :app:printPlayStores "${mixed[@]}"
 run "and beside a horizon task"              "app:horizonDebugRuntimeClasspath=openiap-google-horizon" :app:printHorizonStores "${mixed[@]}"
 run "the provider flavor links both"         "app:providerDebugRuntimeClasspath=openiap-core,provider" :app:printProviderStores "${mixed[@]}"
