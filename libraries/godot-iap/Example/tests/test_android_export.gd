@@ -58,6 +58,13 @@ func _run() -> void:
 	export_plugin._export_begin(PackedStringArray(["android"]), true, "", 0)
 	_check("Android export reads the native preset option names", export_plugin.reads == [&"gradle_build/use_gradle_build", &"gradle_build/gradle_build_directory"])
 	_check("Android export hook upgrades the selected template", FileAccess.get_file_as_string(_directory.path_join("config.gradle")) == stock.replace("8.6.1", "8.9.1").replace("compileSdk: 35", "compileSdk: 36"))
+	export_plugin.reads.clear()
+	export_plugin.options[Plugin.GodotIapExportPlugin.ANDROID_STORE_OPTION] = "acme"
+	export_plugin.options[Plugin.GodotIapExportPlugin.ANDROID_PROVIDER_OPTION] = "dev.example:store:1.0.0"
+	_check("community export keeps its selected store", export_plugin._android_store(true) == "acme")
+	_check("community export reads both native provider options", export_plugin.reads == [&"openiap/android_store", &"openiap/android_provider"])
+	export_plugin.options[Plugin.GodotIapExportPlugin.ANDROID_PROVIDER_OPTION] = ""
+	_check("changing the provider invalidates cached store selection", export_plugin._android_store(true).is_empty())
 	export_plugin = null
 	_write("config.gradle", stock)
 	var result := AndroidExport.prepare(_directory)

@@ -18,7 +18,7 @@ test("the committed tree passes", () => {
 
 test("Godot export floors must be revalidated when AndroidX Core changes", () => {
   const failures = auditFacts(
-    overlaying("packages/google/openiap/build.gradle.kts", (text) =>
+    overlaying("packages/google/core/build.gradle.kts", (text) =>
       text.replace("androidx.core:core:1.18.0", "androidx.core:core:1.19.0"),
     ),
   );
