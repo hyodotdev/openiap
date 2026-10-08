@@ -806,9 +806,12 @@ function Releases() {
                   Local (Device) purchases unfinished.
                 </li>
                 <li>
-                  Preserves App Store restore cancellation as{' '}
-                  <code>user-cancelled</code> in both the returned result and
-                  one <code>purchase_error</code> signal.
+                  <code>restore_purchases()</code> returns{' '}
+                  <code>RestoreResult</code>, extending{' '}
+                  <code>Types.VoidResult</code>; failures expose{' '}
+                  <code>code</code> and <code>error</code>. App Store
+                  cancellation stays <code>user-cancelled</code> in both the
+                  result and one <code>purchase_error</code> signal.
                 </li>
                 <li>
                   Android exports prepare AGP 8.9.1 / SDK 36 templates,
