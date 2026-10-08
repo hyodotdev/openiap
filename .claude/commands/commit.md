@@ -5,7 +5,7 @@ description: Branch, commit, push, and optionally open a pull request for the cu
 
 # Commit Changes
 
-Complete workflow: branch → commit → push → PR
+Commit the current changes; push or open a PR only when requested.
 
 ## Usage
 
@@ -34,6 +34,13 @@ Complete workflow: branch → commit → push → PR
 ```
 
 ## Complete Workflow
+
+### Pull Request Scope Guard
+
+Apply `knowledge/internal/06-git-deployment.md#opening-pull-requests` before
+creating a branch or PR. Reuse the relevant open PR; `--pr` does not authorize
+additional PRs for fixes found during the task. Without an explicit new-PR
+request, skip step 7 and report the commit or existing PR update.
 
 ### Public GitHub Language Guard
 
@@ -224,6 +231,9 @@ recording.
 
 ### 7. Create Pull Request
 
+Run this step only with explicit permission for this new PR and no relevant
+open PR to update. Follow the Pull Request Scope Guard above.
+
 Use `main` as the base for source, stable and prerelease changes. Keep package
 version commits and their generated outputs internally consistent.
 
@@ -274,32 +284,32 @@ must match byte for byte.
 **Label selection guide.** One label for every area the diff touches, plus one
 for the kind of change:
 
-| Changed path                          | Label              |
-| ------------------------------------- | ------------------ |
-| `packages/apple/`                     | `📱 iOS`           |
-| `packages/google/`                    | `🤖 android`       |
-| `packages/docs/`                      | `📖 documentation` |
-| `packages/kit/`                       | `kit`              |
-| `specs/client/`                       | `⬡ protocol`       |
-| `specs/commerce-protocol/`            | `⬡ protocol`       |
-| `libraries/react-native-iap/`         | `react-native-iap` |
-| `libraries/expo-iap/`                 | `expo-iap`         |
-| `libraries/flutter_inapp_purchase/`   | `flutter-iap`      |
-| `libraries/godot-iap/`                | `godot-iap`        |
-| `libraries/kmp-iap/`                  | `kmp-iap`          |
-| `libraries/maui-iap/`                 | `maui-iap`         |
-| `.github/workflows/` or `scripts/`    | `💨 ci`            |
-| `.claude/`, `.codex/`, `AGENTS.md`    | `🕶️ meta`          |
-| `knowledge/`                          | `🕶️ meta`          |
-| several platforms at once             | `cross-platform`   |
+| Changed path                        | Label              |
+| ----------------------------------- | ------------------ |
+| `packages/apple/`                   | `📱 iOS`           |
+| `packages/google/`                  | `🤖 android`       |
+| `packages/docs/`                    | `📖 documentation` |
+| `packages/kit/`                     | `kit`              |
+| `specs/client/`                     | `⬡ protocol`       |
+| `specs/commerce-protocol/`          | `⬡ protocol`       |
+| `libraries/react-native-iap/`       | `react-native-iap` |
+| `libraries/expo-iap/`               | `expo-iap`         |
+| `libraries/flutter_inapp_purchase/` | `flutter-iap`      |
+| `libraries/godot-iap/`              | `godot-iap`        |
+| `libraries/kmp-iap/`                | `kmp-iap`          |
+| `libraries/maui-iap/`               | `maui-iap`         |
+| `.github/workflows/` or `scripts/`  | `💨 ci`            |
+| `.claude/`, `.codex/`, `AGENTS.md`  | `🕶️ meta`          |
+| `knowledge/`                        | `🕶️ meta`          |
+| several platforms at once           | `cross-platform`   |
 
-| Kind of change   | Label           |
-| ---------------- | --------------- |
-| New feature      | `🎯 feature`    |
-| Bug fix          | `🛠 bugfix`     |
-| Breaking change  | `⚡️ breaking`  |
-| Refactor         | `፦ refactor`    |
-| Tests only       | `🧪 test`       |
+| Kind of change  | Label         |
+| --------------- | ------------- |
+| New feature     | `🎯 feature`  |
+| Bug fix         | `🛠 bugfix`   |
+| Breaking change | `⚡️ breaking` |
+| Refactor        | `፦ refactor`  |
+| Tests only      | `🧪 test`     |
 
 ---
 

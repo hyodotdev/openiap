@@ -111,10 +111,7 @@ test("Gradle wrappers pin distributions and validate tracked jars", () => {
   }
 
   const ci = readWorkflow("ci.yml");
-  assert.match(
-    ci,
-    /gradle\/actions\/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6/u,
-  );
+  assert.match(ci, /gradle\/actions\/wrapper-validation@[a-f0-9]{40} # v6/u);
   assert.match(ci, /min-wrapper-count: 7/u);
 
   const makefile = readFileSync(

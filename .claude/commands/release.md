@@ -227,7 +227,9 @@ openiap-apple 3.5.0 with a 504 after the pod went live. Check the registry
   the same workflow from `main` with `version=current`: it verifies the
   existing tag with `scripts/assert-release-tag.mjs` and finishes the GitHub
   Release and the remaining steps.
-- **Nothing is public.** Fix forward in a PR, then release again.
+- **Nothing is public.** Prepare the fix and checks, then follow
+  `knowledge/internal/06-git-deployment.md#opening-pull-requests` before opening
+  a PR. Release authorization does not authorize a new recovery PR.
 - **Never republish a version or recreate a tag.** Registries are immutable; a
   wrong artifact is superseded by the next patch, and its changes go on the
   next card unless the maintainer asks to leave that version unannounced.
@@ -247,9 +249,9 @@ independent version edits:
   registry verification.
 - If an actual stable release from `main` exposes a previously unknowable CI
   problem, pause the train and inspect all remaining release workflows before
-  writing a fix. Group every confirmed train-wide repair into one recovery PR;
-  never open one recovery PR per failed package. Add later findings to the
-  existing mutable recovery PR when one exists.
+  writing a fix. Prepare every confirmed train-wide repair together and follow
+  `knowledge/internal/06-git-deployment.md#opening-pull-requests` before opening
+  a recovery PR. Add later findings to that PR while it remains open.
 
 1. Inventory every affected package's direct dependencies, build plugins,
    language/toolchain versions, lockfiles, and example-app dependencies. Compare
@@ -262,8 +264,9 @@ independent version edits:
    configuration syntax introduced by the upgrades. Migrate each use before
    treating the dependency audit as complete.
 4. Run package tests, examples, generated-output/parity audits, all store
-   flavors, and platform builds before committing. Then commit, push, and open a
-   PR through the repository's commit workflow.
+   flavors, and platform builds before committing. Then update the relevant
+   open PR, or open the one PR explicitly authorized by the maintainer, through
+   the repository's commit workflow.
 5. Run `review-pr` against the exact PR head. Follow its canonical polling
    cadence (currently every five minutes), fix every valid finding, push the
    verified fix batch, and repeat until CI, review threads, and reviewer or
