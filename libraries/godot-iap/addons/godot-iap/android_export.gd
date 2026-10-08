@@ -43,7 +43,7 @@ static func prepare(build_directory: String) -> Dictionary:
 		return {"changed": false}
 	var file := FileAccess.open(config_path, FileAccess.WRITE)
 	if file == null:
-		return {"error": "Cannot update %s; set androidGradlePlugin to %s or later." % [config_path, MIN_AGP]}
+		return {"error": "Cannot update %s; set androidGradlePlugin to %s+ and compileSdk to %d+." % [config_path, MIN_AGP, MIN_COMPILE_SDK]}
 	file.store_string(updated)
 	file.close()
 	return {"changed": true}
