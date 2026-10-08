@@ -36,11 +36,11 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 3. Enable the plugin in **Project → Project Settings → Plugins**
 
 Android exports require **AGP 8.9.1+**, **Gradle 8.11.1+**, **Android SDK 36+**, and **JDK 17**.
-Install the Android build template and enable **Use Gradle Build**. On Godot
-4.3+, the addon raises the stock template's AGP to 8.9.1 and compile SDK
-to 36 during export; it preserves newer versions and your target SDK.
-For older or custom templates, update the
-Gradle wrapper first. Do not force older AndroidX libraries to bypass this
+Install the Android build template and enable **Use Gradle Build**.
+Update any wrapper older than Gradle 8.11.1 before exporting; Godot 4.3's
+stock template needs this step. With a compatible wrapper, the addon raises
+AGP to 8.9.1 and compile SDK to 36 during export, preserving newer versions
+and your target SDK. Do not force older AndroidX libraries to bypass this
 requirement.
 
 On iOS, `restore_purchases()` can show an App Store sign-in sheet. Cancelling

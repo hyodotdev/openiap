@@ -533,12 +533,12 @@ function Releases() {
           <p>
             Godot preserves App Store restore cancellation as{' '}
             <code>user-cancelled</code> and emits one failure signal. Android
-            exports on Godot 4.3+ update compatible stock templates to AGP 8.9.1
-            and compile SDK 36 while preserving newer versions and target SDK.
+            exports update compatible stock templates to AGP 8.9.1 and compile
+            SDK 36 while preserving newer versions and target SDK.
           </p>
           <p>
-            Android exports require Gradle 8.11.1+, Android SDK 36+, and JDK 17;
-            update older wrappers before exporting.
+            Android exports require Gradle 8.11.1+, Android SDK 36+, and JDK 17.
+            Update older wrappers, including Godot 4.3&apos;s, before exporting.
           </p>
           <h5>Package Releases</h5>
           <ul>

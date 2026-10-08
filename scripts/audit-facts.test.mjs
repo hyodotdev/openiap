@@ -67,6 +67,33 @@ for (const file of [
   });
 }
 
+test("catches the current guide's wrapper-upgrade version drifting", () => {
+  const failures = auditFacts(
+    overlaying("packages/docs/src/pages/docs/setup/godot.tsx", (text) =>
+      text.replace(/Gradle\s+8\.11\.1\+\s+before/u, "Gradle 8.10.0+ before"),
+    ),
+  );
+  assert.ok(
+    failures.some((entry) =>
+      /godot\.android-export: .*"8\.10\.0"/u.test(entry),
+    ),
+  );
+});
+
+test("a preview cannot silently replace the stable Godot AGP floor", () => {
+  const failures = auditFacts(
+    overlaying(
+      "libraries/godot-iap/addons/godot-iap/android_export.gd",
+      (text) => text.replace('MIN_AGP := "8.9.1"', 'MIN_AGP := "8.9.1-rc01"'),
+    ),
+  );
+  assert.ok(
+    failures.some((entry) =>
+      /godot\.android-export: .*"8\.9\.1-rc01"/u.test(entry),
+    ),
+  );
+});
+
 test("catches a runner image left behind on a bump", () => {
   const failures = auditFacts(
     overlaying(".github/workflows/release-godot.yml", (text) =>

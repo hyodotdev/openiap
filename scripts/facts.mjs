@@ -103,7 +103,10 @@ export const FACTS = Object.freeze([
       ].flatMap(([role, constant, label]) => [
         {
           files: ["libraries/godot-iap/addons/godot-iap/android_export.gd"],
-          pattern: new RegExp(`^const MIN_${constant} := ["']?([\\d.]+)`, "gm"),
+          pattern: new RegExp(
+            `^const MIN_${constant} := ["']?([^"'\\s]+)`,
+            "gm",
+          ),
           role,
         },
         {
@@ -111,7 +114,10 @@ export const FACTS = Object.freeze([
             "libraries/godot-iap/README.md",
             "packages/docs/src/pages/docs/setup/godot.tsx",
           ],
-          pattern: new RegExp(`\\b${label}(?:\\s+to)?\\s+([\\d.]+)`, "g"),
+          pattern: new RegExp(
+            `\\b${label}(?:\\s+to)?\\s+([\\d.]+(?:-[A-Za-z0-9.-]+)?)`,
+            "g",
+          ),
           role,
           mirror: true,
         },
