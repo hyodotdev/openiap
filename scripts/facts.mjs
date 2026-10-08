@@ -82,6 +82,43 @@ export const FACTS = Object.freeze([
     ],
   },
   {
+    key: "godot.android-export",
+    // Revalidate Core and its consumer floors together before changing this family.
+    values: {
+      core: "1.18.0",
+      agp: "8.9.1",
+      gradle: "8.11.1",
+      compileSdk: "36",
+    },
+    scanners: [
+      {
+        files: ["packages/google/openiap/build.gradle.kts"],
+        pattern: /^\s*implementation\("androidx\.core:core:([^"\s]+)"\)/gm,
+        role: "core",
+      },
+      ...[
+        ["agp", "AGP", "AGP"],
+        ["gradle", "GRADLE", "Gradle"],
+        ["compileSdk", "COMPILE_SDK", "(?:Android SDK|compile SDK)"],
+      ].flatMap(([role, constant, label]) => [
+        {
+          files: ["libraries/godot-iap/addons/godot-iap/android_export.gd"],
+          pattern: new RegExp(`^const MIN_${constant} := ["']?([\\d.]+)`, "gm"),
+          role,
+        },
+        {
+          files: [
+            "libraries/godot-iap/README.md",
+            "packages/docs/src/pages/docs/setup/godot.tsx",
+          ],
+          pattern: new RegExp(`\\b${label}(?:\\s+to)?\\s+([\\d.]+)`, "g"),
+          role,
+          mirror: true,
+        },
+      ]),
+    ],
+  },
+  {
     key: "godot.version",
     // current builds the artifacts; minimum is the oldest supported editor.
     values: { current: "4.7.1", minimum: "4.3" },

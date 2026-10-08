@@ -37,7 +37,7 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 
 Android exports require **AGP 8.9.1+**, **Gradle 8.11.1+**, **Android SDK 36+**, and **JDK 17**.
 Install the Android build template and enable **Use Gradle Build**. On Godot
-4.6/4.7, the addon raises the stock template's AGP to 8.9.1 and compile SDK
+4.3+, the addon raises the stock template's AGP to 8.9.1 and compile SDK
 to 36 during export; it preserves newer versions and your target SDK.
 For older or custom templates, update the
 Gradle wrapper first. Do not force older AndroidX libraries to bypass this

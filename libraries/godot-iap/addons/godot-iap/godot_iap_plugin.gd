@@ -52,12 +52,8 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 
 	func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, _flags: int) -> void:
 		if features.has("android") or features.has("Android"):
-			if not has_method("get_export_preset"):
-				push_warning("[GodotIap] Android exports require AGP %s+ and Gradle %s+." % [AndroidExport.MIN_AGP, AndroidExport.MIN_GRADLE])
-				return
-			var preset = call("get_export_preset")
-			if preset.get("gradle_build/use_gradle_build"):
-				var directory := AndroidExport.resolve_build_directory(preset.get("gradle_build/gradle_build_directory"))
+			if _preset_option("gradle_build/use_gradle_build"):
+				var directory := AndroidExport.resolve_build_directory(_preset_option("gradle_build/gradle_build_directory"))
 				var result := AndroidExport.prepare(directory)
 				if result.has("error"):
 					push_error("[GodotIap] %s" % result.error)
@@ -72,6 +68,9 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 				push_warning("[GodotIap] Missing iOS framework: %s" % framework_path)
 				continue
 			_add_ios_embedded_framework(framework_path)
+
+	func _preset_option(name: StringName) -> Variant:
+		return get_option(name)
 
 	func _is_ios_export(features: PackedStringArray) -> bool:
 		var platform = call("get_export_platform") if has_method("get_export_platform") else null
@@ -125,7 +124,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 		}]
 
 	func _get_android_manifest_application_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
-		var value = get_option(HORIZON_APP_ID_OPTION)
+		var value = _preset_option(HORIZON_APP_ID_OPTION)
 		var app_id := "" if value == null else str(value).strip_edges()
 		if app_id.is_empty():
 			return ""
@@ -143,8 +142,8 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 
 	## The store this Android export links, or "" when the option names none.
 	func _android_store(debug: bool) -> String:
-		var option = get_option(ANDROID_STORE_OPTION)
-		var provider := str(get_option(ANDROID_PROVIDER_OPTION)).strip_edges()
+		var option = _preset_option(ANDROID_STORE_OPTION)
+		var provider := str(_preset_option(ANDROID_PROVIDER_OPTION)).strip_edges()
 		var key := "%s|%s|%s" % [debug, option, provider]
 		if _android_stores.has(key):
 			return _android_stores[key]
@@ -166,7 +165,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		var store := _android_store(debug)
-		var provider := str(get_option(ANDROID_PROVIDER_OPTION)).strip_edges()
+		var provider := str(_preset_option(ANDROID_PROVIDER_OPTION)).strip_edges()
 		if store.is_empty():
 			push_error("[GodotIap] Select a valid official store, or a community id with fixed group:artifact:version provider coordinates")
 		return AndroidStore.dependencies(_read_android_remote_dependencies(), store, provider)

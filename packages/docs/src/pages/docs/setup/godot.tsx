@@ -257,9 +257,9 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
         </Callout>
 
         <p>
-          On Godot 4.6/4.7, the addon updates the stock Android build template
-          to AGP 8.9.1 and compile SDK 36 during export, keeping newer versions
-          and your target SDK. If an older or custom template uses Gradle below
+          On Godot 4.3+, the addon updates the stock Android build template to
+          AGP 8.9.1 and compile SDK 36 during export, keeping newer versions and
+          your target SDK. If an older or custom template uses Gradle below
           8.11.1, update its wrapper before exporting. Keep AndroidX
           dependencies at their shipped versions.
         </p>

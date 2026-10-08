@@ -1,6 +1,20 @@
 extends SceneTree
 
 const AndroidExport = preload("res://addons/godot-iap/android_export.gd")
+const Plugin = preload("res://addons/godot-iap/godot_iap_plugin.gd")
+
+class PresetExportPlugin extends Plugin.GodotIapExportPlugin:
+	var options := {}
+	var reads: Array[StringName] = []
+
+	func _preset_option(name: StringName) -> Variant:
+		reads.append(name)
+		return options.get(name)
+
+	func _is_ios_export(_features: PackedStringArray) -> bool:
+		return false
+
+
 var _failed := 0
 var _passed := 0
 var _directory := ""
@@ -11,6 +25,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await process_frame
+	while EditorInterface.get_resource_filesystem().is_scanning():
+		await process_frame
 	var plugin = load("res://addons/godot-iap/godot_iap_plugin.gd")
 	_check("export plugin parses", plugin != null and plugin.can_instantiate())
 	for value in [null, ""]:
@@ -18,10 +35,30 @@ func _run() -> void:
 	_check("relative build directory resolves from project", AndroidExport.resolve_build_directory("custom/android") == "res://custom/android/build")
 	_check("resource build directory preserved", AndroidExport.resolve_build_directory("res://custom/android") == "res://custom/android/build")
 	_check("absolute build directory preserved", AndroidExport.resolve_build_directory("/tmp/custom/android") == "/tmp/custom/android/build")
-	_directory = "user://android-export-%d" % Time.get_ticks_usec()
+	var template_directory := "user://android-export-%d" % Time.get_ticks_usec()
+	_directory = template_directory.path_join("build")
 	DirAccess.make_dir_recursive_absolute(_directory.path_join("gradle/wrapper"))
 	_write("gradle/wrapper/gradle-wrapper.properties", "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-bin.zip\n")
 	var stock := "versions = [\n    androidGradlePlugin: '8.6.1',\n    compileSdk: 35,\n    targetSdk: 35,\n    kotlinVersion: '2.1.21'\n]\n"
+	_write("config.gradle", stock)
+	var export_plugin := PresetExportPlugin.new()
+	export_plugin.options = {
+		"gradle_build/use_gradle_build": true,
+		"gradle_build/gradle_build_directory": ProjectSettings.globalize_path(template_directory),
+	}
+	export_plugin._export_begin(PackedStringArray(["linux"]), true, "", 0)
+	_check("non-Android export does not read Android options", export_plugin.reads.is_empty())
+	_check("non-Android export leaves the template unchanged", FileAccess.get_file_as_string(_directory.path_join("config.gradle")) == stock)
+	export_plugin.options["gradle_build/use_gradle_build"] = false
+	export_plugin._export_begin(PackedStringArray(["Android"]), true, "", 0)
+	_check("non-Gradle export leaves the template unchanged", FileAccess.get_file_as_string(_directory.path_join("config.gradle")) == stock)
+	_check("non-Gradle export does not read the build directory", export_plugin.reads == [&"gradle_build/use_gradle_build"])
+	export_plugin.options["gradle_build/use_gradle_build"] = true
+	export_plugin.reads.clear()
+	export_plugin._export_begin(PackedStringArray(["android"]), true, "", 0)
+	_check("Android export reads the native preset option names", export_plugin.reads == [&"gradle_build/use_gradle_build", &"gradle_build/gradle_build_directory"])
+	_check("Android export hook upgrades the selected template", FileAccess.get_file_as_string(_directory.path_join("config.gradle")) == stock.replace("8.6.1", "8.9.1").replace("compileSdk: 35", "compileSdk: 36"))
+	export_plugin = null
 	_write("config.gradle", stock)
 	var result := AndroidExport.prepare(_directory)
 	_check("stock template upgraded", result.get("changed", false))
@@ -55,6 +92,7 @@ func _run() -> void:
 		DirAccess.remove_absolute(_directory.path_join(path))
 	for path in ["gradle/wrapper", "gradle", ""]:
 		DirAccess.remove_absolute(_directory.path_join(path))
+	DirAccess.remove_absolute(template_directory)
 	print("Results: %d passed, %d failed" % [_passed, _failed])
 	quit(0 if _failed == 0 else 1)
 

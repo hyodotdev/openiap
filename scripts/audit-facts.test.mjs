@@ -16,6 +16,57 @@ test("the committed tree passes", () => {
   assert.deepEqual(auditFacts(readRepoFile), []);
 });
 
+test("Godot export floors must be revalidated when AndroidX Core changes", () => {
+  const failures = auditFacts(
+    overlaying("packages/google/openiap/build.gradle.kts", (text) =>
+      text.replace("androidx.core:core:1.18.0", "androidx.core:core:1.19.0"),
+    ),
+  );
+  assert.ok(
+    failures.some((entry) =>
+      /godot\.android-export: .*"1\.19\.0"/u.test(entry),
+    ),
+  );
+});
+
+for (const [constant, before, after] of [
+  ["AGP", '"8.9.1"', '"8.6.1"'],
+  ["GRADLE", '"8.11.1"', '"8.10.0"'],
+  ["COMPILE_SDK", "36", "35"],
+]) {
+  test(`catches a stale Godot MIN_${constant} consumer floor`, () => {
+    const failures = auditFacts(
+      overlaying(
+        "libraries/godot-iap/addons/godot-iap/android_export.gd",
+        (text) =>
+          text.replace(
+            `MIN_${constant} := ${before}`,
+            `MIN_${constant} := ${after}`,
+          ),
+      ),
+    );
+    assert.ok(
+      failures.some((entry) => entry.startsWith("godot.android-export:")),
+    );
+  });
+}
+
+for (const file of [
+  "libraries/godot-iap/README.md",
+  "packages/docs/src/pages/docs/setup/godot.tsx",
+]) {
+  test(`catches stale Godot export requirements in ${file}`, () => {
+    const failures = auditFacts(
+      overlaying(file, (text) => text.replace("AGP 8.9.1", "AGP 8.6.1")),
+    );
+    assert.ok(
+      failures.some((entry) =>
+        /godot\.android-export: .*"8\.6\.1"/u.test(entry),
+      ),
+    );
+  });
+}
+
 test("catches a runner image left behind on a bump", () => {
   const failures = auditFacts(
     overlaying(".github/workflows/release-godot.yml", (text) =>
