@@ -460,6 +460,7 @@ class BillingQueryLifecycleTest {
             purchaseToken = token,
             quantity = 1,
             store = IapStore.Google,
+            storeId = "play",
             transactionDate = 0.0,
         )
 

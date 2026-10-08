@@ -7,6 +7,27 @@
 @file:Suppress("UNCHECKED_CAST")
 package dev.hyo.openiap
 
+public object StoreIds {
+    const val Apple = "apple"
+    const val Play = "play"
+    const val Horizon = "horizon"
+    const val Amazon = "amazon"
+}
+
+private fun resolveStoreId(store: IapStore, value: Any?): String {
+    val official = when (store) {
+        IapStore.Apple -> "apple"
+        IapStore.Google -> "play"
+        IapStore.Horizon -> "horizon"
+        IapStore.Amazon -> "amazon"
+        IapStore.Unknown -> null
+    }
+    require(value == null || value is String) { "storeId must be a string" }
+    val id = value as String? ?: official
+    require(id != null && if (official != null) id == official else id.matches(Regex("[a-z][a-z0-9_]*")) && id !in setOf("auto", "none", "unknown", "apple", "play", "google", "horizon", "amazon")) { "Invalid store identity" }
+    return id
+}
+
 // MARK: - Enums
 
 /**
@@ -828,6 +849,9 @@ public enum class IapPlatform(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Frozen legacy store discriminator. Use storeId for extensible store identity.
+ */
 public enum class IapStore(val rawValue: String) {
     Unknown("unknown"),
     Apple("apple"),
@@ -1490,6 +1514,9 @@ public interface PurchaseCommon {
     val currentPlanId: String?
     val id: String
     val ids: List<String>?
+    /**
+     * Legacy Boolean renewal hint; it cannot represent unknown. Use nullable platform renewal metadata or backend status for renewal decisions.
+     */
     val isAutoRenewing: Boolean
     val productId: String
     val purchaseState: PurchaseState
@@ -1502,6 +1529,10 @@ public interface PurchaseCommon {
      * Store where purchase was made
      */
     val store: IapStore
+    /**
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
+     */
+    val storeId: String
     /**
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
      */
@@ -1521,6 +1552,9 @@ public interface VerifyPurchaseResultCommon {
 // MARK: - Objects
 
 public data class ActiveSubscription(
+    /**
+     * Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
+     */
     val autoRenewingAndroid: Boolean? = null,
     val basePlanIdAndroid: String? = null,
     /**
@@ -3035,6 +3069,9 @@ public data class ProductSubscriptionIOS(
 }
 
 public data class PurchaseAndroid(
+    /**
+     * Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
+     */
     val autoRenewingAndroid: Boolean? = null,
     override val currentPlanId: String? = null,
     val dataAndroid: String? = null,
@@ -3042,6 +3079,9 @@ public data class PurchaseAndroid(
     override val id: String,
     override val ids: List<String>? = null,
     val isAcknowledgedAndroid: Boolean? = null,
+    /**
+     * Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
+     */
     override val isAutoRenewing: Boolean,
     /**
      * Whether the subscription is suspended (Android)
@@ -3071,6 +3111,10 @@ public data class PurchaseAndroid(
      */
     override val store: IapStore,
     /**
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
+     */
+    override val storeId: String,
+    /**
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
      */
     override val transactionDate: Double,
@@ -3090,6 +3134,7 @@ public data class PurchaseAndroid(
 
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseAndroid {
+            val store = IapStore.fromJson(json["store"] as? String ?: "")
             return PurchaseAndroid(
                 autoRenewingAndroid = json["autoRenewingAndroid"] as? Boolean,
                 currentPlanId = json["currentPlanId"] as? String,
@@ -3109,7 +3154,8 @@ public data class PurchaseAndroid(
                 purchaseToken = json["purchaseToken"] as? String,
                 quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
                 signatureAndroid = json["signatureAndroid"] as? String,
-                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                store = store,
+                storeId = resolveStoreId(store, json["storeId"]),
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String,
                 userIdAmazon = json["userIdAmazon"] as? String,
@@ -3139,6 +3185,7 @@ public data class PurchaseAndroid(
         "quantity" to quantity,
         "signatureAndroid" to signatureAndroid,
         "store" to store.toJson(),
+        "storeId" to storeId,
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
         "userIdAmazon" to userIdAmazon,
@@ -3255,6 +3302,9 @@ public data class PurchaseIOS(
     val expirationDateIOS: Double? = null,
     override val id: String,
     override val ids: List<String>? = null,
+    /**
+     * Legacy Boolean renewal hint; use renewalInfoIOS or backend status for reported renewal state.
+     */
     override val isAutoRenewing: Boolean,
     val isUpgradedIOS: Boolean? = null,
     val offerIOS: PurchaseOfferIOS? = null,
@@ -3292,6 +3342,10 @@ public data class PurchaseIOS(
      */
     override val store: IapStore,
     val storefrontCountryCodeIOS: String? = null,
+    /**
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
+     */
+    override val storeId: String,
     val subscriptionGroupIdIOS: String? = null,
     /**
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
@@ -3304,6 +3358,7 @@ public data class PurchaseIOS(
 
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseIOS {
+            val store = IapStore.fromJson(json["store"] as? String ?: "")
             return PurchaseIOS(
                 advancedCommerceInfoIOS = (json["advancedCommerceInfoIOS"] as? Map<String, Any?>)?.let { AdvancedCommerceInfoIOS.fromJson(it) },
                 appAccountToken = json["appAccountToken"] as? String,
@@ -3340,8 +3395,9 @@ public data class PurchaseIOS(
                 revocationDateIOS = (json["revocationDateIOS"] as? Number)?.toDouble(),
                 revocationReasonIOS = json["revocationReasonIOS"] as? String,
                 revocationTypeIOS = json["revocationTypeIOS"] as? String,
-                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                store = store,
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
+                storeId = resolveStoreId(store, json["storeId"]),
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String ?: "",
@@ -3390,6 +3446,7 @@ public data class PurchaseIOS(
         "revocationTypeIOS" to revocationTypeIOS,
         "store" to store.toJson(),
         "storefrontCountryCodeIOS" to storefrontCountryCodeIOS,
+        "storeId" to storeId,
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
@@ -3631,7 +3688,7 @@ public data class RequestPurchaseResultPurchase(val value: Purchase?) : RequestP
 
 public data class RequestPurchaseResultPurchases(val value: List<Purchase>?) : RequestPurchaseResult
 
-public data class RequestVerifyPurchaseWithIapkitResult(
+public class RequestVerifyPurchaseWithIapkitResult private constructor(
     /**
      * True when the purchase is valid and actionable.
      * Only entitled, pending-acknowledgment, or ready-to-consume return true.
@@ -3643,7 +3700,8 @@ public data class RequestVerifyPurchaseWithIapkitResult(
      * The current state of the purchase.
      */
     val state: IapkitPurchaseState,
-    val store: IapStore
+    val store: IapStore,
+    explicitStoreId: String?,
 ) {
 
     /**
@@ -3675,6 +3733,24 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     var environment: String? = null
         private set
 
+    /**
+     * Stable store id: apple, play, horizon, amazon, or a community provider id.
+     */
+    var storeId: String = explicitStoreId?.let { resolveStoreId(store, it) } ?: when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> throw IllegalArgumentException("RequestVerifyPurchaseWithIapkitResult with store Unknown requires an explicit valid storeId") }
+        private set
+
+    constructor(
+        isValid: Boolean,
+        state: IapkitPurchaseState,
+        store: IapStore,
+    ) : this(
+        isValid = isValid,
+        state = state,
+        store = store,
+        explicitStoreId = null,
+    ) {
+    }
+
     constructor(
         isValid: Boolean,
         state: IapkitPurchaseState,
@@ -3685,6 +3761,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         isValid = isValid,
         state = state,
         store = store,
+        explicitStoreId = null,
     ) {
         this.clientPayload = clientPayload
         this.productId = productId
@@ -3701,21 +3778,80 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         isValid = isValid,
         state = state,
         store = store,
+        explicitStoreId = null,
     ) {
         this.clientPayload = clientPayload
         this.productId = productId
         this.environment = environment
     }
 
+    constructor(
+        isValid: Boolean,
+        state: IapkitPurchaseState,
+        store: IapStore,
+        clientPayload: IapkitProductClientPayload? = null,
+        productId: String? = null,
+        environment: String? = null,
+        storeId: String,
+    ) : this(
+        isValid = isValid,
+        state = state,
+        store = store,
+        explicitStoreId = storeId,
+    ) {
+        this.clientPayload = clientPayload
+        this.productId = productId
+        this.environment = environment
+    }
+
+    operator fun component1(): Boolean = isValid
+    operator fun component2(): IapkitPurchaseState = state
+    operator fun component3(): IapStore = store
+
+    fun copy(
+        isValid: Boolean = this.isValid,
+        state: IapkitPurchaseState = this.state,
+        store: IapStore = this.store,
+        storeId: String? = null,
+    ): RequestVerifyPurchaseWithIapkitResult {
+        val resolvedStoreId = storeId?.let { resolveStoreId(store, it) } ?: if (store == this.store) this.storeId else when (store) { IapStore.Apple -> StoreIds.Apple; IapStore.Google -> StoreIds.Play; IapStore.Horizon -> StoreIds.Horizon; IapStore.Amazon -> StoreIds.Amazon; IapStore.Unknown -> throw IllegalArgumentException("RequestVerifyPurchaseWithIapkitResult with store Unknown requires an explicit valid storeId") }
+        return RequestVerifyPurchaseWithIapkitResult(
+            isValid = isValid,
+            state = state,
+            store = store,
+            clientPayload = this.clientPayload,
+            productId = this.productId,
+            environment = this.environment,
+            storeId = resolvedStoreId,
+        )
+    }
+
+    override fun equals(other: Any?): Boolean = other is RequestVerifyPurchaseWithIapkitResult &&
+        isValid == other.isValid && state == other.state && store == other.store && clientPayload == other.clientPayload && productId == other.productId && environment == other.environment && storeId == other.storeId
+    override fun hashCode(): Int {
+        var result = 1
+        result = 31 * result + isValid.hashCode()
+        result = 31 * result + state.hashCode()
+        result = 31 * result + store.hashCode()
+        result = 31 * result + (clientPayload?.hashCode() ?: 0)
+        result = 31 * result + (productId?.hashCode() ?: 0)
+        result = 31 * result + (environment?.hashCode() ?: 0)
+        result = 31 * result + storeId.hashCode()
+        return result
+    }
+    override fun toString(): String = "RequestVerifyPurchaseWithIapkitResult(isValid=$isValid, state=$state, store=$store, clientPayload=$clientPayload, productId=$productId, environment=$environment, storeId=$storeId)"
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
+            val store = IapStore.fromJson(json["store"] as? String ?: "")
             return RequestVerifyPurchaseWithIapkitResult(
                 isValid = json["isValid"] as? Boolean ?: false,
                 state = (json["state"] as? String)?.let { IapkitPurchaseState.fromJson(it) } ?: IapkitPurchaseState.Unknown,
-                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                store = store,
                 clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { runCatching { IapkitProductClientPayload.fromJson(it) }.getOrNull() },
                 productId = json["productId"] as? String,
                 environment = json["environment"] as? String,
+                storeId = resolveStoreId(store, json["storeId"]),
             )
         }
     }
@@ -3723,11 +3859,47 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RequestVerifyPurchaseWithIapkitResult",
         "store" to store.toJson(),
+        "storeId" to storeId,
         "environment" to environment,
         "isValid" to isValid,
         "state" to state.toJson(),
         "productId" to productId,
         "clientPayload" to clientPayload?.toJson(),
+    )
+}
+
+/**
+ * Store-provider contract shared by the Apple and Android native bindings.
+ * coreVersion names the native contract build; clientProtocolVersion names the
+ * Client Protocol build. Capabilities use the conformance provider profile ids.
+ */
+public data class StoreProviderDescriptor(
+    val capabilities: List<String>,
+    val clientProtocolVersion: String,
+    val coreVersion: String,
+    val platform: IapPlatform,
+    val storeId: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): StoreProviderDescriptor {
+            return StoreProviderDescriptor(
+                capabilities = (json["capabilities"] as? List<*>)?.mapNotNull { it as? String } ?: throw IllegalArgumentException("Missing capabilities for StoreProviderDescriptor"),
+                clientProtocolVersion = (json["clientProtocolVersion"] as? String)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Missing or blank clientProtocolVersion for StoreProviderDescriptor"),
+                coreVersion = (json["coreVersion"] as? String)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Missing or blank coreVersion for StoreProviderDescriptor"),
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for IapPlatform"),
+                storeId = (json["storeId"] as? String)?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Missing or blank storeId for StoreProviderDescriptor"),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "StoreProviderDescriptor",
+        "capabilities" to capabilities,
+        "clientProtocolVersion" to clientProtocolVersion,
+        "coreVersion" to coreVersion,
+        "platform" to platform.toJson(),
+        "storeId" to storeId,
     )
 }
 
@@ -4984,10 +5156,8 @@ public data class RequestPurchaseProps(
  * Platform-specific purchase request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 public data class RequestPurchasePropsByPlatforms(
     /**
@@ -5188,10 +5358,8 @@ public data class RequestSubscriptionIosProps(
  * Platform-specific subscription request parameters.
  *
  * Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
- * - apple: Always targets App Store
- * - google: Targets Play Store by default, Horizon when built with horizon flavor,
- *   or Fire OS when built with amazon flavor
- *   (determined at build time, not runtime)
+ * - apple: Uses the selected Apple-platform provider (App Store by default)
+ * - google: Uses the selected Android provider (Play, Horizon, Amazon, or community)
  */
 public data class RequestSubscriptionPropsByPlatforms(
     /**
@@ -5927,6 +6095,7 @@ public interface MutationResolver {
     suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
+     * Providers emit one canonical purchase-error event before returning or throwing a request failure.
      * See: https://openiap.dev/docs/apis/request-purchase
      */
     suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?
@@ -6333,6 +6502,7 @@ public data class MutationHandlers(
     val presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
     /**
      * Initiate a purchase or subscription flow; rely on events for final state.
+     * Providers emit one canonical purchase-error event before returning or throwing a request failure.
      * See: https://openiap.dev/docs/apis/request-purchase
      */
     val requestPurchase: MutationRequestPurchaseHandler? = null,

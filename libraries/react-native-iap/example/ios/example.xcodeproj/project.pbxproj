@@ -10,13 +10,13 @@
 		0C80B921A6F3F58F76C31292 /* libPods-example.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-example.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		2C45A4A7038ED639A0DA8047 /* SubscriptionBillingIssueReconnectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F63961E1E4779D0D0CC89E /* SubscriptionBillingIssueReconnectTests.swift */; };
-		9A1C0DE1000000000000C0DE /* ConnectOnDemandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1C0DE0000000000000C0DE /* ConnectOnDemandTests.swift */; };
 		39B415FD9B823A99DF82885B /* libPods-exampleTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A1B53C93D4444C448EAF564 /* libPods-exampleTests.a */; };
 		6CA9F570183E5756970ADA69 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		761780EF2CA45674006654EE /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EE2CA45674006654EE /* SceneDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		912AFAD7DD196565C20C2D28 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7CB695629D08A69F09E048C9 /* Foundation.framework */; };
+		9A1C0DE1000000000000C0DE /* ConnectOnDemandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1C0DE0000000000000C0DE /* ConnectOnDemandTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,7 +35,6 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = example/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = example/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		15F63961E1E4779D0D0CC89E /* SubscriptionBillingIssueReconnectTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = exampleTests/SubscriptionBillingIssueReconnectTests.swift; sourceTree = "<group>"; };
-		9A1C0DE0000000000000C0DE /* ConnectOnDemandTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = exampleTests/ConnectOnDemandTests.swift; sourceTree = "<group>"; };
 		192B71D5D16C43463188CE4C /* exampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = exampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A1B53C93D4444C448EAF564 /* libPods-exampleTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-exampleTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B4392A12AC88292D35C810B /* Pods-example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-example.debug.xcconfig"; path = "Target Support Files/Pods-example/Pods-example.debug.xcconfig"; sourceTree = "<group>"; };
@@ -46,6 +45,7 @@
 		7A67B8342B38E57CDEFE6616 /* Pods-exampleTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-exampleTests.debug.xcconfig"; path = "Target Support Files/Pods-exampleTests/Pods-exampleTests.debug.xcconfig"; sourceTree = "<group>"; };
 		7CB695629D08A69F09E048C9 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = example/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		9A1C0DE0000000000000C0DE /* ConnectOnDemandTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = exampleTests/ConnectOnDemandTests.swift; sourceTree = "<group>"; };
 		A414E86517B93E77B2E3EEA6 /* Pods-exampleTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-exampleTests.release.xcconfig"; path = "Target Support Files/Pods-exampleTests/Pods-exampleTests.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */

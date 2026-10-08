@@ -32,7 +32,8 @@ extension VerificationMethodX on VerificationMethod {
 }
 
 /// Mirrors the other examples: no key skips, a local origin prefers it.
-VerificationMethod defaultVerificationMethod(String apiKey, String localBaseUrl) {
+VerificationMethod defaultVerificationMethod(
+    String apiKey, String localBaseUrl) {
   if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
   if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
   return VerificationMethod.iapkit;
@@ -84,8 +85,9 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     });
 
     try {
-      // End any existing connection first to reset configuration
-      // This ensures we start fresh without alternative billing settings
+      await _purchaseUpdatedSubscription?.cancel();
+      await _purchaseErrorSubscription?.cancel();
+      // Reset alternative billing settings before connecting.
       try {
         await _iap.endConnection();
         await Future.delayed(const Duration(milliseconds: 100));
@@ -103,6 +105,25 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
 
       _setupPurchaseListeners();
       await _loadProducts();
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.macOS)) {
+        try {
+          final pending = await _iap.getPendingTransactionsIOS();
+          for (final purchase in pending) {
+            if (!mounted) return;
+            await _handlePurchaseUpdate(purchase);
+          }
+        } catch (error) {
+          if (error is! PurchaseError ||
+              error.code != ErrorCode.FeatureNotSupported) {
+            if (!mounted) return;
+            setState(() {
+              _purchaseResult = 'Pending purchase recovery failed: $error';
+            });
+          }
+        }
+      }
     } catch (e) {
       debugPrint('Failed to initialize IAP connection: $e');
     } finally {
@@ -202,53 +223,13 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       return;
     }
 
-    // Determine if purchase is successful using same logic as subscription flow
-    bool isPurchased = false;
-
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.android &&
-        purchase is PurchaseAndroid) {
-      // For Android, check multiple conditions since fields can be null
-      final bool condition1 = purchase.purchaseState == PurchaseState.Purchased;
-      final bool condition2 = acknowledgedAndroid == false &&
-          purchase.purchaseToken != null &&
-          purchase.purchaseToken!.isNotEmpty &&
-          purchase.purchaseState == PurchaseState.Purchased;
-      final bool condition3 =
-          androidStateValue == AndroidPurchaseState.Purchased.value;
-
-      debugPrint('  Android condition checks:');
-      debugPrint('    purchaseState == purchased: $condition1');
-      debugPrint('    unacknowledged with token: $condition2');
-      debugPrint(
-          '    purchaseStateAndroid == AndroidPurchaseState.Purchased: $condition3');
-
-      isPurchased = condition1 || condition2 || condition3;
-      debugPrint('  Final isPurchased: $isPurchased');
-    } else if (purchase is PurchaseIOS) {
-      // For iOS - same logic as subscription flow
-      final bool condition1 = iosTransactionState == TransactionState.purchased;
-      bool condition2 =
-          purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty;
-      final bool condition3 = transactionId != null;
-
-      debugPrint('  iOS condition checks:');
-      debugPrint('    purchaseState == purchased: $condition1');
-      debugPrint('    has valid purchaseToken: $condition2');
-      debugPrint('    has valid transactionId: $condition3');
-
-      // For iOS, receiving a purchase update usually means success
-      isPurchased = condition1 || condition2 || condition3;
-      debugPrint('  Final isPurchased: $isPurchased');
-    }
-
-    if (!isPurchased) {
+    if (purchase.purchaseState != PurchaseState.Purchased) {
       debugPrint('❓ Purchase not detected as successful');
       if (!mounted) return;
       setState(() {
         _isProcessing = false;
         _purchaseResult = '''
-⚠️ Purchase received but state unknown
+⚠️ Purchase is not completed
 Store: ${purchase.store}
 Purchase state: ${purchase.purchaseState}
 iOS transaction state: $iosTransactionState
@@ -268,8 +249,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 
     // A redelivery can land while this attempt is still verifying, so claim
     // the id now and release it only if this attempt does not finish.
-    if (transactionId != null &&
-        !_processedTransactionIds.add(transactionId)) {
+    if (transactionId != null && !_processedTransactionIds.add(transactionId)) {
       debugPrint('⚠️ Transaction already in progress: $transactionId');
       return;
     }
@@ -291,17 +271,16 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
           .trim();
     });
 
-    // Perform verification based on selected method
+    var verified = true;
     if (_verificationMethod.isIapkit) {
-      final verificationOk = await _verifyPurchaseWithIAPKit(purchase);
-      if (!verificationOk) {
-        debugPrint(
-            '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
-        _processedTransactionIds.remove(transactionId);
-        return;
-      }
+      verified = await _verifyPurchaseWithIAPKit(purchase);
     } else if (_verificationMethod == VerificationMethod.local) {
-      await _verifyPurchaseLocally(purchase);
+      verified = await _verifyPurchaseLocally(purchase);
+    }
+    if (!verified) {
+      debugPrint('Verification failed; transaction left unfinished');
+      _processedTransactionIds.remove(transactionId);
+      return;
     }
 
     // Consuming the badge would drop its entitlement on Android, so only
@@ -342,111 +321,51 @@ Message: ${error.message}
     });
   }
 
-  /// Verify purchase using local platform verification
-  Future<void> _verifyPurchaseLocally(Purchase purchase) async {
+  Future<bool> _verifyPurchaseLocally(Purchase purchase) async {
     final productId = purchase.productId;
     if (productId.isEmpty) {
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _purchaseResult =
             '$_purchaseResult\n\nLocal verification: No product ID';
       });
-      return;
+      return false;
+    }
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      if (!mounted) return false;
+      setState(() {
+        _purchaseResult =
+            '$_purchaseResult\n\nLocal (Device) verification is unavailable here. Choose Local (IAPKit) or Ignore.';
+      });
+      return false;
     }
 
     try {
-      debugPrint('Verifying purchase locally for: $productId');
-
-      // Use platform-specific verification options (v8.0.0+ API)
-      final VerifyPurchaseResult result;
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-        result = await _iap.verifyPurchase(
-          apple: VerifyPurchaseAppleOptions(sku: productId),
-        );
-      } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        // Note: Android verification requires accessToken from your backend
-        // This is a demo - in production, get accessToken from your server
-        final purchaseToken = (purchase as PurchaseAndroid?)?.purchaseToken;
-        if (purchaseToken == null) {
-          if (!mounted) return;
-          setState(() {
-            _purchaseResult =
-                '$_purchaseResult\n\nAndroid verification: No purchase token';
-          });
-          return;
-        }
-
-        // In production, you would get the accessToken from your backend
-        // For demo purposes, we show an error since no real accessToken is configured
-        if (!mounted) return;
-        setState(() {
-          _purchaseResult = '''
-$_purchaseResult
-
-[Skipped] Local Verification (Android)
-Android verification requires a valid OAuth accessToken from your backend.
-In production, implement server-side verification using Google Play Developer API.
-          '''
-              .trim();
-        });
-        return;
-        // Example of how to call verifyPurchase with real credentials:
-        // result = await _iap.verifyPurchase(
-        //   google: VerifyPurchaseGoogleOptions(
-        //     sku: productId,
-        //     accessToken: 'YOUR_OAUTH_ACCESS_TOKEN', // From your backend
-        //     packageName: 'io.github.hyochan.flutter_inapp_purchase_example',
-        //     purchaseToken: purchaseToken,
-        //   ),
-        // );
-      } else {
-        if (!mounted) return;
-        setState(() {
-          _purchaseResult =
-              '$_purchaseResult\n\nLocal verification: Platform not supported';
-        });
-        return;
-      }
-
-      debugPrint('Local verification result received: ${result.runtimeType}');
-
-      if (result is VerifyPurchaseResultIOS) {
-        final iosResult = result;
-        final statusText = iosResult.isValid ? '[Valid]' : '[Invalid]';
-        if (!mounted) return;
-        setState(() {
-          _purchaseResult = '''
+      final result = await _iap.verifyPurchase(
+        apple: VerifyPurchaseAppleOptions(sku: productId),
+      );
+      if (result is! VerifyPurchaseResultIOS || !mounted) return false;
+      final statusText = result.isValid ? '[Valid]' : '[Invalid]';
+      setState(() {
+        _purchaseResult = '''
 $_purchaseResult
 
 $statusText Local Verification (iOS)
-Valid: ${iosResult.isValid}
+Valid: ${result.isValid}
 JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
           '''
-              .trim();
-        });
-      } else if (result is VerifyPurchaseResultAndroid) {
-        final androidResult = result;
-        if (!mounted) return;
+            .trim();
+      });
+      return result.isValid;
+    } catch (error) {
+      debugPrint('Local verification failed: $error');
+      if (mounted) {
         setState(() {
-          _purchaseResult = '''
-$_purchaseResult
-
-[Verified] Local Verification (Android)
-Product ID: ${androidResult.productId}
-Product Type: ${androidResult.productType}
-Purchase Date: ${androidResult.purchaseDate}
-Auto Renewing: ${androidResult.autoRenewing}
-          '''
-              .trim();
+          _purchaseResult =
+              '$_purchaseResult\n\n[Failed] Local verification failed: $error';
         });
       }
-    } catch (e) {
-      debugPrint('Local verification failed: $e');
-      if (!mounted) return;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\n[Failed] Local verification failed: $e';
-      });
+      return false;
     }
   }
 

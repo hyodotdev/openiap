@@ -116,11 +116,11 @@ ios: setup ios-build
 	@echo "$(GREEN)✓ iOS plugin built$(NC)"
 
 # Build iOS frameworks using xcodebuild
+# Select the destination so SwiftPM generators and macros keep the host SDK.
 ios-build:
 	@echo "$(GREEN)Building iOS frameworks...$(NC)"
 	@cd $(IOS_GDEXT_DIR) && xcodebuild \
 		-scheme GodotIap \
-		-sdk iphoneos \
 		-destination 'generic/platform=iOS' \
 		-configuration Release \
 		CLANG_ENABLE_CODE_COVERAGE=NO \
@@ -213,7 +213,7 @@ all: android ios macos
 test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
 	@GODOT="$(GODOT)" bash scripts/run-godot-suite.sh test_native_extension test_types_only \
-		test_api_surface test_envelope_parsing test_godot_iap test_android_store
+		test_api_surface test_envelope_parsing test_godot_iap test_android_store test_purchase_verification
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts

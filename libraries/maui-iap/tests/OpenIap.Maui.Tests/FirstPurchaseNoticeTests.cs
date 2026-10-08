@@ -183,6 +183,7 @@ public class FirstPurchaseNoticeTests
         PurchaseToken = "purchase-token",
         Quantity = 1,
         Store = IapStore.Google,
+        StoreId = StoreIds.Play,
         TransactionDate = 0,
     };
 }

@@ -153,6 +153,7 @@ struct PurchaseFlowScreen: View {
                 ) {
                     purchaseProduct(product)
                 }
+                .disabled(isVerifying)
             }
         }
         .padding(.horizontal)
@@ -176,6 +177,7 @@ struct PurchaseFlowScreen: View {
                     purchaseResultMessage = ""
                     latestPurchase = nil
                 }
+                .disabled(isVerifying)
                 .font(.caption)
                 .foregroundColor(AppColors.primary)
             }
@@ -198,6 +200,13 @@ struct PurchaseFlowScreen: View {
                 .cornerRadius(8)
             }
             .buttonStyle(.plain)
+
+            if let purchase = latestPurchase, purchase.id != processedPurchaseKey {
+                Button(verificationMethod == .none ? "Finish without verification" : "Retry verification") {
+                    handlePurchaseSuccess(purchase, allowSkip: true)
+                }
+                .disabled(isVerifying)
+            }
         }
         .padding()
         .background(AppColors.cardBackground)
@@ -236,6 +245,7 @@ struct PurchaseFlowScreen: View {
                 .cornerRadius(8)
             }
 
+            .disabled(isVerifying)
             if verificationMethod == .iapkit {
                 VStack(alignment: .leading, spacing: 8) {
                     if iapkitApiKey != nil {
@@ -346,6 +356,18 @@ struct PurchaseFlowScreen: View {
                 try await iapStore.initConnection()
                 print("✅ [PurchaseFlow] Connection initialized")
                 await loadProducts()
+                do {
+                    let pending = try await iapStore.getPendingTransactionsIOS()
+                    if let purchase = pending.first(where: { productIds.contains($0.productId) }) {
+                        await MainActor.run {
+                            guard !isVerifying, latestPurchase == nil,
+                                  purchase.id != processedPurchaseKey else { return }
+                            stagePendingPurchase(purchase)
+                        }
+                    }
+                } catch {
+                    print("⚠️ [PurchaseFlow] Could not load pending purchases: \(error.localizedDescription)")
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = "Failed to initialize connection: \(error.localizedDescription)"
@@ -391,7 +413,12 @@ struct PurchaseFlowScreen: View {
         Task {
             do {
                 let requestType: ProductQueryType = product.type == .subs ? .subs : .inApp
-                _ = try await iapStore.requestPurchase(sku: product.id, type: requestType)
+                let result = try await iapStore.requestPurchase(sku: product.id, type: requestType)
+                if verificationMethod == .none, let purchase = result?.asIOS() {
+                    await MainActor.run {
+                        handlePurchaseSuccess(purchase, allowSkip: true)
+                    }
+                }
             } catch {
                 // Error is already handled by OpenIapStore internally
                 print("❌ [PurchaseFlow] Purchase failed: \(error.localizedDescription)")
@@ -401,34 +428,48 @@ struct PurchaseFlowScreen: View {
     
     // MARK: - Event Handlers
     
-    private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
+    @MainActor
+    private func handlePurchaseSuccess(_ purchase: OpenIapPurchase, allowSkip: Bool = false) {
+        guard productIds.contains(purchase.productId), !isVerifying else { return }
         print("✅ [PurchaseFlow] Purchase successful: \(purchase.productId)")
-
-        // Create unique key for this purchase to prevent duplicate processing
-        let purchaseKey = "\(purchase.id)_\(purchase.transactionDate)"
-
-        // Skip if we've already processed this exact purchase
-        if purchaseKey == processedPurchaseKey {
-            print("🔄 [PurchaseFlow] Skipping already processed purchase: \(purchaseKey)")
+        if purchase.id == processedPurchaseKey {
+            print("🔄 [PurchaseFlow] Skipping already finished purchase: \(purchase.id)")
             return
         }
-
-        // Mark as processed
-        processedPurchaseKey = purchaseKey
-
-        // Update UI state
+        if verificationMethod == .none && !allowSkip {
+            guard latestPurchase == nil || latestPurchase?.id == processedPurchaseKey ||
+                  latestPurchase?.id == purchase.id else { return }
+            stagePendingPurchase(purchase)
+            return
+        }
+        let method = verificationMethod
+        isVerifying = true
         let transactionDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000)
         latestPurchase = purchase
 
-        Task {
-            await verifyAndFinishPurchase(purchase, transactionDate: transactionDate)
+        Task { @MainActor in
+            defer { isVerifying = false }
+            await verifyAndFinishPurchase(purchase, transactionDate: transactionDate, method: method)
         }
     }
 
-    private func verifyAndFinishPurchase(_ purchase: OpenIapPurchase, transactionDate: Date) async {
+    @MainActor
+    private func stagePendingPurchase(_ purchase: OpenIapPurchase) {
+        latestPurchase = purchase
+        purchaseResultMessage = """
+        Unfinished purchase: \(purchase.productId)
+        Choose a verification method, then retry.
+        Reopen this screen to recover other pending purchases.
+        """
+        showPurchaseResult = true
+    }
+
+    private func verifyAndFinishPurchase(
+        _ purchase: OpenIapPurchase, transactionDate: Date, method: VerificationMethod
+    ) async {
         let dateString = DateFormatter.localizedString(from: transactionDate, dateStyle: .short, timeStyle: .short)
 
-        switch verificationMethod {
+        switch method {
         case .none:
             await MainActor.run {
                 purchaseResultMessage = """
@@ -443,7 +484,6 @@ struct PurchaseFlowScreen: View {
 
         case .local:
             await MainActor.run {
-                isVerifying = true
                 purchaseResultMessage = "🔍 Verifying locally..."
                 showPurchaseResult = true
             }
@@ -451,18 +491,17 @@ struct PurchaseFlowScreen: View {
             do {
                 let result = try await iapStore.verifyPurchase(sku: purchase.productId)
                 await MainActor.run {
-                    isVerifying = false
                     purchaseResultMessage = """
-                    ✅ Purchase verified locally
+                    \(result.isValid ? "✅" : "❌") Local verification \(result.isValid ? "passed" : "failed")
                     Product: \(purchase.productId)
                     Valid: \(result.isValid)
                     Date: \(dateString)
                     """
                 }
+                guard result.isValid else { return }
                 await finishPurchase(purchase)
             } catch {
                 await MainActor.run {
-                    isVerifying = false
                     purchaseResultMessage = "❌ Local verification failed: \(error.localizedDescription)"
                     errorMessage = error.localizedDescription
                     showError = true
@@ -481,7 +520,6 @@ struct PurchaseFlowScreen: View {
             }
 
             await MainActor.run {
-                isVerifying = true
                 purchaseResultMessage = "☁️ Verifying with IAPKit..."
                 showPurchaseResult = true
             }
@@ -489,7 +527,6 @@ struct PurchaseFlowScreen: View {
             // Get JWS token for verification
             guard let jws = purchase.purchaseToken, !jws.isEmpty else {
                 await MainActor.run {
-                    isVerifying = false
                     purchaseResultMessage = "❌ Missing JWS token"
                     errorMessage = "Missing JWS token"
                     showError = true
@@ -549,7 +586,6 @@ struct PurchaseFlowScreen: View {
                 }
 
                 await MainActor.run {
-                    isVerifying = false
                     purchaseResultMessage = """
                     \(isVerifiedPurchase ? "✅" : "❌") IAPKit verification \(isVerifiedPurchase ? "passed" : "failed")
                     Requested product: \(purchase.productId)
@@ -563,16 +599,12 @@ struct PurchaseFlowScreen: View {
                 if isVerifiedPurchase {
                     await finishPurchase(purchase)
                 }
-                // A valid flag alone is insufficient: keep the transaction
-                // pending unless the store-verified product id and state match.
+                // Keep unmatched store product ids or states pending.
             } catch {
-                // Verification error (network, server, etc.) ≠ invalid purchase
-                // Keep the transaction pending so verification can be retried.
                 print("⚠️ [PurchaseFlow] IAPKit verification error: \(error.localizedDescription)")
                 print("⚠️ [PurchaseFlow] Transaction left unfinished for verification retry")
 
                 await MainActor.run {
-                    isVerifying = false
                     purchaseResultMessage = """
                     ⚠️ IAPKit verification error
                     Product: \(purchase.productId)
@@ -603,6 +635,7 @@ struct PurchaseFlowScreen: View {
         do {
             try await iapStore.finishTransaction(purchase: purchase)
             print("✅ [PurchaseFlow] Transaction finished: \(purchase.id)")
+            await MainActor.run { processedPurchaseKey = purchase.id }
         } catch {
             print("❌ [PurchaseFlow] Failed to finish transaction: \(error)")
             await MainActor.run {

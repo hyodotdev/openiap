@@ -24,6 +24,14 @@ function GodotSetup() {
         <a href="/docs/android-setup">Android Setup</a>
       </Callout>
 
+      <p>
+        For an independent store on Apple or Android, follow the{' '}
+        <a href="/docs/guides/store-providers">community provider guide</a>.
+        Link its native package and select its factory in your app; purchase
+        APIs keep the platform's existing shape and preserve the provider's
+        store id.
+      </p>
+
       <section>
         <h2 id="prerequisites" className="anchor-heading">
           Prerequisites

@@ -27,7 +27,5 @@ class PlayStoreConformanceTest : StoreConformanceSuite() {
         override val normativeErrorCases = playBillingErrorCases(OpenIapError::fromBillingResponseCode)
 
         override val unrecognizedError = OpenIapError.fromBillingResponseCode(9999)
-
-        override fun unsupportedOperationResult(): Boolean? = null
     }
 }

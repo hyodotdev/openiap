@@ -551,3 +551,29 @@ test("the release gate command passes a package that no rule names", () => {
   );
   assert.match(output, /godot-iap may release with version=patch/);
 });
+
+test("the compiled AI context names the scheduled expo-iap flag removal major", () => {
+  const rule = scheduledRemovalRules.find(
+    (entry) => entry.label === "expo-iap environment flags",
+  );
+  assert.ok(rule, "scheduled removal rule is missing");
+  const expo = rule.packages.find((entry) => entry.name === "expo-iap");
+  assert.ok(expo, "expo-iap package entry is missing");
+  const removal = `${expo.major + 1}.0.0`.replaceAll(".", "\\.");
+  const namesRemoval = new RegExp(`removed in expo-iap\\s+${removal}`);
+  for (const file of [
+    "scripts/agent/compile-context.ts",
+    "packages/docs/public/llms-full.txt",
+  ]) {
+    const content = fs.readFileSync(path.join(repoRoot, file), "utf8");
+    assert.match(content, namesRemoval, file);
+  }
+  const migration = fs.readFileSync(
+    path.join(repoRoot, "packages/docs/src/pages/docs/updates/migration.tsx"),
+    "utf8",
+  );
+  assert.ok(
+    migration.includes(`Removal in expo-iap ${expo.major + 1}.0`),
+    "migration catalog names a different removal major",
+  );
+});

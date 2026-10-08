@@ -506,6 +506,7 @@ public final class ExpoIapOnsideModule: Module {
         // dedicated IapStore enum value. Preserve the required store
         // discriminator without reporting the purchase as App Store traffic.
         dictionary["store"] = "unknown"
+        dictionary["storeId"] = "onside"
         if product.subscriptionPeriod == nil {
             dictionary["currentPlanId"] = NSNull()
         } else {

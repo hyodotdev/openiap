@@ -52,6 +52,22 @@ function EndConnection() {
         reconnect and register fresh listeners before the next store call.
       </p>
 
+      <p>
+        <strong>Godot / Apple providers:</strong> A failed disconnection keeps
+        the current session and listeners available, including when the provider
+        returns <code>false</code>. Retry teardown; successful disconnection
+        clears both native and GDScript connection state.
+      </p>
+
+      <p>
+        <strong>SwiftUI:</strong> <code>OpenIapStore</code> cancels automatic
+        purchase refreshes and ignores queued callbacks from the ended session.
+        Reconnecting registers listeners before initialization so provider
+        ownership replays reach the store. Failed teardown keeps the current
+        connection and listeners; a provider returning <code>false</code> throws{' '}
+        <code>not-ended</code> so you can retry.
+      </p>
+
       <h2>Signature</h2>
       <LanguageTabs>
         {{

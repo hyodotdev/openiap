@@ -1,3 +1,4 @@
+import { renderStoreIds, renderStoreIdentityResolver } from './codegen/core/store-ids.js';
 import { CodegenConfig } from '@graphql-codegen/cli';
 import { generatedFileHeader } from './codegen/core/generated-header.js';
 import { GRAPHQL_TO_TYPESCRIPT } from './codegen/core/utils.js';
@@ -13,7 +14,7 @@ const config: CodegenConfig = {
       plugins: [
         {
           add: {
-            content: [...generatedFileHeader(), ''].join('\n'),
+            content: [...generatedFileHeader(), '', renderStoreIds('typescript'), renderStoreIdentityResolver('typescript')].join('\n'),
           },
         },
         'typescript',

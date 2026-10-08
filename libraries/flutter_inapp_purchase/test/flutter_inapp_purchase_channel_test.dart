@@ -531,6 +531,7 @@ void main() {
             'isAutoRenewing': true,
             'platform': 'ios',
             'store': 'apple',
+            'storeId': 'apple',
           };
         }
         return null;
@@ -1097,6 +1098,22 @@ void main() {
       expect(await iap.initConnection(), isTrue);
       expect(await iap.endConnection(), isTrue);
       expect(endCount, 1);
+    });
+
+    test('endConnection preserves false and allows a provider retry', () async {
+      final iap =
+          FlutterInappPurchase.private(FakePlatform(operatingSystem: 'ios'));
+      var disconnects = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'endConnection') return ++disconnects > 1;
+        return null;
+      });
+      expect(await iap.initConnection(), isTrue);
+      expect(await iap.endConnection(), isFalse);
+      expect(await iap.endConnection(), isTrue);
+      expect(disconnects, 2);
     });
 
     test('endConnection returns false when not initialized', () async {
@@ -1670,6 +1687,7 @@ void main() {
                 <String, dynamic>{
                   'platform': 'ios',
                   'store': 'apple',
+                  'storeId': 'apple',
                   'id': 'txn-123',
                   'productId': 'iap.premium',
                   'transactionId': 'txn-123',
@@ -1680,6 +1698,7 @@ void main() {
                 <String, dynamic>{
                   'platform': 'ios',
                   'store': 'apple',
+                  'storeId': 'apple',
                   'productId': '',
                   'transactionId': null,
                 },
@@ -1858,6 +1877,7 @@ void main() {
               <String, dynamic>{
                 'platform': 'android',
                 'store': 'google',
+                'storeId': 'play',
                 'id': 'txn-android',
                 'productId': 'coins.100',
                 'transactionId': 'txn-android',
@@ -1874,6 +1894,7 @@ void main() {
               <String, dynamic>{
                 'platform': 'android',
                 'store': 'google',
+                'storeId': 'play',
                 'productId': '',
               },
             ];
@@ -1960,6 +1981,7 @@ void main() {
             jsonEncode(<String, dynamic>{
               'platform': 'android',
               'store': 'google',
+              'storeId': 'play',
               'id': 'txn-listener-android',
               'productId': 'premium_monthly',
               'transactionId': 'txn-listener-android',
@@ -2010,6 +2032,7 @@ void main() {
       final purchasePayload = <String, dynamic>{
         'platform': 'ios',
         'store': 'apple',
+        'storeId': 'apple',
         'id': 'txn-456',
         'productId': 'iap.premium',
         'transactionId': 'txn-456',
@@ -2068,6 +2091,7 @@ void main() {
         final purchasePayload = <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'storeId': 'apple',
           'id': 'txn-dedupe-replay',
           'productId': 'iap.premium',
           'transactionId': 'txn-dedupe-replay',
@@ -2189,6 +2213,7 @@ void main() {
         final purchasePayload = <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'storeId': 'apple',
           'id': 'txn-handler-dedupe-replay',
           'productId': 'iap.premium',
           'transactionId': 'txn-handler-dedupe-replay',
@@ -2391,7 +2416,7 @@ void main() {
         switch (call.method) {
           case 'initConnection':
             return true;
-          case 'syncIOS':
+          case 'restorePurchases':
             syncCalls += 1;
             return true;
           case 'getAvailableItems':
@@ -2421,7 +2446,7 @@ void main() {
         switch (call.method) {
           case 'initConnection':
             return true;
-          case 'syncIOS':
+          case 'restorePurchases':
             syncCalls += 1;
             return true;
           case 'getAvailableItems':
@@ -2451,7 +2476,7 @@ void main() {
         if (call.method == 'initConnection') {
           return true;
         }
-        if (call.method == 'syncIOS') {
+        if (call.method == 'restorePurchases') {
           throw PlatformException(code: '500', message: 'boom');
         }
         if (call.method == 'getAvailableItems') {
@@ -2472,7 +2497,7 @@ void main() {
           isA<PurchaseError>().having(
             (error) => error.message,
             'message',
-            contains('sync iOS purchases'),
+            contains('restore purchases'),
           ),
         ),
       );
@@ -2486,7 +2511,7 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         if (call.method == 'initConnection') return true;
-        if (call.method == 'syncIOS') return false;
+        if (call.method == 'restorePurchases') return false;
         if (call.method == 'getAvailableItems') {
           availableCalls += 1;
           return <Map<String, dynamic>>[];
@@ -2512,7 +2537,8 @@ void main() {
       expect(availableCalls, 0);
     });
 
-    test('restorePurchases fetches purchases directly on Android', () async {
+    test('restorePurchases restores then fetches purchases on Android',
+        () async {
       int availableCalls = 0;
       int endCalls = 0;
 
@@ -2521,6 +2547,7 @@ void main() {
         if (call.method == 'initConnection') {
           return true;
         }
+        if (call.method == 'restorePurchases') return true;
         if (call.method == 'endConnection') {
           endCalls += 1;
           return true;
@@ -2546,7 +2573,10 @@ void main() {
     test('restorePurchases propagates available-purchase errors', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'initConnection') return true;
+        if (call.method == 'initConnection' ||
+            call.method == 'restorePurchases') {
+          return true;
+        }
         if (call.method == 'getAvailableItems') {
           throw PlatformException(
             code: 'service-error',
@@ -2661,6 +2691,7 @@ void main() {
                 'purchaseState': 'purchased',
                 'quantity': 1,
                 'store': 'apple',
+                'storeId': 'apple',
                 'transactionDate': 1705315800000.0,
                 'transactionId': 'ios-transaction-id',
               },
@@ -2924,6 +2955,7 @@ void main() {
                 'productId': 'premium.monthly',
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
                 'clientPayload': {
                   'format': 'toml',
                   'body': 'tier = "gold"',
@@ -2999,6 +3031,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             };
         }
@@ -3049,6 +3082,7 @@ void main() {
               'productId': 'premium.monthly',
               'state': 'entitled',
               'store': 'horizon',
+              'storeId': 'horizon',
             },
           };
         }
@@ -3103,6 +3137,7 @@ void main() {
                 'isValid': true,
                 'state': 'pending-acknowledgment',
                 'store': 'google',
+                'storeId': 'play',
               },
             });
         }
@@ -3167,6 +3202,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'amazon',
+                'storeId': 'amazon',
                 'environment': environment,
               },
             });
@@ -3319,6 +3355,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
               },
             };
         }
@@ -3364,6 +3401,7 @@ void main() {
                 'isValid': false,
                 'state': 'expired',
                 'store': 'apple',
+                'storeId': 'apple',
               },
               'errors': [
                 {
@@ -3459,6 +3497,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'apple',
+                'storeId': 'apple',
                 'clientPayload': {
                   'format': 'toml',
                   'body': 'tier = "gold"',
@@ -3491,6 +3530,55 @@ void main() {
       expect(result.iapkit!.clientPayload, isNull);
     });
 
+    test('verification uses canonical official and community identities',
+        () async {
+      Map<String, dynamic> identity = {'store': 'google'};
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'verifyPurchaseWithProvider') {
+          return {
+            'provider': 'iapkit',
+            'iapkit': {
+              'isValid': true,
+              'state': 'entitled',
+              ...identity,
+            }
+          };
+        }
+        return null;
+      });
+      final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'android'));
+      await iap.initConnection();
+      Future<types.VerifyPurchaseWithProviderResult> verify() =>
+          iap.verifyPurchaseWithProvider(
+            provider: types.PurchaseVerificationProvider.Iapkit,
+            iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+              google: types.RequestVerifyPurchaseWithIapkitGoogleProps(
+                  purchaseToken: 'token'),
+            ),
+          );
+      expect((await verify()).iapkit!.storeId, 'play');
+      identity = {'store': 'unknown', 'storeId': 'community_store'};
+      expect((await verify()).iapkit!.storeId, 'community_store');
+      for (final invalid in [
+        {'store': 'unknown'},
+        {'store': 'unknown', 'storeId': 'unknown'},
+        {'store': 'google', 'storeId': 'community_store'},
+        {'store': 'apple', 'storeId': 'play'},
+      ]) {
+        identity = invalid;
+        await expectLater(
+            verify(),
+            throwsA(isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              types.ErrorCode.PurchaseVerificationFailed,
+            )));
+      }
+    });
+
     test('drops a non-string IAPKit environment', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -3505,6 +3593,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'amazon',
+                'storeId': 'amazon',
               },
             };
         }
@@ -3544,6 +3633,7 @@ void main() {
                 'productId': 'premium.monthly',
                 'state': 'grace-period',
                 'store': 'apple',
+                'storeId': 'apple',
                 'environment': 'Xcode',
                 'clientPayload': {
                   'format': 'yaml',

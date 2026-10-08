@@ -63,7 +63,7 @@ contributors look for it.
 | Release SBOM            | `scripts/generate-sbom.mjs` + `.github/workflows/sbom.yml` — [CycloneDX 1.6](https://cyclonedx.org/specification/overview/)                                                                                         |
 | SBOM provenance         | [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — [SLSA](https://slsa.dev/provenance/v1) via [Sigstore](https://www.sigstore.dev/), verifiable with `gh attestation verify` |
 | npm artifact provenance | `npm publish --provenance`, re-verified by `scripts/verify-npm-release-provenance.mjs`                                                                                                                              |
-| Release identity        | `scripts/assert-release-tag.mjs` — tag/version/full commit verified at check time, with the commit reachable from its release branch (`main` stable, `next` prerelease)                                             |
+| Release identity        | `scripts/assert-release-tag.mjs` — tag/version/full commit verified at check time, with the commit reachable from its release branch (`main` for new releases; historical `next` tags remain valid)                 |
 | Publish authorization   | `scripts/npm-publish-authorization.mjs` — publishing runs only from a verified release tag                                                                                                                          |
 | Dependency monitoring   | `bun run audit:dependencies`, OSV-Scanner, Bun dependency submission, and [Dependabot](https://docs.github.com/en/code-security/dependabot)                                                                         |
 | Static analysis         | [CodeQL](https://codeql.github.com/) with `security-extended` queries for JavaScript/TypeScript, C#, Actions, traced JVM Kotlin core/wrapper builds, and traced Swift core/wrapper builds                           |
@@ -71,7 +71,7 @@ contributors look for it.
 | Secret prevention       | GitHub secret scanning and push protection                                                                                                                                                                          |
 | Repository posture      | [`ossf/scorecard-action`](https://github.com/ossf/scorecard-action) — [OpenSSF Scorecard](https://scorecard.dev/), results in code scanning                                                                         |
 | Vulnerability reporting | [`../SECURITY.md`](../SECURITY.md) — private reporting, 72-hour acknowledgment                                                                                                                                      |
-| Release-branch policy   | `scripts/release-branch-policy.mjs` — no prerelease metadata on `main`                                                                                                                                              |
+| Release-branch policy   | `scripts/release-branch-policy.mjs` — explicit stable/RC dispatches from `main`; production docs require stable metadata                                                                                            |
 
 ## Dependency monitoring coverage
 
@@ -102,6 +102,19 @@ the kit Dockerfile, and the React Native CocoaPods toolchain:
   of platform upgrade work. Each supported release SBOM records its published
   direct dependency contract; a toolchain resolver export can add transitive
   entries for a consuming application.
+
+## Temporary dependency exceptions
+
+An exception is an advisory the lock does not clear yet (no fixed
+release, a fix outside the dependents' version ranges, or a clearing
+dependency bump that has not been tested yet). Each exception lives in the
+`osv-scanner.toml` next to its lock, with a reason and an `ignoreUntil`
+date — the first expired day. `audit:dependencies` fails on an expired
+or unused exception, and each exception is rechecked by its date:
+
+```sh
+git grep -n ignoreUntil -- '*osv-scanner.toml'
+```
 
 ## GitHub dependency graph
 
@@ -218,10 +231,10 @@ headset.
 
 Two checks cover this, and they prove different things:
 
-| Check                                        | Proves                                                                                                                                                                                                                                                                        |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Check                                        | Proves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `bun run audit:horizon-app-id`               | every example _declares_ the meta-data under `<application>`, with a literal id or a Gradle placeholder. For Expo it parses the config and follows `android.horizon.appId` through object literals and `const` bindings. Anything whose value needs the module to run — a helper call, a conditional, a getter, a prototype, a spread that could replace the value — is reported rather than resolved, and any direct mutation through a binding the walk followed — the exported config, the plugins array, the tuple, the options object, or an alias of one — refuses the config, whatever the mutation touches, since `const` binds the name and not the contents. An alias includes an object or array literal built from the tracked value — a shallow copy such as `{...options}` or `const [...copy] = entries`, and an ordinary member such as `{android: options.android}` — because each holds the very same object; a mutator called through a bracket is the same mutator. That is a policy about the source rather than an evaluation of it: `options.ios = {}` is refused too, and the fix is to build the property in the literal. Only the exported object's own `plugins` counts. It does not see a write through an alias a CALL produced — `Object.assign({}, options)` returns one — nor a write made by a function the object is passed to; both need escape analysis. The `plugins` array must be one the exported config can reach, so a stale constant holding a complete entry does not answer for an export that registers nothing. For the same reason it cannot prove that entry is still in the exported `plugins` array |
-| `scripts/verify-horizon-merged-manifest.mjs` | the manifest merger _resolved_ a value under `<application>` that is non-empty, not an unresolved placeholder, and shaped like an app id. Nothing offline can prove the id is registered with Meta                                                                            |
+| `scripts/verify-horizon-merged-manifest.mjs` | the manifest merger _resolved_ a value under `<application>` that is non-empty, not an unresolved placeholder, and shaped like an app id. Nothing offline can prove the id is registered with Meta                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 The declaration check is static and runs on every pull request. The resolution
 check needs a built variant, and CI runs it for both targets that resolve their
@@ -296,12 +309,12 @@ Every pull request installs all committed Bun locks plus the React Native Yarn
 and Ruby locks without mutation. It then runs Bun's advisory audit across all
 Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
 build.
-Temporary exceptions for advisories the lock cannot clear (no fixed release,
-or a fix outside the dependents' ranges) may be accepted only in the owning
-project's `osv-scanner.toml` with a reason and expiry, plus either build-only
-evidence (not reachable in a shipped package) or, for runtime-reachable
-advisories, a reviewed statement of exploitability and mitigation; expired
-or stale
+Temporary exceptions for advisories the lock does not clear yet (no fixed
+release, a fix outside the dependents' ranges, or a clearing dependency bump
+that has not been tested yet) may be accepted only in the owning project's
+`osv-scanner.toml` with a reason and expiry, plus either build-only evidence
+(not reachable in a shipped package) or, for runtime-reachable advisories, a
+reviewed statement of exploitability and mitigation; expired or stale
 exceptions fail the dependency audit, and OSV enforces the same expiry. The IAPKit
 deployment repeats the Bun gate. The submitted dependency graph provides hosted
 Dependabot monitoring, while CodeQL covers source and workflow vulnerabilities

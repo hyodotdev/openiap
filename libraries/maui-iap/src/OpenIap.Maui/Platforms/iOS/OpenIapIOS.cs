@@ -302,9 +302,8 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         }
 
         Console.WriteLine($"[OpenIapIOS] FinishTransactionAsync dispatch: productId={p.ProductId}, consumable={isConsumable ?? false}");
-        _module.FinishTransaction(
-            p.Id,
-            p.ProductId,
+        _module.FinishTransactionWithPurchaseJSON(
+            JsonSerializer.Serialize(p, JsonOptions.Default),
             isConsumable ?? false,
             err =>
             {
@@ -482,23 +481,20 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public async Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
     {
+        subscriptionIds = SubscriptionIds.NormalizeForNative(subscriptionIds);
         var result = await InvokeArray<ActiveSubscription>(
-            cb => _module.GetActiveSubscriptions(cb),
+            cb => _module.GetActiveSubscriptions(subscriptionIds?.ToArray(), cb),
             required: true,
             operation: "getActiveSubscriptions");
-        if (subscriptionIds is null || subscriptionIds.Count == 0) return result;
+        if (subscriptionIds is null) return result;
         var filter = new HashSet<string>(subscriptionIds);
         return result.Where(a => filter.Contains(a.ProductId)).ToList();
     }
 
-    public async Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
+    public Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
     {
-        if (subscriptionIds is { Count: > 0 })
-        {
-            return (await GetActiveSubscriptionsAsync(subscriptionIds)).Count > 0;
-        }
-
-        return await InvokeBool(cb => _module.HasActiveSubscriptions(cb));
+        subscriptionIds = SubscriptionIds.NormalizeForNative(subscriptionIds);
+        return InvokeBool(cb => _module.HasActiveSubscriptions(subscriptionIds?.ToArray(), cb));
     }
 
     public async Task<string> GetStorefrontAsync()

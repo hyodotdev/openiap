@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * or from different threads. `isActive` followed by `resume` is not atomic, so
  * callback bridges should use this guard instead.
  */
-internal class ContinuationResumeGuard<T>(
+class ContinuationResumeGuard<T>(
     private val continuation: CancellableContinuation<T>,
     onCancellation: (() -> Unit)? = null
 ) {
@@ -53,6 +53,6 @@ internal class ContinuationResumeGuard<T>(
     }
 }
 
-internal fun <T> CancellableContinuation<T>.resumeGuard(
+fun <T> CancellableContinuation<T>.resumeGuard(
     onCancellation: (() -> Unit)? = null
 ): ContinuationResumeGuard<T> = ContinuationResumeGuard(this, onCancellation)

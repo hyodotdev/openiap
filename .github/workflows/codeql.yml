@@ -52,6 +52,8 @@ jobs:
           filters: |
             swift_core:
               - 'packages/apple/**'
+              - 'packages/conformance/apple/**'
+              - 'Package.swift'
               - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
               - 'libraries/kmp-iap/openiap-versions.json'
               - 'openiap-versions.json'
@@ -379,8 +381,7 @@ jobs:
 
       # Clean so the traced build recompiles everything; a cache hit would
       # leave the CodeQL database empty.
-      - name: Build Apple core for analysis
-        working-directory: packages/apple
+      - name: Build Apple core and provider conformance for analysis
         run: |
           swift package clean
           swift build --build-tests
@@ -497,7 +498,22 @@ jobs:
       - name: Build React Native Swift wrapper
         if: matrix.component == 'react-native'
         working-directory: libraries/react-native-iap
+        env:
+          CURL_HOME: ${{ runner.temp }}/codeql-react-native-curl
+          # React Native uses this base for the same Maven artifacts and checksums.
+          ENTERPRISE_REPOSITORY: https://repo.maven.apache.org/maven2
         run: |
+          # CocoaPods downloads can stall even when React Native's own cache is warm.
+          mkdir -p "$CURL_HOME"
+          cat > "$CURL_HOME/.curlrc" <<'CURL_CONFIG'
+          connect-timeout = 30
+          max-time = 300
+          speed-time = 60
+          speed-limit = 1024
+          retry = 2
+          retry-all-errors
+          retry-max-time = 600
+          CURL_CONFIG
           corepack enable
           corepack prepare yarn@3.6.1 --activate
           yarn install --immutable
@@ -505,6 +521,9 @@ jobs:
           cd example
           BUNDLE_FROZEN=true bundle install
           cd ios
+          # CocoaPods clears its cache when another tool version uses it.
+          CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(bundle exec pod --version)"
+          export CP_CACHE_DIR
           bundle exec pod install --repo-update
           xcodebuild build \
             -workspace example.xcworkspace \
@@ -524,6 +543,8 @@ jobs:
           bun run build:plugin
           cd example
           bun install --frozen-lockfile
+          CP_CACHE_DIR="$RUNNER_TOOL_CACHE/cocoapods/$(pod --version)"
+          export CP_CACHE_DIR
           npx expo prebuild --platform ios --clean
           cd ios
           pod install --repo-update

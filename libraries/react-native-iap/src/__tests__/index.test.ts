@@ -4,7 +4,7 @@
 
 import {Platform} from 'react-native';
 import {ErrorCode} from '../types';
-import type {DiscountOfferInputIOS} from '../types';
+import type {DiscountOfferInputIOS, Purchase} from '../types';
 
 // Minimal Nitro IAP mock to exercise wrappers
 const mockIap: any = {
@@ -19,6 +19,8 @@ const mockIap: any = {
   requestPurchase: jest.fn(async () => undefined),
   getAvailablePurchases: jest.fn(async () => []),
   finishTransaction: jest.fn(async () => true),
+  restorePurchases: jest.fn(async () => true),
+  hasActiveSubscriptions: jest.fn(async () => false),
 
   // listeners
   addPurchaseUpdatedListener: jest.fn(),
@@ -105,6 +107,7 @@ describe('Public API (src/index.ts)', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIap.restorePurchases = jest.fn(async () => true);
     let purchaseUpdatedToken = 1;
     mockIap.addPurchaseUpdatedListener.mockImplementation(
       () => purchaseUpdatedToken++,
@@ -160,6 +163,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -172,6 +176,7 @@ describe('Public API (src/index.ts)', () => {
         expect.objectContaining({
           productId: 'p1',
           store: 'apple',
+          storeId: 'apple',
         }),
       );
 
@@ -202,6 +207,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -246,6 +252,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -280,6 +287,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -421,6 +429,59 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).not.toHaveBeenCalled();
     });
 
+    it('purchaseUpdatedListener reports an undecodable store identity instead of throwing', () => {
+      const purchaseListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.purchaseUpdatedListener(purchaseListener);
+      IAP.purchaseErrorListener(errorListener);
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'unknown',
+        storeId: '!!!',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      expect(() => nativeHandler(nitroPurchase)).not.toThrow();
+      expect(purchaseListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.BillingResponseJsonParseError,
+          productId: 'p1',
+        }),
+      );
+    });
+
+    it('purchaseUpdatedListener reports a missing iOS transactionId instead of throwing', () => {
+      const purchaseListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.purchaseUpdatedListener(purchaseListener);
+      IAP.purchaseErrorListener(errorListener);
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'unknown',
+        storeId: 'community.shop',
+        platform: 'ios',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      expect(() => nativeHandler(nitroPurchase)).not.toThrow();
+      expect(purchaseListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.BillingResponseJsonParseError,
+          productId: 'p1',
+        }),
+      );
+    });
+
     it('multiple purchaseUpdatedListeners all receive events from single native handler', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
@@ -436,6 +497,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -467,6 +529,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p2',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -571,6 +634,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -659,6 +723,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -693,6 +758,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -735,6 +801,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1339,28 +1406,32 @@ describe('Public API (src/index.ts)', () => {
       );
     });
 
-    it('Android path merges inapp+subs results', async () => {
+    it('Android reads all ownership through the provider contract once', async () => {
       Object.assign(Platform, {OS: 'android'});
       const nitro = (id: string) => ({
         id: `t-${id}`,
         productId: id,
         transactionDate: Date.now(),
         store: 'google',
+        storeId: 'play',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
       });
-      mockIap.getAvailablePurchases
-        .mockResolvedValueOnce([nitro('p1')])
-        .mockResolvedValueOnce([nitro('s1')]);
-      const res = await IAP.getAvailablePurchases();
-      expect(mockIap.getAvailablePurchases).toHaveBeenNthCalledWith(1, {
-        android: {type: 'in-app', includeSuspended: false},
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([
+        nitro('p1'),
+        nitro('s1'),
+      ]);
+      const res = await IAP.getAvailablePurchases({
+        includeSuspendedAndroid: true,
       });
-      expect(mockIap.getAvailablePurchases).toHaveBeenNthCalledWith(2, {
-        android: {type: 'subs', includeSuspended: false},
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
+      expect(mockIap.getAvailablePurchases).toHaveBeenCalledWith({
+        android: {includeSuspended: true},
       });
-      expect(res.map((p: any) => p.productId).sort()).toEqual(['p1', 's1']);
+      expect(
+        res.map((purchase: Purchase) => purchase.productId).sort(),
+      ).toEqual(['p1', 's1']);
     });
 
     it('rejects a mixed valid and malformed native purchase list', async () => {
@@ -1370,13 +1441,15 @@ describe('Public API (src/index.ts)', () => {
         productId: 'valid',
         transactionDate: Date.now(),
         store: 'google',
+        storeId: 'play',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
       };
-      mockIap.getAvailablePurchases
-        .mockResolvedValueOnce([valid])
-        .mockResolvedValueOnce([{id: 'malformed'}]);
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([
+        valid,
+        {id: 'malformed'},
+      ]);
 
       await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
         code: 'billing-response-json-parse-error',
@@ -1408,12 +1481,102 @@ describe('Public API (src/index.ts)', () => {
           productId: 'premium',
           transactionDate: Date.now(),
           store: 'google',
+          storeId: 'play',
           quantity: 1,
           purchaseState: 'purchased',
           isAutoRenewing: false,
         },
       ]);
 
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it.each([
+      ['ios', 'apple'],
+      ['android', 'google'],
+      ['android', 'horizon'],
+      ['android', 'amazon'],
+    ])('rejects contradictory %s %s identity', async (platform, store) => {
+      Object.assign(Platform, {OS: platform});
+      mockIap.getAvailablePurchases.mockResolvedValue([
+        {
+          id: 'txn',
+          transactionId: 'txn',
+          productId: 'sku',
+          transactionDate: 1,
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+          store,
+          storeId: 'other',
+        },
+      ]);
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('preserves community identity in Android ownership reads and restore', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.getAvailablePurchases.mockImplementation(
+        async (options: {android?: {type?: string}}) => {
+          if (options.android?.type) {
+            throw new Error(
+              'The provider supports canonical ownership reads only',
+            );
+          }
+          return [
+            {
+              id: 'community',
+              productId: 'premium',
+              transactionDate: 1,
+              store: 'unknown',
+              storeId: 'community_fixture',
+              quantity: 1,
+              purchaseState: 'purchased',
+              isAutoRenewing: false,
+            },
+          ];
+        },
+      );
+      await expect(IAP.getAvailablePurchases()).resolves.toEqual([
+        expect.objectContaining({
+          store: 'unknown',
+          storeId: 'community_fixture',
+        }),
+      ]);
+      await expect(IAP.restorePurchases()).resolves.toBeUndefined();
+    });
+
+    it.each([
+      undefined,
+      '',
+      'play',
+      'apple',
+      'google',
+      'horizon',
+      'amazon',
+      'auto',
+      'none',
+      'unknown',
+      'bad id',
+      'store\n',
+    ])('rejects invalid community ownership identity %s', async (storeId) => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.getAvailablePurchases.mockResolvedValue([
+        {
+          id: 'community',
+          productId: 'premium',
+          transactionDate: 1,
+          store: 'unknown',
+          storeId,
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+        },
+      ]);
       await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
         code: 'billing-response-json-parse-error',
       });
@@ -1428,6 +1591,7 @@ describe('Public API (src/index.ts)', () => {
             productId: 'premium',
             transactionDate: Date.now(),
             store: 'apple',
+            storeId: 'apple',
             quantity: 1,
             purchaseState: 'purchased',
             isAutoRenewing: false,
@@ -1462,6 +1626,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'premium_monthly',
         transactionDate: Date.now(),
         store: 'amazon',
+        storeId: 'amazon',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -1480,6 +1645,7 @@ describe('Public API (src/index.ts)', () => {
         expect.objectContaining({
           productId: 'premium_monthly',
           store: 'amazon',
+          storeId: 'amazon',
         }),
       ]);
     });
@@ -1493,6 +1659,25 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('finishTransaction', () => {
+    it('forwards full community purchase identity to Android completion', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const purchase = {
+        id: 'opaque-id',
+        productId: 'sku',
+        store: 'unknown',
+        storeId: 'community_fixture',
+        purchaseToken: 'opaque-receipt',
+      };
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase, isConsumable: true});
+      expect(mockIap.finishTransaction).toHaveBeenCalledWith({
+        android: {
+          purchaseToken: 'opaque-receipt',
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: true,
+        },
+      });
+    });
     it('iOS requires purchase.id and returns success state', async () => {
       Object.assign(Platform, {OS: 'ios'});
       await expect(IAP.finishTransaction({purchase: {id: ''}})).rejects.toThrow(
@@ -1503,6 +1688,49 @@ describe('Public API (src/index.ts)', () => {
       await expect(
         IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).resolves.toBeUndefined();
+    });
+
+    it('iOS finishes a minimal purchase by transaction lookup only', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase: {id: 'tid'}});
+      const params = mockIap.finishTransaction.mock.calls[0][0];
+      expect(params).toStrictEqual({
+        ios: {transactionId: 'tid', isConsumable: undefined},
+      });
+      expect(params.ios).not.toHaveProperty('purchaseJson');
+    });
+
+    it('iOS sends purchaseJson for a purchase carrying an apple identity', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const purchase = {id: 'tid', store: 'apple', storeId: 'apple'};
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase, isConsumable: false});
+      expect(mockIap.finishTransaction).toHaveBeenCalledWith({
+        ios: {
+          transactionId: 'tid',
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: false,
+        },
+      });
+    });
+
+    it('iOS sends purchaseJson for a community Apple provider purchase', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const purchase = {
+        id: 'opaque-id',
+        store: 'unknown',
+        storeId: 'community_fixture',
+      };
+      mockIap.finishTransaction.mockResolvedValueOnce(true);
+      await IAP.finishTransaction({purchase});
+      expect(mockIap.finishTransaction).toHaveBeenCalledWith({
+        ios: {
+          transactionId: 'opaque-id',
+          purchaseJson: JSON.stringify(purchase),
+          isConsumable: undefined,
+        },
+      });
     });
 
     it('Android requires token; maps consume flag', async () => {
@@ -1534,6 +1762,22 @@ describe('Public API (src/index.ts)', () => {
       await expect(
         IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).resolves.toBeUndefined();
+    });
+
+    it('iOS: preserves community completion errors', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.finishTransaction.mockRejectedValueOnce(
+        new Error('Transaction not found'),
+      );
+      await expect(
+        IAP.finishTransaction({
+          purchase: {
+            id: 'opaque-id',
+            store: 'unknown',
+            storeId: 'community_fixture',
+          },
+        }),
+      ).rejects.toThrow('Transaction not found');
     });
 
     it('iOS: propagates native finish failures', async () => {
@@ -1672,6 +1916,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'premium',
         transactionDate: 1700000000000,
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -1680,6 +1925,7 @@ describe('Public API (src/index.ts)', () => {
         id: 'redeemed-transaction',
         productId: 'premium',
         store: 'apple',
+        storeId: 'apple',
       });
     });
 
@@ -1696,6 +1942,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1713,6 +1960,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p2',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1738,6 +1986,7 @@ describe('Public API (src/index.ts)', () => {
           productId: 'premium',
           transactionDate: Date.now(),
           store: 'apple',
+          storeId: 'apple',
           quantity: 1,
           purchaseState: 'purchased',
           isAutoRenewing: false,
@@ -1822,6 +2071,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p3',
         transactionDate: Date.now(),
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1899,20 +2149,20 @@ describe('Public API (src/index.ts)', () => {
       expect(console.error).not.toHaveBeenCalled();
     });
 
-    it('restorePurchases on iOS calls syncIOS first', async () => {
+    it('restorePurchases calls the native provider first', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.syncIOS = jest.fn(async () => true);
+      mockIap.restorePurchases = jest.fn(async () => true);
       await IAP.restorePurchases();
-      expect(mockIap.syncIOS).toHaveBeenCalled();
+      expect(mockIap.restorePurchases).toHaveBeenCalled();
     });
 
-    it('restorePurchases on iOS rejects when syncIOS returns false', async () => {
+    it('restorePurchases rejects when native restore returns false', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.syncIOS = jest.fn(async () => false);
+      mockIap.restorePurchases = jest.fn(async () => false);
 
       await expect(IAP.restorePurchases()).rejects.toMatchObject({
         code: ErrorCode.SyncError,
-        message: 'App Store purchase sync did not complete',
+        message: 'Store purchase restore did not complete',
       });
       expect(mockIap.getAvailablePurchases).not.toHaveBeenCalled();
     });
@@ -2250,6 +2500,35 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
+    it.each(['android', 'ios', 'ios-fallback'])(
+      'deepLinkToSubscriptions preserves native errors on %s',
+      async (path) => {
+        Object.assign(Platform, {OS: path === 'android' ? 'android' : 'ios'});
+        const nativeError = new Error(
+          JSON.stringify({
+            code: 'feature-not-supported',
+            message: 'Provider has no subscription management UI',
+            debugMessage: 'Community provider rejection',
+          }),
+        );
+        const reject = jest.fn().mockRejectedValueOnce(nativeError);
+        if (path === 'android') {
+          mockIap.deepLinkToSubscriptionsAndroid = reject;
+        } else if (path === 'ios') {
+          mockIap.deepLinkToSubscriptionsIOS = reject;
+        } else {
+          delete mockIap.deepLinkToSubscriptionsIOS;
+          mockIap.showManageSubscriptionsIOS = reject;
+        }
+        await expect(IAP.deepLinkToSubscriptions()).rejects.toMatchObject({
+          code: 'feature-not-supported',
+          message: 'Provider has no subscription management UI',
+          debugMessage: 'Community provider rejection',
+        });
+        expect(reject).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it('deepLinkToSubscriptions uses iOS deeplink when available', async () => {
       Object.assign(Platform, {OS: 'ios'});
       mockIap.deepLinkToSubscriptionsIOS = jest.fn(async () => true);
@@ -2290,6 +2569,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'premium',
         transactionDate: 1700000000000,
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -2298,6 +2578,7 @@ describe('Public API (src/index.ts)', () => {
         id: 'redeemed-transaction',
         productId: 'premium',
         store: 'apple',
+        storeId: 'apple',
       });
       expect(mockIap.presentCodeRedemptionSheetIOS).toHaveBeenCalledTimes(1);
     });
@@ -2521,9 +2802,7 @@ describe('Public API (src/index.ts)', () => {
     describe('hasActiveSubscriptions', () => {
       it('should return true when there are active subscriptions', async () => {
         Object.assign(Platform, {OS: 'ios'});
-        mockIap.getActiveSubscriptions.mockResolvedValueOnce([
-          {productId: 'sub1', isActive: true},
-        ]);
+        mockIap.hasActiveSubscriptions.mockResolvedValueOnce(true);
 
         const result = await IAP.hasActiveSubscriptions();
 
@@ -2532,7 +2811,7 @@ describe('Public API (src/index.ts)', () => {
 
       it('should return false when there are no active subscriptions', async () => {
         Object.assign(Platform, {OS: 'ios'});
-        mockIap.getActiveSubscriptions.mockResolvedValueOnce([]);
+        mockIap.hasActiveSubscriptions.mockResolvedValueOnce(false);
 
         const result = await IAP.hasActiveSubscriptions();
 
@@ -2544,7 +2823,7 @@ describe('Public API (src/index.ts)', () => {
         async (platform) => {
           Object.assign(Platform, {OS: platform});
           const error = new Error('Failed to fetch');
-          mockIap.getActiveSubscriptions.mockRejectedValueOnce(error);
+          mockIap.hasActiveSubscriptions.mockRejectedValueOnce(error);
 
           await expect(IAP.hasActiveSubscriptions()).rejects.toThrow(
             'Failed to fetch',
@@ -2552,9 +2831,83 @@ describe('Public API (src/index.ts)', () => {
         },
       );
     });
+    it('preserves false provider status for a nonempty inactive list', async () => {
+      mockIap.getActiveSubscriptions.mockResolvedValueOnce([
+        {productId: 'expired', isActive: false},
+      ]);
+      mockIap.hasActiveSubscriptions.mockResolvedValueOnce(false);
+      expect(await IAP.hasActiveSubscriptions()).toBe(false);
+      expect(mockIap.hasActiveSubscriptions).toHaveBeenCalled();
+      expect(mockIap.getActiveSubscriptions).not.toHaveBeenCalled();
+    });
+  });
+
+  it('preserves unsupported native receipt verification across both APIs', async () => {
+    Object.assign(Platform, {OS: 'android'});
+    const nativeError = new Error(
+      JSON.stringify({
+        code: 'feature-not-supported',
+        message: 'Use the vendor backend',
+      }),
+    );
+    mockIap.verifyPurchase.mockRejectedValueOnce(nativeError);
+    await expect(
+      IAP.verifyPurchase({
+        google: {
+          sku: 'sku',
+          accessToken: 'fixture',
+          packageName: 'test.app',
+          purchaseToken: 'opaque',
+        },
+      }),
+    ).rejects.toMatchObject({code: 'feature-not-supported'});
+    mockIap.verifyPurchaseWithProvider = jest
+      .fn()
+      .mockRejectedValueOnce(nativeError);
+    await expect(
+      IAP.verifyPurchaseWithProvider({provider: 'iapkit'}),
+    ).rejects.toMatchObject({code: 'feature-not-supported'});
   });
 
   describe('verifyPurchaseWithProvider', () => {
+    it.each([
+      ['google', undefined, 'play'],
+      ['apple', undefined, 'apple'],
+      ['horizon', undefined, 'horizon'],
+      ['amazon', undefined, 'amazon'],
+      ['unknown', 'community_store', 'community_store'],
+    ])(
+      'preserves verification identity for %s',
+      async (store, storeId, expected) => {
+        mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        const result = await IAP.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+        });
+        expect(result.iapkit?.storeId).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['unknown', undefined],
+      ['unknown', 'unknown'],
+      ['google', 'community_store'],
+      ['apple', 'play'],
+    ])(
+      'rejects contradictory verification identity for %s/%s',
+      async (store, storeId) => {
+        mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce({
+          provider: 'iapkit',
+          iapkit: {isValid: true, state: 'entitled', store, storeId},
+        });
+        await expect(
+          IAP.verifyPurchaseWithProvider({provider: 'iapkit'}),
+        ).rejects.toThrow(/store identity/);
+      },
+    );
+
     beforeEach(() => {
       mockIap.verifyPurchaseWithProvider = jest.fn();
     });
@@ -2574,6 +2927,7 @@ describe('Public API (src/index.ts)', () => {
           productId: 'premium.monthly',
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2619,6 +2973,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: true,
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2647,6 +3002,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: true,
           state: 'ready-to-consume',
           store: 'amazon',
+          storeId: 'amazon',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2707,6 +3063,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: false,
           state: 'expired',
           store: 'apple',
+          storeId: 'apple',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -2744,7 +3101,7 @@ describe('Public API (src/index.ts)', () => {
       Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
-        iapkit: [],
+        iapkit: null,
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
 
@@ -2842,6 +3199,7 @@ describe('Public API (src/index.ts)', () => {
           isValid: true,
           state: 'pending-acknowledgment',
           store: 'google',
+          storeId: 'play',
         },
       };
       mockIap.verifyPurchaseWithProvider.mockResolvedValueOnce(mockResult);
@@ -3552,6 +3910,33 @@ describe('Public API (src/index.ts)', () => {
         'native failure',
       );
     });
+
+    it('reports an undecodable purchase instead of throwing', () => {
+      const billingIssueListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.subscriptionBillingIssueListener(billingIssueListener);
+      IAP.purchaseErrorListener(errorListener);
+      const nativeHandler =
+        mockIap.addSubscriptionBillingIssueListener.mock.calls[0][0];
+      const nitroPurchase = {
+        id: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'unknown',
+        storeId: '!!!',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      expect(() => nativeHandler(nitroPurchase)).not.toThrow();
+      expect(billingIssueListener).not.toHaveBeenCalled();
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ErrorCode.BillingResponseJsonParseError,
+          productId: 'p1',
+        }),
+      );
+    });
   });
 
   describe('native failure normalization', () => {
@@ -3704,6 +4089,7 @@ describe('Public API (src/index.ts)', () => {
         productId: 'p1',
         transactionDate: Date.now(),
         store: 'google',
+        storeId: 'play',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -3783,6 +4169,7 @@ describe('Public API (src/index.ts)', () => {
       productId: 'premium',
       transactionDate: Date.now(),
       store: 'apple',
+      storeId: 'apple',
       quantity: 1,
       purchaseState: 'purchased',
       isAutoRenewing: false,

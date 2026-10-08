@@ -210,6 +210,7 @@ enum StoreKitTypesBridge {
                     transaction.storefrontCountryCode
                 }
             }(),
+            storeId: "apple",
             subscriptionGroupIdIOS: transaction.subscriptionGroupID,
             transactionDate: transaction.purchaseDate.milliseconds,
             transactionId: transactionId,

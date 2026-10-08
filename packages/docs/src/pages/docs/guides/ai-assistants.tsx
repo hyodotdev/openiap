@@ -816,9 +816,8 @@ Desired outcome: [describe one thing your customer should be able to do]`}</Code
           </p>
           <p>
             Errors exit <code>1</code>; warnings and skipped checks can still
-            exit
-            <code>0</code>. Read <code>notCheckedLocally</code> too. This is a
-            limited configuration check: it does not verify store accounts,
+            exit <code>0</code>. Read <code>notCheckedLocally</code> too. This
+            is a limited configuration check: it does not verify store accounts,
             device purchases, backend behavior, or Commerce Protocol
             conformance. The four brief roles do not change its check scope. Use
             the <Link to="#acceptance">sandbox checks above</Link> for the real

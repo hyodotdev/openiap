@@ -204,9 +204,9 @@ Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 blocks and any `Planned Package Releases` heading, so link regressions are
 caught before publishing.
 
-RC and npm `next` releases are managed on the on-demand `next` branch and do
-not get release-history entries. Add one grouped entry only when the train is
-promoted to a stable release on `main`.
+RC and stable releases share `main`. Keep one eventual stable release card
+with the source PR, and do not add duplicate entries for RC publications.
+Production docs wait for stable metadata and public release links.
 
 ### R10 — Docs version metadata stays synced with package metadata
 
@@ -218,8 +218,7 @@ Vercel builds.
 The root `openiap-versions.json` is also a version contract. `clientProtocol`
 must equal the version in `specs/client/package.json`, the manifest that
 publishes the protocol; `google` and `apple` are independent native package
-versions. `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
-silently normalizing it.
+versions. The audits, not the sync script, reject a committed mismatch.
 
 Framework package versions and Android SDK constants used by docs must flow
 through `packages/docs/src/generated/version-metadata.json`, which is generated

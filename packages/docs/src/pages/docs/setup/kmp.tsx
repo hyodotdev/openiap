@@ -35,6 +35,14 @@ function KmpSetup() {
         <a href="/docs/android-setup">Android Setup</a>
       </Callout>
 
+      <p>
+        For an independent store on Apple or Android, follow the{' '}
+        <a href="/docs/guides/store-providers">community provider guide</a>.
+        Link its native package and select its factory in your app; purchase
+        APIs keep the platform's existing shape and preserve the provider's
+        store id.
+      </p>
+
       <section>
         <h2 id="prerequisites" className="anchor-heading">
           Prerequisites
@@ -207,8 +215,8 @@ kotlin {
 
         <h4 id="android-store">Pick the Android store</h4>
         <p>
-          kmp-iap publishes a Play, Horizon, and Amazon build of its Android
-          library, and Gradle stops with{' '}
+          kmp-iap publishes Play, Horizon, Amazon, and provider builds of its
+          Android library, and Gradle stops with{' '}
           <code>
             Cannot choose between the following variants of
             io.github.hyochan:kmp-iap
@@ -247,8 +255,16 @@ openiapStore=horizon`}
           <a href="/docs/setup/store#selection">How the Store Is Selected</a>{' '}
           for the full rule. At runtime, <code>getStore()</code> reports the
           linked store: <code>Store.HORIZON</code> on a Horizon build,{' '}
-          <code>Store.AMAZON</code> on an Amazon build, and{' '}
-          <code>Store.PLAY_STORE</code> otherwise.
+          <code>Store.AMAZON</code> on an Amazon build,{' '}
+          <code>Store.PLAY_STORE</code> on a Play build,{' '}
+          <code>Store.APP_STORE</code> on iOS, and <code>Store.UNKNOWN</code> on
+          a community-provider build or when the Apple provider selection fails.
+          From 4.0.0, handle <code>UNKNOWN</code> in every exhaustive{' '}
+          <code>when</code>; see the{' '}
+          <a href="/docs/updates/migration#provider-contract-kmp-store">
+            upgrade notes
+          </a>
+          .
         </p>
 
         <h4>R8 and ProGuard</h4>
@@ -317,6 +333,10 @@ import io.github.hyochan.kmpiap.KmpIAP
 val kmpIAP = KmpIAP()
 scope.launch { kmpIAP.initConnection() }`}
         </CodeBlock>
+        <p>
+          Keep one live client per process. On Meta Horizon a second live client
+          kills the process when it queries purchases.
+        </p>
         <p>
           See{' '}
           <a href="/docs/apis/init-connection">
@@ -390,9 +410,12 @@ scope.launch {
           </a>
         </h3>
         <p>
-          Fetch products once the connection is up, then request a purchase —
-          the result arrives on <code>purchaseUpdatedListener</code>, not as a
-          return value. See{' '}
+          Fetch products once the connection is up. Handle purchases on{' '}
+          <code>purchaseUpdatedListener</code> and cancellations on{' '}
+          <code>purchaseErrorListener</code>. Use the nullable{' '}
+          <code>requestPurchase(props)</code> form below for these event-driven
+          screens; the DSL form requires a purchase result and throws when none
+          is returned. See{' '}
           <a href="/docs/apis/fetch-products">
             <code>fetchProducts</code>
           </a>{' '}

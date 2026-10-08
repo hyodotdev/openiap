@@ -136,14 +136,29 @@ class OpenIapErrorTest {
     @Test
     fun `InitConnection names a non-Play flavor`() {
         val store = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE
-        val message = OpenIapError.InitConnection.message
+        val message = OpenIapError.InitConnection.forStore(store).message
         if (store == "play") {
             assertEquals(OpenIapError.InitConnection.MESSAGE, message)
         } else {
             assertTrue(message.contains(store))
             assertFalse(message.contains("rebuild"))
         }
-        assertEquals(message, OpenIapError.defaultMessage(OpenIapError.InitConnection.CODE))
+        assertEquals(OpenIapError.InitConnection.MESSAGE, OpenIapError.defaultMessage(OpenIapError.InitConnection.CODE))
+    }
+
+    @Test
+    fun `InitConnection forStore names every non-Play store`() {
+        for (store in listOf("horizon", "amazon", "community_fixture")) {
+            val error = OpenIapError.InitConnection.forStore(store)
+            assertEquals(OpenIapError.InitConnection.CODE, error.code)
+            assertTrue(error.message.contains(store))
+            assertFalse(error.message.contains("rebuild"))
+        }
+        for (store in listOf("play", null, "")) {
+            val error = OpenIapError.InitConnection.forStore(store)
+            assertEquals(OpenIapError.InitConnection.CODE, error.code)
+            assertEquals(OpenIapError.InitConnection.MESSAGE, error.message)
+        }
     }
 
     @Test

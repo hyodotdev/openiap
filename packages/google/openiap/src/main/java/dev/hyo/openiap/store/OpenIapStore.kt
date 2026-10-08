@@ -49,7 +49,7 @@ import android.content.Context
 import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderResult
@@ -77,11 +77,7 @@ internal object OpenIapStorePurchaseRequestResolver {
         }
 }
 
-/**
- * OpenIapStore (Android)
- * Convenience store that wraps an [OpenIapProtocol] implementation (Play, Horizon, or Amazon)
- * and exposes suspend APIs with observable StateFlows for UI layers to consume.
- */
+/** Exposes provider operations and observable StateFlows for UI layers. */
 class OpenIapStore(private val module: OpenIapProtocol) {
     private val manualActivityOwner = Any()
     private val activityBindings = OwnerScopedValueBinding<Activity>(module::setActivity)
@@ -145,20 +141,15 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         _status.value = _status.value.copy(lastError = null)
         pendingRequestProductId = null
 
-        // CRITICAL FIX: Refresh available purchases to update UI
-        // This ensures the purchase list reflects the new purchase immediately
         storeScope.launch {
             try {
                 OpenIapLog.info("Purchase update received, refreshing available purchases", "OpenIapStore")
 
-                // Wait a bit for the purchase to be fully processed by Horizon
+                // Horizon ownership can lag behind the purchase callback.
                 kotlinx.coroutines.delay(500)
 
-                // Ensure connection is ready
                 if (!isConnected.value) {
                     OpenIapLog.warn("Not connected, skipping purchase refresh (connection will be restored on next app start)", "OpenIapStore")
-                    // Don't attempt to reconnect here as it may cause issues
-                    // The purchase will be available on next app launch
                     return@launch
                 }
 
@@ -486,8 +477,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         }
 
         try {
-            module.mutationHandlers.requestPurchase?.invoke(props)
-                ?: throw OpenIapError.FeatureNotSupported()
+            module.requestPurchase(props).also { result ->
+                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true &&
+                    pendingRequestProductId == skuForStatus
+                ) {
+                    pendingRequestProductId = null
+                }
+            }
         } finally {
             if (skuForStatus != null) removePurchasing(skuForStatus)
         }
@@ -511,7 +507,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         // Check if already processed - but we can't check isAcknowledgedAndroid on PurchaseInput
         if (token == null || !processedPurchaseTokens.contains(token)) {
             try {
-                module.mutationHandlers.finishTransaction?.invoke(purchaseInput, isConsumable)
+                module.finishTransaction(purchaseInput, isConsumable)
                 if (token != null) processedPurchaseTokens.add(token)
             } catch (e: Exception) {
                 setError(e.message)
@@ -530,7 +526,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/get-active-subscriptions">https://openiap.dev/docs/apis/get-active-subscriptions</a>
      */
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription> =
-        module.queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds) ?: emptyList()
+        module.getActiveSubscriptions(subscriptionIds)
+
+    suspend fun restorePurchases() = module.restorePurchases()
 
     /** Verify a purchase with the configured provider. */
     suspend fun verifyPurchaseWithProvider(
@@ -543,14 +541,14 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/has-active-subscriptions">https://openiap.dev/docs/apis/has-active-subscriptions</a>
      */
     suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean =
-        module.queryHandlers.hasActiveSubscriptions?.invoke(subscriptionIds) ?: false
+        module.hasActiveSubscriptions(subscriptionIds)
 
     /**
      * Open the platform's subscription management UI.
      *
      * @see <a href="https://openiap.dev/docs/apis/deep-link-to-subscriptions">https://openiap.dev/docs/apis/deep-link-to-subscriptions</a>
      */
-    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.mutationHandlers.deepLinkToSubscriptions?.invoke(options)
+    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.deepLinkToSubscriptions(options)
 
     // -------------------------------------------------------------------------
     // Billing Programs (Google Play Billing Library 8.2.0+)
@@ -779,10 +777,16 @@ sealed class IapOperationResult {
 }
 
 private val storeAliases = mapOf(
-    "google" to "play", "gplay" to "play", "googleplay" to "play",
-    "google-play" to "play", "gms" to "play",
-    "meta" to "horizon", "quest" to "horizon",
-    "fire" to "amazon", "fireos" to "amazon", "fire-os" to "amazon",
+    "google" to "play",
+    "gplay" to "play",
+    "googleplay" to "play",
+    "google-play" to "play",
+    "gms" to "play",
+    "meta" to "horizon",
+    "quest" to "horizon",
+    "fire" to "amazon",
+    "fireos" to "amazon",
+    "fire-os" to "amazon",
 )
 
 /**
@@ -791,7 +795,8 @@ private val storeAliases = mapOf(
  * compatibility and otherwise unused.
  */
 private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
-    val linked = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE.lowercase(java.util.Locale.ROOT)
+    val factory = OpenIapProvider.factory(context)
+    val linked = factory.storeId
     val requested = store?.trim()?.lowercase(java.util.Locale.ROOT)?.let { storeAliases[it] ?: it }
     if (requested != null && requested != linked) {
         OpenIapLog.warn(
@@ -802,6 +807,6 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     if (appId != null) {
         OpenIapLog.debug("Horizon app id comes from AndroidManifest meta-data; constructor value ignored", "OpenIapStore")
     }
-    OpenIapLog.info("BuildConfig.OPENIAP_STORE = $linked", "OpenIapStore")
-    return OpenIapModule(context)
+    OpenIapLog.info("Linked Android store = $linked", "OpenIapStore")
+    return OpenIapProvider.create(context, factory)
 }

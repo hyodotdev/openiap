@@ -11,10 +11,11 @@ on:
           - patch
           - minor
           - major
+          - rc-bump
           - current
         default: patch
       prerelease:
-        description: "Publish as prerelease from next (-rc.1)"
+        description: "Publish as prerelease from main (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -124,6 +125,12 @@ jobs:
             NEW_VERSION="$CURRENT_VERSION"
             echo "Using current version (no bump): $NEW_VERSION"
             echo "skip_version_commit=true" >> $GITHUB_OUTPUT
+          elif [ "$VERSION_TYPE" = "rc-bump" ]; then
+            if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.([0-9]+)$ ]]; then
+              echo "::error::Current version $CURRENT_VERSION is not an RC version."
+              exit 1
+            fi
+            NEW_VERSION="${BASE_VERSION}-rc.$((BASH_REMATCH[1] + 1))"
           elif [ "$IS_PRERELEASE" = "true" ]; then
             case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
@@ -198,6 +205,34 @@ jobs:
           node scripts/assert-release-tag.mjs \
             google "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
           git checkout "$SELECTED_TAG"
+
+      - name: Check provider artifacts on Maven Central
+        id: check_providers
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          IS_PRERELEASE: ${{ steps.version.outputs.is_prerelease }}
+        run: |
+          check_pom() {
+            local artifact=$1 version=$2 status
+            status=$(curl -sS -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/io/github/hyochan/openiap/$artifact/$version/$artifact-$version.pom" || true)
+            case "$status" in
+              200) echo true ;;
+              404) echo false ;;
+              *) echo "::error::Unable to verify $artifact $version (HTTP $status)" >&2; return 1 ;;
+            esac
+          }
+          # Existing tags before core extraction retain their original publication path.
+          CORE_EXISTS=true
+          CONFORMANCE_EXISTS=true
+          if [ -f packages/google/core/build.gradle.kts ]; then
+            CORE_EXISTS=$(check_pom openiap-core "$VERSION")
+            SUITE_VERSION=$(node --input-type=module -e "import {SUITE_VERSION} from './packages/conformance/src/spec/suite-version.mjs'; console.log(SUITE_VERSION)")
+            if [ "$IS_PRERELEASE" != "true" ]; then
+              CONFORMANCE_EXISTS=$(check_pom openiap-conformance "$SUITE_VERSION")
+            fi
+          fi
+          echo "core_exists=$CORE_EXISTS" >> "$GITHUB_OUTPUT"
+          echo "conformance_exists=$CONFORMANCE_EXISTS" >> "$GITHUB_OUTPUT"
 
       - name: Check if Horizon flavor already published
         id: check_horizon
@@ -299,6 +334,8 @@ jobs:
 
       - name: Preflight Maven Central publication
         env:
+          CORE_EXISTS: ${{ steps.check_providers.outputs.core_exists }}
+          CONFORMANCE_EXISTS: ${{ steps.check_providers.outputs.conformance_exists }}
           HORIZON_EXISTS: ${{ steps.check_horizon.outputs.exists }}
           AMAZON_EXISTS: ${{ steps.check_amazon.outputs.exists }}
           PLAY_EXISTS: ${{ steps.check_play.outputs.exists }}
@@ -311,14 +348,17 @@ jobs:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
           if [ "$RELEASE_TAG_EXISTS" != "true" ] && \
-             { [ "$HORIZON_EXISTS" = "true" ] || \
+             { { [ -f packages/google/core/build.gradle.kts ] && [ "$CORE_EXISTS" = "true" ]; } || \
+               [ "$HORIZON_EXISTS" = "true" ] || \
                [ "$AMAZON_EXISTS" = "true" ] || \
                [ "$PLAY_EXISTS" = "true" ] || \
                [ "$PLUGIN_EXISTS" = "true" ]; }; then
             echo "::error::A Google artifact is already published without a release tag; release a new version instead"
             exit 1
           fi
-          if [ "$HORIZON_EXISTS" = "false" ] || \
+          if [ "$CORE_EXISTS" = "false" ] || \
+             [ "$CONFORMANCE_EXISTS" = "false" ] || \
+             [ "$HORIZON_EXISTS" = "false" ] || \
              [ "$AMAZON_EXISTS" = "false" ] || \
              [ "$PLAY_EXISTS" = "false" ] || \
              [ "$PLUGIN_EXISTS" = "false" ]; then
@@ -367,6 +407,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add openiap-versions.json packages/*/openiap-versions.json
+          git add libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props
           git add packages/apple/Sources/OpenIapGeneratedVersion.swift
           git add packages/docs/src/generated/version-metadata.json
           git add packages/docs/package.json packages/google/package.json packages/apple/package.json
@@ -399,7 +440,17 @@ jobs:
 
       - name: Build release artifacts
         working-directory: packages/google
-        run: ./gradlew :openiap:assembleRelease --no-daemon --stacktrace
+        run: |
+          tasks=(:openiap:assembleRelease)
+          if [ -f core/build.gradle.kts ]; then
+            tasks+=(:openiap-core:assembleRelease)
+          fi
+          ./gradlew "${tasks[@]}" --no-daemon --stacktrace
+
+      - name: Build provider conformance artifact
+        if: steps.check_providers.outputs.conformance_exists == 'false'
+        working-directory: packages/google
+        run: ./gradlew :openiap-conformance:assembleRelease --no-daemon --stacktrace
 
       - name: Build Gradle plugin
         working-directory: packages/google/gradle-plugin
@@ -411,8 +462,12 @@ jobs:
         working-directory: packages/google
         run: |
           mkdir -p release-artifacts
+          if [ -f core/build.gradle.kts ] && [ ! -f core/build/outputs/aar/openiap-core-release.aar ]; then
+            echo "::error::The provider core AAR is missing"
+            exit 1
+          fi
           shopt -s nullglob
-          artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar)
+          artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar core/build/outputs/aar/*.aar ../conformance/android/build/outputs/aar/*.aar)
           if [ ${#artifacts[@]} -eq 0 ]; then
             echo "::error::No Google release artifacts found"
             exit 1
@@ -425,6 +480,7 @@ jobs:
         id: release_notes
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          IS_PRERELEASE: ${{ steps.version.outputs.is_prerelease }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RELEASE_REF="HEAD"
@@ -450,6 +506,15 @@ jobs:
           echo "$CHANGELOG" > /tmp/changelog.txt
 
           # Create release notes
+          PROVIDER_ARTIFACTS=""
+          if [ -f packages/google/core/build.gradle.kts ]; then
+            PROVIDER_ARTIFACTS="- [openiap-core](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-core/$VERSION)"
+            if [ "$IS_PRERELEASE" != "true" ]; then
+              SUITE_VERSION=$(node --input-type=module -e "import {SUITE_VERSION} from './packages/conformance/src/spec/suite-version.mjs'; console.log(SUITE_VERSION)")
+              PROVIDER_ARTIFACTS="$PROVIDER_ARTIFACTS
+          - [openiap-conformance](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-conformance/$SUITE_VERSION)"
+            fi
+          fi
           cat > /tmp/release-notes.md <<EOF
           ## OpenIAP Google $VERSION
 
@@ -502,6 +567,7 @@ jobs:
           ### Documentation
 
           - [API reference](https://openiap.dev/docs/apis)
+          - [Android provider guide](https://openiap.dev/docs/guides/android-providers)
           - [Release notes](https://openiap.dev/docs/updates/releases#google-$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/google-$VERSION/packages/google)
 
@@ -511,6 +577,7 @@ jobs:
           - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
           - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon/$VERSION)
           - [openiap-gradle-plugin](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-gradle-plugin/$VERSION)
+          $PROVIDER_ARTIFACTS
           EOF
 
       - name: Create and push tag
@@ -528,6 +595,30 @@ jobs:
             git tag "google-$VERSION"
             git push origin "google-$VERSION"
           fi
+
+      - name: Publish core to Maven Central
+        if: steps.check_providers.outputs.core_exists == 'false'
+        working-directory: packages/google
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :openiap-core:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+
+      - name: Publish Android conformance to Maven Central
+        if: steps.check_providers.outputs.conformance_exists == 'false'
+        working-directory: packages/google
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :openiap-conformance:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
 
       - name: Publish Horizon flavor to Maven Central
         if: steps.check_horizon.outputs.exists == 'false'

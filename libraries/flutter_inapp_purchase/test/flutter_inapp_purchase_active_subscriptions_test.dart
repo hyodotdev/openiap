@@ -19,6 +19,7 @@ void main() {
         <String, dynamic>{
           'platform': 'android',
           'store': 'google',
+          'storeId': 'play',
           'purchaseStateAndroid': 1,
         },
       ],
@@ -46,6 +47,7 @@ void main() {
             'purchaseStateAndroid': 1,
             'purchaseToken': 'secret-canonical-token',
             'store': 'google',
+            'storeId': 'play',
           },
         ],
         platformIsAndroid: true,
@@ -392,6 +394,10 @@ void main() {
         switch (call.method) {
           case 'initConnection':
             return true;
+          case 'hasActiveSubscriptions':
+            throw PlatformException(
+                code: 'billing-response-json-parse-error',
+                message: 'Invalid status');
           case 'getActiveSubscriptions':
             return <Map<String, dynamic>>[
               <String, dynamic>{

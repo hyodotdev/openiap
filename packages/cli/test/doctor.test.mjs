@@ -502,7 +502,7 @@ test("gradle.properties is judged the way Gradle judges it", () => {
       FLUTTER,
       "openiapStore=bogus\nopeniapPlatform=none\n",
       ["android-store-unknown"],
-      /openiapStore=bogus is not a store/u,
+      /Community provider selection is incomplete or invalid/u,
     ],
     [
       FLUTTER,
@@ -2863,4 +2863,47 @@ test("store flags use Groovy boolean values for both Android stores", () => {
     },
     (root) => assert.ok(ids(root).includes("android-store-flavor-conflict")),
   );
+});
+
+test("an unregistered community provider needs only a fixed coordinate pair", () => {
+  withProject({...EXPO, "android/gradle.properties": "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:1.0.0\n"}, (root) => {
+    assert.ok(!ids(root).includes("android-store-unknown"));
+    assert.ok(!ids(root).includes("android-store-flavor-mismatch"));
+  });
+});
+
+test("a community store uses the neutral provider flavor and Play guidance removes the pair", () => {
+  withProject({...EXPO,
+    "android/gradle.properties": "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "android/app/build.gradle.kts": 'missingDimensionStrategy("platform", "provider")\n',
+  }, (root) => {
+    assert.ok(!ids(root).includes("android-store-flavor-mismatch"));
+    const warning = doctor(root).findings.find((one) => one.id === "android-store-not-play");
+    assert.match(warning.fix, /both openiapStore and openiapProvider/);
+  });
+});
+
+test("doctor rejects incomplete or conflicting provider coordinates", () => {
+  for (const properties of [
+    "openiapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=community_fixture\n",
+    "openiapStore=play\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=with-hyphen\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:+\n",
+    "openiapStore=community_fixture\nopeniapProvider=io.github.hyochan.openiap:openiap-google:3.6.2\n",
+    "openiapStore=unknown\nopeniapProvider=dev.example:provider:1.0.0\n",
+  ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => assert.ok(ids(root).includes("android-store-unknown")));
+});
+
+test("a community id without openiapProvider names both fixes", () => {
+  for (const properties of [
+    "openiapStore=community_fixture\n",
+    "openiapStore=goggle\n",
+  ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => {
+    const unknown = doctor(root).findings.find((one) => one.id === "android-store-unknown");
+    assert.match(unknown.message, /Community provider selection is incomplete or invalid/);
+    assert.match(unknown.fix, /play, horizon, amazon, or auto/);
+    assert.match(unknown.fix, /openiapProvider/);
+    assert.match(unknown.fix, /group:artifact:version/);
+  });
 });

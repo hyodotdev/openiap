@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "maintenanceWindowDays": 90,
+  "selectionAliases": {"auto": "auto", "none": "none"},
+  "stores": [
+    {
+      "id": "apple",
+      "platform": "ios",
+      "displayName": "Apple App Store",
+      "tier": "official",
+      "aliases": [],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/apple",
+      "coordinates": {"repository": "hyodotdev/openiap", "versionKey": "apple"},
+      "capabilities": ["pendingPurchases", "subscriptionBillingIssue", "offerCodeRedemption"],
+      "latestReport": null
+    },
+    {
+      "id": "play",
+      "commerceStore": "google",
+      "platform": "android",
+      "displayName": "Google Play",
+      "tier": "official",
+      "aliases": ["google", "gplay", "googleplay", "google-play", "gms"],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
+      "coordinates": {"module": "io.github.hyochan.openiap:openiap-google", "versionKey": "google"},
+      "capabilities": ["pendingPurchases", "subscriptionBillingIssue", "offerCodeRedemption"],
+      "latestReport": null
+    },
+    {
+      "id": "horizon",
+      "platform": "android",
+      "displayName": "Meta Horizon",
+      "tier": "official",
+      "aliases": ["meta", "quest"],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
+      "coordinates": {"module": "io.github.hyochan.openiap:openiap-google-horizon", "versionKey": "google"},
+      "capabilities": ["pendingPurchases"],
+      "latestReport": null
+    },
+    {
+      "id": "amazon",
+      "platform": "android",
+      "displayName": "Amazon Appstore",
+      "tier": "official",
+      "aliases": ["fire", "fireos", "fire-os"],
+      "maintainers": ["hyodotdev"],
+      "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
+      "coordinates": {"module": "io.github.hyochan.openiap:openiap-google-amazon", "versionKey": "google"},
+      "capabilities": ["pendingPurchases"],
+      "latestReport": null
+    }
+  ]
+}

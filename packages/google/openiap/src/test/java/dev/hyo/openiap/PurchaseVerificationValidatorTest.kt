@@ -558,6 +558,43 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithIapkit derives the store id from the verified store`() = runTest {
+        val cases = listOf(
+            Triple(
+                RequestVerifyPurchaseWithIapkitProps(
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = "token-123")
+                ),
+                """{"store":"google","isValid":true,"state":"ENTITLED"}""",
+                "play"
+            ),
+            Triple(
+                RequestVerifyPurchaseWithIapkitProps(
+                    horizon = RequestVerifyPurchaseWithIapkitHorizonProps(sku = "premium.monthly", userId = "123456789")
+                ),
+                """{"store":"horizon","isValid":true,"state":"ENTITLED"}""",
+                "horizon"
+            ),
+            Triple(
+                RequestVerifyPurchaseWithIapkitProps(
+                    amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                        userId = "amzn1.account.ABC123",
+                        receiptId = "amzn1.receipt.ABC123456789"
+                    )
+                ),
+                """{"store":"amazon","isValid":true,"state":"ENTITLED"}""",
+                "amazon"
+            )
+        )
+
+        for ((props, response, expectedStoreId) in cases) {
+            val result = verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                FakeHttpURLConnection(200, response)
+            }
+            assertEquals(expectedStoreId, result.storeId)
+        }
+    }
+
+    @Test
     fun `verifyPurchaseWithIapkit throws when horizon payload is incomplete`() = runTest {
         for (horizon in listOf(
             RequestVerifyPurchaseWithIapkitHorizonProps(sku = "", userId = "123456789"),

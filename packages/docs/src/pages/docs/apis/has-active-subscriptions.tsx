@@ -21,8 +21,9 @@ function HasActiveSubscriptions() {
       <p>Quick check if the user has any active subscriptions.</p>
       <p>
         <strong>iOS:</strong> Convenience over{' '}
-        <code>getActiveSubscriptions</code> — returns <code>true</code> if the
-        iterator yields at least one non-expired subscription.{' '}
+        <code>getActiveSubscriptions</code> — returns <code>true</code> if at
+        least one matching subscription has the active flag set (expiration in
+        the future); a subscriber in billing grace reads inactive.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/currententitlements"
           target="_blank"
@@ -109,7 +110,12 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         <Link to="/docs/apis/get-active-subscriptions">
           <code>getActiveSubscriptions</code>
         </Link>{' '}
-        when you only need a yes/no answer.
+        when you only need a yes/no answer. When upgrading from an older major,
+        see the{' '}
+        <Link to="/docs/updates/migration#provider-contract-subscription-flag">
+          subscription-check upgrade notes
+        </Link>
+        .
       </p>
       <p>
         Only a successful empty query resolves <code>false</code>. Godot

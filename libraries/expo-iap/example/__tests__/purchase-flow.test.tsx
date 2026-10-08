@@ -83,6 +83,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         state: 'ready-to-consume',
         store: 'apple',
+        storeId: 'apple',
       },
     });
     mockUseIAP.connected = true;
@@ -206,6 +207,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -232,6 +234,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'pending-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       },
@@ -259,6 +262,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         state: 'ready-to-consume',
         store: 'google',
+        storeId: 'play',
       },
     });
     const purchase = {
@@ -266,6 +270,7 @@ describe('PurchaseFlow Component', () => {
       productId: 'dev.hyo.martie.10bulbs',
       purchaseToken: 'google-token-1',
       store: 'google',
+      storeId: 'play',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -296,6 +301,7 @@ describe('PurchaseFlow Component', () => {
       productId: 'dev.hyo.martie.10bulbs',
       purchaseToken: 'finish-failure-jws',
       store: 'apple',
+      storeId: 'apple',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -332,6 +338,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'device-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -369,6 +376,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'hosted-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -393,6 +401,7 @@ describe('PurchaseFlow Component', () => {
           productId: 'dev.hyo.martie.10bulbs',
           state: 'consumed',
           store: 'apple',
+          storeId: 'apple',
         },
       },
     },
@@ -405,6 +414,7 @@ describe('PurchaseFlow Component', () => {
           productId: 'dev.hyo.martie.30bulbs',
           state: 'ready-to-consume',
           store: 'apple',
+          storeId: 'apple',
         },
       },
     },
@@ -418,6 +428,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'rejected-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -434,6 +445,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'restored-apple-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       },
@@ -445,6 +457,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         state: 'consumed',
         store: 'apple',
+        storeId: 'apple',
       },
     });
 
@@ -463,6 +476,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'restored-10-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       },
@@ -471,6 +485,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.30bulbs',
         purchaseToken: 'restored-30-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now() + 1,
         purchaseState: 'purchased',
       },
@@ -488,6 +503,7 @@ describe('PurchaseFlow Component', () => {
               : 'dev.hyo.martie.10bulbs',
           state: 'ready-to-consume',
           store: 'apple',
+          storeId: 'apple',
         },
       });
     });
@@ -516,6 +532,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'rerender-restored-10-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       },
@@ -524,6 +541,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.30bulbs',
         purchaseToken: 'rerender-restored-30-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now() + 1,
         purchaseState: 'purchased',
       },
@@ -535,6 +553,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         state: 'ready-to-consume',
         store: 'apple',
+        storeId: 'apple',
       },
     };
     let resolveFirst: ((value: typeof firstResult) => void) | undefined;
@@ -552,6 +571,7 @@ describe('PurchaseFlow Component', () => {
           productId: 'dev.hyo.martie.30bulbs',
           state: 'ready-to-consume',
           store: 'apple',
+          storeId: 'apple',
         },
       });
     });
@@ -587,6 +607,7 @@ describe('PurchaseFlow Component', () => {
       productId: 'dev.hyo.martie.10bulbs',
       purchaseToken: 'reconnect-restored-10-jws',
       store: 'apple',
+      storeId: 'apple',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -597,6 +618,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         state: 'ready-to-consume',
         store: 'apple',
+        storeId: 'apple',
       },
     };
     let resolveVerification: ((value: typeof result) => void) | undefined;
@@ -640,6 +662,7 @@ describe('PurchaseFlow Component', () => {
       productId: 'dev.hyo.martie.10bulbs',
       purchaseToken: 'remount-pending-finish-10-jws',
       store: 'apple',
+      storeId: 'apple',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
     };
@@ -709,6 +732,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'live-purchase-10-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       },
@@ -717,6 +741,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.30bulbs',
         purchaseToken: 'live-purchase-30-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now() + 1,
         purchaseState: 'purchased',
       },
@@ -728,6 +753,7 @@ describe('PurchaseFlow Component', () => {
         productId: 'dev.hyo.martie.10bulbs',
         state: 'ready-to-consume',
         store: 'apple',
+        storeId: 'apple',
       },
     };
     let resolveFirst: ((value: typeof firstResult) => void) | undefined;
@@ -745,6 +771,7 @@ describe('PurchaseFlow Component', () => {
           productId: 'dev.hyo.martie.30bulbs',
           state: 'ready-to-consume',
           store: 'apple',
+          storeId: 'apple',
         },
       });
     });

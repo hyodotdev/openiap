@@ -256,6 +256,16 @@ public sealed record PurchaseError
           funds or offer ineligibility.
         </div>
 
+        <div className="info-note">
+          <strong>Android provider codes:</strong> the wrappers forward the
+          provider&apos;s Android error code where they returned fixed codes;
+          handle specific codes such as <code>not-prepared</code>. See the{' '}
+          <Link to="/docs/updates/migration#provider-contract-error-codes">
+            error-code upgrade notes
+          </Link>
+          .
+        </div>
+
         <h3>Network & Service Errors</h3>
         <table className="error-table">
           <thead>

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-30T12:11:48.065Z
+> Last updated: 2026-10-08T14:19:10.451Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -340,6 +340,37 @@ not a third specification.
 mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
 native package versions. A version like `3.4.0` there is a native package
 version, not a protocol version.
+
+## Store Providers
+
+Apple and Android share one provider contract. `StoreProviderDescriptor`
+(`specs/client/src/type.graphql`) names the store id, platform, native core
+version, Client Protocol version, and capability ids. Each native binding
+exposes a factory (`OpenIapProviderFactory`) with a public no-argument
+initializer; the app selects one provider and every SDK dispatches its
+existing purchase APIs through it.
+
+Discovery uses one metadata key, `dev.hyo.openiap.PROVIDER`: an Android
+manifest `meta-data` entry naming the factory class, or an Info.plist string
+naming the Objective-C factory class. A missing Apple key uses the App Store
+factory; any other invalid selection fails with a developer error, never a
+fallback.
+
+`IapStore` is frozen: no new cases. Every purchase and verification result
+carries a required `storeId`. Official ids are `apple`, `play`, `horizon`,
+and `amazon` (Play keeps the `google` enum wire value). A new external store
+uses `unknown` with its own stable id; a provider serving an existing store
+reports that store's canonical id and legacy value.
+
+Registration is optional. `specs/client/src/store-registry.json` owns ids,
+aliases, tiers, maintainers, repositories, coordinates, and latest conformance
+reports. `experimental` entries have at least one platform binding without a
+passing report; `community` entries carry a passing report for every platform
+binding; `official` entries live in this monorepo. Provider conformance suites
+(`packages/conformance`: Kotlin `ProviderConformanceSuite`, Swift
+`ProviderConformanceSuite`) assert the provider profile behaviors while the JS
+runner covers the client behaviors; a report passes only when every required
+behavior passes with a matching verdict.
 
 ## Directory Ownership Guardrail
 
@@ -1120,9 +1151,13 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
-Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
-mirror by hand. `"google"` and `"apple"` are native package versions and do not
+`"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
+set the manifest, run `bun install --lockfile-only --ignore-scripts` and then
+`./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
+files, when the in-tree code needs the new Client Protocol version
+(`sync-versions.sh` alone skips the conformance behavior ids, which embed the
+protocol version); do not edit the mirror by hand.
+`"google"` and `"apple"` are CI-managed native package versions and do not
 constrain it. Release-state, docs, and parity audits reject drift between the
 mirror and the publishing manifest.
 
@@ -1268,6 +1303,29 @@ never include raw purchase payloads, receipts, or tokens.
 bridges and exercises source-first mappings and round trips. When a generated
 payload field or bridge changes, update the real platform mapping and a focused
 regression fixture before extending the audit expectation.
+
+### Provider identity and selection
+
+Every output that carries `IapStore` also carries a required `storeId`
+(purchases, verification results, descriptors). Every SDK bridge preserves
+both fields through events, reads, JSON, and completion, and completes with
+the full purchase; the Apple ID-only selector resolves the owned purchase
+first and otherwise points to the full-purchase selector.
+
+External selection pairs a community id with fixed coordinates in every SDK:
+`openiapStore` + `openiapProvider` (Gradle, React Native, Flutter, KMP),
+`android.store` + `android.provider` (Expo), `OpenIapStore` +
+`OpenIapProvider` (MAUI), `openiap/android_store` +
+`openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
+Official ids and their aliases are rejected with coordinates. Alias tables
+and `StoreIds` constants are generated from the registry with
+`bun run stores:generate`; never hand-edit a generated block. Keep a major's
+provider profile for as long as any registry entry cites it, or older passing
+reports fail validation.
+
+SDK and shared code reaches the store through `OpenIapProvider` discovery on
+Android and the `OpenIapModule` facade on Apple. Never import a flavor module
+class from shared code; the build links the selected flavor.
 
 ### The bug pattern
 
@@ -1439,10 +1497,10 @@ file into its jar at build time. Every other build system reads the same names:
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
-`bun audit:parity` compares all five alias tables — the resolver, the doctor,
-the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
-targets — because a store that resolves differently in two layers of one build
-is exactly what this mechanism exists to prevent.
+`bun audit:parity` compares all six alias tables — the resolver, the doctor,
+the Godot helper, the Expo plugin, the runtime facade in `OpenIapStore.kt`
+and the MAUI package targets — because a store that resolves differently in
+two layers of one build is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by
 `packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
@@ -1621,10 +1679,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A schema change that alters the contract is a
-   Client Protocol version bump in `specs/client/package.json`; sync then
-   mirrors it into `openiap-versions.json` and fails instead of silently
-   repairing drift.
+1. Update the canonical schema. A contract change may bump the Client Protocol
+   in `specs/client/package.json`; refresh `bun.lock` and run
+   `./scripts/sync-release-generated.sh` to mirror it (the audits reject
+   drift), then release with `version=current`.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -2247,7 +2305,7 @@ Tests, CI, internal agent rules, and behavior-neutral refactors that need no
 new publication do not require a release card. Record the reason briefly in
 the PR description when applicable; use the documented `፦ refactor` label
 when CI requires it. Dependency-only releases still need package entries.
-RC/`next` work follows the stable-promotion rule below.
+RC work on `main` keeps the eventual stable card with its source change.
 
 ### Release Note Writing Limits
 
@@ -2366,9 +2424,10 @@ Before adding or editing a `Package Releases` list:
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 
-Do not create a stable release-note block for RC or npm `next` publications on
-the `next` branch. Preserve the change evidence, then write one concise,
-package-grouped entry after stable promotion on `main`.
+Keep one concise, package-grouped stable release card with the source PR on
+`main`, including when an RC publishes first. Do not create duplicate cards for
+RC or npm `next` publications. Production docs wait for stable package metadata
+and published links; previews may show the upcoming card.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
@@ -2597,34 +2656,27 @@ Fix purchase validation error
 
 ## Deployment
 
-### Stable And Prerelease Branches
+### Main And Release Channels
 
-`main` is the stable release branch. Its package metadata must never contain a
-SemVer prerelease suffix. Stable package releases and production docs
-deployment run from `main` only.
+`main` owns reviewed source and stable or prerelease package metadata. Every
+new package release runs from `main` through an explicit workflow dispatch;
+merging a PR does not publish a package.
 
-`next` is an on-demand prerelease integration branch for compatibility work
-that needs external validation, such as a new store runtime. It is not a
-permanent development branch and may be absent between prerelease trains.
+- First RC: select `prerelease=true`; later RC: select `version=rc-bump` where
+  supported. npm publishes RCs to `next`, leaving `latest` on stable.
+- Stable: select the stable lane after validation. Remove the RC suffix from
+  the intended target without incrementing its major again.
+- Production docs require stable package metadata and public release-card
+  links. Use a preview while RCs are active; `--force` cannot bypass the
+  stable-version check.
+- Historical `next` tags stay immutable and retain their source branch for
+  verification and SBOM recovery. New work does not need a `next` branch.
+  Do not force-reset or delete the historical branch without explicit approval.
+- Keep the eventual stable release card with its source PR; do not add a second
+  card for each RC publication.
 
-- Create `next` from the latest `main` only when a maintainer requests a
-  prerelease train.
-- Before reusing `next`, inspect its divergence, open PRs, and active workflows.
-  If it belongs to an older completed train, do not merge, rebase, reset, or
-  delete it automatically; obtain explicit maintainer approval before replacing
-  it from current `main`.
-- Run first RC releases from `next` with `prerelease=true`; run later RC bumps
-  with `version=rc-bump` where supported.
-- Release workflows commit prerelease metadata back to `next`, never `main`.
-- Do not merge prerelease version-only commits into `main`. Promote reviewed
-  source changes through a clean PR based on `main`, then run the stable
-  workflow from `main` using the intended bump type relative to its stable
-  metadata.
-- Do not force-reset or delete `next` without explicit maintainer approval.
-- RC/next releases do not get entries in the stable docs release history.
-
-The executable policy is `scripts/release-branch-policy.mjs`. CI runs it for
-`main` and `next`, and every package release workflow runs it before builds:
+The executable policy is `scripts/release-branch-policy.mjs`. CI validates
+version consistency; every package publisher requires `main`:
 
 ```bash
 bun run audit:release-state
@@ -2668,8 +2720,9 @@ the current branch tip as an unverified substitute.
 Before any `current` retry checks out an existing release tag, run
 `scripts/assert-release-tag.mjs`. The guard must prove that the local tag matches
 the immutable origin tag, its package metadata declares the expected version,
-and its peeled commit is reachable from the validated `main` or `next` release
-branch. Do this before executing build scripts or loading package content from
+and its peeled commit is reachable from the validated `main` release branch. Historical RC tags
+on `next` are retained for SBOM verification; release a new RC from `main`
+instead of retrying an old tag through the new publishing lane. Do this before executing build scripts or loading package content from
 the tag; a matching tag name alone is not reviewed-branch provenance.
 
 When `current` must create a missing tag for a version that is not yet published,
@@ -2688,7 +2741,7 @@ npm's provenance statement reads the immutable workflow event SHA, so changing
 only the local checkout can make package `gitHead` and attested source disagree.
 Serialize tag-ref publishers per package so concurrent versions cannot move the
 same npm dist-tag backward. The publisher must also prove that the tag is
-reachable from `main` for stable versions or `next` for prereleases and that it
+reachable from `main` for both stable versions and prereleases and that it
 was dispatched by a successful branch-ref run of the same release workflow. The
 branch run uploads an immutable, run-attempt-scoped authorization artifact that
 names the exact repository, workflow, source branch/SHA, release tag, and tag
@@ -2713,16 +2766,16 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 1. Go to Actions -> "Apple Release"
 2. Click "Run workflow"
-3. Select `main` for stable or `next` for prerelease
+3. Select `main` for either stable or prerelease
 4. Select the version bump type and prerelease flag
 5. Click "Run workflow"
 
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `<apple-version>` (bare semver)
 5. Builds and tests Swift package
@@ -2740,16 +2793,16 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 1. Go to Actions -> "Google Release"
 2. Click "Run workflow"
-3. Select `main` for stable or `next` for prerelease
+3. Select `main` for either stable or prerelease
 4. Select the version bump type and prerelease flag
 5. Click "Run workflow"
 
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `google-<google-version>`
 5. Builds and tests Android library
@@ -2778,7 +2831,7 @@ the worktree must be clean, `HEAD` must match `origin/main`, and every linked
 GitHub Release must be published. `-f` or `--force` deploys the local snapshot:
 it permits uncommitted changes, a different commit from `origin/main`, and
 unpublished release links with warnings. The clean-worktree check after
-version synchronization is also skipped. Branch, version consistency, GitHub
+version synchronization is also skipped. Branch, stable version eligibility, version consistency, GitHub
 lookup, Vercel target, typecheck, and build checks still apply.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
@@ -2840,8 +2893,8 @@ Flutter's pub.dev trusted publisher is also event-sensitive: only
 dispatched workflow on that tag is still ineligible. The release workflow must
 wait for the tag-push run, and retries must rerun that original run without
 deleting or recreating the immutable tag. Before requesting OIDC, the publisher
-must prove that the tag commit is reachable from `main` for a stable version or
-`next` for a prerelease and verify the exact tag/SHA against the run-scoped
+must prove that the tag commit is reachable from `main` for either a stable version or
+a prerelease and verify the exact tag/SHA against the run-scoped
 authorization artifact uploaded by the guarded release workflow. An unpublished
 tag that predates this lane, or whose authorization artifact expired, must not
 rerun legacy publishing code; create a new reviewed release version instead.
@@ -2861,19 +2914,19 @@ adjacent release notes or assume every package moved in lockstep.
 
 Use these checks before writing a release list:
 
-| Package      | Metadata / Tag Check                                                                                              |
-| ------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Client Protocol | `jq -r '.version' specs/client/package.json`; tag `openiap-client-protocol-{version}` |
-| Commerce Protocol | `jq -r '.version' specs/commerce-protocol/package.json`; tag `hyodotdev-openiap-commerce-protocol-{version}` |
-| CLI | `jq -r '.version' packages/cli/package.json`; tag `openiap-{version}` |
-| Apple        | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
-| Google       | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
-| React Native | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |
-| Expo         | `jq -r '.version' libraries/expo-iap/package.json`; tag `expo-iap-{version}`                                      |
-| Flutter      | `awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml`; tag `flutter-iap-{version}`          |
-| Godot        | `sed -n 's/^version="\\(.*\\)"/\\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg`; tag `godot-iap-{version}` |
-| KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
-| MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
+| Package           | Metadata / Tag Check                                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Client Protocol   | `jq -r '.version' specs/client/package.json`; tag `openiap-client-protocol-{version}`                             |
+| Commerce Protocol | `jq -r '.version' specs/commerce-protocol/package.json`; tag `hyodotdev-openiap-commerce-protocol-{version}`      |
+| CLI               | `jq -r '.version' packages/cli/package.json`; tag `openiap-{version}`                                             |
+| Apple             | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
+| Google            | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
+| React Native      | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |
+| Expo              | `jq -r '.version' libraries/expo-iap/package.json`; tag `expo-iap-{version}`                                      |
+| Flutter           | `awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml`; tag `flutter-iap-{version}`          |
+| Godot             | `sed -n 's/^version="\\(.*\\)"/\\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg`; tag `godot-iap-{version}` |
+| KMP               | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
+| MAUI              | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
 
 A PR writes its card ahead of the release with the expected tag links, per
 "Docs Ship With The Change" in `05-docs-patterns.md`. After the release
@@ -2881,9 +2934,9 @@ publishes, verify each tag with `gh release view <tag>` and correct the card
 where a version differs. This prevents stale Package Releases tables such as
 documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
-Do not add RC or npm `next` releases to the stable release history. Collect
-their user-facing changes and write one package-grouped entry when the release
-train is promoted on `main`.
+Keep one eventual stable release card with the source PR on `main`; do not
+add duplicate cards for RC or npm `next` publications. Production docs wait for
+stable metadata and public links.
 
 ---
 
@@ -2907,9 +2960,9 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
-  release bumps that manifest and `scripts/sync-versions.sh` writes the new
-  value into `openiap-versions.json` and its copies
+- `clientProtocol` mirrors `specs/client/package.json`; a feature PR or a Client
+  Protocol release sets that manifest and the sync writes the mirror into
+  `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
 - The docs site has no version: it deploys whatever `main` holds
@@ -2929,12 +2982,16 @@ issues. Use the GitHub Actions release workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `clientProtocol`, `google`, or `apple`. Stable
-version changes happen via:
+**Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
+`specs/client/package.json`, run `bun install --lockfile-only --ignore-scripts`
+and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the
+staged files, when the in-tree code needs the new Client Protocol version;
+never hand-edit the `clientProtocol` mirror. Stable version changes happen via:
 
-1. Release workflows (Apple Release, Google Release)
-2. A Client Protocol release bumping `specs/client/package.json`, followed by
-   sync propagation
+1. Release workflows (Apple Release, Google Release, and Client Protocol
+   releases with `version=patch`, `minor`, or `major`)
+2. A feature PR setting `specs/client/package.json`, published by a Client
+   Protocol release with `version=current`
 3. CI auto-bump after merge where configured
 
 
@@ -3148,9 +3205,9 @@ Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 blocks and any `Planned Package Releases` heading, so link regressions are
 caught before publishing.
 
-RC and npm `next` releases are managed on the on-demand `next` branch and do
-not get release-history entries. Add one grouped entry only when the train is
-promoted to a stable release on `main`.
+RC and stable releases share `main`. Keep one eventual stable release card
+with the source PR, and do not add duplicate entries for RC publications.
+Production docs wait for stable metadata and public release links.
 
 ### R10 — Docs version metadata stays synced with package metadata
 
@@ -3162,8 +3219,7 @@ Vercel builds.
 The root `openiap-versions.json` is also a version contract. `clientProtocol`
 must equal the version in `specs/client/package.json`, the manifest that
 publishes the protocol; `google` and `apple` are independent native package
-versions. `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
-silently normalizing it.
+versions. The audits, not the sync script, reject a committed mismatch.
 
 Framework package versions and Android SDK constants used by docs must flow
 through `packages/docs/src/generated/version-metadata.json`, which is generated

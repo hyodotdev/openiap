@@ -18,7 +18,7 @@ import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
 import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.PurchaseInput
 import dev.hyo.openiap.PurchaseOptions
@@ -34,6 +34,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
+import dev.hyo.openiap.utils.redeemOfferCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,36 +42,18 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * Java-friendly facade over [OpenIapModule] for the .NET MAUI binding (`OpenIap.Maui`).
- *
- * The C# Xamarin.Android binding generator chokes on Kotlin `suspend` functions,
- * Kotlin lambda types (`Function1`/`Function2`), default-arg synthetic methods (`*$default`),
- * and on the transitive `com.android.billingclient` dependency that `OpenIapModule`
- * pulls in. This class re-exposes the full Android-side resolver surface as plain Java
- * methods that take JSON strings, return JSON strings via a `Callback`, and emit
- * listener events through a `EventCallback` interface — keeping `OpenIapModule`
- * itself untouched so the existing kmp-iap / RN / Flutter / Godot wiring is unaffected.
- *
- * Mirrors the role of `packages/apple/Sources/OpenIapModule+ObjC.swift` on iOS.
- */
+/** Java-friendly JSON facade over the selected provider for the .NET binding. */
 class OpenIapMauiModule(private val context: Context) {
 
-    private val module = OpenIapModule(context)
+    private val provider = runCatching { OpenIapProvider.create(context) }
+    private val module get() = provider.getOrThrow()
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // OpenIapModule.currentActivityRef is private; mirror it here so the Android-only
-    // mutations such as launchExternalLinkAndroid that need an Activity can
-    // throw a typed error if the host app forgot to call setActivity().
+    // Android UI mutations need the host activity.
     private var currentActivity: Activity? = null
 
-    /**
-     * Token-keyed listener registry. Listener objects come back from
-     * [OpenIapModule.addPurchaseUpdateListener] etc. as opaque references; the C#
-     * binding holds the [Long] token instead of the listener instance so it
-     * doesn't have to cross the JNI boundary with a generic type parameter.
-     */
+    // JNI callers hold tokens rather than Kotlin listener objects.
     private val listeners = ConcurrentHashMap<Long, ListenerEntry>()
     private val nextListenerToken = AtomicLong(1)
 
@@ -97,7 +80,7 @@ class OpenIapMauiModule(private val context: Context) {
 
     fun setActivity(activity: Activity?) {
         currentActivity = activity
-        module.setActivity(activity)
+        provider.getOrNull()?.setActivity(activity)
     }
 
     // -----------------------------------------------------------------
@@ -125,8 +108,6 @@ class OpenIapMauiModule(private val context: Context) {
 
     fun getAvailablePurchases(optionsJson: String?, callback: ResultCallback) = run(callback) {
         val options = optionsJson?.let { PurchaseOptions.fromJson(parseMap(it)) }
-        // Module's getAvailablePurchases is the suspend handler; the protocol exposes
-        // the typealias as `val getAvailablePurchases: QueryGetAvailablePurchasesHandler`
         val purchases = module.getAvailablePurchases(options)
         encodePurchases(purchases)
     }
@@ -225,29 +206,25 @@ class OpenIapMauiModule(private val context: Context) {
     fun showBillingProgramInformationDialogAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
         val params = BillingProgramInformationDialogParamsAndroid.fromJson(parseMap(paramsJson))
             ?: throw badInput("BillingProgramInformationDialogParamsAndroid")
-        val activity = currentActivityOrThrow("showBillingProgramInformationDialogAndroid")
+        val activity = currentActivityOrThrow()
         gson.toJson(module.showBillingProgramInformationDialog(activity, params).toJson())
     }
 
     fun showInAppMessagesAndroid(paramsJson: String?, callback: ResultCallback) = run(callback) {
         val params = paramsJson?.let { InAppMessageParamsAndroid.fromJson(parseMap(it)) }
-        val activity = currentActivityOrThrow("showInAppMessagesAndroid")
+        val activity = currentActivityOrThrow()
         gson.toJson(module.showInAppMessages(activity, params).toJson())
     }
 
     fun launchExternalLinkAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
         val params = LaunchExternalLinkParamsAndroid.fromJson(parseMap(paramsJson))
             ?: throw badInput("LaunchExternalLinkParamsAndroid")
-        val activity = currentActivityOrThrow("launchExternalLinkAndroid")
+        val activity = currentActivityOrThrow()
         wrapBool(module.launchExternalLink(activity, params))
     }
 
     fun openRedeemOfferCodeAndroid(callback: ResultCallback) = run(callback) {
-        val handler = module.mutationHandlers.openRedeemOfferCodeAndroid
-            ?: throw OpenIapError.FeatureNotSupported(
-                "openRedeemOfferCodeAndroid is not wired for this store",
-            )
-        wrapBool(handler())
+        wrapBool(redeemOfferCode(module, currentActivity))
     }
 
     // -----------------------------------------------------------------
@@ -265,9 +242,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapPurchaseUpdateListener { purchase ->
             callback.onEvent(gson.toJson(purchase.toJson()))
         }
-        module.addPurchaseUpdateListener(listener)
+        provider.getOrNull()?.addPurchaseUpdateListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removePurchaseUpdateListener(listener)
+            override fun unregister() { provider.getOrNull()?.removePurchaseUpdateListener(listener) }
         })
     }
 
@@ -275,9 +252,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapPurchaseErrorListener { error ->
             callback.onEvent(gson.toJson(encodeError(error)))
         }
-        module.addPurchaseErrorListener(listener)
+        provider.getOrNull()?.addPurchaseErrorListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removePurchaseErrorListener(listener)
+            override fun unregister() { provider.getOrNull()?.removePurchaseErrorListener(listener) }
         })
     }
 
@@ -285,9 +262,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapSubscriptionBillingIssueListener { purchase ->
             callback.onEvent(gson.toJson(purchase.toJson()))
         }
-        module.addSubscriptionBillingIssueListener(listener)
+        provider.getOrNull()?.addSubscriptionBillingIssueListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removeSubscriptionBillingIssueListener(listener)
+            override fun unregister() { provider.getOrNull()?.removeSubscriptionBillingIssueListener(listener) }
         })
     }
 
@@ -295,9 +272,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapUserChoiceBillingListener { details ->
             callback.onEvent(gson.toJson(details.toJson()))
         }
-        module.addUserChoiceBillingListener(listener)
+        provider.getOrNull()?.addUserChoiceBillingListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removeUserChoiceBillingListener(listener)
+            override fun unregister() { provider.getOrNull()?.removeUserChoiceBillingListener(listener) }
         })
     }
 
@@ -305,9 +282,9 @@ class OpenIapMauiModule(private val context: Context) {
         val listener = OpenIapDeveloperProvidedBillingListener { details ->
             callback.onEvent(gson.toJson(details.toJson()))
         }
-        module.addDeveloperProvidedBillingListener(listener)
+        provider.getOrNull()?.addDeveloperProvidedBillingListener(listener)
         return register(object : ListenerEntry {
-            override fun unregister() = module.removeDeveloperProvidedBillingListener(listener)
+            override fun unregister() { provider.getOrNull()?.removeDeveloperProvidedBillingListener(listener) }
         })
     }
 
@@ -331,17 +308,8 @@ class OpenIapMauiModule(private val context: Context) {
         return token
     }
 
-    private fun currentActivityOrThrow(@Suppress("UNUSED_PARAMETER") api: String): Activity {
-        // setActivity(...) is called by the host MAUI app on lifecycle events;
-        // when it hasn't fired yet, surfacing OpenIapError.MissingCurrentActivity makes
-        // the error path obvious instead of a generic NullPointerException.
-        return currentActivity ?: throw OpenIapError.MissingCurrentActivity
-    }
+    private fun currentActivityOrThrow(): Activity = currentActivity ?: throw OpenIapError.MissingCurrentActivity
 
-    /**
-     * Run a suspending block off the main thread and route its result/error through [callback].
-     * The block returns the JSON-encoded payload (or null for void).
-     */
     private inline fun run(callback: ResultCallback, crossinline block: suspend () -> String?) {
         scope.launch {
             try {

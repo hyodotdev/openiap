@@ -1,5 +1,5 @@
 {
-  "clientProtocol": "0.1.1",
-  "google": "3.6.3",
-  "apple": "3.6.1"
+  "clientProtocol": "0.2.0-rc.1",
+  "google": "4.0.0-rc.1",
+  "apple": "4.0.0-rc.1"
 }

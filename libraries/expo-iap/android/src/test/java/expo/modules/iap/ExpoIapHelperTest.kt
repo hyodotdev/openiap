@@ -212,6 +212,59 @@ class ExpoIapHelperTest {
         }
 
     @Test
+    fun `end without a provider resets state without creating one`() =
+        runBlocking {
+            var cleanedUp = false
+            val provider = lazy<Any> { throw AssertionError("must not create a provider") }
+
+            val result =
+                endExpoConnectionOrReset(
+                    provider = provider,
+                    endConnection = { throw AssertionError("must not touch a provider") },
+                    cleanup = { cleanedUp = true },
+                )
+
+            assertTrue(result)
+            assertTrue(cleanedUp)
+            assertFalse(provider.isInitialized())
+        }
+
+    @Test
+    fun `end with a provider preserves false and still cleans up`() =
+        runBlocking {
+            var cleanedUp = false
+
+            val result =
+                endExpoConnectionOrReset(
+                    provider = lazyOf(Unit),
+                    endConnection = { false },
+                    cleanup = { cleanedUp = true },
+                )
+
+            assertFalse(result)
+            assertTrue(cleanedUp)
+        }
+
+    @Test
+    fun `end failure with a provider still cleans up and propagates`() =
+        runBlocking {
+            val failure = IllegalStateException("teardown failed")
+            var cleanedUp = false
+
+            val result =
+                runCatching {
+                    endExpoConnectionOrReset(
+                        provider = lazyOf(Unit),
+                        endConnection = { throw failure },
+                        cleanup = { cleanedUp = true },
+                    )
+                }
+
+            assertEquals(failure, result.exceptionOrNull())
+            assertTrue(cleanedUp)
+        }
+
+    @Test
     fun `verify purchase parser preserves Horizon options`() {
         val props = verifyPurchasePropsFromMap(
             mapOf(

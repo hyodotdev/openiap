@@ -52,10 +52,6 @@ struct PurchaseHistoryCard: View {
                         .foregroundColor(statusColor)
                         .cornerRadius(4)
                     
-                    Label(purchase.purchaseState.isAcknowledged ? "Consumed" : "Pending", 
-                          systemImage: purchase.purchaseState.isAcknowledged ? "checkmark.circle.fill" : "clock")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
                 }
 
                 Button(action: onShowDetails) {

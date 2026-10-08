@@ -1,7 +1,7 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-10-14
-reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-30
+reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-86w9-cpqp-85rv"
@@ -25,5 +25,5 @@ reason = "No patched braces release exists; 3.0.3 is npm latest and still affect
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-10-14
-reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-30
+reason = "image-size reaches this lock only through the nested Metro 0.76.9 under the stale @react-native-community/cli 11.4.1 and @react-native/metro-config 0.72.12 peer resolutions; re-resolving them drops it. Metro uses it only during trusted local builds."

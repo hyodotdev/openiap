@@ -15,7 +15,7 @@ on:
           - rc-bump
         default: patch
       prerelease:
-        description: "Publish as prerelease from next (-rc.1)"
+        description: "Publish as prerelease from main (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -143,7 +143,7 @@ jobs:
       # The package carries every store's AAR; the app build links one.
       - name: Build store AARs (Google)
         working-directory: packages/google
-        run: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease
+        run: ./gradlew :openiap-core:assembleRelease :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease
 
       - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android
@@ -356,7 +356,7 @@ jobs:
       # The package carries every store's AAR; the app build links one.
       - name: Build store AARs (Google)
         working-directory: packages/google
-        run: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease
+        run: ./gradlew :openiap-core:assembleRelease :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease
 
       - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android

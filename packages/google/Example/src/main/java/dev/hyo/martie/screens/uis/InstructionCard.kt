@@ -47,11 +47,11 @@ fun InstructionCard() {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                InstructionRow("1", "Configure products in Google Play Console")
-                InstructionRow("2", "Upload app to internal testing track")
-                InstructionRow("3", "Add test accounts in Play Console")
-                InstructionRow("4", "Sign in with test account on device")
-                InstructionRow("5", "Enable license testing for the account")
+                InstructionRow("1", "Configure products in the selected store console")
+                InstructionRow("2", "Install a build for the selected store")
+                InstructionRow("3", "Set up the store's sandbox or tester account")
+                InstructionRow("4", "Confirm checkout uses the test environment")
+                InstructionRow("5", "Verify each completed purchase before finishing it")
             }
         }
     }
@@ -90,4 +90,3 @@ private fun InstructionRow(
         )
     }
 }
-

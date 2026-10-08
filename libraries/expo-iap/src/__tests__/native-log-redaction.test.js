@@ -178,7 +178,10 @@ describe('native log redaction', () => {
 
   it('does not log raw IAPKit request bodies in the Apple core package', () => {
     const appleModule = readFileSync(
-      resolve(rootDir, '../../packages/apple/Sources/OpenIapModule.swift'),
+      resolve(
+        rootDir,
+        '../../packages/apple/Sources/OpenIapStoreKitModule.swift',
+      ),
       'utf8',
     );
 
@@ -230,7 +233,7 @@ describe('native error and listener bridges', () => {
       'removeSubscriptionBillingIssueListener(handles.subscriptionBillingIssue)',
     );
     expect(androidModule).toContain(
-      'ExpoIapHelper.cleanupListeners(openIap, listenerHandles)',
+      'listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }',
     );
   });
 });

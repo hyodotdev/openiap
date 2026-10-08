@@ -34,6 +34,105 @@ import OpenIAP
 /// Provides parsing functions for request parameters and sanitization utilities.
 /// Mirrors ExpoIapHelper for consistency across platforms.
 enum GodotIapHelper {
+    @TaskLocal static var completionErrorOwner: CompletionErrorOwner?
+
+    // Only errors represented by a failed completion suppress their listener callbacks.
+    final class CompletionErrorOwner: @unchecked Sendable {
+        private let lock = NSLock()
+        private var completionSucceeded: Bool?
+        private var callbacks: [@Sendable () -> Void] = []
+
+        func receive(_ callback: @escaping @Sendable () -> Void) {
+            lock.lock()
+            guard let succeeded = completionSucceeded else {
+                callbacks.append(callback)
+                lock.unlock()
+                return
+            }
+            lock.unlock()
+            if succeeded { callback() }
+        }
+
+        func complete(succeeded: Bool) {
+            lock.lock()
+            completionSucceeded = succeeded
+            let pending = callbacks
+            callbacks.removeAll()
+            lock.unlock()
+            if succeeded {
+                for callback in pending { callback() }
+            }
+        }
+    }
+
+    static func withCompletionErrors<T>(_ operation: () async throws -> T) async rethrows -> T {
+        let owner = CompletionErrorOwner()
+        do {
+            let result = try await $completionErrorOwner.withValue(owner) {
+                try await operation()
+            }
+            owner.complete(succeeded: true)
+            return result
+        } catch {
+            owner.complete(succeeded: false)
+            throw error
+        }
+    }
+
+    static func errorCode(_ error: Error, fallback: ErrorCode = .serviceError) -> String {
+        (error as? PurchaseError)?.code.rawValue ?? fallback.rawValue
+    }
+
+    // Hand-built finish inputs carry blank store identity; stamp the connected
+    // provider's so decoding reaches the purchase token.
+    static func withProviderStoreIdentity(
+        _ purchase: [String: Any],
+        providerStoreId: () -> String?
+    ) -> [String: Any] {
+        let storeIdValue = purchase["storeId"]
+        if let rawId = storeIdValue as? String, !isBlank(rawId) {
+            return purchase
+        }
+        if storeIdValue != nil, !(storeIdValue is NSNull), !(storeIdValue is String) {
+            return purchase
+        }
+        let storeRaw = trimmed((purchase["store"] as? String) ?? "")
+        switch storeRaw {
+        case IapStore.apple.rawValue, IapStore.google.rawValue,
+            IapStore.horizon.rawValue, IapStore.amazon.rawValue:
+            // An official store with a blank id decodes once the blank key is gone.
+            guard storeIdValue is String else { return purchase }
+            var dropped = purchase
+            dropped.removeValue(forKey: "storeId")
+            return dropped
+        default:
+            guard let storeId = providerStoreId(), !isBlank(storeId) else {
+                return purchase
+            }
+            var stamped = purchase
+            stamped["store"] = legacyStore(for: storeId)
+            stamped["storeId"] = storeId
+            return stamped
+        }
+    }
+
+    private static func trimmed(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isBlank(_ value: String) -> Bool {
+        trimmed(value).isEmpty
+    }
+
+    private static func legacyStore(for providerStoreId: String) -> String {
+        switch providerStoreId {
+        case StoreIds.Apple: return IapStore.apple.rawValue
+        case StoreIds.Play: return IapStore.google.rawValue
+        case StoreIds.Horizon: return IapStore.horizon.rawValue
+        case StoreIds.Amazon: return IapStore.amazon.rawValue
+        default: return IapStore.unknown.rawValue
+        }
+    }
 
     // MARK: - Sanitization
 
@@ -76,6 +175,16 @@ enum GodotIapHelper {
             )
         }
         return encoded
+    }
+
+    static func encodeRequired(_ result: VerifyPurchaseResult) throws -> [String: Any] {
+        guard case let .verifyPurchaseResultIos(value) = result else {
+            throw PurchaseError.make(
+                code: .featureNotSupported,
+                message: "Expected an Apple verification result"
+            )
+        }
+        return try encodeRequired(value)
     }
 
     static func purchasesRequired(_ purchases: [Purchase]) throws -> [[String: Any]] {

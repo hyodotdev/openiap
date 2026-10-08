@@ -106,7 +106,7 @@ function InitConnection() {
           — <strong>Android.</strong> Enable a Play Billing program at
           connection time. <code>EXTERNAL_CONTENT_LINK</code> and{' '}
           <code>EXTERNAL_OFFER</code> require Billing 8.2.0+;{' '}
-          <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);
+          <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);{' '}
           <code>BILLING_CHOICE</code> is available in OpenIAP 2.1.0 /{' '}
           <code>openiap-google</code> 2.3.0 and requires Billing 9.1.0+.
         </li>
@@ -125,6 +125,13 @@ function InitConnection() {
           <code>DEVELOPER_RENDERED</code> when your app owns the choice screen.
         </li>
       </ul>
+      <p>
+        On Google Play and Meta Horizon, calling{' '}
+        <code>initConnection(config)</code> on an already connected client
+        returns <code>true</code> and ignores the config, so end the connection
+        first to change the billing program; Godot Android instead returns{' '}
+        <code>false</code> and emits a developer error when the config differs.
+      </p>
 
       <AnchorLink id="returns" level="h2">
         Returns

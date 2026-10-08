@@ -215,7 +215,8 @@ Canonical rule in
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
 - `openiap-versions.json` - Tracks only `clientProtocol`, `google`, and `apple`.
   `clientProtocol` mirrors `specs/client/package.json`, the single source for the
-  Client Protocol version; bump it there and let the sync propagate. `google` and
+  Client Protocol version; set the manifest, run `bun install --lockfile-only --ignore-scripts`
+  and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged files. `google` and
   `apple` are CI-managed native package versions and constrain nothing about the
   protocol. Release-state, docs, parity, and sync audits reject drift between the
   mirror and the publishing manifest.
@@ -262,13 +263,15 @@ GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
 
 ### Release Branch Policy
 
-- `main` is stable-only. Stable package releases and production docs deploy
-  from `main`; `bun run audit:release-state` rejects prerelease metadata there.
-- `next` is an on-demand prerelease integration branch for unusual release
-  trains. RC and npm `next` releases run from `next` only.
-- Do not merge prerelease version-only commits from `next` into `main`. Promote
-  reviewed source changes through a clean `main` PR, then release stable from
-  `main` using the bump type relative to its stable metadata.
+- `main` owns reviewed source and stable or prerelease package metadata.
+  Stable and RC package releases run from `main` through explicit dispatches.
+- Select the prerelease lane for RC versions and npm `next`, or the stable lane
+  for the target without an RC suffix and npm `latest`. Merging source does not
+  publish a package.
+- Production docs require stable package metadata and published release links.
+  Use previews during an RC train; `--force` does not bypass version eligibility.
+- Historical `next` tags and their branch remain for verification and SBOM
+  recovery. Do not reset or delete that branch without explicit approval.
 - Read `.claude/commands/release.md` before any package deployment.
 
 ## Shared Agent Context

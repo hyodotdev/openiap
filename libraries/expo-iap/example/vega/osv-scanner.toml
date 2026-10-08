@@ -1,7 +1,7 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-10-14
-reason = "No patched image-size release exists; Metro uses it only during trusted Vega builds."
+ignoreUntil = 2026-10-30
+reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted Vega builds."
 
 [[IgnoredVulns]]
 id = "GHSA-hp3w-g68c-fv3c"
@@ -15,5 +15,5 @@ reason = "No patched braces release exists; 3.0.3 is npm latest and still affect
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-10-14
-reason = "No patched image-size release exists; Metro uses it only during trusted Vega builds."
+ignoreUntil = 2026-10-30
+reason = "The fix is image-size 2.0.3, but Metro pins ^1.0.2 so the lock cannot take it; Metro uses it only during trusted Vega builds."

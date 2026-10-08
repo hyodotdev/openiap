@@ -75,6 +75,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
   pushRow(rows, 'transactionId', transactionId);
   pushRow(rows, 'productId', purchase.productId);
   pushRow(rows, 'store', purchase.store);
+  pushRow(rows, 'storeId', purchase.storeId);
   pushRow(rows, 'ids', formatList(purchase.ids ?? undefined));
   pushRow(rows, 'transactionDate', formatDate(purchase.transactionDate));
   pushRow(rows, 'purchaseState', normalizedState);

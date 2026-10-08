@@ -1,6 +1,6 @@
 {
   "name": "@hyodotdev/openiap-android",
-  "version": "3.6.3",
+  "version": "4.0.0-rc.1",
   "private": true,
   "description": "OpenIAP Android/Kotlin implementation",
   "scripts": {

@@ -1,0 +1,60 @@
+name: Preserve and report coverage
+description: Archive required local coverage and report to Codecov without blocking verified builds on service outages.
+inputs:
+  package-path:
+    description: Workspace-relative package directory
+    required: true
+  flag:
+    description: Canonical Codecov upload flag
+    required: true
+  use-oidc:
+    description: Whether the caller can request an OIDC token
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Preserve verified coverage
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: coverage-${{ inputs.flag }}
+        path: ${{ github.workspace }}/${{ inputs.package-path }}/coverage/lcov.info
+        if-no-files-found: error
+        retention-days: 14
+
+    - name: Install verified Codecov CLI
+      id: codecov-cli
+      continue-on-error: true
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        timeout 120s scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov-cli"
+        cat > "$RUNNER_TEMP/codecov" <<'EOF'
+        #!/usr/bin/env bash
+        exec timeout 120s "${BASH_SOURCE[0]}-cli" "$@"
+        EOF
+        chmod 755 "$RUNNER_TEMP/codecov"
+
+    - name: Report coverage to Codecov
+      id: codecov-upload
+      if: steps.codecov-cli.outcome == 'success'
+      continue-on-error: true
+      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
+      with:
+        binary: ${{ runner.temp }}/codecov
+        use_oidc: ${{ inputs.use-oidc }}
+        fail_ci_if_error: true
+        disable_search: true
+        files: coverage/lcov.info
+        flags: ${{ inputs.flag }}
+        name: ${{ inputs.flag }}
+        network_prefix: ${{ inputs.package-path }}/
+        working-directory: ${{ inputs.package-path }}
+
+    - name: Report Codecov service failure
+      if: ${{ !cancelled() && (steps.codecov-cli.outcome == 'failure' || steps.codecov-upload.outcome == 'failure') }}
+      shell: bash
+      run: |
+        echo "::warning::Codecov reporting failed. Required local project and patch coverage passed; the LCOV artifact is available in this run."
+        printf '%s\n' '### Coverage reporting' '' \
+          'Required local project and patch coverage passed. Codecov reporting failed; use the archived LCOV report in this run.' \
+          >> "$GITHUB_STEP_SUMMARY"

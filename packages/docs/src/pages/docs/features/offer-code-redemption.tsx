@@ -188,13 +188,16 @@ final class RedemptionManager {
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-class RedemptionManager(private val scope: CoroutineScope) {
-    private val iap = KmpIAP()
+class RedemptionManager(
+    private val scope: CoroutineScope,
+    private val iap: KmpIAP = kmpIapInstance
+) {
     private var purchaseJob: Job? = null
 
     suspend fun start() {
@@ -210,9 +213,8 @@ class RedemptionManager(private val scope: CoroutineScope) {
         iap.openRedeemOfferCode()
 
     suspend fun stop() {
+        // The connection is shared app-wide; only cancel this manager's listener.
         purchaseJob?.cancel()
-        val ended = iap.endConnection()
-        if (!ended) println("Store teardown did not complete")
     }
 }`}</CodeBlock>
                     ),

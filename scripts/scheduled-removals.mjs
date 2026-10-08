@@ -31,25 +31,25 @@ export const scheduledRemovalRules = [
     packages: [
       {
         name: "openiap-google",
-        major: 3,
+        major: 4,
         file: "openiap-versions.json",
         pattern: /"google":\s*"([^"]+)"/,
       },
       {
         name: "react-native-iap",
-        major: 16,
+        major: 17,
         file: "libraries/react-native-iap/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },
       {
         name: "expo-iap",
-        major: 5,
+        major: 6,
         file: "libraries/expo-iap/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },
       {
         name: "flutter_inapp_purchase",
-        major: 10,
+        major: 11,
         file: "libraries/flutter_inapp_purchase/pubspec.yaml",
         pattern: /^version:\s*(\S+)/m,
       },
@@ -67,7 +67,7 @@ export const scheduledRemovalRules = [
     packages: [
       {
         name: "expo-iap",
-        major: 5,
+        major: 6,
         file: "libraries/expo-iap/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },
@@ -89,7 +89,7 @@ export const scheduledRemovalRules = [
     packages: [
       {
         name: "expo-iap",
-        major: 5,
+        major: 6,
         file: "libraries/expo-iap/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },
@@ -107,7 +107,7 @@ export const scheduledRemovalRules = [
     packages: [
       {
         name: "OpenIap.Maui",
-        major: 2,
+        major: 3,
         file: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
         pattern: /<PackageVersion>([^<]+)<\/PackageVersion>/,
       },
@@ -125,7 +125,7 @@ export const scheduledRemovalRules = [
     packages: [
       {
         name: "react-native-iap",
-        major: 16,
+        major: 17,
         file: "libraries/react-native-iap/package.json",
         pattern: PACKAGE_JSON_VERSION,
       },

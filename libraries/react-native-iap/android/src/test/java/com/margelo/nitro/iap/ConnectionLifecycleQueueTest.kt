@@ -41,6 +41,53 @@ class ConnectionLifecycleQueueTest {
     }
 
     @Test(timeout = 5_000)
+    fun `end without a provider resets state without touching a provider`() = runBlocking {
+        val cleanedUp = AtomicBoolean(false)
+        val provider = lazy<Any> { throw AssertionError("must not create a provider") }
+
+        val result = endRnConnectionOrReset(
+            provider = provider,
+            endConnection = { throw AssertionError("must not touch a provider") },
+            cleanup = { cleanedUp.set(true) },
+        )
+
+        assertTrue(result)
+        assertTrue(cleanedUp.get())
+        assertFalse(provider.isInitialized())
+    }
+
+    @Test(timeout = 5_000)
+    fun `end with a provider delegates to cleanup after success`() = runBlocking {
+        val cleanedUp = AtomicBoolean(false)
+
+        val result = endRnConnectionOrReset(
+            provider = lazyOf(Unit),
+            endConnection = { true },
+            cleanup = { cleanedUp.set(true) },
+        )
+
+        assertTrue(result)
+        assertTrue(cleanedUp.get())
+    }
+
+    @Test(timeout = 5_000)
+    fun `end failure with a provider preserves connection state`() = runBlocking {
+        val failure = IllegalStateException("teardown failed")
+        val cleanedUp = AtomicBoolean(false)
+
+        val result = runCatching {
+            endRnConnectionOrReset(
+                provider = lazyOf(Unit),
+                endConnection = { throw failure },
+                cleanup = { cleanedUp.set(true) },
+            )
+        }
+
+        assertEquals(failure, result.exceptionOrNull())
+        assertFalse(cleanedUp.get())
+    }
+
+    @Test(timeout = 5_000)
     fun `later end invalidates a pending init even when end awaits first`() =
         runBlocking {
             val queue = ConnectionLifecycleQueue()

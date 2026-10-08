@@ -41,7 +41,9 @@ paths. Never mutate production Convex data.
    a user-visible or contract-relevant change; do not bump unaffected packages
    for symmetry.
 5. Select stable SemVer bumps from the actual compatibility impact and run all
-   preflight audits required by `.claude/commands/release.md`.
+   preflight audits required by `.claude/commands/release.md`. The in-tree
+   `specs/client/package.json` version is released with `version=current` when
+   a feature PR already set it.
 
 ## 2. Publish packages sequentially
 

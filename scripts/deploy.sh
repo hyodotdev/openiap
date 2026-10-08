@@ -32,16 +32,16 @@ for arg in "$@"; do
 done
 
 # Version metadata still has to be internally consistent before it ships.
-if ! node scripts/release-branch-policy.mjs assert-client-protocol; then
-    echo -e "${RED}❌ Refusing to deploy inconsistent version metadata${NC}"
+if ! node scripts/release-branch-policy.mjs audit --stable; then
+    echo -e "${RED}❌ Refusing to deploy inconsistent or prerelease version metadata${NC}"
     exit 1
 fi
 
-# Production docs are stable-only and deploy from main.
+# Production docs require stable package versions and deploy from main.
 CURRENT_BRANCH=$(git branch --show-current)
 echo -e "${BLUE}📍 Current branch: $CURRENT_BRANCH${NC}"
 if [ "$CURRENT_BRANCH" != "main" ]; then
-    echo -e "${RED}❌ Production docs must deploy from the stable main branch${NC}"
+    echo -e "${RED}❌ Production docs must deploy from main${NC}"
     exit 1
 fi
 

@@ -106,10 +106,10 @@ appropriate labels before merging.
   or from a nearby release block.
 - Before creating or updating a PR, declaring review clean, or releasing, apply
   `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`.
-- Treat `main` as stable-only and `next` as an on-demand prerelease branch.
-  Never run an RC/next release from `main`, a stable release from `next`, or a
-  production docs deploy from `next`. Run `bun run audit:release-state` before
-  release work.
+- Run stable and prerelease package releases from `main` through an explicit
+  dispatch. RCs use npm `next`; stable uses `latest`. Production docs require
+  stable package metadata, including when `--force` is selected. Run
+  `bun run audit:release-state` before release work.
 - For PRs with new features, visible behavior changes, UI changes, docs pages,
   example flows, or developer workflows, record the actual changed surface,
   compress the video to under 10 MB, and upload it to the GitHub PR as a

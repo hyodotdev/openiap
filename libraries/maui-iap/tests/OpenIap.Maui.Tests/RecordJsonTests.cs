@@ -10,6 +10,70 @@ namespace OpenIap.Maui.Tests;
 
 public class RecordJsonTests
 {
+    [Theory]
+    [InlineData("google", "play")]
+    [InlineData("apple", "apple")]
+    [InlineData("horizon", "horizon")]
+    [InlineData("amazon", "amazon")]
+    public void LegacyOfficialPurchasesInferIdentity(string store, string id)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(PurchaseAndroidJson)!.AsObject();
+        json.Remove("storeId");
+        json["store"] = store;
+        var concrete = JsonSerializer.Deserialize<PurchaseAndroid>(json.ToJsonString(), Options)!;
+        var union = JsonSerializer.Deserialize<Purchase>(json.ToJsonString(), Options)!;
+        Assert.Equal(id, concrete.StoreId);
+        Assert.Equal(id, union.StoreId);
+        Assert.Equal(id, JsonSerializer.Deserialize<Purchase>(JsonSerializer.Serialize(union, Options), Options)!.StoreId);
+        json.Remove("productId");
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Purchase>(json.ToJsonString(), Options));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("unknown")]
+    [InlineData("google")]
+    [InlineData("apple")]
+    [InlineData("play")]
+    [InlineData("amazon")]
+    [InlineData("horizon")]
+    [InlineData("auto")]
+    [InlineData("none")]
+    [InlineData("Bad id")]
+    [InlineData("store\n")]
+    public void MalformedCommunityIdentityFails(string? id)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(PurchaseAndroidJson)!.AsObject();
+        json["store"] = "unknown";
+        json["storeId"] = id;
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Purchase>(json.ToJsonString(), Options));
+    }
+
+    [Fact]
+    public void LegacyConstructedIdentityPreservesRecordEquality()
+    {
+        var result = new RequestVerifyPurchaseWithIapkitResult
+        {
+            IsValid = true, State = IapkitPurchaseState.Entitled, Store = IapStore.Google,
+        };
+        var roundTrip = JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitResult>(JsonSerializer.Serialize(result, Options), Options)!;
+        Assert.Equal("play", result.StoreId);
+        Assert.Equal(result, roundTrip);
+        Assert.Equal(result.GetHashCode(), roundTrip.GetHashCode());
+        Assert.NotEqual(result, roundTrip with { IsValid = false });
+        var legacy = new PurchaseAndroid
+        {
+            Id = "transaction", IsAutoRenewing = false, ProductId = "product",
+            PurchaseState = PurchaseState.Purchased, Quantity = 1,
+            Store = IapStore.Google, TransactionDate = 0,
+        };
+        var restored = JsonSerializer.Deserialize<PurchaseAndroid>(JsonSerializer.Serialize(legacy, Options), Options)!;
+        Assert.Equal(legacy, restored);
+        Assert.Equal(legacy.GetHashCode(), restored.GetHashCode());
+        Assert.NotEqual(legacy, restored with { ProductId = "another" });
+    }
+
     private static readonly JsonSerializerOptions Options = JsonOptions.Default;
 
     // ------------------------------------------------------------------
@@ -154,6 +218,7 @@ public class RecordJsonTests
           "quantity": 1,
           "signatureAndroid": "signature-abc",
           "store": "google",
+          "storeId": "play",
           "transactionDate": 1720000000000,
           "transactionId": "GPA.1234-5678",
           "userIdAmazon": "amazon-user-1",
@@ -174,6 +239,7 @@ public class RecordJsonTests
           "purchaseToken": "amazon-receipt-1",
           "quantity": 1,
           "store": "amazon",
+          "storeId": "amazon",
           "transactionDate": 1720000000000,
           "transactionId": "amazon-receipt-1",
           "userIdAmazon": "amazon-user-1",
@@ -278,6 +344,7 @@ public class RecordJsonTests
           "revocationReasonIOS": "REFUNDED",
           "revocationTypeIOS": "assignmentRevocation",
           "store": "apple",
+          "storeId": "apple",
           "storefrontCountryCodeIOS": "USA",
           "subscriptionGroupIdIOS": "group.premium",
           "transactionDate": 1720000000000,
@@ -393,6 +460,7 @@ public class RecordJsonTests
             PurchaseState = PurchaseState.Purchased,
             Quantity = 1,
             Store = IapStore.Apple,
+            StoreId = StoreIds.Apple,
             TransactionDate = 1720000000000,
             TransactionId = "2000000123",
         };
@@ -420,6 +488,7 @@ public class RecordJsonTests
               "purchaseState": "purchased",
               "quantity": 1,
               "store": "google",
+              "storeId": "play",
               "transactionDate": 1720000000000
             }
             """;
@@ -507,6 +576,7 @@ public class RecordJsonTests
               "productId": "premium.monthly",
               "state": "entitled",
               "store": "apple",
+              "storeId": "apple",
               "clientPayload": {
                 "format": "toml",
                 "body": "tier = \"gold\"",
@@ -549,6 +619,7 @@ public class RecordJsonTests
             ProductId = "dev.hyo.martie.10bulbs",
             State = IapkitPurchaseState.ReadyToConsume,
             Store = IapStore.Amazon,
+            StoreId = StoreIds.Amazon,
         };
 
         var restoredProps = JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitAmazonProps>(

@@ -5,7 +5,8 @@ enum class Store {
     PLAY_STORE,
     AMAZON,
     APP_STORE,
-    HORIZON
+    HORIZON,
+    UNKNOWN
 }
 
 data class ConnectionResult(

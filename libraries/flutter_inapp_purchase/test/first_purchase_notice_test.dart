@@ -203,6 +203,7 @@ types.PurchaseAndroid _android({
     purchaseToken: token,
     quantity: 1,
     store: types.IapStore.Google,
+    storeId: 'play',
     transactionDate: 1,
   );
 }
@@ -217,6 +218,7 @@ types.PurchaseIOS _apple({
     purchaseState: state,
     quantity: 1,
     store: types.IapStore.Apple,
+    storeId: 'apple',
     transactionDate: 1,
     transactionId: 'apple-transaction',
   );

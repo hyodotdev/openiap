@@ -36,9 +36,11 @@ class IapConstants {
   /// compiled in, so keep it out of the define in the first place.
   static String _rejectSecretKey(String apiKey) {
     if (!apiKey.startsWith('openiap-kit_sk_')) return apiKey;
-    debugPrint('[IapConstants] api key is a secret sk_ key; use an openiap-kit_pk_ key');
+    debugPrint(
+        '[IapConstants] api key is a secret sk_ key; use an openiap-kit_pk_ key');
     return '';
   }
+
   /// Origin of a local IAPKit server; empty selects the hosted default.
   static String get iapkitBaseUrl => _hasIapkitBaseUrlDefine
       ? _iapkitBaseUrlFromEnvironment

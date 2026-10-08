@@ -16,10 +16,21 @@
 // builds another store (an abbreviation such as aHR) fails once the graph is ready.
 
 ext.openIapStoreAliases = [
-  play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
-  horizon: 'horizon', meta: 'horizon', quest: 'horizon',
-  amazon: 'amazon', fire: 'amazon', fireos: 'amazon', 'fire-os': 'amazon',
-  none: 'none', auto: 'auto',
+  'play': 'play',
+  'google': 'play',
+  'gplay': 'play',
+  'googleplay': 'play',
+  'google-play': 'play',
+  'gms': 'play',
+  'horizon': 'horizon',
+  'meta': 'horizon',
+  'quest': 'horizon',
+  'amazon': 'amazon',
+  'fire': 'amazon',
+  'fireos': 'amazon',
+  'fire-os': 'amazon',
+  'auto': 'auto',
+  'none': 'none',
 ]
 
 ext.openIapNormalizeStore = { Object value, String label ->
@@ -28,10 +39,9 @@ ext.openIapNormalizeStore = { Object value, String label ->
     return null
   }
   def store = openIapStoreAliases[key]
-  if (store == null) {
-    throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, auto, or none where the library allows it")
-  }
-  return store
+  if (store != null) return store
+  if (key ==~ /[a-z][a-z0-9_]*/ && !(key in ['apple', 'unknown']) && project.findProperty('openiapProvider')) return key
+  throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, auto, or none where the library allows it, or supply openiapProvider for a lowercase community store id")
 }
 
 // assembleHorizonRelease -> [assemble, horizon, release]
@@ -327,6 +337,53 @@ ext.openIapDeviceStore = {
   return [store: store, reason: "device ${serial}, manufacturer ${manufacturer ?: 'unknown'}"]
 }
 
+// Validates openiapProvider against the explicit store, for the plain path
+// and the provider platform flavor alike. Returns the coordinates, or null
+// when no provider is involved.
+ext.openIapCheckProvider = { String label, String store, String explicit ->
+  def provider = project.findProperty('openiapProvider')?.toString()?.trim()
+  def official = store in ['play', 'horizon', 'amazon']
+  if (provider) {
+    if (official || store == 'none' || explicit == null) {
+      throw new GradleException("${label}: openiapProvider requires an explicit community openiapStore id")
+    }
+    if (!(provider ==~ /[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*/)) {
+      throw new GradleException("${label}: openiapProvider must be group:artifact:version with a fixed version")
+    }
+    // A snapshot in any letter case is a moving target, not a fixed version.
+    def providerVersion = provider.split(':')[2]
+    if (providerVersion.toLowerCase(Locale.ROOT).contains('snapshot')) {
+      throw new GradleException("${label}: openiapProvider must be group:artifact:version with a fixed version")
+    }
+    def module = provider.split(':').take(2).join(':')
+    if (module.startsWith('io.github.hyochan.openiap:openiap-')) {
+      throw new GradleException("${label}: openiapProvider must name a community provider, not an OpenIAP core or official artifact")
+    }
+    return provider
+  }
+  if (!official && store != 'none') {
+    throw new GradleException("${label}: openiapStore=${store} requires openiapProvider=group:artifact:version")
+  }
+  return null
+}
+
+// The provider platform flavor's coordinates. The pin selects that flavor
+// only, so the task-flavor rule does not apply: each official flavor of the
+// same app still links its own store.
+ext.openIapResolveFlavorProvider = { String label ->
+  if (rootProject.ext.has('openIapProviderResolution')) {
+    return rootProject.ext.openIapProviderResolution
+  }
+  def explicit = openIapExplicitStore(label, false)
+  def provider = openIapCheckProvider(label, explicit ?: 'play', explicit)
+  def resolution = [store: explicit, provider: provider]
+  rootProject.ext.openIapProviderResolution = resolution
+  if (provider) {
+    logger.quiet("${label}: provider=${provider} for the provider platform flavor")
+  }
+  return resolution
+}
+
 ext.openIapResolveStore = { String label, Map options = [:] ->
   def allowNone = options.allowNone == true
   if (rootProject.ext.has('openIapStoreResolution')) {
@@ -361,8 +418,27 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   if (resolution == null) {
     resolution = [store: 'play', source: 'default', reason: 'no store signal']
   }
+  resolution.official = resolution.store in ['play', 'horizon', 'amazon']
+  resolution.platform = resolution.official ? resolution.store : 'provider'
+  def provider = openIapCheckProvider(label, resolution.store, explicit)
+  if (provider) resolution.provider = provider
   rootProject.ext.openIapStoreResolution = resolution
   logger.quiet("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
   openIapVerifyTaskGraph(label, resolution)
   return resolution
+}
+
+// All framework wrappers use this dependency path, including embedded local builds.
+ext.openIapAddStoreDependencies = { String configuration, String version, String localProject = ':openiap' ->
+  def resolution = openIapResolveStore('openiap', [allowNone: true])
+  if (resolution.store == 'none') return
+  if (resolution.provider) {
+    def core = findProject(':openiap-core')
+    dependencies.add(configuration, core != null ? core : "io.github.hyochan.openiap:openiap-core:${version}")
+    dependencies.add(configuration, resolution.provider)
+  } else {
+    def local = findProject(localProject)
+    def artifact = resolution.store == 'play' ? 'openiap-google' : "openiap-google-${resolution.store}"
+    dependencies.add(configuration, local != null ? local : "io.github.hyochan.openiap:${artifact}:${version}")
+  }
 }

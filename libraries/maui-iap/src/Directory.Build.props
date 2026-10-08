@@ -12,6 +12,8 @@
     <MauiGoogleGsonNuGetVersion>2.14.0.1</MauiGoogleGsonNuGetVersion>
     <MauiAndroidXActivityVersion>1.13.0.1</MauiAndroidXActivityVersion>
     <MauiAndroidXCollectionVersion>1.6.0.1</MauiAndroidXCollectionVersion>
+    <MauiComposeAnnotationVersion>1.11.4</MauiComposeAnnotationVersion>
+    <MauiAndroidXWindowVersion>1.5.1.3</MauiAndroidXWindowVersion>
     <MauiAndroidXFragmentVersion>1.9.0</MauiAndroidXFragmentVersion>
     <MauiAndroidXFragmentKtxVersion>1.9.0</MauiAndroidXFragmentKtxVersion>
     <MauiAndroidXLifecycleVersion>2.11.0.1</MauiAndroidXLifecycleVersion>

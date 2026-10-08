@@ -1,0 +1,26 @@
+// A mixed-flavor app: its own platform flavors, one of them the community
+// provider, with the plugin built from source.
+pluginManagement {
+  includeBuild('../../gradle-plugin')
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+plugins {
+  id 'io.github.hyochan.openiap'
+}
+
+dependencyResolutionManagement {
+  repositories {
+    def fixtureRepository = providers.gradleProperty('fixtureCommunityRepository').orNull
+    if (fixtureRepository) maven { url = uri(fixtureRepository) }
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = 'store-plugin-mixed-fixture'
+include ':app'

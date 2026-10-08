@@ -31,10 +31,10 @@ Use `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`
 to inventory the full PR and selected release train. Complete the gate after
 writing or updating the card, including after scope changes.
 
-RC and npm `next` releases live on the on-demand `next` branch and do not get a
-release-history entry. Gather their changes as source material, but add the
-consolidated docs entry only when the train is promoted to a stable release on
-`main`. Production `npm run deploy` is stable-only.
+Stable and RC releases share `main`. Keep the eventual stable release card
+with its source PR; do not add a duplicate card for each npm `next` publication.
+Use preview docs while versions carry RC suffixes. Production `npm run deploy`
+requires stable package metadata.
 
 Write every card this way:
 

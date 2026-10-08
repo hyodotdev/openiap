@@ -17,51 +17,38 @@ Inspect the complete public payload before publishing it.
 
 ## Branch Contract
 
-- `main` contains stable package metadata only. Run stable package releases and
-  production docs deployment from `main`.
-- `clientProtocol` mirrors `specs/client/package.json`. Never edit it directly
-  in a feature PR, release command, or docs deployment. A Client Protocol
-  release bumps the publishing manifest; `scripts/sync-versions.sh` writes the
-  mirror, and the audits reject a committed mismatch.
-- `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
-  `next` releases from `next` only.
-- `next` may be absent between prerelease trains. Create it from current `main`
-  only when a maintainer requests a prerelease train.
-- Before reusing an existing `next`, fetch it and inspect its divergence, open
-  PRs, and active release runs. If it belongs to an older completed train, do
-  not merge, rebase, reset, or delete it automatically; report the state and
-  obtain explicit approval before replacing it from current `main`.
-- Never merge prerelease version-only commits from `next` into `main`. Promote
-  the reviewed source changes through a clean PR based on `main`, then run the
-  stable release workflow from `main` with the intended bump type.
-- If the original feature branch is unavailable, create a branch from `main`
-  and cherry-pick or squash only the source/documentation commits from `next`;
-  exclude release-version commits and confirm the resulting diff explicitly.
-- Do not force-reset or delete `next` without explicit maintainer approval.
+- `main` owns reviewed source and both stable and prerelease package metadata.
+  Run every new package release from `main`; merging source does not publish a
+  package. Releases require an explicit workflow dispatch.
+- Select `prerelease=true` for a first RC and `version=rc-bump` for a later RC
+  where supported. RCs use npm `next` and version suffixes on native registries.
+  Select the stable lane to remove the RC suffix from its target version.
+- Keep Client Protocol, native dependencies and generated version metadata in
+  sync. `clientProtocol` mirrors `specs/client/package.json`; never edit the
+  mirror directly. Use `version=current` when the manifest already declares the
+  version being published.
+- Production docs deploy from `main` only after all package metadata is stable
+  and the release card's links are public. Use a preview while RCs are active.
+  `--force` does not bypass the stable-version check.
+- Historical `next` tags remain immutable. The old branch is retained for tag
+  verification and SBOM recovery; new work and releases do not need it. Do not
+  force-reset or delete it without explicit maintainer approval.
 
-The release workflows enforce this contract through
-`scripts/release-branch-policy.mjs`. Check locally with:
+`scripts/release-branch-policy.mjs` enforces source branch, version consistency
+and production-doc eligibility. Every version commit runs
+`scripts/sync-release-generated.sh` and stages its generated outputs.
 
 ```bash
 bun run audit:release-state
 node --test scripts/release-branch-policy.test.mjs
 ```
 
-Every release lane's version-bump commit also runs
-`scripts/sync-release-generated.sh`, which regenerates and stages the files
-derived from version metadata (`packages/docs/src/generated/version-metadata.json`,
-`packages/docs/public/llms.txt`, `packages/docs/public/llms-full.txt`,
-`knowledge/_agent-context/context.md`). Expect these paths in bump commits;
-they are not worktree drift. Skipping this regeneration leaves `main` stale and
-fails the `Audit SDK Parity` / `Test Agent Scripts` clean-worktree checks on
-every subsequent PR.
-
 ## Preflight
 
 1. Read `AGENTS.md` and `knowledge/internal/06-git-deployment.md`.
 2. Confirm the target package metadata from its SSOT; do not infer versions
    from `openiap-versions.json` for framework libraries.
-3. Confirm `clientProtocol` matches `specs/client/package.json` on stable
+3. Confirm `clientProtocol` matches `specs/client/package.json` on
    `main`; stop if the mirror or any synced package metadata is out of sync.
 4. Fetch the target branch and tags, confirm a clean worktree, and inspect
    active release runs.
@@ -77,33 +64,33 @@ bun run audit:release-state
 
 ## Prerelease Train
 
-Use this only for unusual compatibility work that needs external testing before
-stable release.
-
-1. Inspect `origin/next`. If it does not exist, create it from the latest
-   `origin/main`; if it is stale, follow the replacement rule above.
-2. Target feature PRs for the train at `next`; keep unrelated work on the usual
-   feature-to-`main` path.
-3. Dispatch the package workflow with `--ref next` and `prerelease=true` for the
-   first RC. Use `version=rc-bump` for later RCs where supported.
-4. Verify prerelease registry tags (`next`, RC Maven/NuGet/pub versions) and
-   device/build checks.
-5. Do not add an RC/next entry to the stable docs release history and do not run
-   production `npm run deploy` from `next`.
-
-When the remote branch is absent and creation is explicitly requested:
-
-```bash
-git fetch origin main
-git switch --create next origin/main
-git push --set-upstream origin next
-```
-
-Example:
+1. Merge reviewed source and its guides into `main` after CI passes. Keep the
+   eventual stable release card with the source change; do not add duplicate RC
+   cards to the stable release history.
+2. Prepare Client Protocol RC metadata before native publication when the code
+   requires a new protocol: update `specs/client/package.json`, run
+   `bun install --lockfile-only --ignore-scripts` and
+   `scripts/sync-release-generated.sh`, and commit the synced outputs together.
+   Publish that prepared protocol later with `version=current`.
+3. Dispatch each package workflow with `--ref main` and `prerelease=true` for
+   its first RC. Use `version=rc-bump` for later RCs where supported. Apple later
+   RCs use `target_version`; npm RC counters can start at zero. Historical RC
+   tags on `next` remain immutable; use a new RC from `main` rather than retrying
+   those tags through the new release lane.
+4. Verify the public registry, immutable tag and published-artifact consumer
+   before continuing. Publish native RCs before their framework dependents.
+5. Build the Android conformance suite locally from the exact Google RC tag;
+   RCs do not publish its AAR. Follow
+   `packages/google/core/README.md#test-a-published-rc` and the fixture README.
+   Keep the consumer's local Maven repository free of a rebuilt core.
+6. Keep production docs unchanged while metadata carries RC versions. Preview
+   docs may show the RC inputs and eventual stable release card.
 
 ```bash
-gh workflow run release-expo.yml --ref next \
-  -f version=minor -f prerelease=true
+gh workflow run release-expo.yml --ref main \
+  -f version=major -f prerelease=true
+# Later RC:
+gh workflow run release-expo.yml --ref main -f version=rc-bump
 ```
 
 ## Stable Release
@@ -111,9 +98,19 @@ gh workflow run release-expo.yml --ref next \
 1. Confirm the intended source changes are merged to `main` and
    `bun run audit:release-state` passes.
 2. Dispatch with `--ref main`, `prerelease=false`, and the bump type relative to
-   the stable version currently on `main`.
+   the current package version. For an RC, use
+   `version=patch` to remove the RC suffix without increasing the base version.
+   Apple may instead use `target_version=<stable-version>`; `release-openiap.yml`
+   may use `version=exact` with `target_version=<stable-version>`. For example,
+   `4.0.0-rc.1` becomes `4.0.0`, not `5.0.0`.
 3. Wait for completion and inspect failed steps or warnings before continuing.
 4. Verify the GitHub Release and public registry directly.
+
+```bash
+# Promote the current Google RC to its stable base version:
+gh workflow run release-google.yml --ref main \
+  -f version=patch -f prerelease=false
+```
 
 For a multi-package release train, use this order when affected:
 
@@ -127,13 +124,14 @@ For a multi-package release train, use this order when affected:
 8. `release-maui.yml`
 9. `release-openiap.yml` — select one affected package per run:
    - `client-protocol`: `@hyodotdev/openiap-client-protocol`. Its package
-     version *is* the Client Protocol version; a release moves `clientProtocol`
-     in `openiap-versions.json` through sync.
+     version _is_ the Client Protocol version; a release with patch, minor,
+     major, rc-bump or exact moves `clientProtocol` through sync, while
+     `current` publishes the in-tree version.
    - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
      package version, released when its contract, runner, or artifacts change.
    - `cli`: `@hyodotdev/openiap`; independent package version.
-     The standalone `openiap-conformance` package is retired. Its suite remains
-     internal; its historical release tags stay immutable.
+     The standalone npm `openiap-conformance` package is retired. Its suite
+     remains internal; its historical release tags stay immutable.
 10. `npm run deploy`. The docs site is not versioned: no tag, no GitHub
     Release, no version argument.
 
@@ -150,11 +148,11 @@ unscoped tags stay immutable. Client and CLI use
 `openiap-client-protocol-<version>` and `openiap-<version>` tags. The docs site
 is not versioned and cuts no tag.
 
-For an explicitly authorized alpha or beta on `next`, select `version=exact`
+For an explicitly authorized alpha or beta on `main`, select `version=exact`
 and `target_version=0.1.0-alpha.0` (or the requested prerelease). Leave
 `target_version` empty for other modes. Prereleases publish to npm's `next`
-dist-tag. Keep prerelease version commits off `main`; merge reviewed source
-changes, then publish the stable version from `main`.
+dist-tag. Prerelease version commits remain on `main`; publish the stable target from
+the same branch after validation.
 
 Train rules (mistake guards):
 
@@ -199,8 +197,10 @@ Train rules (mistake guards):
   versions and links against the
   published releases and correct any that differ; if that needs an edit,
   commit it directly to `main` together with any release-process doc updates,
-  and do not open a PR for that post-release docs-only commit. Run the docs
-  deployment; to deploy before publication, use the explicit flag in
+  and do not open a PR for that post-release docs-only commit. Card edits that
+  change wording come with the matching `scripts/audit-release-notes.test.mjs`
+  needles. Run the docs deployment; to deploy before publication, use the
+  explicit flag in
   `knowledge/internal/06-git-deployment.md#deploying-documentation`.
   If a train will not resume, trim its card to what published. CI's release
   note audit (`bun run audit:release-notes`) fails a PR into `main` that
@@ -210,9 +210,10 @@ Train rules (mistake guards):
   GitHub Release is requested, explain that the docs site is not a versioned
   artifact.
 
-Fetch latest `main` before each dependent workflow so every release starts from
-the prior stable version commit. After an Apple or Google release, confirm the
-native workflow has synchronized its package metadata before dispatching the
+Fetch the latest target release branch before each dependent workflow so every
+release starts from the preceding version commit. After an Apple or Google
+release, confirm the native workflow has synchronized its package metadata before
+dispatching the
 next package or docs release. Do not dispatch the full list in parallel.
 
 ## Published but the Workflow Failed
@@ -304,20 +305,26 @@ restarts both gates.
 
 Verify the registry, not only the GitHub Actions conclusion:
 
-| Package      | Verification                                                             |
-| ------------ | ------------------------------------------------------------------------ |
-| Apple        | `pod trunk info openiap`; GitHub tag `{version}`                         |
-| Google       | Maven Central POMs for Play, Amazon, and Horizon; tag `google-{version}` |
-| React Native | `npm view react-native-iap@{version} version dist-tags --json`           |
-| Expo         | `npm view expo-iap@{version} version dist-tags --json`                   |
-| Flutter      | `https://pub.dev/api/packages/flutter_inapp_purchase/versions/{version}` |
-| Godot        | GitHub Release, `godot-iap-{version}.zip`, and Asset Library 4627 (below) |
-| KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                 |
-| MAUI         | NuGet flat-container package and GitHub Release                          |
-| Docs         | Production `openiap.dev` responds with the new content (no tag)          |
+| Package      | Verification                                                                                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Apple        | `pod trunk info openiap`; GitHub tag `{version}`                                                                                                                 |
+| Google       | Maven Central POMs for core, Play, Amazon, Horizon, plugin and its marker; stable releases also verify the independent conformance suite; tag `google-{version}` |
+| React Native | `npm view react-native-iap@{version} version dist-tags --json`                                                                                                   |
+| Expo         | `npm view expo-iap@{version} version dist-tags --json`                                                                                                           |
+| Flutter      | `https://pub.dev/api/packages/flutter_inapp_purchase/versions/{version}`                                                                                         |
+| Godot        | GitHub Release, `godot-iap-{version}.zip`, and Asset Library 4627 (below)                                                                                        |
+| KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                                                                                                         |
+| MAUI         | NuGet flat-container package and GitHub Release                                                                                                                  |
+| Docs         | Production `openiap.dev` responds with the new content (no tag)                                                                                                  |
 
 Registry indexing can lag. Poll until the artifact is public or report a real
 timeout; do not equate a successful upload response with completed indexing.
+
+For Google artifacts, fetch
+`https://repo1.maven.org/maven2/io/github/hyochan/openiap/<artifact>/<version>/<artifact>-<version>.pom`.
+The stable conformance check uses `openiap-conformance` and `SUITE_VERSION`
+from `packages/conformance/src/spec/suite-version.mjs`, not the Google version.
+Skip that public POM check for RCs, which use a locally built suite.
 
 ## Flutter Publisher
 

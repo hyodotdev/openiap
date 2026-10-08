@@ -85,6 +85,7 @@ class HybridRnIap: HybridRnIapSpec {
     private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
     private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
     private var pendingOnDemandInitErrorSuppressions: [String: Int] = [:]
+    private var requestErrorObservation: (productId: String?, enqueued: Bool)?
     private let pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(
         capacity: HybridRnIap.maxPendingEvents,
         label: "pendingPurchaseUpdates"
@@ -175,10 +176,21 @@ class HybridRnIap: HybridRnIapSpec {
                 }
                 if isCurrent, !reuseExistingConnection {
                     RnIapLog.failure("initConnection", error: error)
-                    let err = RnIapHelper.makePurchaseErrorResult(
-                        code: .initConnection,
-                        message: error.localizedDescription
-                    )
+                    // A provider failure already names its fix; keep its code.
+                    let err: NitroPurchaseResult
+                    if let purchaseError = error as? PurchaseError {
+                        err = RnIapHelper.makePurchaseErrorResult(
+                            code: purchaseError.code,
+                            message: purchaseError.message,
+                            purchaseError.productId,
+                            debugMessage: purchaseError.debugMessage
+                        )
+                    } else {
+                        err = RnIapHelper.makePurchaseErrorResult(
+                            code: .initConnection,
+                            message: error.localizedDescription
+                        )
+                    }
                     self.sendPurchaseError(err, productId: nil)
                 }
                 return false
@@ -370,7 +382,7 @@ class HybridRnIap: HybridRnIapSpec {
                     "requestPurchase.native", iosPayload
                 )
 
-                let result = try await self.runRequestPurchaseOperation {
+                let result = try await self.runRequestPurchaseOperation(productId: iosRequest.sku) {
                     try await OpenIapModule.shared.requestPurchase(props)
                 }
                 if result != nil {
@@ -505,13 +517,25 @@ class HybridRnIap: HybridRnIapSpec {
                     "finishTransaction", ["transactionId": iosParams.transactionId]
                 )
                 _ = try await self.runConnectedOperation {
-                    guard let purchaseInput = try await self.purchaseToFinish(
-                        transactionId: iosParams.transactionId,
-                        loadTransactions: { try await OpenIapModule.shared.getAllTransactionsIOS() }
-                    ) else { return }
+                    let purchaseInput: OpenIAP.PurchaseInput
+                    if let json = iosParams.purchaseJson {
+                        let object = try JSONSerialization.jsonObject(with: Data(json.utf8))
+                        purchaseInput = try OpenIapSerialization.purchaseInput(from: object)
+                    } else {
+                        guard let cached = try await self.purchaseToFinish(
+                            transactionId: iosParams.transactionId,
+                            loadTransactions: {
+                                try await OpenIapModule.shared.getAvailablePurchases(nil).compactMap {
+                                    guard case .purchaseIos(let purchase) = $0 else { return nil }
+                                    return purchase
+                                }
+                            }
+                        ) else { return }
+                        purchaseInput = cached
+                    }
                     try await OpenIapModule.shared.finishTransaction(
                         purchase: purchaseInput,
-                        isConsumable: nil
+                        isConsumable: iosParams.isConsumable
                     )
                 }
                 RnIapLog.result("finishTransaction", true)
@@ -665,7 +689,8 @@ class HybridRnIap: HybridRnIapSpec {
                         isValid: item.isValid,
                         productId: RnIapHelper.wrapString(item.productId),
                         state: IapkitPurchaseState(fromString: item.state.rawValue) ?? .unknown,
-                        store: IapStore(fromString: item.store.rawValue) ?? .unknown
+                        store: IapStore(fromString: item.store.rawValue) ?? .unknown,
+                        storeId: item.storeId
                     )
                 }
                 // Convert errors if present
@@ -1027,6 +1052,29 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    func restorePurchases() throws -> Promise<Bool> {
+        return Promise.async {
+            do {
+                RnIapLog.payload("restorePurchases", nil)
+                let ok = try await self.runConnectedOperation {
+                    try await OpenIapModule.shared.restorePurchases()
+                    return true
+                }
+                RnIapLog.result("restorePurchases", ok)
+                return ok
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("restorePurchases", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
+            } catch let connectionError as OpenIapException {
+                RnIapLog.failure("restorePurchases", error: connectionError)
+                throw connectionError
+            } catch {
+                RnIapLog.failure("restorePurchases", error: error)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
+            }
+        }
+    }
+
     func syncIOS() throws -> Promise<Bool> {
         return Promise.async {
             do {
@@ -1383,6 +1431,8 @@ class HybridRnIap: HybridRnIapSpec {
         transactionId: String,
         loadTransactions: () async throws -> [OpenIAP.PurchaseIOS]
     ) async throws -> OpenIAP.PurchaseInput? {
+        // StoreKit transaction ids are numeric; community providers finish
+        // through the JSON path and never reach this lookup.
         guard UInt64(transactionId) != nil else {
             throw OpenIapException.make(code: .purchaseError, message: "Invalid transaction identifier")
         }
@@ -1440,10 +1490,17 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     func runRequestPurchaseOperation(
+        productId: String? = nil,
         _ operation: @escaping () async throws -> OpenIAP.RequestPurchaseResult?
     ) async throws -> OpenIAP.RequestPurchaseResult? {
         try await runConnectedOperation {
             let epoch = self.currentConnectionEpoch()
+            self.listenerLock.withLock {
+                self.requestErrorObservation = (productId, false)
+            }
+            defer {
+                self.listenerLock.withLock { self.requestErrorObservation = nil }
+            }
             do {
                 let result = try await operation()
                 await self.deliverRequestPurchaseResultIfNeeded(
@@ -1454,6 +1511,22 @@ class HybridRnIap: HybridRnIapSpec {
             } catch let purchaseError as PurchaseError {
                 self.deliverRequestPurchaseError(purchaseError)
                 throw purchaseError
+            } catch {
+                // A provider that enqueued its own error owns delivery.
+                RnIapLog.failure("requestPurchase", error: error)
+                let providerEnqueuedError = self.listenerLock.withLock {
+                    self.requestErrorObservation?.enqueued ?? false
+                }
+                if !providerEnqueuedError {
+                    self.deliverRequestPurchaseFallbackError(
+                        PurchaseError.wrap(
+                            error,
+                            fallback: .purchaseError,
+                            productId: productId
+                        )
+                    )
+                }
+                return nil
             }
         }
     }
@@ -1608,12 +1681,6 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     private func deliverRequestPurchaseError(_ error: PurchaseError) {
-        let result = RnIapHelper.makePurchaseErrorResult(
-            code: error.code,
-            message: error.message,
-            error.productId,
-            debugMessage: error.debugMessage
-        )
         let key = RnIapHelper.makeErrorDedupKey(
             code: error.code.rawValue,
             productId: error.productId
@@ -1621,6 +1688,17 @@ class HybridRnIap: HybridRnIapSpec {
         listenerLock.withLock {
             pendingRequestPurchaseErrorSuppressions[key, default: 0] += 1
         }
+        deliverRequestPurchaseFallbackError(error)
+    }
+
+    // No suppression: a fallback provider never emits the same error later.
+    private func deliverRequestPurchaseFallbackError(_ error: PurchaseError) {
+        let result = RnIapHelper.makePurchaseErrorResult(
+            code: error.code,
+            message: error.message,
+            error.productId,
+            debugMessage: error.debugMessage
+        )
         sendPurchaseError(result, productId: error.productId, dedupe: false)
     }
 
@@ -1646,6 +1724,13 @@ class HybridRnIap: HybridRnIapSpec {
         _ error: PurchaseError,
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
+        listenerLock.withLock {
+            if connectionEpoch == expectedEpoch,
+               let observation = requestErrorObservation,
+               observation.productId == error.productId {
+                requestErrorObservation?.enqueued = true
+            }
+        }
         return enqueueLifecycleOperation {
             guard self.isCurrentEpoch(expectedEpoch),
                   !self.consumeOnDemandInitErrorSuppression(error),
@@ -1662,7 +1747,7 @@ class HybridRnIap: HybridRnIapSpec {
             await MainActor.run {
                 guard self.isCurrentEpoch(expectedEpoch) else { return }
                 RnIapLog.result("purchaseErrorListener", payload)
-                self.sendPurchaseError(nitroError, productId: error.productId)
+                self.sendPurchaseError(nitroError, productId: error.productId, dedupe: false)
             }
         }
     }

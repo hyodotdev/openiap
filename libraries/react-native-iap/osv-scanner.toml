@@ -1,17 +1,12 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-10-14
-reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-30
+reason = "image-size reaches this lock only through Metro 0.84.4, pinned by @expo/metro 56.0.0 and resolved for @react-native/community-cli-plugin 0.86.2. The advisories are fixed in image-size 2.0.3, and Metro 0.84.5 drops it; @expo/metro 56.0.1+ pins 0.84.5 inside the locked ~56.0.0 range, so re-resolving Metro clears both. Until then Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-86w9-cpqp-85rv"
 ignoreUntil = 2026-10-30
 reason = "No patched node-forge release exists; 1.4.0 is npm latest and still affected. Reached only via @expo/cli and @expo/code-signing-certificates for development certificate tooling; it is excluded from the published SDK runtime. Development certificate verification remains affected: https://github.com/advisories/GHSA-86w9-cpqp-85rv."
-
-[[IgnoredVulns]]
-id = "GHSA-ch52-4w7c-c8xp"
-ignoreUntil = 2026-10-30
-reason = "OSV records no fixed http-cache-semantics release; npm latest 4.3.0 is still affected. Reached only via make-fetch-happen from node-gyp under fsevents in native build tooling, which fetches build assets during trusted local builds rather than serving cross-user cached responses: https://github.com/advisories/GHSA-ch52-4w7c-c8xp."
 
 [[IgnoredVulns]]
 id = "GHSA-hp3w-g68c-fv3c"
@@ -25,5 +20,5 @@ reason = "No patched braces release exists; 3.0.3 is npm latest and still affect
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-10-14
-reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-30
+reason = "image-size reaches this lock only through Metro 0.84.4, pinned by @expo/metro 56.0.0 and resolved for @react-native/community-cli-plugin 0.86.2. The advisories are fixed in image-size 2.0.3, and Metro 0.84.5 drops it; @expo/metro 56.0.1+ pins 0.84.5 inside the locked ~56.0.0 range, so re-resolving Metro clears both. Until then Metro uses it only during trusted local builds."

@@ -20,6 +20,8 @@ on:
       - "specs/commerce-protocol/**"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
+      - "scripts/assert-lcov-coverage.mjs"
+      - ".github/actions/coverage-report/**"
       - "bun.lock"
       - "package.json"
   pull_request:
@@ -37,6 +39,8 @@ on:
       - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
+      - "scripts/assert-lcov-coverage.mjs"
+      - ".github/actions/coverage-report/**"
       - "bun.lock"
       - "package.json"
   workflow_dispatch:
@@ -114,23 +118,15 @@ jobs:
       - name: Run tests (convex + server unit tests)
         run: bun run test:coverage
 
-      - name: Enforce server line coverage
-        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90 server/
+      - name: Enforce server project and patch coverage
+        env:
+          COVERAGE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-server
 
-      - name: Enforce Convex line coverage
-        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/
-
-      - name: Upload Kit coverage
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
-        with:
-          use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          disable_search: true
-          files: coverage/lcov.info
-          flags: iapkit
-          name: iapkit
-          network_prefix: packages/kit/
-          working-directory: packages/kit
+      - name: Enforce Convex project and patch coverage
+        env:
+          COVERAGE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-convex
 
       - name: Lint + test MCP server (served by kit's /mcp route)
         # kit's Fly binary imports @hyodotdev/openiap-mcp-server/web from
@@ -197,6 +193,13 @@ jobs:
           --ignorefile packages/kit/.trivyignore.yaml
           --exit-code 1
           --exit-on-eol 1
+
+      - name: Preserve and report coverage
+        uses: ./.github/actions/coverage-report
+        with:
+          package-path: packages/kit
+          flag: iapkit
+          use-oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
   deploy:
     name: Deploy Convex + openiap-kit

@@ -44,6 +44,10 @@ class FakeAndroidJsonPlugin:
 		last_args = []
 		return _respond("getAvailablePurchases", "[]")
 
+	func restorePurchases() -> String:
+		last_method = "restorePurchases"
+		return _respond("restorePurchases", JSON.stringify({"success": true}))
+
 	func getAvailablePurchasesResult() -> String:
 		last_args = []
 		return _respond(
@@ -95,6 +99,10 @@ class FakeAndroidJsonPlugin:
 	func verifyPurchase(props_json: String) -> String:
 		last_args = [props_json]
 		return _respond("verifyPurchase", JSON.stringify({"isValid": false}))
+
+	func verifyPurchaseWithProvider(props_json: String) -> String:
+		last_args = [props_json]
+		return _respond("verifyPurchaseWithProvider", JSON.stringify({"provider": "iapkit"}))
 
 	func deepLinkToSubscriptions(options_json: String) -> String:
 		last_args = [options_json]
@@ -181,6 +189,21 @@ class FakeImmediateApplePlugin:
 	func presentCodeRedemptionSheetIOS() -> String:
 		return _respond("presentCodeRedemptionSheetIOS", "0")
 
+	func getPendingTransactionsIOS() -> String:
+		return _respond("getPendingTransactionsIOS", "0")
+
+	func getAllTransactionsIOS() -> String:
+		return _respond("getAllTransactionsIOS", "0")
+
+	func showManageSubscriptionsIOS() -> String:
+		return _respond("showManageSubscriptionsIOS", "0")
+
+	func currentEntitlementIOS(_sku: String) -> String:
+		return _respond("currentEntitlementIOS", "0")
+
+	func latestTransactionIOS(_sku: String) -> String:
+		return _respond("latestTransactionIOS", "0")
+
 
 func _init() -> void:
 	_run_suite.call_deferred()
@@ -218,6 +241,7 @@ func _run_all_tests() -> void:
 	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
 	await test_ios_restore_waits_for_a_sign_in_sheet()
+	await test_android_restore_uses_provider_operation()
 	await test_ios_sync_waits_for_a_sign_in_sheet()
 	test_android_signal_handlers_parse_json()
 
@@ -243,6 +267,10 @@ func _run_all_tests() -> void:
 	test_android_billing_program_envelopes()
 	await test_android_open_redeem_offer_code_envelope()
 	await test_android_verify_purchase_envelope()
+	await test_provider_verification_errors()
+	await test_apple_concurrent_verification_failures()
+	await test_provider_query_errors()
+	test_apple_failed_connection_signal()
 	test_android_is_billing_program_available_envelope()
 	await test_android_deep_link_envelope()
 	await test_android_storefront_invalid_envelopes()
@@ -251,6 +279,7 @@ func _run_all_tests() -> void:
 	await test_ios_immediate_payload_envelope()
 	await test_ios_missing_request_id_envelope()
 	await test_ios_open_redeem_offer_code_envelope()
+	await test_ios_transaction_lists_skip_invalid_store_identities()
 	await test_macos_shared_api_routing()
 
 
@@ -635,9 +664,30 @@ func test_android_request_purchase_success_envelope() -> void:
 	_uninstall_fake()
 
 
-## The non-iOS restore path reports failures through purchase_error. The iOS
-## path used to return success = false silently, so a caller listening only to
-## the signal saw Android restore failures but never iOS ones.
+func test_android_restore_uses_provider_operation() -> void:
+	var fake = _install_android_fake()
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": false})
+	var restored = await GodotIapPlugin.restore_purchases()
+	_assert_true(restored.success, "Provider restore should not be replaced by an ownership query")
+	_assert_equal(fake.last_method, "restorePurchases", "Android restore must reach the native provider")
+
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+	fake.responses["restorePurchases"] = JSON.stringify({"success": false, "code": "network-error", "error": "Restore offline"})
+	var failed = await GodotIapPlugin.restore_purchases()
+	_assert_false(failed.success, "Provider restore failure must be preserved")
+	_assert_equal(errors.size(), 1, "Restore failure should emit one error")
+	_assert_equal(errors[0].get("code"), "network-error", "Restore failure should preserve its code")
+	fake.responses["restorePurchases"] = "invalid json"
+	var malformed = await GodotIapPlugin.restore_purchases()
+	_assert_false(malformed.success, "Malformed restore responses must fail")
+	_assert_equal(errors[1].get("code"), "billing-response-json-parse-error", "Malformed restore should expose a parse failure")
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	_uninstall_fake()
+
+
 func test_ios_restore_failure_emits_purchase_error() -> void:
 	var previous_platform = GodotIapPlugin._platform
 	var previous_plugin = GodotIapPlugin._native_plugin
@@ -1022,6 +1072,32 @@ func test_android_available_purchases_envelope() -> void:
 	_assert_equal(structured.get("success"), true, "Structured available-purchases results should preserve success")
 	_assert_equal(structured.get("purchases", []).size(), 1, "Structured results should contain the typed purchases")
 
+	var community_purchase := {
+		"id": "community", "productId": "owned.sku", "store": "unknown",
+		"storeId": "community_fixture", "purchaseState": "purchased",
+		"transactionDate": 1.0, "quantity": 1, "isAutoRenewing": false,
+	}
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
+	var community_owned = await GodotIapPlugin.get_available_purchases()
+	_assert_equal(community_owned.size(), 1, "Community ownership should decode")
+	_assert_equal(community_owned[0].store_id, "community_fixture", "Community ownership should preserve store identity")
+	for store in ["google", "amazon", "horizon"]:
+		var mismatched = community_purchase.duplicate()
+		mismatched["store"] = store
+		fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [mismatched]})
+		var invalid_official = await GodotIapPlugin.get_available_purchases_result()
+		_assert_equal(invalid_official.get("success"), false, "Contradictory official identity should reject the batch")
+		_assert_equal(invalid_official.get("code"), "billing-response-json-parse-error", "Official identity mismatch should use the decode error code")
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
+	var community_restored = await GodotIapPlugin.restore_purchases()
+	_assert_equal(community_restored.success, true, "Community restore should succeed")
+	for invalid_id in [null, "", "play", "apple", "google", "horizon", "amazon", "auto", "none", "unknown", "bad id"]:
+		community_purchase["storeId"] = invalid_id
+		fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [community_purchase]})
+		var invalid_community = await GodotIapPlugin.get_available_purchases_result()
+		_assert_equal(invalid_community.get("success"), false, "Invalid community identity should reject the batch")
+		_assert_equal(invalid_community.get("code"), "billing-response-json-parse-error", "Invalid identity should use the decode error code")
+
 	fake.responses["getAvailablePurchasesResult"] = "{}"
 	var failed = await GodotIapPlugin.get_available_purchases_result()
 	_assert_equal(failed.get("success"), false, "Missing success must remain distinguishable from an empty store")
@@ -1062,14 +1138,6 @@ func test_android_available_purchases_envelope() -> void:
 	_assert_equal(foreign.get("success"), false, "Android results should reject foreign stores")
 	_assert_equal(foreign.get("code"), "billing-response-json-parse-error", "Foreign stores should use the decode error code")
 
-	var restore_errors: Array[Dictionary] = []
-	var capture_restore_error = func(error: Dictionary) -> void:
-		restore_errors.append(error)
-	GodotIapPlugin.purchase_error.connect(capture_restore_error)
-	var restored = await GodotIapPlugin.restore_purchases()
-	_assert_equal(restored.success, false, "Restore should fail when available purchases cannot be decoded")
-	_assert_equal(restore_errors.size(), 1, "Failed Android restore should emit exactly one purchase_error")
-	GodotIapPlugin.purchase_error.disconnect(capture_restore_error)
 	_uninstall_fake()
 
 
@@ -1332,6 +1400,62 @@ func test_ios_open_redeem_offer_code_envelope() -> void:
 	_uninstall_fake()
 
 
+func _purchase_payload(product_id: String, transaction_id: String) -> Dictionary:
+	return {
+		"id": transaction_id,
+		"productId": product_id,
+		"transactionDate": 1.0,
+		"transactionId": transaction_id,
+		"purchaseState": "purchased",
+		"quantity": 1,
+		"isAutoRenewing": false,
+		"platform": "ios",
+		"store": "apple",
+	}
+
+
+func test_ios_transaction_lists_skip_invalid_store_identities() -> void:
+	var fake = _install_ios_fake()
+	var valid := _purchase_payload("valid.sku", "valid-tx")
+	var mismatched := _purchase_payload("mismatched.sku", "mismatched-tx")
+	mismatched["storeId"] = "play"
+	var missing := _purchase_payload("missing.sku", "missing-tx")
+	missing.erase("store")
+	var mixed := [valid, mismatched, missing]
+
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({
+		"success": true,
+		"transactionsJson": JSON.stringify(mixed),
+	})
+	fake.responses["getAllTransactionsIOS"] = JSON.stringify({
+		"success": true,
+		"transactionsJson": JSON.stringify(mixed),
+	})
+	fake.responses["showManageSubscriptionsIOS"] = JSON.stringify({
+		"success": true,
+		"purchasesJson": JSON.stringify(mixed),
+	})
+
+	var pending = await GodotIapPlugin.get_pending_transactions_ios()
+	_assert_equal(pending.size(), 1, "Pending transactions should skip invalid store identities")
+	_assert_true(pending[0] is Types.PurchaseIOS, "Pending transactions should stay typed")
+	_assert_equal(pending[0].product_id, "valid.sku", "Valid pending transactions should be unchanged")
+
+	var history = await GodotIapPlugin.get_all_transactions_ios()
+	_assert_equal(history.size(), 1, "All transactions should skip invalid store identities")
+	_assert_true(history[0] is Types.PurchaseIOS, "All transactions should stay typed")
+	_assert_equal(history[0].product_id, "valid.sku", "Valid history transactions should be unchanged")
+
+	var changed = await GodotIapPlugin.show_manage_subscriptions_ios()
+	_assert_equal(changed.size(), 1, "Manage-subscriptions results should skip invalid store identities")
+	_assert_true(changed[0] is Types.PurchaseIOS, "Manage-subscriptions results should stay typed")
+	_assert_equal(changed[0].product_id, "valid.sku", "Valid manage-subscriptions results should be unchanged")
+
+	for list in [pending, history, changed]:
+		_assert_false(list.has(null), "Transaction lists must never contain null")
+	_uninstall_fake()
+
+
 func test_macos_shared_api_routing() -> void:
 	var fake = _install_apple_fake("macOS")
 	var purchase_dict := {
@@ -1499,3 +1623,76 @@ func _assert_true(condition: bool, message: String) -> void:
 
 func _assert_false(condition: bool, message: String) -> void:
 	_assert_equal(condition, false, message)
+
+
+func test_provider_verification_errors() -> void:
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		var errors: Array[Dictionary] = []
+		var capture = func(error: Dictionary) -> void: errors.append(error)
+		GodotIapPlugin.purchase_error.connect(capture)
+		fake.responses["verifyPurchase"] = JSON.stringify({"success": false, "code": "feature-not-supported", "error": "Use the vendor backend"})
+		var verification = await GodotIapPlugin.verify_purchase({"google": {"purchaseToken": "opaque"}})
+		_assert_equal(verification, null, "Unsupported verification retains its nullable result")
+		_assert_equal(errors.size(), 1, "Unsupported verification reports one error")
+		_assert_equal(errors[0].get("code"), "feature-not-supported", "Verification preserves the native unsupported code")
+		fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"success": false, "code": "feature-not-supported", "error": "Use the vendor backend", "provider": "iapkit", "errors": [{"code": "feature-not-supported", "message": "Use the vendor backend"}]})
+		var provider_result = await GodotIapPlugin.verify_purchase_with_provider({"provider": "iapkit"})
+		_assert_equal(provider_result.errors[0].code, "feature-not-supported", "Managed verification preserves the native unsupported code")
+		GodotIapPlugin.purchase_error.disconnect(capture)
+		_uninstall_fake()
+
+
+func test_provider_query_errors() -> void:
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		fake.responses["fetchProducts"] = JSON.stringify({"success": false, "code": "network-error", "error": "Provider cannot reach its store"})
+		var result: Dictionary = await GodotIapPlugin._fetch_products_raw({"skus": ["coins.100"], "type": "in-app"})
+		_assert_equal(result.get("code"), "network-error", "Catalog failures preserve their native error code")
+		_assert_equal(result.get("error"), "Provider cannot reach its store", "Catalog failures preserve their message")
+		_uninstall_fake()
+
+
+func _collect_verification(results: Dictionary, key: String) -> void:
+	results[key] = await GodotIapPlugin.verify_purchase({"apple": {"sku": key}})
+
+
+func test_apple_concurrent_verification_failures() -> void:
+	var fake = _install_ios_fake()
+	var errors: Array[Dictionary] = []
+	var results := {}
+	var capture = func(error: Dictionary) -> void: errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture)
+	for request_id in ["verification-first", "verification-second"]:
+		fake.responses["verifyPurchase"] = JSON.stringify({"status": "pending", "requestId": request_id})
+		_collect_verification(results, request_id)
+	await process_frame
+	for request_id in ["verification-second", "verification-first"]:
+		GodotIapPlugin._on_products_fetched({
+			"method": "verifyPurchase",
+			"requestId": request_id,
+			"success": false,
+			"code": "feature-not-supported",
+			"error": "Use the vendor backend",
+		})
+	await process_frame
+	_assert_equal(results.size(), 2, "Both concurrent verification calls complete")
+	_assert_equal(errors.size(), 2, "Identical concurrent failures each emit an error")
+	_assert_equal(errors.map(func(error: Dictionary): return error.get("requestId")), ["verification-second", "verification-first"], "Failure events retain each operation's request identity")
+	GodotIapPlugin.purchase_error.disconnect(capture)
+	_uninstall_fake()
+
+
+func test_apple_failed_connection_signal() -> void:
+	_install_ios_fake()
+	GodotIapPlugin._is_connected = false
+	var events: Array[bool] = []
+	var capture = func() -> void: events.append(GodotIapPlugin.is_store_connected())
+	GodotIapPlugin.connected.connect(capture)
+	GodotIapPlugin._on_connected(0)
+	_assert_false(GodotIapPlugin.is_store_connected(), "An Apple failure signal must not establish a connection")
+	_assert_equal(events.size(), 0, "An Apple failure signal must not emit connected")
+	GodotIapPlugin._on_connected(1)
+	_assert_equal(events, [true], "An Apple success signal establishes one connected event")
+	GodotIapPlugin.connected.disconnect(capture)
+	_uninstall_fake()

@@ -22,7 +22,7 @@
     <RootNamespace>OpenIap.Maui</RootNamespace>
     <AssemblyName>OpenIap.Maui</AssemblyName>
     <PackageId>OpenIap.Maui</PackageId>
-    <PackageVersion>2.6.3</PackageVersion>
+    <PackageVersion>3.0.0-rc.1</PackageVersion>
     <Title>OpenIAP for .NET MAUI</Title>
     <Description>OpenIAP — unified in-app purchases for .NET MAUI (iOS / Android). Mirrors the OpenIAP GraphQL schema and shares the same API surface as react-native-iap, expo-iap, flutter_inapp_purchase, and kmp-iap.</Description>
     <Authors>hyodotdev</Authors>
@@ -91,6 +91,9 @@
          OpenIAP implementation itself uses the merged base APIs. -->
     <PackageReference Include="Xamarin.AndroidX.Activity.Ktx" Version="$(MauiAndroidXActivityVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Collection.Ktx" Version="$(MauiAndroidXCollectionVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Compose.Runtime.Annotation" Version="$(MauiComposeAnnotationVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Android" Version="$(MauiComposeAnnotationVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Window" Version="$(MauiAndroidXWindowVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Fragment" Version="$(MauiAndroidXFragmentVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="$(MauiAndroidXFragmentKtxVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" Version="$(MauiAndroidXLifecycleVersion)" />
@@ -120,10 +123,14 @@
     <_OpenIapGoogleAarOutputs>..\..\..\..\packages\google\openiap\build\outputs\aar\</_OpenIapGoogleAarOutputs>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\packages\google\core\build\outputs\aar\openiap-core-release.aar" Pack="true" PackagePath="android" Visible="false" />
     <None Include="$(_OpenIapGoogleAarOutputs)openiap-play-release.aar;$(_OpenIapGoogleAarOutputs)openiap-horizon-release.aar;$(_OpenIapGoogleAarOutputs)openiap-amazon-release.aar" Pack="true" PackagePath="android" Visible="false" />
     <None Include="buildTransitive\OpenIap.Maui.props;buildTransitive\OpenIap.Maui.targets" Pack="true" PackagePath="buildTransitive" />
+    <None Include="buildTransitive\provider-resolver\*.gradle" Pack="true" PackagePath="buildTransitive/provider-resolver" />
+    <None Include="..\..\..\..\packages\google\gradle\wrapper\gradle-wrapper.jar;..\..\..\..\packages\google\gradle\wrapper\gradle-wrapper.properties" Pack="true" PackagePath="buildTransitive/provider-resolver/gradle/wrapper" />
   </ItemGroup>
   <Target Name="_OpenIapRequireStoreAars" BeforeTargets="GenerateNuspec">
+    <Error Condition="!Exists('..\..\..\..\packages\google\core\build\outputs\aar\openiap-core-release.aar')" Text="Build :openiap-core:assembleRelease before packing." />
     <Error Condition="!Exists('$(_OpenIapGoogleAarOutputs)openiap-play-release.aar') or !Exists('$(_OpenIapGoogleAarOutputs)openiap-horizon-release.aar') or !Exists('$(_OpenIapGoogleAarOutputs)openiap-amazon-release.aar')"
            Text="Build all three openiap-google release AARs before packing (packages/google: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease)." />
     <!-- IncludeBindingsInNuPkg skips a missing facade, which would only show as a

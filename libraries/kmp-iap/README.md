@@ -53,6 +53,10 @@ plugins {
 
 ## 🚀 Quick Start
 
+For screens driven by `purchaseUpdatedListener` and `purchaseErrorListener`,
+use the nullable `requestPurchase(props)` form and handle request exceptions.
+The DSL form below requires a purchase result and throws when none is returned.
+
 ### Option 1: Using Global Instance (Simple)
 
 ```kotlin
@@ -135,6 +139,8 @@ kmpIAP.finishTransaction(
     isConsumable = true // true for consumables, false for subscriptions
 )
 ```
+
+Keep one live client per process. On Meta Horizon a second live client kills the process when it queries purchases.
 
 ## Powered by OpenIAP
 

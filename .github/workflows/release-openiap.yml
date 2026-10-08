@@ -17,7 +17,7 @@ on:
           - cli
         default: client-protocol
       version:
-        description: "Version bump, current retry, or exact target"
+        description: "Version bump, current (in-tree version or retry), or exact target"
         required: true
         type: choice
         options:
@@ -34,7 +34,7 @@ on:
         default: ""
         type: string
       prerelease:
-        description: "Publish as prerelease from next (-rc.1)"
+        description: "Publish as prerelease from main (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -444,11 +444,7 @@ jobs:
             echo "::error::Checked-out source does not match the workflow event SHA"
             exit 1
           fi
-          if [[ "$VERSION" == *-* ]]; then
-            SOURCE_BRANCH="next"
-          else
-            SOURCE_BRANCH="main"
-          fi
+          SOURCE_BRANCH="main"
           git fetch --no-tags origin "+refs/heads/$SOURCE_BRANCH:refs/remotes/origin/$SOURCE_BRANCH"
           if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$SOURCE_BRANCH"; then
             echo "::error::$EXPECTED_REF is not reachable from origin/$SOURCE_BRANCH"

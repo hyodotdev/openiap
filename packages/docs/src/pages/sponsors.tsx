@@ -86,8 +86,7 @@ function Sponsors() {
             <p className="xp-sponsor-love-note">
               <Heart size={20} strokeWidth={1.7} aria-hidden="true" />
               <span>
-                Built in public.
-                <strong>Kept open together.</strong>
+                Built in public. <strong>Kept open together.</strong>
               </span>
             </p>
           </div>

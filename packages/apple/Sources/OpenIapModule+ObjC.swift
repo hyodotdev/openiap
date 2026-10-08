@@ -118,6 +118,18 @@ import StoreKit
         }
     }
 
+    @objc func requestPurchaseWithJSON(
+        _ payloadJSON: String,
+        completion: @escaping (Any?, Error?) -> Void
+    ) {
+        do {
+            guard let payload = try JSONSerialization.jsonObject(with: Data(payloadJSON.utf8)) as? [String: Any] else {
+                throw PurchaseError.make(code: .developerError, message: "Purchase request must be a dictionary")
+            }
+            requestPurchaseWithPayload(payload, completion: completion)
+        } catch { completion(nil, error) }
+    }
+
     @objc func requestPurchaseWithPayload(
         _ payload: [String: Any],
         completion: @escaping (Any?, Error?) -> Void
@@ -340,6 +352,21 @@ import StoreKit
 
     // MARK: - Transaction Management
 
+    @objc func finishTransactionWithPurchaseJSON(
+        _ purchaseJSON: String,
+        isConsumable: Bool,
+        completion: @escaping (Error?) -> Void
+    ) {
+        Task {
+            do {
+                let object = try JSONSerialization.jsonObject(with: Data(purchaseJSON.utf8))
+                let purchase = try OpenIapSerialization.purchaseInput(from: object)
+                try await finishTransaction(purchase: purchase, isConsumable: isConsumable)
+                completion(nil)
+            } catch { completion(error) }
+        }
+    }
+
     @objc func finishTransactionWithPurchaseId(
         _ purchaseId: String,
         productId: String,
@@ -348,6 +375,15 @@ import StoreKit
     ) {
         Task {
             do {
+                if storeId != StoreIds.Apple {
+                    let owned = try await getAvailablePurchases(nil)
+                    guard let purchase = owned.first(where: { $0.id == purchaseId && $0.productId == productId }) else {
+                        throw PurchaseError.make(code: .itemNotOwned, message: "Provider purchase was not found. Pass the full purchase to finishTransactionWithPurchaseJSON.")
+                    }
+                    try await finishTransaction(purchase: purchase, isConsumable: isConsumable)
+                    completion(nil)
+                    return
+                }
                 print("[OpenIAP] finishTransaction bridge start id=\(purchaseId) product=\(productId)")
                 let minimalPurchase = PurchaseIOS(
                     appAccountToken: nil,
@@ -377,6 +413,8 @@ import StoreKit
                     revocationReasonIOS: nil,
                     store: .apple,
                     storefrontCountryCodeIOS: nil,
+
+                    storeId: "apple",
                     subscriptionGroupIdIOS: nil,
                     transactionDate: Date().milliseconds,
                     transactionId: purchaseId,
@@ -589,9 +627,13 @@ import StoreKit
     // MARK: - Subscription Management
 
     @objc func getActiveSubscriptionsWithCompletion(_ completion: @escaping ([Any]?, Error?) -> Void) {
+        getActiveSubscriptionsWithSubscriptionIds(nil, completion: completion)
+    }
+
+    @objc func getActiveSubscriptionsWithSubscriptionIds(_ subscriptionIds: [String]?, completion: @escaping ([Any]?, Error?) -> Void) {
         Task {
             do {
-                let subscriptions = try await getActiveSubscriptions(nil)
+                let subscriptions = try await getActiveSubscriptions(subscriptionIds)
                 let dictionaries = try subscriptions.map { try OpenIapSerialization.encodeRequired($0) }
                 completion(dictionaries, nil)
             } catch {
@@ -601,9 +643,13 @@ import StoreKit
     }
 
     @objc func hasActiveSubscriptionsWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+        hasActiveSubscriptionsWithSubscriptionIds(nil, completion: completion)
+    }
+
+    @objc func hasActiveSubscriptionsWithSubscriptionIds(_ subscriptionIds: [String]?, completion: @escaping (Bool, Error?) -> Void) {
         Task {
             do {
-                let hasActive = try await hasActiveSubscriptions(nil)
+                let hasActive = try await hasActiveSubscriptions(subscriptionIds)
                 completion(hasActive, nil)
             } catch {
                 completion(false, error)

@@ -276,9 +276,8 @@ kmpIapInstance.subscriptionBillingIssueListener
             <code>endConnection()</code>
           </Link>{' '}
           or app restart — a purchase that exits suspension and re-enters within
-          the same session will
-          <strong>not</strong> re-emit until the next reconnect or process
-          restart.
+          the same session will <strong>not</strong> re-emit until the next
+          reconnect or process restart.
         </p>
         <p>
           On iOS the StoreKit Message may be re-delivered by the system until

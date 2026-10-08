@@ -15,17 +15,20 @@ import { fileURLToPath } from "node:url";
 import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
-  allowsPrereleaseMetadata,
+  assertStableVersions,
   assertClientProtocol,
   assertNativesReleased,
   findUnreleasedNativeChanges,
   libraryReleaseTags,
   nativeGateSkipReason,
+  nativeReleaseGates,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
   isPrereleaseVersion,
   clientProtocolVersion,
+  shipsIn,
+  shipsInAnyPackage,
   versionSources,
   normalizeBranch,
   resolveReleaseChannel,
@@ -34,6 +37,7 @@ import {
   withUpdatedNativeVersion,
 } from "./release-branch-policy.mjs";
 import { assertReleaseTag } from "./assert-release-tag.mjs";
+import { findUnnotedSourceChanges } from "./audit-release-notes.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -554,14 +558,17 @@ test("native version file updates write one consistent manifest", () => {
   }
 });
 
-test("allows prerelease metadata only for next", () => {
-  assert.equal(allowsPrereleaseMetadata("next"), true);
-  assert.equal(allowsPrereleaseMetadata("refs/heads/next"), true);
-  assert.equal(allowsPrereleaseMetadata("main"), false);
-  assert.equal(allowsPrereleaseMetadata("feat/amazon-runtime"), false);
+test("production docs reject prereleases but accept stable build metadata", () => {
+  assert.doesNotThrow(() =>
+    assertStableVersions({ apple: "4.0.0+build-alpha", cli: "0.2.0" }),
+  );
+  assert.throws(
+    () => assertStableVersions({ apple: "4.0.0-rc.1", cli: "0.2.0" }),
+    /Production docs require stable package versions: apple=4.0.0-rc.1/u,
+  );
 });
 
-test("routes stable and prerelease releases to separate branches", () => {
+test("resolves stable and prerelease channels independently of source branch", () => {
   assert.equal(
     resolveReleaseChannel({
       currentVersion: "2.3.0",
@@ -600,35 +607,31 @@ test("routes stable and prerelease releases to separate branches", () => {
   );
 });
 
-test("rejects releases from the wrong branch", () => {
-  assert.equal(
-    assertReleaseBranch({
-      branch: "main",
-      channel: "stable",
-      packageLabel: "test-package",
-    }),
-    "main",
-  );
-  assert.equal(
-    assertReleaseBranch({
-      branch: "next",
-      channel: "prerelease",
-      packageLabel: "test-package",
-    }),
-    "next",
-  );
-  assert.throws(
-    () =>
+test("both release channels require main and reject feature or historical branches", () => {
+  for (const channel of ["stable", "prerelease"]) {
+    assert.equal(
       assertReleaseBranch({
-        branch: "main",
-        channel: "prerelease",
+        branch: "refs/heads/main",
+        channel,
         packageLabel: "test-package",
       }),
-    /must run from 'next'/,
-  );
+      "main",
+    );
+    for (const branch of ["next", "codex/feature", ""]) {
+      assert.throws(
+        () =>
+          assertReleaseBranch({
+            branch,
+            channel,
+            packageLabel: "test-package",
+          }),
+        /must run from 'main'/u,
+      );
+    }
+  }
 });
 
-test("finds prerelease metadata before it reaches main", () => {
+test("finds prerelease metadata before production docs deploy", () => {
   assert.deepEqual(
     findPrereleaseVersions({
       apple: "2.2.5",
@@ -637,6 +640,23 @@ test("finds prerelease metadata before it reaches main", () => {
     }),
     [["expo", "4.5.0-rc.1"]],
   );
+});
+
+test("tag-ref publishers authorize main for both release channels", () => {
+  for (const filename of [
+    "release-expo.yml",
+    "release-react-native.yml",
+    "release-openiap.yml",
+    "publish-flutter.yml",
+  ]) {
+    const workflow = readWorkflow(filename);
+    assert.match(workflow, /SOURCE_BRANCH="main"/u, filename);
+    assert.doesNotMatch(
+      workflow,
+      /(?:SOURCE|RELEASE)_BRANCH="next"/u,
+      filename,
+    );
+  }
 });
 
 test("all package release workflows enforce the branch policy", () => {
@@ -1159,7 +1179,10 @@ test("framework release workflows refuse stale dispatch heads", () => {
         publishedProvenanceStep,
         /expo-iap 5\.8\.1 took over five minutes\. Allow fifteen\./,
       );
-      assert.match(publishedProvenanceStep, /^\s*for _ in \{1\.\.90\}; do\s*$/mu);
+      assert.match(
+        publishedProvenanceStep,
+        /^\s*for _ in \{1\.\.90\}; do\s*$/mu,
+      );
       assert.match(publishedProvenanceStep, /^\s*sleep 10\s*$/mu);
     }
   }
@@ -1342,11 +1365,8 @@ test("the docs site deploys without a version of its own", () => {
     "the docs release workflow must not come back",
   );
 
-  assert.match(
-    deployScript,
-    /release-branch-policy\.mjs assert-client-protocol/,
-  );
-  assert.match(deployScript, /must deploy from the stable main branch/);
+  assert.match(deployScript, /release-branch-policy\.mjs audit --stable/);
+  assert.match(deployScript, /must deploy from main/);
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /is missing; update this check/);
   assert.match(deployScript, /Found no release links/);
@@ -1376,7 +1396,7 @@ test("the docs site deploys without a version of its own", () => {
   assert.doesNotMatch(deployScript, /(?:git commit|git push origin HEAD:main)/);
   assert.doesNotMatch(deployScript, /continue anyway/);
   assert.ok(
-    deployScript.indexOf("release-branch-policy.mjs assert-client-protocol") <
+    deployScript.indexOf("release-branch-policy.mjs audit --stable") <
       deployScript.indexOf("Checking Git status"),
   );
   assert.ok(
@@ -1781,9 +1801,7 @@ test("native releases refuse branch drift after the verified head", () => {
       'assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"',
     );
     const commitIndex = workflow.indexOf(`openiap-${packageId}@$VERSION`);
-    // The mirror gate has to run before the generator that writes the mirror,
-    // or it can never fail. indexOf returns -1 for a missing needle, so assert
-    // both are present before comparing their positions.
+    // Check the mirror before sync can overwrite it.
     const assertVersionIndex = workflow.indexOf(
       "release-branch-policy.mjs assert-client-protocol",
     );
@@ -2054,7 +2072,8 @@ const nativeVersions = { google: "3.6.1", apple: "3.6.0" };
 // One `git log --format=%x00%h %s --name-only` entry.
 const logEntry = (subject, ...files) => `\0${subject}\n\n${files.join("\n")}\n`;
 const rangeOf = (args) => args.find((arg) => arg.endsWith("..HEAD"));
-const googleSource = "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapModule.kt";
+const googleSource =
+  "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapModule.kt";
 
 test("the native gate lists source commits since each native release tag", () => {
   const ranges = [];
@@ -2063,7 +2082,10 @@ test("the native gate lists source commits since each native release tag", () =>
     return rangeOf(args) === "google-3.6.1..HEAD"
       ? logEntry("abc1234 fix(google): a store fix", googleSource) +
           logEntry("def5678 chore(release): openiap-google@3.6.1", googleSource)
-      : logEntry("0123abc chore(release): openiap-apple@3.6.0", "Package.swift");
+      : logEntry(
+          "0123abc chore(release): openiap-apple@3.6.0",
+          "Package.swift",
+        );
   };
   assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
     {
@@ -2078,11 +2100,23 @@ test("the native gate lists source commits since each native release tag", () =>
 test("the native gate counts only what the native packages ship", () => {
   const git = (args) =>
     rangeOf(args) === "google-3.6.1..HEAD"
-      ? logEntry("1111111 test(google): a test", "packages/google/openiap/src/testPlay/java/X.kt") +
-        logEntry("2222222 docs(google): the example", "packages/google/Example/app/build.gradle.kts") +
-        logEntry("3333333 fix(google): keep rules", "packages/google/openiap/consumer-rules.pro")
+      ? logEntry(
+          "1111111 test(google): a test",
+          "packages/google/openiap/src/testPlay/java/X.kt",
+        ) +
+        logEntry(
+          "2222222 docs(google): the example",
+          "packages/google/Example/app/build.gradle.kts",
+        ) +
+        logEntry(
+          "3333333 fix(google): keep rules",
+          "packages/google/openiap/consumer-rules.pro",
+        )
       : logEntry("4444444 fix(apple): the SwiftPM manifest", "Package.swift") +
-        logEntry("5555555 test(apple): a test", "packages/apple/Tests/OpenIapTests/X.swift");
+        logEntry(
+          "5555555 test(apple): a test",
+          "packages/apple/Tests/OpenIapTests/X.swift",
+        );
   assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
     {
       label: "openiap-google",
@@ -2097,16 +2131,109 @@ test("the native gate counts only what the native packages ship", () => {
   ]);
 });
 
+test("the release gates know every native publication input", () => {
+  const published = [
+    "packages/google/core/build.gradle.kts",
+    "packages/google/core/consumer-rules.pro",
+    "packages/google/core/src/main/AndroidManifest.xml",
+    "packages/conformance/android/build.gradle.kts",
+    "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+    "packages/conformance/apple/Sources/ProviderConformance.swift",
+  ];
+  for (const file of published) {
+    assert.equal(shipsInAnyPackage(file), true, file);
+  }
+  assert.equal(
+    shipsIn("google", "packages/google/core/consumer-rules.pro"),
+    true,
+  );
+  assert.equal(
+    shipsIn("google", "packages/conformance/android/build.gradle.kts"),
+    true,
+  );
+  assert.equal(
+    shipsIn(
+      "apple",
+      "packages/conformance/apple/Sources/ProviderConformance.swift",
+    ),
+    true,
+  );
+  assert.deepEqual(findUnnotedSourceChanges(published), published);
+  for (const file of [
+    "packages/google/core/src/test/java/dev/hyo/openiap/OpenIapProviderTest.kt",
+    "packages/google/openiap/src/testPlay/java/dev/hyo/openiap/conformance/PlayStoreConformanceTest.kt",
+    "packages/conformance/test/runner.test.mjs",
+  ]) {
+    assert.equal(shipsInAnyPackage(file), false, file);
+  }
+  assert.deepEqual(
+    findUnnotedSourceChanges([
+      "packages/google/core/src/test/java/dev/hyo/openiap/OpenIapProviderTest.kt",
+    ]),
+    [],
+  );
+});
+
+test("the native gate flags core and conformance-only changes", () => {
+  const seenRoots = {};
+  const git = (args) => {
+    seenRoots[rangeOf(args)] = args.slice(args.indexOf("--") + 1);
+    return rangeOf(args) === "google-3.6.1..HEAD"
+      ? logEntry(
+          "aaaaaaa fix(core): keep provider factories",
+          "packages/google/core/consumer-rules.pro",
+        ) +
+          logEntry(
+            "bbbbbbb feat(conformance): extend the android suite",
+            "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+          )
+      : logEntry(
+          "ccccccc feat(conformance): extend the swift suite",
+          "packages/conformance/apple/Sources/ProviderConformance.swift",
+        );
+  };
+  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
+    {
+      label: "openiap-google",
+      tag: "google-3.6.1",
+      commits: [
+        "aaaaaaa fix(core): keep provider factories",
+        "bbbbbbb feat(conformance): extend the android suite",
+      ],
+    },
+    {
+      label: "openiap-apple",
+      tag: "3.6.0",
+      commits: ["ccccccc feat(conformance): extend the swift suite"],
+    },
+  ]);
+  assert.deepEqual(seenRoots["google-3.6.1..HEAD"], [
+    "packages/google",
+    "packages/conformance/android",
+  ]);
+  assert.deepEqual(seenRoots["3.6.0..HEAD"], [
+    "packages/apple",
+    "packages/conformance/apple",
+    "Package.swift",
+    "openiap.podspec",
+  ]);
+});
+
 test("the native gate refuses a library release while a native change is unreleased", () => {
   const git = (args) =>
     rangeOf(args) === "3.6.0..HEAD"
-      ? logEntry("abc1234 feat(apple): a new API", "packages/apple/Sources/OpenIapModule.swift")
+      ? logEntry(
+          "abc1234 feat(apple): a new API",
+          "packages/apple/Sources/OpenIapModule.swift",
+        )
       : "";
   assert.throws(
     () => assertNativesReleased(nativeVersions, { git }),
     /Native gate: release the native packages first.*openiap-apple since 3\.6\.0: abc1234 feat\(apple\): a new API/,
   );
-  assert.doesNotThrow(() => assertNativesReleased(nativeVersions, { git: () => "" }));
+  assert.doesNotThrow(() =>
+    assertNativesReleased(nativeVersions, { git: () => "" }),
+  );
 });
 
 test("the native gate asks for full history when a release tag is missing", () => {
@@ -2127,17 +2254,36 @@ test("a library release skips the native gate only for a prerelease or a retry",
     return "";
   };
   const tag = `refs/tags/react-native-iap-${versionSources["react-native"].read(repoRoot)}`;
-  assert.match(nativeGateSkipReason("react-native", "rc-bump", "false", { git: git(false) }), /prerelease/);
-  assert.match(nativeGateSkipReason("react-native", "patch", "true", { git: git(false) }), /prerelease/);
-  assert.equal(nativeGateSkipReason("react-native", "patch", "false", { git: git(true) }), null);
-  assert.equal(nativeGateSkipReason("react-native", "current", "false", { git: git(false) }), null);
+  assert.match(
+    nativeGateSkipReason("react-native", "rc-bump", "false", {
+      git: git(false),
+    }),
+    /prerelease/,
+  );
+  assert.match(
+    nativeGateSkipReason("react-native", "patch", "true", { git: git(false) }),
+    /prerelease/,
+  );
+  assert.equal(
+    nativeGateSkipReason("react-native", "patch", "false", { git: git(true) }),
+    null,
+  );
+  assert.equal(
+    nativeGateSkipReason("react-native", "current", "false", {
+      git: git(false),
+    }),
+    null,
+  );
   assert.ok(
-    nativeGateSkipReason("react-native", "current", "false", { git: git(true) }).includes(
-      `${tag.slice("refs/tags/".length)} exists`,
-    ),
+    nativeGateSkipReason("react-native", "current", "false", {
+      git: git(true),
+    }).includes(`${tag.slice("refs/tags/".length)} exists`),
   );
   assert.deepEqual(refs, [tag, tag]);
-  assert.throws(() => nativeGateSkipReason("google", "patch", "false"), /Unknown framework library 'google'/);
+  assert.throws(
+    () => nativeGateSkipReason("google", "patch", "false"),
+    /Unknown framework library 'google'/,
+  );
 });
 
 test("the native gate knows the tag each library release cuts", () => {
@@ -2158,7 +2304,10 @@ test("every framework library release runs the native gate from full history", (
       "utf8",
     );
     const start = workflow.indexOf("  release-branch:\n");
-    const job = workflow.slice(start, workflow.indexOf("\n\n  validate", start));
+    const job = workflow.slice(
+      start,
+      workflow.indexOf("\n\n  validate", start),
+    );
     assert.match(job, /fetch-depth: 0/, `${filename} release-branch checkout`);
     assert.match(
       job,
@@ -2167,6 +2316,10 @@ test("every framework library release runs the native gate from full history", (
       ),
       `${filename} runs the native gate`,
     );
-    assert.match(workflow, /\n      allow_unreleased_native:\n/, `${filename} input`);
+    assert.match(
+      workflow,
+      /\n      allow_unreleased_native:\n/,
+      `${filename} input`,
+    );
   }
 });

@@ -5,10 +5,7 @@ using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
-// Mirrors libraries/expo-iap/example/app/purchase-flow.tsx — full purchase
-// flow demo including verification picker, storefront probe, products list,
-// available-purchases list, latest-result panel, and the iOS-only
-// App Transaction probe.
+// Verify purchases before finishing them, including recovered iOS transactions.
 public partial class PurchaseFlowPage : ContentPage
 {
     private enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
@@ -54,7 +51,7 @@ public partial class PurchaseFlowPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
+        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(async () => await OnPurchaseAsync(p)));
         _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
         await ConnectAndFetchAsync();
     }
@@ -79,15 +76,28 @@ public partial class PurchaseFlowPage : ContentPage
             ContentScroll.IsVisible = true;
             LoadingView.IsVisible = false;
 
-            if (_didFetch) return;
-            _didFetch = true;
-
-            ProductsCountLabel.Text = "Loading products...";
-            RenderPurchases();
-
-            _ = RefreshStorefrontAsync(showAlert: false);
-            _ = LoadProductsAsync();
-            _ = RefreshAvailablePurchasesAsync(showAlert: false);
+            if (!_didFetch)
+            {
+                _didFetch = true;
+                ProductsCountLabel.Text = "Loading products...";
+                RenderPurchases();
+                _ = RefreshStorefrontAsync(showAlert: false);
+                _ = LoadProductsAsync();
+                _ = RefreshAvailablePurchasesAsync(showAlert: false);
+            }
+#if IOS || MACCATALYST
+            try
+            {
+                var pending = await ((QueryResolver)OpenIapClient.Instance)
+                    .GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
+                foreach (var purchase in pending) await OnPurchaseAsync(purchase);
+            }
+            catch (OpenIapException ex) when (ex.Error.Code == ErrorCode.FeatureNotSupported) { }
+            catch (Exception ex)
+            {
+                UpdateResult($"Pending purchase recovery failed: {ErrorUtils.ExtractErrorMessage(ex)}");
+            }
+#endif
         }
         catch (Exception ex)
         {
@@ -364,11 +374,11 @@ public partial class PurchaseFlowPage : ContentPage
             var result = await requestTask;
             if (result is RequestPurchaseResultPurchase { Value: { } purchase })
             {
-                MainThread.BeginInvokeOnMainThread(() =>
+                MainThread.BeginInvokeOnMainThread(async () =>
                 {
                     if (_isProcessing)
                     {
-                        OnPurchase(purchase);
+                        await OnPurchaseAsync(purchase);
                     }
                 });
             }
@@ -395,10 +405,17 @@ public partial class PurchaseFlowPage : ContentPage
         }
     }
 
-    // Called on the main thread; subscribes already marshal to UI.
-    private async void OnPurchase(Purchase purchase)
+    private async Task OnPurchaseAsync(Purchase purchase)
     {
         var common = (PurchaseCommon)purchase;
+        if (common.PurchaseState != PurchaseState.Purchased)
+        {
+            _isProcessing = false;
+            UpdateResult($"Purchase is not completed (state: {common.PurchaseState.ToJson()}).");
+            RenderProducts();
+            return;
+        }
+
         // The request result and PurchaseUpdated both deliver the same purchase.
         if (!string.IsNullOrEmpty(common.Id) && !_handledTransactionIds.Add(common.Id)) return;
         _lastPurchase = purchase;
@@ -409,7 +426,6 @@ public partial class PurchaseFlowPage : ContentPage
         var verificationPassed = true;
         (string Title, string Message)? verificationAlert = null;
 
-        // Step 4: verify purchase (3 methods).
         if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
         {
             try
@@ -417,7 +433,7 @@ public partial class PurchaseFlowPage : ContentPage
                 var mutate = (MutationResolver)OpenIapClient.Instance;
                 if (_verification == VerificationMethod.Local)
                 {
-                    await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
+                    var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
                     {
                         Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
                         Google = new VerifyPurchaseGoogleOptions
@@ -428,6 +444,7 @@ public partial class PurchaseFlowPage : ContentPage
                             AccessToken = string.Empty,
                         },
                     });
+                    verificationPassed = result.IsValid;
                     Console.WriteLine("[PurchaseFlow] local verification completed");
                 }
                 else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)

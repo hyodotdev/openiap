@@ -356,7 +356,7 @@ Tests, CI, internal agent rules, and behavior-neutral refactors that need no
 new publication do not require a release card. Record the reason briefly in
 the PR description when applicable; use the documented `፦ refactor` label
 when CI requires it. Dependency-only releases still need package entries.
-RC/`next` work follows the stable-promotion rule below.
+RC work on `main` keeps the eventual stable card with its source change.
 
 ### Release Note Writing Limits
 
@@ -475,9 +475,10 @@ Before adding or editing a `Package Releases` list:
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 
-Do not create a stable release-note block for RC or npm `next` publications on
-the `next` branch. Preserve the change evidence, then write one concise,
-package-grouped entry after stable promotion on `main`.
+Keep one concise, package-grouped stable release card with the source PR on
+`main`, including when an RC publishes first. Do not create duplicate cards for
+RC or npm `next` publications. Production docs wait for stable package metadata
+and published links; previews may show the upcoming card.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,

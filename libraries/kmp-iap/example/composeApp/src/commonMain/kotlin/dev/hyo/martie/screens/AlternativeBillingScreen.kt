@@ -90,7 +90,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 )
             } else null
 
-            connected = kmpIapInstance.initConnection(config)
+            connected = ensureExampleConnection(config)
 
             if (connected) {
                 // Fetch products
@@ -175,13 +175,6 @@ fun AlternativeBillingScreen(navController: NavController) {
                 isReconnecting = true
                 purchaseResult = "Reconnecting with new billing program..."
 
-                // End current connection
-                kmpIapInstance.endConnection()
-
-                // Wait for cleanup
-                kotlinx.coroutines.delay(500)
-
-                // Reinitialize with new program
                 val config = if (currentPlatform == "Android") {
                     InitConnectionConfig(
                         enableBillingProgramAndroid = program,
@@ -193,9 +186,9 @@ fun AlternativeBillingScreen(navController: NavController) {
                     )
                 } else null
 
-                connected = kmpIapInstance.initConnection(config)
+                connected = ensureExampleConnection(config)
 
-                purchaseResult = "✅ Reconnected with ${
+                purchaseResult = "✅ Connected with ${
                     when (program) {
                         BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing"
                         BillingProgramAndroid.BillingChoice -> "Billing Choice"

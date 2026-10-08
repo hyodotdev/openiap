@@ -284,7 +284,7 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
       'identifiers.purchase-carries-a-concrete-store': async () => {
         const impl = fresh();
         const purchase = await impl.requestPurchase({ sku: 'dev.hyo.martie.10bulbs' });
-        assert.notEqual(purchase.store, 'Unknown');
+        assert.equal(purchase.storeId, ({Apple: 'apple', Google: 'play', Horizon: 'horizon', Amazon: 'amazon'})[purchase.store]);
         assert.ok(purchase.store);
       },
 

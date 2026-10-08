@@ -36,6 +36,7 @@ class SubscriptionGroupMappingHorizonTest {
         quantity = 1,
         signatureAndroid = null,
         store = IapStore.Horizon,
+        storeId = "horizon",
         transactionDate = 1_700_000_000_000.0,
         transactionId = token
     )

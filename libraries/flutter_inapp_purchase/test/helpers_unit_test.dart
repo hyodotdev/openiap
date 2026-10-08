@@ -3,6 +3,48 @@ import 'package:flutter_inapp_purchase/types.dart' as types;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('preserves community iOS identity in authoritative ownership lists', () {
+    final result = extractPurchases(
+        [
+          {
+            'id': 'opaque-txn',
+            'transactionId': 'opaque-txn',
+            'productId': 'premium',
+            'store': 'unknown',
+            'storeId': 'community_fixture',
+            'quantity': 1,
+            'purchaseState': 'purchased',
+            'isAutoRenewing': false,
+            'transactionDate': 1
+          },
+        ],
+        platformIsAndroid: false,
+        platformIsIOS: true,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        rejectMalformed: true);
+    expect(result.single, isA<types.PurchaseIOS>());
+    expect(result.single.storeId, 'community_fixture');
+  });
+
+  test('preserves a community store identity in an Android purchase', () {
+    final purchase = convertToPurchase(
+        {
+          'id': 'fixture-token',
+          'productId': 'premium',
+          'transactionDate': 1,
+          'store': 'unknown',
+          'storeId': 'community_fixture',
+          'quantity': 1,
+          'purchaseState': 'purchased',
+          'isAutoRenewing': false,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{});
+    expect(purchase.store, types.IapStore.Unknown);
+    expect(purchase.storeId, 'community_fixture');
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('product helpers', () {
@@ -127,12 +169,75 @@ void main() {
   });
 
   group('purchase helpers', () {
+    test('infers official identity after normalizing legacy store spelling',
+        () {
+      for (final store in ['google', 'Google', 'GOOGLE']) {
+        final purchase = convertToPurchase(
+          {
+            'id': 'purchase-id',
+            'productId': 'coins.pack',
+            'store': store,
+            'purchaseState': 'purchased',
+          },
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        );
+        expect(purchase.store, types.IapStore.Google);
+        expect(purchase.storeId, 'play');
+      }
+    });
+
+    test('rejects non-string community identities without coercion', () {
+      for (final storeId in [
+        true,
+        123,
+        ['community_fixture']
+      ]) {
+        expect(
+          () => convertToPurchase(
+            {
+              'id': 'purchase-id',
+              'productId': 'coins.pack',
+              'store': 'unknown',
+              'storeId': storeId,
+              'purchaseState': 'purchased',
+            },
+            platformIsAndroid: true,
+            platformIsIOS: false,
+            acknowledgedAndroidPurchaseTokens: <String, bool>{},
+          ),
+          throwsFormatException,
+        );
+      }
+    });
+
+    test('preserves strict identity validation in the iOS adapter', () {
+      expect(
+        () => convertToPurchase(
+          {
+            'id': 'transaction-id',
+            'transactionId': 'transaction-id',
+            'productId': 'coins.pack',
+            'store': 'apple',
+            'storeId': true,
+            'purchaseState': 'purchased',
+          },
+          platformIsAndroid: false,
+          platformIsIOS: true,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        ),
+        throwsFormatException,
+      );
+    });
+
     test('preserves canonical Android purchase fields', () {
       final acknowledgedTokens = <String, bool>{};
       final purchase = convertToPurchase(
         <String, dynamic>{
           'platform': 'android',
           'store': 'google',
+          'storeId': 'play',
           'id': 'purchase-id',
           'productId': 'coins.pack',
           'transactionId': 'GPA.1234',
@@ -160,6 +265,7 @@ void main() {
         <String, dynamic>{
           'platform': 'android',
           'store': 'amazon',
+          'storeId': 'amazon',
           'id': 'receipt-id',
           'productId': 'coins.pack',
           'purchaseState': 'purchased',
@@ -179,6 +285,7 @@ void main() {
         <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'storeId': 'apple',
           'id': 'transaction-id',
           'productId': 'premium.monthly',
           'transactionId': 'transaction-id',
@@ -217,6 +324,7 @@ void main() {
           <Object?, Object?>{
             'platform': 'android',
             'store': 'google',
+            'storeId': 'play',
             'id': 'purchase-id',
             'productId': 'coins.pack',
             'transactionId': 'GPA.1234',

@@ -267,7 +267,8 @@ internal static class Program
             {
               "isValid": true,
               "state": "future-state",
-              "store": "future-store",
+              "store": "future_store",
+              "storeId": "future_store",
               "clientPayload": {
                 "format": "future-format",
                 "body": "opaque",
@@ -282,6 +283,7 @@ internal static class Program
             "tolerant generated verification result");
         AssertEqual(IapkitPurchaseState.Unknown, result.State, "unknown purchase state");
         AssertEqual(IapStore.Unknown, result.Store, "unknown store");
+        AssertEqual("future_store", result.StoreId, "community store identity");
         AssertEqual<IapkitProductClientPayload?>(null, result.ClientPayload, "unknown client payload");
         return Task.CompletedTask;
     }

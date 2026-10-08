@@ -158,12 +158,15 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           RELEASE_VERSION: ${{ steps.component.outputs.version }}
         run: |
-          RELEASE_BRANCH=main
-          case "$RELEASE_VERSION" in
-            *-*) RELEASE_BRANCH=next ;;
-          esac
-          node scripts/assert-release-tag.mjs \
-            "$COMPONENT_ID" "$RELEASE_BRANCH" "$RELEASE_TAG" "$RELEASE_VERSION"
+          if ! node scripts/assert-release-tag.mjs \
+            "$COMPONENT_ID" main "$RELEASE_TAG" "$RELEASE_VERSION"; then
+            # Historical RC tags remain on next after the main integration.
+            case "${RELEASE_VERSION%%+*}" in
+              *-*) node scripts/assert-release-tag.mjs \
+                "$COMPONENT_ID" next "$RELEASE_TAG" "$RELEASE_VERSION" ;;
+              *) exit 1 ;;
+            esac
+          fi
 
       - name: Inspect the existing asset
         id: existing

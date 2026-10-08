@@ -21,6 +21,18 @@ func _run() -> void:
 	_check("fire-os is an Amazon alias", AndroidStore.normalize("fire-os") == "amazon")
 	_check("gms is a Play alias", AndroidStore.normalize("gms") == "play")
 	_check("unknown values name no store", AndroidStore.normalize("bogus") == "")
+	_check("community ids need coordinates", AndroidStore.normalize("fixture") == "")
+	_check("community provider accepts an arbitrary id", AndroidStore.normalize("fixture", "dev.example:provider:1.0.0") == "fixture")
+	_check("community providers cannot replace official ids", AndroidStore.normalize("google", "dev.example:provider:1.0.0") == "")
+	_check("community coordinates must be fixed", AndroidStore.normalize("fixture", "dev.example:provider:+") == "")
+	_check("hyphenated ids name no store", AndroidStore.normalize("with-hyphen", "dev.example:provider:1.0.0") == "")
+	_check("community exports link core", AndroidStore.artifact("io.github.hyochan.openiap:openiap-google:3.6.2", "fixture", "dev.example:provider:1.0.0") == "io.github.hyochan.openiap:openiap-core:3.6.2")
+
+	var registered := GDScript.new()
+	registered.source_code = FileAccess.get_file_as_string("res://addons/godot-iap/android_store.gd").replace("const ALIASES := {", "const ALIASES := {\n\t\"registered-fixture\": \"fixture\",")
+	_check("registered alias table compiles", registered.reload() == OK)
+	_check("registered community aliases still require coordinates", registered.normalize("registered-fixture") == "")
+	_check("registered community aliases preserve the id", registered.normalize("registered-fixture", "dev.example:provider:1.0.0") == "fixture")
 
 	var play := "io.github.hyochan.openiap:openiap-google:3.5.2"
 	_check("auto exports the Play artifact", AndroidStore.artifact(play, "auto") == play)
@@ -49,6 +61,14 @@ func _run() -> void:
 		"a non-numeric Horizon app id adds nothing",
 		AndroidStore.horizon_app_id_meta_data('1" android:exported="true') == ""
 	)
+
+	var coordinates := PackedStringArray(["io.github.hyochan.openiap:openiap-google:2.0.0"])
+	var provider := "community.test:billing:0.0.1"
+	_check("community provider dependencies include core and provider", AndroidStore.dependencies(coordinates, AndroidStore.normalize("samsung", provider), provider) == PackedStringArray(["io.github.hyochan.openiap:openiap-core:2.0.0", provider]))
+	_check("missing provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize("samsung")) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+	_check("official store with provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize("play", provider), provider) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+	_check("blank store with provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize("  ", provider), provider) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
+	_check("null store with provider cannot export Play", AndroidStore.dependencies(coordinates, AndroidStore.normalize(null, provider), provider) == PackedStringArray(["openiap.invalid:provider-selection:0"]))
 
 	var one := "List of devices attached\r\nAAA\tdevice\r\nCCC\tunauthorized\r\nDDD\toffline\r\n"
 	var two := "List of devices attached\nAAA\tdevice\nBBB\tdevice\n"

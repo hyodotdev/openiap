@@ -25,7 +25,8 @@ import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.Purchase
@@ -36,6 +37,7 @@ import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.utils.redeemOfferCode
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -50,12 +52,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
-/**
- * AndroidInappPurchasePlugin (OpenIAP-backed)
- *
- * Implements the existing MethodChannel API using openiap-google (OpenIapModule),
- * and adds parity endpoints used by Expo modules for Android.
- */
+/** Provider-backed Flutter MethodChannel implementation. */
 class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, ActivityLifecycleCallbacks {
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Main + job)
@@ -69,7 +66,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     private var listenersAttached = false
     private val connectionMutex = Mutex()
     // OpenIAP module instance
-    private var openIap: OpenIapModule? = null
+    private var openIap: OpenIapProtocol? = null
 
     private fun parseQueryType(raw: String?): ProductQueryType {
         return when (val normalized = raw?.trim()?.lowercase(Locale.ROOT)) {
@@ -210,9 +207,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
     fun setContext(context: Context?) {
         this.context = context
-        if (context != null && openIap == null) {
-            openIap = OpenIapModule(context)
-        }
     }
 
     fun setActivity(activity: Activity?) {
@@ -289,15 +283,11 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val packageName = call.argument<String>("packageName")
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         iap.deepLinkToSubscriptions(DeepLinkOptions(skuAndroid = sku, packageNameAndroid = packageName))
                         safe.success(true)
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
                 return
@@ -305,15 +295,11 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "openPlayStoreSubscriptions" -> {
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         iap.deepLinkToSubscriptions(DeepLinkOptions())
                         safe.success(true)
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
                 return
@@ -321,19 +307,15 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "openRedeemOfferCodeAndroid" -> {
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
+                        val iap = connectionMutex.withLock {
+                            attachListenersIfNeeded()
+                            requireOpenIap()
                         }
-                        activity?.let(iap::setActivity)
-                        val redeem = iap.mutationHandlers.openRedeemOfferCodeAndroid
-                            ?: throw OpenIapError.FeatureNotSupported()
-                        safe.success(redeem())
+                        safe.success(redeemOfferCode(iap, activity))
                     } catch (e: OpenIapError) {
                         safe.error(e.code, e.message, serializeOpenIapError(e))
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
                 return
@@ -366,19 +348,13 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             attachListenersIfNeeded()
                             openIap?.setActivity(activity)
 
-                            // ALWAYS end connection first to reset configuration
-                            // This ensures we start fresh regardless of current state
+                            // Restart the connection to apply billing configuration.
                             try {
                                 OpenIapLog.debug("Ending connection before reinitializing (current ready state: $connectionReady)", TAG)
                                 openIap?.endConnection()
                                 connectionReady = false
 
-                                // WORKAROUND: OpenIAP's endConnection() is synchronous but may trigger
-                                // async cleanup in the background (e.g., disconnecting from Play Store).
-                                // A small delay reduces the risk of race conditions where initConnection()
-                                // is called before cleanup completes. This is not ideal but necessary
-                                // until OpenIAP provides an async endConnection() or callback mechanism.
-                                // Increase this delay if experiencing connection issues.
+                                // Let Play finish asynchronous disconnection before reconnecting.
                                 kotlinx.coroutines.delay(300)
                             } catch (e: Exception) {
                                 OpenIapLog.warn("Error ending connection: ${e.message}", TAG)
@@ -394,11 +370,15 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             if (ok) {
                                 safe.success("Billing client ready")
                             } else {
-                                safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.message, "responseCode: -1")
+                                val initError = initConnectionError()
+                                safe.error(initError.code, initError.message, "responseCode: -1")
                             }
+                        } catch (e: OpenIapError) {
+                            safe.error(e.code, e.message, serializeOpenIapError(e))
                         } catch (e: Exception) {
                             OpenIapLog.error("Error during initConnection: ${e.message}", e)
-                            safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.message, e.message)
+                            val initError = initConnectionError()
+                            safe.error(initError.code, initError.message, e.message)
                         }
                     }
                 }
@@ -409,13 +389,13 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     connectionMutex.withLock {
                         try {
                             OpenIapLog.debug("endConnection called", TAG)
-                            openIap?.endConnection()
-                            connectionReady = false
-                            OpenIapLog.debug("Connection ended successfully", TAG)
-                            safe.success("Billing client has ended.")
+                            val disconnected = openIap?.endConnection() ?: true
+                            if (disconnected) connectionReady = false
+                            OpenIapLog.debug("endConnection result: $disconnected", TAG)
+                            safe.success(disconnected)
                         } catch (e: Exception) {
                             OpenIapLog.error("Error ending connection: ${e.message}", e)
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                            replyBillingError(safe, e)
                         }
                     }
                 }
@@ -443,18 +423,14 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 scope.launch {
                     withBillingReady(safe, autoInit = true) {
                         try {
-                            val iap = openIap
-                            if (iap == null) {
-                                safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                                return@withBillingReady
-                            }
+                            val iap = requireOpenIap()
                             val result = iap.fetchProducts(ProductRequest(skus, queryType))
                             val arr = fetchResultToJsonArray(result, queryType == ProductQueryType.All)
                             safe.success(arr.toString())
                         } catch (e: OpenIapError) {
                             safe.error(e.code, e.message, serializeOpenIapError(e))
                         } catch (e: Exception) {
-                            safe.error(OpenIapError.QueryProduct.CODE, OpenIapError.QueryProduct.MESSAGE, e.message)
+                            replyBillingError(safe, e, OpenIapError.QueryProduct)
                         }
                     }
                 }
@@ -468,11 +444,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 scope.launch {
                     withBillingReady(safe, autoInit = true) {
                         try {
-                            val iap = openIap
-                            if (iap == null) {
-                                safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                                return@withBillingReady
-                            }
+                            val iap = requireOpenIap()
                             val options = if (includeSuspended) {
                                 dev.hyo.openiap.PurchaseOptions(includeSuspendedAndroid = true)
                             } else {
@@ -482,7 +454,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             val arr = purchasesToJsonArray(purchases)
                             safe.success(arr.toString())
                         } catch (e: Exception) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                            replyBillingError(safe, e)
                         }
                     }
                 }
@@ -497,11 +469,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 scope.launch {
                     withBillingReady(safe) {
                         try {
-                            val iap = openIap
-                            if (iap == null) {
-                                safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                                return@withBillingReady
-                            }
+                            val iap = requireOpenIap()
                             val subscriptions = iap.getActiveSubscriptions(subscriptionIds)
                             val arr = JSONArray()
                             subscriptions.forEach { subscription ->
@@ -509,7 +477,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             }
                             safe.success(arr.toString())
                         } catch (e: Exception) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                            replyBillingError(safe, e)
                         }
                     }
                 }
@@ -612,18 +580,17 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                 )
                                 return@launch
                             }
+                        } catch (e: OpenIapError) {
+                            safe.error(e.code, e.message, serializeOpenIapError(e))
+                            return@launch
                         } catch (e: Exception) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                            replyBillingError(safe, e)
                             return@launch
                         }
                     }
 
                 try {
-                    val iap = openIap
-                    if (iap == null) {
-                        safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                        return@launch
-                    }
+                    val iap = requireOpenIap()
                     val offers =
                         (params["subscriptionOffers"] as? List<*>)?.map { entry ->
                             val map = entry as Map<*, *>
@@ -663,29 +630,22 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "getStorefront" -> {
                 scope.launch {
                     try {
-                        val iap = openIap ?: run {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val code = iap.getStorefront()
                         safe.success(code)
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
             "getStorefrontAndroid" -> {
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val code = iap.getStorefront()
                         safe.success(code)
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -695,15 +655,44 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val pkg = params?.get("packageNameAndroid") as? String
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         iap.deepLinkToSubscriptions(DeepLinkOptions(skuAndroid = sku, packageNameAndroid = pkg))
                         safe.success(null)
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "hasActiveSubscriptions" -> {
+                val ids = call.argument<List<String>>("subscriptionIds")
+                scope.launch {
+                    try {
+                        safe.success(requireOpenIap().hasActiveSubscriptions(ids))
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "restorePurchases" -> {
+                scope.launch {
+                    try {
+                        requireOpenIap().restorePurchases()
+                        safe.success(true)
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
+                    }
+                }
+            }
+            "finishTransaction" -> {
+                val purchase = call.argument<Map<String, Any?>>("purchase")
+                val isConsumable = call.argument<Boolean>("isConsumable") ?: false
+                scope.launch {
+                    try {
+                        val payload = purchase ?: throw OpenIapError.DeveloperError("Missing purchase")
+                        requireOpenIap().finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(payload), isConsumable)
+                        safe.success(null)
+                    } catch (e: Exception) {
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -717,16 +706,12 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         iap.acknowledgePurchaseAndroid(purchaseToken)
                         val resp = JSONObject().apply { put("responseCode", 0) }
                         safe.success(resp.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -740,11 +725,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         iap.consumePurchaseAndroid(purchaseToken)
                         val resp = JSONObject().apply {
                             put("responseCode", 0)
@@ -752,7 +733,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         }
                         safe.success(resp.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -762,11 +743,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val programStr = call.argument<String>("program")
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val program = BillingProgramAndroid.fromJson(programStr ?: "unspecified")
                         val result = iap.isBillingProgramAvailable(program)
                         val response = JSONObject().apply {
@@ -777,7 +754,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -787,11 +764,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val userLocale = call.argument<String?>("userLocale")
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val params = GetBillingChoiceInfoParamsAndroid(
                             billingProgram = BillingProgramAndroid.fromJson(programStr ?: "billing-choice"),
                             playBillingChoiceImageLayout = BillingChoiceImageLayoutAndroid.fromJson(imageLayoutStr ?: "rectangular-four-by-one"),
@@ -804,7 +777,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -813,11 +786,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val developerBillingTypeStr = call.argument<String?>("developerBillingType")
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val program = BillingProgramAndroid.fromJson(programStr ?: "unspecified")
                         val developerBillingType = developerBillingTypeStr?.let {
                             DeveloperBillingTypeAndroid.fromJson(it)
@@ -829,7 +798,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -838,11 +807,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val token = call.argument<String?>("externalTransactionToken")
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val act = activity
                         if (act == null) {
                             safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
@@ -866,7 +831,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -883,11 +848,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val act = activity
                         if (act == null) {
                             safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
@@ -900,7 +861,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         }
                         safe.success(response.toString())
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -914,11 +875,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
                 scope.launch {
                     try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
+                        val iap = requireOpenIap()
                         val act = activity
                         if (act == null) {
                             safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
@@ -938,7 +895,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         val success = iap.launchExternalLink(act, launchParams)
                         safe.success(success)
                     } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                        replyBillingError(safe, e)
                     }
                 }
             }
@@ -980,11 +937,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 scope.launch {
                     withBillingReady(safe, autoInit = true) {
                         try {
-                            val iap = openIap
-                            if (iap == null) {
-                                safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                                return@withBillingReady
-                            }
+                            val iap = requireOpenIap()
 
                             // Forward the complete platform payload and let the generated
                             // contract own both parsing and result serialization.
@@ -1007,7 +960,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.success(JSONObject(result.toJson()).toString())
                         } catch (e: Exception) {
                             OpenIapLog.error("verifyPurchase error", e)
-                            safe.error(OpenIapError.VerificationFailed.CODE, "Verification failed: ${e.message}", null)
+                            replyBillingError(safe, e, OpenIapError.VerificationFailed)
                         }
                     }
                 }
@@ -1026,11 +979,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 scope.launch {
                     withBillingReady(safe, autoInit = true) {
                         try {
-                            val iap = openIap
-                            if (iap == null) {
-                                safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                                return@withBillingReady
-                            }
+                            val iap = requireOpenIap()
 
                             // Build props map for OpenIAP
                             val propsMap = mutableMapOf<String, Any?>("provider" to provider)
@@ -1087,7 +1036,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.success(JSONObject(result.toJson()).toString())
                         } catch (e: Exception) {
                             OpenIapLog.error("verifyPurchaseWithProvider error", e)
-                            safe.error(OpenIapError.VerificationFailed.CODE, "Verification failed: ${e.message}", null)
+                            replyBillingError(safe, e, OpenIapError.VerificationFailed)
                         }
                     }
                 }
@@ -1103,12 +1052,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         return params[KEY_PURCHASE_TOKEN] as? String
     }
 
-    /**
-     * Ensures billing client is ready before executing a block of code.
-     * This helper reduces duplication of connection checking logic.
-     *
-     * @param autoInit If true, automatically initializes connection if not ready
-     */
     private suspend fun withBillingReady(
         safe: MethodResultWrapper,
         autoInit: Boolean = false,
@@ -1124,7 +1067,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         connectionReady = ok
                         emitConnectionUpdated(ok)
                         if (!ok) {
-                            safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.message, "Failed to initialize connection")
+                            val initError = initConnectionError()
+                            safe.error(initError.code, initError.message, "Failed to initialize connection")
                             return
                         }
                     } else {
@@ -1132,17 +1076,43 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         return
                     }
                 }
+            } catch (e: OpenIapError) {
+                safe.error(e.code, e.message, serializeOpenIapError(e))
+                return
             } catch (e: Exception) {
-                safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
+                replyBillingError(safe, e)
                 return
             }
         }
         block()
     }
 
+    private fun initConnectionError(): OpenIapError =
+        context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection
+
+    private fun requireOpenIap(): OpenIapProtocol = openIap ?: run {
+        val ctx = context ?: throw OpenIapError.NotPrepared
+        OpenIapProvider.create(ctx).also {
+            it.setActivity(activity)
+            openIap = it
+        }
+    }
+
+    private fun replyBillingError(
+        safe: MethodResultWrapper,
+        error: Exception,
+        fallback: OpenIapError = OpenIapError.BillingError(),
+    ) {
+        if (error is OpenIapError) {
+            safe.error(error.code, error.message, serializeOpenIapError(error))
+        } else {
+            safe.error(fallback.code, fallback.message, error.message)
+        }
+    }
+
     private fun attachListenersIfNeeded() {
         if (listenersAttached) return
-        val iap = openIap ?: return
+        val iap = requireOpenIap()
         iap.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { p ->
             scope.launch {
                 try {
