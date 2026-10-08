@@ -11,8 +11,6 @@
 GODOT_VERSION ?= 4.7.1
 SWIFT_GODOT_VERSION ?= v0.79.0
 SWIFT_GODOT_COMMIT ?= 2b0e39dc1c23454408f83c0a83ddf9c2516624c0
-# AndroidX Core 1.18.0 declares AGP 8.9.1 as its minimum consumer version.
-ANDROID_EXPORT_AGP_VERSION ?= 8.9.1
 
 # Directories
 PROJECT_ROOT := $(shell pwd)
@@ -72,7 +70,6 @@ help:
 	@echo "Environment variables:"
 	@echo "  GODOT_VERSION  - Godot version to use (default: $(GODOT_VERSION))"
 	@echo "  GODOT          - Path to Godot executable (default: $(GODOT))"
-	@echo "  ANDROID_EXPORT_AGP_VERSION - Android export AGP floor (default: $(ANDROID_EXPORT_AGP_VERSION))"
 	@echo "  MACOS_ARCHS    - macOS architectures for source builds (default: $(MACOS_ARCHS))"
 	@echo "  RELEASE_TAG    - GitHub release tag to test (default: latest)"
 
@@ -213,7 +210,7 @@ all: android ios macos
 test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
 	@GODOT="$(GODOT)" bash scripts/run-godot-suite.sh test_native_extension test_types_only \
-		test_api_surface test_envelope_parsing test_godot_iap test_android_store test_purchase_verification
+		test_api_surface test_envelope_parsing test_godot_iap test_android_store test_purchase_verification test_android_export
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts
@@ -234,8 +231,7 @@ clean-all: clean
 	@echo "$(GREEN)✓ Deep clean complete$(NC)"
 
 # Install a clean source template before every export. This avoids stale
-# resources when the local Godot version changes and applies the minimum AGP
-# required by the AndroidX dependencies shipped through openiap-google.
+# resources when the local Godot version changes. The addon prepares its AGP.
 prepare-android-export-template:
 	@set -e; \
 	version_output="$$($(GODOT) --version)" || { \
@@ -260,11 +256,7 @@ prepare-android-export-template:
 	rm -rf "$(EXAMPLE_DIR)/android/build"; \
 	mkdir -p "$(EXAMPLE_DIR)/android/build"; \
 	unzip -q "$$template_zip" -d "$(EXAMPLE_DIR)/android/build"; \
-	printf '%s\n' "$(GODOT_VERSION).stable" > "$(EXAMPLE_DIR)/android/.build_version"; \
-	config="$(EXAMPLE_DIR)/android/build/config.gradle"; \
-	perl -0pi -e "s/androidGradlePlugin:\\s*'[^']+'/androidGradlePlugin: '$(ANDROID_EXPORT_AGP_VERSION)'/" "$$config"; \
-	grep -q "androidGradlePlugin: '$(ANDROID_EXPORT_AGP_VERSION)'" "$$config" || \
-		(echo "$(RED)Failed to set Android export AGP $(ANDROID_EXPORT_AGP_VERSION).$(NC)" && exit 1)
+	printf '%s\n' "$(GODOT_VERSION).stable" > "$(EXAMPLE_DIR)/android/.build_version"
 
 # Export Android APK
 export-android: android prepare-android-export-template

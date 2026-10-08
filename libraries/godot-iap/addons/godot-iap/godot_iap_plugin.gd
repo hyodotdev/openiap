@@ -31,6 +31,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	const PLUGIN_NAME = "GodotIap"
 	const ANDROID_GDAP_PATH = "res://addons/godot-iap/android/GodotIap.gdap"
 	const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
+	const AndroidExport = preload("res://addons/godot-iap/android_export.gd")
 	const ANDROID_STORE_OPTION = "openiap/android_store"
 	const ANDROID_PROVIDER_OPTION = "openiap/android_provider"
 	const HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"
@@ -50,6 +51,19 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 		return false
 
 	func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, _flags: int) -> void:
+		if features.has("android") or features.has("Android"):
+			if not has_method("get_export_preset"):
+				push_warning("[GodotIap] Android exports require AGP %s+ and Gradle %s+." % [AndroidExport.MIN_AGP, AndroidExport.MIN_GRADLE])
+				return
+			var preset = call("get_export_preset")
+			if preset.get("gradle_build/use_gradle_build"):
+				var directory := AndroidExport.resolve_build_directory(preset.get("gradle_build/gradle_build_directory"))
+				var result := AndroidExport.prepare(directory)
+				if result.has("error"):
+					push_error("[GodotIap] %s" % result.error)
+				elif result.changed:
+					print("[GodotIap] Android export template prepared for AGP %s+ and compile SDK %d+" % [AndroidExport.MIN_AGP, AndroidExport.MIN_COMPILE_SDK])
+			return
 		if not _is_ios_export(features):
 			return
 
@@ -60,7 +74,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 			_add_ios_embedded_framework(framework_path)
 
 	func _is_ios_export(features: PackedStringArray) -> bool:
-		var platform = get_export_platform()
+		var platform = call("get_export_platform") if has_method("get_export_platform") else null
 		return (
 			platform is EditorExportPlatformIOS
 			or features.has("ios")

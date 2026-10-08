@@ -6942,10 +6942,29 @@ function checkFrameworkDependencyHygiene() {
       "openIap.purchaseErrorListener",
       "Variant(error.code.rawValue)",
       "ErrorCode.developerError.rawValue",
-      "GodotIapHelper.errorCode(error, fallback: .syncError)",
+      "GodotIapHelper.restoreError(error)",
+      "code: restoreError.code.rawValue",
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );
+  expectIncludes(
+    "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIapHelper.swift",
+    ["PurchaseError.wrap(error, fallback: .syncError)"],
+    "Godot restore must preserve StoreKit cancellation and use sync-error only as a fallback",
+  );
+  const godotRestore = extractBalancedAfterMarker(
+    read("libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift"),
+    "public func restorePurchases()",
+    "{",
+    "}",
+    "Godot iOS restore",
+  );
+  if (
+    !godotRestore ||
+    /\bemitPurchaseError\s*\(/u.test(maskKotlinCommentsAndStrings(godotRestore.body))
+  ) {
+    fail("Godot iOS restore failures must use only the async result; the wrapper emits purchase_error");
+  }
   expectNotIncludes(
     "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
     [

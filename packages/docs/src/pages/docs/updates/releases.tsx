@@ -73,6 +73,10 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const GODOT_RESTORE_EXPORT_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '3.6.4', tag: 'godot-iap-3.6.4' },
+];
+
 const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.6.3', tag: 'google-3.6.3' },
   {
@@ -514,6 +518,44 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'godot-restore-export-2026-10-08',
+      aliases: GODOT_RESTORE_EXPORT_RELEASES.map((release) => release.tag),
+      date: new Date('2026-10-08'),
+      element: (
+        <div key="godot-restore-export-2026-10-08" style={noteCardStyle}>
+          {GODOT_RESTORE_EXPORT_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="godot-restore-export-2026-10-08" level="h4">
+            October 8, 2026 - Godot restore cancellation and Android export
+          </AnchorLink>
+          <p>
+            Godot preserves App Store restore cancellation as{' '}
+            <code>user-cancelled</code> and emits one failure signal. Android
+            exports update compatible stock templates to AGP 8.9.1 and compile
+            SDK 36 while preserving newer versions and target SDK.
+          </p>
+          <p>
+            The export plugin also loads on Godot 4.3. Android exports require
+            Gradle 8.11.1+, Android SDK 36+, and JDK 17; update older wrappers
+            before exporting.
+          </p>
+          <h5>Package Releases</h5>
+          <ul>
+            {GODOT_RESTORE_EXPORT_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                >
+                  {getReleaseLabel(release)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'user-choice-retry-2026-10-07',
       aliases: USER_CHOICE_RETRY_RELEASES.map((release) => release.tag),

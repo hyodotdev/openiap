@@ -896,7 +896,7 @@ func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> v
 
 ## Restore completed transactions.
 ## Uses the selected provider's restore operation.
-## @return Types.VoidResult
+## Returns Types.VoidResult; a failed restore emits purchase_error once.
 ##
 ## See: https://openiap.dev/docs/apis/restore-purchases
 func restore_purchases() -> Variant:

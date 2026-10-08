@@ -144,7 +144,7 @@ jobs:
         run: bash scripts/run-godot-suite.sh test_godot_iap
 
       - name: Test export store mapping
-        run: bash scripts/run-godot-suite.sh test_android_store
+        run: bash scripts/run-godot-suite.sh test_android_store test_android_export
 
   verify-minimum-godot:
     name: Verify on Godot 4.3
@@ -167,7 +167,7 @@ jobs:
       - name: Test generated types, API surface, envelopes, and export store mapping
         run: >
           bash scripts/run-godot-suite.sh
-          test_types_only test_api_surface test_envelope_parsing test_android_store
+          test_types_only test_api_surface test_envelope_parsing test_android_store test_android_export
 
   apple-changes:
     name: Detect Apple framework sources

@@ -105,7 +105,9 @@ function RestorePurchases() {
         MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
         <code>Task&lt;VoidResult&gt;</code>. Godot returns a{' '}
         <code>VoidResult</code>; check <code>success</code> because a failed
-        store query must not be treated as a successful restore.
+        store query must not be treated as a successful restore. A failed Godot
+        restore emits one <code>purchase_error</code>; cancelling the App Store
+        sign-in sheet preserves <code>user-cancelled</code>.
       </p>
 
       <h2>Example</h2>

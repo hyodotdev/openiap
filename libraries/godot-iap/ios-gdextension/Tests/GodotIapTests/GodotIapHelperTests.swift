@@ -1,4 +1,5 @@
 import XCTest
+import StoreKit
 import OpenIAP
 @testable import GodotIap
 
@@ -97,6 +98,25 @@ final class GodotIapHelperTests: XCTestCase {
         let unsupported = PurchaseError.make(code: .featureNotSupported, message: "Use the vendor backend")
         XCTAssertEqual(GodotIapHelper.errorCode(unsupported, fallback: .purchaseVerificationFailed), "feature-not-supported")
         XCTAssertEqual(GodotIapHelper.errorCode(NSError(domain: "Vendor", code: 1), fallback: .purchaseVerificationFailed), "purchase-verification-failed")
+    }
+
+    func testRestorePreservesCancellationAndKnownErrors() {
+        let errors: [Error] = [
+            StoreKitError.userCancelled,
+            NSError(domain: SKError.errorDomain, code: SKError.paymentCancelled.rawValue),
+            PurchaseError.make(code: .userCancelled, message: "Restore cancelled")
+        ]
+        for error in errors {
+            XCTAssertEqual(GodotIapHelper.restoreError(error).code, .userCancelled)
+        }
+        let serviceError = PurchaseError.make(code: .serviceError, message: "Store unavailable")
+        let result = GodotIapHelper.restoreError(serviceError)
+        XCTAssertEqual(result.code, .serviceError)
+        XCTAssertEqual(result.message, "Store unavailable")
+        XCTAssertEqual(
+            GodotIapHelper.restoreError(NSError(domain: "restore-test", code: 1)).code,
+            .syncError
+        )
     }
 
     func testCanonicalProductQueryTypesPreserveMeaning() throws {

@@ -41,6 +41,24 @@ class FakeAndroidPlugin:
 		return storefront_result
 
 
+class FakeIOSRestorePlugin:
+	extends RefCounted
+	signal products_fetched(result: Dictionary)
+	signal purchase_error(error: Dictionary)
+	var code := "user-cancelled"
+	var succeed := false
+	var request_count := 0
+
+	func restorePurchases() -> String:
+		request_count += 1
+		var request_id := "restore-test-%d" % request_count
+		products_fetched.emit({
+			"method": "restorePurchases", "requestId": request_id,
+			"success": succeed, "code": code, "error": "Restore test failure",
+		})
+		return JSON.stringify({"status": "pending", "requestId": request_id})
+
+
 class FakeIOSAsyncPlugin:
 	extends RefCounted
 	signal products_fetched(result: Dictionary)
@@ -296,6 +314,7 @@ func _run_all_tests() -> void:
 	await test_get_available_purchases_mock()
 	await test_android_purchase_options_bridge()
 	await test_restore_purchases_mock()
+	await test_apple_restore_failure_signal()
 	await test_storefront_error_contract()
 	test_native_purchase_payload_safety()
 	test_community_apple_purchase_identity()
@@ -927,6 +946,32 @@ func test_android_purchase_options_bridge() -> void:
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 	GodotIapPlugin._is_connected = false
+
+
+func test_apple_restore_failure_signal() -> void:
+	var wrapper := GodotIapWrapper.new()
+	var native := FakeIOSRestorePlugin.new()
+	wrapper._platform = "iOS"
+	wrapper._native_plugin = native
+	wrapper._is_initialized = true
+	root.add_child(wrapper)
+	wrapper._connect_signals_apple()
+	var errors: Array[Dictionary] = []
+	wrapper.purchase_error.connect(func(error: Dictionary) -> void: errors.append(error))
+	for code in ["user-cancelled", "service-error", "sync-error"]:
+		errors.clear()
+		native.code = code
+		var result = await wrapper.restore_purchases()
+		_assert_false(result.success, "Failed Apple restore returns success=false")
+		_assert_equal(errors.size(), 1, "Failed Apple restore emits one purchase_error")
+		if errors.size() == 1:
+			_assert_equal(errors[0].code, code, "Restore preserves native error code")
+	native.succeed = true
+	errors.clear()
+	var success = await wrapper.restore_purchases()
+	_assert_true(success.success, "Successful Apple restore returns success=true")
+	_assert_equal(errors.size(), 0, "Successful Apple restore emits no error")
+	wrapper.free()
 
 
 func test_restore_purchases_mock() -> void:

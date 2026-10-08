@@ -1330,6 +1330,42 @@ test("declared Gradle inventories cover every runtime configuration", () => {
   }
 });
 
+test("split Android core local builds inventory their published fallback", (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-gradle-core-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "build.gradle.kts";
+  writeFileSync(
+    resolve(scratch, manifest),
+    `
+    val openiapGoogleVersion = "4.0.0-rc.1"
+    dependencies {
+      val localCoreProject = findProject(":openiap-core")
+      if (localCoreProject != null) {
+        implementation(project(":openiap-core"))
+      } else {
+        implementation("io.github.hyochan.openiap:openiap-core:$openiapGoogleVersion")
+      }
+      implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    }
+  `,
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest }).map((entry) => entry.name),
+    [
+      "io.github.hyochan.openiap:openiap-core",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+    ],
+  );
+  writeFileSync(
+    resolve(scratch, manifest),
+    'dependencies { implementation(project(":openiap-core")); implementation("io.github.hyochan.openiap:openiap-google:3.6.3") }',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest }),
+    /lacks its published fallback/u,
+  );
+});
+
 test("an unmodelled Gradle coordinate fails instead of silently vanishing", (t) => {
   assert.throws(
     () => parseMavenCoordinate("com.example:lib:$unknownVersion"),

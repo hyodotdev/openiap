@@ -383,11 +383,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
+                let restoreError = GodotIapHelper.restoreError(error)
                 await self.emitAsyncFailure(
                     method: "restorePurchases",
                     requestId: requestId,
-                    message: error.localizedDescription,
-                    code: GodotIapHelper.errorCode(error, fallback: .syncError)
+                    message: restoreError.message,
+                    code: restoreError.code.rawValue
                 )
             }
         }

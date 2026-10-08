@@ -134,6 +134,10 @@ enum GodotIapHelper {
         }
     }
 
+    static func restoreError(_ error: Error) -> PurchaseError {
+        PurchaseError.wrap(error, fallback: .syncError)
+    }
+
     // MARK: - Sanitization
 
     /// Sanitize a dictionary by removing null values.
