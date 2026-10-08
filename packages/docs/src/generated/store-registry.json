@@ -11,7 +11,7 @@
       "aliases": [],
       "maintainers": ["hyodotdev"],
       "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/apple",
-      "coordinates": "hyodotdev/openiap@3.6.1",
+      "coordinates": "hyodotdev/openiap@4.0.0-rc.1",
       "capabilities": [
         "pendingPurchases",
         "subscriptionBillingIssue",
