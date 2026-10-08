@@ -16,18 +16,20 @@ test("the committed tree passes", () => {
   assert.deepEqual(auditFacts(readRepoFile), []);
 });
 
-test("Godot export floors must be revalidated when AndroidX Core changes", () => {
-  const failures = auditFacts(
-    overlaying("packages/google/core/build.gradle.kts", (text) =>
-      text.replace("androidx.core:core:1.18.0", "androidx.core:core:1.19.0"),
-    ),
-  );
-  assert.ok(
-    failures.some((entry) =>
-      /godot\.android-export: .*"1\.19\.0"/u.test(entry),
-    ),
-  );
-});
+for (const module of ["core", "openiap"]) {
+  test(`Godot export floors must be revalidated when ${module}'s AndroidX Core changes`, () => {
+    const failures = auditFacts(
+      overlaying(`packages/google/${module}/build.gradle.kts`, (text) =>
+        text.replace("androidx.core:core:1.18.0", "androidx.core:core:1.19.0"),
+      ),
+    );
+    assert.ok(
+      failures.some((entry) =>
+        /godot\.android-export: .*"1\.19\.0"/u.test(entry),
+      ),
+    );
+  });
+}
 
 for (const [constant, before, after] of [
   ["AGP", '"8.9.1"', '"8.6.1"'],

@@ -92,7 +92,10 @@ export const FACTS = Object.freeze([
     },
     scanners: [
       {
-        files: ["packages/google/core/build.gradle.kts"],
+        files: [
+          "packages/google/core/build.gradle.kts",
+          "packages/google/openiap/build.gradle.kts",
+        ],
         pattern: /^\s*implementation\("androidx\.core:core:([^"\s]+)"\)/gm,
         role: "core",
       },
