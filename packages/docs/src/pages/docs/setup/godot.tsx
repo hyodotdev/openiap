@@ -260,8 +260,9 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
           Update older wrappers, including Godot 4.3&apos;s stock template, to
           Gradle 8.11.1+ before exporting. With a compatible wrapper, the addon
           raises AGP to 8.9.1 and compile SDK to 36 during export, keeping newer
-          versions and your target SDK. Keep AndroidX dependencies at their
-          shipped versions.
+          versions and your target SDK. For newer AGP versions, use the Gradle
+          version required by that AGP; the export error names the requirement.
+          Keep AndroidX dependencies at their shipped versions.
         </p>
 
         <h3 id="ios-xcode" className="anchor-heading">

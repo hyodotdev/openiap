@@ -807,12 +807,13 @@ function Releases() {
                 </li>
                 <li>
                   Preserves App Store restore cancellation as{' '}
-                  <code>user-cancelled</code>.
+                  <code>user-cancelled</code> in both the returned result and
+                  one <code>purchase_error</code> signal.
                 </li>
                 <li>
-                  Android exports raise compatible templates to AGP 8.9.1 and
-                  compile SDK 36, preserving newer versions and target SDK;
-                  update older wrappers to Gradle 8.11.1+ and use JDK 17.
+                  Android exports prepare AGP 8.9.1 / SDK 36 templates,
+                  preserving newer versions and target SDK. Use a compatible
+                  Gradle wrapper (8.11.1 minimum) and JDK 17.
                 </li>
                 <li>
                   Keeps Apple listeners when provider disconnection fails and

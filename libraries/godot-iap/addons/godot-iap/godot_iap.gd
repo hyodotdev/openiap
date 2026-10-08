@@ -18,6 +18,18 @@ const APPLE_ASYNC_RESULT_CACHE_LIMIT := 64
 const APPLE_ASYNC_TERMINAL_CACHE_LIMIT := 128
 
 
+class RestoreResult extends Types.VoidResult:
+	var code: String = ""
+	var error: String = ""
+
+	func to_dict() -> Dictionary:
+		var result := super.to_dict()
+		if not success:
+			result["code"] = code
+			result["error"] = error
+		return result
+
+
 class AppleAsyncWaiter:
 	extends RefCounted
 	signal completed(payload: Dictionary)
@@ -896,7 +908,7 @@ func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> v
 
 ## Restore completed transactions.
 ## Uses the selected provider's restore operation.
-## Returns Types.VoidResult; a failed restore emits purchase_error once.
+## Returns RestoreResult (a Types.VoidResult); failures also emit purchase_error once.
 ##
 ## See: https://openiap.dev/docs/apis/restore-purchases
 func restore_purchases() -> Variant:
@@ -924,14 +936,16 @@ func restore_purchases() -> Variant:
 			}
 	else:
 		payload = {"success": false, "code": "feature-not-supported", "error": "Unsupported platform"}
-	var result = Types.VoidResult.new()
+	var result := RestoreResult.new()
 	result.success = payload.get("success", false)
 	if not result.success:
-		_purchase_failure(
+		var failure := _purchase_failure(
 			String(payload.get("code", "service-error")),
 			String(payload.get("error", "Failed to restore purchases")),
 			payload
 		)
+		result.code = failure.code
+		result.error = failure.error
 	return result
 
 ## List the user's unfinished purchases — non-consumables, active subscriptions, and any

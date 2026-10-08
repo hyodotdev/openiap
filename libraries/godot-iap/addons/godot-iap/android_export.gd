@@ -5,6 +5,15 @@ extends RefCounted
 const MIN_AGP := "8.9.1"
 const MIN_GRADLE := "8.11.1"
 const MIN_COMPILE_SDK := 36
+# https://developer.android.com/build/releases/about-agp#updating-gradle
+const GRADLE_REQUIREMENTS := [
+	["9.4.0", "9.6.0"],
+	["9.3.0", "9.5.0"],
+	["9.2.0", "9.4.1"],
+	["9.1.0", "9.3.1"],
+	["9.0.0", "9.1.0"],
+	["8.11.0", "8.13.0"],
+]
 
 
 static func resolve_build_directory(preset_directory: Variant) -> String:
@@ -30,9 +39,13 @@ static func prepare(build_directory: String) -> Dictionary:
 	if sdk == null:
 		return {"error": "Cannot read compileSdk in %s; configure Android SDK %d or later." % [config_path, MIN_COMPILE_SDK]}
 	var wrapper := FileAccess.get_file_as_string(wrapper_path)
-	var gradle := RegEx.create_from_string("gradle-([0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-[A-Za-z0-9.-]+)?)-(?:bin|all)\\.zip").search(wrapper)
-	if gradle == null or not _at_least(gradle.get_string(1), MIN_GRADLE):
-		return {"error": "Android exports require AGP %s+ and Gradle %s+. Update the Gradle wrapper in %s first." % [MIN_AGP, MIN_GRADLE, build_directory]}
+	var distributions := RegEx.create_from_string("(?m)^[\\t ]*distributionUrl[\\t ]*[=:][\\t ]*([^\\r\\n]+)").search_all(wrapper)
+	var distribution: String = "" if distributions.is_empty() else distributions.back().get_string(1)
+	var gradle := RegEx.create_from_string("gradle-([0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-[A-Za-z0-9.-]+)?)-(?:bin|all)\\.zip").search(distribution)
+	var selected_agp := agp.get_string(1) if _at_least(agp.get_string(1), MIN_AGP) else MIN_AGP
+	var required_gradle := _required_gradle(selected_agp)
+	if gradle == null or not _at_least(gradle.get_string(1), required_gradle):
+		return {"error": "AGP %s requires Gradle %s+. Update the Gradle wrapper in %s first." % [selected_agp, required_gradle, build_directory]}
 	var updated := config
 	if not _at_least(agp.get_string(1), MIN_AGP):
 		updated = config.substr(0, agp.get_start(1)) + MIN_AGP + config.substr(agp.get_end(1))
@@ -47,6 +60,13 @@ static func prepare(build_directory: String) -> Dictionary:
 	file.store_string(updated)
 	file.close()
 	return {"changed": true}
+
+
+static func _required_gradle(agp: String) -> String:
+	for requirement in GRADLE_REQUIREMENTS:
+		if _at_least(agp.get_slice("-", 0), requirement[0]):
+			return requirement[1]
+	return MIN_GRADLE
 
 
 static func _at_least(version: String, minimum: String) -> bool:

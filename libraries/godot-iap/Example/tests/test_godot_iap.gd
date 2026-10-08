@@ -963,13 +963,19 @@ func test_apple_restore_failure_signal() -> void:
 		native.code = code
 		var result = await wrapper.restore_purchases()
 		_assert_false(result.success, "Failed Apple restore returns success=false")
+		_assert_true(result is Types.VoidResult, "Restore keeps VoidResult compatibility")
+		_assert_equal(result.code, code, "Restore result preserves native error code")
+		_assert_equal(result.to_dict().get("code"), code, "Serialized restore result preserves error code")
 		_assert_equal(errors.size(), 1, "Failed Apple restore emits one purchase_error")
 		if errors.size() == 1:
 			_assert_equal(errors[0].code, code, "Restore preserves native error code")
+			_assert_equal(result.error, errors[0].message, "Restore result and signal share the error message")
 	native.succeed = true
 	errors.clear()
 	var success = await wrapper.restore_purchases()
 	_assert_true(success.success, "Successful Apple restore returns success=true")
+	_assert_equal(success.code, "", "Successful restore has no error code")
+	_assert_equal(success.to_dict(), {"success": true}, "Successful restore keeps the VoidResult payload")
 	_assert_equal(errors.size(), 0, "Successful Apple restore emits no error")
 	wrapper.free()
 

@@ -89,7 +89,7 @@ function RestorePurchases() {
             <CodeBlock language="csharp">{`Task<VoidResult> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func restore_purchases() -> Types.VoidResult`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func restore_purchases() -> GodotIapWrapper.RestoreResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -104,10 +104,13 @@ function RestorePurchases() {
         <code>getAvailablePurchases</code> results, depending on platform. In
         MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
         <code>Task&lt;VoidResult&gt;</code>. Godot returns a{' '}
-        <code>VoidResult</code>; check <code>success</code> because a failed
-        store query must not be treated as a successful restore. A failed Godot
-        restore emits one <code>purchase_error</code>; cancelling the App Store
-        sign-in sheet preserves <code>user-cancelled</code>.
+        <code>GodotIapWrapper.RestoreResult</code> extending{' '}
+        <code>Types.VoidResult</code>; check <code>success</code> because a
+        failed store query must not be treated as a successful restore. A failed
+        Godot restore exposes <code>code</code> and <code>error</code> in the
+        result and emits one <code>purchase_error</code> with the same code and
+        message. Cancelling the App Store sign-in sheet preserves{' '}
+        <code>user-cancelled</code> in both.
       </p>
 
       <h2>Example</h2>
@@ -212,7 +215,8 @@ await ((MutationResolver)OpenIapClient.Instance).RestorePurchasesAsync();`}</Cod
           gdscript: (
             <CodeBlock language="gdscript">{`var result = await iap.restore_purchases()
 if not result.success:
-    push_error("Purchase restore failed")
+    if result.code != "user-cancelled":
+        push_error(result.error)
     return`}</CodeBlock>
           ),
         }}
