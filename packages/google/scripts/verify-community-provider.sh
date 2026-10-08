@@ -13,6 +13,8 @@ suite_version=$(node --input-type=module -e "import {SUITE_VERSION} from '$repo_
 "$google_root/gradlew" -p "$google_root" :openiap-core:publishToMavenLocal \
     :openiap-conformance:publishToMavenLocal -Dmaven.repo.local="$repository"
 args=(-PopenIapRepository="$repository" -PopenIapVersion="$core_version" -PconformanceVersion="$suite_version")
+# Republished local artifacts require recompiling inlined contract constants.
+"$google_root/gradlew" -p "$fixture_root" clean "${args[@]}"
 "$google_root/gradlew" -p "$fixture_root" :provider:negativeConformance \
     :vendor-sdk:publishVendorPublicationToMavenLocal :provider:publishFixturePublicationToMavenLocal -Dmaven.repo.local="$repository" "${args[@]}"
 "$google_root/gradlew" -p "$fixture_root" :host:assembleRelease "${args[@]}" \

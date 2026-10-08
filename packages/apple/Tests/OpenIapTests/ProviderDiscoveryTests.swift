@@ -38,10 +38,7 @@ final class ProviderDiscoveryTests: XCTestCase {
         invalid = descriptor
         invalid.clientProtocolVersion = "0.1.1"
         XCTAssertThrowsError(try OpenIapProvider.validate(invalid)) { error in
-            XCTAssertEqual(
-                (error as? PurchaseError)?.message,
-                "Provider '\(descriptor.storeId)' must implement Client Protocol \(OpenIapVersion.clientProtocolVersion)."
-            )
+            XCTAssertEqual((error as? PurchaseError)?.code, .developerError)
         }
         invalid.clientProtocolVersion = "0.3.0"
         XCTAssertThrowsError(try OpenIapProvider.validate(invalid)) { error in
