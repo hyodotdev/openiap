@@ -590,9 +590,11 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           Build from the PR checkout and publish locally from its root. Add{' '}
           <code>mavenLocal()</code> before <code>mavenCentral()</code> in both
           the provider and host repositories. Use <code>4.0.0</code> for the
-          core dependency and factory&apos;s <code>coreVersion</code>. Rebuild
-          and rerun conformance against the public 4.0.0 artifacts when
-          released.
+          core dependency and factory&apos;s <code>coreVersion</code>. Set{' '}
+          <code>clientProtocolVersion</code> from <code>clientProtocol</code> in
+          this checkout&apos;s <code>openiap-versions.json</code>; it can still
+          be an RC. Rebuild and rerun conformance against the public 4.0.0
+          artifacts when released.
         </p>
         <CodeBlock
           language="bash"

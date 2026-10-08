@@ -50,8 +50,11 @@ packages/google/gradlew -p packages/google \
 
 Run that command from the repository root. Add `mavenLocal()` before
 `mavenCentral()` in the provider and host repositories, and build against
-`openiap-core:4.0.0`. Rebuild and retest against the published 4.0.0 artifacts
-when they are available; a local publication is not a released contract.
+`openiap-core:4.0.0`. Set the factory's `coreVersion` to `4.0.0` and
+`clientProtocolVersion` to `clientProtocol` from this checkout's
+`openiap-versions.json`; the protocol can still be an RC. Rebuild and retest
+against the published 4.0.0 artifacts when they are available; a local
+publication is not a released contract.
 
 ## Test a published RC
 
