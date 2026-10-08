@@ -47,6 +47,10 @@ for suite in "$@"; do
     echo "::error::$suite hit a script error, which ends its test without a result; Godot exits 0 on it"
     exit 1
   fi
+  if [[ "$suite" == "test_android_export" ]] && ! grep -qE '^Results: [1-9][0-9]* passed, 0 failed$' "$output"; then
+    echo "::error::$suite did not complete its export checks successfully"
+    exit 1
+  fi
   if [[ -n "$export_fixture" ]]; then
     rm -rf "$export_fixture"
     export_fixture=""
