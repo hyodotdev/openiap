@@ -53,7 +53,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Godot
-        uses: chickensoft-games/setup-godot@c233594225991af5aec714e52457cc76d6df8fa2 # v2.4.2
+        uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2.4.3
         with:
           version: 4.7.1
           use-dotnet: false
@@ -159,7 +159,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Godot
-        uses: chickensoft-games/setup-godot@c233594225991af5aec714e52457cc76d6df8fa2 # v2.4.2
+        uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2.4.3
         with:
           version: 4.3.0
           use-dotnet: false
