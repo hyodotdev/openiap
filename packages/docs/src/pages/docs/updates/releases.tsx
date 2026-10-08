@@ -810,7 +810,7 @@ function Releases() {
                   <code>RestoreResult</code>, a <code>Types.VoidResult</code>{' '}
                   subtype with <code>code</code> and <code>error</code> on
                   failure; cancelling App Store restore reports{' '}
-                  <code>user-cancelled</code> in the result and one{' '}
+                  <code>user-cancelled</code> in the result and the{' '}
                   <code>purchase_error</code> signal (
                   <a
                     href="https://github.com/hyodotdev/openiap/issues/510"
