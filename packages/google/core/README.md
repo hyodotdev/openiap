@@ -53,6 +53,40 @@ Run that command from the repository root. Add `mavenLocal()` before
 `openiap-core:4.0.0`. Rebuild and retest against the published 4.0.0 artifacts
 when they are available; a local publication is not a released contract.
 
+## Test a published RC
+
+Use the exact RC in the core dependency and the factory's `coreVersion`, for
+example `4.0.0-rc.1`. Set `clientProtocolVersion` to `clientProtocol` from
+`openiap-versions.json` at that RC tag, not to the native RC version.
+Prerelease compatibility requires an exact match. Rebuild the provider
+for each RC and again for stable 4.0.0.
+
+The Google release workflow publishes core, official store artifacts, and the
+Gradle plugin for RCs. It publishes the Android conformance AAR only for stable
+releases. Until then, check out the RC's `google-<version>` tag and publish the
+suite locally. Run from the repository root; for the first 4.0.0 RC:
+
+```sh
+packages/google/gradlew -p packages/google \
+  :openiap-conformance:publishToMavenLocal \
+  -PopenIapVersion=4.0.0-rc.1 \
+  -Dmaven.repo.local=/tmp/openiap-provider-rc-maven
+```
+
+Add that local repository to your test build before Maven Central. The suite
+artifact keeps its independent suite version, `4.0.0`, and its POM depends on
+the selected RC core. Use a separate local repository so this test artifact
+cannot shadow the stable suite later. The RC core itself comes from Maven
+Central.
+
+```kotlin
+repositories {
+  maven { url = uri("/tmp/openiap-provider-rc-maven") }
+  google()
+  mavenCentral()
+}
+```
+
 Follow the [provider guide](https://openiap.dev/docs/guides/store-providers)
 for authoring, selection, CI reports, and registration. The
 [independent fixture](../compatibility/community-provider/README.md) proves

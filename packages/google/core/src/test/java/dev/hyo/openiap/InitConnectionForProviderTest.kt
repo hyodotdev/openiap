@@ -3,6 +3,7 @@ package dev.hyo.openiap
 import android.content.Context
 import android.os.Bundle
 import androidx.test.core.app.ApplicationProvider
+import io.github.hyochan.openiap.core.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -15,7 +16,7 @@ import org.robolectric.annotation.Config
 class PlayDiscoveryFactory : OpenIapProviderFactory {
     override val storeId = "play"
     override val coreVersion get() = OpenIapProvider.coreVersion
-    override val clientProtocolVersion = "0.2.0"
+    override val clientProtocolVersion = BuildConfig.CLIENT_PROTOCOL_VERSION
     override fun create(context: Context): OpenIapProtocol = throw UnsupportedOperationException("Discovery only")
 }
 

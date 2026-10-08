@@ -107,6 +107,63 @@ function artifactStep(name) {
     .split("\n      - name:")[0]
     .replace(/^          /gm, "");
 }
+function calculateGoogleVersion(current, mode, prerelease = false) {
+  const root = mkdtempSync(join(tmpdir(), "google-rc-version-"));
+  try {
+    writeFileSync(
+      join(root, "openiap-versions.json"),
+      JSON.stringify({ google: current }),
+    );
+    const output = join(root, "output");
+    const result = spawnSync(
+      "bash",
+      ["-e", "-c", artifactStep("Calculate new version")],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          VERSION_TYPE: mode,
+          IS_PRERELEASE: String(prerelease),
+          GITHUB_ENV: join(root, "env"),
+          GITHUB_OUTPUT: output,
+        },
+      },
+    );
+    return {
+      ...result,
+      values: result.status === 0 ? readFileSync(output, "utf8") : "",
+    };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+test("Google RC bumps preserve the target version instead of bumping a patch", () => {
+  for (const [current, expected] of [
+    ["4.0.0-rc.1", "4.0.0-rc.2"],
+    ["4.0.0-rc.9", "4.0.0-rc.10"],
+  ]) {
+    const result = calculateGoogleVersion(current, "rc-bump");
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.values,
+      new RegExp(`^version=${expected.replaceAll(".", "\\.")}$`, "m"),
+    );
+    assert.match(result.values, /^is_prerelease=true$/m);
+  }
+  assert.notEqual(calculateGoogleVersion("3.6.3", "rc-bump").status, 0);
+  assert.notEqual(calculateGoogleVersion("4.0.0-beta.1", "rc-bump").status, 0);
+});
+test("Google first RC and current retry keep their existing version behavior", () => {
+  assert.match(
+    calculateGoogleVersion("3.6.3", "major", true).values,
+    /^version=4\.0\.0-rc\.1$/m,
+  );
+  assert.match(
+    calculateGoogleVersion("4.0.0-rc.2", "current").values,
+    /^version=4\.0\.0-rc\.2$/m,
+  );
+});
 function collectArtifacts({ legacy = false, missingCore = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "provider-artifacts-"));
   try {

@@ -51,6 +51,14 @@ packages/google/gradlew -p packages/google/compatibility/community-provider \
   -PopenIapVersion=4.0.0 -PconformanceVersion=4.0.0
 ```
 
+For a published RC, replace the first command with the
+[core RC suite command](../../core/README.md#test-a-published-rc), which leaves
+core resolution on Maven Central. In the second command, use the exact RC as
+`openIapVersion` and `/tmp/openiap-provider-rc-maven` for both `maven.repo.local`
+and `openIapRepository`. Keep `conformanceVersion` at the suite version. Use
+that RC repository in the consuming app too. The factory embeds the Client
+Protocol version from the core it compiles against.
+
 Add `/tmp/openiap-provider-maven` as a Maven repository in the consuming app,
 then build with both properties:
 

@@ -30,7 +30,7 @@ final class ProviderDiscoveryTests: XCTestCase {
     func testDescriptorChecksBothContractsAndPlatform() throws {
         let descriptor = OpenIapAppleProviderFactory().descriptor
         XCTAssertEqual(descriptor.platform, .ios)
-        XCTAssertEqual(descriptor.clientProtocolVersion, "0.2.0")
+        XCTAssertEqual(descriptor.clientProtocolVersion, OpenIapVersion.clientProtocolVersion)
         try OpenIapProvider.validate(descriptor)
         var invalid = descriptor
         invalid.platform = .android
@@ -126,7 +126,7 @@ final class ProviderDiscoveryTests: XCTestCase {
             do {
                 _ = try OpenIapProvider.select(factory: factory).get()
                 XCTFail("Incompatible factory must not be selected")
-            } catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+            } catch let error { XCTAssertEqual(error.code, .developerError) }
             let module = OpenIapModule(factory: factory)
             do { _ = try await module.initConnection(); XCTFail("Incompatible factory must not connect") }
             catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
@@ -138,7 +138,7 @@ final class ProviderDiscoveryTests: XCTestCase {
         do {
             _ = try OpenIapProvider.select(factory: factory).get()
             XCTFail("Factory that cannot create must not be selected")
-        } catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }
+        } catch let error { XCTAssertEqual(error.code, .developerError) }
         let module = OpenIapModule(factory: factory)
         do { _ = try await module.initConnection(); XCTFail("Factory that cannot create must not connect") }
         catch let error as PurchaseError { XCTAssertEqual(error.code, .developerError) }

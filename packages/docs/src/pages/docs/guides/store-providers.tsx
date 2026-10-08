@@ -598,6 +598,23 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
   :openiap-core:publishToMavenLocal :openiap-conformance:publishToMavenLocal \\
   -PopenIapVersion=4.0.0`}
         />
+        <h3>Testing a published RC</h3>
+        <p>
+          Use the exact published RC in the core dependency and factory&apos;s{' '}
+          <code>coreVersion</code>, and match that core&apos;s Client Protocol
+          version from <code>clientProtocol</code> in{' '}
+          <code>openiap-versions.json</code> at the RC tag. Rebuild for each RC
+          and for stable. Follow the{' '}
+          <a href="https://github.com/hyodotdev/openiap/blob/next/packages/google/core/README.md#test-a-published-rc">
+            RC suite setup
+          </a>{' '}
+          to build the suite from the same release tag in a separate local Maven
+          repository. The dependency and factory examples below show the stable
+          target. For an RC, replace the core dependency and{' '}
+          <code>coreVersion</code> with the native RC version; set{' '}
+          <code>clientProtocolVersion</code> separately from the tag&apos;s
+          manifest.
+        </p>
         <CodeBlock
           language="kotlin"
           children={`dependencies {

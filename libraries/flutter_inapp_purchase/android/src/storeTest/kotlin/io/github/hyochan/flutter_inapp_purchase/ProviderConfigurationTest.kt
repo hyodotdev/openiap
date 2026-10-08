@@ -141,7 +141,7 @@ class ProviderConfigurationTest {
 class SubscriptionManagementFactory : OpenIapProviderFactory {
     override val storeId = "test_subscription_management"
     override val coreVersion get() = OpenIapProvider.coreVersion
-    override val clientProtocolVersion = "0.2.0"
+    override val clientProtocolVersion = io.github.hyochan.openiap.core.BuildConfig.CLIENT_PROTOCOL_VERSION
 
     override fun create(context: Context): OpenIapProtocol {
         val deepLink: MutationDeepLinkToSubscriptionsHandler = { options ->
