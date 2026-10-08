@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.7.3 (2026-10-07)
+
+- fix(google): complete user choice purchases (#509)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-10.7.3
+
+
 ## 10.7.2 (2026-09-30)
 
 - fix: close the 3.6 train gaps, guard releases, and add community touchpoints (#500)
