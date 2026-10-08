@@ -4,7 +4,7 @@ set -euo pipefail
 TOOL=${1:-}
 TARGET=${2:-}
 if [[ -z "$TOOL" || -z "$TARGET" ]]; then
-  echo "Usage: install-security-tool.sh <cyclonedx|osv-scanner|trivy> TARGET" >&2
+  echo "Usage: install-security-tool.sh <codecov|cyclonedx|osv-scanner|trivy> TARGET" >&2
   exit 1
 fi
 
@@ -12,6 +12,11 @@ SECURITY_TOOL_TMP=$(mktemp -d)
 trap 'rm -rf "$SECURITY_TOOL_TMP"' EXIT
 
 case "$TOOL" in
+  codecov)
+    ARCHIVE="$SECURITY_TOOL_TMP/codecov"
+    URL=https://github.com/codecov/codecov-cli/releases/download/v11.3.1/codecovcli_linux
+    SHA256=ca1d64196d2d34771084afe76ea657d581bf628e31d993ff8e52ea09cc88a56d
+    ;;
   cyclonedx)
     ARCHIVE="$SECURITY_TOOL_TMP/cyclonedx"
     URL=https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.33.1/cyclonedx-linux-x64

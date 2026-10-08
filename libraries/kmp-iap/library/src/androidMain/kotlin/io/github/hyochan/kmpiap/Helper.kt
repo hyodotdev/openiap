@@ -505,6 +505,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         pendingPurchaseUpdateAndroid = pendingUpdate,
         productId = products.firstOrNull() ?: "",
         store = IapStore.Google,
+        storeId = "play",
         purchaseState = purchaseStateEnum,
         purchaseToken = purchaseToken,
         quantity = quantity,
@@ -782,8 +783,9 @@ internal fun LaunchExternalLinkParamsAndroid.toOpenIapParams(): OpenIapLaunchExt
 
 /**
  * Re-shapes an openiap-google IAPKit result into this module's generated types.
- * openiap-google has already decoded it safely, so unknown values degrade here
- * rather than re-imposing a fail-closed gate when the two versions drift.
+ * State and store degrade to Unknown when the two versions drift, but the
+ * store identity fails closed: the constructor throws on an id it cannot
+ * represent, and callers report that as PurchaseVerificationFailed.
  */
 internal fun AndroidRequestVerifyPurchaseWithIapkitResult.toKmpIapkitResult(): RequestVerifyPurchaseWithIapkitResult =
     RequestVerifyPurchaseWithIapkitResult(
@@ -807,5 +809,6 @@ internal fun AndroidRequestVerifyPurchaseWithIapkitResult.toKmpIapkitResult(): R
         }.getOrDefault(IapkitPurchaseState.Unknown),
         store = runCatching {
             IapStore.fromJson(store.toJson())
-        }.getOrDefault(IapStore.Unknown)
+        }.getOrDefault(IapStore.Unknown),
+        storeId = storeId
     )

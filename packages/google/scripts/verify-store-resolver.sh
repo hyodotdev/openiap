@@ -35,7 +35,7 @@ run() {
         fi
     else
         actual=$(printf '%s\n' "$output" \
-            | sed -n 's/.*FIXTURE store=\([a-z]*\) source=\([a-z]*\).*/\1\/\2/p' \
+            | sed -n 's/.*FIXTURE store=\([a-z][a-z0-9_]*\) source=\([a-z]*\).*/\1\/\2/p' \
             | tail -1)
         if [[ -z "$actual" ]]; then
             actual="no resolution (exit=$status): ${output//$'\n'/ }"
@@ -104,6 +104,20 @@ clear_device() {
 
 echo "Store resolver regression suite"
 
+echo "community provider"
+clear_device
+run "external store id" fixture_store/explicit assembleDebug -PopeniapStore=fixture_store -PopeniapProvider=community.store:fake:1.0.0
+run "hyphenated community id fails" "fail:unknown openiapStore" assembleDebug -PopeniapStore=fixture-store -PopeniapProvider=community.store:fake:1.0.0
+run "unregistered id" another/explicit assembleRelease -PopeniapStore=another -PopeniapProvider=community.store:fake:1.0.0
+run "external without provider" "fail:unknown openiapStore" assembleDebug -PopeniapStore=fixture
+run "provider without id" "fail:requires an explicit community" assembleDebug -PopeniapProvider=community.store:fake:1.0.0
+run "provider with official" "fail:requires an explicit community" assembleDebug -PopeniapStore=play -PopeniapProvider=community.store:fake:1.0.0
+run "dynamic provider" "fail:fixed version" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.+
+run "snapshot provider" "fail:fixed version" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0-SNAPSHOT
+run "official artifact as provider" "fail:must name a community provider" assembleDebug -PopeniapStore=fixture -PopeniapProvider=io.github.hyochan.openiap:openiap-core:1.0.0
+run "a legacy flag beside a community id fails" "fail:conflicts with horizonEnabled=true" assembleDebug -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0 -PhorizonEnabled=true
+run "wrong store task" "fail:conflicts with" assembleHorizonRelease -PopeniapStore=fixture -PopeniapProvider=community.store:fake:1.0.0
+
 echo "explicit pin"
 clear_device
 run "openiapStore=horizon"                 horizon/explicit assembleDebug -PopeniapStore=horizon
@@ -114,6 +128,7 @@ run "alias fire-os"                        amazon/explicit  assembleDebug -Popen
 run "alias googleplay"                     play/explicit    assembleDebug -PopeniapStore=googleplay
 run "auto is not a pin"                    play/default     assembleDebug -PopeniapStore=auto
 run "a value that names no store fails"    "fail:unknown openiapStore" assembleDebug -PopeniapStore=bogus
+run "openiapStore=apple fails"             "fail:unknown openiapStore" assembleDebug -PopeniapStore=apple
 
 echo "store flags"
 run "horizonEnabled=true"                  horizon/explicit assembleDebug -PhorizonEnabled=true

@@ -24,6 +24,19 @@
 
 Visit [**openiap.dev**](https://openiap.dev) for complete documentation, API reference, guides, and examples.
 
+## Community store providers
+
+Link an independent provider and set the app's `dev.hyo.openiap.PROVIDER`
+Info.plist key to its Objective-C factory class name. `OpenIapModule` selects
+that provider; without the key, it uses Apple App Store. Invalid explicit
+configuration fails at connection.
+
+Providers implement `OpenIapModuleProtocol` and `OpenIapProviderFactory` against
+the public `OpenIAP` product. Apple and Android factories expose the same
+Client Protocol descriptor and preserve concrete purchase identity.
+Follow the [provider guide](https://openiap.dev/docs/guides/store-providers)
+for factory versions, Release linking and the public Swift conformance suite.
+
 ## Features
 
 - StoreKit 2 support (iOS 15+)
@@ -38,7 +51,7 @@ Visit [**openiap.dev**](https://openiap.dev) for complete documentation, API ref
 | -------- | --------------- |
 | iOS      | 15.0+           |
 | macOS    | 14.0+           |
-| tvOS     | 15.0+           |
+| tvOS     | 16.0+           |
 | watchOS  | 8.0+            |
 | Swift    | 5.9+            |
 

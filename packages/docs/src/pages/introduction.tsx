@@ -163,9 +163,8 @@ function Introduction() {
           <div className="in-page-lead">
             <h1>Why OpenIAP</h1>
             <p>
-              <strong>Stop translating purchases</strong>
-              One generated, type-safe contract keeps every store and framework
-              SDK aligned.
+              <strong>Stop translating purchases</strong> One generated,
+              type-safe contract keeps every store and framework SDK aligned.
             </p>
           </div>
           <nav className="in-page-links" aria-label="Introduction links">

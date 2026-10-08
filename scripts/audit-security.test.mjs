@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -10,6 +13,8 @@ import {
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 
 import {
   BUN_AUDIT_ATTEMPTS,
@@ -28,6 +33,130 @@ import {
   runBunAudit,
   summarizeAdvisories,
 } from "./audit-security.mjs";
+
+test("coverage CLI wrapper preserves arguments and bounds stalled uploads", () => {
+  const source = readFileSync(
+    new URL("../.github/actions/coverage-report/action.yml", import.meta.url),
+    "utf8",
+  );
+  const steps = parseDocument(source).toJS().runs.steps;
+  const wrapper = steps
+    .find(({ id }) => id === "codecov-cli")
+    .run.match(/<<'EOF'\n([\s\S]*?)\nEOF/u)?.[1];
+  assert.ok(wrapper);
+  const fixture = mkdtempSync(resolve(tmpdir(), "openiap-coverage-timeout-"));
+  try {
+    const executable = resolve(fixture, "codecov");
+    writeFileSync(executable, `${wrapper}\n`);
+    writeFileSync(
+      `${executable}-cli`,
+      '#!/usr/bin/env bash\ncase "$1" in --hang) exec sleep 5;; --fail) exit 17;; esac\nprintf "%s\\n" "$@"\n',
+    );
+    const timeout = resolve(fixture, "timeout");
+    writeFileSync(
+      timeout,
+      '#!/usr/bin/env bash\n[[ "$1" == 120s ]] || exit 99\nshift\nexec "$COVERAGE_TEST_TIMEOUT" 1s "$@"\n',
+    );
+    for (const filename of [executable, `${executable}-cli`, timeout])
+      chmodSync(filename, 0o755);
+    const command = process.platform === "darwin" ? "gtimeout" : "timeout";
+    const env = {
+      ...process.env,
+      PATH: `${fixture}:${process.env.PATH}`,
+      COVERAGE_TEST_TIMEOUT: spawnSync(
+        "bash",
+        ["-c", `command -v ${command}`],
+        { encoding: "utf8" },
+      ).stdout.trim(),
+    };
+    assert.ok(env.COVERAGE_TEST_TIMEOUT);
+    const invoke = (args) =>
+      spawnSync(executable, args, { env, encoding: "utf8", timeout: 4000 });
+    const success = invoke(["--file", "a file.info", "--flag", "expo-iap"]);
+    assert.equal(success.status, 0, success.stderr);
+    assert.equal(success.stdout, "--file\na file.info\n--flag\nexpo-iap\n");
+    assert.equal(invoke(["--fail"]).status, 17);
+    assert.equal(invoke(["--hang"]).status, 124);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("verified tool installation rejects failed and corrupted downloads", () => {
+  const fixture = mkdtempSync(resolve(tmpdir(), "openiap-tool-download-"));
+  try {
+    const bin = resolve(fixture, "bin");
+    mkdirSync(bin);
+    if (process.platform === "darwin") {
+      const sha256sum = resolve(bin, "sha256sum");
+      writeFileSync(sha256sum, '#!/bin/sh\nexec shasum -a 256 "$@"\n');
+      chmodSync(sha256sum, 0o755);
+    }
+    const curl = resolve(bin, "curl");
+    writeFileSync(
+      curl,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$@" > "$TOOL_TEST_ARGUMENTS"
+if [[ "$TOOL_TEST_DOWNLOAD_EXIT" != 0 ]]; then
+  exit "$TOOL_TEST_DOWNLOAD_EXIT"
+fi
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == --output ]]; then
+    printf 'corrupted executable' > "$2"
+    exit 0
+  fi
+  shift
+done
+exit 2
+`,
+    );
+    chmodSync(curl, 0o755);
+    for (const downloadExit of [22, 0]) {
+      const target = resolve(fixture, `codecov-${downloadExit}`);
+      const argumentsFile = resolve(fixture, "arguments");
+      const result = spawnSync(
+        "bash",
+        [
+          fileURLToPath(new URL("./install-security-tool.sh", import.meta.url)),
+          "codecov",
+          target,
+        ],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: `${bin}:${process.env.PATH}`,
+            TOOL_TEST_ARGUMENTS: argumentsFile,
+            TOOL_TEST_DOWNLOAD_EXIT: String(downloadExit),
+          },
+        },
+      );
+      assert.equal(result.status, downloadExit || 1, result.stderr);
+      assert.equal(existsSync(target), false);
+      const args = readFileSync(argumentsFile, "utf8").trim().split("\n");
+      for (const [option, value] of [
+        ["--proto", "=https"],
+        ["--retry", "3"],
+        ["--connect-timeout", "15"],
+        ["--max-time", "300"],
+      ])
+        assert.equal(args[args.indexOf(option) + 1], value);
+      assert.ok(args.includes("--tlsv1.2"));
+      assert.ok(args.includes("--retry-all-errors"));
+      assert.match(
+        args.at(-1),
+        /^https:\/\/github\.com\/codecov\/codecov-cli\/releases\/download\/v\d+\.\d+\.\d+\/codecovcli_linux$/u,
+      );
+      if (downloadExit === 0)
+        assert.match(
+          result.stdout + result.stderr,
+          /checksum.*(match|FAILED)/iu,
+        );
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
 
 test("workflow scan detects expressions in scalar and block run steps", () => {
   const workflow = `steps:
@@ -182,6 +311,34 @@ steps:
   );
 });
 
+test("local composite actions retain immutable dependencies and checkout guards", () => {
+  const filename = ".github/actions/coverage-report/action.yml";
+  const action = `runs:\n  using: composite\n  steps:\n    - uses: actions/upload-artifact@${"a".repeat(40)} # v7\n`;
+  assert.deepEqual(findWorkflowDependencyFindings(action, filename), []);
+  assert.match(
+    findWorkflowDependencyFindings(
+      action.replace("a".repeat(40), "v7"),
+      filename,
+    ).join("\n"),
+    /unpinned action/,
+  );
+  assert.match(
+    findWorkflowDependencyFindings(
+      `permissions: write-all\n${action}`,
+      filename,
+    ).join("\n"),
+    /inherit permissions/,
+  );
+  const checkout = action.replace(
+    "actions/upload-artifact",
+    "actions/checkout",
+  );
+  assert.match(
+    findWorkflowDependencyFindings(checkout, filename).join("\n"),
+    /disable persisted credentials/,
+  );
+});
+
 test("workflow discovery covers both YAML extensions", (t) => {
   const scratch = mkdtempSync(resolve(tmpdir(), "openiap-workflows-"));
   writeFileSync(resolve(scratch, "first.yml"), "permissions: read-all\n");
@@ -327,11 +484,18 @@ test("dependency audit fails closed on findings and malformed output", () => {
   assert.throws(
     () =>
       auditDependencies(
-        () => ({ status: 1, stdout: JSON.stringify(reported), stderr: "" }),
+        (command) =>
+          command === "osv-scanner"
+            ? {
+                status: 0,
+                stdout: JSON.stringify({ results: [] }),
+                stderr: "",
+              }
+            : { status: 1, stdout: JSON.stringify(reported), stderr: "" },
         projects,
         beforeEarliestExpiry,
       ),
-    /1 dependency audit findings/u,
+    /(?<![0-9])1 dependency audit findings:/u,
   );
   assert.throws(
     () =>
@@ -388,6 +552,166 @@ reason = "Invalid date."
   );
 });
 
+test("Bun lock exceptions require usage in either feed and expire on their date", () => {
+  const lockfile = "libraries/expo-iap/bun.lock";
+  const projects = [{ directory: "libraries/expo-iap", lockfile }];
+  // Ids and expiry come from the real exception file, so adding, retiring,
+  // or renewing one needs no edit here. Bun finding keys are the ids: the
+  // audit matches on the advisory URL, never the package name.
+  const exceptions = parseOsvIgnoredVulnerabilities(
+    readFileSync(
+      resolve(import.meta.dirname, "..", "libraries/expo-iap/osv-scanner.toml"),
+      "utf8",
+    ),
+  );
+  assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
+  const forgeId = "GHSA-86w9-cpqp-85rv";
+  const bunFinding = JSON.stringify(
+    Object.fromEntries(
+      [...exceptions.keys()].map((id) => [
+        id,
+        [
+          {
+            severity: "high",
+            title: "ignored issue",
+            url: `https://github.com/advisories/${id}`,
+          },
+        ],
+      ]),
+    ),
+  );
+  const osvFindings = [...exceptions.keys()].map((id) =>
+    id === forgeId
+      ? { id: "CVE-2026-85393", aliases: [id], summary: "certificate issue" }
+      : { id },
+  );
+  const firstExpiry = [...exceptions.values()]
+    .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
+    .reduce((a, b) => Math.min(a, b));
+  const scanner = (bun, vulnerabilities) => (command, args) => {
+    if (command === "bun")
+      return { status: bun === "{}" ? 0 : 1, stdout: bun, stderr: "" };
+    assert.equal(command, "osv-scanner");
+    assert.ok(args.includes(`--lockfile=${lockfile}`));
+    assert.ok(args.includes("--config=/dev/null"));
+    return {
+      status: vulnerabilities.length ? 1 : 0,
+      stdout: JSON.stringify({
+        results: [{ packages: [{ vulnerabilities }] }],
+      }),
+      stderr: "",
+    };
+  };
+  const beforeExpiry = new Date("2026-10-02T00:00:00Z");
+  assert.doesNotThrow(() =>
+    auditDependencies(scanner("{}", osvFindings), projects, beforeExpiry),
+  );
+  assert.doesNotThrow(() =>
+    auditDependencies(scanner(bunFinding, []), projects, beforeExpiry),
+  );
+  assert.throws(
+    () => auditDependencies(scanner("{}", []), projects, beforeExpiry),
+    /unused dependency exception/u,
+  );
+  // ignoreUntil is the first expired day, so the boundary pins the earliest
+  // entry: at the latest one every entry is already expired.
+  assert.doesNotThrow(() =>
+    auditDependencies(
+      scanner("{}", osvFindings),
+      projects,
+      new Date(firstExpiry - 1),
+    ),
+  );
+  assert.throws(
+    () =>
+      auditDependencies(
+        scanner("{}", osvFindings),
+        projects,
+        new Date(firstExpiry),
+      ),
+    /expired dependency exception/u,
+  );
+  assert.throws(
+    () =>
+      auditDependencies(
+        scanner("{}", [...osvFindings, { id: "GHSA-unaccepted" }]),
+        projects,
+        beforeExpiry,
+      ),
+    /GHSA-unaccepted/u,
+  );
+});
+
+test("Bun OSV scans fail closed on incomplete or failed reports", () => {
+  const projects = [{ directory: ".", lockfile: "bun.lock" }];
+  for (const [result, message] of [
+    [
+      { status: 0, stdout: '{"results":{}}' },
+      /invalid OSV-Scanner result structure/u,
+    ],
+    [{ status: 1, stdout: '{"results":[]}' }, /exited 1 without findings/u],
+    [{ status: 2, stdout: '{"results":[]}' }, /OSV-Scanner exited 2/u],
+    [{ status: 0, stdout: "partial" }, /invalid OSV-Scanner JSON/u],
+  ]) {
+    assert.throws(
+      () =>
+        auditDependencies(
+          (command) =>
+            command === "bun"
+              ? { status: 0, stdout: "{}", stderr: "" }
+              : { stderr: "partial scan failure", ...result },
+          projects,
+        ),
+      message,
+    );
+  }
+});
+
+test("exception usage remains isolated to its owning lock", () => {
+  const projects = ["libraries/expo-iap", "libraries/expo-iap/example"].map(
+    (directory) => ({ directory, lockfile: `${directory}/bun.lock` }),
+  );
+  const scanner = (emptyLock) => (command, args) => {
+    if (command === "bun") return { status: 0, stdout: "{}", stderr: "" };
+    const lockfile = args
+      .find((arg) => arg.startsWith("--lockfile="))
+      .slice("--lockfile=".length);
+    const directory = projects.find(
+      (project) => project.lockfile === lockfile,
+    ).directory;
+    const ignored = parseOsvIgnoredVulnerabilities(
+      readFileSync(
+        resolve(import.meta.dirname, "..", directory, "osv-scanner.toml"),
+        "utf8",
+      ),
+    );
+    const vulnerabilities =
+      lockfile === emptyLock ? [] : [...ignored.keys()].map((id) => ({ id }));
+    return {
+      status: vulnerabilities.length ? 1 : 0,
+      stdout: JSON.stringify({
+        results: [{ packages: [{ vulnerabilities }] }],
+      }),
+      stderr: "",
+    };
+  };
+  const now = new Date("2026-10-02T00:00:00Z");
+  assert.doesNotThrow(() => auditDependencies(scanner(null), projects, now));
+  for (const { lockfile } of projects) {
+    assert.throws(
+      () => auditDependencies(scanner(lockfile), projects, now),
+      (error) => {
+        assert.match(error.message, /unused dependency exception/u);
+        assert.match(
+          error.message,
+          new RegExp(lockfile.replaceAll(".", "\\."), "u"),
+        );
+        return true;
+      },
+    );
+  }
+});
+
 test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   const yarnLock = "libraries/react-native-iap/yarn.lock";
   // Ids and expiry both come from the real exception file, so adding or
@@ -405,9 +729,11 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
     ),
   );
   assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
-  const lastExpiry = [...exceptions.values()]
-    .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
-    .reduce((a, b) => Math.max(a, b));
+  const expiries = [...exceptions.values()].map((entry) =>
+    Date.parse(`${entry.ignoreUntil}T00:00:00Z`),
+  );
+  const firstExpiry = Math.min(...expiries);
+  const lastExpiry = Math.max(...expiries);
   const dayAfterLastExpiry = new Date(lastExpiry + 24 * 60 * 60 * 1000);
   const activeReport = JSON.stringify({
     results: [
@@ -453,8 +779,13 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   // OSV-Scanner stops honouring a window on the ignoreUntil date itself. This
   // audit once called that same day live, so a lapsed exception failed CI while
   // this stayed silent; the boundary is pinned rather than left to a comparison.
+  // It pins the earliest entry: at the latest one every entry is already
+  // expired, so that assertion cannot catch an off-by-one.
+  assert.doesNotThrow(() =>
+    auditDependencies(scanner, [], new Date(firstExpiry - 1), [yarnLock]),
+  );
   assert.throws(
-    () => auditDependencies(scanner, [], new Date(lastExpiry), [yarnLock]),
+    () => auditDependencies(scanner, [], new Date(firstExpiry), [yarnLock]),
     /expired dependency exception/u,
   );
   const unaccepted = JSON.parse(activeReport);

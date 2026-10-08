@@ -55,7 +55,8 @@ apply from: project.file('openiap-android-sdk.gradle')
 
 // Store selection: explicit property > task flavor > connected debug device > play.
 apply from: project.file('openiap-store.gradle')
-def openiapFlavor = openIapResolveStore('expo-iap').store
+def openiapSelection = openIapResolveStore('expo-iap')
+def openiapFlavor = openiapSelection.store
 
 // If you want to use the managed Android SDK versions from expo-modules-core, set this to true.
 // The Android SDK versions will be bumped from time to time in SDK releases and may introduce breaking changes in your module code.
@@ -86,7 +87,10 @@ android {
     versionCode = 1
     versionName = expoIapPackageVersion
     // When using local openiap-google with flavors, select the appropriate flavor
-    missingDimensionStrategy "platform", openiapFlavor
+    missingDimensionStrategy "platform", openiapSelection.platform
+  }
+  testOptions {
+    unitTests.includeAndroidResources = true
   }
   lint {
     abortOnError = false
@@ -106,17 +110,8 @@ kotlin {
 
 dependencies {
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.16.1"
     testImplementation "org.json:json:20260719"
 
-    // `api`, so an app's own native code can use dev.hyo.openiap through this module.
-    if (findProject(":openiap-google") != null) {
-      api project(":openiap-google")
-    } else if (openiapFlavor == 'amazon') {
-      api "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}"
-    } else if (openiapFlavor == 'horizon') {
-      api "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
-    } else {
-      // Fallback to published artifact when local project isn't linked
-      api "io.github.hyochan.openiap:openiap-google:${googleVersionString}"
-    }
+    openIapAddStoreDependencies('api', googleVersionString, ':openiap-google')
 }

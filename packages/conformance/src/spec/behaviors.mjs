@@ -30,6 +30,9 @@ export const BEHAVIOR_CATEGORIES = Object.freeze([
   'verification',
   'identifiers',
   'capabilities',
+  'provider',
+  'android-provider',
+  'apple-provider',
 ]);
 
 export const BEHAVIOR_LEVELS = Object.freeze(['MUST', 'SHOULD']);
@@ -314,7 +317,7 @@ export const BEHAVIORS = Object.freeze([
     id: 'identifiers.purchase-carries-a-concrete-store',
     category: 'identifiers',
     level: 'MUST',
-    statement: 'Every purchase declares a concrete IapStore, never Unknown.',
+    statement: 'Every purchase declares a stable storeId; official stores also declare their IapStore, and community stores use Unknown.',
   },
   {
     id: 'identifiers.purchase-token-is-stable-across-reads',
@@ -338,6 +341,54 @@ export const BEHAVIORS = Object.freeze([
     level: 'MUST',
     statement:
       "An implementation's declared capabilities match the specification's capability matrix for its store.",
+  },
+
+  // Provider-only behaviors are SHOULD for JS clients; providers require them
+  // through their profiles and native suites.
+  // --- provider ----------------------------------------------------------
+  {
+    id: 'provider.invalid-purchase-emits-error-once',
+    category: 'provider',
+    level: 'SHOULD',
+    capability: 'requestPurchase',
+    statement:
+      'An invalid purchase request emits exactly one purchase-error event and delivers no purchase, and any thrown failure carries the same ErrorCode as the emitted event.',
+  },
+
+  // --- android-provider --------------------------------------------------
+  {
+    id: 'android-provider.subscription-billing-issue',
+    category: 'android-provider',
+    level: 'SHOULD',
+    capability: 'subscriptionBillingIssue',
+    statement:
+      'A triggered billing issue delivers a PurchaseAndroid with isSuspendedAndroid true and the provider store identity to the subscription-billing-issue listener, and the purchase maps to no active entitlement.',
+  },
+  {
+    id: 'android-provider.offer-code-redemption',
+    category: 'android-provider',
+    level: 'SHOULD',
+    capability: 'offerCodeRedemption',
+    statement:
+      'Opening offer-code redemption with a declared capability delivers the redeemed Purchased PurchaseAndroid with the provider store identity to the purchase-updated listener.',
+  },
+
+  // --- apple-provider ----------------------------------------------------
+  {
+    id: 'apple-provider.subscription-billing-issue',
+    category: 'apple-provider',
+    level: 'SHOULD',
+    capability: 'subscriptionBillingIssue',
+    statement:
+      'A triggered billing issue delivers a PurchaseIOS with the provider store identity to the subscription-billing-issue listener, and the mapped entitlement matches the sandbox grace state.',
+  },
+  {
+    id: 'apple-provider.offer-code-redemption',
+    category: 'apple-provider',
+    level: 'SHOULD',
+    capability: 'offerCodeRedemption',
+    statement:
+      'Opening offer-code redemption with a declared capability delivers the redeemed Purchased PurchaseIOS with the provider store identity to the purchase-updated listener.',
   },
 ]);
 

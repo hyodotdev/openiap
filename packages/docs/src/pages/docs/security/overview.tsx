@@ -160,7 +160,7 @@ function SecurityOverview() {
           <strong>no npm runtime dependencies</strong>. React, React Native, and
           Expo are peer dependencies your application owns and versions. The
           Expo and React Native release SBOMs separately include the native
-          CocoaPods and Maven contracts resolved by those packages;
+          CocoaPods and Maven contracts resolved by those packages;{' '}
           <code>openiap-conformance</code> has no such native layer.
         </p>
         <p>

@@ -101,9 +101,6 @@ function PurchaseFlow({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const visibleProducts = products;
-  const hasHiddenNonConsumables = false;
-
   const handlePurchase = useCallback(
     (itemId: string) => {
       onPurchase(itemId);
@@ -232,14 +229,12 @@ function PurchaseFlow({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Available Products</Text>
           <Text style={styles.sectionSubtitle}>
-            {visibleProducts.length > 0
-              ? `${visibleProducts.length} product(s) available`
-              : hasHiddenNonConsumables
-                ? 'All non-consumable products already purchased'
-                : 'Loading products...'}
+            {products.length > 0
+              ? `${products.length} product(s) available`
+              : 'Loading products...'}
           </Text>
 
-          {visibleProducts.map((product, index) => (
+          {products.map((product, index) => (
             <View key={product.id} style={styles.productCard}>
               <View style={styles.productHeader}>
                 <Text style={styles.productTitle}>{product.title}</Text>
@@ -290,12 +285,11 @@ function PurchaseFlow({
             </View>
           ))}
 
-          {visibleProducts.length === 0 && connected && (
+          {products.length === 0 && connected && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
-                {hasHiddenNonConsumables
-                  ? 'All available non-consumable products have already been purchased.'
-                  : 'No products available. Please check your app store configuration.'}
+                No products available. Please check your app store
+                configuration.
               </Text>
             </View>
           )}
@@ -346,7 +340,7 @@ function PurchaseFlow({
             1. Make sure you’re signed in with a Sandbox account
           </Text>
           <Text style={styles.instructionsText}>
-            2. Products must be configured in App Store Connect
+            2. Configure products in the selected store console
           </Text>
           <Text style={styles.instructionsText}>
             3. Tap “Purchase” to initiate the transaction

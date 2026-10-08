@@ -64,6 +64,23 @@ class IosErrorMappingTest {
     }
 
     @Test
+    fun testVerificationRetainsUnsupportedProviderCode() {
+        val error = NSError.errorWithDomain(
+            domain = "OpenIAP",
+            code = -1,
+            userInfo = mapOf(
+                "code" to "feature-not-supported",
+                "message" to "Use the vendor backend",
+                "debugMessage" to "Provider does not offer managed verification"
+            )
+        )
+        val exception = error.toPurchaseException(ErrorCode.PurchaseVerificationFailed)
+        assertEquals(ErrorCode.FeatureNotSupported, exception.error.code)
+        assertEquals("Use the vendor backend", exception.error.message)
+        assertEquals("Provider does not offer managed verification", exception.error.debugMessage)
+    }
+
+    @Test
     fun testMissingStorefrontDoesNotInventCountry() {
         val exception = assertFailsWith<PurchaseException> {
             requireStorefront(null)

@@ -38,9 +38,13 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
-Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
-mirror by hand. `"google"` and `"apple"` are native package versions and do not
+`"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
+set the manifest, run `bun install --lockfile-only --ignore-scripts` and then
+`./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
+files, when the in-tree code needs the new Client Protocol version
+(`sync-versions.sh` alone skips the conformance behavior ids, which embed the
+protocol version); do not edit the mirror by hand.
+`"google"` and `"apple"` are CI-managed native package versions and do not
 constrain it. Release-state, docs, and parity audits reject drift between the
 mirror and the publishing manifest.
 
@@ -186,6 +190,29 @@ never include raw purchase payloads, receipts, or tokens.
 bridges and exercises source-first mappings and round trips. When a generated
 payload field or bridge changes, update the real platform mapping and a focused
 regression fixture before extending the audit expectation.
+
+### Provider identity and selection
+
+Every output that carries `IapStore` also carries a required `storeId`
+(purchases, verification results, descriptors). Every SDK bridge preserves
+both fields through events, reads, JSON, and completion, and completes with
+the full purchase; the Apple ID-only selector resolves the owned purchase
+first and otherwise points to the full-purchase selector.
+
+External selection pairs a community id with fixed coordinates in every SDK:
+`openiapStore` + `openiapProvider` (Gradle, React Native, Flutter, KMP),
+`android.store` + `android.provider` (Expo), `OpenIapStore` +
+`OpenIapProvider` (MAUI), `openiap/android_store` +
+`openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
+Official ids and their aliases are rejected with coordinates. Alias tables
+and `StoreIds` constants are generated from the registry with
+`bun run stores:generate`; never hand-edit a generated block. Keep a major's
+provider profile for as long as any registry entry cites it, or older passing
+reports fail validation.
+
+SDK and shared code reaches the store through `OpenIapProvider` discovery on
+Android and the `OpenIapModule` facade on Apple. Never import a flavor module
+class from shared code; the build links the selected flavor.
 
 ### The bug pattern
 
@@ -357,10 +384,10 @@ file into its jar at build time. Every other build system reads the same names:
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
-`bun audit:parity` compares all five alias tables — the resolver, the doctor,
-the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
-targets — because a store that resolves differently in two layers of one build
-is exactly what this mechanism exists to prevent.
+`bun audit:parity` compares all six alias tables — the resolver, the doctor,
+the Godot helper, the Expo plugin, the runtime facade in `OpenIapStore.kt`
+and the MAUI package targets — because a store that resolves differently in
+two layers of one build is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by
 `packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
@@ -539,10 +566,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A schema change that alters the contract is a
-   Client Protocol version bump in `specs/client/package.json`; sync then
-   mirrors it into `openiap-versions.json` and fails instead of silently
-   repairing drift.
+1. Update the canonical schema. A contract change may bump the Client Protocol
+   in `specs/client/package.json`; refresh `bun.lock` and run
+   `./scripts/sync-release-generated.sh` to mirror it (the audits reject
+   drift), then release with `version=current`.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash

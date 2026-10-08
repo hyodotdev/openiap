@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 import {
   GENERATED_SYNC_MANIFEST,
   gqlPackageRelativePath,
@@ -21,6 +22,8 @@ import {
   maskKotlinCommentsAndStrings,
   maskTypeScriptCommentsAndStrings,
 } from "./audit-purchase-payload-parity.mjs";
+import { storeBindings } from "../specs/client/store-registry.mjs";
+import { SUITE_VERSION } from "../packages/conformance/src/spec/suite-version.mjs";
 import { sponsorBlockStart } from "./sync-sponsors.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -70,6 +73,11 @@ execFileSync(
     path.resolve(root, "scripts/audit-horizon-example-app-id.test.mjs"),
     path.resolve(root, "scripts/verify-horizon-merged-manifest.test.mjs"),
   ],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
+  ["--test", path.resolve(root, "scripts/store-registry.test.mjs")],
   { stdio: "inherit" },
 );
 const failures = [];
@@ -314,7 +322,36 @@ function checkNoReflectionIntoOpenIap() {
     /\b(?:getMethod|getDeclaredMethod|getField|getDeclaredField|getConstructor|getDeclaredConstructor)\(|Class\.forName\(/;
   for (const source of sources) {
     for (const file of listTrackedFiles(source)) {
-      if (!/\.(?:kt|java)$/.test(file) || /\/(?:[a-z]+Test|test)[A-Za-z]*\//.test(file)) continue;
+      if (
+        !/\.(?:kt|java)$/.test(file) ||
+        /\/(?:[a-z]+Test|test)[A-Za-z]*\//.test(file)
+      )
+        continue;
+      if (
+        file ===
+        "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapProvider.kt"
+      ) {
+        expectIncludes(
+          file,
+          [
+            'const val METADATA_KEY = "dev.hyo.openiap.PROVIDER"',
+            "Class.forName(className, true, context.classLoader)",
+            "OpenIapProviderFactory::class.java.isAssignableFrom(type)",
+            "type.getConstructor().newInstance() as OpenIapProviderFactory",
+            "catch (error: LinkageError)",
+            "validate(factory.descriptor)",
+          ],
+          "Provider discovery must validate the manifest factory and core compatibility",
+        );
+        expectIncludes(
+          "packages/google/core/consumer-rules.pro",
+          [
+            "-keep class * implements dev.hyo.openiap.OpenIapProviderFactory { public <init>(); }",
+          ],
+          "Manifest factories must survive R8 in any package",
+        );
+        continue;
+      }
       if (reflective.test(read(file))) {
         fail(
           `${file} looks up code by reflection, which R8 removes from release builds; call openiap directly`,
@@ -671,8 +708,8 @@ function checkFrameworkCiAndCoverageBadges() {
       codecovTargetPath: "packages/kit/server",
       codecovConfigPush: false,
       coverageAssertions: [
-        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90 server/",
-        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/",
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-server",
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-convex",
       ],
       componentId: "iapkit-server",
       componentName: "IAPKit Server",
@@ -686,7 +723,6 @@ function checkFrameworkCiAndCoverageBadges() {
       testCommand: "run: bun run test:coverage",
       testJob: "verify",
       uploadFlag: "iapkit",
-      uploadName: "iapkit",
       workflowFile: "deploy-kit.yml",
     },
   ];
@@ -875,6 +911,13 @@ function checkFrameworkCiAndCoverageBadges() {
 
   if (exists("codecov.yml")) {
     const codecovConfig = read("codecov.yml");
+    const errors = parseDocument(codecovConfig).errors;
+    if (errors.length) {
+      fail(
+        `codecov.yml is invalid YAML: ${errors.map(({ message }) => message).join("; ")}`,
+      );
+      return;
+    }
     const lcovParserBlock = [
       "parsers:",
       "  lcov:",
@@ -970,6 +1013,70 @@ function checkFrameworkCiAndCoverageBadges() {
     }
   }
 
+  const reportActionPath = ".github/actions/coverage-report/action.yml";
+  expectFile(reportActionPath);
+  if (exists(reportActionPath)) {
+    const reportAction = read(reportActionPath);
+    for (const needle of [
+      "using: composite",
+      "uses: actions/upload-artifact@",
+      "name: coverage-${{ inputs.flag }}",
+      "path: ${{ github.workspace }}/${{ inputs.package-path }}/coverage/lcov.info",
+      "if-no-files-found: error",
+      "retention-days: 14",
+      "id: codecov-cli",
+      "working-directory: ${{ github.workspace }}",
+      'timeout 120s scripts/install-security-tool.sh codecov "$RUNNER_TEMP/codecov-cli"',
+      'exec timeout 120s "${BASH_SOURCE[0]}-cli" "$@"',
+      "id: codecov-upload",
+      "if: steps.codecov-cli.outcome == 'success'",
+      "uses: codecov/codecov-action@",
+      "binary: ${{ runner.temp }}/codecov",
+      "use_oidc: ${{ inputs.use-oidc }}",
+      "fail_ci_if_error: true",
+      "disable_search: true",
+      "files: coverage/lcov.info",
+      "flags: ${{ inputs.flag }}",
+      "network_prefix: ${{ inputs.package-path }}/",
+      "working-directory: ${{ inputs.package-path }}",
+      "steps.codecov-cli.outcome == 'failure' || steps.codecov-upload.outcome == 'failure'",
+      "::warning::Codecov reporting failed.",
+      "$GITHUB_STEP_SUMMARY",
+    ]) {
+      if (!reportAction.includes(needle)) {
+        fail(`${reportActionPath} must include ${JSON.stringify(needle)}`);
+      }
+    }
+    const parsedAction = parseDocument(reportAction);
+    const steps = parsedAction.toJS()?.runs?.steps;
+    if (
+      parsedAction.errors.length ||
+      !Array.isArray(steps) ||
+      steps.length !== 4
+    ) {
+      fail(`${reportActionPath} must define four valid composite steps`);
+    } else if (
+      steps.some((step, index) =>
+        [1, 2].includes(index)
+          ? step["continue-on-error"] !== true ||
+            step.id !== ["codecov-cli", "codecov-upload"][index - 1]
+          : "continue-on-error" in step || ("if" in step && index === 0),
+      )
+    ) {
+      fail(
+        `${reportActionPath} may soften only the Codecov installer and upload`,
+      );
+    }
+    if (
+      reportAction.indexOf("uses: actions/upload-artifact@") >=
+      reportAction.indexOf("id: codecov-cli")
+    ) {
+      fail(
+        `${reportActionPath} must archive coverage before optional reporting`,
+      );
+    }
+  }
+
   for (const contract of contracts) {
     const workflowPath = `.github/workflows/${contract.workflowFile}`;
     expectFile(workflowPath);
@@ -997,22 +1104,18 @@ function checkFrameworkCiAndCoverageBadges() {
       continue;
     }
     const coverageAssertions = contract.coverageAssertions ?? [
-      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+      `run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component ${contract.componentId}`,
     ];
     for (const needle of [
       "permissions:\n      contents: read\n      id-token: write",
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
       ...coverageAssertions,
-      "uses: codecov/codecov-action@",
-      "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
-      "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
-      "disable_search: true",
-      "files: coverage/lcov.info",
-      `flags: ${contract.uploadFlag ?? contract.componentId}`,
-      `name: ${contract.uploadName ?? contract.componentId}`,
-      `network_prefix: ${contract.libraryPath}/`,
-      `working-directory: ${contract.libraryPath}`,
+      "COVERAGE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}",
+      "uses: ./.github/actions/coverage-report",
+      "use-oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
+      `flag: ${contract.uploadFlag ?? contract.componentId}`,
+      `package-path: ${contract.libraryPath}`,
     ]) {
       if (!testJob.includes(needle)) {
         fail(
@@ -1021,14 +1124,38 @@ function checkFrameworkCiAndCoverageBadges() {
       }
     }
     if (
-      (testJob.match(/codecov\/codecov-action@[0-9a-f]{40}\s+# v7/g) ?? [])
+      !workflowSource.includes(
+        `defaults:\n  run:\n    working-directory: ${contract.libraryPath}`,
+      ) &&
+      !testJob.includes(
+        `defaults:\n      run:\n        working-directory: ${contract.libraryPath}`,
+      )
+    ) {
+      fail(
+        `${workflowPath} coverage commands must run in ${contract.libraryPath}`,
+      );
+    }
+    if (
+      (testJob.match(/uses: \.\/\.github\/actions\/coverage-report/g) ?? [])
         .length !== 1
     ) {
       fail(
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
-    const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
+    const uploadIndex = testJob.indexOf(
+      "uses: ./.github/actions/coverage-report",
+    );
+    if (/\n      - /u.test(testJob.slice(uploadIndex))) {
+      fail(
+        `${workflowPath} must finish required checks before coverage reporting`,
+      );
+    }
+    if (/continue-on-error:/u.test(testJob)) {
+      fail(
+        `${workflowPath} must keep tests, coverage, builds and security checks mandatory`,
+      );
+    }
     for (const coverageAssertion of coverageAssertions) {
       const coverageAssertionIndex = testJob.indexOf(coverageAssertion);
       if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
@@ -1047,6 +1174,17 @@ function checkFrameworkCiAndCoverageBadges() {
     if (!eventBlock("pull_request").includes('- "codecov.yml"')) {
       fail(`${workflowPath} pull_request paths must include root codecov.yml`);
     }
+    for (const event of ["push", "pull_request"]) {
+      for (const trigger of [
+        "scripts/install-security-tool.sh",
+        "scripts/assert-lcov-coverage.mjs",
+        ".github/actions/coverage-report/**",
+      ]) {
+        if (!eventBlock(event).includes(`- "${trigger}"`)) {
+          fail(`${workflowPath} ${event} paths must include ${trigger}`);
+        }
+      }
+    }
     const pushIncludesCodecov = eventBlock("push").includes('- "codecov.yml"');
     if (contract.codecovConfigPush === false && pushIncludesCodecov) {
       fail(
@@ -1061,7 +1199,9 @@ function checkFrameworkCiAndCoverageBadges() {
       const filterIndex = testJob.indexOf(
         "run: dart run tool/filter_coverage.dart",
       );
-      const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
+      const uploadIndex = testJob.indexOf(
+        "uses: ./.github/actions/coverage-report",
+      );
       if (
         testIndex < 0 ||
         filterIndex <= testIndex ||
@@ -1723,8 +1863,6 @@ const GOOGLE_FLAVOR_MODULES = [
   "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
 ];
 
-const CONFORMANCE_SUITE_DIR = "src/conformanceTest/java";
-
 const GOOGLE_CONFORMANCE_ADAPTERS = {
   testPlay:
     "packages/google/openiap/src/testPlay/java/dev/hyo/openiap/conformance/PlayStoreConformanceTest.kt",
@@ -1738,6 +1876,21 @@ const GOOGLE_CONFORMANCE_ADAPTERS = {
 // behavior ids that appear in published reports, so losing one silently would
 // invalidate every claim made against it.
 function checkConformanceSuite() {
+  try {
+    execFileSync(
+      process.execPath,
+      [path.resolve(root, "scripts/generate-store-registry.mjs"), "--check"],
+      { stdio: "pipe" },
+    );
+  } catch (error) {
+    fail(
+      `Store registry audit failed: ${[error?.stdout, error?.stderr]
+        .filter(Boolean)
+        .map((output) => output.toString().trim())
+        .join(" ")}`,
+    );
+  }
+
   for (const relativePath of [
     "packages/conformance/package.json",
     "packages/conformance/README.md",
@@ -1756,6 +1909,13 @@ function checkConformanceSuite() {
   ]) {
     expectFile(relativePath);
   }
+
+  // The README coordinate must track SUITE_VERSION, not a frozen copy.
+  expectIncludes(
+    "packages/conformance/README.md",
+    [`io.github.hyochan.openiap:openiap-conformance:${SUITE_VERSION}`],
+    "packages/conformance/README.md coordinate must match SUITE_VERSION",
+  );
 
   // Every MUST behavior needs at least one implementation covering it.
   try {
@@ -1891,17 +2051,33 @@ function checkConformanceNotPublished() {
     );
   }
 
-  // conformanceTest belongs to unit-test variants; wiring it into a shipped
-  // source set would compile it into the AAR.
-  const gradle = read("packages/google/openiap/build.gradle.kts");
-  for (const sourceSet of ["main", "play", "horizon", "amazon"]) {
-    const block = new RegExp(
-      `named\\("${sourceSet}"\\)\\s*\\{([\\s\\S]*?)\\n\\s{8}\\}`,
-    ).exec(gradle)?.[1];
-    if (block?.includes(CONFORMANCE_SUITE_DIR)) {
-      fail(
-        `packages/google/openiap/build.gradle.kts: ${sourceSet} must not include "${CONFORMANCE_SUITE_DIR}" — it would ship in the AAR`,
-      );
+  // The suite lives in its own module now. The published openiap, openiap-core,
+  // and store-flavor artifacts must reach it (and JUnit) through test
+  // configurations only; an api/implementation edge would ship in the AAR/POM.
+  const shippedConfig =
+    "api|implementation|playApi|horizonApi|amazonApi|playImplementation|horizonImplementation|amazonImplementation";
+  const shippedDep = new RegExp(
+    `(^|[^A-Za-z])(${shippedConfig})\\s*\\(|add\\(\\s*"(${shippedConfig})"\\s*,`,
+  );
+  for (const buildFile of [
+    "packages/google/openiap/build.gradle.kts",
+    "packages/google/core/build.gradle.kts",
+  ]) {
+    let inBlockComment = false;
+    for (const line of read(buildFile).split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("/*")) inBlockComment = true;
+      const code = inBlockComment || trimmed.startsWith("//") ? "" : trimmed;
+      if (trimmed.endsWith("*/")) inBlockComment = false;
+      if (
+        code &&
+        shippedDep.test(code) &&
+        /openiap-conformance|junit/i.test(code)
+      ) {
+        fail(
+          `${buildFile}: conformance and JUnit stay in test configurations — "${trimmed}" would ship in the AAR`,
+        );
+      }
     }
   }
 }
@@ -1910,10 +2086,10 @@ function checkConformanceNotPublished() {
 // adapter or an unwired srcDir silently drops that store's coverage.
 function checkGoogleStoreConformanceSuite() {
   expectFile(
-    "packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+    "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
   );
   expectFile(
-    "packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceAdapter.kt",
+    "packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceAdapter.kt",
   );
 
   const gradle = read("packages/google/openiap/build.gradle.kts");
@@ -1934,9 +2110,16 @@ function checkGoogleStoreConformanceSuite() {
     const block = new RegExp(
       `named\\("${sourceSet}"\\)\\s*\\{([\\s\\S]*?)\\n\\s{8}\\}`,
     ).exec(gradle)?.[1];
-    if (!block?.includes(CONFORMANCE_SUITE_DIR)) {
+    if (!block?.includes(`src/${sourceSet}/java`)) {
       fail(
-        `packages/google/openiap/build.gradle.kts: ${sourceSet} must include "${CONFORMANCE_SUITE_DIR}" so the shared conformance suite runs for that flavor`,
+        `packages/google/openiap/build.gradle.kts: ${sourceSet} must compile its conformance adapter`,
+      );
+    }
+    if (
+      !gradle.includes('testImplementation(project(":openiap-conformance"))')
+    ) {
+      fail(
+        "Every Google flavor must depend on the published conformance module in tests",
       );
     }
   }
@@ -2283,8 +2466,8 @@ function checkFlutter() {
     "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift",
   ];
 
-  // The oldest openiap-apple with every symbol the plugin calls.
-  const flutterSwiftPackageFloor = "3.6.1";
+  // Oldest openiap-apple with OpenIapFirstPurchaseNotice and the storeId/StoreIds identity API.
+  const flutterSwiftPackageFloor = "4.0.0";
   for (const flutterSwiftPackage of flutterSwiftPackagePaths) {
     expectFile(flutterSwiftPackage);
     if (!exists(flutterSwiftPackage)) continue;
@@ -2302,7 +2485,7 @@ function checkFlutter() {
       fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
     } else if (openIapDependencyVersion !== flutterSwiftPackageFloor) {
       fail(
-        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with OpenIapFirstPurchaseNotice`,
+        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with OpenIapFirstPurchaseNotice and the storeId/StoreIds identity API`,
       );
     }
     if (
@@ -2467,13 +2650,16 @@ function checkFlutter() {
   );
   expectIncludes(
     "libraries/expo-iap/src/index.ts",
-    ["restorePurchasesIOSNative"],
+    ["restorePurchasesNative"],
     "Expo restore helper routing",
   );
   expectIncludes(
     "libraries/expo-iap/src/utils/restorePurchases.ts",
-    ["ExpoIapModule.USING_ONSIDE_SDK", "ExpoIapModule.restorePurchases"],
-    "Expo Onside restore routing",
+    [
+      "typeof ExpoIapModule.restorePurchases",
+      "await ExpoIapModule.restorePurchases",
+    ],
+    "Expo provider and Onside restore routing",
   );
   expectNotIncludes(
     "libraries/expo-iap/src/utils/restorePurchases.ts",
@@ -2672,7 +2858,7 @@ function checkKmp() {
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
     [
-      "requestPurchaseWithPayload(params.toJson().toObjCMap())",
+      "requestPurchaseWithJSON(params.toJson().toJsonStringIOS())",
       "requireIosSku(params)",
       "openIapModule.verifyPurchaseWithSku(sku)",
       "decodeActiveSubscriptionListPayloadIOS(result, subscriptionIds)",
@@ -2708,7 +2894,7 @@ function checkKmp() {
 
 function checkIapkitAmazonContractWiring() {
   expectIncludes(
-    "packages/apple/Sources/OpenIapModule.swift",
+    "packages/apple/Sources/OpenIapStoreKitModule.swift",
     [
       "expectedProductId: amazon.expectedProductId",
       "let environment = Self.iapkitEnvironment",
@@ -2784,7 +2970,8 @@ function checkIapkitAmazonContractWiring() {
     [
       "'expectedProductId':",
       "final environmentValue = itemMap['environment']",
-      "environment: environment,",
+      "RequestVerifyPurchaseWithIapkitResult.fromJson({",
+      "'environment': environment,",
     ],
     "Flutter IAPKit Amazon contract",
   );
@@ -2839,7 +3026,11 @@ function checkIapkitAmazonContractWiring() {
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
-    ['map["environment"] as? String', "environment = environment"],
+    [
+      'map["environment"] as? String',
+      '"environment" to environment',
+      '"storeId" to map["storeId"]',
+    ],
     "KMP iOS IAPKit response contract",
   );
 }
@@ -2901,6 +3092,8 @@ function checkApple() {
     rel(base, "Sources/OpenIapModule+ObjC.swift"),
     [
       "func requestPurchaseWithPayload",
+      "func requestPurchaseWithJSON",
+      "requestPurchaseWithPayload(payload, completion: completion)",
       "OpenIapSerialization.requestPurchaseProps(from: payload)",
       "func getStorefrontWithCompletion",
     ],
@@ -3065,7 +3258,7 @@ function checkMaui() {
       "RequestPurchaseWithPayload",
       "RequestPurchasePayload",
       "_module.GetStorefront(cb)",
-      "GetActiveSubscriptionsAsync(subscriptionIds)",
+      "_module.HasActiveSubscriptions(subscriptionIds?.ToArray(), cb)",
     ],
     "MAUI iOS requestPurchase bridge",
   );
@@ -3310,7 +3503,10 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapHelper.kt",
-    ["openIap.addConnectionStateListener(", "openIap.removeConnectionStateListener("],
+    [
+      "openIap.addConnectionStateListener(",
+      "openIap.removeConnectionStateListener(",
+    ],
     "expo-iap subscribes to billing disconnect (#408)",
   );
   expectNotIncludes(
@@ -3460,19 +3656,24 @@ function checkBillingChoiceFieldBindings() {
   );
   expectMatch(
     "libraries/react-native-iap/src/hooks/useIAP.ts",
-    /const restorePurchases[\s\S]*?const synced = await syncIOS\(\);\s*if \(!synced\)[\s\S]*?ErrorCode\.SyncError[\s\S]*?invokeOnError\(error\);\s*throw error;[\s\S]*?await getAvailablePurchasesInternal\(options\);/,
+    /const restorePurchases[\s\S]*?await restorePurchasesNative\(\);[\s\S]*?invokeOnError\(purchaseError\);\s*throw purchaseError;[\s\S]*?await getAvailablePurchasesInternal\(options\);/,
     "RN restore hook failure propagation",
   );
   expectMatch(
     "libraries/react-native-iap/src/index.ts",
-    /export const restorePurchases[\s\S]*?const synced = await syncIOS\(\);\s*if \(!synced\)[\s\S]*?ErrorCode\.SyncError[\s\S]*?await getAvailablePurchases/,
-    "RN restore API false-sync rejection",
+    /export const restorePurchases[\s\S]*?await restorePurchasesNative\(\);[\s\S]*?await getAvailablePurchases/,
+    "RN restore API provider dispatch",
+  );
+  expectMatch(
+    "libraries/react-native-iap/src/utils/restore-purchases.ts",
+    /const restored = await getNativeIapInstance\(\)\.restorePurchases\(\);[\s\S]*?if \(restored !== true\)[\s\S]*?ErrorCode\.SyncError/,
+    "RN restore native false-result rejection",
   );
   expectIncludes(
     "libraries/react-native-iap/src/index.ts",
     [
       "return convertApplePurchasesOrThrow(nitroPurchases);",
-      "return convertAndroidPurchasesOrThrow(allNitroPurchases);",
+      "return convertAndroidPurchasesOrThrow(nitroPurchases);",
     ],
     "RN platform-scoped authoritative purchase-list decoding",
   );
@@ -3523,7 +3724,7 @@ function checkBillingChoiceFieldBindings() {
   expectIncludes(
     "libraries/flutter_inapp_purchase/lib/helpers.dart",
     [
-      "if (platformIsIOS && store != 'apple') return false;",
+      "if (platformIsIOS && store != 'apple' && store != 'unknown') return false;",
       "store != 'google' &&",
       "store != 'amazon' &&",
       "store != 'horizon'",
@@ -4197,9 +4398,11 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
-      clientProtocolPackageVersion: readJson("specs/client/package.json").version,
-      commerceProtocolPackageVersion: readJson("specs/commerce-protocol/package.json")
+      clientProtocolPackageVersion: readJson("specs/client/package.json")
         .version,
+      commerceProtocolPackageVersion: readJson(
+        "specs/commerce-protocol/package.json",
+      ).version,
       expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
       reactNativePackageVersion: readJson(
         "libraries/react-native-iap/package.json",
@@ -4373,6 +4576,7 @@ function checkFrameworkDependencyHygiene() {
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
     "packages/apple/Sources/OpenIapModule.swift",
+    "packages/apple/Sources/OpenIapStoreKitModule.swift",
     "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt",
   ]) {
     expectNotIncludes(
@@ -5221,7 +5425,7 @@ function checkFrameworkDependencyHygiene() {
       'npm install -g "vercel@$VERCEL_CLI_VERSION"',
       'FORCE_DEPLOY="${npm_config_force:-false}"',
       'for arg in "$@"; do',
-      '-f|--force) FORCE_DEPLOY=true ;;',
+      "-f|--force) FORCE_DEPLOY=true ;;",
       "Unsupported argument:",
       "if ! ./scripts/sync-versions.sh; then",
       "if ! bun run typecheck; then",
@@ -5529,8 +5733,11 @@ function checkFrameworkDependencyHygiene() {
     [
       "release:",
       "runs-on: ubuntu-latest",
-      "./gradlew :openiap:assembleRelease --no-daemon --stacktrace",
-      "artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar)",
+      "tasks=(:openiap:assembleRelease)",
+      "tasks+=(:openiap-core:assembleRelease)",
+      './gradlew "${tasks[@]}" --no-daemon --stacktrace',
+      "The provider core AAR is missing",
+      "artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar core/build/outputs/aar/*.aar ../conformance/android/build/outputs/aar/*.aar)",
       "No Google release artifacts found",
       'cp "${artifacts[@]}" release-artifacts/',
       "Checkout release tag (current version)",
@@ -5719,11 +5926,13 @@ function checkFrameworkDependencyHygiene() {
       /^\s*git checkout\b/,
       packageIndex + 1,
     );
-    if (!(
-      guardIndex >= 0 &&
-      packageIndex === guardIndex + 1 &&
-      checkoutIndex > packageIndex
-    )) {
+    if (
+      !(
+        guardIndex >= 0 &&
+        packageIndex === guardIndex + 1 &&
+        checkoutIndex > packageIndex
+      )
+    ) {
       fail(
         `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
       );
@@ -6729,9 +6938,10 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
     [
-      "ErrorCode.userCancelled.rawValue",
+      "openIap.purchaseErrorListener",
+      "Variant(error.code.rawValue)",
       "ErrorCode.developerError.rawValue",
-      "ErrorCode.syncError.rawValue",
+      "GodotIapHelper.errorCode(error, fallback: .syncError)",
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );
@@ -7380,7 +7590,10 @@ function checkFrameworkDependencyHygiene() {
       );
       expectIncludes(
         `${wrapper}/build.gradle`,
-        ["apply from: project.file('openiap-store.gradle')", "openIapResolveStore("],
+        [
+          "apply from: project.file('openiap-store.gradle')",
+          "openIapResolveStore(",
+        ],
         "Android wrappers must select the store through openiap-store.gradle",
       );
       expectNotIncludes(
@@ -7394,52 +7607,74 @@ function checkFrameworkDependencyHygiene() {
         "Android wrappers must read the store only through openiap-store.gradle",
       );
     }
-    // Five store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild) cannot
+    // Six store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild, TS) cannot
     // share code, so they must match entry for entry.
     const aliasTables = {
       "packages/google/gradle/openiap-store.gradle": (text) => {
-        const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
-        return block
-          ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z]+)'/g)].map(
-              (one) => [one[1], one[2]],
-            )
-          : null;
-      },
-      "packages/cli/src/checks.mjs": (text) => {
-        const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
-        return block
-          ? [...block.matchAll(/"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z]+)"/g)].map(
-              (one) => [one[1], one[2]],
-            )
-          : null;
-      },
-      "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt": (
-        text,
-      ) => {
-        const block = /private val storeAliases = mapOf\(([\s\S]*?)\n\)/.exec(
+        const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(
           text,
         )?.[1];
         return block
           ? [
               ...block.matchAll(
-                /"([A-Za-z0-9._-]+)"\s*to\s*"([a-z]+)"/g,
+                /'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z][a-z0-9._-]*)'/g,
               ),
             ].map((one) => [one[1], one[2]])
           : null;
       },
+      "packages/cli/src/checks.mjs": (text) => {
+        const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
+        return block
+          ? [
+              ...block.matchAll(
+                /"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z][a-z0-9._-]*)"/g,
+              ),
+            ].map((one) => [one[1], one[2]])
+          : null;
+      },
+      "libraries/expo-iap/plugin/src/withIAP.ts": (text) => {
+        const block =
+          /const ANDROID_STORE_ALIASES: Record<string, string> = \{([\s\S]*?)\n\};/.exec(
+            text,
+          )?.[1];
+        return block
+          ? [
+              ...block.matchAll(
+                /"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z][a-z0-9._-]*)"/g,
+              ),
+            ].map((one) => [one[1], one[2]])
+          : null;
+      },
+      "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt":
+        (text) => {
+          const block = /private val storeAliases = mapOf\(([\s\S]*?)\n\)/.exec(
+            text,
+          )?.[1];
+          return block
+            ? [
+                ...block.matchAll(
+                  /"([A-Za-z0-9._-]+)"\s*to\s*"([a-z][a-z0-9._-]*)"/g,
+                ),
+              ].map((one) => [one[1], one[2]])
+            : null;
+        },
       "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
         const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
-              one[1],
-              one[2],
-            ])
+          ? [
+              ...block.matchAll(
+                /"([A-Za-z0-9._-]+)"\s*:\s*"([a-z][a-z0-9._-]*)"/g,
+              ),
+            ].map((one) => [one[1], one[2]])
           : null;
       },
-      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets": (text) =>
-        [...text.matchAll(/<_OpenIapStoreName Include="([^"]+)" Store="([a-z]+)"/g)].flatMap(
-          (one) => one[1].split(";").map((alias) => [alias, one[2]]),
-        ),
+      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets":
+        (text) =>
+          [
+            ...text.matchAll(
+              /<_OpenIapStoreName Include="([^"]+)" Store="([a-z][a-z0-9._-]*)"/g,
+            ),
+          ].flatMap((one) => one[1].split(";").map((alias) => [alias, one[2]])),
     };
     const parsedAliases = {};
     for (const [file, parse] of Object.entries(aliasTables)) {
@@ -7454,18 +7689,31 @@ function checkFrameworkDependencyHygiene() {
     }
     // Godot and MAUI have no opt-out build, so `none` is the one id they may omit.
     const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
-    const mauiFile = "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets";
+    const mauiFile =
+      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets";
     // The facade maps aliases onto the three ids; the ids and the opt-out are
     // not keys there, and it has no device so `auto` never reaches it.
     const facadeFile =
       "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt";
-    const facadeSkips = new Set(["play", "horizon", "amazon", "auto", "none"]);
-    const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
+    const facadeSkips = new Set([
+      "auto",
+      "none",
+      ...JSON.parse(read("specs/client/src/store-registry.json"))
+        .stores.filter((store) =>
+          storeBindings(store).some(
+            (binding) => binding.platform === "android",
+          ),
+        )
+        .map((store) => store.id),
+    ]);
+    const reference =
+      parsedAliases["packages/google/gradle/openiap-store.gradle"];
     if (reference) {
       for (const [file, table] of Object.entries(parsedAliases)) {
         if (file === "packages/google/gradle/openiap-store.gradle") continue;
         for (const [alias, store] of reference) {
-          if ((file === godotFile || file === mauiFile) && store === "none") continue;
+          if ((file === godotFile || file === mauiFile) && store === "none")
+            continue;
           if (file === facadeFile && facadeSkips.has(alias)) continue;
           const mine = table.get(alias);
           if (mine === undefined) {
@@ -7478,7 +7726,9 @@ function checkFrameworkDependencyHygiene() {
         }
         for (const alias of table.keys()) {
           if (!reference.has(alias)) {
-            fail(`${file}: store alias ${JSON.stringify(alias)} is not in the resolver`);
+            fail(
+              `${file}: store alias ${JSON.stringify(alias)} is not in the resolver`,
+            );
           }
         }
       }
@@ -7503,13 +7753,20 @@ function checkFrameworkDependencyHygiene() {
         }
       }
     }
-    // MAUI's unknown-store error lists every value its table accepts.
+    // MAUI lists official aliases and explains how to select community providers.
     if (reference && exists(mauiFile)) {
-      const hint = /is not a store\. Use ([a-z, ]+), or ([a-z]+) \(aliases: ([a-z/, -]+)\)\./.exec(
-        read(mauiFile),
-      );
-      const listed = hint ? [...hint[1].split(", "), hint[2], ...hint[3].split(/, |\//)] : [];
-      const accepted = [...reference].filter(([, store]) => store !== "none").map(([alias]) => alias);
+      const hint =
+        /is not a store\. Use ([a-z, ]+), or ([a-z]+) \(aliases: ([a-z/, -]+)\)\./.exec(
+          read(mauiFile),
+        );
+      const listed = hint
+        ? [...hint[1].split(", "), hint[2], ...hint[3].split(/, |\//)]
+        : [];
+      const accepted = [...reference]
+        .filter(([, store]) =>
+          ["auto", "play", "horizon", "amazon"].includes(store),
+        )
+        .map(([alias]) => alias);
       if (listed.sort().join() !== accepted.sort().join()) {
         fail(
           `${mauiFile}: the unknown-store error lists [${listed.join(", ")}], not [${accepted.join(", ")}]`,
@@ -8284,7 +8541,9 @@ function checkFrameworkDependencyHygiene() {
 
   const mauiProps = read("libraries/maui-iap/src/Directory.Build.props");
   // The app build reads the store SDK versions from the package itself.
-  const mauiStoreProps = read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props");
+  const mauiStoreProps = read(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
+  );
   const mauiBillingVersion = mauiStoreProps.match(
     /<MauiPlayBillingVersion>([^<]+)<\/MauiPlayBillingVersion>/,
   )?.[1];
@@ -8309,7 +8568,10 @@ function checkFrameworkDependencyHygiene() {
     "MauiPlayServicesLocationVersion",
     "MauiPlayServicesTasksVersion",
     "MauiDataTransportVersion",
-  ].map((name) => [name, mauiProps.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1]]);
+  ].map((name) => [
+    name,
+    mauiProps.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1],
+  ]);
   const mauiGoogleGsonNuGetVersion = mauiProps.match(
     /<MauiGoogleGsonNuGetVersion>([^<]+)<\/MauiGoogleGsonNuGetVersion>/,
   )?.[1];
@@ -8481,8 +8743,12 @@ function checkFrameworkDependencyHygiene() {
     // Billing's POM dependencies are exempted from verification by exact
     // version, so a Billing bump has to revisit that list.
     if (
-      exists("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets") &&
-      !read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets").includes(`billing:${googleBillingVersions[0]}'s POM dependencies`)
+      exists(
+        "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+      ) &&
+      !read(
+        "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+      ).includes(`billing:${googleBillingVersions[0]}'s POM dependencies`)
     ) {
       fail(
         `libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets: the Billing dependency exemptions must be revisited for billing ${googleBillingVersions[0]}`,
@@ -8685,7 +8951,11 @@ function checkFrameworkDependencyHygiene() {
   );
   expectNotIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    ["Xamarin.Android.Google.BillingClient", "OpenIapGoogleAarFlavor", "AndroidMavenLibrary"],
+    [
+      "Xamarin.Android.Google.BillingClient",
+      "OpenIapGoogleAarFlavor",
+      "AndroidMavenLibrary",
+    ],
     "MAUI package must not link Billing through its NuGet binding, whose Java wrappers need it in every store's build",
   );
   expectIncludes(
@@ -9381,7 +9651,7 @@ function checkXcode27StoreKitCoverage() {
     "Xcode 27 StoreKit native mapping",
   );
   expectIncludes(
-    "packages/apple/Sources/OpenIapModule.swift",
+    "packages/apple/Sources/OpenIapStoreKitModule.swift",
     [
       "AppStore.presentOfferCodeRedeemSheet(",
       "StoreKitTypesBridge.isAutoRenewingSubscriptionProductType",

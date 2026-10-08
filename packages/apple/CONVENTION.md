@@ -36,3 +36,7 @@ cd packages/apple
 swift build
 swift test --filter OpenIapTests
 ```
+
+## Store Providers
+
+Apple reaches the selected store only through the `OpenIapModule` facade over `OpenIapProvider` Info.plist discovery; the contract, identity rules, and parity checklist live in [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers) and [04-platform-packages.md](../../knowledge/internal/04-platform-packages.md#provider-identity-and-selection).

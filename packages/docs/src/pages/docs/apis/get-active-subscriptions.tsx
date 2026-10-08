@@ -34,9 +34,7 @@ function GetActiveSubscriptions() {
           Apple docs
         </a>
         . <strong>Android:</strong> Calls <code>queryPurchasesAsync(SUBS)</code>{' '}
-        and treats{' '}
-        <code>purchaseState == PURCHASED &amp;&amp; autoRenewing</code> as
-        active.{' '}
+        and treats <code>purchaseState == PURCHASED</code> as active.{' '}
         <a
           href="https://developer.android.com/google/play/billing/subscriptions#lifecycle"
           target="_blank"
@@ -49,7 +47,7 @@ function GetActiveSubscriptions() {
       <p>
         <strong>Fire OS:</strong> uses the Amazon adapter's purchase-update
         stream under the Android API shape. App code still passes the same
-        subscription SKU list and reads the same <code>ActiveSubscription</code>
+        subscription SKU list and reads the same <code>ActiveSubscription</code>{' '}
         fields; the adapter handles Amazon receipt IDs and the in-flight
         purchase response correlation so examples and framework apps do not need
         ad-hoc SKU alias logic.
@@ -149,8 +147,9 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <em>
             (required, <code>boolean</code>)
           </em>{' '}
-          — <code>true</code> while the subscription is in a paying or grace
-          state.
+          — <code>true</code> on iOS while the expiration date is in the future
+          (billing grace reads inactive); on Android while the purchase state is
+          purchased.
         </li>
         <li>
           <code>expirationDateIOS</code>{' '}
@@ -176,6 +175,13 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           cycle.
         </li>
       </ul>
+      <p>
+        When upgrading from an older major, see the{' '}
+        <Link to="/docs/updates/migration#provider-contract-subscription-flag">
+          subscription-check upgrade notes
+        </Link>
+        .
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

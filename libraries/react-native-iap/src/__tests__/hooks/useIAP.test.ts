@@ -1,3 +1,4 @@
+import * as nativeRestore from '../../utils/restore-purchases';
 /* eslint-disable import/first */
 import React, {act} from 'react';
 import {createRoot, type Root} from 'test-renderer';
@@ -48,6 +49,7 @@ import type {
   FetchProductsResult,
   ProductAndroid,
   ProductSubscriptionAndroid,
+  PurchaseError,
 } from '../../types';
 
 const inAppProduct = (
@@ -98,7 +100,9 @@ describe('hooks/useIAP (renderer)', () => {
   let mockHasActiveSubscriptions: jest.SpiedFunction<
     typeof IAP.hasActiveSubscriptions
   >;
-  let mockSyncIOS: jest.SpiedFunction<typeof IAP.syncIOS>;
+  let mockRestorePurchases: jest.SpiedFunction<
+    typeof nativeRestore.restorePurchasesNative
+  >;
 
   beforeEach(() => {
     capturedPurchaseListener = undefined;
@@ -114,7 +118,9 @@ describe('hooks/useIAP (renderer)', () => {
       .mockResolvedValue(false);
     jest.spyOn(IAP, 'finishTransaction').mockResolvedValue(undefined);
     mockFetchProducts = jest.spyOn(IAP, 'fetchProducts').mockResolvedValue([]);
-    mockSyncIOS = jest.spyOn(IAP, 'syncIOS').mockResolvedValue(true);
+    mockRestorePurchases = jest
+      .spyOn(nativeRestore, 'restorePurchasesNative')
+      .mockResolvedValue(undefined);
     jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation((cb: any) => {
       capturedPurchaseListener = cb;
       return {remove: jest.fn()};
@@ -172,6 +178,7 @@ describe('hooks/useIAP (renderer)', () => {
       transactionDate: Date.now(),
       platform: 'ios',
       store: 'apple',
+      storeId: 'apple',
       quantity: 1,
       purchaseState: 'purchased',
       isAutoRenewing: false,
@@ -216,6 +223,7 @@ describe('hooks/useIAP (renderer)', () => {
       transactionDate: Date.now(),
       platform: 'ios',
       store: 'apple',
+      storeId: 'apple',
       quantity: 1,
       purchaseState: 'purchased',
       isAutoRenewing: false,
@@ -782,9 +790,10 @@ describe('hooks/useIAP (renderer)', () => {
       expect(thrown).toBe(hasSubsError);
     });
 
-    it('calls onError when restorePurchases fails (syncIOS error on iOS)', async () => {
-      const restoreError = new Error('Failed to restore');
-      mockSyncIOS.mockRejectedValueOnce(restoreError);
+    it('calls onError when restorePurchases fails (provider error on iOS)', async () => {
+      mockRestorePurchases.mockRejectedValueOnce(
+        new Error('Failed to restore'),
+      );
 
       let api: any;
       const onError = jest.fn();
@@ -807,14 +816,55 @@ describe('hooks/useIAP (renderer)', () => {
         }
       });
 
-      expect(mockSyncIOS).toHaveBeenCalled();
-      expect(onError).toHaveBeenCalledWith(restoreError);
+      expect(mockRestorePurchases).toHaveBeenCalled();
       expect(onError).toHaveBeenCalledTimes(1);
-      expect(thrown).toBe(restoreError);
+      expect(onError).toHaveBeenCalledWith(thrown);
+      expect(thrown).toMatchObject({
+        code: IAP.ErrorCode.Unknown,
+        message: 'Failed to restore',
+      });
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
     });
 
-    it('rejects when restorePurchases syncIOS returns false on iOS', async () => {
-      mockSyncIOS.mockResolvedValueOnce(false);
+    it('keeps the native error code on a cancelled restore', async () => {
+      mockRestorePurchases.mockRejectedValueOnce(
+        new Error('{"code":"user-cancelled","message":"User cancelled"}'),
+      );
+
+      let api: any;
+      const onError = jest.fn();
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await api.restorePurchases();
+        } catch (error) {
+          thrown = error;
+        }
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(thrown);
+      expect(thrown).toMatchObject({code: IAP.ErrorCode.UserCancelled});
+      expect(IAP.isUserCancelledError(thrown)).toBe(true);
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
+    });
+
+    it('rejects when restorePurchases rejects an incomplete provider restore', async () => {
+      mockRestorePurchases.mockRejectedValueOnce(
+        Object.assign(new Error('Store purchase restore did not complete'), {
+          code: IAP.ErrorCode.SyncError,
+        }),
+      );
 
       let api: any;
       const onError = jest.fn();
@@ -841,7 +891,7 @@ describe('hooks/useIAP (renderer)', () => {
       expect(onError).toHaveBeenCalledWith(thrown);
       expect(thrown).toMatchObject({
         code: IAP.ErrorCode.SyncError,
-        message: 'App Store purchase sync did not complete',
+        message: 'Store purchase restore did not complete',
       });
       expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
     });
@@ -876,7 +926,7 @@ describe('hooks/useIAP (renderer)', () => {
       expect(thrown).toBe(purchaseError);
     });
 
-    it('restorePurchases calls syncIOS then getAvailablePurchases on iOS', async () => {
+    it('restorePurchases calls the provider then refreshes available purchases on iOS', async () => {
       let api: any;
       const Harness = () => {
         api = useIAP();
@@ -892,8 +942,8 @@ describe('hooks/useIAP (renderer)', () => {
         await api.restorePurchases();
       });
 
-      expect(mockSyncIOS).toHaveBeenCalled();
-      expect(mockGetAvailablePurchases).toHaveBeenCalled();
+      expect(mockRestorePurchases).toHaveBeenCalled();
+      expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
     });
 
     it('does not call onError when operations succeed', async () => {
@@ -1010,6 +1060,85 @@ describe('hooks/useIAP (renderer)', () => {
 
       // Test passes if no unhandled exception is thrown
       expect(initConnectionSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('purchase error events', () => {
+    const captureErrorListener = (): {
+      current: ((error: PurchaseError) => void) | undefined;
+    } => {
+      const holder: {current: ((error: PurchaseError) => void) | undefined} = {
+        current: undefined,
+      };
+      jest
+        .spyOn(IAP, 'purchaseErrorListener')
+        .mockImplementation((listener) => {
+          holder.current = listener;
+          return {remove: jest.fn()};
+        });
+      return holder;
+    };
+
+    it('forwards a developer-error event to onPurchaseError', async () => {
+      const holder = captureErrorListener();
+      const onPurchaseError = jest.fn();
+      const Harness = () => {
+        useIAP({onPurchaseError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      const developerError = {
+        code: IAP.ErrorCode.DeveloperError,
+        message: 'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
+      };
+      act(() => {
+        holder.current?.(developerError);
+      });
+
+      expect(onPurchaseError).toHaveBeenCalledWith(developerError);
+    });
+
+    it('drops init-connection events while disconnected but keeps developer-error', async () => {
+      const holder = captureErrorListener();
+      const onPurchaseError = jest.fn();
+      let api: any;
+      const Harness = () => {
+        api = useIAP({onPurchaseError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false);
+      await act(async () => {
+        await api.reconnect();
+      });
+      expect(api.connected).toBe(false);
+
+      act(() => {
+        holder.current?.({
+          code: IAP.ErrorCode.InitConnection,
+          message: 'Failed to initialize billing connection',
+        });
+      });
+      expect(onPurchaseError).not.toHaveBeenCalled();
+
+      const developerError = {
+        code: IAP.ErrorCode.DeveloperError,
+        message: 'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
+      };
+      act(() => {
+        holder.current?.(developerError);
+      });
+      expect(onPurchaseError).toHaveBeenCalledWith(developerError);
     });
   });
 
@@ -1254,6 +1383,7 @@ describe('hooks/useIAP (renderer)', () => {
         transactionDate: Date.now(),
         platform: 'ios',
         store: 'apple',
+        storeId: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,

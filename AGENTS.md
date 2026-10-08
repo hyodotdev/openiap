@@ -215,7 +215,8 @@ Canonical rule in
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
 - `openiap-versions.json` - Tracks only `clientProtocol`, `google`, and `apple`.
   `clientProtocol` mirrors `specs/client/package.json`, the single source for the
-  Client Protocol version; bump it there and let the sync propagate. `google` and
+  Client Protocol version; set the manifest, run `bun install --lockfile-only --ignore-scripts`
+  and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged files. `google` and
   `apple` are CI-managed native package versions and constrain nothing about the
   protocol. Release-state, docs, parity, and sync audits reject drift between the
   mirror and the publishing manifest.

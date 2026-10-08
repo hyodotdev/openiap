@@ -29,6 +29,7 @@ export class ReferenceImplementation {
   constructor(store, { iapStore = 'Google' } = {}) {
     this.store = store;
     this.iapStore = iapStore;
+    this.storeId = ({Apple: 'apple', Google: 'play', Horizon: 'horizon', Amazon: 'amazon'})[iapStore];
     this.purchaseUpdatedListeners = [];
     this.purchaseErrorListeners = [];
   }
@@ -103,6 +104,7 @@ export class ReferenceImplementation {
       isValid: record?.state === 'purchased',
       productId: record?.sku,
       store: this.iapStore,
+      storeId: this.storeId,
     };
   }
 
@@ -142,6 +144,7 @@ export class ReferenceImplementation {
       purchaseToken: record.token,
       purchaseState: record.state === 'purchased' ? 'Purchased' : 'Pending',
       store: this.iapStore,
+      storeId: this.storeId,
     };
   }
 }

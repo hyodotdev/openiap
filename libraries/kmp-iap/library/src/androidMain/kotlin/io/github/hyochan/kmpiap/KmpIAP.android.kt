@@ -15,5 +15,10 @@ actual fun createPlatformInAppPurchase(): KmpInAppPurchase =
             store = Store.AMAZON,
             versionPlatform = "Android Amazon"
         )
+        "provider" -> OpenIapDelegateInAppPurchaseAndroid(
+            storeName = "provider",
+            store = Store.UNKNOWN,
+            versionPlatform = "Android provider"
+        )
         else -> InAppPurchaseAndroid()
     }

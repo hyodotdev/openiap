@@ -71,8 +71,7 @@ function CommerceProtocol(): React.JSX.Element {
         </div>
         <div className="commerce-hero-copy">
           <h1>
-            Build your part.
-            <span>Connect the whole.</span>
+            Build your part. <span>Connect the whole.</span>
           </h1>
           <p>
             A vendor-neutral specification for the server side of in-app

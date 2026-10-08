@@ -376,7 +376,9 @@ export const clearTransactionIOS: MutationField<
  * @platform iOS
  */
 export const deepLinkToSubscriptionsIOS = (): Promise<void> =>
-  Linking.openURL('https://apps.apple.com/account/subscriptions');
+  ExpoIapModule.HAS_EXPLICIT_STORE_PROVIDER
+    ? ExpoIapModule.deepLinkToSubscriptionsIOS().then(() => undefined)
+    : Linking.openURL('https://apps.apple.com/account/subscriptions');
 
 /**
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
@@ -465,9 +467,8 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result = await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(
-    tokenType,
-  );
+  const result =
+    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
@@ -491,9 +492,8 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result = await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(
-    noticeType,
-  );
+  const result =
+    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

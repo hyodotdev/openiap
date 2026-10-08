@@ -6,6 +6,7 @@ import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import Pagination from '../../../components/Pagination';
 import AnchorLink from '../../../components/AnchorLink';
+import { PROVIDER_RELEASE_VERSIONS } from './provider-release';
 
 const noteCardStyle = {
   background: 'var(--bg-secondary)',
@@ -86,7 +87,6 @@ const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'flutter-iap-10.7.3',
   },
   { name: 'godot-iap', version: '3.6.3', tag: 'godot-iap-3.6.3' },
-  { name: 'kmp-iap', version: '3.6.3', tag: 'kmp-iap-3.6.3' },
   { name: 'maui-iap', version: '2.6.3', tag: 'maui-iap-2.6.3' },
 ];
 
@@ -118,6 +118,39 @@ const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'hyodotdev-openiap-commerce-protocol-0.3.1',
   },
   { name: '@hyodotdev/openiap', version: '0.1.1', tag: 'openiap-0.1.1' },
+];
+
+const COMMUNITY_PROVIDER_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'openiap-apple',
+    version: PROVIDER_RELEASE_VERSIONS.apple,
+    tag: '4.0.0',
+  },
+  {
+    name: 'openiap-google',
+    version: PROVIDER_RELEASE_VERSIONS.google,
+    tag: 'google-4.0.0',
+  },
+  {
+    name: 'react-native-iap',
+    version: '17.0.0',
+    tag: 'react-native-iap-17.0.0',
+  },
+  { name: 'expo-iap', version: '6.0.0', tag: 'expo-iap-6.0.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.0',
+    tag: 'flutter-iap-11.0.0',
+  },
+  { name: 'godot-iap', version: '4.0.0', tag: 'godot-iap-4.0.0' },
+  { name: 'kmp-iap', version: '4.0.0', tag: 'kmp-iap-4.0.0' },
+  { name: 'maui-iap', version: '3.0.0', tag: 'maui-iap-3.0.0' },
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '0.2.0',
+    tag: 'openiap-client-protocol-0.2.0',
+  },
+  { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
 ];
 
 const MINIFIED_RELEASE_BUILD_RELEASES: readonly ReleaseMetadata[] = [
@@ -539,6 +572,278 @@ function Releases() {
             <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
               {USER_CHOICE_RETRY_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'community-store-providers-2026-10-02',
+      aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag),
+      date: new Date('2026-10-02'),
+      element: (
+        <div key="community-store-providers-2026-10-02" style={noteCardStyle}>
+          {COMMUNITY_PROVIDER_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="community-store-providers-2026-10-02" level="h4">
+            October 2, 2026 - Community store providers
+          </AnchorLink>
+          <p>
+            Use community stores on Apple and Android through one provider
+            contract. Build and test integrations in your own repository, then
+            select a linked provider without changing app purchase APIs.
+          </p>
+          <h5>Breaking changes</h5>
+          <p>
+            See the{' '}
+            <Link to="/docs/updates/migration#provider-contract-upgrade">
+              provider contract upgrade guide
+            </Link>{' '}
+            for what to change.
+          </p>
+          <ul>
+            <li>
+              Client Protocol 0.2.0 makes <code>storeId</code> required on
+              purchases and IAPKit results; set it on hand-built values (C# and
+              the Kotlin IAPKit result infer official ids).
+            </li>
+            <li>
+              KMP 4.0.0 adds <code>UNKNOWN</code> to the public{' '}
+              <code>Store</code> enum; add the branch to every exhaustive{' '}
+              <code>when (getStore())</code>.
+            </li>
+            <li>
+              OpenIAP Google 4.0.0 and KMP 4.0.0 make the Kotlin{' '}
+              <code>RequestVerifyPurchaseWithIapkitResult</code> a plain class
+              whose constructor and <code>copy</code> carry <code>storeId</code>
+              {'; '}recompile code that copies results or constructs or copies
+              purchases.
+            </li>
+            <li>
+              OpenIAP Google 4.0.0 moves shared classes into the{' '}
+              <code>openiap-core</code> artifact; apps linking the AAR by file
+              must add it (Maven consumers get it transitively).
+            </li>
+            <li>
+              OpenIAP Apple 4.0.0 requires tvOS 16.0+ (SwiftPM; CocoaPods
+              already required 16.0); raise the deployment target of tvOS apps.
+            </li>
+            <li>
+              OpenIAP Apple 4.0.0 throws <code>CancellationError</code>, with no
+              purchase-error event, when the calling task of{' '}
+              <code>requestPurchase</code> or another StoreKit operation is
+              cancelled; catch it at the call site.
+            </li>
+            <li>
+              Flutter 11.0.0 <code>initConnection()</code> now returns false on
+              iOS and macOS when StoreKit cannot make payments; it returned true
+              before.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
+              forward the provider&apos;s Android error code where they returned
+              fixed codes; handle specific codes such as{' '}
+              <code>not-prepared</code>.
+            </li>
+            <li>
+              Flutter 11.0.0 and Godot 4.0.0 (and KMP 4.0.0 on iOS) report the
+              native error code from failed verification instead of always{' '}
+              <code>purchase-verification-failed</code>; match specific codes.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the
+              provider&apos;s Android restore first, and on Horizon deliver each
+              owned purchase to purchase listeners; make the handler idempotent.
+            </li>
+            <li>
+              React Native 17.0.0 and Flutter 11.0.0 (every call), KMP 4.0.0 and
+              MAUI 3.0.0 (id-filtered calls) answer{' '}
+              <code>hasActiveSubscriptions</code> on iOS from the active flag; a
+              subscriber in billing grace reads inactive.
+            </li>
+            <li>
+              Godot 4.0.0 emits one <code>purchase_error</code>, not two, for a
+              failed Apple restore, and one for a failed{' '}
+              <code>verify_purchase</code> (on Android only when the result
+              carries a code).
+            </li>
+            <li>
+              Godot 4.0.0 reports OpenIAP&apos;s error code in failed Apple{' '}
+              <code>products_fetched</code> payloads for{' '}
+              <code>get_storefront</code>, <code>fetch_products</code>, and
+              iOS-only calls, which carried <code>service-error</code> or no
+              code; match specific codes.
+            </li>
+            <li>
+              Godot 4.0.0 fails the Android export when{' '}
+              <code>openiap/android_store</code> is unrecognized instead of
+              falling back to Play; fix the store value.
+            </li>
+          </ul>
+          <h5>Common changes</h5>
+          <ul>
+            <li>
+              OpenIAP Google 4.0.0 clears the purchase status SKU after an empty
+              completion, so later store errors do not inherit that SKU.
+            </li>
+            <li>
+              The optional registry lists provider capabilities, maintenance
+              tiers, and conformance reports; unregistered providers work with
+              explicit coordinates.
+            </li>
+            <li>
+              Providers deliver purchase failures through one canonical error
+              event and preserve the purchase token across ownership reads.
+            </li>
+          </ul>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 0.2.0</strong> defines store identity and
+              shared provider metadata.
+            </li>
+            <li>
+              <strong>CLI 0.2.0</strong> checks community store selection and
+              provider coordinates with <code>openiap doctor</code>.
+            </li>
+            <li>
+              <strong>OpenIAP Apple 4.0.0</strong>
+              <ul>
+                <li>
+                  Adds factory discovery and the public{' '}
+                  <code>OpenIapConformance</code> Swift suite.
+                </li>
+                <li>
+                  Delivers purchase errors before returning, and the SwiftUI
+                  store preserves sessions across failed or cancelled reconnects
+                  with retryable teardown.
+                </li>
+                <li>
+                  The Swift example retries unfinished purchases after
+                  verification or transaction-finish failures and keeps owned
+                  non-consumables visible.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>OpenIAP Google 4.0.0</strong> publishes{' '}
+              <code>openiap-core</code> and the Kotlin{' '}
+              <code>openiap-conformance</code> suite alongside the three
+              official store artifacts, with shared provider discovery and
+              compatibility checks. New protocol members require default
+              implementations so existing providers keep linking.
+            </li>
+          </ul>
+          <h5>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>Flutter 11.0.0</strong> examples keep pending purchases
+              and failed local verification unfinished.
+            </li>
+            <li>
+              <strong>MAUI 3.0.0</strong> examples leave pending purchases and
+              failed local verification unfinished. <strong>Godot 4.0.0</strong>{' '}
+              preserves Apple verification results and leaves unsupported Local
+              (Device) purchases unfinished.
+            </li>
+            <li>
+              <strong>KMP 4.0.0</strong> examples preserve the store&apos;s
+              error message when a purchase request returns no result and leave
+              failed verification unfinished.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, Godot 4.0.0, KMP
+              4.0.0, and MAUI 3.0.0 support external providers, preserving
+              purchase identity and normalized verification errors, including
+              unsupported receipt verification.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 name a
+              community provider&apos;s store in init-failure messages, as they
+              already did for Horizon and Amazon.
+            </li>
+            <li>
+              <strong>React Native 17.0.0</strong>
+              <ul>
+                <li>
+                  Preserves unknown Android renewal as <code>null</code>;
+                  required Boolean hints do not establish cancellation or
+                  entitlement.
+                </li>
+                <li>
+                  Preserves normalized provider errors when opening subscription
+                  management and delivers each repeated Apple purchase failure,
+                  including failures during another product&apos;s background
+                  error.
+                </li>
+                <li>
+                  <code>getAvailablePurchases</code> honors{' '}
+                  <code>includeSuspendedAndroid</code> and reports suspended
+                  Play subscriptions through{' '}
+                  <code>subscriptionBillingIssueListener</code>.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Godot 4.0.0</strong>
+              <ul>
+                <li>
+                  Keeps Apple listeners when provider disconnection fails and
+                  fixes iOS source builds with SwiftPM generators.
+                </li>
+                <li>
+                  Never signals connection success after initialization fails.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
+          <ul>
+            <li>
+              Follow the{' '}
+              <Link to="/docs/guides/store-providers">
+                Store provider guide
+              </Link>{' '}
+              to build a provider; provider-specific settings belong to its
+              manifest or resources.
+            </li>
+            <li>
+              The Amazon community package is an educational example; use the{' '}
+              <Link to="/docs/setup/store/amazon">
+                official Amazon integration
+              </Link>{' '}
+              for FireOS apps.
+            </li>
+            <li>
+              Existing store aliases, legacy flags, and deprecated configuration
+              paths remain supported; their{' '}
+              <Link to="/docs/updates/migration#next-major">
+                removal schedule
+              </Link>{' '}
+              moves to the following major releases.
+            </li>
+          </ul>
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul>
+              {COMMUNITY_PROVIDER_RELEASES.map((release) => (
                 <li key={release.tag}>
                   <a
                     href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
@@ -2657,7 +2962,7 @@ function Releases() {
           >
             <li>
               <strong>godot-iap 3.3.3</strong> - replaces{' '}
-              <code>supported_platforms</code>, which is not part of the
+              <code>supported_platforms</code>, which is not part of the{' '}
               <code>.gdextension</code> format and never gated anything, with{' '}
               <code>include_tags</code> (
               <a
@@ -9358,7 +9663,7 @@ function Releases() {
               <strong>Framework SDK patches</strong> — Expo, React Native,
               Flutter, and KMP patch releases pick up the new native
               Apple/Google versions and ship the synchronized examples and
-              tests. React Native's latest published patch for this rollout is
+              tests. React Native's latest published patch for this rollout is{' '}
               <code>15.2.1</code>. No breaking JS, Dart, or Kotlin API changes
               are required for this parity patch.
             </li>
@@ -10580,7 +10885,7 @@ function Releases() {
                 the Android side. <code>makePurchaseError(...)</code> accepts a{' '}
                 <code>debugMessage:</code> parameter, and the StoreKit catch
                 sites (product query, promoted product, promotional offer
-                failure) now forward <code>error.localizedDescription</code>
+                failure) now forward <code>error.localizedDescription</code>{' '}
                 into it so iOS callers get the same structured diagnostic shape.
               </li>
               <li>

@@ -66,6 +66,10 @@ type BaseExpoIapOptions = {
     alternativeBilling?: IOSAlternativeBillingConfig;
   };
   android?: {
+    /** Android store id; pair a community id with provider coordinates. */
+    store?: string;
+    /** Fixed Maven coordinates (group:artifact:version) for a community provider. */
+    provider?: string;
     /**
      * Horizon OS options for Quest devices.
      * @platform android
@@ -110,8 +114,7 @@ type ExplicitModuleOptions = BaseExpoIapOptions & {
 };
 
 export type ExpoIapPluginCommonOptions =
-  | AutoModuleOptions
-  | ExplicitModuleOptions;
+  AutoModuleOptions | ExplicitModuleOptions;
 
 declare module '@expo/config-types' {
   interface IOS {

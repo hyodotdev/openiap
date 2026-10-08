@@ -47,11 +47,14 @@
     "licenses:inventory": "node scripts/generate-third-party-notices.mjs godot --inventory",
     "audit:horizon-app-id": "node --test scripts/audit-horizon-example-app-id.test.mjs scripts/verify-horizon-merged-manifest.test.mjs && node scripts/audit-horizon-example-app-id.mjs",
     "audit:orphan-tags": "node --test scripts/audit-orphan-tags.test.mjs && node scripts/audit-orphan-tags.mjs",
-    "audit:release-notes": "node --test scripts/audit-release-notes.test.mjs && node scripts/audit-release-notes.mjs origin/main"
+    "audit:release-notes": "node --test scripts/audit-release-notes.test.mjs && node scripts/audit-release-notes.mjs origin/main",
+    "stores:generate": "node scripts/generate-store-registry.mjs",
+    "audit:stores": "node --test scripts/store-registry.test.mjs && node scripts/generate-store-registry.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "husky": "^9.1.7",
+    "prettier": "^3.6.2",
     "typescript": "^5.9.2",
     "yaml": "^2.9.0"
   },
@@ -61,7 +64,8 @@
     "hono": "4.13.7",
     "ip-address": "10.7.2",
     "qs": "$qs",
-    "undici": "7.30.0"
+    "undici": "7.30.0",
+    "shell-quote": "1.12.0"
   },
   "packageManager": "bun@1.3.13",
   "dependencies": {

@@ -52,6 +52,10 @@ val localOpenIapProject = file("../../../packages/google/openiap")
 if (localOpenIapProject.exists()) {
     include(":openiap")
     project(":openiap").projectDir = localOpenIapProject
+    include(":openiap-core")
+    project(":openiap-core").projectDir = file("../../../packages/google/core")
+    include(":openiap-conformance")
+    project(":openiap-conformance").projectDir = file("../../../packages/conformance/android")
 }
 
 dependencyResolutionManagement {

@@ -39,6 +39,7 @@ const mockVerifyPurchaseWithProvider = jest
         productId: 'dev.hyo.martie.premium',
         state: 'entitled',
         store: 'google',
+        storeId: 'play',
       },
     }),
   )
@@ -132,6 +133,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         state: 'entitled',
         store: 'google',
+        storeId: 'play',
       },
     });
     mockOnPurchaseSuccess = undefined;
@@ -521,6 +523,7 @@ describe('SubscriptionFlow Component', () => {
       await mockOnPurchaseSuccess?.({
         id: 'transaction-android-1',
         store: 'google',
+        storeId: 'play',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'android-token',
         transactionDate: Date.now(),
@@ -568,6 +571,7 @@ describe('SubscriptionFlow Component', () => {
       await mockOnPurchaseSuccess?.({
         id: 'transaction-device-sub-1',
         store: 'apple',
+        storeId: 'apple',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'device-sub-jws',
         transactionDate: Date.now(),
@@ -600,6 +604,7 @@ describe('SubscriptionFlow Component', () => {
           productId: 'dev.hyo.martie.premium',
           state: 'expired',
           store: 'google',
+          storeId: 'play',
         },
       },
     },
@@ -612,6 +617,7 @@ describe('SubscriptionFlow Component', () => {
           productId: 'dev.hyo.martie.premium_year',
           state: 'entitled',
           store: 'google',
+          storeId: 'play',
         },
       },
     },
@@ -627,6 +633,7 @@ describe('SubscriptionFlow Component', () => {
       await mockOnPurchaseSuccess?.({
         id: 'transaction-rejected-sub-1',
         store: 'google',
+        storeId: 'play',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'rejected-google-token',
         transactionDate: Date.now(),
@@ -648,6 +655,7 @@ describe('SubscriptionFlow Component', () => {
       productId: 'dev.hyo.martie.premium',
       purchaseToken: 'restored-apple-jws',
       store: 'apple',
+      storeId: 'apple',
       transactionDate: Date.now(),
       transactionReasonIOS: 'RENEWAL',
     };
@@ -657,6 +665,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium_year',
         state: 'entitled',
         store: 'apple',
+        storeId: 'apple',
       },
     });
     mockUseIAP.mockReturnValue({
@@ -692,6 +701,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'restored-monthly-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         transactionReasonIOS: 'RENEWAL',
       },
@@ -701,6 +711,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium_year',
         purchaseToken: 'restored-yearly-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now() + 1,
         transactionReasonIOS: 'RENEWAL',
       },
@@ -718,6 +729,7 @@ describe('SubscriptionFlow Component', () => {
               : 'dev.hyo.martie.premium',
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
         },
       });
     });
@@ -763,6 +775,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'rerender-monthly-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         transactionReasonIOS: 'RENEWAL',
       },
@@ -772,6 +785,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium_year',
         purchaseToken: 'rerender-yearly-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now() + 1,
         transactionReasonIOS: 'RENEWAL',
       },
@@ -783,6 +797,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         state: 'entitled',
         store: 'apple',
+        storeId: 'apple',
       },
     };
     let resolveFirst: ((value: typeof firstResult) => void) | undefined;
@@ -800,6 +815,7 @@ describe('SubscriptionFlow Component', () => {
           productId: 'dev.hyo.martie.premium_year',
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
         },
       });
     });
@@ -855,6 +871,7 @@ describe('SubscriptionFlow Component', () => {
       productId: 'dev.hyo.martie.premium',
       purchaseToken: 'reconnect-monthly-jws',
       store: 'apple',
+      storeId: 'apple',
       transactionDate: Date.now(),
       transactionReasonIOS: 'RENEWAL',
     };
@@ -865,6 +882,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         state: 'entitled',
         store: 'apple',
+        storeId: 'apple',
       },
     };
     let resolveVerification: ((value: typeof result) => void) | undefined;
@@ -930,6 +948,7 @@ describe('SubscriptionFlow Component', () => {
       productId: 'dev.hyo.martie.premium',
       purchaseToken: 'remount-subscription-pending-finish-jws',
       store: 'apple',
+      storeId: 'apple',
       transactionDate: Date.now(),
       transactionReasonIOS: 'PURCHASE',
     };
@@ -946,6 +965,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         state: 'entitled',
         store: 'apple',
+        storeId: 'apple',
       },
     });
     const hookValue = {
@@ -1028,6 +1048,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'live-monthly-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         transactionReasonIOS: 'PURCHASE',
       },
@@ -1037,6 +1058,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium_year',
         purchaseToken: 'live-yearly-jws',
         store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now() + 1,
         transactionReasonIOS: 'PURCHASE',
       },
@@ -1048,6 +1070,7 @@ describe('SubscriptionFlow Component', () => {
         productId: 'dev.hyo.martie.premium',
         state: 'entitled',
         store: 'apple',
+        storeId: 'apple',
       },
     };
     let resolveFirst: ((value: typeof firstResult) => void) | undefined;
@@ -1065,6 +1088,7 @@ describe('SubscriptionFlow Component', () => {
           productId: 'dev.hyo.martie.premium_year',
           state: 'entitled',
           store: 'apple',
+          storeId: 'apple',
         },
       });
     });

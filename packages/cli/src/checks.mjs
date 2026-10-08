@@ -64,21 +64,21 @@ const APP_BUILD_FILES = [
 
 // Same table as packages/google/gradle/openiap-store.gradle.
 export const STORE_ALIASES = {
-  play: "play",
-  google: "play",
-  gplay: "play",
-  googleplay: "play",
+  "play": "play",
+  "google": "play",
+  "gplay": "play",
+  "googleplay": "play",
   "google-play": "play",
-  gms: "play",
-  horizon: "horizon",
-  meta: "horizon",
-  quest: "horizon",
-  amazon: "amazon",
-  fire: "amazon",
-  fireos: "amazon",
+  "gms": "play",
+  "horizon": "horizon",
+  "meta": "horizon",
+  "quest": "horizon",
+  "amazon": "amazon",
+  "fire": "amazon",
+  "fireos": "amazon",
   "fire-os": "amazon",
-  none: "none",
-  auto: "auto",
+  "auto": "auto",
+  "none": "none",
 };
 
 /**
@@ -102,15 +102,19 @@ export function androidStoreChecks(root, framework) {
   const fireOs = enabled("fireOsEnabled");
   const storeEntry = properties?.get("openiapStore");
   const storeValue = storeEntry?.value.trim().toLowerCase() ?? "";
-  // openIapNormalizeStore: a blank value is absent, and only an alias is a store.
-  const explicit =
-    storeValue === ""
-      ? null
-      : Object.hasOwn(STORE_ALIASES, storeValue)
-        ? STORE_ALIASES[storeValue]
-        : "unknown";
+  const providerEntry = properties?.get("openiapProvider");
+  const provider = providerEntry?.value.trim() ?? "";
+  const validCommunityId = /^[a-z][a-z0-9_]*$/.test(storeValue) &&
+    !["apple", "unknown"].includes(storeValue);
+  // Recognize the id first so a missing provider reports its own fix.
+  const explicit = storeValue === "" ? null : Object.hasOwn(STORE_ALIASES, storeValue)
+    ? STORE_ALIASES[storeValue] : validCommunityId ? storeValue : "unknown";
+  const community = explicit && !["play", "horizon", "amazon", "auto", "none", "unknown"].includes(explicit);
+
+  // A community id without coordinates pins nothing yet; Gradle refuses it
+  // before comparing against any legacy flag.
   const pinned =
-    explicit !== null && explicit !== "auto" && explicit !== "unknown";
+    explicit !== null && explicit !== "auto" && explicit !== "unknown" && (!community || provider);
   // Flags pin too: fireOsEnabled picks amazon, and the deprecated
   // horizonEnabled and openiapPlatform=none pick horizon or opt out.
   const platformEntry = properties?.get("openiapPlatform");
@@ -143,6 +147,17 @@ export function androidStoreChecks(root, framework) {
       ),
     );
   }
+  if ((community && !provider) || (provider && (!community ||
+      !/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[0-9][A-Za-z0-9_.-]*$/.test(provider) ||
+      provider.startsWith("io.github.hyochan.openiap:openiap-")))) {
+    findings.push(finding(
+      "android-store-unknown", "error", "android/gradle.properties",
+      "Community provider selection is incomplete or invalid.",
+      "Use play, horizon, amazon, or auto; or pair a lowercase community openiapStore id with fixed openiapProvider=group:artifact:version coordinates.",
+      {line: providerEntry?.line ?? storeEntry?.line},
+    ));
+  }
+
   if (platformEntry && !optOut) {
     findings.push(
       finding(
@@ -248,7 +263,7 @@ export function androidStoreChecks(root, framework) {
     selects !== "none" &&
     !computed &&
     stores.length > 0 &&
-    !stores.includes(selects);
+    !stores.includes(provider ? "provider" : selects);
   const declared = stores.length === 1 && !computed ? stores[0] : null;
   const line = strategies[0]?.number;
 
@@ -285,7 +300,7 @@ export function androidStoreChecks(root, framework) {
         ? `gradle.properties selects the ${store} store (${pinKey}), and the build computes its flavor from it.`
         : `This Android project is pinned to the ${store} store (${pinKey}).`;
       const pin = pinned
-        ? "the openiapStore pin"
+        ? provider ? "both openiapStore and openiapProvider" : "the openiapStore pin"
         : legacy === "horizon"
           ? `${pinKey}, a deprecated pin,`
           : pinKey;

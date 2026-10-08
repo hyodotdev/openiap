@@ -55,11 +55,11 @@ const IMPLEMENTATIONS = [];
 // --- Android stores (one suite, three flavors) -----------------------------
 {
   const generated = read(
-    'packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/ConformanceBehaviors.kt',
+    'packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt',
   );
   const table = resolveConstants(generated, /const val (\w+) = "([^"]+)"/g);
   const suite = read(
-    'packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceSuite.kt',
+    'packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt',
   );
   const ids = declaredIds(suite, 'private val coveredBehaviors', table, /ConformanceBehaviors\.(\w+)/g);
   const unsupportedStoreIds = declaredIds(

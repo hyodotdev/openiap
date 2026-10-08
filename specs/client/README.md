@@ -21,7 +21,10 @@ npm install @hyodotdev/openiap-client-protocol
 ```
 
 ```ts
-import { ErrorCode, type PurchaseError } from '@hyodotdev/openiap-client-protocol';
+import {
+  ErrorCode,
+  type PurchaseError,
+} from "@hyodotdev/openiap-client-protocol";
 
 function isCanceled(error: PurchaseError): boolean {
   return error.code === ErrorCode.UserCancelled;
@@ -33,9 +36,25 @@ export provides the portable IAPKit client helper. Generated native types are
 available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
 For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
 
-This package's npm version *is* the Client Protocol version. It is mirrored
+This package's npm version _is_ the Client Protocol version. It is mirrored
 into `openiap-versions.json` as `clientProtocol`, alongside the independent
 `openiap-apple` and `openiap-google` native package versions.
+
+## Common store provider contract
+
+Apple and Android providers share `StoreProviderDescriptor`, frozen `IapStore`
+values, concrete `storeId` identity, purchase lifecycle and capability rules.
+A new store uses `store = unknown` with its stable provider id. External
+providers are selected with a community id; a provider that serves an existing
+store reports that store's canonical `storeId` and legacy `store` value in its
+purchases. Platform bindings preserve `PurchaseIOS` or `PurchaseAndroid`; `request.apple` and
+`request.google` select the corresponding platform arguments.
+
+Factories declare the native core and Client Protocol versions used to build
+the provider. An incompatible binding fails at connection. One optional registry
+entry can carry both platform bindings and their conformance reports.
+See the [provider guide](https://openiap.dev/docs/guides/store-providers) for
+native factories, package selection and independent verification.
 
 ## Develop the specification
 

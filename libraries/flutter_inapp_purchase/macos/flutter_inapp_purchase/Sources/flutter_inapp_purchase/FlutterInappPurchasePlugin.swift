@@ -135,6 +135,19 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 getAvailableItems(result: result)
             }
 
+        case "hasActiveSubscriptions":
+            let ids = (call.arguments as? [String: Any])?["subscriptionIds"] as? [String]
+            Task {
+                do {
+                    let active = try await OpenIapModule.shared.hasActiveSubscriptions(ids)
+                    await MainActor.run { result(active) }
+                } catch let error as PurchaseError {
+                    await MainActor.run { result(self.flutterError(from: error)) }
+                } catch {
+                    await MainActor.run { result(FlutterError(code: ErrorCode.serviceError.rawValue, message: error.localizedDescription, details: nil)) }
+                }
+            }
+
         case "getActiveSubscriptions":
             if let subscriptionIds = call.arguments as? [String] {
                 getActiveSubscriptions(subscriptionIds: subscriptionIds, result: result)
@@ -237,6 +250,18 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
 
         case "getAppTransactionIOS":
             getAppTransactionIOS(result: result)
+
+        case "restorePurchases":
+            Task {
+                do {
+                    try await OpenIapModule.shared.restorePurchases()
+                    await MainActor.run { result(true) }
+                } catch let error as PurchaseError {
+                    await MainActor.run { result(self.flutterError(from: error)) }
+                } catch {
+                    await MainActor.run { result(FlutterError(code: ErrorCode.syncError.rawValue, message: error.localizedDescription, details: nil)) }
+                }
+            }
 
         case "syncIOS":
             syncIOS(result: result)
@@ -349,8 +374,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         setupOpenIapListeners()
         Task { @MainActor in
             do {
-                _ = try await OpenIapModule.shared.initConnection()
-                result(nil)
+                let connected = try await OpenIapModule.shared.initConnection()
+                result(connected)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("initConnection", error: purchaseError)
                 result(flutterError(from: purchaseError))
@@ -366,9 +391,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         FlutterIapLog.debug("endConnection called")
         Task { @MainActor in
             do {
-                _ = try await OpenIapModule.shared.endConnection()
-                removeOpenIapListeners()
-                result(nil)
+                let disconnected = try await OpenIapModule.shared.endConnection()
+                if disconnected { removeOpenIapListeners() }
+                result(disconnected)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("endConnection", error: purchaseError)
                 result(flutterError(from: purchaseError))
@@ -592,6 +617,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     // MARK: - Transaction Management
     
     private func finishTransaction(purchaseDict: [String: Any], isConsumable: Bool?, result: @escaping FlutterResult) {
+        func fallbackTransactionId() -> String? {
+            guard OpenIapModule.shared.storeId == StoreIds.Apple,
+                  purchaseDict["store"] == nil || purchaseDict["store"] as? String == "apple",
+                  purchaseDict["storeId"] == nil || purchaseDict["storeId"] as? String == StoreIds.Apple else {
+                return nil
+            }
+            return resolveTransactionId(from: purchaseDict)
+        }
+
         FlutterIapLog.payload("finishTransaction", payload: [
             "purchase": purchaseDict,
             "isConsumable": isConsumable as Any
@@ -602,7 +636,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 purchase = try FlutterIapHelper.decodePurchaseInput(from: purchaseDict)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("finishTransactionDecode", error: purchaseError)
-                if let transactionId = resolveTransactionId(from: purchaseDict) {
+                if let transactionId = fallbackTransactionId() {
                     finishTransaction(transactionId: transactionId, result: result)
                     return
                 }
@@ -610,7 +644,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 return
             } catch {
                 FlutterIapLog.failure("finishTransactionDecode", error: error)
-                if let transactionId = resolveTransactionId(from: purchaseDict) {
+                if let transactionId = fallbackTransactionId() {
                     finishTransaction(transactionId: transactionId, result: result)
                     return
                 }

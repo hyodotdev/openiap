@@ -32,7 +32,7 @@ class IapkitBaseUrlBridgeTest {
         assertTrue(helperSource.contains("environment = environment"))
         // Unknown values degrade; openiap-google already decoded them safely.
         assertTrue(helperSource.contains("getOrDefault(IapkitPurchaseState.Unknown)"))
-        assertTrue(iosSource.contains("environment = environment"))
+        assertTrue(iosSource.contains("\"environment\" to environment"))
         // Forwarded opaquely: `environment` is String in the spec.
         assertTrue(iosSource.contains("map[\"environment\"] as? String"))
     }

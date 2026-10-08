@@ -110,7 +110,7 @@
                     <VerticalStackLayout Spacing="4">
                         <Label Text="How to test:" FontAttributes="Bold" TextColor="#1A1A1A" />
                         <Label Text="1. Make sure you're signed in with a Sandbox / license tester account" TextColor="#5F6470" />
-                        <Label Text="2. Subscription products must be configured in App Store Connect / Play Console" TextColor="#5F6470" />
+                        <Label Text="2. Configure subscriptions in the selected store console" TextColor="#5F6470" />
                         <Label Text="3. Android subscription purchases require an offerToken from subscriptionOffers" TextColor="#5F6470" />
                         <Label Text="4. The transaction is processed via the PurchaseUpdated stream" TextColor="#5F6470" />
                         <Label Text="5. Server-side receipt validation is recommended for production" TextColor="#5F6470" />

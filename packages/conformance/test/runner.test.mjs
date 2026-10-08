@@ -3,6 +3,7 @@ import { BEHAVIORS } from "../src/spec/behaviors.mjs";
 import { NOT_IMPLEMENTED, runConformance } from "../src/runner/runner.mjs";
 import { formatReport, toJsonReport } from "../src/runner/report.mjs";
 import { createReferenceAdapter } from "../src/adapters/reference-adapter.mjs";
+import { SUITE_VERSION, clientProtocolVersion } from "../src/spec/version.mjs";
 
 const clientBehaviors = BEHAVIORS.filter(
   (behavior) => behavior.category !== "lifecycle",
@@ -62,8 +63,8 @@ describe("conformance runner", () => {
       behaviors: clientBehaviors,
     });
 
-    expect(report.suiteVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(report.clientProtocolVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(report.suiteVersion).toBe(SUITE_VERSION);
+    expect(report.clientProtocolVersion).toBe(clientProtocolVersion());
     expect(report.implementation).toBe("openiap-reference");
     expect(report.store).toBe("Google");
   });

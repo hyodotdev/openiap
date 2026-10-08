@@ -1,19 +1,32 @@
 package dev.hyo.openiap.conformance
 
+import android.app.Activity
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import dev.hyo.openiap.ActiveSubscription
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.fromBillingResponseCode
 import dev.hyo.openiap.utils.HorizonBillingConverters.toActiveSubscription
-import dev.hyo.openiap.unsupportedRedeemOfferCode
-import kotlinx.coroutines.runBlocking
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Meta Horizon's binding into the shared conformance suite.
  * The behavioral expectations live in [StoreConformanceSuite].
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29])
 class HorizonStoreConformanceTest : StoreConformanceSuite() {
+    override val provider: OpenIapProtocol =
+        OpenIapModule(ApplicationProvider.getApplicationContext<Context>())
+    override val redemptionActivity: Activity =
+        Robolectric.buildActivity(Activity::class.java).setup().get()
     override val adapter = object : StoreConformanceAdapter {
         override val store = IapStore.Horizon
 
@@ -30,8 +43,5 @@ class HorizonStoreConformanceTest : StoreConformanceSuite() {
         override val normativeErrorCases = playBillingErrorCases(OpenIapError::fromBillingResponseCode)
 
         override val unrecognizedError = OpenIapError.fromBillingResponseCode(9999)
-
-        override fun unsupportedOperationResult(): Boolean =
-            runBlocking { unsupportedRedeemOfferCode() }
     }
 }

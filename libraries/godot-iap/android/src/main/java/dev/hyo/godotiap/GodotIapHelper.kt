@@ -2,7 +2,10 @@ package dev.hyo.godotiap
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
+import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductQueryType
+import dev.hyo.openiap.StoreIds
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import org.json.JSONArray
@@ -236,6 +239,45 @@ internal object GodotIapHelper {
             "keep_existing" -> SubscriptionReplacementModeAndroid.KeepExisting
             else -> null
         }
+    }
+
+    /** Synchronous init failure for the wrapper log; the signal arrives a frame late. */
+    fun lastInitErrorJson(error: OpenIapError.ProviderConfiguration?): String {
+        if (error == null) return ""
+        return JSONObject().apply {
+            put("code", error.code)
+            put("message", error.message)
+        }.toString()
+    }
+
+    /**
+     * Hand-built finish inputs carry blank store identity; stamp the connected
+     * provider's so decoding reaches the purchase token.
+     */
+    fun withProviderStoreIdentity(
+        purchase: Map<String, Any?>,
+        providerStoreId: () -> String?,
+    ): Map<String, Any?> {
+        val storeIdValue = purchase["storeId"]
+        if (storeIdValue is String && storeIdValue.isNotBlank()) return purchase
+        if (storeIdValue != null && storeIdValue !is String) return purchase
+        if (IapStore.fromJson((purchase["store"] as? String) ?: "") != IapStore.Unknown) {
+            // An official store with a blank id decodes once the blank key is gone.
+            if (storeIdValue !is String) return purchase
+            return purchase - "storeId"
+        }
+        val storeId = providerStoreId()?.takeIf { it.isNotBlank() } ?: return purchase
+        return purchase + mapOf(
+            "store" to legacyStoreFor(storeId),
+            "storeId" to storeId,
+        )
+    }
+
+    private fun legacyStoreFor(providerStoreId: String): String = when (providerStoreId) {
+        StoreIds.Play -> IapStore.Google.toJson()
+        StoreIds.Horizon -> IapStore.Horizon.toJson()
+        StoreIds.Amazon -> IapStore.Amazon.toJson()
+        else -> IapStore.Unknown.toJson()
     }
 
     /**

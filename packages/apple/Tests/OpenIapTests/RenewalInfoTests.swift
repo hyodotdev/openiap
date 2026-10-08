@@ -207,6 +207,8 @@ final class RenewalInfoTests: XCTestCase {
             revocationReasonIOS: nil,
             store: .apple,
             storefrontCountryCodeIOS: "US",
+
+            storeId: "apple",
             subscriptionGroupIdIOS: "21686373",
             transactionDate: 1729083955000,
             transactionId: "txn_123",
@@ -272,6 +274,8 @@ final class RenewalInfoTests: XCTestCase {
             revocationReasonIOS: nil,
             store: .apple,
             storefrontCountryCodeIOS: "US",
+
+            storeId: "apple",
             subscriptionGroupIdIOS: "21686373",
             transactionDate: 1729083955000,
             transactionId: "txn_456",

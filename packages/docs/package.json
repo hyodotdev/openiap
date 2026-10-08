@@ -8,7 +8,7 @@
     "showcase:metrics:test": "node --test scripts/refresh-showcase-metrics.test.mjs",
     "dev": "bunx vite",
     "build": "bun run typecheck && bun scripts/check-commerce-composition.mjs && bunx vite build && node scripts/prerender.mjs",
-    "test:discoverability": "node --test scripts/prerender.test.mjs",
+    "test:discoverability": "node --test scripts/prerender.test.mjs scripts/jsx-whitespace.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings 0",
     "preview": "bunx vite preview",

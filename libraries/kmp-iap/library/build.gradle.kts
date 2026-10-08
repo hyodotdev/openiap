@@ -240,7 +240,7 @@ fun dynamicKmpPodspec(): String =
 
 kotlin {
     androidTarget {
-        publishLibraryVariants("playRelease", "horizonRelease", "amazonRelease")
+        publishLibraryVariants("playRelease", "horizonRelease", "amazonRelease", "providerRelease")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -319,6 +319,11 @@ android {
             buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
             consumerProguardFiles("consumer-rules-non-play.pro")
         }
+        create("provider") {
+            dimension = "platform"
+            buildConfigField("String", "OPENIAP_STORE", "\"provider\"")
+            consumerProguardFiles("consumer-rules-non-play.pro")
+        }
     }
     buildFeatures {
         buildConfig = true
@@ -334,11 +339,13 @@ dependencies {
     add("playImplementation", "io.github.hyochan.openiap:openiap-google:$googleVersion")
     add("horizonImplementation", "io.github.hyochan.openiap:openiap-google-horizon:$googleVersion")
     add("amazonImplementation", "io.github.hyochan.openiap:openiap-google-amazon:$googleVersion")
+    add("providerImplementation", "io.github.hyochan.openiap:openiap-core:$googleVersion")
     // androidMain still contains the Play Billing implementation. Amazon uses
     // the OpenIAP module delegate at runtime, but these symbols must be present
     // while compiling the shared Android source set for non-Play variants.
     add("horizonCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
     add("amazonCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
+    add("providerCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
     add("androidUnitTestImplementation", "com.android.billingclient:billing:$playBillingVersion")
     // BillingClient Purchase parses Android JSONObject state internally; use
     // the same Android-aware JVM harness as packages/google for those tests.
@@ -346,6 +353,12 @@ dependencies {
     // openiap-google keeps gson implementation-scoped, so tests that replicate
     // its reflective parse of Play Developer API responses need it explicitly.
     add("androidUnitTestImplementation", "com.google.code.gson:gson:2.14.0")
+}
+
+if (providers.gradleProperty("openiapProvider").isPresent) {
+    apply(from = "../../../packages/google/gradle/openiap-store.gradle")
+    val addStore = extra["openIapAddStoreDependencies"] as groovy.lang.Closure<*>
+    addStore.call("providerImplementation", googleVersion)
 }
 
 // Only configure publishing when we have signing credentials

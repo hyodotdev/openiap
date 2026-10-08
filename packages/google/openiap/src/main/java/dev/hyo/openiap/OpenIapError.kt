@@ -1,5 +1,7 @@
 package dev.hyo.openiap
 
+import android.content.Context
+
 /**
  * OpenIAP specific exceptions
  */
@@ -10,14 +12,14 @@ sealed class OpenIapError : Exception() {
     var subResponseCode: SubResponseCodeAndroid? = null
         private set
 
-    internal fun withSubResponseCode(value: SubResponseCodeAndroid?): OpenIapError = apply {
+    fun withSubResponseCode(value: SubResponseCodeAndroid?): OpenIapError = apply {
         subResponseCode = value
     }
 
-    internal var requestProductId: String? = null
+    var requestProductId: String? = null
         private set
 
-    internal fun withProductId(value: String?): OpenIapError = apply {
+    fun withProductId(value: String?): OpenIapError = apply {
         requestProductId = value
     }
 
@@ -83,7 +85,7 @@ sealed class OpenIapError : Exception() {
     }
 
     /** Per-request deferred purchase carrying request diagnostics. */
-    internal data class DeferredPurchase(override val debugMessage: String? = null) : OpenIapError() {
+    data class DeferredPurchase(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = PurchaseDeferred.CODE
         override val message: String = PurchaseDeferred.MESSAGE
     }
@@ -137,7 +139,7 @@ sealed class OpenIapError : Exception() {
     }
 
     /** Per-request Play Billing network failure carrying callback diagnostics. */
-    internal data class NetworkFailure(override val debugMessage: String? = null) : OpenIapError() {
+    data class NetworkFailure(override val debugMessage: String? = null) : OpenIapError() {
         override val code: String = NetworkError.CODE
         override val message: String = NetworkError.MESSAGE
     }
@@ -178,19 +180,34 @@ sealed class OpenIapError : Exception() {
     object InitConnection : OpenIapError() {
         val CODE = ErrorCode.InitConnection.rawValue
         override val code = CODE
-        override val message = buildMessage()
+        override val message = MESSAGE
 
         const val MESSAGE = "Failed to initialize billing connection"
 
-        /** Name the store this binary links; the same build is correct on its own device. */
-        private fun buildMessage(): String {
-            val store = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE
-            return if (store.lowercase() == "play") {
-                MESSAGE
-            } else {
-                "$MESSAGE. This build targets the $store store, not Google Play."
+        /** Names the linked store; Play and unknown stores keep the plain message. */
+        fun forStore(storeId: String?): OpenIapError =
+            if (storeId.isNullOrBlank() || storeId == "play") this else StoreConnectionFailure(storeId)
+
+        /** Names the linked store at failure time; an unreadable provider keeps the plain message. */
+        fun forProvider(context: Context): OpenIapError =
+            try {
+                forStore(OpenIapProvider.factory(context).storeId)
+            } catch (_: Exception) {
+                this
             }
-        }
+
+        fun messageFor(storeId: String): String =
+            if (storeId == "play") MESSAGE
+            else "$MESSAGE. This build targets the $storeId store, not Google Play."
+    }
+
+    class ProviderConfiguration(override val message: String) : OpenIapError() {
+        override val code = ErrorCode.DeveloperError.rawValue
+    }
+
+    class StoreConnectionFailure(storeId: String) : OpenIapError() {
+        override val code = InitConnection.CODE
+        override val message = InitConnection.messageFor(storeId)
     }
 
     open class QueryProduct(
@@ -261,7 +278,7 @@ sealed class OpenIapError : Exception() {
     }
 
     /** Per-request offer mismatch carrying purchase diagnostics. */
-    internal class SkuOfferMismatchFailure : OpenIapError() {
+    class SkuOfferMismatchFailure : OpenIapError() {
         override val code: String = SkuOfferMismatch.CODE
         override val message: String = SkuOfferMismatch.MESSAGE
     }
@@ -341,7 +358,7 @@ sealed class OpenIapError : Exception() {
         override val message: String
             get() = messageOverride ?: MESSAGE
 
-        internal fun withMessage(value: String): DeveloperError = apply {
+        fun withMessage(value: String): DeveloperError = apply {
             messageOverride = value
         }
 

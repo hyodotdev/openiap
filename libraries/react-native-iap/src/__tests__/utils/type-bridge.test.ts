@@ -35,6 +35,7 @@ const purchase = (overrides: Partial<NitroPurchase> = {}): NitroPurchase => ({
   transactionDate: 123,
   purchaseToken: 'receipt',
   store: 'apple',
+  storeId: 'apple',
   quantity: 1,
   purchaseState: 'purchased',
   isAutoRenewing: false,
@@ -302,6 +303,7 @@ describe('type-bridge utilities', () => {
       expect(result).toEqual(
         expect.objectContaining({
           store: 'apple',
+          storeId: 'apple',
           transactionId: 'canonical-transaction-id',
           currentPlanId: 'premium-monthly',
           ids: ['com.example.product', 'addon'],
@@ -354,6 +356,7 @@ describe('type-bridge utilities', () => {
           purchaseToken: null,
           purchaseTokenAndroid: 'purchase-token',
           store: 'google',
+          storeId: 'play',
           purchaseState: 'unknown',
           purchaseStateAndroid: 1,
           isAutoRenewing: true,
@@ -363,6 +366,7 @@ describe('type-bridge utilities', () => {
       expect(result).toEqual(
         expect.objectContaining({
           store: 'google',
+          storeId: 'play',
           purchaseState: 'purchased',
           autoRenewingAndroid: true,
           transactionId: 'GPA.1234',
@@ -379,11 +383,37 @@ describe('type-bridge utilities', () => {
           purchaseToken: null,
           purchaseTokenAndroid: 'purchase-token',
           store: 'google',
+          storeId: 'play',
         }),
       ) as PurchaseAndroid;
 
       expect(result.transactionId).toBeNull();
     });
+
+    it.each([
+      [null, false, null],
+      [null, true, null],
+      [undefined, false, false],
+      [undefined, true, true],
+      [false, true, false],
+      [true, false, true],
+    ] as const)(
+      'preserves renewal %s with legacy flag %s as %s',
+      (autoRenewingAndroid, isAutoRenewing, expected) => {
+        const result = convertNitroPurchaseToPurchase(
+          purchase({
+            store: 'unknown',
+            storeId: 'samsung',
+            autoRenewingAndroid,
+            isAutoRenewing,
+          }),
+        ) as PurchaseAndroid;
+
+        expect(result.storeId).toBe('samsung');
+        expect(result.autoRenewingAndroid).toBe(expected);
+        expect(result.isAutoRenewing).toBe(isAutoRenewing);
+      },
+    );
 
     it.each(['amazon', 'horizon'] as const)(
       'preserves a %s receipt id as transactionId',
@@ -394,6 +424,7 @@ describe('type-bridge utilities', () => {
             transactionId: null,
             purchaseToken: `${store}-receipt`,
             store,
+            storeId: store,
           }),
         ) as PurchaseAndroid;
 
@@ -406,6 +437,7 @@ describe('type-bridge utilities', () => {
       const result = convertNitroPurchaseToPurchase(
         purchase({
           store: 'google',
+          storeId: 'play',
           currentPlanId: 'premium-yearly',
           ids: ['premium-monthly', 'premium-yearly'],
           pendingPurchaseUpdateAndroid: {
@@ -425,6 +457,7 @@ describe('type-bridge utilities', () => {
       const purchased = convertNitroPurchaseToPurchase(
         purchase({
           store: 'google',
+          storeId: 'play',
           purchaseState: 1 as never,
           transactionId: null,
           isAutoRenewing: false,
@@ -433,10 +466,14 @@ describe('type-bridge utilities', () => {
         }),
       ) as PurchaseAndroid;
       const pending = convertNitroPurchaseToPurchase(
-        purchase({store: 'google', purchaseState: 2 as never}),
+        purchase({store: 'google', storeId: 'play', purchaseState: 2 as never}),
       );
       const unknown = convertNitroPurchaseToPurchase(
-        purchase({store: 'other' as never, purchaseState: 99 as never}),
+        purchase({
+          store: 'other' as never,
+          storeId: 'future_store',
+          purchaseState: 99 as never,
+        }),
       );
 
       expect(purchased.purchaseState).toBe('purchased');
@@ -571,4 +608,35 @@ describe('type-bridge utilities', () => {
   it('keeps type synchronization healthy', () => {
     expect(checkTypeSynchronization()).toEqual({isSync: true, issues: []});
   });
+});
+
+test('preserves a community provider storeId through the Nitro purchase bridge', () => {
+  const nativePurchase = purchase({
+    store: 'unknown',
+    storeId: 'community_fixture',
+  });
+  const result = convertNitroPurchaseToPurchase(nativePurchase);
+  expect(result.store).toBe('unknown');
+  expect(result.storeId).toBe('community_fixture');
+});
+
+test('preserves a community iOS purchase shape and opaque transaction identifier', () => {
+  const result = convertNitroPurchaseToPurchase(
+    purchase({
+      store: 'unknown',
+      storeId: 'community_fixture',
+      platform: 'ios',
+      transactionId: 'opaque-txn',
+      quantityIOS: 2,
+      environmentIOS: 'Sandbox',
+    }),
+  );
+  expect(result).toMatchObject({
+    store: 'unknown',
+    storeId: 'community_fixture',
+    transactionId: 'opaque-txn',
+    quantityIOS: 2,
+    environmentIOS: 'Sandbox',
+  });
+  expect(result).not.toHaveProperty('isAcknowledgedAndroid');
 });

@@ -19,6 +19,7 @@
  *     mirroring the Kotlin sealed-interface pattern.
  */
 
+import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type {
@@ -200,6 +201,8 @@ export class CSharpPlugin extends CodegenPlugin {
     }
 
     this.generateHeader();
+    this.emit(renderStoreIds('csharp'));
+    this.emit(renderStoreIdentityResolver('csharp'));
 
     if (schema.enums.length > 0) {
       this.addSection('Enums');
@@ -584,13 +587,35 @@ export class CSharpPlugin extends CodegenPlugin {
 
     this.emitDoc(irObject.description);
     const baseTypes = this.computeBaseTypes(irObject);
+    if (hasStoreIdentity(sortedFields)) baseTypes.push('IJsonOnDeserialized');
     const inheritance = baseTypes.length > 0 ? ` : ${baseTypes.join(', ')}` : '';
     this.emit(`public sealed record ${irObject.name}${inheritance}`);
     this.emit('{');
-    this.emitProperties(sortedFields, this.inheritedUnionFieldNames(irObject));
+    this.emitProperties(sortedFields, this.inheritedUnionFieldNames(irObject), false, hasStoreIdentity(sortedFields));
+    if (hasStoreIdentity(sortedFields)) {
+      this.emit('    void IJsonOnDeserialized.OnDeserialized() => _storeId = StoreIdentity.Resolve(Store, _storeId);');
+      this.emitStoreIdentityEquality(irObject.name, sortedFields);
+    }
     this.emit('}');
     this.emit('');
     this.emitNullableJsonConverter(irObject.name);
+  }
+
+  // Compare resolved identity so legacy values stay equal after JSON round trips.
+  private emitStoreIdentityEquality(name: string, fields: IRField[]): void {
+    this.emit(`    public bool Equals(${name}? other) => other is not null`);
+    fields.forEach((field, index) => {
+      const property = this.fieldNameCase(field.name);
+      const end = index === fields.length - 1 ? ';' : '';
+      this.emit(`        && EqualityComparer<${this.propertyType(field.type)}>.Default.Equals(${property}, other.${property})${end}`);
+    });
+    this.emit('    public override int GetHashCode()');
+    this.emit('    {');
+    this.emit('        var hash = new HashCode();');
+    this.emit(`        hash.Add(typeof(${name}));`);
+    for (const field of fields) this.emit(`        hash.Add(${this.fieldNameCase(field.name)});`);
+    this.emit('        return hash.ToHashCode();');
+    this.emit('    }');
   }
 
   private computeBaseTypes(irObject: IRObject): string[] {
@@ -626,7 +651,7 @@ export class CSharpPlugin extends CodegenPlugin {
     return names;
   }
 
-  private emitProperties(fields: IRField[], inheritedFields = new Set<string>(), isInputContext = false): void {
+  private emitProperties(fields: IRField[], inheritedFields = new Set<string>(), isInputContext = false, storeIdentity = false): void {
     fields.forEach((field) => {
       this.emitDoc(field.description, '    ');
       this.emitDeprecation(field.description, '    ');
@@ -635,6 +660,7 @@ export class CSharpPlugin extends CodegenPlugin {
       const propName = this.fieldNameCase(field.name);
       const jsonName = field.name;
       const overrideModifier = inheritedFields.has(field.name) ? 'override ' : '';
+      if (storeIdentity && field.name === 'storeId') this.emit('    private string? _storeId;');
       this.emit(`    [JsonPropertyName("${jsonName}")]`);
       if (isInputContext && field.type.kind === 'enum') {
         const converter = field.type.nullable ? 'StrictNullableEnumJsonConverter' : 'StrictEnumJsonConverter';
@@ -662,10 +688,10 @@ export class CSharpPlugin extends CodegenPlugin {
         this.emit(`    [JsonConverter(typeof(${field.type.elementType.name}NullableElementListJsonConverter))]`);
       }
 
-      // Required vs. nullable — non-nullable scalars/objects get the C#
-      // `required` modifier so callers must initialize them; nullable
-      // properties default to null.
-      if (field.type.nullable) {
+      // Legacy official identity can be inferred; other non-null fields remain required.
+      if (storeIdentity && field.name === 'storeId') {
+        this.emit(`    public ${overrideModifier}string StoreId { get => StoreIdentity.Resolve(Store, _storeId); init => _storeId = value; }`);
+      } else if (field.type.nullable) {
         const defaultValue = this.buildDefaultValueExpression(field);
         const initializer = defaultValue ? ` = ${defaultValue};` : '';
         this.emit(`    public ${overrideModifier}${propType} ${propName} { get; init; }${initializer}`);

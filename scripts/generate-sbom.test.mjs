@@ -1487,7 +1487,7 @@ test("published metadata matches the consumer-visible artifacts", async () => {
 
   const kmp = await generateSbom("kmp", { root: repoRoot, runGit: stubGit });
   const kmpNames = kmp.document.components.map((entry) => entry.name);
-  assert.equal(kmp.directCount, 8);
+  assert.equal(kmp.directCount, 9);
   assert.ok(kmpNames.includes("openiap"));
   assert.ok(kmpNames.includes("io.github.hyochan.openiap:openiap-google"));
   assert.ok(
@@ -1501,7 +1501,12 @@ test("published metadata matches the consumer-visible artifacts", async () => {
   assert.ok(!kmpNames.some((name) => name.endsWith("-jvm")));
 
   const maui = await generateSbom("maui", { root: repoRoot, runGit: stubGit });
-  assert.equal(maui.directCount, 24);
+  assert.equal(maui.directCount, 25);
+  assert.ok(
+    maui.document.components.some(
+      (entry) => entry.name === "io.github.hyochan.openiap:openiap-core",
+    ),
+  );
   assert.ok(maui.document.components.some((entry) => entry.name === "openiap"));
   assert.ok(
     maui.document.components.some(
@@ -1679,6 +1684,7 @@ test("framework SBOMs include every shipped native runtime contract", async () =
 
   const openIapNativeNames = [
     "openiap",
+    "io.github.hyochan.openiap:openiap-core",
     "io.github.hyochan.openiap:openiap-google",
     "io.github.hyochan.openiap:openiap-google-amazon",
     "io.github.hyochan.openiap:openiap-google-horizon",
@@ -2975,9 +2981,13 @@ test("the godot SBOM matches the dependency contract the addon ships", async () 
   );
   const remote = gdap.match(/^remote=\[(.*)\]$/m);
   assert.ok(remote, "GodotIap.gdap declares no remote dependency list");
-  const declared = [...remote[1].matchAll(/"([^"]+)"/g)]
-    .map((match) => match[1])
-    .sort();
+  const nativeVersions = JSON.parse(
+    readFileSync(resolve(repoRoot, "openiap-versions.json"), "utf8"),
+  );
+  const declared = [
+    ...[...remote[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]),
+    `io.github.hyochan.openiap:openiap-core:${nativeVersions.google}`,
+  ].sort();
 
   // withLicenses is off, so this resolves from committed manifests only.
   const { document } = await generateSbom("godot", { root: repoRoot });
@@ -3223,4 +3233,99 @@ test("pub version ranges lose YAML quoting without losing constraint bounds", ()
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("SDK resolver inventories retain legacy declarations and reject missing or extra dependencies", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-resolver-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "libraries/expo-iap/android/build.gradle";
+  mkdirSync(dirname(resolve(scratch, manifest)), { recursive: true });
+  const source = COMPONENTS.expo.source.sources.find(
+    (entry) => entry.kind === "declared" && entry.dependencies.length === 0,
+  );
+  const call =
+    "openIapAddStoreDependencies('api', googleVersionString, ':openiap-google')";
+  const write = (body) =>
+    writeFileSync(resolve(scratch, manifest), `dependencies {\n${body}\n}\n`);
+  write(call);
+  assert.deepEqual(await extractDirectDependencies(scratch, source), []);
+  for (const body of [
+    "",
+    call.replace("'api'", "'compileOnly'"),
+    `${call}\napi 'example:extra:1.0.0'`,
+  ]) {
+    write(body);
+    await assert.rejects(
+      () => extractDirectDependencies(scratch, source),
+      /Unmodelled dependency declaration/u,
+    );
+  }
+  write(
+    [
+      ...[
+        "openiap-google-amazon",
+        "openiap-google-horizon",
+        "openiap-google",
+      ].map(
+        (artifact) =>
+          `api "io.github.hyochan.openiap:${artifact}:\${googleVersionString}"`,
+      ),
+      "api project(':openiap-google')",
+    ].join("\n"),
+  );
+  assert.deepEqual(await extractDirectDependencies(scratch, source), []);
+});
+
+test("a local core dependency requires its published neutral fallback", (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-core-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "build.gradle.kts";
+  writeFileSync(
+    resolve(scratch, manifest),
+    'dependencies { implementation(project(":openiap-core")) }',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest }),
+    /lacks its published fallback/u,
+  );
+  writeFileSync(
+    resolve(scratch, manifest),
+    'dependencies { implementation(project(":openiap-core")); implementation("io.github.hyochan.openiap:openiap-core:4.0.0") }',
+  );
+  assert.equal(
+    extractGradle(scratch, { manifest })[0].name,
+    "io.github.hyochan.openiap:openiap-core",
+  );
+});
+
+test("legacy native SBOMs exclude core while provider releases require its manifest", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-legacy-core-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const source = {
+    kind: "openiap-native",
+    google: ["openiap-core", "openiap-google"],
+  };
+  writeFileSync(
+    resolve(scratch, "openiap-versions.json"),
+    JSON.stringify({ google: "3.6.1" }),
+  );
+  assert.deepEqual(
+    (await extractDirectDependencies(scratch, source)).map(
+      (entry) => entry.name,
+    ),
+    ["io.github.hyochan.openiap:openiap-google"],
+  );
+  writeFileSync(
+    resolve(scratch, "openiap-versions.json"),
+    JSON.stringify({ google: "4.0.0" }),
+  );
+  await assert.rejects(
+    () => extractDirectDependencies(scratch, source),
+    /Missing openiap-core manifest/u,
+  );
+  mkdirSync(resolve(scratch, "packages/google/core"), {
+    recursive: true,
+  });
+  writeFileSync(resolve(scratch, "packages/google/core/build.gradle.kts"), "");
+  assert.equal((await extractDirectDependencies(scratch, source)).length, 2);
 });

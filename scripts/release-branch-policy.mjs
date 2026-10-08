@@ -354,12 +354,21 @@ export const publishedSources = {
   google: [
     /^packages\/google\/openiap\/src\/(main|play|horizon|amazon)\//,
     /^packages\/google\/openiap\/(build\.gradle\.kts|consumer-rules[\w-]*\.pro)$/,
+    // openiap-core ships its own manifest, keep rules, and build script; its
+    // classes come from openiap/src/main, already listed above.
+    /^packages\/google\/core\/src\/main\//,
+    /^packages\/google\/core\/(build\.gradle\.kts|consumer-rules[\w-]*\.pro)$/,
+    // The google release also publishes the openiap-conformance artifact.
+    /^packages\/conformance\/android\/src\/main\//,
+    /^packages\/conformance\/android\/build\.gradle\.kts$/,
     /^packages\/google\/gradle\/[^/]+\.gradle$/,
     /^packages\/google\/gradle-plugin\/(src\/main\/|build\.gradle\.kts$)/,
   ],
   apple: [
     /^packages\/apple\/Sources\//,
     /^packages\/apple\/(Package\.swift|openiap\.podspec)$/,
+    // Every Apple tag ships the OpenIapConformance product too.
+    /^packages\/conformance\/apple\/Sources\//,
     // SwiftPM and CocoaPods git sources resolve openiap-apple from the root.
     /^(Package\.swift|openiap\.podspec)$/,
   ],
@@ -414,11 +423,16 @@ export function shipsInAnyPackage(file) {
 export const nativeReleaseGates = {
   google: {
     tag: (version) => `google-${version}`,
-    roots: ["packages/google"],
+    roots: ["packages/google", "packages/conformance/android"],
   },
   apple: {
     tag: (version) => version,
-    roots: ["packages/apple", "Package.swift", "openiap.podspec"],
+    roots: [
+      "packages/apple",
+      "packages/conformance/apple",
+      "Package.swift",
+      "openiap.podspec",
+    ],
   },
 };
 

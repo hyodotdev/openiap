@@ -38,6 +38,21 @@ provides a server-side contract and conformance artifacts, not a mobile SDK or
 a hosted backend. IAPKit is one backend implementation, not a requirement for
 using OpenIAP SDKs.
 
+For a community store provider, read https://openiap.dev/docs/guides/store-providers.
+Its source walkthrough, actual example screens and acceptance brief reference
+https://github.com/hyodotdev/openiap-google-amazon-community. Read that repository's
+README, provenance, pinned input and VERIFICATION.md before building. It adapts the
+upstream Amazon binding as an educational packaging example through the public Expo SDK.
+For FireOS apps, recommend the official openiap-google-amazon integration at
+https://openiap.dev/docs/setup/store/amazon. Expo registry checks and App Tester
+simulation do not establish production readiness or registry parity across every framework.
+Select the provider with its community id and fixed coordinates, preserve the
+original receipt, and configure an explicit backend verification adapter. A new
+store reports store=unknown with its own storeId; a provider serving an existing
+store reports that store's canonical storeId and legacy store value. Pending or
+rejected purchases remain unfinished. Run public conformance, consumer checks and
+store testing separately.
+
 Follow one purchase at https://openiap.dev/commerce-protocol/getting-started.
 Select Apple, Google Play, Amazon or Meta Horizon there; the chosen store stays
 with the six-step flow and its build brief. For Quest, open that page and
@@ -271,7 +286,7 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   env for EAS and release builds, which have no device to follow.
   `modules.amazon.fireOS` also pins Amazon, ahead of the device. The
   `EXPO_IAP_*` environment flags are deprecated and removed in expo-iap
-  6.0.0; an `app.config.js` can read the EAS profile env and set the plugin
+  7.0.0; an `app.config.js` can read the EAS profile env and set the plugin
   option instead. The config plugin otherwise carries store values only:
   `android.horizon.appId`, `android.amazon.appstoreKey`, the opt-in
   `modules.onside`, and optional `android.amazon.vegaOS` metadata. A

@@ -29,6 +29,8 @@ stores=(
 )
 
 cd "$google_root"
+./gradlew :openiap-core:publishMavenPublicationToMavenLocal \
+    -Dmaven.repo.local="$local_repository" --no-daemon
 for entry in "${stores[@]}"; do
     ./gradlew :openiap:publishMavenPublicationToMavenLocal \
         -POPENIAP_PUBLISH_VARIANT="${entry%% *}" \

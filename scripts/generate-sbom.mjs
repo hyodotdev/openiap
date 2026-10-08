@@ -62,7 +62,12 @@ export const PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE = 75;
 const ALL_OPENIAP_NATIVE_VARIANTS = {
   kind: "openiap-native",
   apple: true,
-  google: ["openiap-google", "openiap-google-horizon", "openiap-google-amazon"],
+  google: [
+    "openiap-core",
+    "openiap-google",
+    "openiap-google-horizon",
+    "openiap-google-amazon",
+  ],
 };
 
 const PODSPEC_DEPENDENCY_PATTERN = /^\s*s\.dependency\s+['"]([^'"]+)['"]/gmu;
@@ -70,6 +75,17 @@ const GRADLE_COORDINATE_PATTERN =
   /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)(?:"([^"]+)"|'([^']+)')/gmu;
 const GRADLE_PROJECT_PATTERN =
   /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)project\(\s*['"]([^'"]+)['"]/gmu;
+
+function storeResolverInventory(file, configuration, version, localProject) {
+  return {
+    file,
+    pattern: /^\s*(openIapAddStoreDependencies\([^\n]*\))\s*$/gmu,
+    expected: [],
+    resolverExpected: [
+      `openIapAddStoreDependencies('${configuration}', ${version}, '${localProject}')`,
+    ],
+  };
+}
 
 const LEGACY_SBOM_REPAIRS = new Map([
   [
@@ -302,12 +318,20 @@ const COMPONENTS = {
                 "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
                 "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
               ],
+              resolverExpected: [],
             },
             {
               file: "libraries/expo-iap/android/build.gradle",
               pattern: GRADLE_PROJECT_PATTERN,
               expected: [":openiap-google"],
+              resolverExpected: [],
             },
+            storeResolverInventory(
+              "libraries/expo-iap/android/build.gradle",
+              "api",
+              "googleVersionString",
+              ":openiap-google",
+            ),
           ],
         },
       ],
@@ -336,9 +360,13 @@ const COMPONENTS = {
               pattern: GRADLE_COORDINATE_PATTERN,
               expected: [
                 "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}",
                 "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}",
                 "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}",
                 "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}",
+              ],
+              resolverExpected: [
+                "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}",
                 "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}",
               ],
             },
@@ -346,7 +374,14 @@ const COMPONENTS = {
               file: "libraries/flutter_inapp_purchase/android/build.gradle",
               pattern: GRADLE_PROJECT_PATTERN,
               expected: [":openiap"],
+              resolverExpected: [],
             },
+            storeResolverInventory(
+              "libraries/flutter_inapp_purchase/android/build.gradle",
+              "implementation",
+              "openiapGoogleVersion",
+              ":openiap",
+            ),
           ],
           dependencies: [
             {
@@ -429,7 +464,7 @@ const COMPONENTS = {
             },
           },
         },
-        { kind: "openiap-native", apple: true, google: [] },
+        { kind: "openiap-native", apple: true, google: ["openiap-google"] },
         {
           kind: "embedded-binary",
           file: "libraries/godot-iap/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime",
@@ -526,7 +561,7 @@ const COMPONENTS = {
         {
           kind: "openiap-native",
           apple: true,
-          google: ["openiap-google"],
+          google: ["openiap-core", "openiap-google"],
         },
       ],
     },
@@ -591,9 +626,14 @@ const COMPONENTS = {
               expected: [
                 "com.facebook.react:react-native:+",
                 "com.google.android.gms:play-services-base:$playServicesBaseVersion",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion",
                 "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
                 "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
                 "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
+              ],
+              resolverExpected: [
+                "com.facebook.react:react-native:+",
+                "com.google.android.gms:play-services-base:$playServicesBaseVersion",
                 "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion",
               ],
             },
@@ -601,7 +641,14 @@ const COMPONENTS = {
               file: "libraries/react-native-iap/android/build.gradle",
               pattern: GRADLE_PROJECT_PATTERN,
               expected: [":openiap", ":react-native-nitro-modules"],
+              resolverExpected: [":react-native-nitro-modules"],
             },
+            storeResolverInventory(
+              "libraries/react-native-iap/android/build.gradle",
+              "implementation",
+              "googleVersionString",
+              ":openiap",
+            ),
           ],
           dependencies: [
             {

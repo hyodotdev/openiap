@@ -1,30 +1,28 @@
 import ExpoIapModule from '../ExpoIapModule';
+import {Platform} from 'react-native';
+import {isVegaOS} from '../vega';
 import {syncIOS} from '../modules/ios';
 import {ErrorCode} from '../types';
 import {createPurchaseError} from './errorMapping';
 
-/**
- * Run the native iOS restore/sync phase without querying purchases.
- *
- * Both native implementations promise an authoritative boolean. A rejection
- * or false result must reach the caller so restore cannot report success from
- * a subsequent empty purchase query.
- */
-export const restorePurchasesIOSNative = async (): Promise<void> => {
-  const usingOnside =
-    ExpoIapModule.USING_ONSIDE_SDK &&
+/** Restore through the selected provider before querying ownership. */
+export const restorePurchasesNative = async (): Promise<void> => {
+  if (isVegaOS()) return;
+  const usingNativeRestore =
     typeof ExpoIapModule.restorePurchases === 'function';
-  const restored = usingOnside
+  const restored = usingNativeRestore
     ? await ExpoIapModule.restorePurchases?.()
-    : await syncIOS();
+    : Platform.OS === 'ios'
+      ? await syncIOS()
+      : true;
 
   if (restored !== true) {
     throw createPurchaseError({
       code: ErrorCode.SyncError,
-      message: usingOnside
-        ? 'Onside purchase restore did not complete'
+      message: usingNativeRestore
+        ? 'Store purchase restore did not complete'
         : 'App Store purchase sync did not complete',
-      platform: 'ios',
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
     });
   }
 };

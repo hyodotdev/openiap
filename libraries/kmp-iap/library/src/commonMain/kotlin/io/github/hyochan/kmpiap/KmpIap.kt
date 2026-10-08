@@ -162,10 +162,11 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
  * Usage:
  * ```kotlin
  * import io.github.hyochan.kmpiap.KmpIAP
- * 
+ * import io.github.hyochan.kmpiap.kmpIapInstance
+ *
  * // Option 1: Use global instance
- * KmpIAP.instance.initConnection()
- * KmpIAP.instance.fetchProducts(...)
+ * kmpIapInstance.initConnection()
+ * kmpIapInstance.fetchProducts(...)
  * 
  * // Option 2: Create your own instance
  * val kmpIAP = KmpIAP()
@@ -197,6 +198,8 @@ expect fun createPlatformInAppPurchase(): KmpInAppPurchase
  * ```
  * 
  * Note: For better testability and dependency injection,
- * consider creating your own instance with `KmpIAP()`.
+ * consider creating your own instance with `KmpIAP()`. Keep one live client
+ * per process; on Meta Horizon a second live client kills the process when it
+ * queries purchases.
  */
 val kmpIapInstance: KmpIAP by lazy { KmpIAP() }

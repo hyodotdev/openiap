@@ -18,7 +18,6 @@ import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.store.OpenIapStore
 
 class MainActivity : ComponentActivity() {
-    // CRITICAL FIX: Create OpenIapStore at Activity level to persist across navigation
     private val iapStore by lazy { OpenIapStore(applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {

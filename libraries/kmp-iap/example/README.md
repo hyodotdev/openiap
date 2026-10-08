@@ -61,32 +61,34 @@ only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to
 - **Subscription Flow**: Subscription management with automatic UI updates upon purchase
 - **Available Purchases**: View and restore previous purchases with consume/acknowledge functionality
 - **Offer Code Redemption**: Platform-specific promo code redemption (iOS sheet, Android Play Store)
-- **Instance-based API**: Demonstrates the new `KmpIAP()` class-based approach that works in commonMain
+- **Shared instance**: Every screen uses the shared `kmpIapInstance`, which works in commonMain
 
 ## Key Implementation Details
 
 ### Creating KmpIAP Instance
 
 ```kotlin
-// In Composable functions
-val kmpIAP = remember { KmpIAP() }
+// Every screen uses the shared instance
+import io.github.hyochan.kmpiap.kmpIapInstance
 
 // Initialize connection
 LaunchedEffect(Unit) {
-    kmpIAP.initConnection()
+    kmpIapInstance.initConnection()
 }
 ```
+
+Keep one client per process: on Meta Horizon a second live client kills the process when it queries purchases.
 
 ### Purchase Flow with Receipt Validation
 
 ```kotlin
 // Listen for purchase updates
-kmpIAP.purchaseUpdatedListener.collect { purchase ->
+kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
     // IMPORTANT: Server-side receipt validation
     // val isValid = validateReceiptOnServer(purchase.purchaseToken)
 
     // Finish transaction after validation
-    kmpIAP.finishTransaction(
+    kmpIapInstance.finishTransaction(
         purchase = purchase,
         isConsumable = true // true for consumables, false for subscriptions
     )

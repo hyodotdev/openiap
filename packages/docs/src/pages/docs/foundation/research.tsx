@@ -67,7 +67,7 @@ const STUDY_GROUPS: StudyGroup[] = [
         applied: (
           <>
             The differential mode of the conformance runner, which runs adapters
-            side by side and reports divergences. It is part of suite 3.0.0 in
+            side by side and reports divergences. It is part of suite 4.0.0 in
             the repository and is not published to npm.
           </>
         ),
@@ -94,7 +94,7 @@ const STUDY_GROUPS: StudyGroup[] = [
           <>
             The metamorphic relation registry used to verify live store behavior
             — for example, a purchased item must appear in a following restore.
-            It is part of suite 3.0.0 in the repository and is not published to
+            It is part of suite 4.0.0 in the repository and is not published to
             npm.
           </>
         ),

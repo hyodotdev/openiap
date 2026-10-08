@@ -378,6 +378,7 @@ internal fun buildAmazonPurchase(
         quantity = 1,
         signatureAndroid = null,
         store = IapStore.Amazon,
+        storeId = "amazon",
         transactionDate = purchaseDateMillis,
         transactionId = receiptId,
         userIdAmazon = userIdAmazon,
@@ -747,8 +748,12 @@ class OpenIapModule(
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = try {
             withContext(Dispatchers.IO) {
+                val androidArgs = try {
+                    props.toAndroidPurchaseArgs()
+                } catch (error: IllegalArgumentException) {
+                    emitPurchaseErrorAndThrow(OpenIapError.DeveloperError(error.message))
+                }
                 ensureRegistered()
-                val androidArgs = props.toAndroidPurchaseArgs()
                 if (androidArgs.skus.isEmpty()) {
                     emitPurchaseErrorAndThrow(OpenIapError.EmptySkuList)
                 }
@@ -856,7 +861,7 @@ class OpenIapModule(
         RequestPurchaseResultPurchases(purchases)
     }
 
-    suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
+    override suspend fun getAvailableItems(type: ProductQueryType): List<Purchase> = withContext(Dispatchers.IO) {
         requestPurchaseUpdates(reset = true).filter { purchase ->
             val receiptId = purchase.purchaseToken ?: purchase.id
             val productType = purchaseTypeByReceiptId[receiptId]
@@ -1018,7 +1023,7 @@ class OpenIapModule(
         userChoiceBillingAndroid = userChoiceBillingAndroid,
     )
 
-    suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
+    override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
         try {
             val response = requestUserData()
             when (response.requestStatus) {
@@ -1274,12 +1279,12 @@ class OpenIapModule(
             ensureRegistered()
             issueAmazonRequest(
                 operation = "getUserData",
-                missingRequestError = { OpenIapError.InitConnection },
+                missingRequestError = { OpenIapError.StoreConnectionFailure("amazon") },
                 expectedGeneration = operationGeneration,
             ) {
                 runCatching { PurchasingService.getUserData() }
                     .getOrElse {
-                    throw OpenIapError.InitConnection
+                    throw OpenIapError.StoreConnectionFailure("amazon")
                 }
             }
         }

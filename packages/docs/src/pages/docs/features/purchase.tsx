@@ -264,6 +264,7 @@ class PurchaseManager(
             ),
             kmp: (
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
@@ -271,10 +272,9 @@ import kotlinx.coroutines.launch
 
 class PurchaseManager(
     private val context: Context,
-    private val lifecycleScope: CoroutineScope
+    private val lifecycleScope: CoroutineScope,
+    private val kmpIAP: KmpIAP = kmpIapInstance
 ) {
-    private val kmpIAP = KmpIAP()
-
     init {
         setupListeners()
     }
@@ -1827,10 +1827,9 @@ import kotlinx.coroutines.flow.*
 
 class PurchaseManager(
     private val context: Context,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val kmpIAP: KmpIAP = kmpIapInstance
 ) {
-    private val kmpIAP = KmpIAP()
-
     private val _products = MutableStateFlow<List<ProductAndroid>>(emptyList())
     val products: StateFlow<List<ProductAndroid>> = _products.asStateFlow()
 

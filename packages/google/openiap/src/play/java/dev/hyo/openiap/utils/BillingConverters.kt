@@ -336,6 +336,7 @@ internal object BillingConverters {
             quantity = quantity,
             signatureAndroid = signature,
             store = IapStore.Google,
+            storeId = "play",
             transactionDate = purchaseTime.toDouble(),
             transactionId = orderId,
             // Amazon-flavor-only fields; Google Play purchases never carry them.

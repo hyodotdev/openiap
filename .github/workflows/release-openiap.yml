@@ -17,7 +17,7 @@ on:
           - cli
         default: client-protocol
       version:
-        description: "Version bump, current retry, or exact target"
+        description: "Version bump, current (in-tree version or retry), or exact target"
         required: true
         type: choice
         options:

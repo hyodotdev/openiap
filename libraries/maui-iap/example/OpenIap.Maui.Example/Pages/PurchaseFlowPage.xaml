@@ -130,7 +130,7 @@
                     <VerticalStackLayout Spacing="4">
                         <Label Text="How to test:" FontAttributes="Bold" TextColor="#1A1A1A" />
                         <Label Text="1. Make sure you're signed in with a Sandbox account" TextColor="#5F6470" />
-                        <Label Text="2. Products must be configured in App Store Connect / Play Console" TextColor="#5F6470" />
+                        <Label Text="2. Configure products in the selected store console" TextColor="#5F6470" />
                         <Label Text="3. Tap &quot;Purchase&quot; to initiate the transaction" TextColor="#5F6470" />
                         <Label Text="4. The transaction is processed via the PurchaseUpdated stream" TextColor="#5F6470" />
                         <Label Text="5. Server-side receipt validation is recommended for production" TextColor="#5F6470" />

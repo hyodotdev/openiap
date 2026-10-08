@@ -47,15 +47,18 @@ function StoreSetup() {
         </p>
         <ol>
           <li>
-            <strong>Explicit</strong> —{' '}
-            <code>openiapStore=play|horizon|amazon</code> as a Gradle property:{' '}
-            <code>-PopeniapStore=horizon</code>,{' '}
+            <strong>Explicit</strong> — <code>openiapStore</code> as a Gradle
+            property: <code>-PopeniapStore=horizon</code>,{' '}
             <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in an EAS
-            profile, or <code>gradle.properties</code>.{' '}
-            <code>fireOsEnabled=true</code> declares a Fire OS build as{' '}
-            <code>openiapStore=amazon</code> does. <code>auto</code> means no
-            pin. The legacy <code>horizonEnabled</code> still pins with a
-            deprecation warning and is removed in the next major release. Only{' '}
+            profile, or <code>gradle.properties</code>. Pin <code>play</code>,{' '}
+            <code>horizon</code>, <code>amazon</code>, or a community id paired
+            with <code>openiapProvider</code>; see the{' '}
+            <Link to="/docs/guides/store-providers">Store provider guide</Link>{' '}
+            for community selection. <code>fireOsEnabled=true</code> declares a
+            Fire OS build as <code>openiapStore=amazon</code> does.{' '}
+            <code>auto</code> means no pin. The legacy{' '}
+            <code>horizonEnabled</code> still pins with a deprecation warning
+            and is removed in the next major release. Only{' '}
             <code>flutter_inapp_purchase</code> accepts{' '}
             <code>openiapStore=none</code> (or the legacy{' '}
             <code>openiapPlatform=none</code>) to build without a store SDK.

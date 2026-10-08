@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-30T12:11:48.065Z
+> Last updated: 2026-10-06T03:37:31.290Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -340,6 +340,37 @@ not a third specification.
 mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
 native package versions. A version like `3.4.0` there is a native package
 version, not a protocol version.
+
+## Store Providers
+
+Apple and Android share one provider contract. `StoreProviderDescriptor`
+(`specs/client/src/type.graphql`) names the store id, platform, native core
+version, Client Protocol version, and capability ids. Each native binding
+exposes a factory (`OpenIapProviderFactory`) with a public no-argument
+initializer; the app selects one provider and every SDK dispatches its
+existing purchase APIs through it.
+
+Discovery uses one metadata key, `dev.hyo.openiap.PROVIDER`: an Android
+manifest `meta-data` entry naming the factory class, or an Info.plist string
+naming the Objective-C factory class. A missing Apple key uses the App Store
+factory; any other invalid selection fails with a developer error, never a
+fallback.
+
+`IapStore` is frozen: no new cases. Every purchase and verification result
+carries a required `storeId`. Official ids are `apple`, `play`, `horizon`,
+and `amazon` (Play keeps the `google` enum wire value). A new external store
+uses `unknown` with its own stable id; a provider serving an existing store
+reports that store's canonical id and legacy value.
+
+Registration is optional. `specs/client/src/store-registry.json` owns ids,
+aliases, tiers, maintainers, repositories, coordinates, and latest conformance
+reports. `experimental` entries have at least one platform binding without a
+passing report; `community` entries carry a passing report for every platform
+binding; `official` entries live in this monorepo. Provider conformance suites
+(`packages/conformance`: Kotlin `ProviderConformanceSuite`, Swift
+`ProviderConformanceSuite`) assert the provider profile behaviors while the JS
+runner covers the client behaviors; a report passes only when every required
+behavior passes with a matching verdict.
 
 ## Directory Ownership Guardrail
 
@@ -1120,9 +1151,13 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
-Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
-mirror by hand. `"google"` and `"apple"` are native package versions and do not
+`"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
+set the manifest, run `bun install --lockfile-only --ignore-scripts` and then
+`./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
+files, when the in-tree code needs the new Client Protocol version
+(`sync-versions.sh` alone skips the conformance behavior ids, which embed the
+protocol version); do not edit the mirror by hand.
+`"google"` and `"apple"` are CI-managed native package versions and do not
 constrain it. Release-state, docs, and parity audits reject drift between the
 mirror and the publishing manifest.
 
@@ -1268,6 +1303,29 @@ never include raw purchase payloads, receipts, or tokens.
 bridges and exercises source-first mappings and round trips. When a generated
 payload field or bridge changes, update the real platform mapping and a focused
 regression fixture before extending the audit expectation.
+
+### Provider identity and selection
+
+Every output that carries `IapStore` also carries a required `storeId`
+(purchases, verification results, descriptors). Every SDK bridge preserves
+both fields through events, reads, JSON, and completion, and completes with
+the full purchase; the Apple ID-only selector resolves the owned purchase
+first and otherwise points to the full-purchase selector.
+
+External selection pairs a community id with fixed coordinates in every SDK:
+`openiapStore` + `openiapProvider` (Gradle, React Native, Flutter, KMP),
+`android.store` + `android.provider` (Expo), `OpenIapStore` +
+`OpenIapProvider` (MAUI), `openiap/android_store` +
+`openiap/android_provider` (Godot), and the Info.plist provider key (Apple).
+Official ids and their aliases are rejected with coordinates. Alias tables
+and `StoreIds` constants are generated from the registry with
+`bun run stores:generate`; never hand-edit a generated block. Keep a major's
+provider profile for as long as any registry entry cites it, or older passing
+reports fail validation.
+
+SDK and shared code reaches the store through `OpenIapProvider` discovery on
+Android and the `OpenIapModule` facade on Apple. Never import a flavor module
+class from shared code; the build links the selected flavor.
 
 ### The bug pattern
 
@@ -1439,10 +1497,10 @@ file into its jar at build time. Every other build system reads the same names:
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play       |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the store flags with the same table                     |
 
-`bun audit:parity` compares all five alias tables — the resolver, the doctor,
-the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
-targets — because a store that resolves differently in two layers of one build
-is exactly what this mechanism exists to prevent.
+`bun audit:parity` compares all six alias tables — the resolver, the doctor,
+the Godot helper, the Expo plugin, the runtime facade in `OpenIapStore.kt`
+and the MAUI package targets — because a store that resolves differently in
+two layers of one build is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by
 `packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
@@ -1621,10 +1679,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A schema change that alters the contract is a
-   Client Protocol version bump in `specs/client/package.json`; sync then
-   mirrors it into `openiap-versions.json` and fails instead of silently
-   repairing drift.
+1. Update the canonical schema. A contract change may bump the Client Protocol
+   in `specs/client/package.json`; refresh `bun.lock` and run
+   `./scripts/sync-release-generated.sh` to mirror it (the audits reject
+   drift), then release with `version=current`.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -2720,9 +2778,9 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `<apple-version>` (bare semver)
 5. Builds and tests Swift package
@@ -2747,9 +2805,9 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
-   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
-   `context.md`) so they land in the same version-bump commit
+2. Regenerates the release-derived files staged by
+   `scripts/sync-release-generated.sh` so they land in the same version-bump
+   commit
 3. Commits the version change to the guarded release branch
 4. Creates Git tag `google-<google-version>`
 5. Builds and tests Android library
@@ -2907,9 +2965,9 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
-  release bumps that manifest and `scripts/sync-versions.sh` writes the new
-  value into `openiap-versions.json` and its copies
+- `clientProtocol` mirrors `specs/client/package.json`; a feature PR or a Client
+  Protocol release sets that manifest and the sync writes the mirror into
+  `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
 - The docs site has no version: it deploys whatever `main` holds
@@ -2929,12 +2987,16 @@ issues. Use the GitHub Actions release workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `clientProtocol`, `google`, or `apple`. Stable
-version changes happen via:
+**Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
+`specs/client/package.json`, run `bun install --lockfile-only --ignore-scripts`
+and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the
+staged files, when the in-tree code needs the new Client Protocol version;
+never hand-edit the `clientProtocol` mirror. Stable version changes happen via:
 
-1. Release workflows (Apple Release, Google Release)
-2. A Client Protocol release bumping `specs/client/package.json`, followed by
-   sync propagation
+1. Release workflows (Apple Release, Google Release, and Client Protocol
+   releases with `version=patch`, `minor`, or `major`)
+2. A feature PR setting `specs/client/package.json`, published by a Client
+   Protocol release with `version=current`
 3. CI auto-bump after merge where configured
 
 
@@ -3162,8 +3224,7 @@ Vercel builds.
 The root `openiap-versions.json` is also a version contract. `clientProtocol`
 must equal the version in `specs/client/package.json`, the manifest that
 publishes the protocol; `google` and `apple` are independent native package
-versions. `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
-silently normalizing it.
+versions. The audits, not the sync script, reject a committed mismatch.
 
 Framework package versions and Android SDK constants used by docs must flow
 through `packages/docs/src/generated/version-metadata.json`, which is generated

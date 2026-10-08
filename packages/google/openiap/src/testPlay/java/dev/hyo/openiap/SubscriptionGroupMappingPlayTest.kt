@@ -48,6 +48,7 @@ class SubscriptionGroupMappingPlayTest {
         quantity = 1,
         signatureAndroid = null,
         store = IapStore.Google,
+        storeId = "play",
         transactionDate = 1_700_000_000_000.0,
         transactionId = token
     )

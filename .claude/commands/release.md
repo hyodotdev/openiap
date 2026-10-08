@@ -19,10 +19,13 @@ Inspect the complete public payload before publishing it.
 
 - `main` contains stable package metadata only. Run stable package releases and
   production docs deployment from `main`.
-- `clientProtocol` mirrors `specs/client/package.json`. Never edit it directly
-  in a feature PR, release command, or docs deployment. A Client Protocol
-  release bumps the publishing manifest; `scripts/sync-versions.sh` writes the
-  mirror, and the audits reject a committed mismatch.
+- `clientProtocol` mirrors `specs/client/package.json`. Never edit the mirror
+  directly; the audits reject a committed mismatch. A feature PR may set the
+  manifest, run `bun install --lockfile-only --ignore-scripts` and then
+  `scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
+  files, when the in-tree code needs the new Client Protocol version; the
+  release then dispatches with `version=current`, which publishes that version
+  without bumping again.
 - `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
   `next` releases from `next` only.
 - `next` may be absent between prerelease trains. Create it from current `main`
@@ -48,10 +51,9 @@ node --test scripts/release-branch-policy.test.mjs
 ```
 
 Every release lane's version-bump commit also runs
-`scripts/sync-release-generated.sh`, which regenerates and stages the files
-derived from version metadata (`packages/docs/src/generated/version-metadata.json`,
-`packages/docs/public/llms.txt`, `packages/docs/public/llms-full.txt`,
-`knowledge/_agent-context/context.md`). Expect these paths in bump commits;
+`scripts/sync-release-generated.sh`, which regenerates and stages every file
+that embeds release version metadata (see its `git add` list). Expect those
+paths in bump commits;
 they are not worktree drift. Skipping this regeneration leaves `main` stale and
 fails the `Audit SDK Parity` / `Test Agent Scripts` clean-worktree checks on
 every subsequent PR.
@@ -82,14 +84,50 @@ stable release.
 
 1. Inspect `origin/next`. If it does not exist, create it from the latest
    `origin/main`; if it is stale, follow the replacement rule above.
-2. Target feature PRs for the train at `next`; keep unrelated work on the usual
-   feature-to-`main` path.
-3. Dispatch the package workflow with `--ref next` and `prerelease=true` for the
+2. Target feature PRs for the train at `next` and merge only after their current
+   heads pass review and CI. Keep unrelated work on the usual feature-to-`main`
+   path.
+3. If the source PR advanced the Client Protocol to its stable target, prepare
+   that target's RC metadata before native publication, either in the PR targeting
+   `next` or after its merge: update
+   `specs/client/package.json`, run `bun install --lockfile-only --ignore-scripts`
+   and `scripts/sync-release-generated.sh`, then commit the manifest, lockfile,
+   and synced files as a separate version-only commit. Preserve the stable source
+   head for later promotion, then publish the protocol with `version=current`.
+   Do not bump the
+   already advanced target again; native/provider declarations must agree with
+   the protocol the RC publishes.
+4. Dispatch the package workflow with `--ref next` and `prerelease=true` for the
    first RC. Use `version=rc-bump` for later RCs where supported.
-4. Verify prerelease registry tags (`next`, RC Maven/NuGet/pub versions) and
+5. Verify prerelease registry tags (`next`, RC Maven/NuGet/pub versions) and
    device/build checks.
-5. Do not add an RC/next entry to the stable docs release history and do not run
+6. Do not add an RC/next entry to the stable docs release history and do not run
    production `npm run deploy` from `next`.
+
+Use the affected-package order below for RCs too. Verify each native RC on its
+registry before publishing a library that depends on it. Google RC publication
+and provider testing follow `packages/google/core/README.md#test-a-published-rc`
+and the fixture README's RC substitutions. Build that fixture's provider and
+minified host against the public RC before inviting external testing; keep its
+local test repository free of a locally rebuilt core.
+
+After the fixture provider is published locally, build its host with the same
+RC repository and exact version, for example:
+
+```bash
+packages/google/gradlew -p packages/google/compatibility/community-provider \
+  :host:assembleRelease \
+  -Dmaven.repo.local=/tmp/openiap-provider-rc-maven \
+  -PopenIapRepository=/tmp/openiap-provider-rc-maven \
+  -PopenIapVersion=4.0.0-rc.1 -PconformanceVersion=4.0.0 \
+  -PopeniapStore=community_fixture \
+  -PopeniapProvider=community.fixture:provider:1.0.0
+```
+
+Google later RCs use `release-google.yml --ref next -f version=rc-bump`;
+`current` retries the same artifact. Apple later RCs use its `target_version`
+input. Select the exact version each workflow produces; npm RC counters can
+start at zero.
 
 When the remote branch is absent and creation is explicitly requested:
 
@@ -127,13 +165,14 @@ For a multi-package release train, use this order when affected:
 8. `release-maui.yml`
 9. `release-openiap.yml` — select one affected package per run:
    - `client-protocol`: `@hyodotdev/openiap-client-protocol`. Its package
-     version *is* the Client Protocol version; a release moves `clientProtocol`
-     in `openiap-versions.json` through sync.
+     version *is* the Client Protocol version; a release with patch, minor,
+     major, rc-bump or exact moves `clientProtocol` through sync, while
+     `current` publishes the in-tree version.
    - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
      package version, released when its contract, runner, or artifacts change.
    - `cli`: `@hyodotdev/openiap`; independent package version.
-     The standalone `openiap-conformance` package is retired. Its suite remains
-     internal; its historical release tags stay immutable.
+     The standalone npm `openiap-conformance` package is retired. Its suite
+     remains internal; its historical release tags stay immutable.
 10. `npm run deploy`. The docs site is not versioned: no tag, no GitHub
     Release, no version argument.
 
@@ -199,8 +238,10 @@ Train rules (mistake guards):
   versions and links against the
   published releases and correct any that differ; if that needs an edit,
   commit it directly to `main` together with any release-process doc updates,
-  and do not open a PR for that post-release docs-only commit. Run the docs
-  deployment; to deploy before publication, use the explicit flag in
+  and do not open a PR for that post-release docs-only commit. Card edits that
+  change wording come with the matching `scripts/audit-release-notes.test.mjs`
+  needles. Run the docs deployment; to deploy before publication, use the
+  explicit flag in
   `knowledge/internal/06-git-deployment.md#deploying-documentation`.
   If a train will not resume, trim its card to what published. CI's release
   note audit (`bun run audit:release-notes`) fails a PR into `main` that
@@ -210,9 +251,10 @@ Train rules (mistake guards):
   GitHub Release is requested, explain that the docs site is not a versioned
   artifact.
 
-Fetch latest `main` before each dependent workflow so every release starts from
-the prior stable version commit. After an Apple or Google release, confirm the
-native workflow has synchronized its package metadata before dispatching the
+Fetch the latest target release branch before each dependent workflow so every
+release starts from the preceding version commit. After an Apple or Google
+release, confirm the native workflow has synchronized its package metadata before
+dispatching the
 next package or docs release. Do not dispatch the full list in parallel.
 
 ## Published but the Workflow Failed
@@ -307,7 +349,7 @@ Verify the registry, not only the GitHub Actions conclusion:
 | Package      | Verification                                                             |
 | ------------ | ------------------------------------------------------------------------ |
 | Apple        | `pod trunk info openiap`; GitHub tag `{version}`                         |
-| Google       | Maven Central POMs for Play, Amazon, and Horizon; tag `google-{version}` |
+| Google       | Maven Central POMs for core, Play, Amazon, Horizon, plugin and its marker; stable releases also verify the independent conformance suite; tag `google-{version}` |
 | React Native | `npm view react-native-iap@{version} version dist-tags --json`           |
 | Expo         | `npm view expo-iap@{version} version dist-tags --json`                   |
 | Flutter      | `https://pub.dev/api/packages/flutter_inapp_purchase/versions/{version}` |
@@ -318,6 +360,12 @@ Verify the registry, not only the GitHub Actions conclusion:
 
 Registry indexing can lag. Poll until the artifact is public or report a real
 timeout; do not equate a successful upload response with completed indexing.
+
+For Google artifacts, fetch
+`https://repo1.maven.org/maven2/io/github/hyochan/openiap/<artifact>/<version>/<artifact>-<version>.pom`.
+The stable conformance check uses `openiap-conformance` and `SUITE_VERSION`
+from `packages/conformance/src/spec/suite-version.mjs`, not the Google version.
+Skip that public POM check for RCs, which use a locally built suite.
 
 ## Flutter Publisher
 

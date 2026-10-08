@@ -389,8 +389,7 @@ dependencies {
           Live App Testing or an Appstore install before you ship. If the dialog
           never appears and the request times out, check{' '}
           <code>adb logcat -s Kiwi</code>: {'"'}No UI visible to execute task
-          {'"'}
-          means the Appstore already answered and the SDK is holding the
+          {'"'} means the Appstore already answered and the SDK is holding the
           purchase Intent (
           <a
             href="https://github.com/hyodotdev/openiap/issues/460"

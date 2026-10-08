@@ -91,6 +91,8 @@ android {
         missingDimensionStrategy("platform", openIapStore)
     }
 
+    testOptions { unitTests.isIncludeAndroidResources = true }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -111,7 +113,10 @@ kotlin {
 }
 
 dependencies {
-    compileOnly("io.github.hyochan.openiap:$openIapGoogleArtifact:$openIapGoogleVersion")
+    compileOnly("io.github.hyochan.openiap:openiap-core:$openIapGoogleVersion")
+    testImplementation("io.github.hyochan.openiap:openiap-core:$openIapGoogleVersion")
+    testImplementation("junit:junit:${readGoogleDependencyVersion("junit:junit")}")
+    testImplementation("org.robolectric:robolectric:${readGoogleDependencyVersion("org.robolectric:robolectric")}")
 
     implementation("androidx.core:core:$googleCoreVersion")
     implementation("com.google.code.gson:gson:$gsonVersion")

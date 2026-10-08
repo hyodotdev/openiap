@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase_example/src/screens/purchase_flow_screen.dart';
 
 void main() {
@@ -8,9 +12,13 @@ void main() {
   const channel = MethodChannel('flutter_inapp');
 
   late List<MethodCall> log;
+  late bool verificationValid;
+  PlatformException? verificationFailure;
 
   setUp(() {
     log = <MethodCall>[];
+    verificationValid = true;
+    verificationFailure = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
       log.add(call);
@@ -45,6 +53,17 @@ void main() {
           return <Map<String, dynamic>>[];
         case 'requestPurchase':
           return null;
+        case 'getPendingTransactionsIOS':
+          return <Map<String, dynamic>>[];
+        case 'verifyPurchase':
+          if (verificationFailure != null) throw verificationFailure!;
+          return VerifyPurchaseResultIOS(
+            isValid: verificationValid,
+            jwsRepresentation: 'test-jws',
+            receiptData: 'test-receipt',
+          ).toJson();
+        case 'finishTransaction':
+          return true;
         case 'endConnection':
           return true;
       }
@@ -57,18 +76,80 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  testWidgets('loads products and triggers purchase when tapping Buy',
+  testWidgets('finishes only completed purchases after successful verification',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: PurchaseFlowScreen()));
+    try {
+      for (final outcome in [
+        'valid',
+        'invalid',
+        'error',
+        'unsupported',
+        'pending',
+        'ignore'
+      ]) {
+        debugDefaultTargetPlatformOverride = outcome == 'unsupported'
+            ? TargetPlatform.android
+            : TargetPlatform.iOS;
+        log.clear();
+        verificationValid = outcome != 'invalid';
+        verificationFailure = outcome == 'error'
+            ? PlatformException(
+                code: 'purchase-verification-failed',
+                message: 'Verification unavailable',
+              )
+            : null;
+        await tester.pumpWidget(const MaterialApp(home: PurchaseFlowScreen()));
+        await tester.pumpAndSettle();
+        expect(log.where((call) => call.method == 'fetchProducts'), isNotEmpty);
+        expect(find.text('10 Bulbs'), findsOneWidget);
+        if (outcome != 'ignore') {
+          await tester.tap(find.text('Ignore'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Local (Device)'));
+          await tester.pumpAndSettle();
+        }
 
-    await tester.pumpAndSettle();
+        final purchase = PurchaseIOS(
+          id: 'local-$outcome',
+          transactionId: 'local-$outcome',
+          productId: 'dev.hyo.martie.10bulbs',
+          purchaseToken: 'test-jws',
+          purchaseState: outcome == 'pending'
+              ? PurchaseState.Pending
+              : PurchaseState.Purchased,
+          transactionDate: 1,
+          quantity: 1,
+          isAutoRenewing: false,
+          store: IapStore.Apple,
+          storeId: 'apple',
+        );
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('purchase-updated', jsonEncode(purchase.toJson())),
+          ),
+          (_) {},
+        );
+        await tester.pumpAndSettle();
 
-    expect(log.where((call) => call.method == 'fetchProducts'), isNotEmpty);
-    expect(find.text('10 Bulbs'), findsOneWidget);
-
-    // Verify the Buy button is present
-    expect(find.text('Buy'), findsOneWidget);
-
-    await tester.pumpWidget(const SizedBox.shrink());
+        expect(
+          log.where((call) => call.method == 'finishTransaction').length,
+          outcome == 'valid' || outcome == 'ignore' ? 1 : 0,
+          reason: outcome,
+        );
+        expect(
+          log.where((call) => call.method == 'verifyPurchase').length,
+          ['unsupported', 'pending', 'ignore'].contains(outcome) ? 0 : 1,
+          reason: outcome,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
   });
 }

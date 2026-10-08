@@ -24,17 +24,19 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.fetchProducts
-import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
+import io.github.hyochan.kmpiap.openiap.RequestPurchasePropsByPlatforms
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseIosProps
+import io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseAppleOptions
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseGoogleOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -46,8 +48,6 @@ import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonPr
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
 import io.github.hyochan.kmpiap.getCurrentPlatform
 import kotlinx.coroutines.*
 import kotlin.time.Instant
@@ -56,16 +56,11 @@ import kotlinx.datetime.toLocalDateTime
 
 private val PRODUCT_IDS = InAppProductIds
 
-/**
- * Verification method for purchase validation
- */
 enum class VerificationMethod(val label: String, val icon: String) {
     None("None (Skip)", "❌"),
     Local("Local (Device)", "📱"),
     IAPKitLocal("Local (IAPKit)", "🖥️"),
     IAPKit("IAPKit (Server)", "☁️");
-
-    val isIapkit: Boolean get() = this == IAPKitLocal || this == IAPKit
 }
 
 /** Mirrors the other examples: no key skips, a local origin prefers it. */
@@ -79,10 +74,7 @@ fun defaultVerificationMethod(apiKey: String, localBaseUrl: String): Verificatio
 @Composable
 fun PurchaseFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    
-    // Use global IAP instance for this example
-    // This demonstrates using the pre-created singleton instance
-    
+
     var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -117,46 +109,35 @@ fun PurchaseFlowScreen(navController: NavController) {
 
         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
             .toLocalDateTime(TimeZone.currentSystemDefault())
-        purchaseResult = """
+        val purchaseSummary = """
     ✅ Purchase successful (${purchase.store})
+    Store ID: ${purchase.storeId}
     Product: ${purchase.productId}
     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
     Date: $dateText
     Purchase credential: ${credentialStatus(purchase.purchaseToken)}
 """.trimIndent()
+        purchaseResult = purchaseSummary
 
         scope.launch {
             val verificationMethodAtStart = verificationMethod
-            var iapkitVerificationOk = true
-            // Verify purchase based on selected method
+            var verificationOk = true
             if (verificationMethodAtStart != VerificationMethod.None) {
                 verificationResult = "🔄 Verifying purchase..."
                 try {
                     when (verificationMethodAtStart) {
                         VerificationMethod.Local -> {
-                            val isIos = getCurrentPlatform() == IapPlatform.Ios
-                            val result = kmpIapInstance.verifyPurchase(
-                                VerifyPurchaseProps(
-                                    apple = if (isIos) VerifyPurchaseAppleOptions(sku = purchase.productId) else null,
-                                    google = if (!isIos) VerifyPurchaseGoogleOptions(
-                                        sku = purchase.productId,
-                                        accessToken = "your_google_api_access_token", // Obtain from your backend for production use
-                                        packageName = "your.app.package.name", // Your app's package name
-                                        purchaseToken = purchase.purchaseToken ?: "",
-                                        isSub = false
-                                    ) else null
+                            if (getCurrentPlatform() != IapPlatform.Ios) {
+                                verificationOk = false
+                                verificationResult = "Local (Device) verification is unavailable here. Choose Local (IAPKit) or None (Skip)."
+                            } else {
+                                val result = kmpIapInstance.verifyPurchase(
+                                    VerifyPurchaseProps(apple = VerifyPurchaseAppleOptions(sku = purchase.productId))
                                 )
-                            )
-                            verificationResult = when (result) {
-                                is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
-                                    "Valid: ${result.isValid}\n" +
+                                verificationOk = (result as? VerifyPurchaseResultIOS)?.isValid == true
+                                verificationResult = "📱 Local Verification (iOS):\n" +
+                                    "Valid: $verificationOk\n" +
                                     "Purchase credential: ${credentialStatus(purchase.purchaseToken)}"
-                                is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
-                                    "Product: ${result.productId}\n" +
-                                    "Receipt ID: ${credentialStatus(result.receiptId)}"
-                                is VerifyPurchaseResultHorizon -> "📱 Horizon Verification:\n" +
-                                    "Valid: ${result.isValid}\n" +
-                                    "Grant Time: ${result.grantTime ?: "N/A"}"
                             }
                         }
                         VerificationMethod.IAPKitLocal, VerificationMethod.IAPKit -> {
@@ -166,17 +147,17 @@ fun PurchaseFlowScreen(navController: NavController) {
                             if (verificationMethodAtStart == VerificationMethod.IAPKitLocal &&
                                 localBaseUrl.isBlank()
                             ) {
-                                iapkitVerificationOk = false
+                                verificationOk = false
                                 verificationResult = "❌ IAPKIT_BASE_URL not configured.\n" +
                                     "Set IAPKIT_BASE_URL in .env (Android) or Secrets.xcconfig (iOS)."
                             } else if (apiKey.isBlank()) {
-                                iapkitVerificationOk = false
+                                verificationOk = false
                                 verificationResult = "❌ IAPKit API key not configured.\n" +
                                     "Set IAPKIT_API_KEY in .env (Android) or Secrets.xcconfig (iOS)."
                             } else {
                                 val jwsOrToken = purchase.purchaseToken ?: ""
                                 if (jwsOrToken.isEmpty() && purchase.store != IapStore.Horizon) {
-                                    iapkitVerificationOk = false
+                                    verificationOk = false
                                     verificationResult = "❌ No purchase token available for verification"
                                 } else {
                                     val isIos = getCurrentPlatform() == IapPlatform.Ios
@@ -199,7 +180,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                         )
                                     )
                                     val iapkitResult = result.iapkit
-                                    iapkitVerificationOk = iapkitResult?.isValid == true
+                                    verificationOk = iapkitResult?.isValid == true
                                     val statusEmoji = if (iapkitResult?.isValid == true) "✅" else "⚠️"
                                     verificationResult = "$statusEmoji $label Verification:\n" +
                                         "Valid: ${iapkitResult?.isValid ?: false}\n" +
@@ -210,15 +191,13 @@ fun PurchaseFlowScreen(navController: NavController) {
                         }
                     }
                 } catch (e: Exception) {
-                    if (verificationMethodAtStart.isIapkit) {
-                        iapkitVerificationOk = false
-                    }
+                    verificationOk = false
                     verificationResult = "❌ Verification failed: ${e.message}"
                 }
             }
 
-            if (verificationMethodAtStart.isIapkit && !iapkitVerificationOk) {
-                purchaseResult = "$purchaseResult\n\n⚠️ Transaction left unfinished because IAPKit verification failed"
+            if (!verificationOk) {
+                purchaseResult = "$purchaseSummary\n\n⚠️ Transaction left unfinished because verification failed"
                 handledTransactionIds.remove(purchase.id)
                 return@launch
             }
@@ -229,9 +208,9 @@ fun PurchaseFlowScreen(navController: NavController) {
                     purchase = purchase.toPurchaseInput(),
                     isConsumable = purchase.productId in ConsumableProductIds
                 )
-                purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+                purchaseResult = "$purchaseSummary\n\n✅ Transaction finished successfully"
             } catch (e: Exception) {
-                purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                purchaseResult = "$purchaseSummary\n\n❌ Failed to finish transaction: ${e.message}"
                 handledTransactionIds.remove(purchase.id)
             }
         }
@@ -251,7 +230,6 @@ fun PurchaseFlowScreen(navController: NavController) {
                     }
                     PurchaseState.Unknown -> {
                         isProcessing = false
-                        purchaseResult = null
                     }
                 }
             }
@@ -274,7 +252,7 @@ fun PurchaseFlowScreen(navController: NavController) {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = kmpIapInstance.initConnection()
+                val connectionResult = ensureExampleConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -527,16 +505,17 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 isProcessing = true
                                 purchaseResult = null
                                 try {
-                                    val purchase = kmpIapInstance.requestPurchase {
-                                        apple {
-                                            sku = product.id
-                                            quantity = 1
-                                        }
-                                        google {
-                                            skus = listOf(product.id)
-                                        }
-                                    }
-                                    // Purchase updates will be received through the Flow
+                                    kmpIapInstance.requestPurchase(
+                                        RequestPurchaseProps(
+                                            request = RequestPurchaseProps.Request.Purchase(
+                                                RequestPurchasePropsByPlatforms(
+                                                    apple = RequestPurchaseIosProps(sku = product.id, quantity = 1),
+                                                    google = RequestPurchaseAndroidProps(skus = listOf(product.id)),
+                                                )
+                                            ),
+                                            type = ProductQueryType.InApp,
+                                        )
+                                    )
                                 } catch (e: PurchaseException) {
                                     if (e.error.code != ErrorCode.UserCancelled) {
                                         purchaseResult = "Purchase failed: ${e.message}"
@@ -546,7 +525,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                     purchaseResult = "Purchase failed: ${e.message}"
                                     isProcessing = false
                                 }
-                        }
+                            }
                         },
                         isProcessing = isProcessing
                     )

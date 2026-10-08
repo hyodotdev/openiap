@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
+import CodeBlock from '../../../components/CodeBlock';
+import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
 
@@ -221,7 +223,7 @@ const flutterCustomWireMigrations = [
 const scheduledRemovals = [
   {
     title:
-      'react-native-iap, expo-iap, flutter_inapp_purchase, and the openiap-google Gradle plugin',
+      'Removal in openiap-google 5.0, react-native-iap 18.0, expo-iap 7.0, and flutter_inapp_purchase 12.0',
     rows: [
       [
         'horizonEnabled=true',
@@ -231,7 +233,7 @@ const scheduledRemovals = [
     ],
   },
   {
-    title: 'expo-iap',
+    title: 'Removal in expo-iap 7.0',
     rows: [
       [
         'modules.horizon / EXPO_IAP_HORIZON=1',
@@ -249,11 +251,11 @@ const scheduledRemovals = [
     ],
   },
   {
-    title: 'OpenIap.Maui',
+    title: 'Removal in OpenIap.Maui 4.0',
     rows: [['OpenIapAndroidStore', 'OpenIapStore']],
   },
   {
-    title: 'react-native-iap',
+    title: 'Removal in react-native-iap 18.0',
     rows: [
       [
         'NitroProduct.originalPriceAndroid, originalPriceAmountMicrosAndroid, introductoryPriceValueAndroid, introductoryPriceCyclesAndroid, introductoryPricePeriodAndroid, subscriptionPeriodAndroid, freeTrialPeriodAndroid',
@@ -545,14 +547,13 @@ function Migration() {
 
       <section>
         <AnchorLink id="next-major" level="h2">
-          Scheduled for the next major release
+          Scheduled removals
         </AnchorLink>
         <p>
-          These keys and fields are deprecated. Every patch and minor release
-          keeps them working, and the store keys print a build warning. Each
-          goes in the next major release of the package that carries it; the
-          Gradle store keys, which several packages read, go in one major
-          release of all of them. The store rule itself is in{' '}
+          These deprecated keys and fields remain available in the community
+          provider release train. Their removal moves to the versions below;
+          shared Gradle flags are removed together across the packages that read
+          them. Migrate using{' '}
           <Link to="/docs/setup/store#selection">
             How the Store Is Selected
           </Link>
@@ -581,6 +582,483 @@ function Migration() {
             </table>
           </div>
         ))}
+      </section>
+
+      <section>
+        <AnchorLink id="provider-contract-upgrade" level="h2">
+          Provider contract upgrade (October 2026)
+        </AnchorLink>
+        <p>
+          The October 2026 train adds community store providers. Each change
+          below says who is affected and what to do; upgrade native and
+          framework dependencies together (the{' '}
+          <Link to="/docs/updates/releases#community-store-providers-2026-10-02">
+            release card
+          </Link>{' '}
+          lists the versions).
+        </p>
+
+        <AnchorLink id="provider-contract-store-id" level="h3">
+          Purchases and verification results require storeId
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> <code>storeId</code> is required at
+          construction on <code>Purchase</code>, <code>PurchaseInput</code>, and{' '}
+          <code>RequestVerifyPurchaseWithIapkitResult</code> in TypeScript,
+          Dart, Kotlin purchases, and the new Swift public initializers; C# and
+          the Kotlin IAPKit result infer official ids instead. A community
+          purchase uses store <code>unknown</code> with its own provider id; see{' '}
+          <Link to="/docs/guides/store-providers#identity">
+            Preserve store identity
+          </Link>{' '}
+          for the full rule. The unknown store spells{' '}
+          <code>IapStore.Unknown</code> in Dart, Kotlin, and C#,{' '}
+          <code>IapStore.unknown</code> in Swift, <code>IapStore.UNKNOWN</code>{' '}
+          in GDScript, and <code>&apos;unknown&apos;</code> in TypeScript.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> apps that hand-build purchase,{' '}
+          <code>PurchaseInput</code>, or verification values (fixtures, mocks,
+          custom adapters, server-driven finish flows), and custom types that
+          implement <code>PurchaseCommon</code>, which must add{' '}
+          <code>storeId</code>. Passing SDK-returned purchases through needs no
+          change. Swift apps are affected only through decoding and custom{' '}
+          <code>PurchaseCommon</code> conformers: base had no public purchase
+          initializer.
+        </p>
+        <p>
+          <strong>What to do:</strong> add <code>storeId</code> when
+          constructing the value:
+        </p>
+        <ul>
+          <li>
+            Saved official JSON without it still decodes to the canonical id,
+            but a community value needs an explicit valid id.
+          </li>
+          <li>
+            A mismatched or invalid id fails to decode: TypeScript, Dart,
+            Kotlin, and Swift decoders throw, GDScript <code>from_dict</code>{' '}
+            returns null (null-check decoded values), and C# deserialization
+            throws <code>JsonException</code>. A hand-built C# record with a
+            missing community id or a mismatched id throws whenever{' '}
+            <code>StoreId</code> is read, including <code>Equals</code>,{' '}
+            <code>GetHashCode</code>, and serialization.
+          </li>
+          <li>
+            <code>store_id</code> defaults to <code>&quot;&quot;</code> in
+            GDScript. <code>from_dict</code> rejects a blank id for every store,
+            so a hand-built object round-tripped outside{' '}
+            <code>finish_transaction</code> decodes to null. The Godot finish
+            helpers stamp the connected provider&apos;s id onto blank finish
+            inputs (a blank id for an official store is stripped instead), and
+            GDScript <code>PurchaseInput</code> has no <code>store_id</code>.
+          </li>
+        </ul>
+        <LanguageTabs>
+          {{
+            typescript: (
+              <CodeBlock language="typescript">{`import type { PurchaseAndroid } from 'react-native-iap';
+
+const purchase: PurchaseAndroid = {
+  ...savedPurchase, // your stored purchase
+  store: 'google',
+  storeId: 'play',
+};`}</CodeBlock>
+            ),
+            dart: (
+              <CodeBlock language="dart">{`final purchase = PurchaseAndroid(
+  // ...existing fields,
+  store: IapStore.Google,
+  storeId: 'play',
+);`}</CodeBlock>
+            ),
+            kotlin: (
+              <CodeBlock language="kotlin">{`val purchase = PurchaseAndroid(
+    // ...existing fields,
+    store = IapStore.Google,
+    storeId = "play",
+)`}</CodeBlock>
+            ),
+            csharp: (
+              <CodeBlock language="csharp">{`var purchase = new PurchaseAndroid
+{
+    // ...existing fields,
+    Store = IapStore.Google,
+    StoreId = "play",
+};`}</CodeBlock>
+            ),
+            gdscript: (
+              <CodeBlock language="gdscript">{`const Types = preload("res://addons/godot-iap/types.gd")
+
+var purchase = Types.PurchaseAndroid.new()
+purchase.store = Types.IapStore.GOOGLE
+purchase.store_id = "play"`}</CodeBlock>
+            ),
+          }}
+        </LanguageTabs>
+        <p>
+          An iOS purchase uses <code>store</code> <code>apple</code> with{' '}
+          <code>storeId</code> <code>apple</code>.
+        </p>
+
+        <AnchorLink id="provider-contract-kmp-store" level="h3">
+          KMP Store gains UNKNOWN
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> the public <code>Store</code> enum has
+          a new <code>UNKNOWN</code> case, returned for community-provider
+          builds (the Android <code>provider</code> build and any non-Apple iOS
+          provider) and on iOS when the Apple provider selection fails.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> exhaustive{' '}
+          <code>when (getStore())</code> expressions without an{' '}
+          <code>else</code> branch, which no longer compile.
+        </p>
+        <p>
+          <strong>What to do:</strong> add the <code>UNKNOWN</code> branch.
+        </p>
+        <CodeBlock language="kotlin">{`// kmpIAP is your KmpInAppPurchase instance.
+when (kmpIAP.getStore()) {
+    Store.PLAY_STORE -> TODO("Play")
+    Store.AMAZON -> TODO("Amazon")
+    Store.APP_STORE -> TODO("App Store")
+    Store.HORIZON -> TODO("Horizon")
+    Store.UNKNOWN -> TODO("community provider")
+    // NONE is never returned; it only completes the exhaustive when.
+    Store.NONE -> TODO("no store")
+}`}</CodeBlock>
+
+        <AnchorLink id="provider-contract-kotlin-result" level="h3">
+          Kotlin IAPKit result is no longer a data class
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong>{' '}
+          <code>RequestVerifyPurchaseWithIapkitResult</code> is now a plain
+          class with a private primary constructor. The old 3-, 5-, and
+          6-argument constructors keep their signatures, but <code>copy</code>{' '}
+          lost binary compatibility; <code>component1-3</code> still exist, and{' '}
+          <code>equals</code>/<code>hashCode</code> now compare all seven fields
+          instead of three. <code>PurchaseAndroid</code> gains a required{' '}
+          <code>storeId</code> parameter after <code>store</code> (after{' '}
+          <code>storefrontCountryCodeIOS</code> on <code>PurchaseIOS</code>), so
+          their constructor and <code>copy</code> signatures change and later{' '}
+          <code>componentN</code> indexes shift.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> Kotlin callers on OpenIAP Google
+          4.0.0 and KMP 4.0.0 that construct or copy purchases or results, or
+          decode saved JSON.
+        </p>
+        <p>
+          <strong>What to do:</strong> recompile against 4.0.0 and pass{' '}
+          <code>storeId</code> to purchase constructors. The result&apos;s{' '}
+          <code>copy</code> keeps <code>storeId</code> while <code>store</code>{' '}
+          is unchanged (a new store resets it to the official id, or throws for{' '}
+          <code>Unknown</code> without <code>storeId</code>) and now preserves{' '}
+          <code>clientPayload</code>, <code>productId</code>, and{' '}
+          <code>environment</code>. A result built with{' '}
+          <code>IapStore.Unknown</code> and no <code>storeId</code> still
+          compiles but throws <code>IllegalArgumentException</code>. A
+          purchase&apos;s <code>copy</code> keeps its <code>storeId</code>, so
+          pass a matching <code>storeId</code> when you change{' '}
+          <code>store</code>. JSON with a missing or unrecognized{' '}
+          <code>store</code> value used to decode as Unknown and now throws
+          unless it carries a valid community <code>storeId</code>.
+        </p>
+
+        <AnchorLink id="provider-contract-openiap-core" level="h3">
+          Shared classes move to openiap-core
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> the shared <code>dev.hyo.openiap</code>{' '}
+          classes moved into the new <code>openiap-core</code> artifact, which
+          the store artifacts depend on.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> apps that link the{' '}
+          <code>openiap-google</code> AAR by file.
+        </p>
+        <p>
+          <strong>What to do:</strong> add <code>openiap-core</code> next to it;
+          Maven consumers get it transitively.
+        </p>
+
+        <AnchorLink id="provider-contract-tvos" level="h3">
+          Apple requires tvOS 16
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> the SwiftPM floor moves from tvOS 15 to
+          tvOS 16. The CocoaPods deployment target already required 16.0.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> tvOS apps on OpenIAP Apple 4.0.0
+          that build through SwiftPM with a 15.x deployment target.
+        </p>
+        <p>
+          <strong>What to do:</strong> raise the tvOS deployment target to 16.0.
+        </p>
+
+        <AnchorLink id="provider-contract-cancellation" level="h3">
+          Cancelled Apple operations throw CancellationError
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> cancelling the calling task of{' '}
+          <code>requestPurchase</code> or another StoreKit operation now throws{' '}
+          <code>CancellationError</code> with no purchase-error event.
+          Previously <code>requestPurchase</code>, <code>fetchProducts</code>,{' '}
+          <code>getPromotedProductIOS</code>, and{' '}
+          <code>subscriptionStatusIOS</code> wrapped the cancellation into an
+          emitted <code>PurchaseError</code>, and <code>syncIOS</code>,{' '}
+          <code>restorePurchases</code>, and <code>openRedeemOfferCode</code>{' '}
+          threw it as a <code>PurchaseError</code> without an event.{' '}
+          <code>initConnection</code> still returns false when{' '}
+          <code>endConnection</code> interrupts its init task. The SwiftUI
+          store&apos;s <code>getAvailablePurchases</code> and{' '}
+          <code>getActiveSubscriptions</code> also throw{' '}
+          <code>CancellationError</code>, without updating state, when the task
+          is cancelled or <code>endConnection</code> completes while they wait;
+          its <code>initConnection</code> throws it when its task is cancelled,
+          even after connecting.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> Swift apps that call OpenIAP from a
+          task that can be cancelled, such as a SwiftUI <code>.task</code>.
+        </p>
+        <p>
+          <strong>What to do:</strong> catch <code>CancellationError</code> at
+          the call site alongside the existing <code>PurchaseError</code> path;
+          keep using the listener for real purchase failures. A user dismissing
+          the purchase sheet still reports <code>user-cancelled</code> through
+          the listener.
+        </p>
+
+        <AnchorLink id="provider-contract-flutter-init" level="h3">
+          Flutter initConnection returns the native result on Apple
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> on iOS and macOS{' '}
+          <code>initConnection()</code> now returns the native Boolean, false
+          when StoreKit cannot make payments; the plugins returned nil (read as
+          true) before.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> Flutter apps that treat the Apple
+          init result as always true.
+        </p>
+        <p>
+          <strong>What to do:</strong> branch on the result and show the store
+          as unavailable when it is false.
+        </p>
+
+        <AnchorLink id="provider-contract-error-codes" level="h3">
+          Android errors carry the provider&apos;s code
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> the wrappers forward the
+          provider&apos;s Android error code where they returned fixed codes:
+        </p>
+        <ul>
+          <li>
+            React Native: calls before init already reported{' '}
+            <code>not-prepared</code>; thrown init errors,{' '}
+            <code>verifyPurchase</code>, and{' '}
+            <code>verifyPurchaseWithProvider</code> now forward the
+            provider&apos;s code, and deep-link and <code>endConnection</code>{' '}
+            errors arrive as OpenIAP errors.
+          </li>
+          <li>
+            Expo: Android calls that rejected every failure with{' '}
+            <code>service-error</code> now forward the provider&apos;s code (
+            <code>not-prepared</code> before init on Play and Horizon; Amazon
+            queries work before init); thrown init errors and verification
+            forward it too.
+          </li>
+          <li>
+            Flutter: calls that answered native failures with{' '}
+            <code>service-error</code> now forward the provider&apos;s code
+            (Dart-guarded calls still throw <code>not-prepared</code> before
+            init), and thrown init errors forward it instead of{' '}
+            <code>init-connection</code>.
+          </li>
+          <li>
+            Godot: failure results now carry a <code>code</code> field (the
+            provider&apos;s code, else <code>service-error</code>, or{' '}
+            <code>purchase-verification-failed</code> for verification);{' '}
+            <code>verify_purchase_with_provider</code> before init now reports{' '}
+            <code>not-prepared</code>, as <code>restore_purchases</code> and the
+            entitlement reads already did; <code>init_connection</code> still
+            returns only a Boolean.
+          </li>
+        </ul>
+        <p>
+          On Amazon, <code>getStorefront</code> and IAPKit verification without
+          a userId now throw <code>StoreConnectionFailure</code> instead of{' '}
+          <code>InitConnection</code> when the user-data request cannot start
+          (code still <code>init-connection</code>; <code>initConnection</code>{' '}
+          still returns false), so Kotlin callers matching by type must handle
+          the new class.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> apps that match literal Android
+          error codes or messages.
+        </p>
+        <p>
+          <strong>What to do:</strong> handle specific codes such as{' '}
+          <code>not-prepared</code>.
+        </p>
+        <CodeBlock language="typescript">{`import {
+  ErrorCode,
+  getAvailablePurchases,
+  initConnection,
+} from 'expo-iap';
+import type { PurchaseError } from 'expo-iap';
+
+async function loadPurchases() {
+  try {
+    return await getAvailablePurchases();
+  } catch (error) {
+    // Before: expo-iap rejected this Android call with service-error.
+    if ((error as PurchaseError).code !== ErrorCode.NotPrepared) throw error;
+    const connected = await initConnection();
+    if (!connected) throw error;
+    return getAvailablePurchases();
+  }
+}`}</CodeBlock>
+
+        <AnchorLink id="provider-contract-verify-codes" level="h3">
+          Failed verification reports the native code
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> Flutter reports the native error code
+          from <code>verifyPurchase</code> and{' '}
+          <code>verifyPurchaseWithProvider</code> on every platform instead of
+          always <code>purchase-verification-failed</code>; KMP does the same
+          for verify-with-provider on iOS, and Godot on iOS and Android. Generic
+          Android failures in Flutter now report{' '}
+          <code>transaction-validation-failed</code>.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> apps that match{' '}
+          <code>purchase-verification-failed</code> from these calls.
+        </p>
+        <p>
+          <strong>What to do:</strong> match the specific codes.
+        </p>
+
+        <AnchorLink id="provider-contract-restore" level="h3">
+          Android restore runs the provider first
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> React Native, Expo, and Flutter run the
+          provider&apos;s Android restore before querying ownership. On Horizon
+          each owned purchase then reaches the purchase listeners; Play and
+          Amazon restores deliver nothing by themselves. Godot runs the same
+          restore but emits no <code>purchase_updated</code> signal on Horizon,
+          and a failed restore still emits <code>purchase_error</code>: read
+          owned purchases with <code>get_available_purchases_result</code>.
+          Flutter restore failures on iOS and macOS now read{' '}
+          <code>Failed to restore purchases [code]: ...</code> instead of{' '}
+          <code>Failed to sync iOS purchases [code]: ...</code> (the code still
+          forwards the native code).
+        </p>
+        <p>
+          <strong>Who is affected:</strong> Horizon apps with purchase
+          listeners, and Flutter apps that match the Apple restore failure
+          message.
+        </p>
+        <p>
+          <strong>What to do:</strong> make the purchase handler idempotent so a
+          repeated delivery grants once, and keep reading owned purchases after
+          the restore resolves.
+        </p>
+        <CodeBlock language="typescript">{`import { purchaseUpdatedListener } from 'react-native-iap';
+
+// Horizon redelivers every owned purchase on restore; grantOnce is your code
+// and must grant at most once per token against your stored entitlements.
+purchaseUpdatedListener((purchase) => {
+  if (purchase.purchaseState !== 'purchased') return;
+  void grantOnce(purchase.purchaseToken ?? purchase.id, purchase.productId);
+});`}</CodeBlock>
+
+        <AnchorLink id="provider-contract-godot-events" level="h3">
+          Godot purchase_error events change
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> a failed Apple restore now emits one{' '}
+          <code>purchase_error</code> carrying OpenIAP&apos;s code instead of
+          two (<code>sync-error</code> then <code>service-error</code>);{' '}
+          <code>verify_purchase</code> now emits <code>purchase_error</code> on
+          failure instead of returning null silently (on Apple every failure, on
+          Android when the native result carries a code). On Apple,{' '}
+          <code>get_storefront</code> failures, the{' '}
+          <code>products_fetched</code> failure payloads for{' '}
+          <code>fetch_products</code>, and the failure results of the iOS-only
+          methods now carry OpenIAP&apos;s code instead of{' '}
+          <code>service-error</code> or no code.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> Godot apps that count restore
+          errors, call <code>verify_purchase</code> or{' '}
+          <code>get_storefront</code>, or read failure codes from{' '}
+          <code>products_fetched</code>.
+        </p>
+        <p>
+          <strong>What to do:</strong> handle one restore event, null-check the
+          verify result alongside the signal, and match specific codes.
+        </p>
+
+        <AnchorLink id="provider-contract-godot-export" level="h3">
+          Godot export rejects an unknown Android store
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> an unrecognized{' '}
+          <code>openiap/android_store</code> value now fails the export instead
+          of falling back to Play.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> Godot Android builds with a
+          misspelled store value.
+        </p>
+        <p>
+          <strong>What to do:</strong> fix the store value.
+        </p>
+
+        <AnchorLink id="provider-contract-subscription-flag" level="h3">
+          iOS subscription checks use the active flag
+        </AnchorLink>
+        <p>
+          <strong>What changed:</strong> <code>hasActiveSubscriptions</code> on
+          iOS now answers from OpenIAP&apos;s active flag (expiration in the
+          future): React Native and Flutter on every call (Flutter on iOS and
+          macOS), KMP and MAUI on id-filtered calls (MAUI also on Mac Catalyst),
+          as Expo, Godot, and native already did. A subscriber in billing grace
+          reads inactive. Flutter <code>hasActiveSubscriptions</code> no longer
+          checks init in Dart: before <code>initConnection</code>, iOS and macOS
+          connect and answer instead of throwing <code>not-prepared</code>, Play
+          and Horizon report the provider&apos;s <code>not-prepared</code>, and
+          failures read{' '}
+          <code>Failed to check active subscriptions [code]: ...</code> instead
+          of <code>Failed to get active subscriptions [code]: ...</code>; match
+          codes, not messages.
+        </p>
+        <p>
+          <strong>Who is affected:</strong> apps that grant access during
+          billing grace, and Flutter apps that match the failure message or call
+          it before <code>initConnection</code>.
+        </p>
+        <p>
+          <strong>What to do:</strong> to keep grace access, read the renewal
+          info from <code>getActiveSubscriptions</code> instead of the boolean.
+        </p>
+        <CodeBlock language="typescript">{`import { getActiveSubscriptions } from 'react-native-iap';
+
+// hasActiveSubscriptions() is false in billing grace; use renewal info
+// when grace keeps access.
+const subs = await getActiveSubscriptions();
+const inGrace = subs.some(
+  (sub) => (sub.renewalInfoIOS?.gracePeriodExpirationDate ?? 0) > Date.now(),
+);`}</CodeBlock>
       </section>
 
       {/* ---------------------------------------------------------------
@@ -684,7 +1162,7 @@ function Migration() {
         </AnchorLink>
         <p>
           <code>PurchaseAndroid.dataAndroid</code> is the only public,
-          schema-defined field for Google Play&apos;s raw signed purchase JSON.
+          schema-defined field for Google Play&apos;s raw signed purchase JSON.{' '}
           <code>originalJsonAndroid</code> is not a public Purchase field and is
           never the preferred output key.
         </p>
@@ -765,7 +1243,7 @@ function Migration() {
           Flutter 10 package-specific migrations
         </AnchorLink>
         <p>
-          In addition to the generated OpenIAP schema surfaces below,
+          In addition to the generated OpenIAP schema surfaces below,{' '}
           <code>flutter_inapp_purchase 10.0.0</code> removes these Flutter-only
           compatibility APIs:
         </p>

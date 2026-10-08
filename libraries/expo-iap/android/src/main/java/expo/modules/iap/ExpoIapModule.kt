@@ -7,7 +7,8 @@ import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProvider
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.Purchase
@@ -48,6 +49,7 @@ import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid as OpenIapGetBillingCho
 import dev.hyo.openiap.InAppMessageCategoryAndroid as OpenIapInAppMessageCategory
 import dev.hyo.openiap.InAppMessageParamsAndroid as OpenIapInAppMessageParams
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
+import dev.hyo.openiap.utils.redeemOfferCode
 
 internal suspend fun endExpoConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
@@ -56,6 +58,18 @@ internal suspend fun endExpoConnectionWithCleanup(
     endConnection()
 } finally {
     cleanup()
+}
+
+internal suspend fun endExpoConnectionOrReset(
+    provider: Lazy<*>,
+    endConnection: suspend () -> Boolean,
+    cleanup: () -> Unit,
+): Boolean {
+    if (!provider.isInitialized()) {
+        cleanup()
+        return true
+    }
+    return endExpoConnectionWithCleanup(endConnection, cleanup)
 }
 
 internal fun endConnectionErrorCode(error: Exception): String =
@@ -118,9 +132,10 @@ class ExpoIapModule : Module() {
     private val currentActivity
         get() = appContext.activityProvider?.currentActivity ?: throw Exceptions.MissingActivity()
 
-    private val openIap: OpenIapModule by lazy { OpenIapModule(context) }
+    private val openIapLazy: Lazy<OpenIapProtocol> = lazy { OpenIapProvider.create(context) }
+    private val openIap: OpenIapProtocol get() = openIapLazy.value
 
-    // Pass openIap directly to OpenIapStore to avoid reflection-based module loading
+    // The bridge and store share one provider instance.
     private val openIapStore: OpenIapStore by lazy { OpenIapStore(openIap) }
     private var listenerHandles: ExpoIapHelper.ListenerHandles? = null
     private val pendingEvents = ConcurrentLinkedQueue<Pair<String, Map<String, Any?>>>()
@@ -185,9 +200,10 @@ class ExpoIapModule : Module() {
                                 // Clear any buffered events from a failed init
                                 pendingEvents.clear()
                                 ExpoIapLog.failure("initConnection", IllegalStateException("Failed to initialize connection"))
+                                val error = OpenIapError.InitConnection.forProvider(context)
                                 promise.reject(
-                                    OpenIapError.InitConnection.CODE,
-                                    OpenIapError.InitConnection.message,
+                                    error.code,
+                                    error.message,
                                     null,
                                 )
                                 return@withLock
@@ -206,7 +222,7 @@ class ExpoIapModule : Module() {
                             promise.resolve(true)
                         } catch (e: Exception) {
                             ExpoIapLog.failure("initConnection", e)
-                            promise.reject(OpenIapError.InitConnection.CODE, e.message, e)
+                            promise.reject((e as? OpenIapError)?.code ?: OpenIapError.InitConnection.CODE, e.message, e)
                         }
                     }
                 }
@@ -217,10 +233,11 @@ class ExpoIapModule : Module() {
                 scope.launch {
                     connectionMutex.withLock {
                         try {
-                            val result = endExpoConnectionWithCleanup(
+                            val result = endExpoConnectionOrReset(
+                                provider = openIapLazy,
                                 endConnection = { openIap.endConnection() },
                                 cleanup = {
-                                    ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
+                                    listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }
                                     listenerHandles = null
                                     PromiseUtils.rejectAllPendingPromises()
                                     connectionReady.set(false)
@@ -296,7 +313,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(payload)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getAvailableItems", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -314,7 +331,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(null)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("deepLinkToSubscriptionsAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -323,10 +340,7 @@ class ExpoIapModule : Module() {
                 ExpoIapLog.payload("openRedeemOfferCodeAndroid", null)
                 scope.launch {
                     try {
-                        runCatching { currentActivity }.getOrNull()?.let(openIap::setActivity)
-                        val handler = openIap.mutationHandlers.openRedeemOfferCodeAndroid
-                            ?: throw OpenIapError.FeatureNotSupported()
-                        val launched = handler()
+                        val launched = redeemOfferCode(openIap, runCatching { currentActivity }.getOrNull())
                         ExpoIapLog.result("openRedeemOfferCodeAndroid", launched)
                         promise.resolve(launched)
                     } catch (e: Exception) {
@@ -362,7 +376,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(code)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getStorefront", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -487,6 +501,30 @@ class ExpoIapModule : Module() {
                 }
             }
 
+            AsyncFunction("restorePurchases") { promise: Promise ->
+                scope.launch {
+                    try {
+                        openIap.restorePurchases()
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("restorePurchases", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                    }
+                }
+            }
+
+            AsyncFunction("finishTransaction") { purchase: Map<String, Any?>, isConsumable: Boolean, promise: Promise ->
+                scope.launch {
+                    try {
+                        openIap.finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(purchase), isConsumable)
+                        promise.resolve(null)
+                    } catch (e: Exception) {
+                        ExpoIapLog.failure("finishTransaction", e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.DeveloperError.CODE, e.message, null)
+                    }
+                }
+            }
+
             AsyncFunction("acknowledgePurchaseAndroid") { token: String, promise: Promise ->
                 ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to token))
                 scope.launch {
@@ -497,7 +535,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("acknowledgePurchaseAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -515,7 +553,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("consumePurchaseAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
             }
@@ -542,7 +580,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(resultMap)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("verifyPurchase", e)
-                        promise.reject(OpenIapError.VerificationFailed.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.VerificationFailed.CODE, e.message, e)
                     }
                 }
             }
@@ -566,7 +604,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(resultMap)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("verifyPurchaseWithProvider", e)
-                        promise.reject(OpenIapError.VerificationFailed.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.VerificationFailed.CODE, e.message, e)
                     }
                 }
             }
@@ -584,7 +622,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getActiveSubscriptions", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -601,7 +639,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(hasActive)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("hasActiveSubscriptions", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -627,7 +665,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("isBillingProgramAvailableAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -653,7 +691,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("getBillingChoiceInfoAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -685,7 +723,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -719,7 +757,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showBillingProgramInformationDialogAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -754,7 +792,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(result.toJson())
                     } catch (e: Exception) {
                         ExpoIapLog.failure("showInAppMessagesAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
@@ -802,18 +840,24 @@ class ExpoIapModule : Module() {
                         promise.resolve(result)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("launchExternalLinkAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, e)
+                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, e)
                     }
                 }
             }
 
             OnDestroy {
-                ExpoIapHelper.cleanupListeners(openIap, listenerHandles)
-                listenerHandles = null
-                connectionReady.set(false)
-                pendingEvents.clear()
-                PromiseUtils.rejectAllPendingPromises()
-                job.cancel()
+                try {
+                    listenerHandles?.let { ExpoIapHelper.cleanupListeners(openIap, it) }
+                } finally {
+                    listenerHandles = null
+                    connectionReady.set(false)
+                    pendingEvents.clear()
+                    try {
+                        PromiseUtils.rejectAllPendingPromises()
+                    } finally {
+                        job.cancel()
+                    }
+                }
             }
         }
 

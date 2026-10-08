@@ -87,6 +87,7 @@ android {
 
     defaultConfig {
         minSdk = 23
+        buildConfigField("String", "OPENIAP_CORE_VERSION", "\"$openIapVersion\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -139,7 +140,7 @@ android {
     // Explicit source set configuration for shared code
     sourceSets {
         named("main") {
-            java.srcDirs("src/main/java")
+            java.setSrcDirs(emptyList<String>())
         }
         named("play") {
             java.srcDirs("src/play/java")
@@ -151,18 +152,15 @@ android {
             java.srcDirs("src/amazon/java")
             manifest.srcFile("src/amazon/AndroidManifest.xml")
         }
-        // src/conformanceTest/java holds the shared behavioral conformance
-        // suite. It is compiled into every store flavor's unit tests so a
-        // behavior is declared once and executed against all of them; each
-        // flavor supplies only a StoreConformanceAdapter from its own set.
+        // Every flavor runs the published store-neutral suite.
         named("testPlay") {
-            java.srcDirs("src/testPlay/java", "src/conformanceTest/java")
+            java.srcDirs("src/testPlay/java")
         }
         named("testHorizon") {
-            java.srcDirs("src/testHorizon/java", "src/conformanceTest/java")
+            java.srcDirs("src/testHorizon/java")
         }
         named("testAmazon") {
-            java.srcDirs("src/testAmazon/java", "src/conformanceTest/java")
+            java.srcDirs("src/testAmazon/java")
         }
     }
 
@@ -180,6 +178,15 @@ extensions.configure<KotlinAndroidProjectExtension> {
 }
 
 dependencies {
+    api(project(":openiap-core"))
+    if (findProject(":openiap-conformance") != null) {
+        testImplementation(project(":openiap-conformance"))
+    } else {
+        val suiteSource = projectDir.resolve("../../conformance/src/spec/suite-version.mjs").readText()
+        val suiteVersion = Regex("SUITE_VERSION = '([^']+)'").find(suiteSource)?.groupValues?.get(1)
+            ?: error("Missing conformance suite version")
+        testImplementation("io.github.hyochan.openiap:openiap-conformance:$suiteVersion")
+    }
     val playBillingVersion = "9.1.0"
     val coroutinesVersion = "1.11.0"
     val horizonBillingCompatibilityVersion = "2.0.0"

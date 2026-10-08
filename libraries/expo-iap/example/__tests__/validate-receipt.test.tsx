@@ -68,6 +68,7 @@ describe('Purchase Token Unified API Tests', () => {
     const purchase = {
       id: 'test-id',
       store: 'apple',
+      storeId: 'apple',
       productId: 'test.product',
       transactionDate: Date.now(),
       purchaseToken: 'unified-purchase-token',

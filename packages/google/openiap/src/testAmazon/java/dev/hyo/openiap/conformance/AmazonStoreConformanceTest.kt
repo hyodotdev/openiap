@@ -1,20 +1,33 @@
 package dev.hyo.openiap.conformance
 
+import android.app.Activity
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import dev.hyo.openiap.ActiveSubscription
+import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.PurchaseAndroid
-import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.amazonPurchaseError
-import dev.hyo.openiap.unsupportedRedeemOfferCode
 import dev.hyo.openiap.utils.toActiveSubscription
-import kotlinx.coroutines.runBlocking
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Amazon Appstore's binding into the shared conformance suite.
  * The behavioral expectations live in [StoreConformanceSuite].
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29], instrumentedPackages = ["com.amazon"])
 class AmazonStoreConformanceTest : StoreConformanceSuite() {
+    override val provider: OpenIapProtocol =
+        OpenIapModule(ApplicationProvider.getApplicationContext<Context>())
+    override val redemptionActivity: Activity =
+        Robolectric.buildActivity(Activity::class.java).setup().get()
     override val adapter = object : StoreConformanceAdapter {
         override val store = IapStore.Amazon
 
@@ -33,9 +46,6 @@ class AmazonStoreConformanceTest : StoreConformanceSuite() {
         )
 
         override val unrecognizedError = checkNotNull(amazonPurchaseError(null, "sku"))
-
-        override fun unsupportedOperationResult(): Boolean =
-            runBlocking { unsupportedRedeemOfferCode() }
 
         private fun errorCase(
             status: String,

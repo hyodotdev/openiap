@@ -188,6 +188,47 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await hybrid.endConnection().await()
     }
 
+    func testFailedInitPreservesProviderErrorCode() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        let messages = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+            messages.record(error.message)
+        }
+        let providerError = PurchaseError.make(
+            code: .developerError,
+            message: "Info.plist dev.hyo.openiap.PROVIDER must name a linked provider."
+        )
+
+        let connected = try await hybrid.enqueueConnectOperation {
+            throw providerError
+        }.value
+
+        XCTAssertFalse(connected)
+        XCTAssertEqual(probe.events, [ErrorCode.developerError.rawValue])
+        XCTAssertEqual(messages.events, [providerError.message])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testFailedInitMapsGenericErrorsToInitConnection() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+        }
+
+        let connected = try await hybrid.enqueueConnectOperation {
+            throw NSError(domain: "ConnectOnDemandTests", code: 1)
+        }.value
+
+        XCTAssertFalse(connected)
+        XCTAssertEqual(probe.events, [ErrorCode.initConnection.rawValue])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
     func testOnDemandInitErrorIsOwnedByTheCallingOperation() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()
@@ -510,6 +551,156 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await endPromise.await()
         probe.record("end")
         XCTAssertEqual(probe.events, ["native-winner", "end"])
+    }
+
+    func testGenericProviderThrowPreservesItsCanonicalPurchaseError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let canonicalError = PurchaseError.make(
+            code: .networkError,
+            productId: "premium",
+            message: "Network unavailable"
+        )
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        for _ in 0..<2 {
+            let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+                let delivery = hybrid.enqueuePurchaseErrorDelivery(canonicalError, expectedEpoch: epoch)
+                await holder.set(delivery)
+                throw NSError(domain: "CommunityProvider", code: 1)
+            }
+            XCTAssertNil(result)
+            let heldTask = await holder.task
+            let delivery = try XCTUnwrap(heldTask)
+            _ = try await delivery.value
+        }
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, Array(repeating: ErrorCode.networkError.rawValue, count: 2))
+    }
+
+    func testGenericProviderThrowWithoutDeliveryEmitsOneFallbackError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+
+        let result = try await hybrid.runRequestPurchaseOperation {
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, [ErrorCode.purchaseError.rawValue])
+    }
+
+    func testUnrelatedProviderErrorDoesNotSuppressRequestFallback() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record("\(error.code):\(error.productId ?? "nil")")
+        }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+            let delivery = hybrid.enqueuePurchaseErrorDelivery(
+                PurchaseError.make(code: .networkError, productId: "background", message: "Background failure"),
+                expectedEpoch: epoch
+            )
+            await holder.set(delivery)
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        let heldTask = await holder.task
+        let delivery = try XCTUnwrap(heldTask)
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, ["purchase-error:premium", "network-error:background"])
+    }
+
+    func testMatchingErrorKeepsOwnershipAfterAnUnrelatedErrorArrives() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record("\(error.code):\(error.productId ?? "nil")")
+        }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+            _ = hybrid.enqueuePurchaseErrorDelivery(
+                PurchaseError.make(code: .networkError, productId: "premium", message: "Request failure"),
+                expectedEpoch: epoch
+            )
+            let delivery = hybrid.enqueuePurchaseErrorDelivery(
+                PurchaseError.make(code: .serviceError, productId: "background", message: "Background failure"),
+                expectedEpoch: epoch
+            )
+            await holder.set(delivery)
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        let heldTask = await holder.task
+        let delivery = try XCTUnwrap(heldTask)
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, ["network-error:premium", "service-error:background"])
+    }
+
+    func testFallbackErrorLeavesNoSuppressionForLaterProviderError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+
+        let result = try await hybrid.runRequestPurchaseOperation(productId: "premium") {
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+
+        let providerError = PurchaseError.make(
+            code: .purchaseError,
+            productId: "premium",
+            message: "Provider failure"
+        )
+        let delivery = hybrid.enqueuePurchaseErrorDelivery(
+            providerError,
+            expectedEpoch: hybrid.currentConnectionEpoch()
+        )
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(
+            probe.events,
+            [ErrorCode.purchaseError.rawValue, ErrorCode.purchaseError.rawValue]
+        )
+    }
+
+    func testStaleEpochDeliveryDoesNotSuppressFallbackError() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in probe.record(error.code) }
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        let result = try await hybrid.runRequestPurchaseOperation {
+            let delivery = hybrid.enqueuePurchaseErrorDelivery(
+                PurchaseError.make(code: .networkError, message: "Stale"),
+                expectedEpoch: epoch + 1
+            )
+            await holder.set(delivery)
+            throw NSError(domain: "CommunityProvider", code: 1)
+        }
+        XCTAssertNil(result)
+        let heldTask = await holder.task
+        let delivery = try XCTUnwrap(heldTask)
+        _ = try await delivery.value
+        _ = try await hybrid.enqueueEndOperation { true }.value
+        XCTAssertEqual(probe.events, [ErrorCode.purchaseError.rawValue])
     }
 
     func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {
