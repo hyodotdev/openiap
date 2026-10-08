@@ -1,11 +1,13 @@
 import { Code2, FlaskConical, Package, ShieldCheck } from 'lucide-react';
 export const repository =
   'https://github.com/hyodotdev/openiap-google-amazon-community';
-export const source = (path: string) => `${repository}/blob/main/${path}`;
 export const examplePackage = {
   name: '@hyodotdev/openiap-provider-amazon-example',
-  version: '0.0.1',
+  version: '0.0.2',
+  revision: '63c8541d265d95592178a32b51ce6f127c18073b',
 } as const;
+export const source = (path: string): string =>
+  `${repository}/blob/${examplePackage.revision}/${path}`;
 export const screens = [
   {
     id: 'home',

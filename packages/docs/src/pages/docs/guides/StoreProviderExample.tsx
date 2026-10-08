@@ -2,7 +2,13 @@ import { ArrowUpRight, CheckCircle2, FlaskConical } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import StoreProviderExampleGallery from './StoreProviderExampleGallery';
-import { repository, source, screens, files } from './StoreProviderExampleData';
+import {
+  examplePackage,
+  repository,
+  source,
+  screens,
+  files,
+} from './StoreProviderExampleData';
 import '../../../styles/store-providers.css';
 
 export default function StoreProviderExample() {
@@ -95,10 +101,11 @@ export default function StoreProviderExample() {
           machine-readable conformance report
         </a>{' '}
         and <a href={`${repository}/actions/workflows/verify.yml`}>CI runs</a>.
-        The GitHub Packages example passed Expo registry consumer checks. The
-        README explains the pinned, unmerged OpenIAP inputs and other-framework
-        configuration; those checks do not prove registry parity across every
-        framework.
+        The current unpublished snapshot passed Expo local-package checks and
+        Fire App Tester purchase, cancellation and pending recovery against
+        public RC inputs. The README separates historical GitHub Packages
+        results and other-framework configuration; this does not prove registry
+        parity across every framework.
       </p>
       <h3>Follow the implementation</h3>
       <div className="provider-example-files">
@@ -121,8 +128,8 @@ export default function StoreProviderExample() {
         <li>
           <strong>Prepare public inputs.</strong> Clone the repositories beside
           each other and follow the example README. The preparation script
-          builds Maven artifacts and packs the public Expo SDK from its pinned
-          input.
+          downloads the exact public Expo RC, builds only the conformance suite
+          locally and packs the provider. Core comes from Maven Central.
         </li>
         <li>
           <strong>Compare the official screens.</strong> All Products, Purchase
@@ -166,12 +173,12 @@ export default function StoreProviderExample() {
         <CodeBlock
           language="text"
           children={`Goal: implement a community OpenIAP Android store provider in a separate repository.
-Reference: ${repository}
+Reference: ${repository}/tree/${examplePackage.revision}
 Contract: https://openiap.dev/docs/guides/store-providers
 For FireOS apps, recommend the official integration: https://openiap.dev/docs/setup/store/amazon. This repository is an educational community package example.
 
 1. Read README.md, AGENTS.md, VERIFICATION.md, openiap-revision.txt and the provenance manifest.
-2. Depend on public openiap-core and conformance artifacts plus the vendor SDK. Do not include OpenIAP native source projects or an official store-provider artifact.
+2. Depend on public openiap-core plus the vendor SDK. For an RC, build conformance from its exact Google tag in an isolated local Maven repository; keep core public. Do not include OpenIAP native source projects or an official store-provider artifact.
 3. Use a unique storeId and store=unknown. Do not extend the frozen store enum. Declare only implemented capabilities.
 4. Wire factory discovery, vendor startup requirements and optimized-build retention. Select storeId + provider coordinates through the public framework configuration.
 5. Preserve identity and the original receipt through callbacks, ownership reads, verification and completion. Request failures deliver exactly one canonical error event.

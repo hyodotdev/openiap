@@ -5,7 +5,7 @@ import DataTable, { type DataTableColumn } from '../../../components/DataTable';
 import SEO from '../../../components/SEO';
 import StoreProviderDiagram from './StoreProviderDiagram';
 import StoreProviderExample from './StoreProviderExample';
-import { examplePackage, repository } from './StoreProviderExampleData';
+import { examplePackage, repository, source } from './StoreProviderExampleData';
 import { LIBRARIES } from '../../../lib/images';
 import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 import { PROVIDER_RELEASE_VERSIONS } from '../updates/provider-release';
@@ -149,57 +149,29 @@ export default function StoreProviders() {
         </p>
         <ol>
           <li>
-            <strong>Use matching provider and SDK builds.</strong> Version{' '}
-            {examplePackage.version} is a pre-merge validation snapshot. It
-            requires the pinned Client Protocol 0.2 SDK and core inputs; follow
-            the README’s{' '}
-            <a href={`${repository}#prepare-the-pinned-sdk-inputs`}>
-              pinned public Expo and core inputs
-            </a>{' '}
-            first. Then, in your existing app, install the SDK tarball named in
-            the prepared example’s <code>expo-iap</code> dependency:
-            <CodeBlock
-              language="bash"
-              children={
-                'bun add --exact /absolute/path/to/openiap-google-amazon-community/.local/expo-iap-HASH.tgz'
-              }
-            />
-            Replace <code>expo-iap-HASH.tgz</code> with the actual tarball
-            filename from <code>example/package.json</code>. Preparation only
-            updates the example app; it does not upgrade your existing app.
-            Check the{' '}
-            <a
-              href={`${repository}/blob/community-provider-v${examplePackage.version}/package.json`}
-            >
-              package’s peer dependencies
-            </a>{' '}
-            for compatible Expo and build-properties versions. A new core major
-            or an SDK outside that range requires a rebuilt provider and fresh
-            conformance and consumer checks; the snapshot does not claim
-            compatibility with the next release train.
+            <strong>Prepare matching public RC inputs.</strong> Version{' '}
+            {examplePackage.version} is unpublished. Follow the pinned{' '}
+            <a href={source('README.md')}>example README</a> to build the
+            provider and local conformance suite against public core and Expo
+            RCs. Install the exact Expo RC listed in the{' '}
+            <a href={source('package.json')}>package’s peer dependencies</a>.
+            Historical GitHub Packages versions use the old hyphenated id and
+            fail the current contract. Rebuild the provider for each RC and for
+            stable.
           </li>
           <li>
-            <strong>Install from GitHub Packages.</strong> Configure an ignored{' '}
-            <code>.npmrc</code> and a package-manager token with{' '}
-            <code>read:packages</code>. Keep the token outside the app and Expo
-            public environment variables.
-            <CodeBlock
-              language="properties"
-              children={
-                '@hyodotdev:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'
-              }
-            />
+            <strong>Install the prepared provider tarball.</strong> Preparation
+            writes its path into <code>example/package.json</code>. In another
+            Expo app, install that tarball by its absolute path:
             <CodeBlock
               language="bash"
-              children={`bun add --exact ${examplePackage.name}@${examplePackage.version}`}
+              children={
+                'bun add --exact /absolute/path/to/openiap-google-amazon-community/.local/community-provider-HASH.tgz'
+              }
             />
-            This command pins the{' '}
-            <a
-              href={`${repository}/blob/community-provider-v${examplePackage.version}/package.json`}
-            >
-              verified example distribution
-            </a>
-            , rather than installing from npmjs.org.
+            Replace <code>HASH</code> with the generated filename. The package
+            contains its provider Maven repository; core comes from Maven
+            Central. No registry token is needed for this local installation.
           </li>
           <li>
             <strong>Select one IAP plugin per build.</strong> Keep the{' '}
@@ -219,38 +191,22 @@ export default function StoreProviders() {
             </p>
             <CodeBlock
               language="javascript"
-              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon_example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', {\n          ...iapOptions,\n          openIapRepository: '/absolute/path/to/openiap-google-amazon-community/.local/maven',\n        }]\n      : ['expo-iap', {\n          ...iapOptions,\n          android: { ...iapOptions.android, store: 'play' },\n          enableLocalDev: true,\n          localPath: { android: '/absolute/path/to/openiap/packages/google' },\n        }],\n  ],\n});`}
+              children={`const iapOptions = {\n  android: {\n    amazon: { appstoreKey: './keys/AppstoreAuthenticationKey.pem' },\n  },\n};\nconst community =\n  process.env.ORG_GRADLE_PROJECT_openiapStore === 'amazon_example';\n\nmodule.exports = ({ config }) => ({\n  ...config,\n  plugins: [\n    ...(config.plugins ?? []),\n    community\n      ? ['${examplePackage.name}', iapOptions]\n      : ['expo-iap', {\n          ...iapOptions,\n          android: { ...iapOptions.android, store: 'play' },\n          enableLocalDev: false,\n        }],\n  ],\n});`}
             />
             Use the same store setting in your EAS profiles:
             <CodeBlock
               language="json"
               children={
-                '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "google" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon_example" }\n    }\n  }\n}'
+                '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "play" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon_example" }\n    }\n  }\n}'
               }
             />
-            For this snapshot, use EAS <code>--local</code> with the prepared
-            inputs. The Play branch needs matching native sources; set{' '}
-            <code>localPath.android</code> to <code>packages/google</code> in
-            the same compatible OpenIAP checkout that prepared your Expo SDK.
-            Once compatible SDK and native Play releases exist, remove{' '}
-            <code>localPath</code> and set <code>enableLocalDev: false</code> to
-            use the published packages. Remote workers need the prepared inputs
-            and their own paths; local absolute paths are not uploaded
-            automatically.
-            <p>
-              The community branch uses the installed provider and public core
-              Maven artifacts, without native source includes. Its required{' '}
-              <code>openIapRepository</code> points to the prepared core Maven
-              artifacts; replace the placeholder with your absolute path. The
-              plugin adds its bundled provider repository and uses the installed
-              package’s native version. Keep the existing application id and
-              registered catalog; retain <code>android.amazon.appstoreKey</code>{' '}
-              for Appstore builds. See the{' '}
-              <a href={`${repository}#install-this-example-package`}>
-                installation guide
-              </a>
-              .
-            </p>
+            Use local builds until you distribute the unpublished provider
+            tarball to your build workers; absolute paths are not uploaded
+            automatically. Both profiles use the same exact public Expo RC and
+            public native artifacts. The plugin supplies its provider repository
+            and disables local native-source mode. Keep the existing application
+            id and catalog, and retain <code>android.amazon.appstoreKey</code>{' '}
+            for Appstore builds.
           </li>
           <li>
             <strong>Rebuild the native Android app.</strong> Expo Go and a
@@ -261,7 +217,7 @@ export default function StoreProviders() {
                 'export ORG_GRADLE_PROJECT_openiapStore=amazon_example\nbunx expo prebuild --platform android\nbunx expo run:android --device'
               }
             />
-            Use <code>google</code> for a local Play build. Rerun prebuild and
+            Use <code>play</code> for a local Play build. Rerun prebuild and
             rebuild after switching the profile or updating the provider.
           </li>
           <li>
@@ -273,14 +229,10 @@ export default function StoreProviders() {
             Amazon receipt verification, grant entitlement only after valid
             verification, then finish. The native package does not install a
             server verification adapter. Follow the{' '}
-            <a href={`${repository}#verify-before-finishing`}>
+            <a href={`${source('README.md')}#verify-before-finishing`}>
               verification flow
             </a>{' '}
-            and{' '}
-            <a href={`${repository}/blob/main/VERIFICATION.md`}>
-              observed limits
-            </a>
-            .
+            and <a href={source('VERIFICATION.md')}>observed limits</a>.
           </li>
         </ol>
         <AnchorLink id="choose-community-package" level="h3">
@@ -565,7 +517,9 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
         </p>
         <p>
           Start from the{' '}
-          <a href="https://github.com/hyodotdev/openiap/tree/main/packages/apple/compatibility/community-provider">
+          <a
+            href={`https://github.com/hyodotdev/openiap/tree/${OPENIAP_VERSIONS.apple}/packages/apple/compatibility/community-provider`}
+          >
             independent Swift fixture
           </a>
           . It covers public imports, full completion payloads, listener
@@ -580,7 +534,9 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
         <p>
           Create an Android library in your own repository. Depend only on the
           public core contract and your store SDK. The{' '}
-          <a href="https://github.com/hyodotdev/openiap/blob/main/packages/google/core/README.md">
+          <a
+            href={`https://github.com/hyodotdev/openiap/blob/google-${OPENIAP_VERSIONS.google}/packages/google/core/README.md`}
+          >
             core design note
           </a>{' '}
           explains the module boundary.
@@ -609,7 +565,9 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           version from <code>clientProtocol</code> in{' '}
           <code>openiap-versions.json</code> at the RC tag. Rebuild for each RC
           and for stable. Follow the{' '}
-          <a href="https://github.com/hyodotdev/openiap/blob/next/packages/google/core/README.md#test-a-published-rc">
+          <a
+            href={`https://github.com/hyodotdev/openiap/blob/google-${OPENIAP_VERSIONS.google}/packages/google/core/README.md#test-a-published-rc`}
+          >
             RC suite setup
           </a>{' '}
           to build the suite from the same release tag in a separate local Maven
@@ -775,7 +733,9 @@ class YourStoreFactory : OpenIapProviderFactory {
         </p>
         <p>
           Start from the{' '}
-          <a href="https://github.com/hyodotdev/openiap/tree/main/packages/google/compatibility/community-provider">
+          <a
+            href={`https://github.com/hyodotdev/openiap/tree/google-${OPENIAP_VERSIONS.google}/packages/google/compatibility/community-provider`}
+          >
             independent fixture
           </a>
           . It consumes local Maven artifacts and includes a failing-capability
@@ -811,7 +771,9 @@ class YourStoreFactory : OpenIapProviderFactory {
         <p>
           Optional registration adds aliases, generated constants, and a
           listing. Submit an entry in{' '}
-          <a href="https://github.com/hyodotdev/openiap/blob/main/specs/client/src/store-registry.json">
+          <a
+            href={`https://github.com/hyodotdev/openiap/blob/openiap-client-protocol-${OPENIAP_VERSIONS.clientProtocol}/specs/client/src/store-registry.json`}
+          >
             store-registry.json
           </a>{' '}
           with id, platform, display name, tier, maintainers, repository, fixed
