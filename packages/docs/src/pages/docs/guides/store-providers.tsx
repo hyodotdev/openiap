@@ -102,6 +102,8 @@ const STORE_COLUMNS: DataTableColumn<ProviderListing>[] = [
 
 export default function StoreProviders() {
   useScrollToHash();
+  const stableClientProtocolVersion =
+    OPENIAP_VERSIONS.clientProtocol.split('-')[0];
   return (
     <div className="doc-page">
       <SEO
@@ -519,7 +521,7 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
   public required override init() { super.init() }
   public var storeId: String { "your_store" }
   public var coreVersion: String { "${PROVIDER_RELEASE_VERSIONS.apple}" }
-  public var clientProtocolVersion: String { "${OPENIAP_VERSIONS.clientProtocol}" }
+  public var clientProtocolVersion: String { "${stableClientProtocolVersion}" }
   public var capabilities: Set<String> { ["pendingPurchases"] }
   public func create() throws -> any OpenIapModuleProtocol { YourStoreModule() }
 }`}
@@ -628,7 +630,7 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
 class YourStoreFactory : OpenIapProviderFactory {
   override val storeId = "your_store"
   override val coreVersion = "${PROVIDER_RELEASE_VERSIONS.google}"
-  override val clientProtocolVersion = "${OPENIAP_VERSIONS.clientProtocol}"
+  override val clientProtocolVersion = "${stableClientProtocolVersion}"
   override val capabilities = setOf("pendingPurchases")
   override fun create(context: Context): OpenIapProtocol = YourStore(context)
 }`}
