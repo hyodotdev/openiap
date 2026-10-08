@@ -47,11 +47,7 @@ jobs:
             exit 1
           fi
 
-          if [[ "$VERSION" == *-* ]]; then
-            RELEASE_BRANCH="next"
-          else
-            RELEASE_BRANCH="main"
-          fi
+          RELEASE_BRANCH="main"
           git fetch --no-tags origin \
             "refs/heads/$RELEASE_BRANCH:refs/remotes/origin/$RELEASE_BRANCH"
           if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$RELEASE_BRANCH"; then
@@ -64,11 +60,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
-          if [[ "$VERSION" == *-* ]]; then
-            SOURCE_BRANCH="next"
-          else
-            SOURCE_BRANCH="main"
-          fi
+          SOURCE_BRANCH="main"
           AUTHORIZATION_NAME="flutter-publish-authorization-$GITHUB_SHA"
           ARTIFACT_JSON=$(gh api \
             "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$AUTHORIZATION_NAME&per_page=100" \

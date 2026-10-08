@@ -1026,7 +1026,7 @@ function extractOpenIapNative(root, { apple = false, google = [] }) {
       artifact === "openiap-core" &&
       !existsSync(resolve(root, "packages/google/core/build.gradle.kts"))
     ) {
-      if (compareSemVer(versions.google, "4.0.0") < 0) continue;
+      if (compareSemVer(versions.google, "4.0.0-0") < 0) continue;
       throw new Error(
         "Missing openiap-core manifest for a provider-capable release",
       );

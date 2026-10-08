@@ -204,9 +204,9 @@ Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 blocks and any `Planned Package Releases` heading, so link regressions are
 caught before publishing.
 
-RC and npm `next` releases are managed on the on-demand `next` branch and do
-not get release-history entries. Add one grouped entry only when the train is
-promoted to a stable release on `main`.
+RC and stable releases share `main`. Keep one eventual stable release card
+with the source PR, and do not add duplicate entries for RC publications.
+Production docs wait for stable metadata and public release links.
 
 ### R10 — Docs version metadata stays synced with package metadata
 

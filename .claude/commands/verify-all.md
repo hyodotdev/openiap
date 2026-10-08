@@ -17,7 +17,7 @@ set -euo pipefail
 # Godot is intentionally excluded until its example parity is automated.
 bun run audit:parity
 
-# Stable main / prerelease next branch contract.
+# Package version consistency and explicit main release channels.
 bun run audit:release-state
 node --test scripts/release-branch-policy.test.mjs
 

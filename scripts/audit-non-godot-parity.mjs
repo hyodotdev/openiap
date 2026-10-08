@@ -4398,6 +4398,7 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
+      cliPackageVersion: readJson("packages/cli/package.json").version,
       clientProtocolPackageVersion: readJson("specs/client/package.json")
         .version,
       commerceProtocolPackageVersion: readJson(
@@ -5440,7 +5441,7 @@ function checkFrameworkDependencyHygiene() {
       "Vercel environment target conflicts with the OpenIAP project",
       'select(.readyState == "READY" and .target == "production")',
       "Vercel CLI returned no ready production deployment",
-      "release-branch-policy.mjs assert-client-protocol",
+      "release-branch-policy.mjs audit --stable",
       "git fetch --no-tags origin main",
       "LOCAL_HEAD=$(git rev-parse HEAD)",
       "REMOTE_HEAD=$(git rev-parse origin/main)",

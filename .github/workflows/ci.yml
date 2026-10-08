@@ -23,7 +23,7 @@ env:
 
 jobs:
   audit-release-state:
-    name: Audit Release Branch State
+    name: Audit Release Metadata
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,7 +45,7 @@ jobs:
       - name: Audit repository layout
         run: npm run audit:layout
 
-      - name: Reject prerelease metadata on main
+      - name: Validate package version metadata
         run: node scripts/release-branch-policy.mjs audit
 
       - name: Require a release note for published source changes

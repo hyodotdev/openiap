@@ -218,8 +218,8 @@ Update the documentation site for users:
 **Stable Release Notes:**
 
 - `src/pages/docs/updates/releases.tsx` - Add release notes for the affected release
-- Do not add RC or npm `next` publications from the `next` branch. Preserve the
-  change evidence and add one grouped entry when the train reaches stable `main`.
+- Keep one eventual stable card with the source PR on `main`. Do not add
+  duplicate cards for RC or npm `next` publications.
 - Verify every package version from its real metadata before writing the release list:
   `openiap-versions.json` only for `clientProtocol`, `google`, and `apple`;
   framework versions come from each library's package metadata

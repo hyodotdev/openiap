@@ -292,7 +292,7 @@ export function resolveReleaseChannel({
 
 export function assertReleaseBranch({ branch, channel, packageLabel }) {
   const normalizedBranch = normalizeBranch(branch);
-  const expectedBranch = channel === "prerelease" ? "next" : "main";
+  const expectedBranch = "main";
   if (normalizedBranch !== expectedBranch) {
     throw new Error(
       `${packageLabel} ${channel} releases must run from '${expectedBranch}', ` +
@@ -308,8 +308,15 @@ export function findPrereleaseVersions(versions) {
   );
 }
 
-export function allowsPrereleaseMetadata(branch) {
-  return normalizeBranch(branch) === "next";
+export function assertStableVersions(versions) {
+  const prereleases = findPrereleaseVersions(versions);
+  if (prereleases.length > 0) {
+    throw new Error(
+      `Production docs require stable package versions: ${prereleases
+        .map(([id, version]) => `${id}=${version}`)
+        .join(", ")}`,
+    );
+  }
 }
 
 function readAllVersions(root = repoRoot) {
@@ -409,11 +416,16 @@ const isTest = (file) =>
   /\.(test|spec)\.[^./]+$/.test(file);
 
 export function shipsIn(packageId, file) {
-  return !isTest(file) && publishedSources[packageId].some((pattern) => pattern.test(file));
+  return (
+    !isTest(file) &&
+    publishedSources[packageId].some((pattern) => pattern.test(file))
+  );
 }
 
 export function shipsInAnyPackage(file) {
-  return Object.keys(publishedSources).some((packageId) => shipsIn(packageId, file));
+  return Object.keys(publishedSources).some((packageId) =>
+    shipsIn(packageId, file),
+  );
 }
 
 // Framework libraries pin the released native packages, so a library released
@@ -494,22 +506,14 @@ export function assertNativesReleased(versions, options) {
   const pending = findUnreleasedNativeChanges(versions, options);
   if (pending.length === 0) return;
   const details = pending
-    .map(({ label, tag, commits }) => `${label} since ${tag}: ${commits.join("; ")}`)
+    .map(
+      ({ label, tag, commits }) =>
+        `${label} since ${tag}: ${commits.join("; ")}`,
+    )
     .join(" | ");
   throw new Error(
     `Native gate: release the native packages first, or rerun with allow_unreleased_native when this library must not wait. ${details}`,
   );
-}
-
-function readCurrentBranch() {
-  try {
-    return execFileSync("git", ["branch", "--show-current"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    return "";
-  }
 }
 
 function runGuard(args) {
@@ -586,7 +590,9 @@ export function nativeGateSkipReason(
   if (versionMode !== "current") return null;
   // version=current without its tag is a first release, so it is gated too.
   const tag = releaseTag(versionSources[library].read(root));
-  return hasReleaseTag(tag, { root, git }) ? `${tag} exists, so this republishes it` : null;
+  return hasReleaseTag(tag, { root, git })
+    ? `${tag} exists, so this republishes it`
+    : null;
 }
 
 // Needs a checkout that fetched tags; a shallow one reads every tag as missing.
@@ -617,7 +623,9 @@ function runNativeGate(args) {
     return;
   }
   assertNativesReleased(readVersionManifest());
-  console.log("Native gate: openiap-google and openiap-apple have no unreleased source changes.");
+  console.log(
+    "Native gate: openiap-google and openiap-apple have no unreleased source changes.",
+  );
 }
 
 function runAssertClientProtocol() {
@@ -639,40 +647,11 @@ function runUpdateNative(args) {
 }
 
 function runAudit(args) {
-  const targetBranch = normalizeBranch(
-    args[0] ||
-      process.env.GITHUB_BASE_REF ||
-      process.env.GITHUB_REF_NAME ||
-      readCurrentBranch(),
-  );
-  const versionManifest = readVersionManifest();
-  assertClientProtocol(versionManifest);
+  assertClientProtocol(readVersionManifest());
   const versions = readAllVersions();
-
-  if (allowsPrereleaseMetadata(targetBranch)) {
-    console.log(
-      "Release state audit: 'next' may contain prerelease package versions.",
-    );
-    return;
-  }
-
-  const prereleases = findPrereleaseVersions(versions);
-  if (prereleases.length > 0) {
-    const details = prereleases
-      .map(
-        ([packageId, version]) =>
-          `${versionSources[packageId].label}=${version}`,
-      )
-      .join(", ");
-    throw new Error(
-      `Only prerelease branch 'next' may contain prerelease package versions; ` +
-        `'${targetBranch || "(unknown)"}' contains: ${details}`,
-    );
-  }
-
-  const branchLabel = targetBranch || "(unknown)";
+  if (args.includes("--stable")) assertStableVersions(versions);
   console.log(
-    `Release state audit: '${branchLabel}' contains stable versions only.`,
+    `Release metadata audit: versions are valid and synchronized; ${findPrereleaseVersions(versions).length} prerelease package(s).`,
   );
 }
 

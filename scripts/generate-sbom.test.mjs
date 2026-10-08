@@ -3315,14 +3315,16 @@ test("legacy native SBOMs exclude core while provider releases require its manif
     ),
     ["io.github.hyochan.openiap:openiap-google"],
   );
-  writeFileSync(
-    resolve(scratch, "openiap-versions.json"),
-    JSON.stringify({ google: "4.0.0" }),
-  );
-  await assert.rejects(
-    () => extractDirectDependencies(scratch, source),
-    /Missing openiap-core manifest/u,
-  );
+  for (const google of ["4.0.0-rc.1", "4.0.0"]) {
+    writeFileSync(
+      resolve(scratch, "openiap-versions.json"),
+      JSON.stringify({ google }),
+    );
+    await assert.rejects(
+      () => extractDirectDependencies(scratch, source),
+      /Missing openiap-core manifest/u,
+    );
+  }
   mkdirSync(resolve(scratch, "packages/google/core"), {
     recursive: true,
   });

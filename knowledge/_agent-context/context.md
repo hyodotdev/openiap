@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-06T03:37:31.290Z
+> Last updated: 2026-10-08T14:19:10.451Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2305,7 +2305,7 @@ Tests, CI, internal agent rules, and behavior-neutral refactors that need no
 new publication do not require a release card. Record the reason briefly in
 the PR description when applicable; use the documented `፦ refactor` label
 when CI requires it. Dependency-only releases still need package entries.
-RC/`next` work follows the stable-promotion rule below.
+RC work on `main` keeps the eventual stable card with its source change.
 
 ### Release Note Writing Limits
 
@@ -2424,9 +2424,10 @@ Before adding or editing a `Package Releases` list:
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 
-Do not create a stable release-note block for RC or npm `next` publications on
-the `next` branch. Preserve the change evidence, then write one concise,
-package-grouped entry after stable promotion on `main`.
+Keep one concise, package-grouped stable release card with the source PR on
+`main`, including when an RC publishes first. Do not create duplicate cards for
+RC or npm `next` publications. Production docs wait for stable package metadata
+and published links; previews may show the upcoming card.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
@@ -2655,34 +2656,27 @@ Fix purchase validation error
 
 ## Deployment
 
-### Stable And Prerelease Branches
+### Main And Release Channels
 
-`main` is the stable release branch. Its package metadata must never contain a
-SemVer prerelease suffix. Stable package releases and production docs
-deployment run from `main` only.
+`main` owns reviewed source and stable or prerelease package metadata. Every
+new package release runs from `main` through an explicit workflow dispatch;
+merging a PR does not publish a package.
 
-`next` is an on-demand prerelease integration branch for compatibility work
-that needs external validation, such as a new store runtime. It is not a
-permanent development branch and may be absent between prerelease trains.
+- First RC: select `prerelease=true`; later RC: select `version=rc-bump` where
+  supported. npm publishes RCs to `next`, leaving `latest` on stable.
+- Stable: select the stable lane after validation. Remove the RC suffix from
+  the intended target without incrementing its major again.
+- Production docs require stable package metadata and public release-card
+  links. Use a preview while RCs are active; `--force` cannot bypass the
+  stable-version check.
+- Historical `next` tags stay immutable and retain their source branch for
+  verification and SBOM recovery. New work does not need a `next` branch.
+  Do not force-reset or delete the historical branch without explicit approval.
+- Keep the eventual stable release card with its source PR; do not add a second
+  card for each RC publication.
 
-- Create `next` from the latest `main` only when a maintainer requests a
-  prerelease train.
-- Before reusing `next`, inspect its divergence, open PRs, and active workflows.
-  If it belongs to an older completed train, do not merge, rebase, reset, or
-  delete it automatically; obtain explicit maintainer approval before replacing
-  it from current `main`.
-- Run first RC releases from `next` with `prerelease=true`; run later RC bumps
-  with `version=rc-bump` where supported.
-- Release workflows commit prerelease metadata back to `next`, never `main`.
-- Do not merge prerelease version-only commits into `main`. Promote reviewed
-  source changes through a clean PR based on `main`, then run the stable
-  workflow from `main` using the intended bump type relative to its stable
-  metadata.
-- Do not force-reset or delete `next` without explicit maintainer approval.
-- RC/next releases do not get entries in the stable docs release history.
-
-The executable policy is `scripts/release-branch-policy.mjs`. CI runs it for
-`main` and `next`, and every package release workflow runs it before builds:
+The executable policy is `scripts/release-branch-policy.mjs`. CI validates
+version consistency; every package publisher requires `main`:
 
 ```bash
 bun run audit:release-state
@@ -2726,8 +2720,9 @@ the current branch tip as an unverified substitute.
 Before any `current` retry checks out an existing release tag, run
 `scripts/assert-release-tag.mjs`. The guard must prove that the local tag matches
 the immutable origin tag, its package metadata declares the expected version,
-and its peeled commit is reachable from the validated `main` or `next` release
-branch. Do this before executing build scripts or loading package content from
+and its peeled commit is reachable from the validated `main` release branch. Historical RC tags
+on `next` are retained for SBOM verification; release a new RC from `main`
+instead of retrying an old tag through the new publishing lane. Do this before executing build scripts or loading package content from
 the tag; a matching tag name alone is not reviewed-branch provenance.
 
 When `current` must create a missing tag for a version that is not yet published,
@@ -2746,7 +2741,7 @@ npm's provenance statement reads the immutable workflow event SHA, so changing
 only the local checkout can make package `gitHead` and attested source disagree.
 Serialize tag-ref publishers per package so concurrent versions cannot move the
 same npm dist-tag backward. The publisher must also prove that the tag is
-reachable from `main` for stable versions or `next` for prereleases and that it
+reachable from `main` for both stable versions and prereleases and that it
 was dispatched by a successful branch-ref run of the same release workflow. The
 branch run uploads an immutable, run-attempt-scoped authorization artifact that
 names the exact repository, workflow, source branch/SHA, release tag, and tag
@@ -2771,7 +2766,7 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 1. Go to Actions -> "Apple Release"
 2. Click "Run workflow"
-3. Select `main` for stable or `next` for prerelease
+3. Select `main` for either stable or prerelease
 4. Select the version bump type and prerelease flag
 5. Click "Run workflow"
 
@@ -2798,7 +2793,7 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 1. Go to Actions -> "Google Release"
 2. Click "Run workflow"
-3. Select `main` for stable or `next` for prerelease
+3. Select `main` for either stable or prerelease
 4. Select the version bump type and prerelease flag
 5. Click "Run workflow"
 
@@ -2836,7 +2831,7 @@ the worktree must be clean, `HEAD` must match `origin/main`, and every linked
 GitHub Release must be published. `-f` or `--force` deploys the local snapshot:
 it permits uncommitted changes, a different commit from `origin/main`, and
 unpublished release links with warnings. The clean-worktree check after
-version synchronization is also skipped. Branch, version consistency, GitHub
+version synchronization is also skipped. Branch, stable version eligibility, version consistency, GitHub
 lookup, Vercel target, typecheck, and build checks still apply.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
@@ -2898,8 +2893,8 @@ Flutter's pub.dev trusted publisher is also event-sensitive: only
 dispatched workflow on that tag is still ineligible. The release workflow must
 wait for the tag-push run, and retries must rerun that original run without
 deleting or recreating the immutable tag. Before requesting OIDC, the publisher
-must prove that the tag commit is reachable from `main` for a stable version or
-`next` for a prerelease and verify the exact tag/SHA against the run-scoped
+must prove that the tag commit is reachable from `main` for either a stable version or
+a prerelease and verify the exact tag/SHA against the run-scoped
 authorization artifact uploaded by the guarded release workflow. An unpublished
 tag that predates this lane, or whose authorization artifact expired, must not
 rerun legacy publishing code; create a new reviewed release version instead.
@@ -2919,19 +2914,19 @@ adjacent release notes or assume every package moved in lockstep.
 
 Use these checks before writing a release list:
 
-| Package      | Metadata / Tag Check                                                                                              |
-| ------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Client Protocol | `jq -r '.version' specs/client/package.json`; tag `openiap-client-protocol-{version}` |
-| Commerce Protocol | `jq -r '.version' specs/commerce-protocol/package.json`; tag `hyodotdev-openiap-commerce-protocol-{version}` |
-| CLI | `jq -r '.version' packages/cli/package.json`; tag `openiap-{version}` |
-| Apple        | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
-| Google       | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
-| React Native | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |
-| Expo         | `jq -r '.version' libraries/expo-iap/package.json`; tag `expo-iap-{version}`                                      |
-| Flutter      | `awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml`; tag `flutter-iap-{version}`          |
-| Godot        | `sed -n 's/^version="\\(.*\\)"/\\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg`; tag `godot-iap-{version}` |
-| KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
-| MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
+| Package           | Metadata / Tag Check                                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Client Protocol   | `jq -r '.version' specs/client/package.json`; tag `openiap-client-protocol-{version}`                             |
+| Commerce Protocol | `jq -r '.version' specs/commerce-protocol/package.json`; tag `hyodotdev-openiap-commerce-protocol-{version}`      |
+| CLI               | `jq -r '.version' packages/cli/package.json`; tag `openiap-{version}`                                             |
+| Apple             | `jq -r '.apple' openiap-versions.json`; tag `{version}`                                                           |
+| Google            | `jq -r '.google' openiap-versions.json`; tag `google-{version}`                                                   |
+| React Native      | `jq -r '.version' libraries/react-native-iap/package.json`; tag `react-native-iap-{version}`                      |
+| Expo              | `jq -r '.version' libraries/expo-iap/package.json`; tag `expo-iap-{version}`                                      |
+| Flutter           | `awk '/^version:/{print $2}' libraries/flutter_inapp_purchase/pubspec.yaml`; tag `flutter-iap-{version}`          |
+| Godot             | `sed -n 's/^version="\\(.*\\)"/\\1/p' libraries/godot-iap/addons/godot-iap/plugin.cfg`; tag `godot-iap-{version}` |
+| KMP               | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
+| MAUI              | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
 
 A PR writes its card ahead of the release with the expected tag links, per
 "Docs Ship With The Change" in `05-docs-patterns.md`. After the release
@@ -2939,9 +2934,9 @@ publishes, verify each tag with `gh release view <tag>` and correct the card
 where a version differs. This prevents stale Package Releases tables such as
 documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
-Do not add RC or npm `next` releases to the stable release history. Collect
-their user-facing changes and write one package-grouped entry when the release
-train is promoted on `main`.
+Keep one eventual stable release card with the source PR on `main`; do not
+add duplicate cards for RC or npm `next` publications. Production docs wait for
+stable metadata and public links.
 
 ---
 
@@ -3210,9 +3205,9 @@ Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 blocks and any `Planned Package Releases` heading, so link regressions are
 caught before publishing.
 
-RC and npm `next` releases are managed on the on-demand `next` branch and do
-not get release-history entries. Add one grouped entry only when the train is
-promoted to a stable release on `main`.
+RC and stable releases share `main`. Keep one eventual stable release card
+with the source PR, and do not add duplicate entries for RC publications.
+Production docs wait for stable metadata and public release links.
 
 ### R10 — Docs version metadata stays synced with package metadata
 

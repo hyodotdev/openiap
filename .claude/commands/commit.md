@@ -96,8 +96,8 @@ on `main` directly, with no branch or PR
 - **Use a semantic prefix** that describes the change type: `feat/`, `fix/`,
   `ci/`, `docs/`, `test/`, `chore/`, or `refactor/`.
 - **Always include the target library/package name** in the branch name
-- `next` is reserved for on-demand prerelease integration. Do not commit
-  feature work directly to it; release workflows may commit RC metadata there.
+- `main` is the base for feature work and both release channels. Historical
+  `next` is retained for tag verification, not new development.
 - `feat/<library>-<feature-name>` - New features (e.g., `feat/godot-win-back-offers`)
 - `fix/<library>-<bug-description>` - Bug fixes (e.g., `fix/expo-double-init`)
 - `ci/<library>-<workflow-change>` - CI/workflow changes (e.g., `ci/kmp-store-e2e`)
@@ -224,12 +224,11 @@ recording.
 
 ### 7. Create Pull Request
 
-Use `main` as the default base. Use `next` only when the maintainer explicitly
-requested a prerelease train. Never target prerelease version-only commits at
-`main`.
+Use `main` as the base for source, stable and prerelease changes. Keep package
+version commits and their generated outputs internally consistent.
 
 ```bash
-PR_BASE=main # set to next only for an explicit prerelease train
+PR_BASE=main
 PR_LABELS="<comma-separated, from the guide in step 8>"
 # If --label fails with a Projects (classic) GraphQL error, create the PR
 # without it and apply the labels through the REST call in

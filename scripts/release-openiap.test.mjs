@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse } from "yaml";
 import { releasePackage } from "./release-openiap.mjs";
+import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const entries = [
@@ -145,7 +146,7 @@ test("GitHub environment output contains only allowlisted package metadata", (t)
   assert.equal(readFileSync(envFile, "utf8"), output);
 });
 
-test("release branch guard separates npm versions and keeps the old suite retired", (t) => {
+test("release branch guard permits both main channels and keeps the old suite retired", (t) => {
   const { directory, write } = fixture(t);
   const script = join(directory, "scripts/release-branch-policy.mjs");
   mkdirSync(dirname(script), { recursive: true });
@@ -157,8 +158,8 @@ test("release branch guard separates npm versions and keeps the old suite retire
     ["client-protocol", "current", "false", "next", 1],
     ["commerce-protocol", "patch", "false", "main", 0],
     ["cli", "patch", "false", "main", 0],
-    ["cli", "minor", "true", "next", 0],
-    ["cli", "minor", "true", "main", 1],
+    ["cli", "minor", "true", "next", 1],
+    ["cli", "minor", "true", "main", 0],
     ["conformance", "current", "false", "main", 1],
   ]) {
     const result = spawnSync(
@@ -177,16 +178,16 @@ test("release branch guard separates npm versions and keeps the old suite retire
   }
 });
 
-test("exact scoped releases route alpha and beta to next and stable to main", (t) => {
+test("exact scoped releases use main for alpha, beta and stable", (t) => {
   const { directory } = fixture(t);
   const script = join(directory, "scripts/release-branch-policy.mjs");
   mkdirSync(dirname(script), { recursive: true });
   copyFileSync(join(root, "scripts/release-branch-policy.mjs"), script);
   for (const [id] of entries) {
     for (const [mode, target, branch, expected] of [
-      ["exact", "0.1.0-alpha.0", "next", 0],
-      ["exact", "0.1.0-alpha.0", "main", 1],
-      ["exact", "0.1.0-beta.0", "next", 0],
+      ["exact", "0.1.0-alpha.0", "next", 1],
+      ["exact", "0.1.0-alpha.0", "main", 0],
+      ["exact", "0.1.0-beta.0", "main", 0],
       ["exact", "0.1.0", "main", 0],
       ["exact", "0.1.0", "next", 1],
       ["exact", "", "next", 1],
@@ -396,5 +397,164 @@ test("workflow exact bumps write alpha, beta, and stable versions to the selecte
         `version=${target}\nis_prerelease=${target.includes("-")}\n`,
       );
     }
+  }
+});
+
+test("main metadata audit accepts RCs while production audit rejects them and drift", (t) => {
+  const { directory, write } = fixture(t);
+  const script = join(directory, "scripts/release-branch-policy.mjs");
+  mkdirSync(dirname(script), { recursive: true });
+  copyFileSync(join(root, "scripts/release-branch-policy.mjs"), script);
+  for (const path of [
+    "packages/conformance/package.json",
+    "libraries/expo-iap/package.json",
+    "libraries/react-native-iap/package.json",
+  ])
+    write(path, { version: "4.0.0" });
+  for (const [path, text] of [
+    ["libraries/flutter_inapp_purchase/pubspec.yaml", "version: 4.0.0\n"],
+    ["libraries/godot-iap/addons/godot-iap/plugin.cfg", 'version="4.0.0"\n'],
+    ["libraries/kmp-iap/gradle.properties", "libraryVersion=4.0.0\n"],
+    [
+      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      "<PackageVersion>4.0.0</PackageVersion>",
+    ],
+  ]) {
+    mkdirSync(dirname(join(directory, path)), { recursive: true });
+    writeFileSync(join(directory, path), text);
+  }
+  const run = (...args) =>
+    spawnSync(process.execPath, [script, "audit", ...args], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+  write("libraries/expo-iap/package.json", { version: "6.0.0-rc.0" });
+  assert.equal(run("main").status, 0);
+  const production = run("--stable");
+  assert.equal(production.status, 1);
+  assert.match(
+    production.stderr,
+    /Production docs require stable package versions.*6.0.0-rc.0/u,
+  );
+  write("libraries/expo-iap/package.json", { version: "6.0.0" });
+  assert.equal(run("--stable").status, 0);
+  write("specs/client/package.json", { version: "0.2.0-rc.1" });
+  assert.equal(
+    run("main").status,
+    1,
+    "RC acceptance must still reject a stale Client Protocol mirror",
+  );
+});
+
+test("SBOM provenance accepts new main RCs and historical next RCs only", (t) => {
+  const { directory, write } = fixture(t);
+  const origin = join(directory, "origin.git");
+  const checkout = join(directory, "checkout");
+  mkdirSync(checkout);
+  isolateGitEnvironment(t);
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "Release Test",
+    GIT_AUTHOR_EMAIL: "release-test@example.com",
+    GIT_COMMITTER_NAME: "Release Test",
+    GIT_COMMITTER_EMAIL: "release-test@example.com",
+  };
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: checkout, env, stdio: "pipe" });
+  git("init", "--bare", origin);
+  git("init", "-b", "main");
+  git("remote", "add", "origin", origin);
+  const commit = (version, tag) => {
+    write("checkout/packages/cli/package.json", { version });
+    git("add", "packages/cli/package.json");
+    git("commit", "-m", `Release ${version}`);
+    if (tag) git("tag", tag);
+  };
+  commit("0.1.0");
+  git("checkout", "-b", "next");
+  commit("0.2.0-rc.0", "openiap-0.2.0-rc.0");
+  commit("0.2.0", "openiap-0.2.0");
+  git("checkout", "main");
+  commit("0.3.0-rc.0", "openiap-0.3.0-rc.0");
+  git("checkout", "-b", "unreviewed");
+  commit("0.4.0-rc.0", "openiap-0.4.0-rc.0");
+  git("push", "--all", "origin");
+  git("push", "--tags", "origin");
+  for (const name of ["assert-release-tag.mjs", "release-branch-policy.mjs"]) {
+    mkdirSync(join(checkout, "scripts"), { recursive: true });
+    copyFileSync(join(root, "scripts", name), join(checkout, "scripts", name));
+  }
+  const workflow = parse(
+    readFileSync(join(root, ".github/workflows/sbom.yml"), "utf8"),
+  );
+  const step = workflow.jobs.sbom.steps.find(
+    ({ name }) => name === "Verify release tag provenance",
+  );
+  for (const [version, expected] of [
+    ["0.2.0-rc.0", 0],
+    ["0.3.0-rc.0", 0],
+    ["0.2.0", 1],
+    ["0.4.0-rc.0", 1],
+  ]) {
+    const result = spawnSync("bash", ["-e", "-c", step.run], {
+      cwd: checkout,
+      env: {
+        ...env,
+        COMPONENT_ID: "cli",
+        RELEASE_TAG: `openiap-${version}`,
+        RELEASE_VERSION: version,
+      },
+      encoding: "utf8",
+    });
+    assert.equal(
+      result.status,
+      expected,
+      `${version}: ${result.stdout}${result.stderr}`,
+    );
+  }
+});
+
+test("documented npm RC promotion retains the stable base version", (t) => {
+  const { directory, write } = fixture(t);
+  for (const [filename, path, job] of [
+    ["release-expo.yml", "libraries/expo-iap", "release-npm"],
+    ["release-react-native.yml", "libraries/react-native-iap", "release-npm"],
+    ["release-openiap.yml", "packages/cli", "deploy"],
+  ]) {
+    write(`${path}/package.json`, {
+      name: "release-promotion-fixture",
+      version: "4.0.0-rc.1",
+    });
+    const workflow = parse(
+      readFileSync(join(root, ".github/workflows", filename), "utf8"),
+    );
+    const steps =
+      workflow.jobs[job]?.steps ??
+      Object.values(workflow.jobs).flatMap(({ steps }) => steps ?? []);
+    const bump = steps.find(({ name }) => name === "Bump version");
+    assert.ok(bump, filename);
+    const output = join(directory, "promotion-output");
+    writeFileSync(output, "");
+    execFileSync("bash", ["-e", "-c", bump.run], {
+      cwd: join(directory, path),
+      env: {
+        ...process.env,
+        VERSION_TYPE: "patch",
+        IS_PRERELEASE: "false",
+        GITHUB_OUTPUT: output,
+      },
+      stdio: "pipe",
+    });
+    assert.equal(
+      JSON.parse(readFileSync(join(directory, path, "package.json"), "utf8"))
+        .version,
+      "4.0.0",
+      filename,
+    );
+    assert.match(
+      readFileSync(output, "utf8"),
+      /version=4\.0\.0\nis_prerelease=false/u,
+      filename,
+    );
   }
 });
