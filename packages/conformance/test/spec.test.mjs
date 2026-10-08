@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   CAPABILITY_MATRIX,
   CAPABILITY_STORES,
@@ -65,9 +66,12 @@ describe('conformance behavior spec', () => {
     }
   });
 
-  it('binds the suite version to a released client protocol version', () => {
+  it('binds the suite to the current Client Protocol manifest', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../../specs/client/package.json', import.meta.url), 'utf8'),
+    );
     expect(SUITE_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(clientProtocolVersion()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(clientProtocolVersion()).toBe(manifest.version);
   });
 
   it('resolves behaviors by id and rejects unknown ids', () => {
