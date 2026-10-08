@@ -753,23 +753,12 @@ function Releases() {
           <h5>Framework libraries</h5>
           <ul>
             <li>
-              <strong>Godot 4.0.0</strong> preserves App Store restore
-              cancellation as <code>user-cancelled</code>.
-            </li>
-            <li>
-              Godot Android exports raise compatible templates to AGP 8.9.1 and
-              compile SDK 36, preserving newer versions and target SDK; update
-              older wrappers to Gradle 8.11.1+ and use JDK 17.
-            </li>
-            <li>
               <strong>Flutter 11.0.0</strong> examples keep pending purchases
               and failed local verification unfinished.
             </li>
             <li>
               <strong>MAUI 3.0.0</strong> examples leave pending purchases and
-              failed local verification unfinished. <strong>Godot 4.0.0</strong>{' '}
-              preserves Apple verification results and leaves unsupported Local
-              (Device) purchases unfinished.
+              failed local verification unfinished.
             </li>
             <li>
               <strong>KMP 4.0.0</strong> examples preserve the store&apos;s
@@ -812,6 +801,19 @@ function Releases() {
             <li>
               <strong>Godot 4.0.0</strong>
               <ul>
+                <li>
+                  Preserves Apple verification results and leaves unsupported
+                  Local (Device) purchases unfinished.
+                </li>
+                <li>
+                  Preserves App Store restore cancellation as{' '}
+                  <code>user-cancelled</code>.
+                </li>
+                <li>
+                  Android exports raise compatible templates to AGP 8.9.1 and
+                  compile SDK 36, preserving newer versions and target SDK;
+                  update older wrappers to Gradle 8.11.1+ and use JDK 17.
+                </li>
                 <li>
                   Keeps Apple listeners when provider disconnection fails and
                   fixes iOS source builds with SwiftPM generators.
