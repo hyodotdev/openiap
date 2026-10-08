@@ -594,7 +594,7 @@ function Releases() {
       aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag).concat(
         GODOT_RESTORE_EXPORT_NOTE_ID
       ),
-      date: new Date('2026-10-02'),
+      date: new Date('2026-10-08'),
       element: (
         <div key="community-store-providers-2026-10-02" style={noteCardStyle}>
           <span id={GODOT_RESTORE_EXPORT_NOTE_ID} aria-hidden="true" />
@@ -602,7 +602,7 @@ function Releases() {
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="community-store-providers-2026-10-02" level="h4">
-            October 2, 2026 - Community store providers
+            October 8, 2026 - Community store providers and Godot fixes
           </AnchorLink>
           <p>
             Use community stores on Apple and Android through one provider
@@ -807,16 +807,32 @@ function Releases() {
                 </li>
                 <li>
                   <code>restore_purchases()</code> returns{' '}
-                  <code>RestoreResult</code>, extending{' '}
-                  <code>Types.VoidResult</code>; failures expose{' '}
-                  <code>code</code> and <code>error</code>. App Store
-                  cancellation stays <code>user-cancelled</code> in both the
-                  result and one <code>purchase_error</code> signal.
+                  <code>RestoreResult</code>, a <code>Types.VoidResult</code>{' '}
+                  subtype with <code>code</code> and <code>error</code> on
+                  failure; cancelling App Store restore reports{' '}
+                  <code>user-cancelled</code> in the result and one{' '}
+                  <code>purchase_error</code> signal (
+                  <a
+                    href="https://github.com/hyodotdev/openiap/issues/510"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    #510
+                  </a>
+                  ).
                 </li>
                 <li>
-                  Android exports prepare AGP 8.9.1 / SDK 36 templates,
-                  preserving newer versions and target SDK. Use a compatible
-                  Gradle wrapper (8.11.1 minimum) and JDK 17.
+                  Android exports raise AGP to 8.9.1 and compile SDK to 36,
+                  preserving newer versions and target SDK; use a compatible
+                  Gradle wrapper (8.11.1+) and JDK 17 (
+                  <a
+                    href="https://github.com/hyodotdev/openiap/issues/511"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    #511
+                  </a>
+                  ).
                 </li>
                 <li>
                   Keeps Apple listeners when provider disconnection fails and
