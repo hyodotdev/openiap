@@ -24,7 +24,7 @@ for suite in "$@"; do
     # Editor-only objects need a project without unrelated newer test APIs.
     export_fixture="$(mktemp -d)"
     mkdir -p "$export_fixture/addons/godot-iap" "$export_fixture/tests"
-    cp "$example_dir/addons/godot-iap/"*.gd "$export_fixture/addons/godot-iap/"
+    cp "$example_dir/addons/godot-iap/"*.gd "$example_dir/addons/godot-iap/plugin.cfg" "$export_fixture/addons/godot-iap/"
     cp "$example_dir/tests/$suite.gd" "$export_fixture/tests/"
     printf 'config_version=5\n' > "$export_fixture/project.godot"
     project_dir="$export_fixture"
