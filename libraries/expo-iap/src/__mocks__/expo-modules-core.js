@@ -13,7 +13,7 @@ const mockNativeModule = {
   requestReceiptRefreshIOS: jest.fn(),
   isTransactionVerifiedIOS: jest.fn(),
   getTransactionJwsIOS: jest.fn(),
-  presentCodeRedemptionSheetIOS: jest.fn(),
+  openRedeemOfferCode: jest.fn(async () => null),
   canPresentExternalPurchaseNoticeIOS: jest.fn(),
   presentExternalPurchaseNoticeSheetIOS: jest.fn(),
   presentExternalPurchaseLinkIOS: jest.fn(),
@@ -44,7 +44,6 @@ const mockNativeModule = {
   acknowledgePurchaseAndroid: jest.fn(),
   consumePurchaseAndroid: jest.fn(),
   consumeProductAndroid: jest.fn(),
-  openRedeemOfferCodeAndroid: jest.fn(),
   // Billing Programs API (8.2.0+)
   isBillingProgramAvailableAndroid: jest.fn(),
   getBillingChoiceInfoAndroid: jest.fn(),

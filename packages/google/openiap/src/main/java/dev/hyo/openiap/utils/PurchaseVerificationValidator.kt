@@ -160,11 +160,9 @@ suspend fun verifyPurchaseWithHorizon(
             val success = parsed["success"] as? Boolean ?: false
             val grantTime = (parsed["grant_time"] as? Number)?.toDouble()
 
-            @Suppress("DEPRECATION")
             VerifyPurchaseResultHorizon(
                 grantTime = grantTime,
-                isValid = success,
-                success = success
+                isValid = success
             )
         } catch (jsonError: JsonSyntaxException) {
             OpenIapLog.warn("Failed to parse Horizon verification response: ${jsonError.message}", tag)

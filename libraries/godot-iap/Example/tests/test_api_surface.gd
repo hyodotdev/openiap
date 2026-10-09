@@ -126,7 +126,7 @@ func test_query_fields_have_wrapper_methods() -> void:
 
 func test_mutation_fields_have_wrapper_methods() -> void:
 	var fields = _collect_fields(Types.Mutation)
-	_assert_true(fields.size() >= 24, "Mutation should expose at least 24 generated fields (got %d)" % fields.size())
+	_assert_true(fields.size() == 23, "Mutation should expose the 23 stable generated fields (got %d)" % fields.size())
 	for field in fields:
 		_assert_true(
 			GodotIapPlugin.has_method(field["snake_name"]),
@@ -189,7 +189,6 @@ func test_wrapper_signal_surface() -> void:
 func test_args_helper_shapes() -> void:
 	# No-argument helpers serialize to empty payloads.
 	_assert_equal(Types.open_redeem_offer_code_args(), {}, "open_redeem_offer_code_args should be empty")
-	_assert_equal(Types.open_redeem_offer_code_android_args(), {}, "open_redeem_offer_code_android_args should be empty")
 	_assert_equal(Types.end_connection_args(), {}, "end_connection_args should be empty")
 	_assert_equal(Types.restore_purchases_args(), {}, "restore_purchases_args should be empty")
 	_assert_equal(Types.sync_ios_args(), {}, "sync_ios_args should be empty")

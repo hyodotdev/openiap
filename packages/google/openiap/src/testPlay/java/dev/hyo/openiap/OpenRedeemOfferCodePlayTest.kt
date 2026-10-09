@@ -47,38 +47,6 @@ class OpenRedeemOfferCodePlayTest {
     }
 
     @Test
-    fun `mutation bundle wires openRedeemOfferCodeAndroid through the current activity`() {
-        val activity = Robolectric.buildActivity(Activity::class.java).create().get()
-        val module = OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
-        module.setActivity(activity)
-
-        val handler = module.mutationHandlers.openRedeemOfferCodeAndroid
-        assertNotNull("Play flavor must wire openRedeemOfferCodeAndroid for bundle parity", handler)
-
-        val launched = runBlocking { handler!!.invoke() }
-
-        assertTrue("wired handler must delegate to openRedeemOfferCode and return true", launched)
-        assertNotNull(
-            "wired handler must launch the redeem intent from the current activity",
-            shadowOf(activity).nextStartedActivity
-        )
-    }
-
-    @Test
-    fun `openRedeemOfferCodeAndroid handler requires a current activity`() {
-        val module = OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
-
-        val thrown = runCatching {
-            runBlocking { module.mutationHandlers.openRedeemOfferCodeAndroid!!.invoke() }
-        }.exceptionOrNull()
-
-        assertTrue(
-            "handler must throw MissingCurrentActivity when no activity is attached, got: $thrown",
-            thrown is OpenIapError.MissingCurrentActivity
-        )
-    }
-
-    @Test
     fun `unified openRedeemOfferCode handler launches the redeem page and resolves null`() {
         val activity = Robolectric.buildActivity(Activity::class.java).create().get()
         val module = OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())

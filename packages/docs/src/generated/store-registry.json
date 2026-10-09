@@ -1,7 +1,7 @@
 {
   "suiteVersion": "4.0.0",
   "maintenanceWindowDays": 90,
-  "suiteMajorAdoptionDate": "2026-10-07",
+  "suiteMajorAdoptionDate": "2026-10-09",
   "stores": [
     {
       "id": "apple",

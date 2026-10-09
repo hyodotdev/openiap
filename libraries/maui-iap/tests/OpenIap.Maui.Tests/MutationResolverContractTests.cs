@@ -1,7 +1,3 @@
-// Generated-contract guard for the offer-code redemption surface: the unified
-// cross-platform openRedeemOfferCode operation plus the deprecated suffixed
-// operations that stay declared until client protocol 1.0.0.
-
 using System.Reflection;
 using Xunit;
 
@@ -25,18 +21,10 @@ public class MutationResolverContractTests
     }
 
     [Fact]
-    public void DeprecatedRedemptionOps_KeepReleasedSignaturesUntilOpenIap4()
+    public void RemovedRedemptionAliases_AreAbsentFromTheStableContract()
     {
-        var android = typeof(MutationResolver).GetMethod("OpenRedeemOfferCodeAndroidAsync");
-        Assert.NotNull(android);
-        Assert.Empty(android!.GetParameters());
-        Assert.Equal(typeof(Task<bool>), android.ReturnType);
-
-        var ios = typeof(MutationResolver).GetMethod("PresentCodeRedemptionSheetIOSAsync");
-        Assert.NotNull(ios);
-        Assert.Empty(ios!.GetParameters());
-        Assert.Equal(typeof(Task<PurchaseIOS>), ios.ReturnType);
-        var iosNullability = new NullabilityInfoContext().Create(ios.ReturnParameter);
-        Assert.Equal(NullabilityState.Nullable, iosNullability.GenericTypeArguments[0].ReadState);
+        Assert.Null(typeof(MutationResolver).GetMethod("OpenRedeemOfferCodeAndroidAsync"));
+        Assert.Null(typeof(MutationResolver).GetMethod("PresentCodeRedemptionSheetIOSAsync"));
+        Assert.Null(typeof(VerifyPurchaseResultHorizon).GetProperty("Success"));
     }
 }

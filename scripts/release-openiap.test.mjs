@@ -400,6 +400,60 @@ test("workflow exact bumps write alpha, beta, and stable versions to the selecte
   }
 });
 
+test("npm workflows start RCs at one and preserve promotion and retry versions", (t) => {
+  const { directory } = fixture(t);
+  const cases = [
+    ["1.2.3", "major", "true", "2.0.0-rc.1"],
+    ["1.2.3", "minor", "true", "1.3.0-rc.1"],
+    ["1.2.3", "patch", "true", "1.2.4-rc.1"],
+    ["2.0.0-rc.0", "rc-bump", "false", "2.0.0-rc.1"],
+    ["2.0.0-rc.1", "rc-bump", "false", "2.0.0-rc.2"],
+    ["2.0.0-rc.1", "patch", "false", "2.0.0"],
+    ["2.0.0-rc.1", "current", "false", "2.0.0-rc.1"],
+    ["2.0.0", "current", "false", "2.0.0"],
+  ];
+  for (const file of [
+    "release-react-native.yml",
+    "release-expo.yml",
+    "release-openiap.yml",
+  ]) {
+    const workflow = parse(
+      readFileSync(join(root, ".github/workflows", file), "utf8"),
+    );
+    const bump = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find((step) => step.name === "Bump version");
+    assert.ok(bump?.run, `${file} must declare its version step`);
+    const manifest = join(directory, "packages/cli/package.json");
+    const output = join(directory, "rc-output");
+    for (const [current, mode, prerelease, expected] of cases) {
+      writeFileSync(
+        manifest,
+        JSON.stringify({ name: "rc-fixture", version: current }),
+      );
+      writeFileSync(output, "");
+      execFileSync("bash", ["-e", "-c", bump.run], {
+        cwd: dirname(manifest),
+        env: {
+          ...process.env,
+          VERSION_TYPE: mode,
+          IS_PRERELEASE: prerelease,
+          GITHUB_OUTPUT: output,
+        },
+      });
+      assert.equal(
+        JSON.parse(readFileSync(manifest, "utf8")).version,
+        expected,
+        `${file}: ${current} ${mode} ${prerelease}`,
+      );
+      assert.equal(
+        readFileSync(output, "utf8"),
+        `version=${expected}\nis_prerelease=${expected.includes("-")}\n`,
+      );
+    }
+  }
+});
+
 test("main metadata audit accepts RCs while production audit rejects them and drift", (t) => {
   const { directory, write } = fixture(t);
   const script = join(directory, "scripts/release-branch-policy.mjs");

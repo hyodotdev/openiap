@@ -98,10 +98,10 @@ describe("generated LLM references", () => {
     expect(quickReference).toContain(
       "const purchase = await openRedeemOfferCode();",
     );
-    expect(quickReference).toContain(
+    expect(quickReference).not.toContain(
       "openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)",
     );
-    expect(quickReference).toContain(
+    expect(quickReference).not.toContain(
       "presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)",
     );
     expect(quickReference).not.toContain(

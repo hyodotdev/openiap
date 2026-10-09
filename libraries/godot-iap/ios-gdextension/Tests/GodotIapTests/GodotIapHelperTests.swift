@@ -23,7 +23,7 @@ final class GodotIapHelperTests: XCTestCase {
 
     func testAppleVerificationRejectsANonAppleResult() {
         let result = VerifyPurchaseResult.verifyPurchaseResultHorizon(
-            VerifyPurchaseResultHorizon(isValid: true, success: true)
+            VerifyPurchaseResultHorizon(isValid: true)
         )
         XCTAssertThrowsError(try GodotIapHelper.encodeRequired(result)) { error in
             XCTAssertEqual((error as? PurchaseError)?.code, .featureNotSupported)

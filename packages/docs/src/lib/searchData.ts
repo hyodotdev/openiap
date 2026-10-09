@@ -275,16 +275,6 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/ios/get-receipt-data-ios',
   },
   {
-    id: 'present-code-redemption-sheet-ios',
-    title: 'presentCodeRedemptionSheetIOS',
-    category: 'iOS Specific',
-    description:
-      'Deprecated — use openRedeemOfferCode (removal in client protocol 1.0.0). Presents the App Store code redemption sheet',
-    parameters: '',
-    returns: 'PurchaseIOS | null',
-    path: '/docs/apis/ios/present-code-redemption-sheet-ios',
-  },
-  {
     id: 'get-app-transaction-ios',
     title: 'getAppTransactionIOS',
     category: 'iOS Specific',
@@ -459,16 +449,6 @@ export const apiData: ApiItem[] = [
     parameters: 'params: InAppMessageParamsAndroid',
     returns: 'InAppMessageResultAndroid!',
     path: '/docs/apis/android/show-in-app-messages-android',
-  },
-  {
-    id: 'open-redeem-offer-code-android',
-    title: 'openRedeemOfferCodeAndroid',
-    category: 'Android Specific',
-    description:
-      'Deprecated — use openRedeemOfferCode (removal in client protocol 1.0.0). Opens the Google Play offer-code redemption page',
-    parameters: '',
-    returns: 'Boolean!',
-    path: '/docs/apis/android/open-redeem-offer-code-android',
   },
 
   // Debugging & Logging (moved to Features)
@@ -942,8 +922,7 @@ export const apiData: ApiItem[] = [
     id: 'verify-purchase-result-horizon',
     title: 'VerifyPurchaseResultHorizon',
     category: 'Types (Horizon)',
-    description:
-      'Meta Quest verification result: isValid, grantTime, deprecated success alias',
+    description: 'Meta Quest verification result: isValid and grantTime',
     path: '/docs/types/verify-purchase#verify-purchase-result-horizon',
   },
 

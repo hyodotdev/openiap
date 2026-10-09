@@ -6,7 +6,7 @@ package dev.hyo.openiap.conformance
 
 object ConformanceBehaviors {
     const val SUITE_VERSION = "4.0.0"
-    const val CLIENT_PROTOCOL_VERSION = "0.2.0-rc.1"
+    const val CLIENT_PROTOCOL_VERSION = "1.0.0"
     val ANDROID_MAPPING_BEHAVIORS = setOf("subscriptions.active-subscription-is-reported-active", "subscriptions.pending-subscription-is-not-active", "subscriptions.unknown-state-subscription-is-not-active", "subscriptions.groups-keep-independent-identifiers", "errors.store-codes-normalize-to-spec-error-codes", "errors.unrecognized-store-code-normalizes-to-unknown", "identifiers.purchase-carries-a-concrete-store", "capabilities.declared-capabilities-match-the-matrix", "capabilities.unsupported-operations-degrade-predictably")
     val ANDROID_PROVIDER_BEHAVIORS = setOf("products.fetch-returns-requested-skus", "purchases.request-emits-purchase-updated-on-success", "provider.invalid-purchase-emits-error-once", "restoration.available-purchases-returns-owned-items", "identifiers.purchase-token-is-stable-across-reads", "completion.finish-is-idempotent")
     val PROVIDER_CAPABILITY_BEHAVIORS = mapOf("pendingPurchases" to "purchases.pending-purchase-is-not-delivered-as-purchased", "subscriptionBillingIssue" to "android-provider.subscription-billing-issue", "offerCodeRedemption" to "android-provider.offer-code-redemption")

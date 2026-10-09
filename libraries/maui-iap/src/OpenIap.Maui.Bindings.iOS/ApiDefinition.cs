@@ -183,9 +183,9 @@ interface OpenIapModule
     [Introduced(PlatformName.MacCatalyst, 16, 0)]
     void GetAppTransactionIOS(Action<NSObject?, NSError?> completion);
 
-    [Export("presentCodeRedemptionSheetIOSWithCompletion:")]
+    [Export("openRedeemOfferCodeWithCompletion:")]
     [Async]
-    void PresentCodeRedemptionSheetIOS(Action<NSObject?, NSError?> completion);
+    void OpenRedeemOfferCode(Action<NSObject?, NSError?> completion);
 
     [Export("showManageSubscriptionsIOSWithCompletion:")]
     [Async]

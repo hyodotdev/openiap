@@ -74,7 +74,7 @@ bun run audit:release-state
    Publish that prepared protocol later with `version=current`.
 3. Dispatch each package workflow with `--ref main` and `prerelease=true` for
    its first RC. Use `version=rc-bump` for later RCs where supported. Apple later
-   RCs use `target_version`; npm RC counters can start at zero. Historical RC
+   RCs use `target_version`; every first RC starts at `rc.1`. Historical RC
    tags on `next` remain immutable; use a new RC from `main` rather than retrying
    those tags through the new release lane.
 4. Verify the public registry, immutable tag and published-artifact consumer

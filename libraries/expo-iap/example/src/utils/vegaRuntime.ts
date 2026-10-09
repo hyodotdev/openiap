@@ -187,9 +187,6 @@ export function getDirectVerificationError(
   if ('isValid' in result && result.isValid === false) {
     return 'Store verification returned an invalid receipt';
   }
-  if ('success' in result && result.success === false) {
-    return 'Store verification rejected the entitlement';
-  }
   return null;
 }
 

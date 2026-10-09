@@ -23,7 +23,7 @@ const mockIap: any = {
   removePromotedProductListenerIOS: jest.fn(),
   addSubscriptionBillingIssueListener: jest.fn(),
   removeSubscriptionBillingIssueListener: jest.fn(),
-  openRedeemOfferCodeAndroid: jest.fn(async () => true),
+  openRedeemOfferCode: jest.fn(async () => null),
 };
 
 describe('Platform detection helpers', () => {

@@ -197,7 +197,7 @@ final class FixtureProviderTests: XCTestCase {
         let request = try OpenIapSerialization.decode(object: ["type": "in-app", "requestPurchase": ["apple": ["sku": "conformance.product"]]], as: RequestPurchaseProps.self)
         _ = try await module.requestPurchase(request)
         try await module.restorePurchases()
-        _ = try await module.presentCodeRedemptionSheetIOS()
+        _ = try await module.openRedeemOfferCode()
         let owned = try await module.getAvailablePurchases(nil)
         let purchase = try XCTUnwrap(owned.first)
         XCTAssertEqual(purchase.storeId, "community_fixture")

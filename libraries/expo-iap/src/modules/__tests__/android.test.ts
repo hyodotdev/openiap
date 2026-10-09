@@ -19,12 +19,11 @@ jest.mock('react-native', () => ({
 
 /* eslint-disable import/first */
 import ExpoIapModule from '../../ExpoIapModule';
-import {Linking, Platform} from 'react-native';
+import {Linking} from 'react-native';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
   acknowledgePurchaseAndroid,
-  openRedeemOfferCodeAndroid,
   isBillingProgramAvailableAndroid,
   getBillingChoiceInfoAndroid,
   launchExternalLinkAndroid,
@@ -143,58 +142,26 @@ describe('Android Module Functions', () => {
     });
   });
 
-  describe('openRedeemOfferCodeAndroid', () => {
-    it('delegates to the native store-flavor handler', async () => {
-      (
-        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
-      ).mockResolvedValueOnce(true);
-      const result = await openRedeemOfferCodeAndroid();
-      expect(ExpoIapModule.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
-      expect(result).toBe(true);
-    });
-
-    it('preserves a false result for unsupported store flavors', async () => {
-      (
-        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
-      ).mockResolvedValueOnce(false);
-      await expect(openRedeemOfferCodeAndroid()).resolves.toBe(false);
-    });
-
-    it('rejects on non-Android platforms before opening a URL', async () => {
-      const originalOS = Platform.OS;
-      (Platform as {OS: string}).OS = 'ios';
-
-      try {
-        await expect(openRedeemOfferCodeAndroid()).rejects.toThrow(
-          'openRedeemOfferCodeAndroid is only available on Android and Vega OS',
-        );
-        expect(ExpoIapModule.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
-      } finally {
-        (Platform as {OS: string}).OS = originalOS;
-      }
-    });
-  });
-
   describe('openRedeemOfferCode (Android path)', () => {
     it('maps a launched Play redeem flow to null', async () => {
-      (
-        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
-      ).mockResolvedValueOnce(true);
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
       await expect(openRedeemOfferCode()).resolves.toBeNull();
-      expect(ExpoIapModule.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+      expect(ExpoIapModule.openRedeemOfferCode).toHaveBeenCalledTimes(1);
     });
 
     it('maps unsupported store flavors to null as well', async () => {
-      (
-        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
-      ).mockResolvedValueOnce(false);
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
       await expect(openRedeemOfferCode()).resolves.toBeNull();
     });
 
     it('rethrows native launch failures', async () => {
-      (
-        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
-      ).mockRejectedValueOnce(new Error('Unable to launch redeem page'));
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockRejectedValueOnce(
+        new Error('Unable to launch redeem page'),
+      );
       await expect(openRedeemOfferCode()).rejects.toThrow(
         'Unable to launch redeem page',
       );
@@ -453,9 +420,8 @@ describe('Android Module Functions', () => {
           ExpoIapModule.createBillingProgramReportingDetailsAndroid as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await createBillingProgramReportingDetailsAndroid(
-          'external-offer',
-        );
+        const result =
+          await createBillingProgramReportingDetailsAndroid('external-offer');
 
         expect(
           ExpoIapModule.createBillingProgramReportingDetailsAndroid,

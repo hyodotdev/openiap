@@ -147,11 +147,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try await provider.openRedeemOfferCode()
     }
 
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
-    public func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? {
-        try await provider.openRedeemOfferCode()
-    }
-
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {
         try await provider.showManageSubscriptionsIOS()
     }

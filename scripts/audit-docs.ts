@@ -210,19 +210,12 @@ export function auditVerifyPurchaseDocs(
   ]
     .map((match) => match[0])
     .filter((row) => /<code>\s*success\s*<\/code>/i.test(row));
-  const horizonSuccessRow = horizonSuccessRows[0];
-  if (
-    horizonSuccessRows.length !== 1 ||
-    !horizonSuccessRow ||
-    !/deprecated/i.test(horizonSuccessRow) ||
-    !/<code>\s*isValid\s*<\/code>/i.test(horizonSuccessRow)
-  ) {
+  if (horizonSuccessRows.length !== 0) {
     drifts.push({
       file,
       line: 1,
       rule: "R14",
-      message:
-        "Horizon VerifyPurchaseResult docs must mark success as a deprecated isValid alias.",
+      message: "Horizon VerifyPurchaseResult docs must omit the success alias removed in Client Protocol 1.0.0.",
     });
   }
   return drifts;

@@ -29,7 +29,6 @@ import {
   showBillingProgramInformationDialogAndroid,
   showInAppMessagesAndroid,
   openRedeemOfferCode,
-  openRedeemOfferCodeAndroid,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
   subscriptionBillingIssueListener,
@@ -275,11 +274,6 @@ type UseIap = {
   showBillingProgramInformationDialogAndroid?: MutationField<'showBillingProgramInformationDialogAndroid'>;
   /** Show Play billing in-app messages. */
   showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
-  /**
-   * Open the Play Store offer code redemption page; purchases arrive via the standard purchase listeners.
-   * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
-   */
-  openRedeemOfferCodeAndroid?: MutationField<'openRedeemOfferCodeAndroid'>;
 };
 
 export interface UseIapOptions {
@@ -850,7 +844,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
           launchExternalLinkAndroid,
           showBillingProgramInformationDialogAndroid,
           showInAppMessagesAndroid,
-          openRedeemOfferCodeAndroid,
         }
       : {}),
   };

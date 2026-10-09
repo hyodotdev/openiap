@@ -686,7 +686,7 @@ void main() {
     );
 
     test(
-      'presentCodeRedemptionSheetIOS maps PlatformException',
+      'openRedeemOfferCode maps PlatformException',
       () async {
         debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
@@ -694,7 +694,7 @@ void main() {
             .setMockMethodCallHandler(
           channel,
           (MethodCall call) async {
-            if (call.method == 'presentCodeRedemptionSheetIOS') {
+            if (call.method == 'openRedeemOfferCode') {
               throw PlatformException(
                 code: 'service-error',
                 message: 'Sheet failed',
@@ -709,8 +709,7 @@ void main() {
         );
 
         try {
-          // ignore: deprecated_member_use_from_same_package
-          await iap.presentCodeRedemptionSheetIOS();
+          await iap.openRedeemOfferCode();
           fail('Expected PurchaseError');
         } on errors.PurchaseError catch (e) {
           expect(e.code, types.ErrorCode.ServiceError);

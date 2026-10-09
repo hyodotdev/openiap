@@ -118,7 +118,9 @@ describe('iOS Functions Tests', () => {
       expect(ExpoIap.getReceiptDataIOS).toBeDefined();
       expect(ExpoIap.isTransactionVerifiedIOS).toBeDefined();
       expect(ExpoIap.getTransactionJwsIOS).toBeDefined();
-      expect(ExpoIap.presentCodeRedemptionSheetIOS).toBeDefined();
+      expect('presentCodeRedemptionSheetIOS' in ExpoIap).toBe(false);
+      expect('openRedeemOfferCodeAndroid' in ExpoIap).toBe(false);
+      expect(ExpoIap.openRedeemOfferCode).toBeDefined();
     });
   });
 });

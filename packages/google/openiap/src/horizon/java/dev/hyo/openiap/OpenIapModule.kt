@@ -252,7 +252,6 @@ internal fun resolveHorizonProductType(
     }
 }
 
-internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
 /**
  * OpenIapModule for Meta Horizon Billing. Reads the Horizon App ID from the
@@ -1530,10 +1529,8 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
-        // Meta Horizon has no Google Play redemption surface. Keep the generated
-        // handlers callable without requiring an Activity for these explicit no-ops.
+        // Meta Horizon has no redemption surface and needs no Activity.
         openRedeemOfferCode = { null },
-        openRedeemOfferCodeAndroid = { unsupportedRedeemOfferCode() },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showBillingProgramInformationDialogAndroid = { params ->

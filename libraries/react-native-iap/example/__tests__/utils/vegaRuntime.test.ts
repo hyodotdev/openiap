@@ -318,7 +318,7 @@ describe('Vega runtime example helpers', () => {
         receiptData: '',
       }),
     ).toContain('invalid receipt');
-    expect(getDirectVerificationError({isValid: false, success: false})).toContain(
+    expect(getDirectVerificationError({isValid: false, grantTime: null})).toContain(
       'invalid receipt',
     );
   });

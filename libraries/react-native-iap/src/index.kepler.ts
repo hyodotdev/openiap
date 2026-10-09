@@ -137,7 +137,8 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    Product[] | ProductSubscription[];
+    | Product[]
+    | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (
@@ -279,10 +280,6 @@ export const getPromotedProductIOS: QueryField<
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
-/** @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0. */
-export const presentCodeRedemptionSheetIOS: MutationField<
-  'presentCodeRedemptionSheetIOS'
-> = async () => null;
 // Amazon Vega has no offer-code redemption surface.
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
@@ -307,11 +304,6 @@ export const consumePurchaseAndroid: MutationField<
 > = async (purchaseToken) => {
   return getVegaModule().consumePurchaseAndroid(purchaseToken);
 };
-
-/** @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0. */
-export const openRedeemOfferCodeAndroid: MutationField<
-  'openRedeemOfferCodeAndroid'
-> = async () => false;
 
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'

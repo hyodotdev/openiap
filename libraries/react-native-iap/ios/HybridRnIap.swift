@@ -825,31 +825,34 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    func presentCodeRedemptionSheetIOS() throws -> Promise<Variant_NullType_NitroPurchase> {
+    func openRedeemOfferCode() throws -> Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
             do {
-                RnIapLog.payload("presentCodeRedemptionSheetIOS", nil)
+                RnIapLog.payload("openRedeemOfferCode", nil)
                 let purchase = try await self.runConnectedOperation {
-                    try await OpenIapModule.shared.presentCodeRedemptionSheetIOS()
+                    try await OpenIapModule.shared.openRedeemOfferCode()
                 }
                 guard let purchase else {
-                    RnIapLog.result("presentCodeRedemptionSheetIOS", nil)
+                    RnIapLog.result("openRedeemOfferCode", nil)
                     return .first(.null)
                 }
                 let raw = OpenIapSerialization.encode(purchase)
                 let payload = RnIapHelper.sanitizeDictionary(raw)
-                RnIapLog.result("presentCodeRedemptionSheetIOS", payload)
+                RnIapLog.result("openRedeemOfferCode", payload)
                 if let identifier = raw["id"] as? String {
                     await MainActor.run {
                         self.purchasePayloadById[identifier] = raw
                     }
                 }
                 return .second(RnIapHelper.convertPurchaseDictionary(payload))
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("openRedeemOfferCode", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch let connectionError as OpenIapException {
-                RnIapLog.failure("presentCodeRedemptionSheetIOS", error: connectionError)
+                RnIapLog.failure("openRedeemOfferCode", error: connectionError)
                 throw connectionError
             } catch {
-                RnIapLog.failure("presentCodeRedemptionSheetIOS", error: error)
+                RnIapLog.failure("openRedeemOfferCode", error: error)
                 throw OpenIapException.make(
                     code: .purchaseError,
                     message: error.localizedDescription
@@ -2210,11 +2213,6 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    func openRedeemOfferCodeAndroid() throws -> Promise<Bool> {
-        return Promise.async {
-            throw OpenIapException.make(code: .featureNotSupported, message: "Offer-code redemption is Android-only")
-        }
-    }
 
     // MARK: - External Purchase
 

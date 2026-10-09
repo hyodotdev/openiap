@@ -149,8 +149,8 @@ const COMMUNITY_PROVIDER_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'maui-iap', version: '3.0.0', tag: 'maui-iap-3.0.0' },
   {
     name: '@hyodotdev/openiap-client-protocol',
-    version: '0.2.0',
-    tag: 'openiap-client-protocol-0.2.0',
+    version: '1.0.0',
+    tag: 'openiap-client-protocol-1.0.0',
   },
   { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
 ];
@@ -594,7 +594,7 @@ function Releases() {
       aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag).concat(
         GODOT_RESTORE_EXPORT_NOTE_ID
       ),
-      date: new Date('2026-10-08'),
+      date: new Date('2026-10-09'),
       element: (
         <div key="community-store-providers-2026-10-02" style={noteCardStyle}>
           <span id={GODOT_RESTORE_EXPORT_NOTE_ID} aria-hidden="true" />
@@ -602,12 +602,21 @@ function Releases() {
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="community-store-providers-2026-10-02" level="h4">
-            October 8, 2026 - Community store providers and Godot fixes
+            October 9, 2026 - Community store providers and Client Protocol
+            1.0.0
           </AnchorLink>
           <p>
             Use community stores on Apple and Android through one provider
             contract. Build and test integrations in your own repository, then
             select a linked provider without changing app purchase APIs.
+          </p>
+          <p>
+            Start with the{' '}
+            <Link to="/docs/guides/store-providers#amazon-example">
+              Amazon community provider example
+            </Link>{' '}
+            to follow packaging, provider selection, receipt verification, and
+            conformance testing across the extension boundary.
           </p>
           <h5>Breaking changes</h5>
           <p>
@@ -619,7 +628,16 @@ function Releases() {
           </p>
           <ul>
             <li>
-              Client Protocol 0.2.0 makes <code>storeId</code> required on
+              Client Protocol 1.0.0 removes deprecated redemption APIs, Horizon{' '}
+              <code>success</code>, and Apple <code>specVersion</code>; use
+              their replacements in the{' '}
+              <Link to="/docs/updates/migration#client-protocol-1-removals">
+                migration table
+              </Link>
+              .
+            </li>
+            <li>
+              Client Protocol 1.0.0 makes <code>storeId</code> required on
               purchases and IAPKit results; set it on hand-built values (C# and
               the Kotlin IAPKit result infer official ids).
             </li>
@@ -719,8 +737,8 @@ function Releases() {
           <h5>Protocols and native packages</h5>
           <ul>
             <li>
-              <strong>Client Protocol 0.2.0</strong> defines store identity and
-              shared provider metadata.
+              <strong>Client Protocol 1.0.0</strong> publishes the stable
+              provider contract, store identity, and shared provider metadata.
             </li>
             <li>
               <strong>CLI 0.2.0</strong> checks community store selection and

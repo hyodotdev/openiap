@@ -3,14 +3,11 @@ package dev.hyo.openiap.utils
 import android.app.Activity
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapProtocol
+import dev.hyo.openiap.Purchase
 
-@Suppress("DEPRECATION")
-suspend fun redeemOfferCode(provider: OpenIapProtocol, activity: Activity?): Boolean {
-    if (activity != null) {
-        provider.setActivity(activity)
-        return provider.openRedeemOfferCode(activity)
-    }
-    // Legacy handlers preserve the official stores' no-Activity result.
-    return provider.mutationHandlers.openRedeemOfferCodeAndroid?.invoke()
-        ?: throw OpenIapError.MissingCurrentActivity
+suspend fun redeemOfferCode(provider: OpenIapProtocol, activity: Activity?): Purchase? {
+    activity?.let(provider::setActivity)
+    val handler = provider.mutationHandlers.openRedeemOfferCode
+        ?: throw OpenIapError.FeatureNotSupported()
+    return handler()
 }

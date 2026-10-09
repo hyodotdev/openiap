@@ -35,7 +35,7 @@ jest.mock('react-native-nitro-modules', () => ({
       clearProductsIOS: jest.fn(() => Promise.resolve()),
       promotedProductIOS: jest.fn(() => Promise.resolve()),
       deepLinkingGetPendingPurchases: jest.fn(() => Promise.resolve()),
-      presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(null)),
+      openRedeemOfferCode: jest.fn(async () => null),
     })),
   },
 }));
@@ -107,14 +107,12 @@ jest.mock('../src/index', () => {
         externalTransactionToken: 'external-transaction-token',
       }),
     ),
-    openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
 
     // iOS specific
     clearTransactionIOS: jest.fn(() => Promise.resolve(true)),
     clearProductsIOS: jest.fn(() => Promise.resolve()),
     promotedProductIOS: jest.fn(() => Promise.resolve()),
     beginRefundRequestIOS: jest.fn(() => Promise.resolve(null)),
-    presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(null)),
     showManageSubscriptionsIOS: jest.fn(() => Promise.resolve(true)),
     getAppTransactionIOS: jest.fn(() => Promise.resolve(null)),
 

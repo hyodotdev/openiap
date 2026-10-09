@@ -940,8 +940,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
-    fun openRedeemOfferCodeAndroid(): String {
-        GodotIapLog.debug("openRedeemOfferCodeAndroid called")
+    fun openRedeemOfferCode(): String {
+        GodotIapLog.debug("openRedeemOfferCode called")
 
         val activity = activity ?: run {
             return JSONObject().apply {
@@ -951,16 +951,15 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
 
         return try {
-            val redemptionStore =
-                if (isInitialized) store else OpenIapStore(OpenIapProvider.create(activity))
-            val launched = runBlocking { redemptionStore.openRedeemOfferCode(activity) }
-            GodotIapLog.result("openRedeemOfferCodeAndroid", launched)
+            val provider = if (isInitialized) openIap else OpenIapProvider.create(activity)
+            val purchase = runBlocking { dev.hyo.openiap.utils.redeemOfferCode(provider, activity) }
+            GodotIapLog.result("openRedeemOfferCode", purchase != null)
             JSONObject().apply {
                 put("success", true)
-                put("launched", launched)
+                purchase?.let { put("purchaseJson", JSONObject(it.toJson()).toString()) }
             }.toString()
         } catch (e: Exception) {
-            GodotIapLog.failure("openRedeemOfferCodeAndroid", e)
+            GodotIapLog.failure("openRedeemOfferCode", e)
             JSONObject().apply {
                 put("success", false)
                 put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())

@@ -1534,13 +1534,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         #endif // os(iOS)
     }
 
-    /// Deprecated. Use openRedeemOfferCode instead.
-    /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
-    public func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? {
-        try await openRedeemOfferCode()
-    }
-
     /// Present the manage-subscriptions sheet.
     /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
     public func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {

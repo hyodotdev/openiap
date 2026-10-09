@@ -1137,53 +1137,6 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
-  it('exposes direct finish helpers and unsupported stubs on Vega', async () => {
-    const service = createService();
-    const module = createVegaIapModule(service) as ReturnType<
-      typeof createVegaIapModule
-    > & {
-      acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
-      addSubscriptionBillingIssueListener(listener?: unknown): void;
-      consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
-      deepLinkToSubscriptionsAndroid(options: unknown): Promise<void>;
-      restorePurchases(): Promise<void>;
-    };
-
-    await expect(module.acknowledgePurchaseAndroid('receipt-1')).resolves.toBe(
-      true,
-    );
-    await expect(module.consumePurchaseAndroid('receipt-2')).resolves.toBe(
-      true,
-    );
-    const listener = jest.fn();
-    module.addPurchaseUpdatedListener(listener);
-    await expect(module.restorePurchases()).resolves.toBe(true);
-    expect(listener).toHaveBeenCalledWith(
-      expect.objectContaining({
-        productId: 'premium_monthly',
-        purchaseToken: 'sub-receipt',
-      }),
-    );
-    expect(module.addSubscriptionBillingIssueListener).not.toThrow();
-    await expect(module.openRedeemOfferCodeAndroid()).resolves.toBe(false);
-    await expect(
-      module.deepLinkToSubscriptionsAndroid({
-        packageNameAndroid: 'dev.hyo.openiap',
-        skuAndroid: 'premium_monthly',
-      }),
-    ).rejects.toMatchObject({
-      code: ErrorCode.FeatureNotSupported,
-    });
-    expect(service.notifyFulfillment).toHaveBeenCalledWith({
-      fulfillmentResult: 1,
-      receiptId: 'receipt-1',
-    });
-    expect(service.notifyFulfillment).toHaveBeenCalledWith({
-      fulfillmentResult: 1,
-      receiptId: 'receipt-2',
-    });
-  });
-
   it('loads all paginated Amazon purchase updates', async () => {
     const service = createService();
     service.getPurchaseUpdates

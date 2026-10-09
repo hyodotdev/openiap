@@ -84,7 +84,6 @@ extend type Mutation {
   every other path resolves null, so reconcile through the purchase listeners.
   Throws when a redemption flow exists but cannot be opened.
   Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
-  Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
   See: https://openiap.dev/docs/apis/open-redeem-offer-code
   """
   # Future

@@ -39,15 +39,7 @@ function OfferCodeRedemption() {
         </Link>{' '}
         or an explicit available-purchases refresh. Mac Catalyst 16–26 instead
         throws <code>StoreKitError.unknown</code>, and the Catalyst 15 StoreKit
-        1 call has no effect. The suffixed{' '}
-        <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
-          <code>presentCodeRedemptionSheetIOS</code>
-        </Link>{' '}
-        and{' '}
-        <Link to="/docs/apis/android/open-redeem-offer-code-android">
-          <code>openRedeemOfferCodeAndroid</code>
-        </Link>{' '}
-        are deprecated and scheduled for removal in client protocol 1.0.0.
+        1 call has no effect.{' '}
       </p>
 
       <section>
@@ -565,18 +557,6 @@ func reconcile_after_resume() -> void:
             <Link to="/docs/apis/open-redeem-offer-code">
               openRedeemOfferCode API Reference
             </Link>
-          </li>
-          <li>
-            <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
-              presentCodeRedemptionSheetIOS API Reference
-            </Link>{' '}
-            (deprecated)
-          </li>
-          <li>
-            <Link to="/docs/apis/android/open-redeem-offer-code-android">
-              openRedeemOfferCodeAndroid API Reference
-            </Link>{' '}
-            (deprecated)
           </li>
           <li>
             <Link to="/docs/events/purchase-updated-listener">

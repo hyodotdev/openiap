@@ -244,18 +244,24 @@ type PurchaseAndroid implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  """Stable store id: apple, play, horizon, amazon, or a community provider id."""
+  """
+  Stable store id: apple, play, horizon, amazon, or a community provider id.
+  """
   storeId: String!
   quantity: Int!
   purchaseState: PurchaseState!
-  """Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown."""
+  """
+  Legacy Boolean renewal hint. Set false when the store cannot report renewal; keep autoRenewingAndroid null to preserve unknown.
+  """
   isAutoRenewing: Boolean!
   currentPlanId: String
 
   # Android-specific fields
   dataAndroid: String
   signatureAndroid: String
-  """Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement."""
+  """
+  Store-reported automatic-renewal status; null when unavailable. This is not proof of entitlement.
+  """
   autoRenewingAndroid: Boolean
   isAcknowledgedAndroid: Boolean
   packageNameAndroid: String
@@ -519,13 +525,6 @@ type VerifyPurchaseResultHorizon implements VerifyPurchaseResultCommon {
   variant so callers can gate entitlement without inspecting the concrete type.
   """
   isValid: Boolean!
-  """
-  Whether the entitlement verification succeeded.
-  """
-  success: Boolean!
-    @deprecated(
-      reason: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.0."
-    )
   """
   Unix timestamp (seconds) when the entitlement was granted.
   """

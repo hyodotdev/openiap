@@ -264,29 +264,6 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
 };
 
 /**
- * Present the offer code redemption sheet. Real devices only, not simulators.
- *
- * @returns The verified redeemed purchase when built with Xcode 27+ and
- * running on Apple 27+. Earlier iOS/visionOS system sheets return null;
- * Catalyst 16–26 surfaces StoreKitError.unknown, and Catalyst 15 is a no-op
- * that returns null.
- * @throws Error if called on non-iOS platform or tvOS
- *
- * @platform iOS
- *
- * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
- * client protocol 1.0.0.
- *
- * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
- */
-export const presentCodeRedemptionSheetIOS: MutationField<
-  'presentCodeRedemptionSheetIOS'
-> = async () => {
-  requireIosPlatform('presentCodeRedemptionSheetIOS');
-  return await ExpoIapModule.presentCodeRedemptionSheetIOS();
-};
-
-/**
  * Get the AppTransaction: the initial purchase that unlocked the app.
  * Requires iOS 16.0+ at runtime and Xcode 15.0+ (iOS 16.0 SDK) to compile.
  *

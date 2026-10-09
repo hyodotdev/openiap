@@ -22,6 +22,7 @@ import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -961,7 +962,8 @@ class PurchaseVerificationValidatorTest {
             "TEST"
         ) { _ -> FakeHttpURLConnection(200, """{"success":true,"grant_time":1744148687}""") }
 
-        assertEquals(true, result.success)
+        assertEquals(true, result.isValid)
+        assertFalse(result.toJson().containsKey("success"))
         assertEquals(1744148687.0, result.grantTime)
     }
 

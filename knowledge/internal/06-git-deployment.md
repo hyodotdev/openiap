@@ -232,7 +232,7 @@ Fix purchase validation error
 new package release runs from `main` through an explicit workflow dispatch;
 merging a PR does not publish a package.
 
-- First RC: select `prerelease=true`; later RC: select `version=rc-bump` where
+- First RC: select `prerelease=true` to start at `rc.1`; later RC: select `version=rc-bump` where
   supported. npm publishes RCs to `next`, leaving `latest` on stable.
 - Stable: select the stable lane after validation. Remove the RC suffix from
   the intended target without incrementing its major again.

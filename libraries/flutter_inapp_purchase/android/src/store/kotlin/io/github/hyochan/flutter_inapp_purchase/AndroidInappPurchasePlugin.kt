@@ -304,14 +304,14 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
                 return
             }
-            "openRedeemOfferCodeAndroid" -> {
+            "openRedeemOfferCode" -> {
                 scope.launch {
                     try {
                         val iap = connectionMutex.withLock {
                             attachListenersIfNeeded()
                             requireOpenIap()
                         }
-                        safe.success(redeemOfferCode(iap, activity))
+                        safe.success(redeemOfferCode(iap, activity)?.toJson())
                     } catch (e: OpenIapError) {
                         safe.error(e.code, e.message, serializeOpenIapError(e))
                     } catch (e: Exception) {

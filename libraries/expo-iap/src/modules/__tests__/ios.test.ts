@@ -14,7 +14,7 @@ jest.mock('../../ExpoIapModule', () => ({
     requestReceiptRefreshIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
-    presentCodeRedemptionSheetIOS: jest.fn(),
+    openRedeemOfferCode: jest.fn(async () => null),
     getAppTransactionIOS: jest.fn(),
     getPromotedProductIOS: jest.fn(),
     getPendingTransactionsIOS: jest.fn(),
@@ -61,7 +61,6 @@ import {
   requestReceiptRefreshIOS,
   isTransactionVerifiedIOS,
   getTransactionJwsIOS,
-  presentCodeRedemptionSheetIOS,
   getAppTransactionIOS,
   getPromotedProductIOS,
   deepLinkToSubscriptionsIOS,
@@ -508,25 +507,6 @@ describe('iOS Module Functions', () => {
       await expect(getTransactionJwsIOS(undefined)).rejects.toThrow(
         /requires a SKU/,
       );
-    });
-
-    it('should call presentCodeRedemptionSheetIOS', async () => {
-      const redeemedPurchase = {
-        id: 'redeemed-transaction',
-        productId: 'premium',
-        store: 'apple',
-        storeId: 'apple',
-      };
-      (
-        ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
-      ).mockResolvedValue(redeemedPurchase);
-
-      const result = await presentCodeRedemptionSheetIOS();
-
-      expect(ExpoIapModule.presentCodeRedemptionSheetIOS).toHaveBeenCalledTimes(
-        1,
-      );
-      expect(result).toEqual(redeemedPurchase);
     });
 
     it('should call getPromotedProductIOS', async () => {

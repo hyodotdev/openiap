@@ -1130,28 +1130,12 @@ class InAppPurchaseTest {
         assertNull(json["error"])
     }
 
-    // =========================================================================
-    // openRedeemOfferCode Handler Tests
-    // =========================================================================
-
     @Test
     fun testMutationHandlersExposeOpenRedeemOfferCode() = runTest {
         val handlers = MutationHandlers(openRedeemOfferCode = { null })
 
+        assertNotNull(handlers.openRedeemOfferCode)
         assertNull(handlers.openRedeemOfferCode?.invoke())
         assertNull(MutationHandlers().openRedeemOfferCode)
-    }
-
-    // =========================================================================
-    // openRedeemOfferCodeAndroid Handler Tests (deprecated, removal in client protocol 1.0.0)
-    // =========================================================================
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun testMutationHandlersExposeOpenRedeemOfferCodeAndroid() = runTest {
-        val handlers = MutationHandlers(openRedeemOfferCodeAndroid = { true })
-
-        assertEquals(true, handlers.openRedeemOfferCodeAndroid?.invoke())
-        assertNull(MutationHandlers().openRedeemOfferCodeAndroid)
     }
 }

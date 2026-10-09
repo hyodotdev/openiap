@@ -501,8 +501,10 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           core version, Client Protocol version, and capability ids. Native
           builds require the same stable core major and a runtime at least as
           new as the declared build. Prerelease versions require an exact match.
-          Before Client Protocol 1.0, providers must also match its minor
-          version. Declare the versions used to build the provider.
+          Client Protocol 1.x providers require a 1.x runtime at least as new as
+          their build version. Pre-1.0 providers require the same minor version.
+          Declare the versions used to build the provider; rebuild providers
+          built against the 0.2.0 RC for 1.0.0.
         </p>
         <p>
           Consume the <code>OpenIapConformance</code> Swift product in your test
@@ -541,23 +543,15 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           </a>{' '}
           explains the module boundary.
         </p>
-        <h3>Before the 4.0.0 release</h3>
+        <h3>Use the public contract</h3>
         <p>
-          Build from the PR checkout and publish locally from its root. Add{' '}
-          <code>mavenLocal()</code> before <code>mavenCentral()</code> in both
-          the provider and host repositories. Use <code>4.0.0</code> for the
-          core dependency and factory&apos;s <code>coreVersion</code>. Set{' '}
-          <code>clientProtocolVersion</code> from <code>clientProtocol</code> in
-          this checkout&apos;s <code>openiap-versions.json</code>; it can still
-          be an RC. Rebuild and rerun conformance against the public 4.0.0
-          artifacts when released.
+          Resolve <code>openiap-core:4.0.0</code> and the independent{' '}
+          <code>openiap-conformance:4.0.0</code> test suite from Maven Central.
+          Set the factory&apos;s <code>coreVersion</code> to <code>4.0.0</code>{' '}
+          and <code>clientProtocolVersion</code> to{' '}
+          <code>{stableClientProtocolVersion}</code>. Keep store SDK
+          dependencies in the provider, and conformance in the test target.
         </p>
-        <CodeBlock
-          language="bash"
-          children={`packages/google/gradlew -p packages/google \\
-  :openiap-core:publishToMavenLocal :openiap-conformance:publishToMavenLocal \\
-  -PopenIapVersion=4.0.0`}
-        />
         <h3>Testing a published RC</h3>
         <p>
           Use the exact published RC in the core dependency and factory&apos;s{' '}

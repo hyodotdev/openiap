@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-08T18:38:40.669Z
+> Last updated: 2026-10-09T00:26:39.596Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2672,7 +2672,7 @@ Fix purchase validation error
 new package release runs from `main` through an explicit workflow dispatch;
 merging a PR does not publish a package.
 
-- First RC: select `prerelease=true`; later RC: select `version=rc-bump` where
+- First RC: select `prerelease=true` to start at `rc.1`; later RC: select `version=rc-bump` where
   supported. npm publishes RCs to `next`, leaving `latest` on stable.
 - Stable: select the stable lane after validation. Remove the RC suffix from
   the intended target without incrementing its major again.

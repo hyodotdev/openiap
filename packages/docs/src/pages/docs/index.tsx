@@ -416,10 +416,6 @@ function Docs() {
                       label: 'beginRefundRequestIOS',
                     },
                     {
-                      to: '/docs/apis/ios/present-code-redemption-sheet-ios',
-                      label: 'presentCodeRedemptionSheetIOS',
-                    },
-                    {
                       to: '/docs/apis/ios/get-app-transaction-ios',
                       label: 'getAppTransactionIOS',
                     },
@@ -487,10 +483,6 @@ function Docs() {
                     {
                       to: '/docs/apis/android/show-in-app-messages-android',
                       label: 'showInAppMessagesAndroid',
-                    },
-                    {
-                      to: '/docs/apis/android/open-redeem-offer-code-android',
-                      label: 'openRedeemOfferCodeAndroid',
                     },
                   ],
                 },

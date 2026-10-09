@@ -1558,33 +1558,6 @@ func get_all_transactions_ios() -> Array:
 						purchases.append(purchase)
 	return purchases
 
-## Present the code redemption sheet (iOS only).
-## @return Types.PurchaseIOS for a verified Apple 27+ redemption from an Xcode
-## 27+ build. Returns null on unsupported platforms, native request failures,
-## missing or invalid purchaseJson, and system-sheet paths that cannot return
-## the transaction directly. Mac Catalyst 15 also returns null without showing
-## a sheet because StoreKit 1 has no effect there.
-##
-## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-## @deprecated Use open_redeem_offer_code(). Scheduled for removal in client protocol 1.0.0.
-func present_code_redemption_sheet_ios() -> Variant:
-	if not (_native_plugin and _platform == "iOS"):
-		return null
-	var payload = await _call_apple_async(
-		"presentCodeRedemptionSheetIOS", [], _apple_async_ui_timeout_seconds
-	)
-	if not payload.get("success", false):
-		return null
-	var purchase_json = payload.get("purchaseJson", "")
-	if purchase_json is String and not purchase_json.is_empty():
-		var parsed = JSON.parse_string(purchase_json)
-		if parsed is Dictionary:
-			var purchase = Types.PurchaseIOS.from_dict(parsed)
-			if purchase == null:
-				_log_dropped_purchase(parsed)
-			return purchase
-	return null
-
 ## Show manage subscriptions UI (iOS only).
 ## @return Array[Types.PurchaseIOS] - changed purchases
 ##
@@ -2127,25 +2100,6 @@ func launch_external_link_android(params) -> bool:
 			return bool(result.get("launched", result.get("success", false)))
 	return false
 
-## Open the Google Play offer/promo code redemption flow (Android).
-## Opens the Play Store redeem page. A listener can receive the redeemed purchase
-## while the app has an active billing connection; reconcile on app resume.
-## Does not require the billing client to be initialized.
-## @return bool - true if launched, false if unavailable
-##
-## See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-## @deprecated Use open_redeem_offer_code(). Scheduled for removal in client protocol 1.0.0.
-func open_redeem_offer_code_android() -> bool:
-	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("openRedeemOfferCodeAndroid")
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return bool(result.get("launched", result.get("success", false)))
-	elif _platform == "Android":
-		# No native plugin: open the Play Store redeem page directly
-		return OS.shell_open("https://play.google.com/redeem") == OK
-	return false
-
 ## Create billing program reporting details (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value
 ## @param developer_billing_type: Types.DeveloperBillingTypeAndroid or null
@@ -2262,13 +2216,27 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 ##
 ## See: https://openiap.dev/docs/apis/open-redeem-offer-code
 func open_redeem_offer_code() -> Variant:
+	var payload: Dictionary = {}
 	if _platform == "Android":
-		# The suffixed wrapper owns both Android dispatch paths (native plugin and
-		# the plugin-less shell_open fallback); its launched flag maps to null.
-		open_redeem_offer_code_android()
+		if not _native_plugin:
+			OS.shell_open("https://play.google.com/redeem")
+			return null
+		var parsed = JSON.parse_string(_native_plugin.call("openRedeemOfferCode"))
+		if parsed is Dictionary:
+			payload = parsed
+	elif _platform == "iOS" and _native_plugin:
+		payload = await _call_apple_async("openRedeemOfferCode", [], _apple_async_ui_timeout_seconds)
+	if not payload.get("success", false):
 		return null
-	# iOS reuses the released sheet dispatch and its purchase parsing; other surfaces resolve null.
-	return await present_code_redemption_sheet_ios()
+	var purchase_json = payload.get("purchaseJson", "")
+	if purchase_json is String and not purchase_json.is_empty():
+		var parsed = JSON.parse_string(purchase_json)
+		if parsed is Dictionary:
+			var purchase = Types.PurchaseAndroid.from_dict(_normalize_android_purchase_dict(parsed)) if _platform == "Android" else Types.PurchaseIOS.from_dict(parsed)
+			if purchase == null:
+				_log_dropped_purchase(parsed)
+			return purchase
+	return null
 
 # ==========================================
 # Utility Functions

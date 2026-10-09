@@ -142,8 +142,6 @@ const operationParityRegistry = {
     "isBillingProgramAvailableAndroid",
     "launchExternalLinkAndroid",
     "openRedeemOfferCode",
-    "openRedeemOfferCodeAndroid",
-    "presentCodeRedemptionSheetIOS",
     "presentExternalPurchaseLinkIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "requestPurchase",
@@ -6961,9 +6959,13 @@ function checkFrameworkDependencyHygiene() {
   );
   if (
     !godotRestore ||
-    /\bemitPurchaseError\s*\(/u.test(maskKotlinCommentsAndStrings(godotRestore.body))
+    /\bemitPurchaseError\s*\(/u.test(
+      maskKotlinCommentsAndStrings(godotRestore.body),
+    )
   ) {
-    fail("Godot iOS restore failures must use only the async result; the wrapper emits purchase_error");
+    fail(
+      "Godot iOS restore failures must use only the async result; the wrapper emits purchase_error",
+    );
   }
   expectNotIncludes(
     "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
@@ -9631,8 +9633,8 @@ function checkReleaseNoteGroupingGuidance() {
 
 function checkXcode27StoreKitCoverage() {
   expectIncludes(
-    "specs/client/src/api-ios.graphql",
-    ["presentCodeRedemptionSheetIOS: PurchaseIOS"],
+    "specs/client/src/api.graphql",
+    ["openRedeemOfferCode: Purchase"],
     "Xcode 27 offer-code redemption result contract",
   );
   expectIncludes(

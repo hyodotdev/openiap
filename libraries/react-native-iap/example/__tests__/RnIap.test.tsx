@@ -27,7 +27,7 @@ jest.mock('react-native-nitro-modules', () => ({
       removePromotedProductListenerIOS: jest.fn(),
       getStorefront: jest.fn().mockResolvedValue('US'),
       getAppTransactionIOS: jest.fn().mockResolvedValue(null),
-      presentCodeRedemptionSheetIOS: jest.fn().mockResolvedValue(null),
+      openRedeemOfferCode: jest.fn(async () => null),
       clearTransactionIOS: jest.fn().mockResolvedValue(true),
       beginRefundRequestIOS: jest.fn().mockResolvedValue(null),
       acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(true),
@@ -154,11 +154,6 @@ describe('RnIap Complete Test Suite', () => {
   });
 
   describe('iOS-specific APIs', () => {
-    it('should export presentCodeRedemptionSheetIOS', () => {
-      expect(RNIap.presentCodeRedemptionSheetIOS).toBeDefined();
-      expect(typeof RNIap.presentCodeRedemptionSheetIOS).toBe('function');
-    });
-
     it('should export clearTransactionIOS', () => {
       expect(RNIap.clearTransactionIOS).toBeDefined();
       expect(typeof RNIap.clearTransactionIOS).toBe('function');
@@ -167,10 +162,6 @@ describe('RnIap Complete Test Suite', () => {
     it('should export beginRefundRequestIOS', () => {
       expect(RNIap.beginRefundRequestIOS).toBeDefined();
       expect(typeof RNIap.beginRefundRequestIOS).toBe('function');
-    });
-
-    it('should present code redemption sheet on iOS', async () => {
-      await expect(RNIap.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
     });
 
     it('should clear transactions on iOS', async () => {
@@ -211,15 +202,6 @@ describe('RnIap Complete Test Suite', () => {
       expect(typeof RNIap.createBillingProgramReportingDetailsAndroid).toBe(
         'function',
       );
-    });
-
-    it('should export openRedeemOfferCodeAndroid', () => {
-      expect(RNIap.openRedeemOfferCodeAndroid).toBeDefined();
-      expect(typeof RNIap.openRedeemOfferCodeAndroid).toBe('function');
-    });
-
-    it('should open the redeem offer code page on Android', async () => {
-      await expect(RNIap.openRedeemOfferCodeAndroid()).resolves.toBe(true);
     });
 
     it('should call Billing Programs Android APIs', async () => {

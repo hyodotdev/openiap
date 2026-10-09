@@ -197,8 +197,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "clearTransactionIOS":
             clearTransactionIOS(result: result)
 
-        case "presentCodeRedemptionSheetIOS":
-            presentCodeRedemptionSheetIOS(result: result)
+        case "openRedeemOfferCode":
+            openRedeemOfferCode(result: result)
 
         case "beginRefundRequestIOS":
             if let args = call.arguments as? [String: Any],
@@ -735,20 +735,20 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     // MARK: - Additional iOS Features
 
     // (Moved below iOS-specific features section to align with Expo ordering)
-    private func presentCodeRedemptionSheetIOS(result: @escaping FlutterResult) {
-        FlutterIapLog.debug("presentCodeRedemptionSheetIOS called")
+    private func openRedeemOfferCode(result: @escaping FlutterResult) {
+        FlutterIapLog.debug("openRedeemOfferCode called")
         Task { @MainActor in
             do {
-                guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {
-                    FlutterIapLog.result("presentCodeRedemptionSheetIOS", value: nil)
+                guard let purchase = try await OpenIapModule.shared.openRedeemOfferCode() else {
+                    FlutterIapLog.result("openRedeemOfferCode", value: nil)
                     result(nil)
                     return
                 }
                 let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
-                FlutterIapLog.result("presentCodeRedemptionSheetIOS", value: payload)
+                FlutterIapLog.result("openRedeemOfferCode", value: payload)
                 result(payload)
             } catch let purchaseError as PurchaseError {
-                FlutterIapLog.failure("presentCodeRedemptionSheetIOS", error: purchaseError)
+                FlutterIapLog.failure("openRedeemOfferCode", error: purchaseError)
                 result(flutterError(from: purchaseError))
             } catch {
                 await MainActor.run {

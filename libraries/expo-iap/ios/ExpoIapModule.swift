@@ -281,15 +281,20 @@ public final class ExpoIapModule: Module {
             }
         }
 
-        AsyncFunction("presentCodeRedemptionSheetIOS") { () async throws -> [String: Any]? in
-            ExpoIapLog.payload("presentCodeRedemptionSheetIOS", payload: nil)
-            guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {
-                ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: nil)
-                return nil
+        AsyncFunction("openRedeemOfferCode") { () async throws -> [String: Any]? in
+            do {
+                ExpoIapLog.payload("openRedeemOfferCode", payload: nil)
+                guard let purchase = try await OpenIapModule.shared.openRedeemOfferCode() else {
+                    ExpoIapLog.result("openRedeemOfferCode", value: nil)
+                    return nil
+                }
+                let payload = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+                ExpoIapLog.result("openRedeemOfferCode", value: payload)
+                return payload
+            } catch {
+                ExpoIapLog.failure("openRedeemOfferCode", error: error)
+                throw IapException.from(PurchaseError.wrap(error, fallback: .purchaseError))
             }
-            let payload = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
-            ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: payload)
-            return payload
         }
 
         AsyncFunction("showManageSubscriptionsIOS") { () async throws -> [[String: Any]] in

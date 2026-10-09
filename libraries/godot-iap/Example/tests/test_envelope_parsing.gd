@@ -84,9 +84,9 @@ class FakeAndroidJsonPlugin:
 		last_args = [params_json]
 		return _respond("launchExternalLinkAndroid", "{}")
 
-	func openRedeemOfferCodeAndroid() -> String:
-		last_method = "openRedeemOfferCodeAndroid"
-		return _respond("openRedeemOfferCodeAndroid", "{}")
+	func openRedeemOfferCode() -> String:
+		last_method = "openRedeemOfferCode"
+		return _respond("openRedeemOfferCode", "{}")
 
 	func isBillingProgramAvailableAndroid(program) -> String:
 		last_args = [program]
@@ -186,8 +186,8 @@ class FakeImmediateApplePlugin:
 		responses["last_deep_link_options"] = options_json
 		return _respond("deepLinkToSubscriptions", "0")
 
-	func presentCodeRedemptionSheetIOS() -> String:
-		return _respond("presentCodeRedemptionSheetIOS", "0")
+	func openRedeemOfferCode() -> String:
+		return _respond("openRedeemOfferCode", "0")
 
 	func getPendingTransactionsIOS() -> String:
 		return _respond("getPendingTransactionsIOS", "0")
@@ -278,6 +278,7 @@ func _run_all_tests() -> void:
 	# iOS immediate payload envelopes
 	await test_ios_immediate_payload_envelope()
 	await test_ios_missing_request_id_envelope()
+	await test_community_open_redeem_offer_code_envelope()
 	await test_ios_open_redeem_offer_code_envelope()
 	await test_ios_transaction_lists_skip_invalid_store_identities()
 	await test_macos_shared_api_routing()
@@ -1229,19 +1230,11 @@ func test_android_billing_program_envelopes() -> void:
 func test_android_open_redeem_offer_code_envelope() -> void:
 	var fake = _install_android_fake()
 
-	fake.responses["openRedeemOfferCodeAndroid"] = JSON.stringify({"launched": true})
-	_assert_true(GodotIapPlugin.open_redeem_offer_code_android(), "launched envelopes should map to true")
-	fake.responses["openRedeemOfferCodeAndroid"] = JSON.stringify({"success": true})
-	_assert_true(GodotIapPlugin.open_redeem_offer_code_android(), "Legacy success envelopes should map to true")
-	fake.responses["openRedeemOfferCodeAndroid"] = "{}"
-	_assert_false(GodotIapPlugin.open_redeem_offer_code_android(), "Empty envelopes should map to false")
-
-	# Unified op keeps the released native dispatch but resolves null by contract.
 	fake.last_method = ""
-	fake.responses["openRedeemOfferCodeAndroid"] = JSON.stringify({"success": true, "launched": true})
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": true, "launched": true})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Unified Android redemption should resolve null after launching")
-	_assert_equal(fake.last_method, "openRedeemOfferCodeAndroid", "Unified Android redemption should dispatch the released native method")
-	fake.responses["openRedeemOfferCodeAndroid"] = JSON.stringify({"success": false, "error": "Activity not available"})
+	_assert_equal(fake.last_method, "openRedeemOfferCode", "Unified Android redemption should dispatch the canonical native method")
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": false, "error": "Activity not available"})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Unified Android redemption should resolve null on failure envelopes")
 	_uninstall_fake()
 
@@ -1369,10 +1362,36 @@ func test_ios_missing_request_id_envelope() -> void:
 	_uninstall_fake()
 
 
+func test_community_open_redeem_offer_code_envelope() -> void:
+	var fake = _install_android_fake()
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({
+		"success": true,
+		"purchaseJson": JSON.stringify({
+			"id": "redeem-tx",
+			"productId": "redeem.sku",
+			"transactionDate": 1.0,
+			"purchaseState": "purchased",
+			"quantity": 1,
+			"isAutoRenewing": false,
+			"platform": "android",
+			"store": "unknown",
+			"storeId": "community_fixture",
+			"purchaseToken": "opaque-community-token",
+		}),
+	})
+	var redeemed = await GodotIapPlugin.open_redeem_offer_code()
+	_assert_true(redeemed is Types.PurchaseAndroid, "Community redemption returns an Android purchase")
+	_assert_equal(redeemed.store_id, "community_fixture", "Community store identity survives redemption")
+	_assert_equal(redeemed.purchase_token, "opaque-community-token", "Opaque receipts survive redemption")
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": true})
+	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "A launch without a purchase returns null")
+	_uninstall_fake()
+
+
 func test_ios_open_redeem_offer_code_envelope() -> void:
 	var fake = _install_ios_fake()
 
-	fake.responses["presentCodeRedemptionSheetIOS"] = JSON.stringify({
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({
 		"success": true,
 		"purchaseJson": JSON.stringify({
 			"id": "redeem-tx",
@@ -1389,13 +1408,11 @@ func test_ios_open_redeem_offer_code_envelope() -> void:
 	var redeemed = await GodotIapPlugin.open_redeem_offer_code()
 	_assert_true(redeemed is Types.PurchaseIOS, "Redeemed purchase envelopes should map to PurchaseIOS")
 	_assert_equal(redeemed.product_id, "redeem.sku", "Purchase fields should survive the redemption envelope")
-	var deprecated_redeemed = await GodotIapPlugin.present_code_redemption_sheet_ios()
-	_assert_true(deprecated_redeemed is Types.PurchaseIOS, "The deprecated sheet wrapper should keep parsing the same envelope")
 
-	fake.responses["presentCodeRedemptionSheetIOS"] = JSON.stringify({"success": true})
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": true})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Sheet-only success envelopes should resolve null")
 
-	fake.responses["presentCodeRedemptionSheetIOS"] = JSON.stringify({"success": false, "error": "cancelled"})
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": false, "error": "cancelled"})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Failure envelopes should resolve null")
 	_uninstall_fake()
 

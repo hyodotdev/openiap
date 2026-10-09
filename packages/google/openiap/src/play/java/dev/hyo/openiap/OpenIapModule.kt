@@ -2263,11 +2263,6 @@ class OpenIapModule(
             }
             null
         },
-        openRedeemOfferCodeAndroid = {
-            val activity = currentActivityRef?.get() ?: fallbackActivity
-                ?: throw OpenIapError.MissingCurrentActivity
-            openRedeemOfferCode(activity)
-        },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showBillingProgramInformationDialogAndroid = { params ->

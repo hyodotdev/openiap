@@ -39,7 +39,7 @@ const mockIap: any = {
   // iOS-only
   getAppTransactionIOS: jest.fn(async () => null),
   getPromotedProductIOS: jest.fn(async () => null),
-  presentCodeRedemptionSheetIOS: jest.fn(async () => null),
+  openRedeemOfferCode: jest.fn(async () => null),
   getAllTransactionsIOS: jest.fn(async () => []),
 
   // Unified storefront
@@ -77,7 +77,6 @@ const mockIap: any = {
     purchaseToken: null,
   })),
   launchExternalLinkAndroid: jest.fn(async () => true),
-  openRedeemOfferCodeAndroid: jest.fn(async () => true),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -1908,32 +1907,6 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
-    it('presentCodeRedemptionSheetIOS returns the verified purchase', async () => {
-      Object.assign(Platform, {OS: 'ios'});
-      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
-        id: 'redeemed-transaction',
-        transactionId: 'redeemed-transaction',
-        productId: 'premium',
-        transactionDate: 1700000000000,
-        store: 'apple',
-        storeId: 'apple',
-        quantity: 1,
-        purchaseState: 'purchased',
-        isAutoRenewing: true,
-      });
-      await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toMatchObject({
-        id: 'redeemed-transaction',
-        productId: 'premium',
-        store: 'apple',
-        storeId: 'apple',
-      });
-    });
-
-    it('presentCodeRedemptionSheetIOS returns null on non‑iOS', async () => {
-      Object.assign(Platform, {OS: 'android'});
-      await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
-    });
-
     it('getPendingTransactionsIOS maps purchases', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const nitro = {
@@ -2280,27 +2253,6 @@ describe('Public API (src/index.ts)', () => {
         android: {purchaseToken: 'tok', isConsumable: true},
       });
     });
-
-    it('openRedeemOfferCodeAndroid delegates to the native store handler', async () => {
-      Object.assign(Platform, {OS: 'android'});
-      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(true);
-      await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(true);
-      expect(mockIap.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
-    });
-
-    it('openRedeemOfferCodeAndroid throws on non-Android', async () => {
-      Object.assign(Platform, {OS: 'ios'});
-      await expect(IAP.openRedeemOfferCodeAndroid()).rejects.toThrow(
-        'openRedeemOfferCodeAndroid is only supported on Android',
-      );
-      expect(mockIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
-    });
-
-    it('openRedeemOfferCodeAndroid preserves unsupported store results', async () => {
-      Object.assign(Platform, {OS: 'android'});
-      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(false);
-      await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(false);
-    });
   });
 
   describe('verifyPurchase', () => {
@@ -2369,7 +2321,6 @@ describe('Public API (src/index.ts)', () => {
       mockIap.verifyPurchase.mockResolvedValueOnce({
         isValid: true,
         grantTime: 1744148687,
-        success: true,
       });
 
       const res = await IAP.verifyPurchase({
@@ -2392,7 +2343,6 @@ describe('Public API (src/index.ts)', () => {
       expect(res).toEqual({
         isValid: true,
         grantTime: 1744148687,
-        success: true,
       });
     });
 
@@ -2563,7 +2513,7 @@ describe('Public API (src/index.ts)', () => {
 
     it('openRedeemOfferCode resolves the synchronously reported purchase on iOS', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
+      mockIap.openRedeemOfferCode.mockResolvedValueOnce({
         id: 'redeemed-transaction',
         transactionId: 'redeemed-transaction',
         productId: 'premium',
@@ -2580,23 +2530,45 @@ describe('Public API (src/index.ts)', () => {
         store: 'apple',
         storeId: 'apple',
       });
-      expect(mockIap.presentCodeRedemptionSheetIOS).toHaveBeenCalledTimes(1);
+      expect(mockIap.openRedeemOfferCode).toHaveBeenCalledTimes(1);
     });
 
     it('openRedeemOfferCode resolves null when the iOS sheet reports nothing', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce(null);
+      mockIap.openRedeemOfferCode.mockResolvedValueOnce(null);
       await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
     });
 
     it('openRedeemOfferCode launches the Play redeem page and resolves null on Android', async () => {
       Object.assign(Platform, {OS: 'android'});
-      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(true);
+      mockIap.openRedeemOfferCode.mockResolvedValueOnce(null);
       await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
-      expect(mockIap.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+      expect(mockIap.openRedeemOfferCode).toHaveBeenCalledTimes(1);
+    });
 
-      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(false);
-      await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+    it('openRedeemOfferCode preserves a community Android receipt', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.openRedeemOfferCode.mockResolvedValueOnce({
+        id: 'redeemed-transaction',
+        ids: ['premium'],
+        productId: 'premium',
+        transactionDate: 1700000000000,
+        store: 'unknown',
+        storeId: 'community_fixture',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+        purchaseToken: 'opaque-community-token',
+      });
+      await expect(IAP.openRedeemOfferCode()).resolves.toMatchObject({
+        id: 'redeemed-transaction',
+        productId: 'premium',
+        store: 'unknown',
+        storeId: 'community_fixture',
+        purchaseToken: 'opaque-community-token',
+      });
+      expect('openRedeemOfferCodeAndroid' in IAP).toBe(false);
+      expect('presentCodeRedemptionSheetIOS' in IAP).toBe(false);
     });
 
     it('openRedeemOfferCode resolves null on Vega without launching anything', async () => {
@@ -2616,8 +2588,7 @@ describe('Public API (src/index.ts)', () => {
       IAP = require('../index');
 
       await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
-      expect(mockIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
-      expect(mockIap.presentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
+      expect(mockIap.openRedeemOfferCode).not.toHaveBeenCalled();
     });
 
     it('openRedeemOfferCode throws on unsupported platform', async () => {
@@ -4028,8 +3999,8 @@ describe('Public API (src/index.ts)', () => {
       },
       {
         name: 'code redemption sheet',
-        nativeMethod: 'presentCodeRedemptionSheetIOS',
-        invoke: () => IAP.presentCodeRedemptionSheetIOS(),
+        nativeMethod: 'openRedeemOfferCode',
+        invoke: () => IAP.openRedeemOfferCode(),
       },
       {
         name: 'refund request',

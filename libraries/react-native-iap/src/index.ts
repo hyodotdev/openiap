@@ -921,7 +921,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -2077,33 +2078,6 @@ export const consumePurchaseAndroid: MutationField<
   }
 };
 
-/**
- * Open the Google Play offer/promo code redemption page (Android only).
- * Returns false on store flavors without an equivalent flow. Needs no
- * initialized billing client. Reconcile purchases when the app resumes:
- * listener delivery depends on connection state.
- *
- * @returns Promise<boolean> - true when the redemption page was launched
- * @platform Android
- *
- * @example
- * ```typescript
- * await openRedeemOfferCodeAndroid();
- * // Reconcile with getAvailablePurchases() when the app resumes.
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
- * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
- */
-export const openRedeemOfferCodeAndroid: MutationField<
-  'openRedeemOfferCodeAndroid'
-> = async () => {
-  if (Platform.OS !== 'android') {
-    throw new Error('openRedeemOfferCodeAndroid is only supported on Android');
-  }
-  return IAP.instance.openRedeemOfferCodeAndroid();
-};
-
 // ============================================================================
 // iOS-SPECIFIC FUNCTIONS
 // ============================================================================
@@ -2220,7 +2194,6 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
       const result: VerifyPurchaseResultHorizon = {
         isValid: horizonResult.isValid,
         grantTime: horizonResult.grantTime,
-        success: horizonResult.success,
       };
       return result;
     } else {
@@ -2368,47 +2341,6 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
 };
 
 /**
- * Present the code redemption sheet for offer codes (iOS only)
- * @returns The verified redeemed purchase when built with Xcode 27+ and
- * running on Apple 27+. Earlier iOS/visionOS system sheets return null;
- * Catalyst 16–26 surfaces StoreKitError.unknown, and Catalyst 15 is a no-op
- * that returns null.
- * @platform iOS
- *
- * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
- * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
- */
-export const presentCodeRedemptionSheetIOS: MutationField<
-  'presentCodeRedemptionSheetIOS'
-> = async () => {
-  if (Platform.OS !== 'ios') {
-    return null;
-  }
-
-  try {
-    const result = await IAP.instance.presentCodeRedemptionSheetIOS();
-    if (result == null) {
-      return null;
-    }
-    if (!validateNitroPurchase(result)) {
-      throw new Error('Invalid redeemed purchase returned by native StoreKit');
-    }
-    return convertNitroPurchaseToPurchase(result) as PurchaseIOS;
-  } catch (error) {
-    const parsedError = parseErrorAndLogIfNeeded(
-      '[presentCodeRedemptionSheetIOS] Failed:',
-      error,
-    );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
-  }
-};
-
-/**
  * Open the store's offer/promo code redemption flow.
  *
  * Resolves the redeemed purchase only when the store reports it synchronously;
@@ -2423,18 +2355,29 @@ export const presentCodeRedemptionSheetIOS: MutationField<
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
 > = async () => {
-  if (Platform.OS === 'ios') {
-    return presentCodeRedemptionSheetIOS();
+  if (isVegaOS()) return null;
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    throw unsupportedPlatformError();
   }
-  if (isVegaOS()) {
-    return null;
+  try {
+    const result = await IAP.instance.openRedeemOfferCode();
+    if (result == null) return null;
+    if (!validateNitroPurchase(result)) {
+      throw new Error('Invalid redeemed purchase returned by native store');
+    }
+    return convertNitroPurchaseToPurchase(result);
+  } catch (error) {
+    const parsedError = parseErrorAndLogIfNeeded(
+      '[openRedeemOfferCode] Failed:',
+      error,
+    );
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+    });
   }
-  if (Platform.OS === 'android') {
-    // false also maps to null until the SDK adopts openiap-google 3.4.0's unified handler.
-    await IAP.instance.openRedeemOfferCodeAndroid();
-    return null;
-  }
-  throw unsupportedPlatformError();
 };
 
 /**

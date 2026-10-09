@@ -996,9 +996,8 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
-        // Amazon has no redemption surface; these no-ops must not require an Activity.
+        // Amazon has no redemption surface and needs no Activity.
         openRedeemOfferCode = { null },
-        openRedeemOfferCodeAndroid = { unsupportedRedeemOfferCode() },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
         showBillingProgramInformationDialogAndroid = { params ->

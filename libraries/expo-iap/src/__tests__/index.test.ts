@@ -1733,30 +1733,60 @@ describe('Public API (index.ts)', () => {
     it('openRedeemOfferCode resolves the iOS redemption result', async () => {
       Object.assign(Platform, {OS: 'ios'});
       const purchase = nativePurchase('redeemed', {store: 'apple'});
-      (
-        ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
-      ).mockResolvedValueOnce(purchase);
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockResolvedValueOnce(
+        purchase,
+      );
       await expect(openRedeemOfferCode()).resolves.toBe(purchase);
 
-      (
-        ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
-      ).mockResolvedValueOnce(null);
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
       await expect(openRedeemOfferCode()).resolves.toBeNull();
     });
 
     it('openRedeemOfferCode maps the Android launch result to null', async () => {
       Object.assign(Platform, {OS: 'android'});
-      (
-        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
-      ).mockResolvedValueOnce(true);
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
       await expect(openRedeemOfferCode()).resolves.toBeNull();
-      expect(ExpoIapModule.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+      expect(ExpoIapModule.openRedeemOfferCode).toHaveBeenCalledTimes(1);
     });
+
+    it('openRedeemOfferCode preserves a community Android receipt', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const purchase = nativePurchase('redeemed', {
+        store: 'unknown',
+        storeId: 'community_fixture',
+        purchaseToken: 'opaque-community-token',
+      });
+      (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockResolvedValueOnce(
+        purchase,
+      );
+      await expect(openRedeemOfferCode()).resolves.toBe(purchase);
+    });
+
+    it.each(['ios', 'android'])(
+      'openRedeemOfferCode preserves %s provider errors',
+      async (platform) => {
+        Object.assign(Platform, {OS: platform});
+        const payload = {
+          code: 'feature-not-supported',
+          message: 'Provider does not support redemption',
+          debugMessage: 'Community provider declined the operation',
+          platform,
+        };
+        (ExpoIapModule.openRedeemOfferCode as jest.Mock).mockRejectedValueOnce(
+          new Error(`OPENIAP_ERROR_JSON:${JSON.stringify(payload)}`),
+        );
+        await expect(openRedeemOfferCode()).rejects.toMatchObject(payload);
+      },
+    );
 
     it('openRedeemOfferCode resolves null on Vega without launching', async () => {
       Object.assign(Platform, {OS: 'kepler'});
       await expect(openRedeemOfferCode()).resolves.toBeNull();
-      expect(ExpoIapModule.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+      expect(ExpoIapModule.openRedeemOfferCode).not.toHaveBeenCalled();
     });
 
     it('openRedeemOfferCode rejects on unsupported platform', async () => {

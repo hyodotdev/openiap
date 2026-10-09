@@ -33,11 +33,9 @@ have `conformant: false`. The host APK is
 
 ## Use it in the SDK examples
 
-Keep a local Maven repository for device work. Before the 4.0.0 release,
-publish core at the release target below so your provider declares the core
-major it will ship against. The suite version comes from
-`packages/conformance/src/spec/suite-version.mjs` (4.0.0 for this contract).
-After release, rebuild and rerun against the public artifacts.
+The fixture publishes its vendor SDK and provider to a local Maven repository.
+Its core and conformance dependencies use the 4.0.0 contract. To test local
+source changes, publish both artifacts to that same repository:
 
 ```sh
 packages/google/gradlew -p packages/google \
