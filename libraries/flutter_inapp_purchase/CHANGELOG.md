@@ -1,11 +1,5 @@
 # Changelog
 
-## 11.0.0-rc.1 (2026-10-08)
-
-- feat: support common Apple and Android store providers (#504)
-- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.0.0-rc.1
-
-
 ## 10.7.3 (2026-10-07)
 
 - fix(google): complete user choice purchases (#509)

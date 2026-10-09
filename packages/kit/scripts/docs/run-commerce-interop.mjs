@@ -642,7 +642,12 @@ try {
     (await admin.query(anyApi.interopFixture.inspect, seeded)).deliveries,
     pendingBefore.deliveries,
   );
-  await Bun.sleep(Math.max(0, startedAt + 34000 - Date.now()));
+  const retryAt = Math.max(
+    ...pendingBefore.deliveries
+      .filter((row) => row.status === "pending")
+      .map((row) => row.nextAttemptAt),
+  );
+  await Bun.sleep(Math.max(0, retryAt + 10 - Date.now()));
   for (const name of Object.keys(providers)) await drain(name);
   for (const projectId of ["commerce_example", seeded.projectId])
     check(

@@ -1520,11 +1520,6 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
-    override fun presentCodeRedemptionSheetIOS(): Promise<Variant_NullType_NitroPurchase> {
-        return Promise.async {
-            Variant_NullType_NitroPurchase.First(NullType.NULL)
-        }
-    }
 
     override fun clearTransactionIOS(): Promise<Unit> {
         return Promise.async {
@@ -1585,11 +1580,9 @@ class HybridRnIap : HybridRnIapSpec() {
                     )
                     val horizonResult = openIap.verifyPurchase(props) as? VerifyPurchaseResultHorizon
                         ?: throw OpenIapException(toErrorJson(OpenIapError.InvalidPurchaseVerification, debugMessage = "Unexpected Horizon result type from verifyPurchase"))
-                    @Suppress("DEPRECATION")
                     val result = NitroPurchaseVerificationResultHorizon(
                         isValid = horizonResult.isValid,
                         grantTime = horizonResult.grantTime.wrapVariant(),
-                        success = horizonResult.success
                     )
                     return@async Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon.Third(result)
                 }
@@ -2176,19 +2169,20 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
-    override fun openRedeemOfferCodeAndroid(): Promise<Boolean> {
+    override fun openRedeemOfferCode(): Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
-            RnIapLog.payload("openRedeemOfferCodeAndroid", null)
+            RnIapLog.payload("openRedeemOfferCode", null)
             try {
                 val result = withContext(Dispatchers.Main) {
                     redeemOfferCode(openIap, runCatching { context.currentActivity }.getOrNull())
                 }
-                RnIapLog.result("openRedeemOfferCodeAndroid", result)
-                result
+                RnIapLog.result("openRedeemOfferCode", result != null)
+                if (result == null) Variant_NullType_NitroPurchase.First(NullType.NULL)
+                else Variant_NullType_NitroPurchase.Second(convertToNitroPurchase(result))
             } catch (err: CancellationException) {
                 throw err
             } catch (err: Exception) {
-                RnIapLog.failure("openRedeemOfferCodeAndroid", err)
+                RnIapLog.failure("openRedeemOfferCode", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
             }

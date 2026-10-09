@@ -354,6 +354,21 @@ test("an extra failing result vetoes an otherwise passing verdict", () => {
   assert.equal(validateProviderReport(benign, ["pendingPurchases"]), true);
 });
 
+test("native redemption cannot replace the canonical SDK report result", () => {
+  const value = report(["offerCodeRedemption"]);
+  assert.ok(
+    value.results.some(
+      ({ id }) => id === "android-provider.native-offer-code-redemption",
+    ),
+  );
+  value.results = value.results.filter(
+    ({ id }) => id !== "android-provider.offer-code-redemption",
+  );
+  value.scope.complete = false;
+  value.conformant = false;
+  assert.equal(validateProviderReport(value, value.capabilities), false);
+});
+
 test("a wrong scope.complete flag contradicts the executed results", () => {
   const incomplete = report();
   incomplete.results.pop();

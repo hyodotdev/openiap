@@ -73,6 +73,8 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const GODOT_RESTORE_EXPORT_NOTE_ID = 'godot-restore-export-2026-10-08';
+
 const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.6.3', tag: 'google-3.6.3' },
   {
@@ -147,8 +149,8 @@ const COMMUNITY_PROVIDER_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'maui-iap', version: '3.0.0', tag: 'maui-iap-3.0.0' },
   {
     name: '@hyodotdev/openiap-client-protocol',
-    version: '0.2.0',
-    tag: 'openiap-client-protocol-0.2.0',
+    version: '1.0.0',
+    tag: 'openiap-client-protocol-1.0.0',
   },
   { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
 ];
@@ -589,20 +591,32 @@ function Releases() {
     },
     {
       id: 'community-store-providers-2026-10-02',
-      aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag),
-      date: new Date('2026-10-02'),
+      aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag).concat(
+        GODOT_RESTORE_EXPORT_NOTE_ID
+      ),
+      date: new Date('2026-10-09'),
       element: (
         <div key="community-store-providers-2026-10-02" style={noteCardStyle}>
+          <span id={GODOT_RESTORE_EXPORT_NOTE_ID} aria-hidden="true" />
           {COMMUNITY_PROVIDER_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="community-store-providers-2026-10-02" level="h4">
-            October 2, 2026 - Community store providers
+            October 9, 2026 - Community store providers and Client Protocol
+            1.0.0
           </AnchorLink>
           <p>
             Use community stores on Apple and Android through one provider
             contract. Build and test integrations in your own repository, then
             select a linked provider without changing app purchase APIs.
+          </p>
+          <p>
+            Start with the{' '}
+            <Link to="/docs/guides/store-providers#amazon-example">
+              Amazon community provider example
+            </Link>{' '}
+            to follow packaging, provider selection, receipt verification, and
+            conformance testing across the extension boundary.
           </p>
           <h5>Breaking changes</h5>
           <p>
@@ -614,7 +628,16 @@ function Releases() {
           </p>
           <ul>
             <li>
-              Client Protocol 0.2.0 makes <code>storeId</code> required on
+              Client Protocol 1.0.0 removes deprecated redemption APIs, Horizon{' '}
+              <code>success</code>, and Apple <code>specVersion</code>; use
+              their replacements in the{' '}
+              <Link to="/docs/updates/migration#client-protocol-1-removals">
+                migration table
+              </Link>
+              .
+            </li>
+            <li>
+              Client Protocol 1.0.0 makes <code>storeId</code> required on
               purchases and IAPKit results; set it on hand-built values (C# and
               the Kotlin IAPKit result infer official ids).
             </li>
@@ -649,6 +672,16 @@ function Releases() {
               Flutter 11.0.0 <code>initConnection()</code> now returns false on
               iOS and macOS when StoreKit cannot make payments; it returned true
               before.
+            </li>
+            <li>
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and MAUI 3.0.0{' '}
+              now reject failed Play <code>openRedeemOfferCode()</code> launches
+              instead of resolving null; catch the error.
+            </li>
+            <li>
+              Godot 4.0.0 now emits <code>purchase_error</code> for failed or
+              unsupported redemption while returning null; subscribe to the
+              signal.
             </li>
             <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
@@ -714,8 +747,8 @@ function Releases() {
           <h5>Protocols and native packages</h5>
           <ul>
             <li>
-              <strong>Client Protocol 0.2.0</strong> defines store identity and
-              shared provider metadata.
+              <strong>Client Protocol 1.0.0</strong> publishes the stable
+              provider contract, store identity, and shared provider metadata.
             </li>
             <li>
               <strong>CLI 0.2.0</strong> checks community store selection and
@@ -757,9 +790,7 @@ function Releases() {
             </li>
             <li>
               <strong>MAUI 3.0.0</strong> examples leave pending purchases and
-              failed local verification unfinished. <strong>Godot 4.0.0</strong>{' '}
-              preserves Apple verification results and leaves unsupported Local
-              (Device) purchases unfinished.
+              failed local verification unfinished.
             </li>
             <li>
               <strong>KMP 4.0.0</strong> examples preserve the store&apos;s
@@ -802,6 +833,39 @@ function Releases() {
             <li>
               <strong>Godot 4.0.0</strong>
               <ul>
+                <li>
+                  Preserves Apple verification results and leaves unsupported
+                  Local (Device) purchases unfinished.
+                </li>
+                <li>
+                  <code>restore_purchases()</code> returns{' '}
+                  <code>RestoreResult</code>, a <code>Types.VoidResult</code>{' '}
+                  subtype with <code>code</code> and <code>error</code> on
+                  failure; cancelling App Store restore reports{' '}
+                  <code>user-cancelled</code> in the result and the{' '}
+                  <code>purchase_error</code> signal (
+                  <a
+                    href="https://github.com/hyodotdev/openiap/issues/510"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    #510
+                  </a>
+                  ).
+                </li>
+                <li>
+                  Android exports raise AGP to 8.9.1 and compile SDK to 36,
+                  preserving newer versions and target SDK; use a compatible
+                  Gradle wrapper (8.11.1+) and JDK 17 (
+                  <a
+                    href="https://github.com/hyodotdev/openiap/issues/511"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    #511
+                  </a>
+                  ).
+                </li>
                 <li>
                   Keeps Apple listeners when provider disconnection fails and
                   fixes iOS source builds with SwiftPM generators.

@@ -253,12 +253,6 @@ export const getPromotedProductIOS: QueryField<
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
-/**
- * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in client protocol 1.0.0.
- */
-export const presentCodeRedemptionSheetIOS: MutationField<
-  'presentCodeRedemptionSheetIOS'
-> = async () => null;
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async () => unsupported('presentExternalPurchaseLinkIOS');
@@ -270,13 +264,6 @@ export const deepLinkToSubscriptions: MutationField<
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
 > = async () => null;
-/**
- * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
- * client protocol 1.0.0.
- */
-export const openRedeemOfferCodeAndroid: MutationField<
-  'openRedeemOfferCodeAndroid'
-> = async () => false;
 
 export const promotedProductListenerIOS = (): EventSubscription => ({
   remove: () => {},

@@ -35,7 +35,6 @@ import {
   launchExternalLinkAndroid,
   showBillingProgramInformationDialogAndroid,
   showInAppMessagesAndroid,
-  openRedeemOfferCodeAndroid,
 } from './modules/android';
 
 // Types
@@ -127,11 +126,6 @@ type UseIap = {
   showBillingProgramInformationDialogAndroid: MutationField<'showBillingProgramInformationDialogAndroid'>;
   showInAppMessagesAndroid: MutationField<'showInAppMessagesAndroid'>;
   openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
-  /**
-   * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
-   * client protocol 1.0.0.
-   */
-  openRedeemOfferCodeAndroid: MutationField<'openRedeemOfferCodeAndroid'>;
 };
 
 export interface UseIAPOptions {
@@ -871,6 +865,5 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     showInAppMessagesAndroid,
     // Offer code redemption
     openRedeemOfferCode,
-    openRedeemOfferCodeAndroid,
   };
 }

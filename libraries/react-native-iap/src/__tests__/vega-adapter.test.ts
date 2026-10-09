@@ -3,8 +3,13 @@ import {ErrorCode} from '../types';
 import type {SubscriptionOffer} from '../types';
 import {convertNitroProductToProduct} from '../utils/type-bridge';
 
-const createService = (): jest.Mocked<VegaPurchasingService> =>
-  ({
+const createFetchMock = (
+  implementation?: typeof fetch,
+): jest.MockedFunction<typeof fetch> =>
+  jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(implementation);
+
+const createService = (): jest.Mocked<VegaPurchasingService> => {
+  const service: VegaPurchasingService = {
     getUserData: jest.fn(async () => ({
       responseCode: 1,
       userData: {
@@ -70,7 +75,9 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  }) as unknown as jest.Mocked<VegaPurchasingService>;
+  };
+  return jest.mocked(service);
+};
 
 const fetchPremiumOffers = async (periods: {
   freeTrialPeriod?: string;
@@ -105,6 +112,16 @@ const fetchPremiumOffers = async (periods: {
 };
 
 describe('Amazon Vega adapter', () => {
+  it('redemption is a no-op without initializing or calling the Amazon service', async () => {
+    const service = createService();
+    await expect(
+      createVegaIapModule(service).openRedeemOfferCode(),
+    ).resolves.toBeNull();
+    for (const method of Object.values(service)) {
+      expect(method).not.toHaveBeenCalled();
+    }
+  });
+
   it('initializes without fetching Amazon user data', async () => {
     const service = createService();
     const module = createVegaIapModule(service);
@@ -1143,10 +1160,8 @@ describe('Amazon Vega adapter', () => {
       typeof createVegaIapModule
     > & {
       acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
-      addSubscriptionBillingIssueListener(listener?: unknown): void;
       consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
       deepLinkToSubscriptionsAndroid(options: unknown): Promise<void>;
-      restorePurchases(): Promise<void>;
     };
 
     await expect(module.acknowledgePurchaseAndroid('receipt-1')).resolves.toBe(
@@ -1165,7 +1180,6 @@ describe('Amazon Vega adapter', () => {
       }),
     );
     expect(module.addSubscriptionBillingIssueListener).not.toThrow();
-    await expect(module.openRedeemOfferCodeAndroid()).resolves.toBe(false);
     await expect(
       module.deepLinkToSubscriptionsAndroid({
         packageNameAndroid: 'dev.hyo.openiap',
@@ -1491,7 +1505,7 @@ describe('Amazon Vega adapter', () => {
   it('verifies Vega receipts through IAPKit Amazon payload', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json({
           environment: 'Sandbox',
@@ -1500,7 +1514,7 @@ describe('Amazon Vega adapter', () => {
           store: 'amazon',
           storeId: 'amazon',
         }),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1558,7 +1572,7 @@ describe('Amazon Vega adapter', () => {
   it('does not request or expose Apple/Google-only client payloads on Vega', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(async () =>
+    const fetchMock = createFetchMock(async () =>
       Response.json({
         isValid: true,
         state: 'ENTITLED',
@@ -1572,7 +1586,7 @@ describe('Amazon Vega adapter', () => {
           updatedAt: 1720000000000,
         },
       }),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1614,16 +1628,30 @@ describe('Amazon Vega adapter', () => {
       'https://[2001:db8::1]:65535///',
       'https://[2001:db8::1]:65535/v1/purchase/verify',
     ],
-  ])('supports custom IAPKit base URL %s', async (baseUrl, expectedUrl) => {
+  ])('supports %s with legacy URL', async (baseUrl, expectedUrl) => {
     const service = createService();
     const originalFetch = globalThis.fetch;
     const originalUrl = globalThis.URL;
-    class KeplerUrl {
-      get protocol(): never {
-        throw new Error('URL.protocol is not implemented on Kepler');
-      }
+    class LegacyUrl extends originalUrl {}
+    for (const getter of [
+      'hash',
+      'host',
+      'hostname',
+      'origin',
+      'password',
+      'pathname',
+      'port',
+      'protocol',
+      'search',
+      'username',
+    ]) {
+      Object.defineProperty(LegacyUrl.prototype, getter, {
+        get(): never {
+          throw new Error(`URL.${getter} is not implemented`);
+        },
+      });
     }
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json({
           isValid: true,
@@ -1631,9 +1659,9 @@ describe('Amazon Vega adapter', () => {
           store: 'amazon',
           storeId: 'amazon',
         }),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
-    globalThis.URL = KeplerUrl as unknown as typeof URL;
+    globalThis.URL = LegacyUrl;
 
     try {
       const module = createVegaIapModule(service);
@@ -1686,7 +1714,7 @@ describe('Amazon Vega adapter', () => {
   ])('rejects non-origin IAPKit base URL %s', async (baseUrl) => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn() as unknown as jest.MockedFunction<typeof fetch>;
+    const fetchMock = createFetchMock();
     globalThis.fetch = fetchMock;
 
     try {
@@ -1738,10 +1766,10 @@ describe('Amazon Vega adapter', () => {
   it('wraps non-JSON IAPKit failures as receipt errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         new Response('<html>bad gateway</html>', {status: 502}),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1766,7 +1794,7 @@ describe('Amazon Vega adapter', () => {
   it('extracts nested JSON IAPKit failure messages', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json(
           {
@@ -1776,7 +1804,7 @@ describe('Amazon Vega adapter', () => {
           },
           {status: 400},
         ),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1801,7 +1829,7 @@ describe('Amazon Vega adapter', () => {
   it('extracts string entries from IAPKit error arrays', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json(
           {
@@ -1809,7 +1837,7 @@ describe('Amazon Vega adapter', () => {
           },
           {status: 400},
         ),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1834,10 +1862,10 @@ describe('Amazon Vega adapter', () => {
   it('rejects empty successful IAPKit responses as receipt errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         new Response('', {status: 200}),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1862,7 +1890,7 @@ describe('Amazon Vega adapter', () => {
   it('treats successful IAPKit error payloads as receipt errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json(
           {
@@ -1875,7 +1903,7 @@ describe('Amazon Vega adapter', () => {
           },
           {status: 200},
         ),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1900,10 +1928,10 @@ describe('Amazon Vega adapter', () => {
   it('rejects malformed successful IAPKit payloads', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json(['not', 'an', 'object'], {status: 200}),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1928,7 +1956,7 @@ describe('Amazon Vega adapter', () => {
   it('rejects successful IAPKit payloads missing required fields', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json(
           {
@@ -1938,7 +1966,7 @@ describe('Amazon Vega adapter', () => {
           },
           {status: 200},
         ),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -1972,7 +2000,7 @@ describe('Amazon Vega adapter', () => {
     async ({environment, expected}) => {
       const service = createService();
       const originalFetch = globalThis.fetch;
-      const fetchMock = jest.fn(async () =>
+      const fetchMock = createFetchMock(async () =>
         Response.json({
           environment,
           isValid: true,
@@ -1980,7 +2008,7 @@ describe('Amazon Vega adapter', () => {
           store: 'amazon',
           storeId: 'amazon',
         }),
-      ) as unknown as jest.MockedFunction<typeof fetch>;
+      );
       globalThis.fetch = fetchMock;
 
       try {
@@ -2007,7 +2035,7 @@ describe('Amazon Vega adapter', () => {
   it('rejects successful IAPKit payloads for another store', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(
+    const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json(
           {
@@ -2018,7 +2046,7 @@ describe('Amazon Vega adapter', () => {
           },
           {status: 200},
         ),
-    ) as unknown as jest.MockedFunction<typeof fetch>;
+    );
     globalThis.fetch = fetchMock;
 
     try {
@@ -2043,9 +2071,9 @@ describe('Amazon Vega adapter', () => {
   it('wraps IAPKit network failures as network errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(async () => {
+    const fetchMock = createFetchMock(async () => {
       throw new TypeError('network offline');
-    }) as unknown as jest.MockedFunction<typeof fetch>;
+    });
     globalThis.fetch = fetchMock;
 
     try {
@@ -2072,13 +2100,13 @@ describe('Amazon Vega adapter', () => {
   it('wraps IAPKit response body read failures as network errors', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;
-    const fetchMock = jest.fn(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => {
-        throw new TypeError('body stream failed');
-      },
-    })) as unknown as jest.MockedFunction<typeof fetch>;
+    const fetchMock = createFetchMock(async () => {
+      const response = new Response('', {status: 200});
+      jest
+        .spyOn(response, 'text')
+        .mockRejectedValue(new TypeError('body stream failed'));
+      return response;
+    });
     globalThis.fetch = fetchMock;
 
     try {

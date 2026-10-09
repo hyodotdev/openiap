@@ -37,10 +37,6 @@ describe('Amazon Vega public API', () => {
     (getVegaIapModule as jest.Mock).mockReturnValue(vegaModule);
   });
 
-  it('returns false when offer-code redemption is unsupported', async () => {
-    await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(false);
-  });
-
   it('resolves null from the unified openRedeemOfferCode API', async () => {
     await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
   });
@@ -305,7 +301,7 @@ describe('Amazon Vega public API', () => {
     await expect(IAP.getAppTransactionIOS()).resolves.toBeNull();
     await expect(IAP.getPromotedProductIOS()).resolves.toBeNull();
     await expect(IAP.showManageSubscriptionsIOS()).resolves.toEqual([]);
-    await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
+    await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
 
     for (const call of [
       () => IAP.verifyPurchase({}),

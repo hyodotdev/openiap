@@ -223,8 +223,8 @@ class OpenIapMauiModule(private val context: Context) {
         wrapBool(module.launchExternalLink(activity, params))
     }
 
-    fun openRedeemOfferCodeAndroid(callback: ResultCallback) = run(callback) {
-        wrapBool(redeemOfferCode(module, currentActivity))
+    fun openRedeemOfferCode(callback: ResultCallback) = run(callback) {
+        gson.toJson(redeemOfferCode(module, currentActivity)?.toJson())
     }
 
     // -----------------------------------------------------------------

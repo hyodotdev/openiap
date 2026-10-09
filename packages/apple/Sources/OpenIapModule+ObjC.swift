@@ -775,20 +775,8 @@ import StoreKit
         }
     }
 
-    // tvOS: presentCodeRedemptionSheet is unavailable on tvOS
     // tvOS: showManageSubscriptions requires window scene UI not available on tvOS (subscriptions managed in Settings)
     #if !os(tvOS)
-    @available(*, deprecated, message: "Use openRedeemOfferCodeWithCompletion. Scheduled for removal in client protocol 1.0.0.")
-    @objc func presentCodeRedemptionSheetIOSWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
-        Task {
-            do {
-                let result = try await openRedeemOfferCode()
-                completion(result.map { OpenIapSerialization.encode($0) }, nil)
-            } catch {
-                completion(nil, error)
-            }
-        }
-    }
 
     @objc func showManageSubscriptionsIOSWithCompletion(_ completion: @escaping ([Any]?, Error?) -> Void) {
         Task {

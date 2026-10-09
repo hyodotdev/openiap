@@ -1,6 +1,3 @@
-// Deprecated suffixed redeem APIs stay covered until their client protocol 1.0.0 removal.
-@file:Suppress("DEPRECATION")
-
 package io.github.hyochan.kmpiap
 
 import android.content.Context
@@ -14,37 +11,13 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class OpenRedeemOfferCodeAndroidTest {
+class OpenRedeemOfferCodeTest {
     @Test
     fun `Play redeem flow uses application context without billing initialization`() = runTest {
-        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
-        try {
-            val appContext = object : ContextWrapper(null) {
-                override fun getApplicationContext(): Context = this
-            }
-            var launchContext: Context? = null
-            val iap = InAppPurchaseAndroid(
-                applicationContextProvider = { appContext },
-                redeemFlowLauncher = { context ->
-                    launchContext = context
-                    true
-                },
-            )
-
-            assertTrue(iap.openRedeemOfferCodeAndroid())
-            assertTrue(launchContext === appContext)
-        } finally {
-            Dispatchers.resetMain()
-        }
-    }
-
-    @Test
-    fun `unified Play redeem flow launches the same page and resolves null`() = runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
         try {
             val appContext = object : ContextWrapper(null) {
@@ -67,15 +40,32 @@ class OpenRedeemOfferCodeAndroidTest {
     }
 
     @Test
-    fun `unified Play redeem flow keeps the suffixed typed launch failure`() = runTest {
+    fun `failed Play redeem launch preserves its typed error`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val appContext = object : ContextWrapper(null) {
+                override fun getApplicationContext(): Context = this
+            }
+            val iap = InAppPurchaseAndroid(
+                applicationContextProvider = { appContext },
+                redeemFlowLauncher = { false },
+            )
+            val error = assertFailsWith<PurchaseException> { iap.openRedeemOfferCode() }
+            assertEquals(ErrorCode.Unknown, error.error.code)
+            assertEquals("Failed to open the Play Store redeem page", error.error.message)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `unified Play redeem flow preserves typed launch failure`() = runTest {
         Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
         try {
             val iap = InAppPurchaseAndroid(applicationContextProvider = { null })
 
             val unified = assertFailsWith<PurchaseException> { iap.openRedeemOfferCode() }
-            val suffixed = assertFailsWith<PurchaseException> { iap.openRedeemOfferCodeAndroid() }
             assertEquals(ErrorCode.ActivityUnavailable, unified.error.code)
-            assertEquals(suffixed.error.code, unified.error.code)
         } finally {
             Dispatchers.resetMain()
         }
@@ -93,8 +83,6 @@ class OpenRedeemOfferCodeAndroidTest {
                 versionPlatform = "Android $storeName",
             )
 
-            assertFalse(implementation.openRedeemOfferCodeAndroid())
-            // Unified op resolves null without launching on Amazon and Horizon.
             assertNull(implementation.openRedeemOfferCode())
         }
     }

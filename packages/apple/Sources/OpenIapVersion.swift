@@ -10,11 +10,6 @@ public struct OpenIapVersion {
         OpenIapGeneratedVersion.clientProtocol
     }
 
-    /// Source-compatibility alias for the 3.4.0 name.
-    @available(*, deprecated, message: "Use clientProtocolVersion. Scheduled for removal in client protocol 1.0.0.")
-    public static var specVersion: String {
-        clientProtocolVersion
-    }
 }
 
 // MARK: - Version Info

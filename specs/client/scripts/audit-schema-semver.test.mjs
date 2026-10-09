@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   classifySchemaChange,
+  isMajorProtocolUpgrade,
   formatReport,
   parseSchemaFileNames,
   selectSchemaSnapshot,
@@ -205,4 +206,20 @@ test('falls back to the prior canonical directory for refs without an inventory'
     directory: 'specs/client/src',
     names: SCHEMA_FILE_NAMES,
   });
+});
+
+test('breaking changes require a major protocol increase, including RC promotion', () => {
+  for (const [base, head] of [['0.2.0-rc.1', '1.0.0'], ['1.9.0', '2.0.0-rc.1'], ['9007199254740992.0.0', '9007199254740993.0.0']]) {
+    assert.equal(isMajorProtocolUpgrade(base, head), true);
+  }
+  for (const [base, head] of [
+    ['0.2.0', '0.3.0'], ['1.0.0-rc.1', '1.0.0'], ['1.0.0', '1.1.0'],
+    ['1.0.0', '1.0.1'], ['1.0.0', '1.0.0'], ['2.0.0', '1.0.0'],
+  ]) {
+    assert.equal(isMajorProtocolUpgrade(base, head), false);
+  }
+  for (const version of ['invalid', '01.0.0', '1.0', '1.0.0-01', '']) {
+    assert.throws(() => isMajorProtocolUpgrade('0.2.0', version), /Invalid Client Protocol version/);
+    assert.throws(() => isMajorProtocolUpgrade(version, '1.0.0'), /Invalid Client Protocol version/);
+  }
 });

@@ -768,7 +768,7 @@ final class ConnectOnDemandTests: XCTestCase {
             "getStorefront",
             "getAppTransactionIOS",
             "getPromotedProductIOS",
-            "presentCodeRedemptionSheetIOS",
+            "openRedeemOfferCode",
             "clearTransactionIOS",
             "subscriptionStatusIOS",
             "currentEntitlementIOS",

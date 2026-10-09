@@ -16,6 +16,86 @@ test("the committed tree passes", () => {
   assert.deepEqual(auditFacts(readRepoFile), []);
 });
 
+for (const module of ["core", "openiap"]) {
+  test(`Godot export floors must be revalidated when ${module}'s AndroidX Core changes`, () => {
+    const failures = auditFacts(
+      overlaying(`packages/google/${module}/build.gradle.kts`, (text) =>
+        text.replace("androidx.core:core:1.18.0", "androidx.core:core:1.19.0"),
+      ),
+    );
+    assert.ok(
+      failures.some((entry) =>
+        /godot\.android-export: .*"1\.19\.0"/u.test(entry),
+      ),
+    );
+  });
+}
+
+for (const [constant, before, after] of [
+  ["AGP", '"8.9.1"', '"8.6.1"'],
+  ["GRADLE", '"8.11.1"', '"8.10.0"'],
+  ["COMPILE_SDK", "36", "35"],
+]) {
+  test(`catches a stale Godot MIN_${constant} consumer floor`, () => {
+    const failures = auditFacts(
+      overlaying(
+        "libraries/godot-iap/addons/godot-iap/android_export.gd",
+        (text) =>
+          text.replace(
+            `MIN_${constant} := ${before}`,
+            `MIN_${constant} := ${after}`,
+          ),
+      ),
+    );
+    assert.ok(
+      failures.some((entry) => entry.startsWith("godot.android-export:")),
+    );
+  });
+}
+
+for (const file of [
+  "libraries/godot-iap/README.md",
+  "packages/docs/src/pages/docs/setup/godot.tsx",
+]) {
+  test(`catches stale Godot export requirements in ${file}`, () => {
+    const failures = auditFacts(
+      overlaying(file, (text) => text.replace("AGP 8.9.1", "AGP 8.6.1")),
+    );
+    assert.ok(
+      failures.some((entry) =>
+        /godot\.android-export: .*"8\.6\.1"/u.test(entry),
+      ),
+    );
+  });
+}
+
+test("catches the current guide's wrapper-upgrade version drifting", () => {
+  const failures = auditFacts(
+    overlaying("packages/docs/src/pages/docs/setup/godot.tsx", (text) =>
+      text.replace(/Gradle\s+8\.11\.1\+\s+before/u, "Gradle 8.10.0+ before"),
+    ),
+  );
+  assert.ok(
+    failures.some((entry) =>
+      /godot\.android-export: .*"8\.10\.0"/u.test(entry),
+    ),
+  );
+});
+
+test("a preview cannot silently replace the stable Godot AGP floor", () => {
+  const failures = auditFacts(
+    overlaying(
+      "libraries/godot-iap/addons/godot-iap/android_export.gd",
+      (text) => text.replace('MIN_AGP := "8.9.1"', 'MIN_AGP := "8.9.1-rc01"'),
+    ),
+  );
+  assert.ok(
+    failures.some((entry) =>
+      /godot\.android-export: .*"8\.9\.1-rc01"/u.test(entry),
+    ),
+  );
+});
+
 test("catches a runner image left behind on a bump", () => {
   const failures = auditFacts(
     overlaying(".github/workflows/release-godot.yml", (text) =>

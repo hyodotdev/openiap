@@ -44,8 +44,13 @@ extend `ProviderConformanceSuite`. Supply a fresh provider, its factory, a
 `StoreConformanceAdapter` bound to your production mappers, and a purchasable
 `testProductId` in an isolated sandbox user. Also supply `redemptionActivity`
 from the host or Robolectric test: declared `offerCodeRedemption` opens the
-real flow with that activity, and an undeclared capability is asserted as a
-no-op through the provider. Run Android JVM tests with Robolectric or device
+real flow through `mutationHandlers.openRedeemOfferCode` after `setActivity`.
+An undeclared capability must resolve null or throw `FeatureNotSupported` on
+that same SDK path. A separate native check requires true for declared redemption;
+the unsupported-operation check requires false or `FeatureNotSupported` for
+undeclared native redemption. Both entry
+points must open the same flow; the Boolean method alone does not enable SDK
+redemption. Run Android JVM tests with Robolectric or device
 instrumentation when the provider needs Android services.
 
 The suite checks product lookup, purchase events and identity, owned purchases,

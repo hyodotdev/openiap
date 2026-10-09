@@ -17,7 +17,7 @@ Provider selection does not add IAPKit server validation for a new store.
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Android provider      | Independent local Maven publication, required behavioral profile, negative capability/platform/token cases, discovery, manifest conflicts, and optimized host                                         |
 | Apple provider        | Independent Swift package, matching behavioral profile, explicit discovery failures, and optimized factory retention                                                                                  |
-| SDK dispatch          | React Native, Expo, Flutter, Godot, KMP, and MAUI selection and identity handling; public storefront/redemption overrides, community KMP billing operations/events, ownership/restore, and completion |
+| SDK dispatch          | React Native, Expo, Flutter, Godot, KMP, and MAUI selection and identity handling; public storefront overrides and canonical redemption handlers, community KMP billing operations/events, ownership/restore, and completion |
 | Provider dependencies | Neutral Gradle consumer graphs and MAUI Maven runtime closure, including a separate vendor SDK and credits for existing app dependencies                                                              |
 | Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance                                                      |
 | Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                                                            |
@@ -30,7 +30,8 @@ independent publication and conformance. Artifacts and raw device/backend
 evidence remain in ignored build outputs or the private local run directory.
 
 Both independent fixtures pass the 15 common provider behaviors and their
-three declared capability checks, including
+three declared capability checks. Android also requires its native-redemption
+result separately from the SDK result. The fixtures check
 exactly one canonical error event before a failed purchase request returns an
 empty result or throws.
 Negative cases reject missing, duplicate, and contradictory events. Swift
@@ -63,14 +64,14 @@ require new protocol members to provide default implementations.
 
 ## Release targets
 
-Client Protocol **0.2.0** is set in its publishing manifest and generated
+Client Protocol **1.0.0** is set in its publishing manifest and generated
 mirrors. The release card includes the following future stable publications.
 Native and framework versions remain managed by their existing release
 workflows; local Maven/SPM checks do not claim public publication.
 
 | Publication                   | Release card target |
 | ----------------------------- | ------------------- |
-| Client Protocol / CLI         | 0.2.0 / 0.2.0       |
+| Client Protocol / CLI         | 1.0.0 / 0.2.0       |
 | Google / core / Gradle plugin | 4.0.0               |
 | Android conformance           | Suite 4.0.0         |
 | Apple                         | 4.0.0               |
@@ -80,9 +81,10 @@ workflows; local Maven/SPM checks do not claim public publication.
 | Godot / KMP                   | 4.0.0 / 4.0.0       |
 | MAUI                          | 3.0.0               |
 
-Existing official aliases and deprecated configuration paths remain supported
-through this provider release. Their removal moves to the following major
-release. Commerce Protocol has no publication change. This task adds no IAPKit
+Client Protocol 1.0.0 removes the scheduled redemption and Horizon verification
+aliases, plus Apple `OpenIapVersion.specVersion`; see the public migration table.
+Official store aliases and later-scheduled configuration paths remain supported.
+Commerce Protocol has no publication change. This task adds no IAPKit
 store adapter or response-contract change. Dependency/lockfile updates still
 trigger the existing IAPKit deployment workflow on merge.
 

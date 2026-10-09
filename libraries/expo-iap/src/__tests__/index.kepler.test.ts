@@ -2,7 +2,6 @@ import {
   fetchProducts,
   getAvailablePurchases,
   openRedeemOfferCode,
-  openRedeemOfferCodeAndroid,
   requestPurchase,
 } from '../index.kepler';
 import * as Kepler from '../index.kepler';
@@ -43,10 +42,6 @@ describe('Amazon Vega public API', () => {
 
   it('resolves null for openRedeemOfferCode without launching anything', async () => {
     await expect(openRedeemOfferCode()).resolves.toBeNull();
-  });
-
-  it('returns false when offer-code redemption is unsupported', async () => {
-    await expect(openRedeemOfferCodeAndroid()).resolves.toBe(false);
   });
 
   it("rejects the removed 'inapp' product type", async () => {

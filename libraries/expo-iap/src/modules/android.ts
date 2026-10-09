@@ -154,29 +154,6 @@ export const acknowledgePurchaseAndroid: MutationField<
   return true;
 };
 
-/**
- * Open the Play Store offer/promo code redeem page; other store flavors return
- * false. Needs no initialized billing client or Play Billing version. A listener
- * can receive the purchase while billing is connected; reconcile available
- * purchases on resume.
- *
- * @returns Promise resolving to true when launched, or false when unsupported
- *
- * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
- * client protocol 1.0.0.
- *
- * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
- */
-export const openRedeemOfferCodeAndroid: MutationField<
-  'openRedeemOfferCodeAndroid'
-> = async () => {
-  requireAndroidPlatform('openRedeemOfferCodeAndroid');
-  if (isVegaOS()) {
-    return false;
-  }
-  return ExpoIapModule.openRedeemOfferCodeAndroid();
-};
-
 // ============================================================================
 // Billing Programs API (Google Play Billing Library 8.2.0+)
 // ============================================================================

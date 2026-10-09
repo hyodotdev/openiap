@@ -94,11 +94,8 @@ internal sealed partial class OpenIapAndroid
     public async Task<Purchase?> OpenRedeemOfferCodeAsync()
     {
         RefreshCurrentActivity();
-        // Shipped module AAR predates openiap-google 3.4.0's unsuffixed handler,
-        // so launch through the Boolean path and map both launched (Play) and
-        // no-surface (Horizon/Amazon) to the contract's null result.
-        await InvokeBool(cb => _module.OpenRedeemOfferCodeAndroid(cb));
-        return null;
+        var result = await Invoke(cb => _module.OpenRedeemOfferCode(cb));
+        return JsonSerializer.Deserialize<Purchase>(result, JsonOptions.Default);
     }
 
     // ---- Android-only mutations -----------------------------------------
@@ -162,31 +159,10 @@ internal sealed partial class OpenIapAndroid
         return InvokeBool(cb => _module.LaunchExternalLinkAndroid(json, cb));
     }
 
-    /// <summary>
-    /// Open the Google Play offer/promo code redemption flow so the user can
-    /// enter a code. Launches the Play Store redeem page
-    /// (https://play.google.com/redeem). A listener can receive the redeemed
-    /// purchase while the app has an active billing connection; reconcile
-    /// available purchases when the app resumes. Does not require the billing
-    /// client to be initialized. Returns false on unsupported store flavors.
-    /// See https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-    /// </summary>
-    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in client protocol 1.0.0.")]
-    public Task<bool> OpenRedeemOfferCodeAndroidAsync()
-    {
-        RefreshCurrentActivity();
-        // Delegate through the shared native handler so Play launches the
-        // redemption page while Amazon and Horizon retain their explicit
-        // false/no-op behavior.
-        return InvokeBool(cb => _module.OpenRedeemOfferCodeAndroid(cb));
-    }
-
     // ---- iOS-only mutations (return defaults / throw not-supported) -----
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");
     public Task<bool> ClearTransactionIOSAsync() => NotSupportedIOS<bool>("clearTransactionIOS");
-    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in client protocol 1.0.0.")]
-    public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<PurchaseIOS?>("presentCodeRedemptionSheetIOS");
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => NotSupportedIOS<ExternalPurchaseLinkResultIOS>("presentExternalPurchaseLinkIOS");
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => NotSupportedIOS<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS");
     public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) => NotSupportedIOS<ExternalPurchaseCustomLinkNoticeResultIOS>("showExternalPurchaseCustomLinkNoticeIOS");

@@ -48,7 +48,12 @@ function GodotSetup() {
             <strong>iOS 17+</strong> target
           </li>
           <li>
-            Android: Android SDK with <strong>API level 24+</strong>
+            Android devices: <strong>API level 24+</strong>
+          </li>
+          <li>
+            Android exports: <strong>AGP 8.9.1+</strong>,{' '}
+            <strong>Gradle 8.11.1+</strong>, <strong>Android SDK 36+</strong>,
+            and <strong>JDK 17</strong>
           </li>
         </ul>
         <Callout kind="warning" title="iOS 17 is required">
@@ -250,6 +255,15 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
           the Gradle build by default, so either enable it there too or export
           an APK and install that.
         </Callout>
+
+        <p>
+          Update older wrappers, including Godot 4.3&apos;s stock template, to
+          Gradle 8.11.1+ before exporting. With a compatible wrapper, the addon
+          raises AGP to 8.9.1 and compile SDK to 36 during export, keeping newer
+          versions and your target SDK. For newer AGP versions, use the Gradle
+          version required by that AGP; the export error names the requirement.
+          Keep AndroidX dependencies at their shipped versions.
+        </p>
 
         <h3 id="ios-xcode" className="anchor-heading">
           iOS: Xcode Framework Embedding
@@ -804,10 +818,9 @@ func _on_purchase_error(error):
           Android library pulls <code>androidx</code> artifacts, which are
           served by Google's Maven repository rather than Maven Central, so a
           generated Gradle configuration that lists only Maven Central cannot
-          resolve them. If the repositories are right and resolution still
-          fails, check that the Godot version's bundled Android Gradle Plugin
-          supports the resolved <code>androidx</code> versions, and pin the
-          conflicting dependency in your own Gradle configuration.
+          resolve them. For an AGP or compile SDK mismatch, follow the{' '}
+          <a href="#prerequisites">prerequisites</a> and update your Android
+          build template.
         </p>
 
         <h3 id="ios-launch-crash" className="anchor-heading">

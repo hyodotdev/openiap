@@ -74,7 +74,6 @@ jest.mock('../../src', () => {
     getReceiptDataIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
-    presentCodeRedemptionSheetIOS: jest.fn(),
     presentExternalPurchaseLinkIOS: jest.fn(() =>
       Promise.resolve({success: true}),
     ),
@@ -91,7 +90,6 @@ jest.mock('../../src', () => {
     isBillingProgramAvailableAndroid: jest.fn(),
     launchExternalLinkAndroid: jest.fn(),
     createBillingProgramReportingDetailsAndroid: jest.fn(),
-    openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
 
     // Event listeners
     purchaseUpdatedListener: jest.fn(),
@@ -192,7 +190,6 @@ jest.mock('expo-iap', () => {
     getReceiptDataIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
-    presentCodeRedemptionSheetIOS: jest.fn(),
     presentExternalPurchaseLinkIOS: jest.fn(() =>
       Promise.resolve({success: true}),
     ),
@@ -209,7 +206,6 @@ jest.mock('expo-iap', () => {
     isBillingProgramAvailableAndroid: jest.fn(),
     launchExternalLinkAndroid: jest.fn(),
     createBillingProgramReportingDetailsAndroid: jest.fn(),
-    openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
 
     // Event listeners
     purchaseUpdatedListener: jest.fn(),

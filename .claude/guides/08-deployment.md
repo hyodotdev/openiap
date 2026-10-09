@@ -13,11 +13,11 @@ This file is a route map, not a second deployment specification.
 
 ## Deployment surfaces
 
-| Surface                                | Canonical entrypoint                                                        |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| Apple, Google, and framework libraries | Sequential stable workflows listed in `.claude/commands/release.md`         |
-| Production docs                        | Vercel Git integration on `main`; root `npm run deploy` for manual fallback |
-| IAPKit                                 | `.github/workflows/deploy-kit.yml` on relevant pushes to `main`             |
+| Surface                                | Canonical entrypoint                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------ |
+| Apple, Google, and framework libraries | Sequential stable workflows listed in `.claude/commands/release.md`      |
+| Production docs                        | Root `npm run deploy` after stable versions and release links are public |
+| IAPKit                                 | `.github/workflows/deploy-kit.yml` on relevant pushes to `main`          |
 
 For the rare IAPKit manual fallback, follow the Convex-first sequence in
 `packages/kit/README.md#deployment-convex--flyio`. IAPKit has its own Convex

@@ -239,7 +239,6 @@ jobs:
           if [ "$VERSION_TYPE" = "current" ]; then
             NEW_VERSION="$CURRENT_VERSION"
             echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-            echo "prev_version=${CURRENT_VERSION%%[-+]*}" >> "$GITHUB_OUTPUT"
             if [[ "$NEW_VERSION" == *-* ]]; then
               echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
             else
@@ -283,12 +282,19 @@ jobs:
 
           sed -i "s/^version: .*/version: ${NEW_VERSION}/" pubspec.yaml
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "prev_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
           if [[ "$NEW_VERSION" == *-* ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Select previous stable release
+        id: previous_release
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 --match 'flutter-iap-*' --exclude 'flutter-iap-*-*' --exclude "flutter-iap-$VERSION" HEAD 2>/dev/null || true)
+          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Check if release tag already exists
         id: check_tag
@@ -342,22 +348,14 @@ jobs:
           exit 1
 
       - name: Generate CHANGELOG entry
-        if: ${{ inputs.version != 'current' }}
+        if: ${{ inputs.version != 'current' && steps.bump.outputs.is_prerelease != 'true' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
-          PREV_VERSION: ${{ steps.bump.outputs.prev_version }}
+          PREV_TAG: ${{ steps.previous_release.outputs.tag }}
         run: |
           DATE=$(date +%Y-%m-%d)
           CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases#flutter-iap-$NEW_VERSION"
           CHANGES=""
-          PREV_TAG=""
-          for CANDIDATE in "flutter-iap-$PREV_VERSION" "$PREV_VERSION"; do
-            if [ -n "$CANDIDATE" ] && git rev-parse "$CANDIDATE" >/dev/null 2>&1; then
-              PREV_TAG="$CANDIDATE"
-              break
-            fi
-          done
-
           if [ -n "$PREV_TAG" ]; then
             # PRs are squash-merged, so each commit subject already names its PR.
             LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --invert-grep --grep='^chore(release):' --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
@@ -526,12 +524,12 @@ jobs:
         id: release_notes
         env:
           VERSION: ${{ steps.bump.outputs.version }}
+          PREV_TAG: ${{ steps.previous_release.outputs.tag }}
         run: |
           RELEASE_REF="HEAD"
           if git rev-parse "flutter-iap-$VERSION" >/dev/null 2>&1; then
             RELEASE_REF="flutter-iap-$VERSION"
           fi
-          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/flutter-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
             CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/gradle/openiap-store.gradle" ":(top,exclude)libraries/flutter_inapp_purchase/.claude/" ":(top,exclude)libraries/flutter_inapp_purchase/AGENTS.md" ":(top,exclude)libraries/flutter_inapp_purchase/CLAUDE.md")
           fi

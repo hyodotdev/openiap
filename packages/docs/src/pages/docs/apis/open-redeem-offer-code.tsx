@@ -19,15 +19,7 @@ function OpenRedeemOfferCode() {
       <h1>openRedeemOfferCode</h1>
       <p>
         Open the platform&apos;s offer/promo code redemption flow so the user
-        can enter a code. Replaces the deprecated{' '}
-        <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
-          <code>presentCodeRedemptionSheetIOS</code>
-        </Link>{' '}
-        and{' '}
-        <Link to="/docs/apis/android/open-redeem-offer-code-android">
-          <code>openRedeemOfferCodeAndroid</code>
-        </Link>
-        , both scheduled for removal in client protocol 1.0.0.
+        can enter a code.
       </p>
       <p>
         Available in OpenIAP 3.3.0 / <code>openiap-apple</code> 3.3.0 /{' '}
@@ -86,8 +78,8 @@ function OpenRedeemOfferCode() {
             <CodeBlock language="swift">{`func openRedeemOfferCode() async throws -> PurchaseIOS?`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`// Native Android returns a launched flag; framework wrappers resolve
-// the cross-platform null result from it
+            <CodeBlock language="kotlin">{`// Native Play reports whether its page launched. Framework SDKs
+// use the provider mutation handler, which returns Purchase? instead.
 suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
           ),
           kmp: (
@@ -109,12 +101,15 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;Purchase | null&gt;</code> — the verified redeemed{' '}
+        <code>Promise&lt;Purchase | null&gt;</code> — the redeemed{' '}
         <Link to="/docs/types/purchase">
           <code>Purchase</code>
         </Link>{' '}
-        only on Apple 27+ runtimes from Xcode 27+ builds. Every other outcome
-        resolves <code>null</code>:
+        when the provider reports the transaction immediately. Official Apple
+        providers return it on Apple 27+ runtimes from Xcode 27+ builds;
+        community providers can also return a purchase. Verify a community
+        receipt before granting access. Other official outcomes resolve{' '}
+        <code>null</code>:
       </p>
       <ul>
         <li>
@@ -135,17 +130,14 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
         Throws
       </AnchorLink>
       <p>
-        Only when a redemption flow exists but cannot be presented or launched —
-        for example, no active window scene or view controller on iOS, or the
-        Play Store deep link fails to open. Apple platforms without the
-        redemption sheet (macOS, tvOS, watchOS) throw FeatureNotSupported.
-        Stores without a redemption flow resolve <code>null</code> instead of
-        throwing. Until wrappers adopt openiap-google 3.4.0, a failed Play
-        launch surfaces per SDK: kmp-iap already throws;
-        react-native/expo/flutter/maui resolve <code>null</code> (the released
-        native API reports it as a plain <code>false</code>) while native
-        exceptions still throw; godot resolves <code>null</code> for all Android
-        failures.
+        Presentation or launch failures reject with the provider’s error code.
+        Apple platforms without the redemption sheet (macOS, tvOS, watchOS)
+        throw <code>feature-not-supported</code>. Official Horizon and Amazon
+        providers resolve <code>null</code> without launching a flow; a
+        community provider without this handler throws{' '}
+        <code>feature-not-supported</code>. Godot emits{' '}
+        <code>purchase_error</code> and returns <code>null</code> on failed or
+        unsupported redemption.
       </p>
 
       <h2>Example</h2>
@@ -157,7 +149,7 @@ import { openRedeemOfferCode } from 'expo-iap';
 
 const purchase = await openRedeemOfferCode();
 if (purchase) {
-  console.log('Verified redemption:', purchase.productId);
+  console.log('Redeemed purchase:', purchase.productId);
 }
 // null: the flow was presented (pre-27 iOS sheet, Play redeem page) or the
 // store has none; reconcile through the purchase listener and
@@ -166,7 +158,7 @@ if (purchase) {
           swift: (
             <CodeBlock language="swift">{`let purchase = try await OpenIapModule.shared.openRedeemOfferCode()
 if let purchase {
-    print("Verified redemption:", purchase.productId)
+    print("Redeemed purchase:", purchase.productId)
 }`}</CodeBlock>
           ),
           kotlin: (
@@ -174,11 +166,11 @@ if let purchase {
           ),
           kmp: (
             <CodeBlock language="kotlin">{`val purchase = kmpIAP.openRedeemOfferCode()
-if (purchase != null) println("Verified redemption: " + purchase.productId)`}</CodeBlock>
+if (purchase != null) println("Redeemed purchase: " + purchase.productId)`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`final purchase = await FlutterInappPurchase.instance.openRedeemOfferCode();
-if (purchase != null) print('Verified redemption: \${purchase.productId}');`}</CodeBlock>
+if (purchase != null) print('Redeemed purchase: \${purchase.productId}');`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -187,12 +179,12 @@ using OpenIap.Maui;
 var purchase = await ((MutationResolver)OpenIapClient.Instance)
     .OpenRedeemOfferCodeAsync();
 if (purchase is not null)
-    Console.WriteLine($"Verified redemption: {purchase.ProductId}");`}</CodeBlock>
+    Console.WriteLine($"Redeemed purchase: {purchase.ProductId}");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var purchase = await iap.open_redeem_offer_code()
 if purchase != null:
-    print("Verified redemption: ", purchase.product_id)`}</CodeBlock>
+    print("Redeemed purchase: ", purchase.product_id)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

@@ -24,6 +24,48 @@ Before finishing, read the rendered page as a user. Remove any sentence that
 does not clarify what changed, how to use it, who is affected, or what action is
 required.
 
+## Protocol Release Articles
+
+Every release that changes the public Client or Commerce Protocol contract also
+prepares or updates one English article draft in Hyo Dev's OpenIAP Medium
+section. Use the [Expo SDK 57 announcement](https://expo.dev/changelog/sdk-57)
+as the information-architecture reference: explain the main outcome, show how
+to use it, identify compatibility limits, and give an ordered upgrade path.
+This long-form article complements the concise release card; it does not
+replace the card or the canonical guides.
+
+Use this structure, omitting sections only when they have no applicable changes:
+
+1. **Title, cover, and introduction:** name the main user-visible change, who
+   benefits, and who must upgrade. Add a short list of concrete highlights and a
+   landscape cover that remains legible as a thumbnail, with alt text and a
+   caption. Do not use a native package version as an umbrella OpenIAP version
+   or recount package version history.
+2. **Main features:** explain the problem, resulting behavior, and a small
+   usable example. Link the runnable implementation and authoring guide. Keep
+   contract support, available adapters, conformance coverage, and server-side
+   verification claims distinct.
+3. **Other highlights:** group remaining changes by their effect on developers.
+   Include the behavior or action that matters, with links to the source or
+   canonical guide; omit per-wrapper repetition and implementation inventories.
+4. **Compatibility and known limits:** identify affected platforms and apps,
+   required native rebuilds, unsupported cases, regressions, and workarounds.
+   State verified status precisely. Never invent a regression to fill a section
+   or present simulated coverage as a real store purchase.
+5. **Upgrading:** give ordered dependency, configuration, API migration,
+   native-build, and purchase/verification checks. Distinguish generated native
+   projects from manually maintained ones where needed. Include exact versions
+   only when required for an install command or compatibility decision; link
+   the release card for the complete package list.
+6. **Next steps and feedback:** link current setup, migration, examples,
+   conformance instructions, and the existing PR or discussion.
+
+Verify claims against the contract and release evidence, follow the links, and
+inspect desktop and mobile rendering plus the cover's thumbnail crop. Keep the
+article a draft until public artifacts and deployed documentation are verified;
+publication requires the maintainer's explicit request. Record pending work in
+the draft without claiming the release or its device tests are complete.
+
 ## Human and AI Acceptance
 
 Apply these checks whenever changing a guide, example, SDK entry point, or AI
@@ -313,11 +355,10 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-Vercel deploys main's docs even before linked releases publish. Manual
-`npm run deploy` checks release links; use `-f` or `--force` to deploy earlier,
-as described in
+Production docs deploy only after package metadata is stable and every linked
+release is public; use previews until then. See
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).
-If a train will not resume, trim its card to the packages that published.
+That section also covers a release train that stops before completion.
 
 ### Release Note Completeness Gate
 
@@ -478,8 +519,8 @@ Before adding or editing a `Package Releases` list:
 
 Keep one concise, package-grouped stable release card with the source PR on
 `main`, including when an RC publishes first. Do not create duplicate cards for
-RC or npm `next` publications. Main's docs deploy automatically, including RC
-metadata and release cards whose packages have not published yet.
+RC or npm `next` publications. Use previews until stable package metadata and
+every release-card link are public, then deploy production docs.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,

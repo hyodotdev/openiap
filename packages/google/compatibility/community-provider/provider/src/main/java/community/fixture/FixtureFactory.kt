@@ -64,7 +64,8 @@ class FixtureProvider : OpenIapProtocol {
     override val queryHandlers get() = QueryHandlers(fetchProducts = fetchProducts, getAvailablePurchases = getAvailablePurchases,
         getActiveSubscriptions = getActiveSubscriptions, hasActiveSubscriptions = hasActiveSubscriptions)
     override val mutationHandlers get() = MutationHandlers(initConnection = initConnection, endConnection = endConnection,
-        requestPurchase = requestPurchase, finishTransaction = finishTransaction, restorePurchases = restorePurchases)
+        requestPurchase = requestPurchase, finishTransaction = finishTransaction, restorePurchases = restorePurchases,
+        openRedeemOfferCode = { null })
     override val subscriptionHandlers = SubscriptionHandlers()
     override fun setActivity(activity: Activity?) {}
     override fun addPurchaseUpdateListener(listener: OpenIapPurchaseUpdateListener) { updates.add(listener) }

@@ -193,9 +193,6 @@ describe('useIAP hook', () => {
       expect(hookResult!.showInAppMessagesAndroid).toBe(
         AndroidApi.showInAppMessagesAndroid,
       );
-      expect(hookResult!.openRedeemOfferCodeAndroid).toBe(
-        AndroidApi.openRedeemOfferCodeAndroid,
-      );
       expect(hookResult!.openRedeemOfferCode).toBe(openRedeemOfferCode);
     });
   });

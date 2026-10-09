@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 
-// Schema semver release guard: version labels are unreliable in practice —
-// ~1/3 of releases and 20.1% of non-major upgrades ship breaking changes
-// (raemaekers2017semver, ochoa2022breakingbad in
-// knowledge/research/bibliography.md; backlog item R1). Classifies schema
-// changes against a base git ref so a breaking change cannot ship unlabeled.
+// Schema removals require a Client Protocol major increase.
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -16,6 +12,7 @@ import {
   findDangerousChanges,
 } from "graphql";
 import { SCHEMA_FILE_NAMES } from "../schema-files.mjs";
+import { validateVersion } from "../../../scripts/release-branch-policy.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..", "..", "..");
@@ -235,6 +232,12 @@ function parseArgs(argv) {
   return args;
 }
 
+export function isMajorProtocolUpgrade(baseVersion, headVersion) {
+  const major = (version) =>
+    BigInt(validateVersion(version, "Client Protocol version").split(".")[0]);
+  return major(headVersion) > major(baseVersion);
+}
+
 function main() {
   const { base, allowBreaking } = parseArgs(process.argv.slice(2));
   const baseRef = resolveBaseRef(base);
@@ -243,11 +246,31 @@ function main() {
   console.log(formatReport(baseRef, result));
 
   if (result.breaking.length > 0 && !allowBreaking) {
-    console.error(
-      "\nBreaking schema changes require a major spec release. If this break " +
-        "is deliberate and release-planned, re-run with --allow-breaking.",
+    const snapshot = selectSchemaSnapshot((file) =>
+      runGit(["show", `${baseRef}:${file}`], repositoryRoot),
     );
-    process.exitCode = 1;
+    const baseManifest = JSON.parse(
+      runGit(
+        ["show", `${baseRef}:${path.dirname(snapshot.directory)}/package.json`],
+        repositoryRoot,
+      ),
+    );
+    const headManifest = JSON.parse(
+      fs.readFileSync(
+        path.join(repositoryRoot, "specs/client/package.json"),
+        "utf8",
+      ),
+    );
+    if (isMajorProtocolUpgrade(baseManifest.version, headManifest.version)) {
+      console.log(
+        `  major release: ${baseManifest.version} → ${headManifest.version}`,
+      );
+    } else {
+      console.error(
+        "\nBreaking schema changes require a Client Protocol major version increase.",
+      );
+      process.exitCode = 1;
+    }
   }
 }
 

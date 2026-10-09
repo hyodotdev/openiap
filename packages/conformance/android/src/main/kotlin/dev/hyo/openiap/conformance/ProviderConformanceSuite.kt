@@ -4,6 +4,7 @@ import dev.hyo.openiap.*
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.utils.redeemOfferCode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -202,14 +203,29 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
             val activity = requireNotNull(redemptionActivity) {
                 "Declared offerCodeRedemption requires a host or Robolectric Activity"
             }
-            assertTrue(provider.openRedeemOfferCode(activity))
+            redeemOfferCode(provider, activity)?.let { assertRedemptionPurchase(it) }
             triggerCapability(StoreCapability.OfferCodeRedemption)
             val purchase = withTimeout(timeoutMillis) { received.await() }
-            assertTrue(purchase is PurchaseAndroid)
-            assertEquals(factory.storeId, purchase.storeId)
-            assertEquals(adapter.store, purchase.store)
-            assertEquals(PurchaseState.Purchased, purchase.purchaseState)
+            assertRedemptionPurchase(purchase)
         } finally { provider.removePurchaseUpdateListener(listener) }
+    }
+
+    @Test
+    @ConformanceBehavior(ConformanceBehaviors.ANDROID_PROVIDER_NATIVE_OFFER_CODE_REDEMPTION)
+    fun `declared native redemption opens the flow`() = runBlocking {
+        // Return instead of skipping: every report requires this id.
+        if (StoreCapability.OfferCodeRedemption !in adapter.capabilities) return@runBlocking
+        val activity = requireNotNull(redemptionActivity) {
+            "Native redemption requires a host or Robolectric Activity"
+        }
+        assertTrue("Declared native redemption must open the flow", provider.openRedeemOfferCode(activity))
+    }
+
+    private fun assertRedemptionPurchase(purchase: Purchase) {
+        assertTrue(purchase is PurchaseAndroid)
+        assertEquals(factory.storeId, purchase.storeId)
+        assertEquals(adapter.store, purchase.store)
+        assertEquals(PurchaseState.Purchased, purchase.purchaseState)
     }
 
     private suspend fun purchase(): Purchase {

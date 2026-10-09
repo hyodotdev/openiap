@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platform/platform.dart';
@@ -29,7 +28,7 @@ void main() {
             return <Map<String, dynamic>>[
               <String, dynamic>{'state': 'active'},
             ];
-          case 'presentCodeRedemptionSheetIOS':
+          case 'openRedeemOfferCode':
             return null;
           case 'clearTransactionIOS':
             return null;
@@ -108,17 +107,12 @@ void main() {
       expect(subscriptionStatuses.first.state, 'active');
     });
 
-    test('presentCodeRedemptionSheetIOS only on iOS', () async {
-      // ignore: deprecated_member_use_from_same_package
-      await iapIOS.presentCodeRedemptionSheetIOS();
+    test('openRedeemOfferCode is callable on iOS and Android', () async {
+      await iapIOS.openRedeemOfferCode();
       final iapAndroid = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'android'),
       );
-      expect(
-        // ignore: deprecated_member_use_from_same_package
-        () => iapAndroid.presentCodeRedemptionSheetIOS(),
-        throwsA(isA<PlatformException>()),
-      );
+      await iapAndroid.openRedeemOfferCode();
     });
   });
 }

@@ -41,6 +41,10 @@ export function providerProfile(
   const prefix = platform === "ios" ? "apple-provider" : "android-provider";
   return {
     ...profile,
+    runtime:
+      platform === "android"
+        ? [...profile.runtime, "android-provider.native-offer-code-redemption"]
+        : profile.runtime,
     capabilities: {
       ...profile.capabilities,
       subscriptionBillingIssue: `${prefix}.subscription-billing-issue`,

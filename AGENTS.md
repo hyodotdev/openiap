@@ -165,6 +165,13 @@ Canonical rule in
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Cross-platform functions**: NO suffix
 
+### Physical iPhone Testing
+
+Do not use iPhone Mirroring for debugging, purchases, or E2E tests. Follow the
+direct-device XCUITest procedure in
+[`.codex/skills/e2e-matrix-runner/SKILL.md`](.codex/skills/e2e-matrix-runner/SKILL.md).
+Report unavailable checks as `BLOCKED` (unverified), never as passed.
+
 ### Production Data Guardrail
 
 - **Never run a mutation, action, or any write against a production
@@ -270,8 +277,9 @@ GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
 - Select the prerelease lane for RC versions and npm `next`, or the stable lane
   for the target without an RC suffix and npm `latest`. Merging source does not
   publish a package.
-- Vercel automatically deploys production docs from `main`, including RC
-  metadata. Documentation deployment does not publish packages.
+- Production docs require stable package metadata and published release links.
+  Use previews during an RC train; `--force` cannot bypass release eligibility.
+  After publishing, deploy production docs through `scripts/deploy.sh`.
 - Historical `next` tags and their branch remain for verification and SBOM
   recovery. Do not reset or delete that branch without explicit approval.
 - Read `.claude/commands/release.md` before any package deployment.

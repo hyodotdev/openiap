@@ -13,4 +13,4 @@ export const SUITE_VERSION = '4.0.0';
  * new major sets this to the publication date; the registry maintenance grace
  * window starts from it. Never the date the bump was authored.
  */
-export const SUITE_MAJOR_RELEASE_DATE = '2026-10-07';
+export const SUITE_MAJOR_RELEASE_DATE = '2026-10-09';

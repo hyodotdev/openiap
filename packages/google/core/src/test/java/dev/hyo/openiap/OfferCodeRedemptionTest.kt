@@ -3,9 +3,8 @@ package dev.hyo.openiap
 import android.app.Activity
 import dev.hyo.openiap.utils.redeemOfferCode
 import java.lang.reflect.Proxy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,55 +15,59 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class OfferCodeRedemptionTest {
+    private val purchase = PurchaseAndroid(
+        id = "redeemed", isAutoRenewing = false, productId = "premium",
+        purchaseState = PurchaseState.Purchased, quantity = 1,
+        store = IapStore.Unknown, storeId = "community_fixture", transactionDate = 1.0,
+    )
+
     @Test
-    fun `Activity calls the public override without optional handlers`() = runBlocking {
+    fun `Activity is attached before the canonical handler and its purchase is preserved`() = runBlocking {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
-        for (result in listOf(true, false)) {
-            val calls = mutableListOf<String>()
-            val provider = provider { method, args ->
-                calls.add(method)
-                assertSame(activity, args?.first())
-                when (method) {
-                    "setActivity" -> null
-                    "openRedeemOfferCode" -> result
-                    else -> error("Unexpected call: $method")
-                }
-            }
-            assertEquals(result, redeemOfferCode(provider, activity))
-            assertEquals(listOf("setActivity", "openRedeemOfferCode"), calls)
-        }
-        val expected = OpenIapError.FeatureNotSupported()
-        val failing = provider { method, args ->
-            if (method == "setActivity") null else {
-                @Suppress("UNCHECKED_CAST")
-                val continuation = args!!.last() as Continuation<Boolean>
-                continuation.resumeWith(Result.failure(expected))
-                COROUTINE_SUSPENDED
+        val calls = mutableListOf<String>()
+        val provider = provider { method, args ->
+            calls.add(method)
+            when (method) {
+                "setActivity" -> { assertSame(activity, args?.first()); null }
+                "getMutationHandlers" -> MutationHandlers(openRedeemOfferCode = { purchase })
+                else -> error("Unexpected call: $method")
             }
         }
-        assertSame(expected, assertThrows(OpenIapError.FeatureNotSupported::class.java) {
-            runBlocking { redeemOfferCode(failing, activity) }
-        })
+        assertSame(purchase, redeemOfferCode(provider, activity))
+        assertEquals(listOf("setActivity", "getMutationHandlers"), calls)
     }
 
     @Test
-    fun `no Activity preserves legacy success false and typed failure`() = runBlocking {
-        for (result in listOf(true, false)) {
-            val handler: MutationOpenRedeemOfferCodeAndroidHandler = { result }
+    fun `no Activity preserves a synchronous purchase or a store no-op`() = runBlocking {
+        for (result in listOf(purchase, null)) {
             val provider = provider { method, _ ->
                 check(method == "getMutationHandlers")
-                MutationHandlers(openRedeemOfferCodeAndroid = handler)
+                MutationHandlers(openRedeemOfferCode = { result })
             }
-            assertEquals(result, redeemOfferCode(provider, null))
+            assertSame(result, redeemOfferCode(provider, null))
         }
-        for (handler in listOf<MutationOpenRedeemOfferCodeAndroidHandler?>(null, { throw OpenIapError.MissingCurrentActivity })) {
+    }
+
+    @Test
+    fun `typed provider failures and cancellation are propagated unchanged`() {
+        for (expected in listOf(OpenIapError.MissingCurrentActivity, CancellationException("cancelled"))) {
             val provider = provider { method, _ ->
                 check(method == "getMutationHandlers")
-                MutationHandlers(openRedeemOfferCodeAndroid = handler)
+                MutationHandlers(openRedeemOfferCode = { throw expected })
             }
-            assertSame(OpenIapError.MissingCurrentActivity, assertThrows(OpenIapError.MissingCurrentActivity::class.java) {
-                runBlocking { redeemOfferCode(provider, null) }
-            })
+            val actual = runCatching { runBlocking { redeemOfferCode(provider, null) } }.exceptionOrNull()
+            assertSame(expected, actual)
+        }
+    }
+
+    @Test
+    fun `an absent handler reports feature not supported`() {
+        val provider = provider { method, _ ->
+            check(method == "getMutationHandlers")
+            MutationHandlers()
+        }
+        assertThrows(OpenIapError.FeatureNotSupported::class.java) {
+            runBlocking { redeemOfferCode(provider, null) }
         }
     }
 

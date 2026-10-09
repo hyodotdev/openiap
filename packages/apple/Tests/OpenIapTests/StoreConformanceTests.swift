@@ -158,11 +158,10 @@ final class StoreConformanceTests: XCTestCase {
             latestTransaction: nil,
             receiptData: "receipt"
         )
-        let horizon = VerifyPurchaseResultHorizon(grantTime: nil, isValid: false, success: false)
+        let horizon = VerifyPurchaseResultHorizon(grantTime: nil, isValid: false)
 
         XCTAssertTrue(ios.isValid)
         XCTAssertFalse(horizon.isValid)
-        XCTAssertEqual(horizon.isValid, horizon.success, "isValid must agree with the deprecated success field")
     }
 
 }

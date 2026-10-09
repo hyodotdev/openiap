@@ -75,6 +75,7 @@ jobs:
           node --test scripts/release-branch-policy.test.mjs
           scripts/audit-release-notes.test.mjs
           scripts/release-openiap.test.mjs
+          scripts/release-flutter.test.mjs
           scripts/audit-release-sync-script.test.mjs
           scripts/provider-release-preflight.test.mjs
           scripts/npm-publish-authorization.test.mjs

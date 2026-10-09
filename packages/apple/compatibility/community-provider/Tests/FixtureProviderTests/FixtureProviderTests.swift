@@ -168,6 +168,22 @@ final class FixtureProviderTests: XCTestCase {
         XCTAssertEqual(report.results.filter { $0.outcome == "fail" }.count, 3)
     }
 
+    func testReturnedRedemptionPurchaseRequiresPurchasedStateAndProviderIdentity() async throws {
+        for mode in ["nil", "valid", "pending", "store-id", "store"] {
+            let provider = FixtureModule()
+            if mode != "nil" {
+                var purchase = try provider.makePurchase(state: mode == "pending" ? .pending : .purchased)
+                if mode == "store-id" { purchase.storeId = "other_store" }
+                if mode == "store" { purchase.store = .apple }
+                provider.redemptionPurchase = purchase
+            }
+            let report = await ProviderConformanceSuite(adapter: Adapter(module: provider), eventTimeout: 0.05).run()
+            let valid = mode == "nil" || mode == "valid"
+            XCTAssertEqual(report.conformant, valid, mode)
+            XCTAssertEqual(report.results.first { $0.id == "apple-provider.offer-code-redemption" }?.outcome, valid ? "pass" : "fail", mode)
+        }
+    }
+
     func testFilteredBooleanUsesProviderResultInsteadOfListLength() async throws {
         let provider = FixtureModule()
         provider.inactiveSubscriptions = true
@@ -197,7 +213,7 @@ final class FixtureProviderTests: XCTestCase {
         let request = try OpenIapSerialization.decode(object: ["type": "in-app", "requestPurchase": ["apple": ["sku": "conformance.product"]]], as: RequestPurchaseProps.self)
         _ = try await module.requestPurchase(request)
         try await module.restorePurchases()
-        _ = try await module.presentCodeRedemptionSheetIOS()
+        _ = try await module.openRedeemOfferCode()
         let owned = try await module.getAvailablePurchases(nil)
         let purchase = try XCTUnwrap(owned.first)
         XCTAssertEqual(purchase.storeId, "community_fixture")

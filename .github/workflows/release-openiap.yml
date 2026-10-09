@@ -208,6 +208,7 @@ jobs:
             NEW_VERSION=$(node -p "require('./package.json').version")
           elif [ "$IS_PRERELEASE" = "true" ]; then
             npm version "pre${VERSION_TYPE}" --preid=rc --no-git-tag-version --workspaces=false
+            npm version prerelease --preid=rc --no-git-tag-version --workspaces=false
             NEW_VERSION=$(node -p "require('./package.json').version")
           else
             npm version "$VERSION_TYPE" --no-git-tag-version --workspaces=false

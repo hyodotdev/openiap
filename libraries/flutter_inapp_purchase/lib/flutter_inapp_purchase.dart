@@ -1121,54 +1121,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Show the App Store offer code redemption sheet.
-  ///
-  /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-  @Deprecated(
-      'Use openRedeemOfferCode instead. Scheduled for removal in client protocol 1.0.0.')
-  gentype.MutationPresentCodeRedemptionSheetIOSHandler
-      get presentCodeRedemptionSheetIOS => () async {
-            if (!_platform.isIOS || _platform.isMacOS) {
-              throw PlatformException(
-                code: 'platform',
-                message:
-                    'presentCodeRedemptionSheetIOS is only supported on iOS',
-              );
-            }
-
-            try {
-              final result = await channel.invokeMethod<Object?>(
-                'presentCodeRedemptionSheetIOS',
-              );
-              if (result == null) return null;
-              final payload = normalizeDynamicMap(result);
-              if (payload == null) {
-                throw const FormatException(
-                  'Invalid redeemed purchase returned by native StoreKit',
-                );
-              }
-              final purchase = convertToPurchase(
-                payload,
-                platformIsAndroid: false,
-                platformIsIOS: true,
-                acknowledgedAndroidPurchaseTokens: const <String, bool>{},
-              );
-              return purchase as gentype.PurchaseIOS;
-            } on PlatformException catch (error) {
-              throw _purchaseErrorFromPlatformException(
-                error,
-                'present code redemption sheet',
-              );
-            } catch (error) {
-              if (error is PurchaseError) rethrow;
-              throw PurchaseError(
-                code: gentype.ErrorCode.ServiceError,
-                message: 'Failed to present code redemption sheet: '
-                    '${error.toString()}',
-              );
-            }
-          };
-
   /// Present the refund request sheet (iOS 15+).
   ///
   /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
@@ -2693,26 +2645,29 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   gentype.MutationOpenRedeemOfferCodeHandler get openRedeemOfferCode =>
       () async {
         try {
-          if (_platform.isIOS && !_platform.isMacOS) {
-            // ignore: deprecated_member_use_from_same_package
-            return await presentCodeRedemptionSheetIOS();
+          if (_platform.isMacOS || (!_platform.isIOS && !_platform.isAndroid)) {
+            throw PurchaseError(
+              code: _platform.isMacOS
+                  ? gentype.ErrorCode.FeatureNotSupported
+                  : gentype.ErrorCode.IapNotAvailable,
+              message:
+                  'Offer code redemption is only available on iOS and Android',
+            );
           }
-
-          if (_platform.isAndroid) {
-            // Deprecated getter stays the single owner of the channel name;
-            // the unified contract resolves null for its Boolean either way.
-            // ignore: deprecated_member_use_from_same_package
-            await openRedeemOfferCodeAndroid();
-            return null;
+          final result =
+              await channel.invokeMethod<Object?>('openRedeemOfferCode');
+          if (result == null) return null;
+          final payload = normalizeDynamicMap(result);
+          if (payload == null) {
+            throw const FormatException(
+                'Invalid redeemed purchase returned by native store');
           }
-
-          throw PurchaseError(
-            code: _platform.isMacOS
-                ? gentype.ErrorCode.FeatureNotSupported
-                : gentype.ErrorCode.IapNotAvailable,
-            message: _platform.isMacOS
-                ? 'Offer code redemption is not supported on macOS'
-                : 'openRedeemOfferCode is only available on iOS and Android',
+          return convertToPurchase(
+            payload,
+            platformIsAndroid: _platform.isAndroid,
+            platformIsIOS: _platform.isIOS,
+            acknowledgedAndroidPurchaseTokens:
+                _acknowledgedAndroidPurchaseTokens,
           );
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(
@@ -2727,33 +2682,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
         }
       };
-
-  /// Open the Play Store offer/promo code redeem page.
-  ///
-  /// The purchase can reach a listener while billing is connected; reconcile
-  /// available purchases when the app resumes. Other store flavors return
-  /// false. Android counterpart of `presentCodeRedemptionSheetIOS`.
-  ///
-  /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-  @Deprecated(
-      'Use openRedeemOfferCode instead. Scheduled for removal in client protocol 1.0.0.')
-  Future<bool> openRedeemOfferCodeAndroid() async {
-    if (!_platform.isAndroid) {
-      throw PurchaseError(
-        code: gentype.ErrorCode.IapNotAvailable,
-        message: 'openRedeemOfferCodeAndroid only available on Android',
-      );
-    }
-    try {
-      final result = await _channel.invokeMethod<bool>(
-        'openRedeemOfferCodeAndroid',
-      );
-      return result ?? false;
-    } catch (error) {
-      debugPrint('openRedeemOfferCodeAndroid error: $error');
-      rethrow;
-    }
-  }
 
   /// Present the external purchase notice sheet (iOS 17.4+, macOS 14.4+).
   ///
@@ -3085,12 +3013,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         isBillingProgramAvailableAndroid: isBillingProgramAvailableAndroid,
         launchExternalLinkAndroid: _launchExternalLinkAndroidHandler,
         openRedeemOfferCode: openRedeemOfferCode,
-        openRedeemOfferCodeAndroid:
-            // ignore: deprecated_member_use_from_same_package
-            openRedeemOfferCodeAndroid,
-        presentCodeRedemptionSheetIOS:
-            // ignore: deprecated_member_use_from_same_package
-            presentCodeRedemptionSheetIOS,
         requestPurchase: requestPurchase,
         restorePurchases: restorePurchases,
         showBillingProgramInformationDialogAndroid:

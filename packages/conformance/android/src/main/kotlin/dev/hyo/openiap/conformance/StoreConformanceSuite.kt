@@ -4,11 +4,14 @@ import android.app.Activity
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapProtocol
+import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
+import dev.hyo.openiap.utils.redeemOfferCode
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Rule
@@ -175,10 +178,22 @@ abstract class StoreConformanceSuite {
         val activity = requireNotNull(redemptionActivity) {
             "${adapter.storeId} omits offerCodeRedemption but supplies no activity to verify the no-op"
         }
-        assertFalse(
-            "${adapter.storeId} must return false when redemption is undeclared",
-            provider.openRedeemOfferCode(activity),
-        )
+        try {
+            assertFalse(
+                "${adapter.storeId} must not open native redemption when undeclared",
+                provider.openRedeemOfferCode(activity),
+            )
+        } catch (_: OpenIapError.FeatureNotSupported) {
+            // Unsupported providers may reject instead of returning false.
+        }
+        try {
+            assertNull(
+                "${adapter.storeId} must return null when redemption is undeclared",
+                redeemOfferCode(provider, activity),
+            )
+        } catch (_: OpenIapError.FeatureNotSupported) {
+            // Unsupported providers may reject instead of returning null.
+        }
     }
 
     // --- Capabilities ------------------------------------------------------

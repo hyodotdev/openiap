@@ -1263,26 +1263,24 @@ public final class dev/hyo/openiap/LimitedQuantityInfoAndroid$Companion {
 public final class dev/hyo/openiap/MutationHandlers {
 	public static final field $stable I
 	public fun <init> ()V
-	public fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lkotlin/jvm/functions/Function2;
 	public final fun component10 ()Lkotlin/jvm/functions/Function2;
 	public final fun component11 ()Lkotlin/jvm/functions/Function2;
 	public final fun component12 ()Lkotlin/jvm/functions/Function1;
-	public final fun component13 ()Lkotlin/jvm/functions/Function1;
+	public final fun component13 ()Lkotlin/jvm/functions/Function2;
 	public final fun component14 ()Lkotlin/jvm/functions/Function1;
 	public final fun component15 ()Lkotlin/jvm/functions/Function2;
 	public final fun component16 ()Lkotlin/jvm/functions/Function1;
 	public final fun component17 ()Lkotlin/jvm/functions/Function2;
-	public final fun component18 ()Lkotlin/jvm/functions/Function1;
+	public final fun component18 ()Lkotlin/jvm/functions/Function2;
 	public final fun component19 ()Lkotlin/jvm/functions/Function2;
 	public final fun component2 ()Lkotlin/jvm/functions/Function2;
-	public final fun component20 ()Lkotlin/jvm/functions/Function2;
-	public final fun component21 ()Lkotlin/jvm/functions/Function2;
-	public final fun component22 ()Lkotlin/jvm/functions/Function1;
-	public final fun component23 ()Lkotlin/jvm/functions/Function1;
-	public final fun component24 ()Lkotlin/jvm/functions/Function2;
-	public final fun component25 ()Lkotlin/jvm/functions/Function2;
+	public final fun component20 ()Lkotlin/jvm/functions/Function1;
+	public final fun component21 ()Lkotlin/jvm/functions/Function1;
+	public final fun component22 ()Lkotlin/jvm/functions/Function2;
+	public final fun component23 ()Lkotlin/jvm/functions/Function2;
 	public final fun component3 ()Lkotlin/jvm/functions/Function1;
 	public final fun component4 ()Lkotlin/jvm/functions/Function2;
 	public final fun component5 ()Lkotlin/jvm/functions/Function3;
@@ -1290,8 +1288,8 @@ public final class dev/hyo/openiap/MutationHandlers {
 	public final fun component7 ()Lkotlin/jvm/functions/Function1;
 	public final fun component8 ()Lkotlin/jvm/functions/Function3;
 	public final fun component9 ()Lkotlin/jvm/functions/Function2;
-	public final fun copy (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)Ldev/hyo/openiap/MutationHandlers;
-	public static synthetic fun copy$default (Ldev/hyo/openiap/MutationHandlers;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ldev/hyo/openiap/MutationHandlers;
+	public final fun copy (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)Ldev/hyo/openiap/MutationHandlers;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/MutationHandlers;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ldev/hyo/openiap/MutationHandlers;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAcknowledgePurchaseAndroid ()Lkotlin/jvm/functions/Function2;
 	public final fun getBeginRefundRequestIOS ()Lkotlin/jvm/functions/Function2;
@@ -1304,8 +1302,6 @@ public final class dev/hyo/openiap/MutationHandlers {
 	public final fun getInitConnection ()Lkotlin/jvm/functions/Function2;
 	public final fun getLaunchExternalLinkAndroid ()Lkotlin/jvm/functions/Function2;
 	public final fun getOpenRedeemOfferCode ()Lkotlin/jvm/functions/Function1;
-	public final fun getOpenRedeemOfferCodeAndroid ()Lkotlin/jvm/functions/Function1;
-	public final fun getPresentCodeRedemptionSheetIOS ()Lkotlin/jvm/functions/Function1;
 	public final fun getPresentExternalPurchaseLinkIOS ()Lkotlin/jvm/functions/Function2;
 	public final fun getPresentExternalPurchaseNoticeSheetIOS ()Lkotlin/jvm/functions/Function1;
 	public final fun getRequestPurchase ()Lkotlin/jvm/functions/Function2;
@@ -1339,8 +1335,6 @@ public abstract interface class dev/hyo/openiap/MutationResolver {
 	public abstract fun isBillingProgramAvailableAndroid (Ldev/hyo/openiap/BillingProgramAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun launchExternalLinkAndroid (Ldev/hyo/openiap/LaunchExternalLinkParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun openRedeemOfferCode (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun openRedeemOfferCodeAndroid (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun presentCodeRedemptionSheetIOS (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun presentExternalPurchaseLinkIOS (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun presentExternalPurchaseNoticeSheetIOS (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun requestPurchase (Ldev/hyo/openiap/RequestPurchaseProps;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -4071,16 +4065,14 @@ public abstract interface class dev/hyo/openiap/VerifyPurchaseResultCommon {
 public final class dev/hyo/openiap/VerifyPurchaseResultHorizon : dev/hyo/openiap/VerifyPurchaseResult, dev/hyo/openiap/VerifyPurchaseResultCommon {
 	public static final field $stable I
 	public static final field Companion Ldev/hyo/openiap/VerifyPurchaseResultHorizon$Companion;
-	public fun <init> (Ljava/lang/Double;ZZ)V
-	public synthetic fun <init> (Ljava/lang/Double;ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/Double;Z)V
+	public synthetic fun <init> (Ljava/lang/Double;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/Double;
 	public final fun component2 ()Z
-	public final fun component3 ()Z
-	public final fun copy (Ljava/lang/Double;ZZ)Ldev/hyo/openiap/VerifyPurchaseResultHorizon;
-	public static synthetic fun copy$default (Ldev/hyo/openiap/VerifyPurchaseResultHorizon;Ljava/lang/Double;ZZILjava/lang/Object;)Ldev/hyo/openiap/VerifyPurchaseResultHorizon;
+	public final fun copy (Ljava/lang/Double;Z)Ldev/hyo/openiap/VerifyPurchaseResultHorizon;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/VerifyPurchaseResultHorizon;Ljava/lang/Double;ZILjava/lang/Object;)Ldev/hyo/openiap/VerifyPurchaseResultHorizon;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getGrantTime ()Ljava/lang/Double;
-	public final fun getSuccess ()Z
 	public fun hashCode ()I
 	public fun isValid ()Z
 	public fun toJson ()Ljava/util/Map;

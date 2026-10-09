@@ -415,7 +415,6 @@ export interface NitroPurchaseVerificationResultAndroid {
 export interface NitroPurchaseVerificationResultHorizon {
   isValid: VerifyPurchaseResultHorizon['isValid'];
   grantTime?: VerifyPurchaseResultHorizon['grantTime'];
-  success: VerifyPurchaseResultHorizon['success'];
 }
 
 // VerifyPurchaseWithProvider types
@@ -842,15 +841,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    */
   getPromotedProductIOS(): Promise<NitroProduct | null>;
 
-  /**
-   * Present the code redemption sheet for offer codes (iOS only)
-   * @returns The verified redeemed purchase when built with Xcode 27+ and
-   * running on Apple 27+. Earlier iOS/visionOS system sheets return null;
-   * Catalyst 16–26 surfaces StoreKitError.unknown, and Catalyst 15 is a no-op
-   * that returns null.
-   * @platform iOS
-   */
-  presentCodeRedemptionSheetIOS(): Promise<NitroPurchase | null>;
+  /** Open the store's offer-code flow; returns a purchase or null. */
+  openRedeemOfferCode(): Promise<NitroPurchase | null>;
 
   /**
    * Clear unfinished transactions (iOS only)
@@ -1174,15 +1166,6 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   launchExternalLinkAndroid(
     params: NitroLaunchExternalLinkParamsAndroid,
   ): Promise<boolean>;
-
-  /**
-   * Open the platform offer-code redemption flow (Android only).
-   * Does not require a billing-client connection.
-   *
-   * @returns Promise<boolean> - true when the flow was launched
-   * @platform Android
-   */
-  openRedeemOfferCodeAndroid(): Promise<boolean>;
 
   // ╔════════════════════════════════════════════════════════════════════════╗
   // ║                EXTERNAL PURCHASE LINKS (iOS 16.0+)                     ║

@@ -21,7 +21,7 @@ void main() {
         switch (methodCall.method) {
           case 'initConnection':
             return true;
-          case 'presentCodeRedemptionSheetIOS':
+          case 'openRedeemOfferCode':
             return <String, dynamic>{
               'id': 'redeemed-transaction',
               'productId': 'com.example.subscription',
@@ -210,24 +210,22 @@ void main() {
     });
 
     test(
-      'presentCodeRedemptionSheetIOS calls correct channel method',
+      'openRedeemOfferCode calls correct channel method',
       () async {
-        // ignore: deprecated_member_use_from_same_package
-        final purchase = await iap.presentCodeRedemptionSheetIOS();
+        final purchase = await iap.openRedeemOfferCode();
         expect(purchase?.id, 'redeemed-transaction');
-        expect(calls.last.method, 'presentCodeRedemptionSheetIOS');
+        expect(calls.last.method, 'openRedeemOfferCode');
       },
     );
 
-    test('presentCodeRedemptionSheetIOS preserves a null result', () async {
+    test('openRedeemOfferCode preserves a null result', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'presentCodeRedemptionSheetIOS') return null;
+        if (methodCall.method == 'openRedeemOfferCode') return null;
         return null;
       });
 
-      // ignore: deprecated_member_use_from_same_package
-      expect(await iap.presentCodeRedemptionSheetIOS(), isNull);
+      expect(await iap.openRedeemOfferCode(), isNull);
     });
 
     test('showManageSubscriptionsIOS returns changed purchases', () async {
@@ -426,15 +424,14 @@ void main() {
       }
     });
 
-    test('presentCodeRedemptionSheetIOS throws on non-iOS', () async {
+    test('openRedeemOfferCode rejects unsupported platforms', () async {
       final androidIap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
+        FakePlatform(operatingSystem: 'linux'),
       );
 
       await expectLater(
-        // ignore: deprecated_member_use_from_same_package
-        androidIap.presentCodeRedemptionSheetIOS(),
-        throwsA(isA<PlatformException>()),
+        androidIap.openRedeemOfferCode(),
+        throwsA(isA<PurchaseError>()),
       );
     });
 
@@ -544,9 +541,8 @@ void main() {
       final initialCallCount = calls.length;
 
       await expectLater(
-        // ignore: deprecated_member_use_from_same_package
-        macIap.presentCodeRedemptionSheetIOS(),
-        throwsA(isA<PlatformException>()),
+        macIap.openRedeemOfferCode(),
+        throwsA(isA<PurchaseError>()),
       );
       await expectLater(
         macIap.beginRefundRequestIOS('sku'),

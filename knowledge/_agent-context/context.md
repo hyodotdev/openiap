@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T05:05:18.857Z
+> Last updated: 2026-10-09T07:26:54.298Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -31,7 +31,7 @@ All iOS-specific functions MUST end with `IOS` suffix:
 // CORRECT
 func clearTransactionIOS()
 func syncIOS()
-func presentCodeRedemptionSheetIOS()
+func presentExternalPurchaseNoticeSheetIOS()
 func showManageSubscriptionsIOS()
 func isEligibleForIntroOfferIOS()
 func subscriptionStatusIOS()
@@ -46,7 +46,7 @@ func getPromotedProductIOS()
 
 // INCORRECT - Missing IOS suffix
 func clearTransaction()
-func presentCodeRedemptionSheet()
+func presentExternalPurchaseNoticeSheet()
 func sync()
 ```
 
@@ -186,7 +186,7 @@ getStorefront();
 | `request`      | User-initiated async operations  | `requestPurchase`                                             |
 | `clear`        | Remove/reset data                | `clearTransactionIOS`, `clearProductsIOS`                     |
 | `is/has`       | Boolean checks                   | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions`        |
-| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentCodeRedemptionSheetIOS` |
+| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentExternalPurchaseNoticeSheetIOS` |
 | `begin`        | Start a multi-step process       | `beginRefundRequestIOS`                                       |
 | `finish/end`   | Complete a process               | `finishTransaction`, `endConnection`                          |
 | `init`         | Initialize resources             | `initConnection`                                              |
@@ -1973,6 +1973,48 @@ Before finishing, read the rendered page as a user. Remove any sentence that
 does not clarify what changed, how to use it, who is affected, or what action is
 required.
 
+## Protocol Release Articles
+
+Every release that changes the public Client or Commerce Protocol contract also
+prepares or updates one English article draft in Hyo Dev's OpenIAP Medium
+section. Use the [Expo SDK 57 announcement](https://expo.dev/changelog/sdk-57)
+as the information-architecture reference: explain the main outcome, show how
+to use it, identify compatibility limits, and give an ordered upgrade path.
+This long-form article complements the concise release card; it does not
+replace the card or the canonical guides.
+
+Use this structure, omitting sections only when they have no applicable changes:
+
+1. **Title, cover, and introduction:** name the main user-visible change, who
+   benefits, and who must upgrade. Add a short list of concrete highlights and a
+   landscape cover that remains legible as a thumbnail, with alt text and a
+   caption. Do not use a native package version as an umbrella OpenIAP version
+   or recount package version history.
+2. **Main features:** explain the problem, resulting behavior, and a small
+   usable example. Link the runnable implementation and authoring guide. Keep
+   contract support, available adapters, conformance coverage, and server-side
+   verification claims distinct.
+3. **Other highlights:** group remaining changes by their effect on developers.
+   Include the behavior or action that matters, with links to the source or
+   canonical guide; omit per-wrapper repetition and implementation inventories.
+4. **Compatibility and known limits:** identify affected platforms and apps,
+   required native rebuilds, unsupported cases, regressions, and workarounds.
+   State verified status precisely. Never invent a regression to fill a section
+   or present simulated coverage as a real store purchase.
+5. **Upgrading:** give ordered dependency, configuration, API migration,
+   native-build, and purchase/verification checks. Distinguish generated native
+   projects from manually maintained ones where needed. Include exact versions
+   only when required for an install command or compatibility decision; link
+   the release card for the complete package list.
+6. **Next steps and feedback:** link current setup, migration, examples,
+   conformance instructions, and the existing PR or discussion.
+
+Verify claims against the contract and release evidence, follow the links, and
+inspect desktop and mobile rendering plus the cover's thumbnail crop. Keep the
+article a draft until public artifacts and deployed documentation are verified;
+publication requires the maintainer's explicit request. Record pending work in
+the draft without claiming the release or its device tests are complete.
+
 ## Human and AI Acceptance
 
 Apply these checks whenever changing a guide, example, SDK entry point, or AI
@@ -2262,11 +2304,10 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-Vercel deploys main's docs even before linked releases publish. Manual
-`npm run deploy` checks release links; use `-f` or `--force` to deploy earlier,
-as described in
+Production docs deploy only after package metadata is stable and every linked
+release is public; use previews until then. See
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).
-If a train will not resume, trim its card to the packages that published.
+That section also covers a release train that stops before completion.
 
 ### Release Note Completeness Gate
 
@@ -2427,8 +2468,8 @@ Before adding or editing a `Package Releases` list:
 
 Keep one concise, package-grouped stable release card with the source PR on
 `main`, including when an RC publishes first. Do not create duplicate cards for
-RC or npm `next` publications. Main's docs deploy automatically, including RC
-metadata and release cards whose packages have not published yet.
+RC or npm `next` publications. Use previews until stable package metadata and
+every release-card link are public, then deploy production docs.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
@@ -2574,11 +2615,13 @@ agents have no hook, so this section is their guard.
 
 ## Pull Request Preview Recordings
 
-Every PR that introduces a new feature, visible behavior change, UI change,
-documentation page, example flow, or developer workflow must include a preview
-recording before it is handed off for review.
+Create a preview video only when it materially helps a reviewer understand the
+change. Use judgment: a device interaction, animation, or sequence of UI states
+may benefit from a recording; text, screenshots, or test evidence usually cover
+API, dependency, and documentation changes. A video is optional and its absence
+does not block review, merge, or release. No waiver or PR note is required.
 
-Requirements:
+When a recording is useful:
 
 - Record the actual changed surface after the implementation is complete. Use
   the Codex Chrome Extension for web/docs/dashboard previews whenever a browser
@@ -2593,14 +2636,10 @@ Requirements:
   upload them as GitHub attachments, verify the attachment, then delete the
   local files. Only commit media that is itself a product documentation or
   example asset intended to ship with the repository.
-- If browser or extension permissions block an attachment, stop and ask the
-  maintainer to enable file uploads. Do not force-add the recording as a Git
-  fallback.
+- If uploads are blocked, skip the video or ask the maintainer; never force-add
+  it to Git. Continue review and release without the optional video.
 - Link or embed the uploaded preview in the PR body or a clearly labeled
   `Preview` PR comment.
-- If the change has no visual or interactive surface, include a short note in
-  the PR explaining why a recording was not applicable and show the most useful
-  terminal/API proof instead.
 - Do not upload secrets, private customer data, unreleased credentials, or local
   browser profile details in previews. Redact or use test fixtures.
 
@@ -2673,13 +2712,13 @@ Fix purchase validation error
 new package release runs from `main` through an explicit workflow dispatch;
 merging a PR does not publish a package.
 
-- First RC: select `prerelease=true`; later RC: select `version=rc-bump` where
+- First RC: select `prerelease=true` to start at `rc.1`; later RC: select `version=rc-bump` where
   supported. npm publishes RCs to `next`, leaving `latest` on stable.
 - Stable: select the stable lane after validation. Remove the RC suffix from
   the intended target without incrementing its major again.
-- Vercel automatically deploys main's documentation, including RC metadata
-  and release cards that precede package publication. Docs deployment does
-  not publish packages.
+- Production docs require stable package metadata and published release links.
+  Use preview deployments during an RC train, then deploy the completed stable
+  train through `scripts/deploy.sh`.
 - Historical `next` tags stay immutable and retain their source branch for
   verification and SBOM recovery. New work does not need a `next` branch.
   Do not force-reset or delete the historical branch without explicit approval.
@@ -2826,36 +2865,44 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 ### Deploying Documentation
 
-Vercel automatically deploys production documentation when a commit reaches
-`main` in `hyodotdev/openiap`. Other branches receive preview deployments.
-Documentation may show RC package metadata and release cards before the
-corresponding packages publish; deploying docs does not publish packages.
+Deploy production documentation from `main` after every package in its release
+card is public and package metadata is stable. Automatic Git deployments of
+`main` are disabled in `packages/docs/vercel.json`; other branches receive
+previews, including during RC trains.
+
+To preview `main`, for example during an RC train, run
+`cd packages/docs && bun run deploy:preview`. Never promote a preview;
+production deploys only through `scripts/deploy.sh`.
+
+If a train will not resume, trim its card to the packages that published.
+Any remaining RC metadata keeps production docs on the previous deployment
+until those packages are promoted; trimming the card alone does not make it
+eligible.
 
 The OpenIAP project uses `packages/docs` as its Root Directory, with source
 files outside that directory enabled. `packages/docs/vercel.json` installs
 the monorepo with the root `packageManager` Bun version and frozen lockfile,
 validates version consistency and the
 generated docs metadata, then runs the docs build, including TypeScript checks
-and prerendering. Keep the production branch set to `main` and automatic Git
-deployments enabled.
+and prerendering. Keep the production branch set to `main`.
 
-Manual deployment remains available from the monorepo root. On a fresh
+Deploy from the monorepo root. On a fresh
 checkout, run `vercel link --project openiap` and select the existing OpenIAP
 project in the Hyo Dev team. The script validates the immutable project and
 organization IDs, rejects conflicting environment overrides, and requires a
 ready production deployment before reporting success.
 
-By default, manual deployment requires a clean worktree, `HEAD` matching
-`origin/main`, and published release-card links. `-f` or `--force` permits
-local changes, a different local commit, and unpublished release links with
-warnings. Branch, version consistency, GitHub lookup, Vercel target, typecheck,
-and build checks still apply. RC versions are accepted in both paths.
+Deployment requires stable versions, published release-card links, a clean
+worktree, and `HEAD` matching `origin/main`. `-f` or `--force` permits local
+changes or a different local commit with warnings; it cannot bypass version or
+release-link eligibility. Branch, GitHub lookup, Vercel target, typecheck, and
+build checks still apply.
 
 ```bash
-# From the monorepo root; automatic deployments need no local command
+# From the monorepo root, after the stable train is public
 npm run deploy
 
-# Deploy local changes or docs ahead of package publication
+# Deploy local changes after the same publication checks pass
 npm run deploy -f
 ```
 
@@ -2939,8 +2986,8 @@ where a version differs. This prevents stale Package Releases tables such as
 documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 Keep one eventual stable release card with the source PR on `main`; do not
-add duplicate cards for RC or npm `next` publications. Main's docs deploy
-automatically, including metadata and cards ahead of package publication.
+add duplicate cards for RC or npm `next` publications. Use previews until
+stable package metadata and every release-card link are public.
 
 ---
 
@@ -2969,11 +3016,11 @@ Version ownership is split:
   `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
-- The docs site has no version: it deploys whatever `main` holds
+- The docs site has no version; production deploys `main` once its packages are
+  stable and published
 
-Release workflows write stable values on `main` and prerelease values on
-`next`. Manual edits are not a substitute for selecting the correct workflow
-branch.
+Release workflows write stable and prerelease values on `main`. Manual edits
+are not a substitute for selecting the correct workflow lane.
 
 The manifest is only for the Client Protocol and the native platform packages:
 `clientProtocol`, `google`, and `apple`. Framework library package versions
@@ -3211,8 +3258,8 @@ caught before publishing.
 
 RC and stable releases share `main`. Keep one eventual stable release card
 with the source PR, and do not add duplicate entries for RC publications.
-Main's docs deploy automatically, including RC metadata and release cards
-that precede package publication.
+Use previews until stable package metadata and every release-card link are
+public, then deploy production docs.
 
 ### R10 — Docs version metadata stays synced with package metadata
 
@@ -4951,7 +4998,8 @@ interface VerifyPurchaseHorizonOptions {
 
 ```typescript
 interface VerifyPurchaseResultHorizon {
-  success: boolean; // Verification result
+  isValid: boolean;
+  grantTime?: number | null;
 }
 ```
 
@@ -5097,14 +5145,14 @@ scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
-(openiap-apple 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
-return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
-client protocol 1.0.0. Xcode 27 builds call the new API, require a verified result, and
+(openiap-apple 3.3.0+). Client Protocol 1.0.0 removes the
+`presentCodeRedemptionSheetIOS` alias; use `openRedeemOfferCode()` instead.
+Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
-retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
-`StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and
-returns `nil`. Nil results from an actually presented sheet rely on the
+retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API's
+`StoreKitError.unknown` reaches callers as OpenIAP error code `unknown`. The
+Catalyst 15 StoreKit 1 call has no effect and returns `nil`. Nil results from an actually presented sheet rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
 declares `RedeemOption`,
 but its public symbol graph exposes no constructible option values, so OpenIAP

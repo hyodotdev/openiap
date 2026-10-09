@@ -326,15 +326,6 @@ function VerifyPurchase() {
                     </tr>
                     <tr>
                       <td>
-                        <code>success</code>
-                      </td>
-                      <td>
-                        Deprecated alias for <code>isValid</code>; scheduled for
-                        removal in client protocol 1.0.0
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
                         <code>grantTime</code>
                       </td>
                       <td>

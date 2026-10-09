@@ -147,8 +147,6 @@ const operationParityRegistry = {
     "isBillingProgramAvailableAndroid",
     "launchExternalLinkAndroid",
     "openRedeemOfferCode",
-    "openRedeemOfferCodeAndroid",
-    "presentCodeRedemptionSheetIOS",
     "presentExternalPurchaseLinkIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "requestPurchase",
@@ -4718,7 +4716,9 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/release-flutter.yml",
     [
-      "flutter-iap-$PREV_VERSION",
+      "--match 'flutter-iap-*' --exclude 'flutter-iap-*-*'",
+      '--exclude "flutter-iap-$VERSION"',
+      "PREV_TAG: ${{ steps.previous_release.outputs.tag }}",
       'CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases#flutter-iap-$NEW_VERSION"',
     ],
     "Flutter release workflow should generate changelog entries from prefixed tags",
@@ -5372,9 +5372,8 @@ function checkFrameworkDependencyHygiene() {
       "'.clientProtocol = $version'",
       'git commit -m "chore(spec)',
       "git push origin HEAD:main",
-      "audit --stable",
     ],
-    "deploy script must preserve target checks and accept RC metadata",
+    "deploy script must preserve target checks",
   );
   expectIncludes(
     "packages/docs/deploy.sh",
@@ -5399,6 +5398,7 @@ function checkFrameworkDependencyHygiene() {
       "install --frozen-lockfile",
       '"buildCommand": "node ../../scripts/release-branch-policy.mjs audit && node ../../scripts/verify-docs-version-metadata.mjs && bun run build"',
       '"outputDirectory": "dist"',
+      '"main": false',
     ],
     "Vercel builds must install the monorepo and validate docs metadata",
   );
@@ -6443,7 +6443,7 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/release.md",
     [
       "currently every five minutes",
-      "Wait for Vercel's production deployment of main's head",
+      "Deploy main's head through `scripts/deploy.sh`",
       "The docs site is not versioned",
       "Release notes ship in the PR",
       "commit it directly to `main` together with any release-process doc updates",
@@ -6866,10 +6866,33 @@ function checkFrameworkDependencyHygiene() {
       "openIap.purchaseErrorListener",
       "Variant(error.code.rawValue)",
       "ErrorCode.developerError.rawValue",
-      "GodotIapHelper.errorCode(error, fallback: .syncError)",
+      "GodotIapHelper.restoreError(error)",
+      "code: restoreError.code.rawValue",
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );
+  expectIncludes(
+    "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIapHelper.swift",
+    ["PurchaseError.wrap(error, fallback: .syncError)"],
+    "Godot restore must preserve StoreKit cancellation and use sync-error only as a fallback",
+  );
+  const godotRestore = extractBalancedAfterMarker(
+    read("libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift"),
+    "public func restorePurchases()",
+    "{",
+    "}",
+    "Godot iOS restore",
+  );
+  if (
+    !godotRestore ||
+    /\bemitPurchaseError\s*\(/u.test(
+      maskKotlinCommentsAndStrings(godotRestore.body),
+    )
+  ) {
+    fail(
+      "Godot iOS restore failures must use only the async result; the wrapper emits purchase_error",
+    );
+  }
   expectNotIncludes(
     "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
     [
@@ -9536,8 +9559,8 @@ function checkReleaseNoteGroupingGuidance() {
 
 function checkXcode27StoreKitCoverage() {
   expectIncludes(
-    "specs/client/src/api-ios.graphql",
-    ["presentCodeRedemptionSheetIOS: PurchaseIOS"],
+    "specs/client/src/api.graphql",
+    ["openRedeemOfferCode: Purchase"],
     "Xcode 27 offer-code redemption result contract",
   );
   expectIncludes(

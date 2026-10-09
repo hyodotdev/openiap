@@ -16,6 +16,7 @@ import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
   assertClientProtocol,
+  assertStableVersions,
   assertNativesReleased,
   findUnreleasedNativeChanges,
   libraryReleaseTags,
@@ -1329,6 +1330,32 @@ test("Flutter publication is triggered by the immutable tag push", () => {
   assert.doesNotMatch(wait, /DEPENDENCY_UPDATE_PAT/);
 });
 
+test("production docs reject a partial stable train", () => {
+  assert.throws(
+    () =>
+      assertStableVersions({
+        apple: "4.0.0",
+        google: "4.0.0-rc.1",
+        expo: "6.0.0-rc.0",
+      }),
+    /Production docs require stable package versions: google=4\.0\.0-rc\.1, expo=6\.0\.0-rc\.0/,
+  );
+  assert.doesNotThrow(() =>
+    assertStableVersions({
+      apple: "4.0.0",
+      google: "4.0.0",
+      expo: "6.0.0+build.1",
+    }),
+  );
+});
+
+test("main cannot publish docs automatically during a release train", () => {
+  const config = JSON.parse(
+    readFileSync(resolve(repoRoot, "packages/docs/vercel.json"), "utf8"),
+  );
+  assert.deepEqual(config.git, { deploymentEnabled: { main: false } });
+});
+
 test("the docs site deploys without a version of its own", () => {
   const deployScript = readFileSync(
     resolve(repoRoot, "scripts/deploy.sh"),
@@ -1441,7 +1468,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
       [
         "#!/bin/sh",
         'if [ "${1:-}" = "scripts/release-branch-policy.mjs" ]; then',
-        '  [ "$#" -eq 2 ] && [ "$2" = "audit" ] || exit 1',
+        '  [ "$#" -eq 3 ] && [ "$2" = "audit" ] && [ "$3" = "--stable" ] || exit 1',
         '  exit "${MOCK_AUDIT_STATUS:-0}"',
         "fi",
         'exec "$MOCK_REAL_NODE" "$@"',
@@ -1544,7 +1571,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.notEqual(inconsistent.status, 0);
     assert.match(
       inconsistent.stdout,
-      /Refusing to deploy inconsistent version metadata/,
+      /Refusing to deploy inconsistent or prerelease version metadata/,
     );
     assert.doesNotMatch(inconsistent.stdout, /Checking Git status/);
 
@@ -1558,7 +1585,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.match(unpublished.stdout, /expo-iap-9\.9\.9/);
     assert.doesNotMatch(unpublished.stdout, /\b2\.1\.6\b/);
     assert.doesNotMatch(unpublished.stdout, /Successfully deployed to Vercel/);
-    assert.match(unpublished.stdout, /npm run deploy --force/);
+    assert.doesNotMatch(unpublished.stdout, /npm run deploy --force/);
 
     for (const args of [["--unknown"], ["3.6.1"], ["--force", "3.6.1"]]) {
       const invalidArguments = runDeploy("", {}, args);
@@ -1620,10 +1647,13 @@ test("production docs require a verified Vercel deployment result", (context) =>
       '{"status":"ok","deployment":{"id":"dpl_test","url":"https://openiap-test.vercel.app","readyState":"READY","target":"production"}}';
     for (const flag of ["-f", "--force"]) {
       const early = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [flag]);
-      assert.equal(early.status, 0, early.stderr || early.stdout);
+      assert.notEqual(early.status, 0);
       assert.match(early.stdout, /google-9\.9\.9/);
-      assert.match(early.stdout, /Proceeding with unpublished release links/);
-      assert.match(early.stdout, /Successfully deployed to Vercel/);
+      assert.doesNotMatch(
+        early.stdout,
+        /Proceeding with unpublished release links/,
+      );
+      assert.doesNotMatch(early.stdout, /Successfully deployed to Vercel/);
 
       const npmEarly = spawnSync("npm", ["run", "deploy", flag], {
         cwd: temporaryRoot,
@@ -1635,12 +1665,14 @@ test("production docs require a verified Vercel deployment result", (context) =>
         },
         input: "y\n",
       });
-      assert.equal(npmEarly.status, 0, npmEarly.stderr || npmEarly.stdout);
-      assert.match(
+      assert.notEqual(npmEarly.status, 0);
+      assert.match(npmEarly.stdout, /google-9\.9\.9/);
+      assert.match(npmEarly.stdout, /Finish the release train/);
+      assert.doesNotMatch(
         npmEarly.stdout,
         /Proceeding with unpublished release links/,
       );
-      assert.match(npmEarly.stdout, /Successfully deployed to Vercel/);
+      assert.doesNotMatch(npmEarly.stdout, /Successfully deployed to Vercel/);
     }
 
     const earlyWithoutReleaseList = runDeploy(
@@ -1746,16 +1778,30 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.match(dirty.stdout, /requires a clean worktree/);
     assert.doesNotMatch(dirty.stdout, /Successfully deployed to Vercel/);
     for (const flag of ["-f", "--force"]) {
-      const dirtyEarly = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [
-        flag,
-      ]);
+      const forcedDirty = runDeploy(readyOutput, {}, [flag]);
       assert.equal(
-        dirtyEarly.status,
+        forcedDirty.status,
         0,
-        dirtyEarly.stderr || dirtyEarly.stdout,
+        forcedDirty.stderr || forcedDirty.stdout,
       );
-      assert.match(dirtyEarly.stdout, /Deploying local uncommitted changes/);
-      assert.match(dirtyEarly.stdout, /Successfully deployed to Vercel/);
+      assert.match(forcedDirty.stdout, /Deploying local uncommitted changes/);
+      assert.match(forcedDirty.stdout, /Successfully deployed to Vercel/);
+      const npmForcedDirty = spawnSync("npm", ["run", "deploy", flag], {
+        cwd: temporaryRoot,
+        encoding: "utf8",
+        env: { ...environment, MOCK_VERCEL_OUTPUT: readyOutput },
+        input: "y\n",
+      });
+      assert.equal(
+        npmForcedDirty.status,
+        0,
+        npmForcedDirty.stderr || npmForcedDirty.stdout,
+      );
+      assert.match(
+        npmForcedDirty.stdout,
+        /Deploying local uncommitted changes/,
+      );
+      assert.match(npmForcedDirty.stdout, /Successfully deployed to Vercel/);
       assert.equal(readFileSync(localWork, "utf8"), "local work\n");
     }
 

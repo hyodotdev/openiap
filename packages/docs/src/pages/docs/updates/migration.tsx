@@ -82,7 +82,7 @@ const migrationGroups = [
       ['willExpireSoon', 'daysUntilExpirationIOS'],
       [
         'presentCodeRedemptionSheetIOS Boolean result',
-        'nullable PurchaseIOS result: verified on Apple 27+ with Xcode 27+; null after the system sheet on iOS 15–26 and visionOS 1–26; Catalyst 16–26 throws StoreKitError.unknown and Catalyst 15 has no effect',
+        'nullable PurchaseIOS result: verified on Apple 27+ with Xcode 27+; null after the system sheet on iOS 15–26 and visionOS 1–26; Catalyst 16–26 fails with OpenIAP error code unknown and Catalyst 15 has no effect',
       ],
       ['receipt-failed', 'purchase-verification-failed'],
       ['receipt-finished', 'purchase-verification-finished'],
@@ -293,7 +293,7 @@ const packageCompatibilityMigrations = [
       ['OpenIapStore.deepLinkToSubscriptionsIOS', 'deepLinkToSubscriptions'],
       [
         'OpenIapVersion.gqlVersion / OpenIapVersionInfo.gqlVersion',
-        'OpenIapVersion.clientProtocolVersion (openiap-apple 3.6.0; specVersion stays as a deprecated alias until client protocol 1.0.0)',
+        'OpenIapVersion.clientProtocolVersion',
       ],
     ],
   },
@@ -586,7 +586,7 @@ function Migration() {
 
       <section>
         <AnchorLink id="provider-contract-upgrade" level="h2">
-          Provider contract upgrade (October 2026)
+          Community providers and Client Protocol 1.0.0
         </AnchorLink>
         <p>
           The October 2026 train adds community store providers. Each change
@@ -596,6 +596,85 @@ function Migration() {
             release card
           </Link>{' '}
           lists the versions).
+        </p>
+
+        <AnchorLink id="client-protocol-1-removals" level="h3">
+          Replace the aliases removed in 1.0.0
+        </AnchorLink>
+        <p>
+          Client Protocol 1.0.0 removes the previously deprecated names below.
+          Update imports, hook calls, mocks, and native bindings when upgrading
+          to this release train.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Removed</th>
+              <th>Use instead</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>openRedeemOfferCodeAndroid</code> /{' '}
+                <code>presentCodeRedemptionSheetIOS</code>
+              </td>
+              <td>
+                <code>openRedeemOfferCode()</code>, which returns a purchase or
+                null
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Godot <code>open_redeem_offer_code_android</code> /{' '}
+                <code>present_code_redemption_sheet_ios</code>
+              </td>
+              <td>
+                <code>await open_redeem_offer_code()</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Apple <code>presentCodeRedemptionSheetResultIOS</code>
+              </td>
+              <td>
+                <code>openRedeemOfferCode()</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                ObjC <code>presentCodeRedemptionSheetIOSWithCompletion:</code>
+              </td>
+              <td>
+                <code>openRedeemOfferCodeWithCompletion:</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Horizon verification <code>success</code>
+              </td>
+              <td>
+                <code>isValid</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>OpenIapVersion.specVersion</code>
+              </td>
+              <td>
+                <code>OpenIapVersion.clientProtocolVersion</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          A null redemption result can mean the store opened its UI without
+          reporting a purchase immediately, or has no redemption flow. Observe
+          purchase updates and refresh available purchases when the app resumes.
+          React Native, Expo, Flutter, and MAUI now reject with a typed error
+          when the Play redeem page cannot open; earlier versions resolved null.
+          Catch that error. Godot emits <code>purchase_error</code> on failed or
+          unsupported redemption while returning null.
         </p>
 
         <AnchorLink id="provider-contract-store-id" level="h3">

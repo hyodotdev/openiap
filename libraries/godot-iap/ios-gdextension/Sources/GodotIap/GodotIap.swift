@@ -383,11 +383,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
+                let restoreError = GodotIapHelper.restoreError(error)
                 await self.emitAsyncFailure(
                     method: "restorePurchases",
                     requestId: requestId,
-                    message: error.localizedDescription,
-                    code: GodotIapHelper.errorCode(error, fallback: .syncError)
+                    message: restoreError.message,
+                    code: restoreError.code.rawValue
                 )
             }
         }
@@ -768,17 +769,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     @Callable
-    public func presentCodeRedemptionSheetIOS() -> String {
+    public func openRedeemOfferCode() -> String {
         GodotIapLog.payload("Presenting code redemption sheet", payload: nil)
         let requestId = UUID().uuidString
 
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let purchase = try await self.openIap.presentCodeRedemptionSheetIOS()
+                let purchase = try await GodotIapHelper.withCompletionErrors {
+                    try await self.openIap.openRedeemOfferCode()
+                }
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
-                    dict["method"] = Variant("presentCodeRedemptionSheetIOS")
+                    dict["method"] = Variant("openRedeemOfferCode")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(true)
                     if let purchase,
@@ -791,10 +794,10 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GodotIapLog.debug("[GodotIap] presentCodeRedemptionSheetIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] openRedeemOfferCode error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
-                    dict["method"] = Variant("presentCodeRedemptionSheetIOS")
+                    dict["method"] = Variant("openRedeemOfferCode")
                     dict["requestId"] = Variant(requestId)
                     dict["success"] = Variant(false)
                     dict["code"] = Variant(GodotIapHelper.errorCode(error))

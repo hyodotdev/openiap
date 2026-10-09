@@ -21,6 +21,10 @@ Before editing docs, read:
 If the task also changes package/library behavior, use `openiap-workflows` and
 read the package or library convention file before editing that code.
 
+For a public protocol change, also follow
+`knowledge/internal/05-docs-patterns.md#protocol-release-articles` for the
+companion article draft. Keep the format there rather than copying it here.
+
 ## Release Note Mode
 
 A PR into `main` writes its release card before the release, as already
@@ -33,8 +37,8 @@ writing or updating the card, including after scope changes.
 
 Stable and RC releases share `main`. Keep the eventual stable release card
 with its source PR; do not add a duplicate card for each npm `next` publication.
-Vercel automatically deploys main's docs, including RC metadata and cards
-ahead of package publication.
+Use previews until stable package metadata and every release-card link are
+public, then deploy production docs.
 
 Write every card this way:
 

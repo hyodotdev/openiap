@@ -436,90 +436,13 @@ void main() {
     });
   });
 
-  group('openRedeemOfferCodeAndroid', () {
-    test('invokes native channel and returns true', () async {
-      final calls = <MethodCall>[];
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall call) async {
-        calls.add(call);
-        if (call.method == 'openRedeemOfferCodeAndroid') {
-          return true;
-        }
-        return null;
-      });
-
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-
-      // ignore: deprecated_member_use_from_same_package
-      final result = await iap.openRedeemOfferCodeAndroid();
-      expect(result, isTrue);
-
-      final methodCall = calls.singleWhere(
-        (MethodCall call) => call.method == 'openRedeemOfferCodeAndroid',
-      );
-      expect(methodCall.arguments, isNull);
-    });
-
-    test('returns false when native side responds with null', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall call) async {
-        return null;
-      });
-
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-
-      // ignore: deprecated_member_use_from_same_package
-      final result = await iap.openRedeemOfferCodeAndroid();
-      expect(result, isFalse);
-    });
-
-    test('rethrows errors from the native channel', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall call) async {
-        throw PlatformException(code: 'E_UNKNOWN', message: 'boom');
-      });
-
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-
-      await expectLater(
-        // ignore: deprecated_member_use_from_same_package
-        iap.openRedeemOfferCodeAndroid(),
-        throwsA(isA<PlatformException>()),
-      );
-    });
-
-    test('throws PurchaseError with IapNotAvailable on iOS', () async {
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'ios'),
-      );
-
-      await expectLater(
-        // ignore: deprecated_member_use_from_same_package
-        iap.openRedeemOfferCodeAndroid(),
-        throwsA(
-          isA<PurchaseError>().having(
-            (error) => error.code,
-            'code',
-            types.ErrorCode.IapNotAvailable,
-          ),
-        ),
-      );
-    });
-  });
-
   group('openRedeemOfferCode', () {
     test('decodes the synchronously reported purchase on iOS', () async {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         calls.add(call);
-        if (call.method == 'presentCodeRedemptionSheetIOS') {
+        if (call.method == 'openRedeemOfferCode') {
           return <String, dynamic>{
             'id': 'redeemed-transaction',
             'productId': 'com.example.subscription',
@@ -547,7 +470,7 @@ void main() {
       expect(purchase.id, 'redeemed-transaction');
 
       final methodCall = calls.singleWhere(
-        (MethodCall call) => call.method == 'presentCodeRedemptionSheetIOS',
+        (MethodCall call) => call.method == 'openRedeemOfferCode',
       );
       expect(methodCall.arguments, isNull);
     });
@@ -565,13 +488,14 @@ void main() {
       expect(await iap.openRedeemOfferCode(), isNull);
     });
 
-    test('maps the Android Boolean channel result to null', () async {
+    test('preserves Android no-purchase and community receipt results',
+        () async {
       final calls = <MethodCall>[];
-      var nativeResult = true;
+      Object? nativeResult;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         calls.add(call);
-        if (call.method == 'openRedeemOfferCodeAndroid') {
+        if (call.method == 'openRedeemOfferCode') {
           return nativeResult;
         }
         return null;
@@ -583,12 +507,27 @@ void main() {
 
       expect(await iap.openRedeemOfferCode(), isNull);
 
-      // No-surface store flavors report false and still resolve null.
-      nativeResult = false;
-      expect(await iap.openRedeemOfferCode(), isNull);
+      nativeResult = <String, dynamic>{
+        'id': 'redeemed-transaction',
+        'productId': 'premium',
+        'transactionDate': 1700000000000,
+        'purchaseState': 'purchased',
+        'quantity': 1,
+        'isAutoRenewing': false,
+        'platform': 'android',
+        'store': 'unknown',
+        'storeId': 'community_fixture',
+        'purchaseToken': 'opaque-community-token',
+      };
+      final purchase = await iap.openRedeemOfferCode();
+      expect(purchase, isA<types.PurchaseAndroid>());
+      expect(purchase!.id, 'redeemed-transaction');
+      expect(purchase.store, types.IapStore.Unknown);
+      expect(purchase.storeId, 'community_fixture');
+      expect(purchase.purchaseToken, 'opaque-community-token');
 
       final methodCalls = calls.where(
-        (MethodCall call) => call.method == 'openRedeemOfferCodeAndroid',
+        (MethodCall call) => call.method == 'openRedeemOfferCode',
       );
       expect(methodCalls, hasLength(2));
       expect(methodCalls.first.arguments, isNull);
@@ -2813,7 +2752,6 @@ void main() {
               '__typename': 'VerifyPurchaseResultHorizon',
               'grantTime': 1705315800,
               'isValid': true,
-              'success': true,
             });
         }
         return null;
@@ -2847,7 +2785,7 @@ void main() {
       expect(result, isA<types.VerifyPurchaseResultHorizon>());
       final horizonResult = result as types.VerifyPurchaseResultHorizon;
       expect(horizonResult.isValid, isTrue);
-      expect(horizonResult.success, isTrue);
+      expect(horizonResult.toJson().containsKey('success'), isFalse);
       expect(horizonResult.grantTime, 1705315800);
     });
 

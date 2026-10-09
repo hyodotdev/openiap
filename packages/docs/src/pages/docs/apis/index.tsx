@@ -499,21 +499,6 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
-                <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
-                  <code>presentCodeRedemptionSheetIOS</code>
-                </Link>
-              </td>
-              <td>
-                Deprecated — use{' '}
-                <Link to="/docs/apis/open-redeem-offer-code">
-                  <code>openRedeemOfferCode</code>
-                </Link>
-                ; scheduled for removal in client protocol 1.0.0. Shows the App
-                Store offer code redemption sheet.
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <Link to="/docs/apis/ios/get-app-transaction-ios">
                   <code>getAppTransactionIOS</code>
                 </Link>
@@ -697,21 +682,6 @@ function APIsIndex() {
               <td>
                 Show Play billing in-app messages and return subscription status
                 updates when applicable.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/android/open-redeem-offer-code-android">
-                  <code>openRedeemOfferCodeAndroid</code>
-                </Link>
-              </td>
-              <td>
-                Deprecated — use{' '}
-                <Link to="/docs/apis/open-redeem-offer-code">
-                  <code>openRedeemOfferCode</code>
-                </Link>
-                ; scheduled for removal in client protocol 1.0.0. Opens the
-                Google Play offer-code redemption page.
               </td>
             </tr>
           </tbody>

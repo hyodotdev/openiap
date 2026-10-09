@@ -94,10 +94,14 @@ test("tests, examples, docs, and manifests need no release card", () => {
 test("the audit reads only the branch's own changes after the base moved on", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "release-notes-"));
   const git = (...args) =>
-    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
-      cwd: root,
-      stdio: "pipe",
-    });
+    execFileSync(
+      "git",
+      ["-c", "user.name=t", "-c", "user.email=t@t", ...args],
+      {
+        cwd: root,
+        stdio: "pipe",
+      },
+    );
   const commit = (file, message) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     fs.writeFileSync(path.join(root, file), message);
@@ -112,15 +116,23 @@ test("the audit reads only the branch's own changes after the base moved on", ()
     git("checkout", "-q", "main");
     commit("packages/cli/src/init.mjs", "a source change on main");
     git("checkout", "-q", "feature");
-    const audit = fileURLToPath(new URL("./audit-release-notes.mjs", import.meta.url));
-    const output = execFileSync("node", [audit, "main"], { cwd: root, encoding: "utf8" });
+    const audit = fileURLToPath(
+      new URL("./audit-release-notes.mjs", import.meta.url),
+    );
+    const output = execFileSync("node", [audit, "main"], {
+      cwd: root,
+      encoding: "utf8",
+    });
     assert.match(output, /Release note audit: clean\./);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 function normalize(text) {
   // JSX drops whitespace around newlines, so `word\n;` renders "word;".
@@ -159,7 +171,7 @@ function breakingSlice() {
   assert.ok(start !== -1, "card is missing the Breaking changes heading");
   assert.ok(end !== -1, "card is missing the Common changes heading");
   assert.ok(start < end, "Breaking changes must come before Common changes");
-  return normalize(card.slice(start, end));
+  return card.slice(start, end);
 }
 
 // Plain text of a JSX fragment. A depth counter drops nested or partial tags,
@@ -203,13 +215,16 @@ function migrationSlice() {
 }
 
 const BREAKING_BULLETS = [
-  "Client Protocol 0.2.0 makes <code>storeId</code> required on purchases and IAPKit results; set it on hand-built values (C# and the Kotlin IAPKit result infer official ids).",
+  'Client Protocol 1.0.0 removes deprecated redemption APIs, Horizon <code>success</code>, and Apple <code>specVersion</code>; use their replacements in the <Link to="/docs/updates/migration#client-protocol-1-removals">migration table</Link>.',
+  "Client Protocol 1.0.0 makes <code>storeId</code> required on purchases and IAPKit results; set it on hand-built values (C# and the Kotlin IAPKit result infer official ids).",
   "KMP 4.0.0 adds <code>UNKNOWN</code> to the public <code>Store</code> enum; add the branch to every exhaustive <code>when (getStore())</code>.",
   "OpenIAP Google 4.0.0 and KMP 4.0.0 make the Kotlin <code>RequestVerifyPurchaseWithIapkitResult</code> a plain class whose constructor and <code>copy</code> carry <code>storeId</code>; recompile code that copies results or constructs or copies purchases.",
   "OpenIAP Google 4.0.0 moves shared classes into the <code>openiap-core</code> artifact; apps linking the AAR by file must add it (Maven consumers get it transitively).",
   "OpenIAP Apple 4.0.0 requires tvOS 16.0+ (SwiftPM; CocoaPods already required 16.0); raise the deployment target of tvOS apps.",
   "OpenIAP Apple 4.0.0 throws <code>CancellationError</code>, with no purchase-error event, when the calling task of <code>requestPurchase</code> or another StoreKit operation is cancelled; catch it at the call site.",
   "Flutter 11.0.0 <code>initConnection()</code> now returns false on iOS and macOS when StoreKit cannot make payments; it returned true before.",
+  "React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and MAUI 3.0.0 now reject failed Play <code>openRedeemOfferCode()</code> launches instead of resolving null; catch the error.",
+  "Godot 4.0.0 now emits <code>purchase_error</code> for failed or unsupported redemption while returning null; subscribe to the signal.",
   "React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0 forward the provider's Android error code where they returned fixed codes; handle specific codes such as <code>not-prepared</code>.",
   "Flutter 11.0.0 and Godot 4.0.0 (and KMP 4.0.0 on iOS) report the native error code from failed verification instead of always <code>purchase-verification-failed</code>; match specific codes.",
   "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore first, and on Horizon deliver each owned purchase to purchase listeners; make the handler idempotent.",
@@ -221,14 +236,15 @@ const BREAKING_BULLETS = [
 
 test("the community provider card carries an explicit Breaking changes section", () => {
   const card = cardText();
-  const breaking = breakingSlice();
+  const breaking = normalize(breakingSlice());
   assert.ok(
     card.includes("/docs/updates/migration#provider-contract-upgrade"),
     "card is missing the migration guide link",
   );
+  const bullets = breakingBullets();
   for (const bullet of BREAKING_BULLETS) {
     assert.ok(
-      breaking.includes(normalize(bullet)),
+      bullets.includes(normalize(stripTags(bullet)).trim()),
       `Breaking list is missing: ${bullet}`,
     );
   }
@@ -243,7 +259,7 @@ test("the community provider card carries an explicit Breaking changes section",
     "On Horizon, each owned purchase then reaches",
     "now answer <code>hasActiveSubscriptions</code>",
     "needs a new branch",
-    "Client Protocol 0.2.0 and every SDK require",
+    "Client Protocol 1.0.0 and every SDK require",
     "data class into",
     "operations that rethrow it",
     "Each item names who is affected",
@@ -321,9 +337,9 @@ test("the migration guide covers the provider contract upgrade", () => {
   for (const substance of [
     "store: 'google', storeId: 'play',",
     "store: IapStore.Google, storeId: 'play',",
-    "storeId = \"play\"",
-    "StoreId = \"play\"",
-    "store_id = \"play\"",
+    'storeId = "play"',
+    'StoreId = "play"',
+    'store_id = "play"',
     "...savedPurchase,",
     "your KmpInAppPurchase instance",
     "Store.UNKNOWN ->",
@@ -378,7 +394,10 @@ test("the migration guide covers the provider contract upgrade", () => {
     "gracePeriodExpirationDate",
     "/docs/updates/releases#community-store-providers-2026-10-02",
   ]) {
-    assert.ok(page.includes(substance), `migration guide is missing: ${substance}`);
+    assert.ok(
+      page.includes(substance),
+      `migration guide is missing: ${substance}`,
+    );
   }
   for (const dropped of [
     "the cancellation was wrapped into a",
@@ -408,7 +427,10 @@ test("the migration guide covers the provider contract upgrade", () => {
     "failures now carry OpenIAP's code instead of always",
     "now carry a code where they had none",
   ]) {
-    assert.ok(!page.includes(dropped), `removed claim is still present: ${dropped}`);
+    assert.ok(
+      !page.includes(dropped),
+      `removed claim is still present: ${dropped}`,
+    );
   }
 });
 
@@ -424,7 +446,10 @@ test("card and migration links resolve to existing anchors", () => {
     "migration link target is missing: community-store-providers-2026-10-02",
   );
   const providers = fs.readFileSync(
-    path.join(repoRoot, "packages/docs/src/pages/docs/guides/store-providers.tsx"),
+    path.join(
+      repoRoot,
+      "packages/docs/src/pages/docs/guides/store-providers.tsx",
+    ),
     "utf8",
   );
   assert.ok(
@@ -452,7 +477,11 @@ test("every migration and release deep link resolves to an existing id", () => {
     for (const match of source.matchAll(
       /\/docs\/updates\/(migration|releases)#([A-Za-z0-9_-]+)/g,
     )) {
-      links.push({ page: path.relative(repoRoot, page), target: match[1], id: match[2] });
+      links.push({
+        page: path.relative(repoRoot, page),
+        target: match[1],
+        id: match[2],
+      });
     }
   }
   assert.ok(links.length > 0, "no migration or release deep links found");
@@ -467,16 +496,23 @@ test("every migration and release deep link resolves to an existing id", () => {
 
 test("the has-active-subscriptions page states the iOS active flag and grace", () => {
   const source = fs.readFileSync(
-    path.join(repoRoot, "packages/docs/src/pages/docs/apis/has-active-subscriptions.tsx"),
+    path.join(
+      repoRoot,
+      "packages/docs/src/pages/docs/apis/has-active-subscriptions.tsx",
+    ),
     "utf8",
   );
   const page = normalize(source);
   assert.ok(
-    page.includes("has the active flag set (expiration in the future); a subscriber in billing grace reads inactive"),
+    page.includes(
+      "has the active flag set (expiration in the future); a subscriber in billing grace reads inactive",
+    ),
     "page is missing the iOS active-flag and grace statement",
   );
   assert.ok(
-    page.includes("/docs/updates/migration#provider-contract-subscription-flag"),
+    page.includes(
+      "/docs/updates/migration#provider-contract-subscription-flag",
+    ),
     "page is missing the migration guide link",
   );
   assert.ok(
@@ -487,7 +523,10 @@ test("the has-active-subscriptions page states the iOS active flag and grace", (
 
 test("the restore-purchases page documents the provider-first Android restore", () => {
   const source = fs.readFileSync(
-    path.join(repoRoot, "packages/docs/src/pages/docs/apis/restore-purchases.tsx"),
+    path.join(
+      repoRoot,
+      "packages/docs/src/pages/docs/apis/restore-purchases.tsx",
+    ),
     "utf8",
   );
   const page = normalize(source);
@@ -529,7 +568,10 @@ test("the restore-purchases page documents the provider-first Android restore", 
 
 test("the get-active-subscriptions page documents the platform isActive rules", () => {
   const source = fs.readFileSync(
-    path.join(repoRoot, "packages/docs/src/pages/docs/apis/get-active-subscriptions.tsx"),
+    path.join(
+      repoRoot,
+      "packages/docs/src/pages/docs/apis/get-active-subscriptions.tsx",
+    ),
     "utf8",
   );
   const page = normalize(source);

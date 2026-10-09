@@ -36,6 +36,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     public var billingGracePeriod = false
     public var deferredThenPurchased = false
     public var capabilityStore: IapStore = .unknown
+    public var redemptionPurchase: PurchaseIOS?
     public var inactiveSubscriptions = false
     public var forcedHasActive: Bool?
     public private(set) var lastSubscriptionIds: [String]?
@@ -149,7 +150,7 @@ public final class FixtureModule: OpenIapModuleProtocol, @unchecked Sendable {
     }
     public func getStorefront() async throws -> String { "US" }
     public func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws {}
-    public func openRedeemOfferCode() async throws -> PurchaseIOS? { nil }
+    public func openRedeemOfferCode() async throws -> PurchaseIOS? { redemptionPurchase }
     public func purchaseUpdatedListener(_ listener: @escaping PurchaseUpdatedListener, options: PurchaseUpdatedListenerOptions?) -> Subscription {
         let token = Subscription(eventType: .purchaseUpdated)
         synchronized { updated[token.id] = listener }

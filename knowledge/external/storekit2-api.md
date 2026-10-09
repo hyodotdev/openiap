@@ -82,14 +82,14 @@ scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
-(openiap-apple 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
-return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
-client protocol 1.0.0. Xcode 27 builds call the new API, require a verified result, and
+(openiap-apple 3.3.0+). Client Protocol 1.0.0 removes the
+`presentCodeRedemptionSheetIOS` alias; use `openRedeemOfferCode()` instead.
+Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
-retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
-`StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and
-returns `nil`. Nil results from an actually presented sheet rely on the
+retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API's
+`StoreKitError.unknown` reaches callers as OpenIAP error code `unknown`. The
+Catalyst 15 StoreKit 1 call has no effect and returns `nil`. Nil results from an actually presented sheet rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
 declares `RedeemOption`,
 but its public symbol graph exposes no constructible option values, so OpenIAP

@@ -321,11 +321,13 @@ describe('generated compatibility', () => {
     const implementors = interfaceImplementors();
     const unionOwners = interfaceUnionOwners();
 
-    // The per-language assertions below are the real check; this guards against
-    // the list silently emptying and making them vacuous.
-    expect(entries.length).toBeGreaterThan(0);
+    expect(entries).toEqual([]);
     for (const file of generatedFiles) {
       const source = generated(file);
+      expect(source).not.toContain('openRedeemOfferCodeAndroid');
+      expect(source).not.toContain('presentCodeRedemptionSheetIOS');
+      expect(source).not.toContain('open_redeem_offer_code_android');
+      expect(source).not.toContain('present_code_redemption_sheet_ios');
       const representableEntries = entries.filter((entry) => {
         if (file === 'types.ts' && entry.kind === Kind.ENUM_VALUE_DEFINITION && entry.parentName !== 'ErrorCode') {
           return false;

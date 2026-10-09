@@ -26,7 +26,7 @@ const mockIap: any = {
   removePromotedProductListenerIOS: jest.fn(),
   addSubscriptionBillingIssueListener: jest.fn(),
   removeSubscriptionBillingIssueListener: jest.fn(),
-  openRedeemOfferCodeAndroid: jest.fn(async () => true),
+  openRedeemOfferCode: jest.fn(async () => null),
 };
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -1094,7 +1094,8 @@ describe('hooks/useIAP (renderer)', () => {
 
       const developerError = {
         code: IAP.ErrorCode.DeveloperError,
-        message: 'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
+        message:
+          'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
       };
       act(() => {
         holder.current?.(developerError);
@@ -1133,7 +1134,8 @@ describe('hooks/useIAP (renderer)', () => {
 
       const developerError = {
         code: IAP.ErrorCode.DeveloperError,
-        message: 'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
+        message:
+          'Info.plist dev.hyo.openiap.PROVIDER must name a linked provider.',
       };
       act(() => {
         holder.current?.(developerError);

@@ -55,8 +55,7 @@ void main() {
     _FailureCase('app transaction', (iap) => iap.getAppTransactionIOS()),
     _FailureCase(
       'code redemption',
-      // ignore: deprecated_member_use_from_same_package
-      (iap) => iap.presentCodeRedemptionSheetIOS(),
+      (iap) => iap.openRedeemOfferCode(),
     ),
     _FailureCase(
       'refund request',
@@ -238,11 +237,6 @@ void main() {
         iap.showInAppMessagesAndroid(),
         throwsA(isA<PurchaseError>()),
       );
-      await expectLater(
-        // ignore: deprecated_member_use_from_same_package
-        iap.openRedeemOfferCodeAndroid(),
-        throwsA(isA<PurchaseError>()),
-      );
     });
   });
 
@@ -290,9 +284,8 @@ void main() {
         throwsA(isA<PlatformException>()),
       );
       await expectLater(
-        // ignore: deprecated_member_use_from_same_package
-        iap.openRedeemOfferCodeAndroid(),
-        throwsA(isA<PlatformException>()),
+        iap.openRedeemOfferCode(),
+        throwsA(isA<PurchaseError>()),
       );
     });
 
@@ -318,8 +311,7 @@ void main() {
       );
       expect(
           await iap.launchExternalLinkAndroid(_externalLinkParams()), isFalse);
-      // ignore: deprecated_member_use_from_same_package
-      expect(await iap.openRedeemOfferCodeAndroid(), isFalse);
+      expect(await iap.openRedeemOfferCode(), isNull);
     });
   });
 
@@ -488,8 +480,6 @@ void main() {
     expect(mutation.isBillingProgramAvailableAndroid, isNotNull);
     expect(mutation.launchExternalLinkAndroid, isNotNull);
     expect(mutation.openRedeemOfferCode, isNotNull);
-    expect(mutation.openRedeemOfferCodeAndroid, isNotNull);
-    expect(mutation.presentCodeRedemptionSheetIOS, isNotNull);
     expect(mutation.requestPurchase, isNotNull);
     expect(mutation.restorePurchases, isNotNull);
     expect(mutation.showBillingProgramInformationDialogAndroid, isNotNull);

@@ -82,8 +82,6 @@ public protocol OpenIapModuleProtocol {
     // Misc
     func syncIOS() async throws -> Bool
     func openRedeemOfferCode() async throws -> PurchaseIOS?
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
-    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS]
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void
     func canPresentExternalPurchaseNoticeIOS() async throws -> Bool
@@ -224,11 +222,6 @@ public extension OpenIapModuleProtocol {
 
     func openRedeemOfferCode() async throws -> PurchaseIOS? {
         throw PurchaseError.make(code: .featureNotSupported, message: "openRedeemOfferCode not supported by this provider")
-    }
-
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
-    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? {
-        throw PurchaseError.make(code: .featureNotSupported, message: "presentCodeRedemptionSheetIOS not supported by this provider")
     }
 
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] {

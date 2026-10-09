@@ -1,7 +1,3 @@
-// This runtime reads generated 2.x aliases only to preserve compatibility.
-// Consumers still receive compiler warnings; remove the reads in kmp-iap 3.
-@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*
@@ -387,19 +383,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/open-redeem-offer-code">https://openiap.dev/docs/apis/open-redeem-offer-code</a>
      */
     override suspend fun openRedeemOfferCode(): Purchase? =
-        // Pinned openiap-apple has no openRedeemOfferCodeWithCompletion yet;
-        // the shipped sheet bridge runs the same redemption flow.
-        presentCodeRedemptionSheetIOS()
-
-    /**
-     * Show the App Store offer code redemption sheet.
-     * Deprecated: use [openRedeemOfferCode].
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
-     */
-    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.presentCodeRedemptionSheetIOSWithCompletion { payload, error ->
+            openIapModule.openRedeemOfferCodeWithCompletion { payload, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
@@ -1527,14 +1512,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         throw UnsupportedOperationException("launchExternalLinkAndroid is only available on Android")
     }
 
-    /**
-     * Open the Google Play offer/promo code redemption flow.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
-     */
-    override suspend fun openRedeemOfferCodeAndroid(): Boolean {
-        return false
-    }
 
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid {
         throw UnsupportedOperationException("developerProvidedBillingAndroid is only available on Android")

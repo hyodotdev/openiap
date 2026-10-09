@@ -18,9 +18,9 @@ class FakeAndroidPlugin:
 	var storefront_result := JSON.stringify({"success": true, "countryCode": "US"})
 	var redeem_calls := 0
 
-	func openRedeemOfferCodeAndroid() -> String:
+	func openRedeemOfferCode() -> String:
 		redeem_calls += 1
-		return JSON.stringify({"launched": true})
+		return JSON.stringify({"success": true})
 
 	func initConnectionWithConfig(config_json: String) -> bool:
 		last_config = JSON.parse_string(config_json)
@@ -39,6 +39,24 @@ class FakeAndroidPlugin:
 
 	func getStorefrontAndroid() -> String:
 		return storefront_result
+
+
+class FakeIOSRestorePlugin:
+	extends RefCounted
+	signal products_fetched(result: Dictionary)
+	signal purchase_error(error: Dictionary)
+	var code := "user-cancelled"
+	var succeed := false
+	var request_count := 0
+
+	func restorePurchases() -> String:
+		request_count += 1
+		var request_id := "restore-test-%d" % request_count
+		products_fetched.emit({
+			"method": "restorePurchases", "requestId": request_id,
+			"success": succeed, "code": code, "error": "Restore test failure",
+		})
+		return JSON.stringify({"status": "pending", "requestId": request_id})
 
 
 class FakeIOSAsyncPlugin:
@@ -181,8 +199,8 @@ class FakePurchasePayloadPlugin:
 	func showManageSubscriptionsIOS() -> String:
 		return _respond("showManageSubscriptionsIOS")
 
-	func presentCodeRedemptionSheetIOS() -> String:
-		return _respond("presentCodeRedemptionSheetIOS")
+	func openRedeemOfferCode() -> String:
+		return _respond("openRedeemOfferCode")
 
 	func currentEntitlementIOS(_sku: String) -> String:
 		return _respond("currentEntitlementIOS")
@@ -296,6 +314,7 @@ func _run_all_tests() -> void:
 	await test_get_available_purchases_mock()
 	await test_android_purchase_options_bridge()
 	await test_restore_purchases_mock()
+	await test_apple_restore_failure_signal()
 	await test_storefront_error_contract()
 	test_native_purchase_payload_safety()
 	test_community_apple_purchase_identity()
@@ -537,9 +556,9 @@ func test_open_redeem_offer_code_android_dispatch() -> void:
 	GodotIapPlugin._platform = "Android"
 
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "The unified redeem API should resolve null on Android")
-	_assert_equal(fake.redeem_calls, 1, "The unified redeem API should dispatch through the suffixed Android wrapper")
-	_assert_true(GodotIapPlugin.open_redeem_offer_code_android(), "The suffixed wrapper should report the launched flag")
-	_assert_equal(fake.redeem_calls, 2, "Both redeem entry points should share one Android dispatch path")
+	_assert_equal(fake.redeem_calls, 1, "The unified redeem API should dispatch the canonical native method")
+	_assert_false(GodotIapPlugin.has_method("open_redeem_offer_code_android"), "Removed Android alias must be absent")
+	_assert_false(GodotIapPlugin.has_method("present_code_redemption_sheet_ios"), "Removed iOS alias must be absent")
 
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
@@ -707,13 +726,13 @@ func test_ios_single_purchase_reads_report_invalid_store_identities() -> void:
 	var invalid := _identity_purchase("stale.sku", "stale-tx", "apple")
 	invalid["storeId"] = "play"
 	var invalid_json := JSON.stringify({"success": true, "purchaseJson": JSON.stringify(invalid)})
-	fake.responses["presentCodeRedemptionSheetIOS"] = invalid_json
+	fake.responses["openRedeemOfferCode"] = invalid_json
 	fake.responses["currentEntitlementIOS"] = invalid_json
 	fake.responses["latestTransactionIOS"] = invalid_json
 
 	var capture := LogCapture.new()
 	OS.add_logger(capture)
-	var redeemed = await GodotIapPlugin.present_code_redemption_sheet_ios()
+	var redeemed = await GodotIapPlugin.open_redeem_offer_code()
 	var entitlement = await GodotIapPlugin.current_entitlement_ios("stale.sku")
 	var latest = await GodotIapPlugin.latest_transaction_ios("stale.sku")
 	OS.remove_logger(capture)
@@ -728,12 +747,12 @@ func test_ios_single_purchase_reads_report_invalid_store_identities() -> void:
 
 	var valid := _identity_purchase("valid.sku", "valid-tx", "apple")
 	var valid_json := JSON.stringify({"success": true, "purchaseJson": JSON.stringify(valid)})
-	fake.responses["presentCodeRedemptionSheetIOS"] = valid_json
+	fake.responses["openRedeemOfferCode"] = valid_json
 	fake.responses["currentEntitlementIOS"] = valid_json
 	fake.responses["latestTransactionIOS"] = valid_json
 	var valid_capture := LogCapture.new()
 	OS.add_logger(valid_capture)
-	var valid_redeemed = await GodotIapPlugin.present_code_redemption_sheet_ios()
+	var valid_redeemed = await GodotIapPlugin.open_redeem_offer_code()
 	var valid_entitlement = await GodotIapPlugin.current_entitlement_ios("valid.sku")
 	var valid_latest = await GodotIapPlugin.latest_transaction_ios("valid.sku")
 	OS.remove_logger(valid_capture)
@@ -927,6 +946,38 @@ func test_android_purchase_options_bridge() -> void:
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 	GodotIapPlugin._is_connected = false
+
+
+func test_apple_restore_failure_signal() -> void:
+	var wrapper := GodotIapWrapper.new()
+	var native := FakeIOSRestorePlugin.new()
+	wrapper._platform = "iOS"
+	wrapper._native_plugin = native
+	wrapper._is_initialized = true
+	root.add_child(wrapper)
+	wrapper._connect_signals_apple()
+	var errors: Array[Dictionary] = []
+	wrapper.purchase_error.connect(func(error: Dictionary) -> void: errors.append(error))
+	for code in ["user-cancelled", "service-error", "sync-error"]:
+		errors.clear()
+		native.code = code
+		var result = await wrapper.restore_purchases()
+		_assert_false(result.success, "Failed Apple restore returns success=false")
+		_assert_true(result is Types.VoidResult, "Restore keeps VoidResult compatibility")
+		_assert_equal(result.code, code, "Restore result preserves native error code")
+		_assert_equal(result.to_dict().get("code"), code, "Serialized restore result preserves error code")
+		_assert_equal(errors.size(), 1, "Failed Apple restore emits one purchase_error")
+		if errors.size() == 1:
+			_assert_equal(errors[0].code, code, "Restore preserves native error code")
+			_assert_equal(result.error, errors[0].message, "Restore result and signal share the error message")
+	native.succeed = true
+	errors.clear()
+	var success = await wrapper.restore_purchases()
+	_assert_true(success.success, "Successful Apple restore returns success=true")
+	_assert_equal(success.code, "", "Successful restore has no error code")
+	_assert_equal(success.to_dict(), {"success": true}, "Successful restore keeps the VoidResult payload")
+	_assert_equal(errors.size(), 0, "Successful Apple restore emits no error")
+	wrapper.free()
 
 
 func test_restore_purchases_mock() -> void:
@@ -1200,11 +1251,11 @@ func test_ios_methods_mock() -> void:
 	var pending = await GodotIapPlugin.get_pending_transactions_ios()
 	_assert_true(pending is Array, "get_pending_transactions_ios should return Array")
 
-	# present_code_redemption_sheet_ios
-	var redemption_result = await GodotIapPlugin.present_code_redemption_sheet_ios()
+	# open_redeem_offer_code
+	var redemption_result = await GodotIapPlugin.open_redeem_offer_code()
 	_assert_true(
 		redemption_result == null or redemption_result is Types.PurchaseIOS,
-		"present_code_redemption_sheet_ios should return PurchaseIOS or null"
+		"open_redeem_offer_code should return PurchaseIOS or null"
 	)
 
 	# current_entitlement_ios
@@ -1258,9 +1309,6 @@ func test_android_methods_mock() -> void:
 	var link_result = GodotIapPlugin.launch_external_link_android(link_params)
 	_assert_true(link_result is bool, "launch_external_link_android should return bool")
 
-	# open_redeem_offer_code_android (deprecated)
-	var redeem_result = GodotIapPlugin.open_redeem_offer_code_android()
-	_assert_true(redeem_result is bool, "open_redeem_offer_code_android should return bool")
 
 	# open_redeem_offer_code (cross-platform)
 	var unified_redeem_result = await GodotIapPlugin.open_redeem_offer_code()
@@ -1310,7 +1358,7 @@ func test_android_methods_mock() -> void:
 func test_no_plugin_ios_zero_values() -> void:
 	_assert_equal(await GodotIapPlugin.sync_ios(), false, "sync_ios should return false without a native plugin")
 	_assert_equal(await GodotIapPlugin.clear_transaction_ios(), false, "clear_transaction_ios should return false without a native plugin")
-	_assert_equal(await GodotIapPlugin.present_code_redemption_sheet_ios(), null, "present_code_redemption_sheet_ios should return null without a native plugin")
+	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "open_redeem_offer_code should return null without a native plugin")
 	_assert_equal(await GodotIapPlugin.begin_refund_request_ios("sku"), "", "begin_refund_request_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_receipt_data_ios(), "", "get_receipt_data_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_transaction_jws_ios("sku"), "", "get_transaction_jws_ios should return an empty string without a native plugin")
@@ -1342,7 +1390,6 @@ func test_no_plugin_android_zero_values() -> void:
 	_assert_equal(GodotIapPlugin.acknowledge_purchase_android("token"), false, "acknowledge_purchase_android should return false without a native plugin")
 	_assert_equal(GodotIapPlugin.consume_purchase_android("token"), false, "consume_purchase_android should return false without a native plugin")
 	_assert_equal(GodotIapPlugin.get_package_name_android(), "", "get_package_name_android should return an empty string without a native plugin")
-	_assert_equal(GodotIapPlugin.open_redeem_offer_code_android(), false, "open_redeem_offer_code_android should return false without a native plugin on desktop")
 
 	var availability = GodotIapPlugin.is_billing_program_available_android(Types.BillingProgramAndroid.BILLING_CHOICE)
 	_assert_true(availability is Types.BillingProgramAvailabilityResultAndroid, "is_billing_program_available_android should return a typed default without a native plugin")

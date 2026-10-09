@@ -37,24 +37,25 @@ Activity-result callback or generic store-configuration map. A provider owns
 its vendor configuration and any proxy Activity needed for result/deeplink
 handling, and releases listeners and Activity references in `endConnection`.
 
-## Build against the branch
+## Use the published contract
 
-Before the 4.0.0 release, publish the core and Android conformance AAR to
-Maven Local from this checkout:
+Resolve core and the independent Android conformance suite from Maven Central:
 
-```sh
-packages/google/gradlew -p packages/google \
-  :openiap-core:publishToMavenLocal :openiap-conformance:publishToMavenLocal \
-  -PopenIapVersion=4.0.0
+```kotlin
+repositories {
+  google()
+  mavenCentral()
+}
+dependencies {
+  api("io.github.hyochan.openiap:openiap-core:4.0.0")
+  testImplementation("io.github.hyochan.openiap:openiap-conformance:4.0.0")
+}
 ```
 
-Run that command from the repository root. Add `mavenLocal()` before
-`mavenCentral()` in the provider and host repositories, and build against
-`openiap-core:4.0.0`. Set the factory's `coreVersion` to `4.0.0` and
-`clientProtocolVersion` to `clientProtocol` from this checkout's
-`openiap-versions.json`; the protocol can still be an RC. Rebuild and retest
-against the published 4.0.0 artifacts when they are available; a local
-publication is not a released contract.
+Set the factory's `coreVersion` to `4.0.0` and `clientProtocolVersion` to
+`1.0.0`. Rebuild providers from the 0.2.0 protocol RC against this stable
+contract. Stable runtimes accept providers built against the same core and
+Client Protocol major, up to the runtime's versions.
 
 ## Test a published RC
 

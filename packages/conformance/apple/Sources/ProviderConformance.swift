@@ -90,6 +90,9 @@ private enum ProviderEvent {
 public struct ProviderConformanceSuite {
     private let adapter: any ProviderConformanceAdapter
     private let timeout: TimeInterval
+    private var expectedStore: IapStore {
+        adapter.factory.storeId == StoreIds.Apple ? .apple : .unknown
+    }
     public init(adapter: any ProviderConformanceAdapter, eventTimeout: TimeInterval = 5) {
         self.adapter = adapter
         timeout = eventTimeout
@@ -98,6 +101,7 @@ public struct ProviderConformanceSuite {
     public func run() async -> ProviderConformanceReport {
         let factory = adapter.factory
         let provider = adapter.provider
+        let expectedStore = self.expectedStore
         let capabilities = factory.capabilities.sorted()
         let required = (ProviderBehaviors.mapping + ProviderBehaviors.runtime
             + capabilities.compactMap { ProviderBehaviors.capabilities[$0] }).sorted()
@@ -113,7 +117,7 @@ public struct ProviderConformanceSuite {
             ProviderConformanceReport(
                 suiteVersion: ProviderBehaviors.suiteVersion,
                 clientProtocolVersion: ProviderBehaviors.clientProtocolVersion,
-                storeId: factory.storeId, store: factory.storeId == StoreIds.Apple ? "apple" : "unknown",
+                storeId: factory.storeId, store: expectedStore.rawValue,
                 capabilities: capabilities,
                 scope: .init(kind: "apple-provider", requiredBehaviors: required,
                              complete: required.allSatisfy { results[$0] != nil }),
@@ -224,7 +228,7 @@ public struct ProviderConformanceSuite {
             guard case .purchaseIos = purchase,
                   purchase.storeId == factory.storeId, purchase.productId == self.adapter.testProductId,
                   purchase.purchaseState == .purchased,
-                  purchase.store == (factory.storeId == StoreIds.Apple ? .apple : .unknown) else { return false }
+                  purchase.store == expectedStore else { return false }
             ownedPurchase = purchase
             return true
         }
@@ -265,7 +269,11 @@ public struct ProviderConformanceSuite {
                     : provider.purchaseUpdatedListener({ probe.receive(.purchase($0)) }, options: nil)
                 let errors = provider.purchaseErrorListener { probe.receive(.error($0)) }
                 defer { provider.removeListener(subscription); provider.removeListener(errors) }
-                if capability == "offerCodeRedemption" { _ = try await provider.openRedeemOfferCode() }
+                if capability == "offerCodeRedemption", let returned = try await provider.openRedeemOfferCode() {
+                    guard returned.storeId == factory.storeId,
+                          returned.store == expectedStore,
+                          returned.purchaseState == .purchased else { return false }
+                }
                 do { try await self.adapter.triggerCapability(capability) }
                 catch let error as PurchaseError where capability == "pendingPurchases" && error.code == .deferredPayment {
                     probe.receive(.error(error))
@@ -279,7 +287,7 @@ public struct ProviderConformanceSuite {
                         case .purchase(let purchase):
                             guard case .purchaseIos(let ios) = purchase else { return false }
                             return purchase.storeId == factory.storeId
-                                && purchase.store == (factory.storeId == StoreIds.Apple ? .apple : .unknown)
+                                && purchase.store == expectedStore
                                 && purchase.purchaseState == .pending
                                 && !self.adapter.toActiveSubscription(ios).isActive
                         }
@@ -290,7 +298,7 @@ public struct ProviderConformanceSuite {
                     return capability == "pendingPurchases" && error.code == .deferredPayment
                 case .purchase(let purchase):
                     guard case .purchaseIos(let ios) = purchase, purchase.storeId == factory.storeId,
-                          purchase.store == (factory.storeId == StoreIds.Apple ? .apple : .unknown) else { return false }
+                          purchase.store == expectedStore else { return false }
                     if capability == "offerCodeRedemption" { return purchase.purchaseState == .purchased }
                     let expectedActive = self.adapter.billingIssueRetainsEntitlement(ios)
                     return (purchase.purchaseState == .purchased || !expectedActive)
@@ -316,7 +324,7 @@ public struct ProviderConformanceSuite {
     private func fixture(state: PurchaseState = .purchased, sku: String = "conformance.product") throws -> PurchaseIOS {
         try OpenIapSerialization.decode(object: [
             "id": "txn-\(sku)", "transactionId": "txn-\(sku)", "productId": sku,
-            "store": adapter.factory.storeId == StoreIds.Apple ? "apple" : "unknown", "storeId": adapter.factory.storeId,
+            "store": expectedStore.rawValue, "storeId": adapter.factory.storeId,
             "quantity": 1, "isAutoRenewing": true, "currentPlanId": sku, "purchaseState": state.rawValue,
             "purchaseToken": "token-\(sku)", "transactionDate": 1_700_000_000_000.0,
         ], as: PurchaseIOS.self)

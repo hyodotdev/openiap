@@ -99,9 +99,8 @@ Follow `.claude/commands/commit.md --all --pr`:
 - Use the required commit order and an English conventional commit message.
 - Push the semantic branch and open an English PR against `main`.
 - Add applicable repository labels.
-- For a visible or interactive change, attach a preview recording under 10 MB.
-  Do not commit one-off preview media unless browser upload is blocked and the
-  documented fallback is required.
+- Use judgment to decide whether a preview video helps the reviewer; follow
+  `knowledge/internal/06-git-deployment.md#pull-request-preview-recordings`.
 
 Record the PR number and exact head SHA. A push invalidates all prior clean
 review coverage.
@@ -215,9 +214,9 @@ Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
    directly to `main`. If review finds a product-code fix, return it to the PR
    loop instead of committing that fix directly to `main`. Do not open a PR for
    this post-release docs-only commit.
-6. Wait for Vercel's production deployment of main's head, then verify the
-   production release page and generated documentation assets. Use the manual
-   deploy only when the automatic path cannot complete.
+6. Deploy main's head through `scripts/deploy.sh` after stable metadata and
+   every release-card link pass, then verify the production release page and
+   generated documentation assets.
 7. Finish on `main`, fast-forward once more if a release workflow changed it,
    and verify `HEAD == origin/main` with a clean worktree.
 8. Complete the shipped-comment step in `ship-release` before ending the loop.
@@ -237,7 +236,8 @@ describe a pending or partially reviewed PR as clean.
 After merge, stop the shipping phase when an affected release fails, its public
 artifact cannot be verified, production docs cannot be verified, or continuing
 would require a code change outside the reviewed PR. Preserve every successful
-release and report the exact resume point. If the user requests docs before
-package publication, use the explicit flag documented in
+release and report the exact resume point. If docs are needed before package
+publication, use a preview under
 `knowledge/internal/06-git-deployment.md#deploying-documentation`. If the train
-will not resume, trim the card to what published through steps 4 and 5 first.
+will not resume, follow that section's incomplete-train rule through steps 4
+and 5 first.

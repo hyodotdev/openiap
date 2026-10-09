@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  },
   "installCommand": "cd ../.. && bunx \"$(node -p 'require(\"./package.json\").packageManager')\" install --frozen-lockfile",
   "buildCommand": "node ../../scripts/release-branch-policy.mjs audit && node ../../scripts/verify-docs-version-metadata.mjs && bun run build",
   "outputDirectory": "dist",

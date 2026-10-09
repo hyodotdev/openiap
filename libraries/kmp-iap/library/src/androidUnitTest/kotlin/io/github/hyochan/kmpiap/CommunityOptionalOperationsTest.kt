@@ -23,6 +23,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
@@ -70,7 +72,8 @@ class CommunityOptionalOperationsTest {
                     assertEquals("https://example.test/pay", (args?.get(1) as dev.hyo.openiap.LaunchExternalLinkParamsAndroid).linkUri)
                     true
                 }
-                "openRedeemOfferCode" -> { assertEquals(activity, args?.get(0)); true }
+                "setActivity" -> { assertEquals(activity, args?.get(0)); null }
+                "getMutationHandlers" -> dev.hyo.openiap.MutationHandlers(openRedeemOfferCode = { null })
                 else -> error("Unexpected call: $method")
             }
         }
@@ -87,8 +90,31 @@ class CommunityOptionalOperationsTest {
         assertEquals("opened", delegate.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "external-token")).debugMessage)
         assertEquals("opaque-token", delegate.showInAppMessagesAndroid(null).purchaseToken)
         assertTrue(delegate.launchExternalLinkAndroid(linkParams()))
-        assertTrue(delegate.openRedeemOfferCodeAndroid())
-        assertEquals(8, calls.size)
+        assertNull(delegate.openRedeemOfferCode())
+        assertEquals(9, calls.size)
+    }
+
+    @Test
+    fun communityRedemptionPreservesIdentityAndReceipt() = runBlocking {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val nativePurchase = dev.hyo.openiap.PurchaseAndroid(
+            id = "redeemed", isAutoRenewing = false, productId = "premium",
+            purchaseState = dev.hyo.openiap.PurchaseState.Purchased, quantity = 1,
+            store = dev.hyo.openiap.IapStore.Unknown, storeId = "community_fixture",
+            transactionDate = 1.0, purchaseToken = "opaque-community-token",
+        )
+        val provider = provider { method, args ->
+            when (method) {
+                "setActivity" -> { assertEquals(activity, args?.get(0)); null }
+                "getMutationHandlers" -> dev.hyo.openiap.MutationHandlers(openRedeemOfferCode = { nativePurchase })
+                else -> error("Unexpected call: $method")
+            }
+        }
+        val purchase = assertNotNull(delegate(provider, activity).openRedeemOfferCode())
+        assertEquals("redeemed", purchase.id)
+        assertEquals(IapStore.Unknown, purchase.store)
+        assertEquals("community_fixture", purchase.storeId)
+        assertEquals("opaque-community-token", purchase.purchaseToken)
     }
 
     @Test
@@ -107,7 +133,7 @@ class CommunityOptionalOperationsTest {
             { ui.showInAppMessagesAndroid(null) },
             { ui.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },
             { ui.launchExternalLinkAndroid(linkParams()) },
-            { ui.openRedeemOfferCodeAndroid() },
+            { ui.openRedeemOfferCode() },
         )) assertEquals(ErrorCode.ActivityUnavailable, assertFailsWith<PurchaseException> { operation() }.error.code)
     }
 
@@ -148,6 +174,7 @@ class CommunityOptionalOperationsTest {
             val delegate = OpenIapDelegateInAppPurchaseAndroid(store.name, store, "Android")
             assertFalse(delegate.isBillingProgramAvailableAndroid(BillingProgramAndroid.BillingChoice).isAvailable)
             assertFalse(delegate.launchExternalLinkAndroid(linkParams()))
+            assertNull(delegate.openRedeemOfferCode())
             for (operation in listOf<suspend () -> Any?>(
                 { delegate.verifyPurchase(VerifyPurchaseProps()) },
                 { delegate.getBillingChoiceInfoAndroid(GetBillingChoiceInfoParamsAndroid()) },

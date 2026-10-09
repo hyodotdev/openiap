@@ -400,7 +400,61 @@ test("workflow exact bumps write alpha, beta, and stable versions to the selecte
   }
 });
 
-test("metadata audit accepts RCs and rejects a stale protocol mirror", (t) => {
+test("npm workflows start RCs at one and preserve promotion and retry versions", (t) => {
+  const { directory } = fixture(t);
+  const cases = [
+    ["1.2.3", "major", "true", "2.0.0-rc.1"],
+    ["1.2.3", "minor", "true", "1.3.0-rc.1"],
+    ["1.2.3", "patch", "true", "1.2.4-rc.1"],
+    ["2.0.0-rc.0", "rc-bump", "false", "2.0.0-rc.1"],
+    ["2.0.0-rc.1", "rc-bump", "false", "2.0.0-rc.2"],
+    ["2.0.0-rc.1", "patch", "false", "2.0.0"],
+    ["2.0.0-rc.1", "current", "false", "2.0.0-rc.1"],
+    ["2.0.0", "current", "false", "2.0.0"],
+  ];
+  for (const file of [
+    "release-react-native.yml",
+    "release-expo.yml",
+    "release-openiap.yml",
+  ]) {
+    const workflow = parse(
+      readFileSync(join(root, ".github/workflows", file), "utf8"),
+    );
+    const bump = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find((step) => step.name === "Bump version");
+    assert.ok(bump?.run, `${file} must declare its version step`);
+    const manifest = join(directory, "packages/cli/package.json");
+    const output = join(directory, "rc-output");
+    for (const [current, mode, prerelease, expected] of cases) {
+      writeFileSync(
+        manifest,
+        JSON.stringify({ name: "rc-fixture", version: current }),
+      );
+      writeFileSync(output, "");
+      execFileSync("bash", ["-e", "-c", bump.run], {
+        cwd: dirname(manifest),
+        env: {
+          ...process.env,
+          VERSION_TYPE: mode,
+          IS_PRERELEASE: prerelease,
+          GITHUB_OUTPUT: output,
+        },
+      });
+      assert.equal(
+        JSON.parse(readFileSync(manifest, "utf8")).version,
+        expected,
+        `${file}: ${current} ${mode} ${prerelease}`,
+      );
+      assert.equal(
+        readFileSync(output, "utf8"),
+        `version=${expected}\nis_prerelease=${expected.includes("-")}\n`,
+      );
+    }
+  }
+});
+
+test("metadata audit accepts RCs while production requires stable versions", (t) => {
   const { directory, write } = fixture(t);
   const script = join(directory, "scripts/release-branch-policy.mjs");
   mkdirSync(dirname(script), { recursive: true });
@@ -430,11 +484,15 @@ test("metadata audit accepts RCs and rejects a stale protocol mirror", (t) => {
     });
   write("libraries/expo-iap/package.json", { version: "6.0.0-rc.0" });
   assert.equal(run().status, 0);
-  assert.equal(
-    run("--stable").status,
-    1,
-    "retired flags must not be silently ignored",
+  const production = run("--stable");
+  assert.equal(production.status, 1);
+  assert.match(
+    production.stderr,
+    /Production docs require stable package versions/,
   );
+  assert.equal(run("--unknown").status, 1);
+  write("libraries/expo-iap/package.json", { version: "6.0.0" });
+  assert.equal(run("--stable").status, 0);
   write("specs/client/package.json", { version: "0.2.0-rc.1" });
   assert.equal(
     run().status,

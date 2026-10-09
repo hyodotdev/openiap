@@ -4,15 +4,10 @@ import {Platform} from 'react-native';
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
 import {isVegaOS} from './vega';
-import {
-  isProductIOS,
-  deepLinkToSubscriptionsIOS,
-  presentCodeRedemptionSheetIOS,
-} from './modules/ios';
+import {isProductIOS, deepLinkToSubscriptionsIOS} from './modules/ios';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
-  openRedeemOfferCodeAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
 import {showFirstPurchaseNotice} from './utils/firstPurchaseNotice';
@@ -1291,17 +1286,15 @@ export const deepLinkToSubscriptions: MutationField<
 export const openRedeemOfferCode: MutationField<
   'openRedeemOfferCode'
 > = async () => {
-  if (Platform.OS === 'ios') {
-    return presentCodeRedemptionSheetIOS();
+  if (isVegaOS()) return null;
+  if (Platform.OS !== 'ios' && !isAndroidStoreRuntime()) {
+    throw unsupportedPlatformError();
   }
-
-  if (isAndroidStoreRuntime()) {
-    // Native returns Boolean; false also maps to null until the SDK adopts openiap-google 3.4.0.
-    await openRedeemOfferCodeAndroid();
-    return null;
-  }
-
-  throw unsupportedPlatformError();
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.openRedeemOfferCode(),
+    Platform.OS === 'ios' ? 'ios' : 'android',
+    {code: ErrorCode.PurchaseError, message: 'Failed to redeem offer code.'},
+  );
 };
 
 /**

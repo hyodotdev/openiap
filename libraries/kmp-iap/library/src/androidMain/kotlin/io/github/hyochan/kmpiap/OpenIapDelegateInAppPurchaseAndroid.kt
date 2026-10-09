@@ -1,6 +1,3 @@
-// Keep deprecated overrides for existing consumers.
-@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
@@ -336,14 +333,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 requireActivity(), requireNotNull(dev.hyo.openiap.LaunchExternalLinkParamsAndroid.fromJson(params.toJson()))
             )
         } else false
-    override suspend fun openRedeemOfferCode(): Purchase? {
-        if (store == Store.UNKNOWN) openRedeemOfferCodeAndroid()
-        return null
-    }
-    override suspend fun openRedeemOfferCodeAndroid(): Boolean =
+    override suspend fun openRedeemOfferCode(): Purchase? =
         if (store == Store.UNKNOWN) withMappedOpenIapError {
-            requireModule().openRedeemOfferCode(requireActivity())
-        } else false
+            dev.hyo.openiap.utils.redeemOfferCode(requireModule(), requireActivity())?.toKmp()
+        } else null
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails =
         if (store == Store.UNKNOWN) userChoices.first()
         else failUnsupported("User Choice Billing is unavailable on $storeName.")
@@ -367,7 +360,6 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
     override suspend fun clearTransactionIOS(): Boolean = false
-    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? = null
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS = failUnsupported("External purchase links are iOS only.")
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS = failUnsupported("External purchase notice sheet is iOS only.")
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS = failUnsupported("External purchase custom-link notice is iOS only.")

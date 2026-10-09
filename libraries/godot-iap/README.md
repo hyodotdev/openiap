@@ -35,6 +35,21 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 2. Extract and copy `addons/godot-iap/` to your project's `addons/` folder
 3. Enable the plugin in **Project → Project Settings → Plugins**
 
+Android exports require **AGP 8.9.1+**, **Gradle 8.11.1+**, **Android SDK 36+**, and **JDK 17**.
+Install the Android build template and enable **Use Gradle Build**.
+Update any wrapper older than Gradle 8.11.1 before exporting; Godot 4.3's
+stock template needs this step. With a compatible wrapper, the addon raises
+AGP to 8.9.1 and compile SDK to 36 during export, preserving newer versions
+and your target SDK. Newer AGP versions require their corresponding Gradle
+version; the export error names the required wrapper version. Do not force
+older AndroidX libraries to bypass this requirement.
+
+On iOS, `restore_purchases()` can show an App Store sign-in sheet. Cancelling
+returns a `RestoreResult` extending `Types.VoidResult`, with `success = false`,
+`code = "user-cancelled"`, and `error`. It also emits one `purchase_error`
+with the same code and message. Use the result or signal to distinguish
+cancellation from a store failure.
+
 > [!IMPORTANT]
 > For iOS exports, set `application/min_ios_version` to `17.0` or later. The
 > bundled `GodotIap.framework` and `SwiftGodotRuntime.framework` inherit the

@@ -66,10 +66,10 @@ For each package:
    the new version before starting the next package.
 
 Do not run package releases concurrently. Stop on the first failed gate and
-report the exact workflow job and package state. If the user requests docs
-before package publication, use the explicit flag documented in
+report the exact workflow job and package state. If docs are needed before
+package publication, use a preview under
 `knowledge/internal/06-git-deployment.md#deploying-documentation`. If the train
-will not resume, trim the card to the packages that published through §4.
+will not resume, follow that section's incomplete-train rule through §4.
 
 Godot releases also require the authenticated Godot Asset Library listing to be
 updated. Prepare the edit when possible, request action-time confirmation before
@@ -115,8 +115,8 @@ From a clean local `main` equal to `origin/main`:
 1. Run `bun run audit:commerce-evidence`. If it reports drift, re-record the
    IAPKit interop per `packages/kit/scripts/docs/commerce-interop.md` before
    deploying; the guide page shows the recorded revision either way.
-2. Wait for Vercel's production deployment of main's head. Use the manual
-   deploy only when the automatic path cannot complete.
+2. Deploy main's head through `scripts/deploy.sh` after stable metadata and
+   every release-card link pass its eligibility checks.
 3. Fetch the production release page and generated LLM documents with a cache
    buster. Confirm the new release title, API name, versions, and generated
    timestamp are present.

@@ -336,15 +336,15 @@ class ExpoIapModule : Module() {
                 }
             }
 
-            AsyncFunction("openRedeemOfferCodeAndroid") { promise: Promise ->
-                ExpoIapLog.payload("openRedeemOfferCodeAndroid", null)
+            AsyncFunction("openRedeemOfferCode") { promise: Promise ->
+                ExpoIapLog.payload("openRedeemOfferCode", null)
                 scope.launch {
                     try {
-                        val launched = redeemOfferCode(openIap, runCatching { currentActivity }.getOrNull())
-                        ExpoIapLog.result("openRedeemOfferCodeAndroid", launched)
-                        promise.resolve(launched)
+                        val purchase = redeemOfferCode(openIap, runCatching { currentActivity }.getOrNull())
+                        ExpoIapLog.result("openRedeemOfferCode", purchase != null)
+                        promise.resolve(purchase?.toJson())
                     } catch (e: Exception) {
-                        ExpoIapLog.failure("openRedeemOfferCodeAndroid", e)
+                        ExpoIapLog.failure("openRedeemOfferCode", e)
                         val errorMap =
                             if (e is OpenIapError) {
                                 ExpoIapHelper.serializeOpenIapError(e)

@@ -283,6 +283,7 @@ jobs:
             npm version prerelease --preid=rc --no-git-tag-version
           elif [ "$IS_PRERELEASE" = "true" ]; then
             npm version "pre${VERSION_TYPE}" --preid=rc --no-git-tag-version
+            npm version prerelease --preid=rc --no-git-tag-version
           else
             npm version "$VERSION_TYPE" --no-git-tag-version
           fi

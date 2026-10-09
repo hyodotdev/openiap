@@ -1013,8 +1013,7 @@ const purchases = await getAvailablePurchases();
 
 ### Redeem Offer Code
 \`\`\`typescript
-// Cross-platform; replaces the deprecated presentCodeRedemptionSheetIOS
-// and openRedeemOfferCodeAndroid (removal in client protocol 1.0.0)
+// Opens the selected store's offer-code redemption flow.
 const purchase = await openRedeemOfferCode();
 // Verified purchase only on Apple 27+ from Xcode 27+ builds; every other
 // flow resolves null (pre-27 iOS sheet, Play redeem page, Horizon/Amazon
@@ -1122,14 +1121,12 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 
 ### Android
 - acknowledgePurchaseAndroid() - Acknowledge purchase
 - consumePurchaseAndroid() - Consume for re-purchase
-- openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)
 
 ## Purchase Flow Summary
 
