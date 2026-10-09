@@ -1,5 +1,12 @@
 # Changelog
 
+## 11.0.0 (2026-10-09)
+
+- feat: support community providers and release Client Protocol 1.0.0 (#513)
+- feat: integrate providers and main releases (#512)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.0.0
+
+
 ## 10.7.3 (2026-10-07)
 
 - fix(google): complete user choice purchases (#509)
