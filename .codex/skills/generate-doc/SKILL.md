@@ -35,10 +35,10 @@ Use `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`
 to inventory the full PR and selected release train. Complete the gate after
 writing or updating the card, including after scope changes.
 
-Stable releases use `main`; RC releases use the on-demand `next` branch. Keep
-the eventual stable release card with its source PR; do not add a duplicate
-card for each npm `next` publication. Use preview docs while versions carry RC
-suffixes. Production `npm run deploy` requires stable package metadata.
+Stable and RC releases share `main`. Keep the eventual stable release card
+with its source PR; do not add a duplicate card for each npm `next` publication.
+Use preview docs while versions carry RC suffixes. Production `npm run deploy`
+requires stable package metadata.
 
 Write every card this way:
 
