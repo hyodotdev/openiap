@@ -27,15 +27,15 @@ Inspect the complete public payload before publishing it.
   sync. `clientProtocol` mirrors `specs/client/package.json`; never edit the
   mirror directly. Use `version=current` when the manifest already declares the
   version being published.
-- Vercel automatically deploys production docs from `main`, including RC
-  metadata and release cards that precede publication. Docs deployment does
-  not publish packages.
+- Production docs require stable package metadata and published release links.
+  Use previews during RC trains; `--force` cannot bypass release eligibility.
 - Historical `next` tags remain immutable. The old branch is retained for tag
   verification and SBOM recovery; new work and releases do not need it. Do not
   force-reset or delete it without explicit maintainer approval.
 
-`scripts/release-branch-policy.mjs` enforces source branch, version consistency
-and production-doc eligibility. Every version commit runs
+`scripts/release-branch-policy.mjs` enforces source branch and version
+consistency; `scripts/deploy.sh` enforces production-doc eligibility.
+Every version commit runs
 `scripts/sync-release-generated.sh` and stages its generated outputs.
 
 ```bash
@@ -83,8 +83,7 @@ bun run audit:release-state
    RCs do not publish its AAR. Follow
    `packages/google/core/README.md#test-a-published-rc` and the fixture README.
    Keep the consumer's local Maven repository free of a rebuilt core.
-6. Main's docs deploy automatically, showing the RC metadata and eventual
-   stable release card. Verify the deployed site after version commits.
+6. Use a docs preview for the RC train and eventual stable release card.
 
 ```bash
 gh workflow run release-expo.yml --ref main \
@@ -132,7 +131,8 @@ For a multi-package release train, use this order when affected:
    - `cli`: `@hyodotdev/openiap`; independent package version.
      The standalone npm `openiap-conformance` package is retired. Its suite
      remains internal; its historical release tags stay immutable.
-10. Wait for Vercel's production deployment of main's head, then verify it.
+10. Deploy main's head through `scripts/deploy.sh` after stable versions and
+    every release-card link are public, then verify the production result.
     The docs site is not versioned: no tag or GitHub Release.
 
 All three scoped packages use the npm GitHub Trusted Publisher for owner
@@ -199,10 +199,11 @@ Train rules (mistake guards):
   commit it directly to `main` together with any release-process doc updates,
   and do not open a PR for that post-release docs-only commit. Card edits that
   change wording come with the matching `scripts/audit-release-notes.test.mjs`
-  needles. Run the docs deployment; to deploy before publication, use the
-  explicit flag in
+  needles. Run the docs deployment after publication; before publication,
+  use a preview under
   `knowledge/internal/06-git-deployment.md#deploying-documentation`.
-  If a train will not resume, trim its card to what published. CI's release
+  For a train that will not resume, follow that section's incomplete-train rule.
+  CI's release
   note audit (`bun run audit:release-notes`) fails a PR into `main` that
   changes a published package's source without touching the card; a
   behavior-neutral PR carries the `፦ refactor` label instead.

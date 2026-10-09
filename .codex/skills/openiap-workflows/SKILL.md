@@ -108,18 +108,13 @@ appropriate labels before merging.
 - Before creating or updating a PR, declaring review clean, or releasing, apply
   `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`.
 - Run stable and prerelease package releases from `main` through an explicit
-  dispatch. RCs use npm `next`; stable uses `latest`. Vercel automatically
-  deploys main's docs, including RC metadata. Run
+  dispatch. RCs use npm `next`; stable uses `latest`. Production docs require
+  stable metadata and published release links; use previews during RC trains. Run
   `bun run audit:release-state` before release work.
-- For PRs with new features, visible behavior changes, UI changes, docs pages,
-  example flows, or developer workflows, record the actual changed surface,
-  compress the video to under 10 MB, and upload it to the GitHub PR as a
-  `Preview` comment or PR body attachment. Never commit one-off preview media,
-  including under `.github/pr-previews/`; keep it in a temporary or ignored
-  local path and delete it after verifying the GitHub attachment. If browser or
-  extension permissions block the attachment, stop and ask the maintainer to
-  enable uploads instead of force-adding a Git fallback. Use the Codex Chrome
-  Extension for web/docs/dashboard previews when applicable.
+- Decide whether a preview video helps the reviewer under
+  `knowledge/internal/06-git-deployment.md#pull-request-preview-recordings`.
+  Record and attach it only when useful; follow that section's capture,
+  compression, upload, and privacy rules. A video is not a merge or release gate.
 - Keep commits in Angular Conventional Commits format:
   `<type>(<scope>): <subject>`.
 - When creating branches for commit/push/PR workflows, follow

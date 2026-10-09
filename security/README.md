@@ -71,7 +71,7 @@ contributors look for it.
 | Secret prevention       | GitHub secret scanning and push protection                                                                                                                                                                          |
 | Repository posture      | [`ossf/scorecard-action`](https://github.com/ossf/scorecard-action) — [OpenSSF Scorecard](https://scorecard.dev/), results in code scanning                                                                         |
 | Vulnerability reporting | [`../SECURITY.md`](../SECURITY.md) — private reporting, 72-hour acknowledgment                                                                                                                                      |
-| Release-branch policy   | `scripts/release-branch-policy.mjs` — explicit stable/RC dispatches from `main`; Vercel deploys main's docs, including RC metadata                                                                                  |
+| Release-branch policy   | `scripts/release-branch-policy.mjs` + `scripts/deploy.sh` — explicit stable/RC dispatches from `main`; production docs require stable metadata and public release links                                            |
 
 ## Dependency monitoring coverage
 

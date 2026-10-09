@@ -144,7 +144,7 @@ Native modules must be released before framework libraries:
 
 1. `packages/apple` -- CocoaPods + SPM (via `release-apple.yml`)
 2. `packages/google` -- Maven Central (via `release-google.yml`)
-3. Framework libraries (can be parallel after steps 1+2):
+3. Framework libraries (one at a time after verifying steps 1+2):
    - `release-react-native.yml` -- npm
    - `release-expo.yml` -- npm
    - `release-flutter.yml` -- pub.dev
@@ -154,13 +154,12 @@ Native modules must be released before framework libraries:
 
 ### Prerelease
 
-Native and framework package workflows support their documented version bump
-modes (`patch` / `minor` / `major` / `rc` / `promote`). The docs site has no
-version and no release workflow; `npm run deploy` just deploys.
-
-- `major` + prerelease checkbox -- X.0.0-rc.1
-- `rc` -- X.0.0-rc.2 (increment prerelease)
-- `promote` -- X.0.0 (stable release from latest rc)
+Follow [the release workflow](.claude/commands/release.md) for package-specific
+inputs: `prerelease=true` starts at rc.1, `version=rc-bump` increments an RC
+where supported, and `version=patch` promotes an RC to its stable base version.
+Production docs deploy through `npm run deploy` only after every package is
+stable and its release links are public; use previews during prereleases.
+The docs site has no version or release workflow.
 
 ### Version Management
 

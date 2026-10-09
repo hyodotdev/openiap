@@ -43,9 +43,9 @@ bun run typecheck  # Type check
 
 ## Deployment
 
-Vercel automatically deploys `hyodotdev/openiap` main, including RC metadata.
-Manual deployment remains available from the repository root with
-`npm run deploy`. See the canonical deployment contract below.
+Deploy production docs from the repository root with `npm run deploy` after
+stable package metadata and release links are public. Use previews during RC
+trains. See the canonical deployment contract below.
 
 The docs site is not versioned, so a deployment cuts no tag and creates no
 GitHub Release. Branch guards, version ownership, deploy verification, and the

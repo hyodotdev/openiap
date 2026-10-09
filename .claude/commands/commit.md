@@ -209,25 +209,12 @@ EOF
 git push -u origin <branch-name>
 ```
 
-### 6a. Record The Preview Before Opening The PR
+### 6a. Decide Whether A Preview Helps
 
-Record and compress it here, before the PR exists. Uploading needs the PR and so
-happens in step 7a, but a recording made only after the URL is in hand never
-gets made — that is how this step used to be lost.
-
-For every PR that adds a new feature, visible behavior change, UI change,
-documentation page, example flow, or developer workflow:
-
-1. Render the actual changed surface after implementation. Use the Codex Chrome
-   Extension for web/docs/dashboard previews.
-2. Compress the final recording to **under 10 MB**. Prefer H.264 MP4 with lower
-   resolution / frame rate when needed.
-
-Write it to a temporary or ignored local path. Never commit one-off PR preview
-recordings, including under `.github/pr-previews/`; only media that is itself
-product documentation or a shipped example asset belongs in the repository.
-Never include secrets, private customer data, or browser profile details in the
-recording.
+Apply `knowledge/internal/06-git-deployment.md#pull-request-preview-recordings`.
+Use judgment to create a video only when it helps explain the change. If useful,
+record the finished surface and compress it before opening the PR; attach it in
+step 7a. Otherwise skip both preview steps without blocking review or release.
 
 ### 7. Create Pull Request
 
@@ -257,15 +244,8 @@ EOF
 
 ### 7a. Attach The Recording
 
-Upload the step 6a recording to the PR as a body attachment or a clearly
-labeled `Preview` comment, embed the GitHub-hosted link, and confirm it renders.
-Delete the local file afterwards. The PR is not handed off until this is done.
-If browser or extension permissions block the upload, stop and ask the
-maintainer to enable file uploads; never force-add the recording as a Git
-fallback.
-
-If there is no visual or interactive surface, add a short PR note explaining why
-recording is not applicable and include the best terminal or API proof instead.
+Run this step only when step 6a selected a recording. Follow the canonical
+preview rules to attach it, verify it renders, and delete the temporary file.
 
 ### 8. Verify the Labels Landed
 

@@ -355,11 +355,10 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-Vercel deploys main's docs even before linked releases publish. Manual
-`npm run deploy` checks release links; use `-f` or `--force` to deploy earlier,
-as described in
+Production docs deploy only after package metadata is stable and every linked
+release is public; use previews until then. See
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).
-If a train will not resume, trim its card to the packages that published.
+That section also covers a release train that stops before completion.
 
 ### Release Note Completeness Gate
 
@@ -520,8 +519,8 @@ Before adding or editing a `Package Releases` list:
 
 Keep one concise, package-grouped stable release card with the source PR on
 `main`, including when an RC publishes first. Do not create duplicate cards for
-RC or npm `next` publications. Main's docs deploy automatically, including RC
-metadata and release cards whose packages have not published yet.
+RC or npm `next` publications. Use previews until stable package metadata and
+every release-card link are public, then deploy production docs.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,

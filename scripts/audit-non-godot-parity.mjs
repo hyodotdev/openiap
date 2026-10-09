@@ -5372,9 +5372,8 @@ function checkFrameworkDependencyHygiene() {
       "'.clientProtocol = $version'",
       'git commit -m "chore(spec)',
       "git push origin HEAD:main",
-      "audit --stable",
     ],
-    "deploy script must preserve target checks and accept RC metadata",
+    "deploy script must preserve target checks",
   );
   expectIncludes(
     "packages/docs/deploy.sh",
@@ -5399,6 +5398,7 @@ function checkFrameworkDependencyHygiene() {
       "install --frozen-lockfile",
       '"buildCommand": "node ../../scripts/release-branch-policy.mjs audit && node ../../scripts/verify-docs-version-metadata.mjs && bun run build"',
       '"outputDirectory": "dist"',
+      '"main": false',
     ],
     "Vercel builds must install the monorepo and validate docs metadata",
   );
@@ -6443,7 +6443,7 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/release.md",
     [
       "currently every five minutes",
-      "Wait for Vercel's production deployment of main's head",
+      "Deploy main's head through `scripts/deploy.sh`",
       "The docs site is not versioned",
       "Release notes ship in the PR",
       "commit it directly to `main` together with any release-process doc updates",
