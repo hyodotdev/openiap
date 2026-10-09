@@ -6,6 +6,11 @@ import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 import { AMAZON_SUPPORTER, META_SUPPORTER } from '../../../lib/sponsors';
+import {
+  GITHUB_DEPENDENTS_DESCRIPTION,
+  GITHUB_DEPENDENTS_LABEL,
+  GITHUB_DEPENDENTS_URL,
+} from '../../../lib/showcase';
 
 const { Wordmark: AmazonSponsorWordmark } = AMAZON_SUPPORTER;
 const { Wordmark: MetaSponsorWordmark } = META_SUPPORTER;
@@ -53,6 +58,98 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    {
+      id: 'showcase-ai-submissions-2026-10-09',
+      date: new Date('2026-10-09'),
+      element: (
+        <div key="showcase-ai-submissions-2026-10-09" style={cardStyle}>
+          <div style={headerStyle}>
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              Built with OpenIAP: explore the apps, share yours
+            </h2>
+            <a
+              href="#showcase-ai-submissions-2026-10-09"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>October 9, 2026</p>
+          <Link to="/showcase">
+            <img
+              src="/announcements/openiap-showcase.webp"
+              alt="Built with OpenIAP: reading, notes, games, and bookmark app tiles connected by a shared foundation"
+              width={1672}
+              height={941}
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                borderRadius: '0.75rem',
+                marginBottom: '1.5rem',
+              }}
+            />
+          </Link>
+          <p>
+            Seeing what people build is one of the rewards of maintaining open
+            source. The updated <Link to="/showcase">OpenIAP showcase</Link>{' '}
+            brings together community apps and open-source projects including
+            Folo, Linkwarden, Notesnook, and Standard Notes.
+          </p>
+          <p>
+            Across OpenIAP packages, GitHub reports{' '}
+            <a
+              href={GITHUB_DEPENDENTS_URL}
+              title={GITHUB_DEPENDENTS_DESCRIPTION}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {GITHUB_DEPENDENTS_LABEL}
+            </a>
+            . These are package estimates; repositories using several packages
+            may count more than once. Thank you to everyone building apps,
+            contributing fixes, and sharing feedback.
+          </p>
+          <h3>Find your next inspiration</h3>
+          <p>
+            Search by app name, description, library, or GitHub repository, then
+            filter by category and OpenIAP library. Apps are ordered by public
+            Google Play download counts; apps without a count follow them.
+          </p>
+          <h3>Your app belongs here too</h3>
+          <p>
+            Built an app with OpenIAP? Open-source and closed-source apps are
+            welcome. No public source code is required.
+          </p>
+          <ol>
+            <li>
+              Open the <Link to="/showcase#submit">submission section</Link> and
+              copy the prompt for your AI assistant.
+            </li>
+            <li>
+              Share your app link or project and connect the Showcase MCP server
+              if your assistant requires manual setup.
+            </li>
+            <li>
+              Confirm the app details, contact email, and listing consent, then
+              ask your assistant to submit. Keep the receipt ID to check its
+              review status.
+            </li>
+          </ol>
+          <Callout kind="note">
+            Every submission needs maintainer approval before it appears.
+            Pending submissions stay private, and your contact email is never
+            published.
+          </Callout>
+          <p>
+            <Link to="/showcase">
+              Explore the showcase and share your app →
+            </Link>
+          </p>
+        </div>
+      ),
+    },
     // 2026-07-29: OpenIAP 3
     {
       id: '2026-07-29-openiap-3',

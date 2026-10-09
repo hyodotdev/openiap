@@ -344,6 +344,14 @@ Framework implementation listings must be derived from
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
+### Release Page Scope
+
+Only package, protocol, CLI, and hosted IAPKit/MCP releases belong on this page.
+Showcase updates, community news, website changes, and deployment-process notes
+belong in `packages/docs/src/pages/docs/updates/announcements.tsx` or the guide
+they affect; they must not create standalone release cards. A release card may
+link to a supporting article without duplicating it.
+
 ### Docs Ship With The Change
 
 A PR into `main` that changes a published package carries its documentation:
