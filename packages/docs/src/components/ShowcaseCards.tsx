@@ -2,7 +2,7 @@ import type { CSSProperties, ReactElement } from 'react';
 import { SiApple, SiGoogleplay } from 'react-icons/si';
 import { Github, Globe } from 'lucide-react';
 import type { ShowcaseApp } from '../lib/showcase';
-import { formatShowcaseCount } from '../lib/showcase';
+import { formatShowcaseCount, getShowcaseAppLibraries } from '../lib/showcase';
 
 export const SHOWCASE_DISCUSSION_URL =
   'https://github.com/hyodotdev/openiap/discussions/350';
@@ -121,13 +121,11 @@ export function ShowcaseAppMeta({ app }: { app: ShowcaseApp }): ReactElement {
           {app.stars === undefined ? null : formatShowcaseCount(app.stars)}
         </a>
       ) : null}
-      {(Array.isArray(app.library) ? app.library : [app.library]).map(
-        (library) => (
-          <span key={library} style={badgeStyle}>
-            {library}
-          </span>
-        )
-      )}
+      {getShowcaseAppLibraries(app).map((library) => (
+        <span key={library} style={badgeStyle}>
+          {library}
+        </span>
+      ))}
       {app.iapkit ? (
         <span
           style={{
@@ -164,6 +162,7 @@ export function ShowcaseAppCard({ app }: { app: ShowcaseApp }): ReactElement {
         >
           {app.name}
         </div>
+        <div className="showcase-app-category">{app.category}</div>
         <div
           style={{
             fontSize: '0.85rem',
@@ -202,12 +201,10 @@ export function ShowcaseSubmitCard() {
           color: 'var(--text-secondary)',
         }}
       >
-        Send your app details and IAPKit usage — we'll add it here.
+        Submit your app for review — approved apps appear here.
       </div>
       <a
-        href={SHOWCASE_DISCUSSION_URL}
-        target="_blank"
-        rel="noreferrer"
+        href="/showcase#submit"
         style={{
           display: 'inline-block',
           padding: '0.5rem 1.25rem',

@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import '../styles/accordion.css';
 
 interface AccordionProps {
@@ -13,20 +13,24 @@ function Accordion({
   children,
   defaultOpen = false,
   variant = 'info',
-}: AccordionProps) {
+}: AccordionProps): ReactElement {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const contentId = useId();
 
   return (
     <div className={`accordion accordion-${variant} ${isOpen ? 'open' : ''}`}>
       <button
+        type="button"
         className="accordion-header"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
+        aria-controls={contentId}
       >
-        <span className="accordion-title">
-          {typeof title === 'string' ? title : <>{title}</>}
-        </span>
-        <span className={`accordion-icon ${isOpen ? 'open' : ''}`}>
+        <span className="accordion-title">{title}</span>
+        <span
+          className={`accordion-icon ${isOpen ? 'open' : ''}`}
+          aria-hidden="true"
+        >
           <svg
             width="16"
             height="16"
@@ -44,7 +48,12 @@ function Accordion({
           </svg>
         </span>
       </button>
-      <div className={`accordion-content-wrapper ${isOpen ? 'open' : ''}`}>
+      <div
+        id={contentId}
+        className={`accordion-content-wrapper ${isOpen ? 'open' : ''}`}
+        inert={!isOpen}
+        aria-hidden={!isOpen}
+      >
         <div className="accordion-content">{children}</div>
       </div>
     </div>

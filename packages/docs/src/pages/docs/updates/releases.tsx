@@ -517,6 +517,37 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'showcase-ai-submissions-2026-10-09',
+      date: new Date('2026-10-09'),
+      element: (
+        <div key="showcase-ai-submissions-2026-10-09" style={noteCardStyle}>
+          <AnchorLink id="showcase-ai-submissions-2026-10-09" level="h4">
+            October 9, 2026 - Find and submit apps in the showcase
+          </AnchorLink>
+          <p>
+            Find apps by category and OpenIAP library in the{' '}
+            <Link to="/showcase">showcase</Link>, with results ordered by public
+            Google Play download counts.
+          </p>
+          <ul>
+            <li>
+              Copy the AI prompt to gather your app details and submit them
+              through the Showcase MCP server; some assistants require manual
+              connection setup.
+            </li>
+            <li>
+              Apps appear only after maintainer approval. Pending submissions
+              stay private, and contact email is never published.
+            </li>
+            <li>
+              Documentation deploys automatically from main, including RC
+              package versions. Package publishing remains a separate release.
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
       id: 'user-choice-retry-2026-10-07',
       aliases: USER_CHOICE_RETRY_RELEASES.map((release) => release.tag),
       date: new Date('2026-10-07'),

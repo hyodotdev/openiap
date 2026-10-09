@@ -1,7 +1,7 @@
 {
   "git": {
     "deploymentEnabled": {
-      "main": false
+      "main": true
     }
   },
   "installCommand": "cd ../.. && bunx \"$(node -p 'require(\"./package.json\").packageManager')\" install --frozen-lockfile",
@@ -27,6 +27,18 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/mcp",
+      "destination": "/api/showcase/mcp"
+    },
+    {
+      "source": "/api/auth/:path*",
+      "destination": "/api/auth?authPath=:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
     {
       "source": "/(.*)",
       "destination": "/_app.html"

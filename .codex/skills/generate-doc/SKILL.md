@@ -37,8 +37,8 @@ writing or updating the card, including after scope changes.
 
 Stable and RC releases share `main`. Keep the eventual stable release card
 with its source PR; do not add a duplicate card for each npm `next` publication.
-Use previews until stable package metadata and every release-card link are
-public, then deploy production docs.
+Vercel automatically deploys main's docs, including RC metadata and cards
+ahead of package publication.
 
 Write every card this way:
 

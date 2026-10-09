@@ -45,6 +45,25 @@
   outline-offset: 3px;
 }
 
+.select-input {
+  position: relative;
+  min-width: 0;
+}
+
+.select-input > .select-input-control {
+  appearance: none;
+  padding-inline-end: 2.7rem;
+}
+
+.select-input-icon {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 0.85rem;
+  color: var(--text-secondary);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 /* Footer - Compact */
 .footer {
   background: var(--bg-primary);

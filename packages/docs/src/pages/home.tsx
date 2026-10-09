@@ -1,3 +1,4 @@
+import { showcaseIdentity } from '@hyodotdev/openiap-mcp-server/showcase-schema';
 import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
@@ -17,13 +18,13 @@ import {
 } from '../lib/config';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 import {
-  FEATURED_SHOWCASE_APPS,
   GITHUB_DEPENDENTS_LABEL,
   GITHUB_DEPENDENTS_URL,
   GITHUB_DEPENDENTS_DESCRIPTION,
 } from '../lib/showcase';
 import { CURRENT_SPONSORS } from '../lib/sponsors';
 import SEO from '../components/SEO';
+import { useShowcaseApps } from '../hooks/useShowcaseApps';
 
 interface IapKitFeature {
   title: string;
@@ -73,6 +74,7 @@ const STORE_SURFACES = [
 ] as const;
 
 function Home() {
+  const apps = useShowcaseApps();
   return (
     <div className="home">
       <SEO
@@ -609,8 +611,8 @@ function Home() {
                 <strong>Apps built with OpenIAP</strong>
                 <small>Products shipping across app stores</small>
                 <span className="home-community-app-icons" aria-hidden="true">
-                  {FEATURED_SHOWCASE_APPS.slice(0, 4).map((app) => (
-                    <img key={app.name} src={app.logo} alt="" />
+                  {apps.slice(0, 4).map((app) => (
+                    <img key={showcaseIdentity(app)} src={app.logo} alt="" />
                   ))}
                 </span>
               </div>

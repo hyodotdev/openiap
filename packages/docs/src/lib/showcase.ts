@@ -1,4 +1,5 @@
 import * as showcaseData from '../../showcase-apps.json';
+import { showcaseIdentities } from '@hyodotdev/openiap-mcp-server/showcase-schema';
 import { LIBRARIES, type FrameworkLibraryName } from './images';
 
 export interface ShowcaseApp {
@@ -6,6 +7,8 @@ export interface ShowcaseApp {
   name: string;
   /** One-line description shown under the app name. */
   tagline: string;
+  /** App purpose used by showcase filters. */
+  category: string;
   /** Path under packages/docs/public (e.g. `/showcase/app.webp`) or an https URL. */
   logo: string;
   /** Which OpenIAP library the app ships with. */
@@ -41,12 +44,12 @@ export const GITHUB_DEPENDENTS_URL = SHOWCASE_GITHUB.sources.find(
 )?.url;
 export const GITHUB_DEPENDENTS_DESCRIPTION = `GitHub's publicly visible estimates, summed by package. Shared repositories may count more than once. Checked ${SHOWCASE_GITHUB.checkedAt}.`;
 
-/** How many apps the home page highlights before "See all". */
+/** How many apps Community Resources highlights before "See all". */
 export const FEATURED_SHOWCASE_LIMIT = 5;
 
 /** All apps share the same public Play install metric; unknown counts sort last. */
-function byReach(apps: ShowcaseApp[]): ShowcaseApp[] {
-  return apps.sort(
+export function sortShowcaseApps(apps: readonly ShowcaseApp[]): ShowcaseApp[] {
+  return [...apps].sort(
     (a, b) =>
       (b.installs ?? -1) - (a.installs ?? -1) ||
       a.name.localeCompare(b.name, 'en')
@@ -76,9 +79,65 @@ const githubApps = SHOWCASE_GITHUB.apps.flatMap((app): ShowcaseApp[] => {
   ];
 });
 
-export const SHOWCASE_APPS = byReach([...submittedApps, ...githubApps]);
+export const SHOWCASE_APPS = sortShowcaseApps([
+  ...submittedApps,
+  ...githubApps,
+]);
 
-export const FEATURED_SHOWCASE_APPS = SHOWCASE_APPS.slice(
-  0,
-  FEATURED_SHOWCASE_LIMIT
-);
+export function mergeShowcaseApps(
+  apps: readonly ShowcaseApp[],
+  additions: readonly ShowcaseApp[]
+): ShowcaseApp[] {
+  const identities = new Set(apps.flatMap(showcaseIdentities));
+  const fresh = additions.filter((app) => {
+    const aliases = showcaseIdentities(app);
+    if (aliases.some((identity) => identities.has(identity))) return false;
+    aliases.forEach((identity) => identities.add(identity));
+    return true;
+  });
+  return sortShowcaseApps([...apps, ...fresh]);
+}
+
+export function getShowcaseAppLibraries(
+  app: ShowcaseApp
+): FrameworkLibraryName[] {
+  return Array.isArray(app.library) ? app.library : [app.library];
+}
+
+export const SHOWCASE_CATEGORIES = [
+  ...new Set(SHOWCASE_APPS.map((app) => app.category)),
+].sort((a, b) => a.localeCompare(b, 'en'));
+
+export interface ShowcaseFilters {
+  query: string;
+  category: string;
+  library: FrameworkLibraryName | '';
+}
+
+export function filterShowcaseApps(
+  apps: readonly ShowcaseApp[],
+  { query, category, library }: ShowcaseFilters
+): ShowcaseApp[] {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+  return apps.filter((app) => {
+    const libraries = getShowcaseAppLibraries(app);
+    if (category && app.category !== category) return false;
+    if (library && !libraries.includes(library)) return false;
+
+    const searchText = [
+      app.name,
+      app.tagline,
+      app.category,
+      app.github ?? '',
+      app.iapkit ? 'IAPKit' : '',
+      ...LIBRARIES.filter((entry) => libraries.includes(entry.name)).flatMap(
+        (entry) => [entry.name, entry.frameworkName]
+      ),
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    return terms.every((term) => searchText.includes(term));
+  });
+}

@@ -454,7 +454,7 @@ test("npm workflows start RCs at one and preserve promotion and retry versions",
   }
 });
 
-test("metadata audit accepts RCs while production requires stable versions", (t) => {
+test("metadata audit accepts RC and stable docs while rejecting drift", (t) => {
   const { directory, write } = fixture(t);
   const script = join(directory, "scripts/release-branch-policy.mjs");
   mkdirSync(dirname(script), { recursive: true });
@@ -484,15 +484,9 @@ test("metadata audit accepts RCs while production requires stable versions", (t)
     });
   write("libraries/expo-iap/package.json", { version: "6.0.0-rc.0" });
   assert.equal(run().status, 0);
-  const production = run("--stable");
-  assert.equal(production.status, 1);
-  assert.match(
-    production.stderr,
-    /Production docs require stable package versions/,
-  );
   assert.equal(run("--unknown").status, 1);
   write("libraries/expo-iap/package.json", { version: "6.0.0" });
-  assert.equal(run("--stable").status, 0);
+  assert.equal(run().status, 0);
   write("specs/client/package.json", { version: "0.2.0-rc.1" });
   assert.equal(
     run().status,

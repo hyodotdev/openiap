@@ -236,6 +236,10 @@ openiap/src/
 - Built with React + Vite
 - Deployed to Vercel
 - Contains API reference and guides
+- `api/` contains flat Vercel adapters; `server/` owns website endpoint logic,
+  private showcase storage, and maintainer authentication. The docs build bundles
+  endpoints into `server/generated/` for Node. Showcase uses a separate database
+  from IAPKit. Its MCP tools and schema live in `packages/mcp-server`.
 
 ## Dependency Flow
 

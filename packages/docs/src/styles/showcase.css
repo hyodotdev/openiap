@@ -1,0 +1,244 @@
+.showcase-filters {
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.875rem;
+  text-align: left;
+}
+
+.showcase-search-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 1rem;
+}
+
+.showcase-search-controls label {
+  min-width: 0;
+}
+
+.showcase-search-controls label > span,
+.showcase-library-filters legend {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.showcase-search-controls input,
+.showcase-search-controls select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.showcase-search-input {
+  display: block;
+  position: relative;
+}
+
+.showcase-search-input input {
+  padding-left: 2.4rem;
+}
+
+.showcase-search-input svg {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.showcase-library-filters {
+  margin-top: 1rem;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.showcase-library-filters > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.showcase-library-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.showcase-library-filters button[aria-pressed='true'] {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+.showcase-library-filters button > span {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.showcase-filters :is(input, select, button):focus-visible,
+.showcase-results-bar button:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+.showcase-results-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.showcase-results-bar p {
+  margin: 0;
+}
+
+.showcase-results-bar button {
+  min-height: 40px;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.showcase-app-category {
+  margin-bottom: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.showcase-empty {
+  padding: 3rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 0.875rem;
+  text-align: center;
+}
+
+.showcase-empty h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+.showcase-empty p {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+  .showcase-search-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.showcase-submission-guide {
+  scroll-margin-top: 5rem;
+  margin-top: 3rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  text-align: left;
+  line-height: 1.7;
+}
+
+.showcase-submission-guide h2 {
+  margin-top: 0;
+  font-size: 1.4rem;
+}
+.showcase-submission-guide p {
+  color: var(--text-secondary);
+}
+.showcase-submission-guide a {
+  color: var(--accent-color);
+}
+.showcase-submission-guide .code-block {
+  padding: 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.showcase-submission-guide .code-block code {
+  display: block;
+  padding: 0;
+  background: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: inherit;
+}
+.showcase-submission-note,
+.showcase-submission-links {
+  font-size: 0.8rem;
+}
+.showcase-submission-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0;
+}
+.showcase-admin {
+  max-width: 760px;
+  text-align: left;
+}
+.showcase-review-entry {
+  margin-top: 2rem;
+}
+.showcase-review-entry > p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.showcase-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+.showcase-review-actions button,
+.showcase-sign-in,
+.showcase-admin > div button {
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  font: inherit;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.showcase-review-actions button:first-child,
+.showcase-sign-in {
+  background: var(--accent-color);
+  color: white;
+  text-decoration: none;
+}
+.showcase-review-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.showcase-review-actions button:focus-visible,
+.showcase-sign-in:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 3px;
+}

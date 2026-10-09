@@ -206,8 +206,9 @@ caught before publishing.
 
 RC and stable releases share `main`. Keep one eventual stable release card
 with the source PR, and do not add duplicate entries for RC publications.
-Use previews until stable package metadata and every release-card link are
-public, then deploy production docs.
+Vercel deploys production docs automatically from `main`, including RC
+metadata. After package publication, verify the card against the public tags.
+Follow the deployment policy in `06-git-deployment.md`.
 
 ### R10 — Docs version metadata stays synced with package metadata
 

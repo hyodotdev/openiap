@@ -277,9 +277,8 @@ GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
 - Select the prerelease lane for RC versions and npm `next`, or the stable lane
   for the target without an RC suffix and npm `latest`. Merging source does not
   publish a package.
-- Production docs require stable package metadata and published release links.
-  Use previews during an RC train; `--force` cannot bypass release eligibility.
-  After publishing, deploy production docs through `scripts/deploy.sh`.
+- Vercel automatically deploys production docs from `main`, including RC
+  metadata. Documentation deployment does not publish packages.
 - Historical `next` tags and their branch remain for verification and SBOM
   recovery. Do not reset or delete that branch without explicit approval.
 - Read `.claude/commands/release.md` before any package deployment.

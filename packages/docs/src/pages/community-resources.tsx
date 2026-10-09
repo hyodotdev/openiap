@@ -1,10 +1,10 @@
+import { showcaseIdentity } from '@hyodotdev/openiap-mcp-server/showcase-schema';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   BookOpen,
   Boxes,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -16,6 +16,7 @@ import {
   Video,
 } from 'lucide-react';
 import SEO from '../components/SEO';
+import SelectInput from '../components/SelectInput';
 import {
   COMMUNITY_RESOURCES,
   OFFICIAL_OPENIAP_RESOURCES,
@@ -29,7 +30,8 @@ import {
   LIBRARY_IMAGES,
   type FrameworkLibraryName,
 } from '../lib/images';
-import { FEATURED_SHOWCASE_APPS, SHOWCASE_APPS } from '../lib/showcase';
+import { FEATURED_SHOWCASE_LIMIT } from '../lib/showcase';
+import { useShowcaseApps } from '../hooks/useShowcaseApps';
 import {
   ShowcaseAppMeta,
   SHOWCASE_DISCUSSION_URL,
@@ -256,6 +258,7 @@ function ResourceRow({ resource }: ResourceRowProps) {
 }
 
 function CommunityResources() {
+  const apps = useShowcaseApps();
   useScrollToHash();
 
   const [selectedEcosystem, setSelectedEcosystem] = useState<Ecosystem | 'all'>(
@@ -475,52 +478,40 @@ function CommunityResources() {
 
               <label>
                 <span>Library</span>
-                <div className="cr-select-input">
-                  <select
-                    value={selectedEcosystem}
-                    onChange={(event) => {
-                      setSelectedEcosystem(
-                        event.target.value as Ecosystem | 'all'
-                      );
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="all">All libraries</option>
-                    {AVAILABLE_ECOSYSTEMS.map((ecosystem) => (
-                      <option key={ecosystem.id} value={ecosystem.id}>
-                        {ecosystem.module}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="cr-select-icon" aria-hidden="true">
-                    <ChevronDown size={16} strokeWidth={1.8} />
-                  </div>
-                </div>
+                <SelectInput
+                  value={selectedEcosystem}
+                  onChange={(event) => {
+                    setSelectedEcosystem(
+                      event.target.value as Ecosystem | 'all'
+                    );
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="all">All libraries</option>
+                  {AVAILABLE_ECOSYSTEMS.map((ecosystem) => (
+                    <option key={ecosystem.id} value={ecosystem.id}>
+                      {ecosystem.module}
+                    </option>
+                  ))}
+                </SelectInput>
               </label>
 
               <label>
                 <span>Type</span>
-                <div className="cr-select-input">
-                  <select
-                    value={selectedType}
-                    onChange={(event) => {
-                      setSelectedType(
-                        event.target.value as ResourceType | 'all'
-                      );
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="all">All types</option>
-                    {RESOURCE_TYPES.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="cr-select-icon" aria-hidden="true">
-                    <ChevronDown size={16} strokeWidth={1.8} />
-                  </div>
-                </div>
+                <SelectInput
+                  value={selectedType}
+                  onChange={(event) => {
+                    setSelectedType(event.target.value as ResourceType | 'all');
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="all">All types</option>
+                  {RESOURCE_TYPES.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.label}
+                    </option>
+                  ))}
+                </SelectInput>
               </label>
             </div>
 
@@ -607,7 +598,7 @@ function CommunityResources() {
                     <Boxes size={16} aria-hidden="true" />
                     <span>
                       <strong>View the full showcase</strong>
-                      <small>{SHOWCASE_APPS.length} community apps</small>
+                      <small>{apps.length} community apps</small>
                     </span>
                     <ArrowUpRight size={14} aria-hidden="true" />
                   </Link>
@@ -633,8 +624,8 @@ function CommunityResources() {
             </div>
 
             <div className="cr-app-list">
-              {FEATURED_SHOWCASE_APPS.map((app, index) => (
-                <article key={app.name} className="cr-app-row">
+              {apps.slice(0, FEATURED_SHOWCASE_LIMIT).map((app, index) => (
+                <article key={showcaseIdentity(app)} className="cr-app-row">
                   <span className="cr-app-index" aria-hidden="true">
                     {String(index + 1).padStart(2, '0')}
                   </span>

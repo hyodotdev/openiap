@@ -6,6 +6,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { format } from 'prettier';
+import { parsePlayMetrics } from './showcase-play-metrics.mjs';
+export { parsePlayMetrics } from './showcase-play-metrics.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(HERE, '..', 'showcase-apps.json');
@@ -23,16 +25,6 @@ const APP_STORE_STOREFRONTS =
 
 const STOREFRONT_CONCURRENCY = 5;
 const STOREFRONT_BATCH_PAUSE_MS = 150;
-
-/** "1.2K" -> 1200, "3M" -> 3000000, "55" -> 55 */
-function parseCompact(value) {
-  const match = /^([\d.,]+)\s*([KMB])?/i.exec(value.trim());
-  if (!match) return undefined;
-  const base = Number(match[1].replace(/,/g, ''));
-  if (!Number.isFinite(base)) return undefined;
-  const scale = { k: 1e3, m: 1e6, b: 1e9 }[match[2]?.toLowerCase()] ?? 1;
-  return Math.round(base * scale);
-}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -117,46 +109,6 @@ async function appleRatings(iosUrl) {
   return { ratings, markets };
 }
 
-// Text nodes that end in "reviews" but are chrome, not a count.
-const PLAY_REVIEW_CHROME = /^(ratings and reviews|reviews|all reviews)$/i;
-
-// Missing reviews can mean zero; a missing download count means markup drift.
-export function parsePlayMetrics(html, packageName = 'app') {
-  const installs =
-    />([\d.,]+\s*[KMB]?\+)<\/div><div class="[^"]+">Downloads</i.exec(
-      html
-    )?.[1];
-  if (installs === undefined) {
-    throw new Error(
-      `install count not found for ${packageName} — Play markup likely changed`
-    );
-  }
-
-  const reviews = /">([\d.,]+\s*[KMB]?)\s*reviews</i.exec(html)?.[1];
-  if (reviews !== undefined) {
-    const parsed = parseCompact(reviews);
-    if (parsed === undefined) {
-      throw new Error(
-        `review count "${reviews}" not parseable for ${packageName}`
-      );
-    }
-    return { ratings: parsed, installs: parseCompact(installs) };
-  }
-
-  const orphaned = [...html.matchAll(/>([^<]{0,40}?reviews)</gi)]
-    .map((match) => match[1].trim())
-    .filter((text) => !PLAY_REVIEW_CHROME.test(text))
-    .filter((text) => /\d/.test(text));
-
-  if (orphaned.length > 0) {
-    throw new Error(
-      `found review element "${orphaned[0]}" but could not read its count for ${packageName}`
-    );
-  }
-
-  return { ratings: 0, installs: parseCompact(installs) };
-}
-
 async function playMetrics(androidUrl) {
   const packageName = new URL(androidUrl).searchParams.get('id');
   if (!packageName) return {};
@@ -164,6 +116,32 @@ async function playMetrics(androidUrl) {
     `https://play.google.com/store/apps/details?id=${encodeURIComponent(packageName)}&hl=en&gl=US`
   );
   return parsePlayMetrics(html, packageName);
+}
+
+export async function refreshApprovedDownloads(
+  query,
+  readMetrics = playMetrics
+) {
+  const rows = await query(
+    "SELECT id, payload->>'android' AS android FROM showcase_submissions WHERE status = 'approved' AND payload->>'android' IS NOT NULL"
+  );
+  let updated = 0;
+  let stale = 0;
+  for (const row of rows) {
+    try {
+      const { installs } = await readMetrics(row.android);
+      if (!Number.isSafeInteger(installs) || installs < 0)
+        throw new Error('No install count');
+      await query(
+        "UPDATE showcase_submissions SET installs = $2 WHERE id = $1 AND status = 'approved'",
+        [row.id, installs]
+      );
+      updated += 1;
+    } catch {
+      stale += 1;
+    }
+  }
+  return { updated, stale };
 }
 
 async function main() {
@@ -267,6 +245,17 @@ async function main() {
     process.exitCode = 1;
   }
   console.log(`\nRanking\n${ranking}`);
+  if (process.env.SHOWCASE_DATABASE_URL) {
+    const { neon } = await import('@neondatabase/serverless');
+    const sql = neon(process.env.SHOWCASE_DATABASE_URL);
+    const approved = await refreshApprovedDownloads((text, params) =>
+      sql.query(text, params)
+    );
+    console.log(
+      `Updated ${approved.updated} approved entries; ${approved.stale} kept previous downloads.`
+    );
+    if (approved.stale) process.exitCode = 1;
+  }
 }
 
 // Only refresh when run directly; importing for tests must stay side-effect free.

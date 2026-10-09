@@ -16,7 +16,7 @@ This file is a route map, not a second deployment specification.
 | Surface                                | Canonical entrypoint                                                     |
 | -------------------------------------- | ------------------------------------------------------------------------ |
 | Apple, Google, and framework libraries | Sequential stable workflows listed in `.claude/commands/release.md`      |
-| Production docs                        | Root `npm run deploy` after stable versions and release links are public |
+| Production docs                        | Vercel Git deployment from `main`; root `npm run deploy` is the fallback |
 | IAPKit                                 | `.github/workflows/deploy-kit.yml` on relevant pushes to `main`          |
 
 For the rare IAPKit manual fallback, follow the Convex-first sequence in

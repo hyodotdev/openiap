@@ -31,13 +31,13 @@ for arg in "$@"; do
     esac
 done
 
-# Production docs publish only the completed stable train.
-if ! node scripts/release-branch-policy.mjs audit --stable; then
-    echo -e "${RED}❌ Refusing to deploy inconsistent or prerelease version metadata${NC}"
+# Version metadata still has to be internally consistent before it ships.
+if ! node scripts/release-branch-policy.mjs audit; then
+    echo -e "${RED}❌ Refusing to deploy inconsistent version metadata${NC}"
     exit 1
 fi
 
-# Production docs deploy the reviewed main snapshot.
+# Production docs deploy the reviewed main snapshot, including RC metadata.
 CURRENT_BRANCH=$(git branch --show-current)
 echo -e "${BLUE}📍 Current branch: $CURRENT_BRANCH${NC}"
 if [ "$CURRENT_BRANCH" != "main" ]; then
@@ -73,7 +73,7 @@ if [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
     echo -e "${YELLOW}⚠️  Deploying local main, which differs from origin/main (--force).${NC}"
 fi
 
-# Every linked release must be public before production deployment.
+# Release cards merge before publication; require an explicit flag to deploy them early.
 echo -e "${BLUE}🔗 Checking release links...${NC}"
 RELEASES_PAGE="packages/docs/src/pages/docs/updates/releases.tsx"
 if [ ! -f "$RELEASES_PAGE" ]; then
@@ -102,8 +102,12 @@ UNPUBLISHED_LINKS=$(grep -vxF -f <(printf '%s\n' "$PUBLISHED_RELEASES" "${UNPUBL
 if [ -n "$UNPUBLISHED_LINKS" ]; then
     echo -e "${YELLOW}⚠️  The release page links releases that are not published yet:${NC}"
     echo "$UNPUBLISHED_LINKS"
-    echo -e "${RED}❌ Finish the release train, or trim its card to the packages that published.${NC}"
-    exit 1
+    if [ "$FORCE_DEPLOY" != true ]; then
+        echo -e "${RED}❌ Finish the release train, or trim its card to the packages that published.${NC}"
+        echo -e "${YELLOW}To deploy docs before publication: npm run deploy --force${NC}"
+        exit 1
+    fi
+    echo -e "${YELLOW}Proceeding with unpublished release links (--force).${NC}"
 fi
 
 # Check if Vercel CLI is installed

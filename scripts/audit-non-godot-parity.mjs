@@ -5398,7 +5398,7 @@ function checkFrameworkDependencyHygiene() {
       "install --frozen-lockfile",
       '"buildCommand": "node ../../scripts/release-branch-policy.mjs audit && node ../../scripts/verify-docs-version-metadata.mjs && bun run build"',
       '"outputDirectory": "dist"',
-      '"main": false',
+      '"main": true',
     ],
     "Vercel builds must install the monorepo and validate docs metadata",
   );
@@ -6443,7 +6443,7 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/release.md",
     [
       "currently every five minutes",
-      "Deploy main's head through `scripts/deploy.sh`",
+      "Verify Vercel's automatic production deployment of main's head",
       "The docs site is not versioned",
       "Release notes ship in the PR",
       "commit it directly to `main` together with any release-process doc updates",

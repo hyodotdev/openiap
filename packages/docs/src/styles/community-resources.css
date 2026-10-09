@@ -304,8 +304,8 @@
 }
 
 .cr-controls select {
-  padding: 0 1.9rem 0 0.65rem;
-  appearance: none;
+  padding-block: 0;
+  padding-inline-start: 0.65rem;
 }
 
 .cr-controls input:focus,
@@ -323,28 +323,6 @@
   position: absolute;
   top: 50%;
   left: 0.7rem;
-  color: var(--text-secondary);
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.cr-select-input {
-  position: relative;
-}
-
-.cr-select-input select {
-  padding-right: 2.7rem;
-}
-
-.cr-select-icon {
-  position: absolute;
-  top: 50%;
-  right: 0.4rem;
-  display: flex;
-  width: 1.9rem;
-  height: 1.9rem;
-  align-items: center;
-  justify-content: center;
   color: var(--text-secondary);
   transform: translateY(-50%);
   pointer-events: none;
