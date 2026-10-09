@@ -16,6 +16,9 @@ user explicitly authorizes the requested merge, package publication, docs
 deployment, and any direct `main` push. Missing authority for one stage stops
 that stage without broadening the others.
 
+New PRs follow `knowledge/internal/06-git-deployment.md#opening-pull-requests`;
+shipping an existing PR does not authorize opening a recovery PR.
+
 Before acting, read:
 
 - `AGENTS.md`

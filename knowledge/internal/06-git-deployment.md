@@ -93,13 +93,23 @@ attributes and throws when the element is present but unreadable.
 
 ## Opening Pull Requests
 
-Open a pull request only when the maintainer asked for one in this
-conversation, directly or through a workflow they started (`/commit --pr`,
-`$loop-review`, `/resolve-issue`). A PR that would merely help is a question
-for the maintainer, not a PR.
+Open a new pull request only when the maintainer explicitly requests that PR
+in this conversation or starts a workflow that includes it (`/commit --pr`,
+`$loop-review`, `/resolve-issue`). Permission to create one PR is not permission
+to create follow-up PRs. "Continue", "finish the remaining work", "merge", and
+"release" do not authorize new PRs.
 
-- Work found while a PR is open goes into that PR, small docs fixes included.
-  Never open a side PR for it.
+- Keep one PR for the authorized task. Put small code, dependency, security,
+  CI, documentation, and release-note fixes discovered during the task into
+  that PR before merging. Never split them into side PRs for convenience.
+- Check existing PRs before starting a branch. Reuse the relevant PR and
+  update its title and body to cover the final scope. Leave unrelated PRs alone.
+- When the maintainer asks to consolidate existing dependency PRs, review
+  each change, retarget them to the chosen PR's branch, and integrate them
+  there. Verify the combined head; merge only the chosen PR into `main`.
+- If a new PR is necessary after the task's PR has merged, prepare the fix
+  and checks, then ask before opening it. Do not infer permission from a CI
+  failure or a release blocker.
 - A small docs fix with no open PR (a guide sentence, a snippet, a link) gets
   no PR at all: ask in one line whether to commit it straight to `main`.
 

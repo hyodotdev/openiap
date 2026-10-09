@@ -43,6 +43,9 @@ deployment. It does not authorize
 prereleases, unrelated cleanup, destructive recovery, or product-code commits
 directly to `main`.
 
+PR scope follows `knowledge/internal/06-git-deployment.md#opening-pull-requests`:
+reuse the relevant open PR. This loop authorizes one PR, not follow-up PRs.
+
 ## 1. Start From Current Main
 
 Before editing task files:

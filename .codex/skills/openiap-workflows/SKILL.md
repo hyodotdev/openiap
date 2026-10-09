@@ -96,8 +96,9 @@ appropriate labels before merging.
 - For dependency modernization release trains, keep the entire train in one PR
   and follow `.claude/commands/release.md` for the all-workflow preflight. If a
   post-merge stable release reveals a CI-only blocker, pause the train, inspect
-  all remaining workflows, and group confirmed repairs into one recovery PR;
-  never create package-by-package or symptom-by-symptom recovery PRs.
+  all remaining workflows, and prepare the confirmed repairs together. Apply
+  `knowledge/internal/06-git-deployment.md#opening-pull-requests` before opening
+  a recovery PR; release authorization alone does not authorize that new PR.
 - For Android package work, compile Play, Horizon, and Amazon variants when relevant.
 - For docs/API/type docs changes, run `bun audit:docs` or the documented audit
   command before pushing.

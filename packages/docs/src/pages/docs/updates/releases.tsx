@@ -711,6 +711,10 @@ function Releases() {
               Providers deliver purchase failures through one canonical error
               event and preserve the purchase token across ownership reads.
             </li>
+            <li>
+              <strong>IAPKit</strong> rejects invalid refresh-token and OAuth
+              verifier IDs and redacts sensitive OAuth debug logs.
+            </li>
           </ul>
           <h5>Protocols and native packages</h5>
           <ul>
