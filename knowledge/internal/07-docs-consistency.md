@@ -206,7 +206,8 @@ caught before publishing.
 
 RC and stable releases share `main`. Keep one eventual stable release card
 with the source PR, and do not add duplicate entries for RC publications.
-Production docs wait for stable metadata and public release links.
+Main's docs deploy automatically, including RC metadata and release cards
+that precede package publication.
 
 ### R10 — Docs version metadata stays synced with package metadata
 

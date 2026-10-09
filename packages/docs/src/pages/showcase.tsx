@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Plus } from 'lucide-react';
 import SEO from '../components/SEO';
 import {
   ShowcaseAppCard,
@@ -6,11 +7,16 @@ import {
   SHOWCASE_GUIDE_URL,
   SHOWCASE_DISCUSSION_URL,
 } from '../components/ShowcaseCards';
-import { SHOWCASE_APPS } from '../lib/showcase';
+import {
+  GITHUB_DEPENDENTS_LABEL,
+  GITHUB_DEPENDENTS_URL,
+  GITHUB_DEPENDENTS_DESCRIPTION,
+  SHOWCASE_APPS,
+} from '../lib/showcase';
 
 const showcaseGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '1rem',
 };
 
@@ -18,32 +24,46 @@ function Showcase() {
   return (
     <div className="home">
       <SEO
-        title="Who uses OpenIAP?"
-        description="Showcase of apps built with OpenIAP libraries, including apps that use IAPKit."
+        title="Apps built with OpenIAP"
+        description={`${GITHUB_DEPENDENTS_LABEL}. Explore apps built with OpenIAP for React Native, Expo, and Flutter.`}
         path="/showcase"
         keywords="OpenIAP apps, IAPKit apps, expo-iap apps, react-native-iap apps, in-app purchase showcase"
       />
       <section className="home-section">
         <div className="section-container" style={{ maxWidth: '960px' }}>
-          <h1>Who uses OpenIAP?</h1>
-          <p className="section-subtitle" style={{ marginBottom: '0.75rem' }}>
-            {SHOWCASE_APPS.length} apps ship in-app purchases with OpenIAP
-            libraries. Ordered by App Store and Google Play review counts.
-          </p>
-          <p className="section-subtitle">
-            Shipped an app with OpenIAP? List it for free: reply to{' '}
-            <a href={SHOWCASE_DISCUSSION_URL} target="_blank" rel="noreferrer">
-              discussion #350
-            </a>{' '}
-            or open a{' '}
-            <a href={SHOWCASE_GUIDE_URL} target="_blank" rel="noreferrer">
-              pull request
+          <h1
+            id="apps"
+            style={{
+              fontSize: 'clamp(1.75rem, 4vw, 2.25rem)',
+              scrollMarginTop: '5rem',
+            }}
+          >
+            Apps built with OpenIAP
+          </h1>
+          <p
+            className="section-subtitle"
+            style={{ fontSize: '1rem', marginBottom: '2rem' }}
+          >
+            <a
+              href={GITHUB_DEPENDENTS_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={GITHUB_DEPENDENTS_DESCRIPTION}
+              style={{
+                color: 'inherit',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <Plus size={15} aria-hidden="true" />
+              <strong>{GITHUB_DEPENDENTS_LABEL}</strong>
             </a>
-            .
           </p>
-          <div style={{ ...showcaseGridStyle, marginTop: '2.5rem' }}>
+          <div style={showcaseGridStyle}>
             {SHOWCASE_APPS.map((app) => (
-              <ShowcaseAppCard key={app.name} app={app} />
+              <ShowcaseAppCard key={app.github ?? app.name} app={app} />
             ))}
             <ShowcaseSubmitCard />
           </div>
@@ -129,8 +149,8 @@ function Showcase() {
                 marginTop: '1.25rem',
               }}
             >
-              Apps are listed only with your permission. Ask for an update or
-              removal anytime.
+              Submitted apps are listed with your permission. Ask for an update
+              or removal anytime.
             </p>
           </div>
         </div>

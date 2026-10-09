@@ -14,6 +14,7 @@ import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mj
 import { collectScheduledRemovalFailures } from "./scheduled-removals.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertClientProtocol } from "./release-branch-policy.mjs";
+import { collectDocsVersionMetadataDrift } from "./verify-docs-version-metadata.mjs";
 import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
 import { collectCommunityTouchpointFailures } from "./audit-community-touchpoints.mjs";
 import {
@@ -77,7 +78,11 @@ execFileSync(
 );
 execFileSync(
   process.execPath,
-  ["--test", path.resolve(root, "scripts/store-registry.test.mjs")],
+  [
+    "--test",
+    path.resolve(root, "scripts/store-registry.test.mjs"),
+    path.resolve(root, "scripts/verify-docs-version-metadata.test.mjs"),
+  ],
   { stdio: "inherit" },
 );
 const failures = [];
@@ -604,22 +609,6 @@ function expectOptionalNotIncludes(
 ) {
   if (!exists(relativePath)) return;
   expectNotIncludes(relativePath, needles, label);
-}
-
-function expectSameFile(
-  sourcePath,
-  targetPath,
-  label = targetPath,
-  normalize = (value) => value,
-) {
-  expectFile(sourcePath);
-  expectFile(targetPath);
-  if (!exists(sourcePath) || !exists(targetPath)) return;
-  const source = normalize(read(sourcePath));
-  const target = normalize(read(targetPath));
-  if (source !== target) {
-    fail(`${label} is not synced with ${sourcePath}`);
-  }
 }
 
 function expectSymlinkTarget(
@@ -4326,11 +4315,6 @@ function checkFrameworkDependencyHygiene() {
       "packages/docs/openiap-versions.json must be a real file for Vercel deployment",
     );
   }
-  expectSameFile(
-    "openiap-versions.json",
-    "packages/docs/openiap-versions.json",
-    "Docs package version copy",
-  );
   expectFile("AGENTS.md");
   if (exists("AGENTS.md") && fs.lstatSync(abs("AGENTS.md")).isSymbolicLink()) {
     fail("Root AGENTS.md must be the real instruction SSOT");
@@ -4391,75 +4375,7 @@ function checkFrameworkDependencyHygiene() {
       fail(`${docsLlmsFile} must be a real file for docs deployment`);
     }
   }
-  expectFile("packages/docs/src/generated/version-metadata.json");
-  if (exists("packages/docs/src/generated/version-metadata.json")) {
-    const docsVersionMetadata = readJson(
-      "packages/docs/src/generated/version-metadata.json",
-    );
-    const expectedDocsVersionMetadata = {
-      _generatedBy: "scripts/sync-versions.sh",
-      cliPackageVersion: readJson("packages/cli/package.json").version,
-      clientProtocolPackageVersion: readJson("specs/client/package.json")
-        .version,
-      commerceProtocolPackageVersion: readJson(
-        "specs/commerce-protocol/package.json",
-      ).version,
-      expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
-      reactNativePackageVersion: readJson(
-        "libraries/react-native-iap/package.json",
-      ).version,
-      flutterPackageVersion: read(
-        "libraries/flutter_inapp_purchase/pubspec.yaml",
-      )
-        .match(/^version:\s*(.+)$/m)?.[1]
-        ?.trim(),
-      godotPackageVersion: read(
-        "libraries/godot-iap/addons/godot-iap/plugin.cfg",
-      )
-        .match(/^version="([^"]+)"$/m)?.[1]
-        ?.trim(),
-      kmpPackageVersion: read("libraries/kmp-iap/gradle.properties")
-        .match(/^libraryVersion=(.+)$/m)?.[1]
-        ?.trim(),
-      mauiPackageId: read(
-        "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-      )
-        .match(/<PackageId>([^<]+)<\/PackageId>/)?.[1]
-        ?.trim(),
-      mauiPackageVersion: read(
-        "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-      )
-        .match(/<PackageVersion>([^<]+)<\/PackageVersion>/)?.[1]
-        ?.trim(),
-      googleCompileSdk: read("packages/google/openiap/build.gradle.kts").match(
-        /compileSdk\s*=\s*(\d+)/,
-      )?.[1],
-      googleMinSdk: read("packages/google/openiap/build.gradle.kts").match(
-        /minSdk\s*=\s*(\d+)/,
-      )?.[1],
-      googlePlayBillingVersion: read(
-        "packages/google/openiap/build.gradle.kts",
-      ).match(/val\s+playBillingVersion\s*=\s*"([^"]+)"/)?.[1],
-      kmpCompileSdk: read("libraries/kmp-iap/gradle/libs.versions.toml").match(
-        /^android-compileSdk = "([^"]+)"/m,
-      )?.[1],
-      kmpMinSdk: read("libraries/kmp-iap/gradle/libs.versions.toml").match(
-        /^android-minSdk = "([^"]+)"/m,
-      )?.[1],
-      kmpTargetSdk: read("libraries/kmp-iap/gradle/libs.versions.toml").match(
-        /^android-targetSdk = "([^"]+)"/m,
-      )?.[1],
-    };
-    for (const [key, expectedValue] of Object.entries(
-      expectedDocsVersionMetadata,
-    )) {
-      if (docsVersionMetadata[key] !== expectedValue) {
-        fail(
-          `packages/docs/src/generated/version-metadata.json ${key} must be synced from SSOT metadata`,
-        );
-      }
-    }
-  }
+  for (const message of collectDocsVersionMetadataDrift(root)) fail(message);
   expectIncludes(
     "packages/apple/README.md",
     [
@@ -5429,19 +5345,17 @@ function checkFrameworkDependencyHygiene() {
       "-f|--force) FORCE_DEPLOY=true ;;",
       "Unsupported argument:",
       "if ! ./scripts/sync-versions.sh; then",
-      "if ! bun run typecheck; then",
-      "if ! bun run build; then",
       "if ! vercel pull --yes --environment=production; then",
       "if ! vercel build --prod --yes; then",
       "if ! VERCEL_DEPLOYMENT=$(vercel --prebuilt --prod --yes --format=json --non-interactive); then",
-      'VERCEL_PROJECT_FILE="packages/docs/.vercel/project.json"',
+      'VERCEL_PROJECT_FILE=".vercel/project.json"',
       "(.projectId == $projectId)",
       "(.orgId == $orgId)",
       '(.projectName == "openiap")',
       "Vercel environment target conflicts with the OpenIAP project",
       'select(.readyState == "READY" and .target == "production")',
       "Vercel CLI returned no ready production deployment",
-      "release-branch-policy.mjs audit --stable",
+      "release-branch-policy.mjs audit",
       "git fetch --no-tags origin main",
       "LOCAL_HEAD=$(git rev-parse HEAD)",
       "REMOTE_HEAD=$(git rev-parse origin/main)",
@@ -5458,8 +5372,9 @@ function checkFrameworkDependencyHygiene() {
       "'.clientProtocol = $version'",
       'git commit -m "chore(spec)',
       "git push origin HEAD:main",
+      "audit --stable",
     ],
-    "deploy script must not install a floating Vercel CLI",
+    "deploy script must preserve target checks and accept RC metadata",
   );
   expectIncludes(
     "packages/docs/deploy.sh",
@@ -5476,18 +5391,26 @@ function checkFrameworkDependencyHygiene() {
     ["npm install", "vercel --prod", "bun run typecheck", "bun run build"],
     "docs deploy wrapper must not duplicate root deployment behavior",
   );
-  // A plain `vercel` triggers a remote build whose `bun install` cannot
-  // resolve the workspace:* dependency (@hyodotdev/openiap-commerce-protocol). The
-  // preview deploy must prebuild locally and ship with --prebuilt, exactly as
-  // production does.
+  expectIncludes(
+    "packages/docs/vercel.json",
+    [
+      '"installCommand": "cd ../.. && bunx',
+      "packageManager",
+      "install --frozen-lockfile",
+      '"buildCommand": "node ../../scripts/release-branch-policy.mjs audit && node ../../scripts/verify-docs-version-metadata.mjs && bun run build"',
+      '"outputDirectory": "dist"',
+    ],
+    "Vercel builds must install the monorepo and validate docs metadata",
+  );
+  // Manual previews use the same monorepo build as production.
   expectIncludes(
     "packages/docs/package.json",
     [
-      "vercel pull --yes --environment=preview",
+      "cd ../.. && vercel pull --yes --environment=preview",
       "vercel build --yes",
       "vercel deploy --prebuilt --yes",
     ],
-    "docs deploy:preview must prebuild locally and deploy --prebuilt so the workspace dependency resolves",
+    "docs deploy:preview must build from the monorepo root",
   );
   expectIncludes(
     ".github/workflows/deploy-kit.yml",
@@ -6520,7 +6443,8 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/release.md",
     [
       "currently every five minutes",
-      "`npm run deploy`. The docs site is not versioned",
+      "Wait for Vercel's production deployment of main's head",
+      "The docs site is not versioned",
       "Release notes ship in the PR",
       "commit it directly to `main` together with any release-process doc updates",
       "do not open a PR for that post-release docs-only commit",
@@ -6813,10 +6737,10 @@ function checkFrameworkDependencyHygiene() {
       "Creates Git tag `<apple-version>` (bare semver)",
       "Creates Git tag `google-<google-version>`",
       "The docs site has no version",
-      "first run `cd packages/docs && vercel link`",
-      "immutable project and organization IDs",
-      "conflicting `VERCEL_PROJECT_ID` or `VERCEL_ORG_ID`",
-      "reports success only after Vercel returns a ready",
+      "run `vercel link --project openiap`",
+      "immutable project and\norganization IDs",
+      "rejects conflicting environment overrides",
+      "ready production deployment before reporting success",
       "There is no Docs release workflow",
       "the docs site is not a\nversioned artifact",
       "still equal the workflow dispatch SHA after validation",

@@ -115,7 +115,8 @@ From a clean local `main` equal to `origin/main`:
 1. Run `bun run audit:commerce-evidence`. If it reports drift, re-record the
    IAPKit interop per `packages/kit/scripts/docs/commerce-interop.md` before
    deploying; the guide page shows the recorded revision either way.
-2. Run `npm run deploy` and wait for successful production completion.
+2. Wait for Vercel's production deployment of main's head. Use the manual
+   deploy only when the automatic path cannot complete.
 3. Fetch the production release page and generated LLM documents with a cache
    buster. Confirm the new release title, API name, versions, and generated
    timestamp are present.

@@ -1,6 +1,6 @@
 ---
 name: add-showcase-app
-description: Add one or more apps to the OpenIAP "Who uses OpenIAP?" showcase — record OpenIAP library and IAPKit usage, normalize icons, refresh ordering metrics, and verify the docs build. Use when someone submits apps through discussion #350, a showcase pull request, X, or email, or when the user asks to add or update apps on openiap.dev/showcase.
+description: Add one or more apps to the OpenIAP "Apps built with OpenIAP" showcase — record OpenIAP library and IAPKit usage, normalize icons, refresh ordering metrics, and verify the docs build. Use when someone submits apps through discussion #350, a showcase pull request, X, or email, or when the user asks to add or update apps on openiap.dev/showcase.
 ---
 
 # Add Showcase App
@@ -9,14 +9,14 @@ Turn app submissions into rendered cards on the home page and `/showcase`.
 
 Everything lives in `packages/docs`:
 
-| Path                                   | Role                                      |
-| -------------------------------------- | ----------------------------------------- |
-| `showcase-apps.json`                   | The list (SSOT for what renders)          |
-| `public/showcase/<slug>.webp`          | Masked 256×256 app icon                   |
-| `scripts/refresh-showcase-metrics.mjs` | Fills `ratings` / `installs` for ordering |
-| `src/lib/showcase.ts`                  | Sorting + featured slice                  |
-| `src/components/ShowcaseCards.tsx`     | Card markup                               |
-| `SHOWCASE.md`                          | Public submission guide                   |
+| Path                                   | Role                             |
+| -------------------------------------- | -------------------------------- |
+| `showcase-apps.json`                   | The list (SSOT for what renders) |
+| `public/showcase/<slug>.webp`          | Masked 256×256 app icon          |
+| `scripts/refresh-showcase-metrics.mjs` | Refreshes public store metrics   |
+| `src/lib/showcase.ts`                  | Sorting + featured slice         |
+| `src/components/ShowcaseCards.tsx`     | Card markup                      |
+| `SHOWCASE.md`                          | Public submission guide          |
 
 ## 1. Collect the submission
 
@@ -58,7 +58,11 @@ curl -s "https://play.google.com/store/apps/details?id=<PACKAGE>" \
 
 ## 2. Add the icon
 
-Icons are stored pre-masked so store artwork with baked-in rounded corners and
+Use an official HTTPS store icon URL when requested; keep it remote. Source
+repository icons must be pinned to a commit. No image download is required.
+For a local icon, use the following normalization.
+
+Local icons are stored pre-masked so store artwork with baked-in rounded corners and
 plain square artwork render identically. Append `=s512` to a Play icon URL for
 the full-size original.
 
@@ -106,40 +110,39 @@ Ordering is computed at render time, so position in the file does not matter.
 }
 ```
 
-`ios`, `android`, and `web` are each optional, but an entry with none of them is
+`ios`, `android`, `web`, and `github` are each optional, but an entry with none is
 dropped at render time. Set `iapkit` to `true` only when the submitter confirms
 IAPKit usage; omit it otherwise. Leave `ratings` and `installs` out — step 4
 writes them.
 
+## GitHub app discovery
+
+When the maintainer requests a public GitHub app catalog, use
+`bun run showcase:github` to refresh the dependency snapshot. Curate real apps
+from RN, Expo, and Flutter dependents with at least 10 stars into `github.apps`.
+Verify that the dependency belongs to the app itself in a monorepo. Keep SDKs,
+tutorials, and duplicate forks out of app cards. Use real app names, remote
+icons, and available official store links; stars come from the snapshot.
+The refresh preserves curated data and stops if a curated repository disappears;
+review dependency or star eligibility changes before removing its entry.
+
 ## 4. Refresh the ordering metrics
 
+Follow the **Ordering** section of `packages/docs/SHOWCASE.md`, the canonical
+policy, and run:
+
 ```bash
-cd packages/docs && bun run showcase:metrics
+cd packages/docs && bun run showcase:downloads
 ```
 
-The script fills every entry:
+This fills Google Play's public install floors for submitted and GitHub apps.
+All apps use that same descending metric, with unknown counts last and names as
+the tiebreaker. Do not invent Apple downloads or use submitter-only figures.
+Review counts and GitHub stars do not affect the order.
 
-- `ratings` — App Store `userRatingCount` **summed across every storefront**
-  plus the Google Play review count. **Primary sort key, descending.**
-- `installs` — the Play install floor (`"1K+"` → `1000`). **Fallback** when
-  review counts tie, which is common for new apps.
-
-Apple reports ratings per storefront and publishes no global total, so a US-only
-lookup reads zero for an app reviewed mainly in Korea or Japan. The sweep covers
-~170 storefronts and takes about a minute; Apple throttles bursts, so the script
-retries failures in later rounds and **keeps the previous numbers rather than
-writing a partial sweep**. If output says `kept existing ratings`, rerun it.
-
-Neither store publishes download totals: Apple exposes no install data in any
-public API, and Play reports only a coarse bucket. Do not add a `downloads`
-field or invent numbers — review count is the one verifiable signal both stores
-share. If a submitter reports their own install figures, keep them out of the
-JSON.
-
-The scraper depends on Play's HTML, whose class names are obfuscated and change.
-If `ratings` comes back unexpectedly `0` for an app that clearly has reviews,
-re-check the regexes in `scripts/refresh-showcase-metrics.mjs` rather than
-hand-editing the JSON.
+`bun run showcase:metrics` optionally refreshes review counts too. A failed
+store fetch keeps the previous reading and exits nonzero; fix the source or
+selectors before retrying.
 
 ## 5. Verify
 
@@ -148,9 +151,9 @@ cd packages/docs && bun run typecheck && bun run build
 ```
 
 Then confirm the card renders and the icon actually loads — a broken `logo` path
-fails silently as a missing image, not a build error. The home page shows the
-top `FEATURED_SHOWCASE_LIMIT` (5) apps plus the submit card and a "See all"
-link; `/showcase` lists everything.
+fails silently as a missing image, not a build error. The home page previews
+four icons, Community Resources highlights five apps, and `/showcase` lists
+the full catalog in the same order.
 
 ## 6. Close the loop
 

@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
-  assertStableVersions,
   assertClientProtocol,
   assertNativesReleased,
   findUnreleasedNativeChanges,
@@ -553,16 +552,6 @@ test("native version file updates write one consistent manifest", () => {
   } finally {
     rmSync(temporaryRoot, { force: true, recursive: true });
   }
-});
-
-test("production docs reject prereleases but accept stable build metadata", () => {
-  assert.doesNotThrow(() =>
-    assertStableVersions({ apple: "4.0.0+build-alpha", cli: "0.2.0" }),
-  );
-  assert.throws(
-    () => assertStableVersions({ apple: "4.0.0-rc.1", cli: "0.2.0" }),
-    /Production docs require stable package versions: apple=4.0.0-rc.1/u,
-  );
 });
 
 test("resolves stable and prerelease channels independently of source branch", () => {
@@ -1362,12 +1351,12 @@ test("the docs site deploys without a version of its own", () => {
     "the docs release workflow must not come back",
   );
 
-  assert.match(deployScript, /release-branch-policy\.mjs audit --stable/);
+  assert.match(deployScript, /release-branch-policy\.mjs audit/);
   assert.match(deployScript, /must deploy from main/);
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /is missing; update this check/);
   assert.match(deployScript, /Found no release links/);
-  assert.match(deployScript, /packages\/docs\/\.vercel\/project\.json/);
+  assert.match(deployScript, /\.vercel\/project\.json/);
   assert.match(
     deployScript,
     /EXPECTED_VERCEL_PROJECT_ID="prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1"/,
@@ -1393,7 +1382,7 @@ test("the docs site deploys without a version of its own", () => {
   assert.doesNotMatch(deployScript, /(?:git commit|git push origin HEAD:main)/);
   assert.doesNotMatch(deployScript, /continue anyway/);
   assert.ok(
-    deployScript.indexOf("release-branch-policy.mjs audit --stable") <
+    deployScript.indexOf("release-branch-policy.mjs audit") <
       deployScript.indexOf("Checking Git status"),
   );
   assert.ok(
@@ -1446,15 +1435,15 @@ test("production docs require a verified Vercel deployment result", (context) =>
       resolve(temporaryRoot, "openiap-versions.json"),
       '{"clientProtocol":"3.4.0","apple":"3.4.0","google":"3.5.0"}\n',
     );
-    writeFileSync(
-      resolve(temporaryRoot, ".gitignore"),
-      "packages/docs/.vercel/\n",
-    );
+    writeFileSync(resolve(temporaryRoot, ".gitignore"), ".vercel/\n");
     writeExecutable(
       resolve(temporaryRoot, "mock-bin/node"),
       [
         "#!/bin/sh",
-        'if [ "${1:-}" = "scripts/release-branch-policy.mjs" ]; then exit 0; fi',
+        'if [ "${1:-}" = "scripts/release-branch-policy.mjs" ]; then',
+        '  [ "$#" -eq 2 ] && [ "$2" = "audit" ] || exit 1',
+        '  exit "${MOCK_AUDIT_STATUS:-0}"',
+        "fi",
         'exec "$MOCK_REAL_NODE" "$@"',
         "",
       ].join("\n"),
@@ -1551,6 +1540,14 @@ test("production docs require a verified Vercel deployment result", (context) =>
         input: "y\n",
       });
 
+    const inconsistent = runDeploy("", { MOCK_AUDIT_STATUS: "1" }, ["--force"]);
+    assert.notEqual(inconsistent.status, 0);
+    assert.match(
+      inconsistent.stdout,
+      /Refusing to deploy inconsistent version metadata/,
+    );
+    assert.doesNotMatch(inconsistent.stdout, /Checking Git status/);
+
     const unpublished = runDeploy("", { MOCK_GH_RELEASES: "" });
     assert.notEqual(unpublished.status, 0);
     assert.match(
@@ -1579,11 +1576,11 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.match(unlinked.stdout, /not linked to the OpenIAP Vercel project/);
     assert.doesNotMatch(unlinked.stdout, /Successfully deployed to Vercel/);
 
-    mkdirSync(resolve(temporaryRoot, "packages/docs/.vercel"), {
+    mkdirSync(resolve(temporaryRoot, ".vercel"), {
       recursive: true,
     });
     writeFileSync(
-      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      resolve(temporaryRoot, ".vercel/project.json"),
       '{"projectId":"prj_test","orgId":"team_test","projectName":"other"}\n',
     );
 
@@ -1595,7 +1592,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
 
     writeFileSync(
-      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      resolve(temporaryRoot, ".vercel/project.json"),
       '{"projectId":"prj_test","orgId":"team_test","projectName":"openiap"}\n',
     );
 
@@ -1607,7 +1604,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
 
     writeFileSync(
-      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      resolve(temporaryRoot, ".vercel/project.json"),
       '{"projectId":"prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1","orgId":"team_qB5U5TU9IKqAL2KyQsj0duy3","projectName":"openiap"}\n',
     );
 

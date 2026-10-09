@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-08T18:38:40.669Z
+> Last updated: 2026-10-09T05:05:18.857Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2262,8 +2262,9 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-By default, `npm run deploy` waits for every linked release to publish. To
-deploy docs earlier, use `-f` or `--force` as described in
+Vercel deploys main's docs even before linked releases publish. Manual
+`npm run deploy` checks release links; use `-f` or `--force` to deploy earlier,
+as described in
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).
 If a train will not resume, trim its card to the packages that published.
 
@@ -2288,8 +2289,8 @@ release-plan change expands the affected packages or behavior.
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
    versioned package needs its expected version, GitHub Release link, and tag
    alias/anchor. Every user-visible change needs a concise behavior or migration
-   note; packages that only pick up shared behavior need only a `Package
-   Releases` entry. Resolve targets through the Release Package Version
+   note; packages that only pick up shared behavior need only a linked release
+   entry. Resolve targets through the Release Package Version
    Verification section below and `$generate-doc`.
 4. Fill gaps in the current PR and update the existing unreleased card for the
    same train. Do not defer missing packages or explanations to a separate
@@ -2426,8 +2427,8 @@ Before adding or editing a `Package Releases` list:
 
 Keep one concise, package-grouped stable release card with the source PR on
 `main`, including when an RC publishes first. Do not create duplicate cards for
-RC or npm `next` publications. Production docs wait for stable package metadata
-and published links; previews may show the upcoming card.
+RC or npm `next` publications. Main's docs deploy automatically, including RC
+metadata and release cards whose packages have not published yet.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
@@ -2676,9 +2677,9 @@ merging a PR does not publish a package.
   supported. npm publishes RCs to `next`, leaving `latest` on stable.
 - Stable: select the stable lane after validation. Remove the RC suffix from
   the intended target without incrementing its major again.
-- Production docs require stable package metadata and public release-card
-  links. Use a preview while RCs are active; `--force` cannot bypass the
-  stable-version check.
+- Vercel automatically deploys main's documentation, including RC metadata
+  and release cards that precede package publication. Docs deployment does
+  not publish packages.
 - Historical `next` tags stay immutable and retain their source branch for
   verification and SBOM recovery. New work does not need a `next` branch.
   Do not force-reset or delete the historical branch without explicit approval.
@@ -2825,45 +2826,38 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 ### Deploying Documentation
 
-**Merging to `main` does not publish documentation.** No workflow deploys the
-production docs on merge; `deploy-kit.yml` auto-deploys IAPKit instead.
-Production docs go out only when a human runs the local deploy below.
+Vercel automatically deploys production documentation when a commit reaches
+`main` in `hyodotdev/openiap`. Other branches receive preview deployments.
+Documentation may show RC package metadata and release cards before the
+corresponding packages publish; deploying docs does not publish packages.
 
-This matters most for a PR that changes both `packages/kit/` and
-`packages/docs/`: the kit server auto-deploys from `main` while the docs half
-stays on the previously deployed build. Server behavior can therefore go live
-while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces. Release cards normally wait for
-their packages to publish; use the flag below to deploy them earlier.
+The OpenIAP project uses `packages/docs` as its Root Directory, with source
+files outside that directory enabled. `packages/docs/vercel.json` installs
+the monorepo with the root `packageManager` Bun version and frozen lockfile,
+validates version consistency and the
+generated docs metadata, then runs the docs build, including TypeScript checks
+and prerendering. Keep the production branch set to `main` and automatic Git
+deployments enabled.
 
-Production documentation is stable-only and deploys from `main`. By default,
-the worktree must be clean, `HEAD` must match `origin/main`, and every linked
-GitHub Release must be published. `-f` or `--force` deploys the local snapshot:
-it permits uncommitted changes, a different commit from `origin/main`, and
-unpublished release links with warnings. The clean-worktree check after
-version synchronization is also skipped. Branch, stable version eligibility, version consistency, GitHub
-lookup, Vercel target, typecheck, and build checks still apply.
+Manual deployment remains available from the monorepo root. On a fresh
+checkout, run `vercel link --project openiap` and select the existing OpenIAP
+project in the Hyo Dev team. The script validates the immutable project and
+organization IDs, rejects conflicting environment overrides, and requires a
+ready production deployment before reporting success.
 
-On a fresh checkout, first run `cd packages/docs && vercel link` and select the
-existing OpenIAP project. Deployment stops when that local project link is
-missing or invalid. It validates the immutable project and organization IDs,
-rejects conflicting `VERCEL_PROJECT_ID` or `VERCEL_ORG_ID` overrides, and
-reports success only after Vercel returns a ready production deployment.
+By default, manual deployment requires a clean worktree, `HEAD` matching
+`origin/main`, and published release-card links. `-f` or `--force` permits
+local changes, a different local commit, and unpublished release links with
+warnings. Branch, version consistency, GitHub lookup, Vercel target, typecheck,
+and build checks still apply. RC versions are accepted in both paths.
 
 ```bash
-# From monorepo root
+# From the monorepo root; automatic deployments need no local command
 npm run deploy
 
 # Deploy local changes or docs ahead of package publication
 npm run deploy -f
-# Equivalent: npm run deploy --force
 ```
-
-This will:
-
-1. Sync version metadata
-2. Typecheck and build the docs site
-3. Deploy production documentation to Vercel
 
 **The docs site has no version.** Only the Client Protocol and the Commerce
 Protocol are versioned, each in its own package manifest. `npm run deploy`
@@ -2945,8 +2939,8 @@ where a version differs. This prevents stale Package Releases tables such as
 documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 Keep one eventual stable release card with the source PR on `main`; do not
-add duplicate cards for RC or npm `next` publications. Production docs wait for
-stable metadata and public links.
+add duplicate cards for RC or npm `next` publications. Main's docs deploy
+automatically, including metadata and cards ahead of package publication.
 
 ---
 
@@ -3217,7 +3211,8 @@ caught before publishing.
 
 RC and stable releases share `main`. Keep one eventual stable release card
 with the source PR, and do not add duplicate entries for RC publications.
-Production docs wait for stable metadata and public release links.
+Main's docs deploy automatically, including RC metadata and release cards
+that precede package publication.
 
 ### R10 — Docs version metadata stays synced with package metadata
 
