@@ -957,8 +957,9 @@ Run these on each connected platform requested:
   tester catalog/config if needed, launch, fetch products, buy a consumable,
   approve tester purchase if authorized, verify no crash on success, cancel, or
   timeout/error paths.
-- iPhone / StoreKit sandbox: follow
-  `.codex/skills/iapkit-e2e-martie/SKILL.md` to distinguish a
+- iPhone / StoreKit sandbox: drive the physical device directly as required by
+  [AGENTS.md](../../AGENTS.md#physical-iphone-testing); never use iPhone Mirroring.
+  Follow `.codex/skills/iapkit-e2e-martie/SKILL.md` to distinguish a
   development-signed install from TestFlight account preparation. Never persist
   tester credentials. Launch, fetch products, require the Apple purchase sheet
   to identify the sandbox environment, buy a visible consumable or subscription
@@ -979,6 +980,14 @@ Run these on each connected platform requested:
 
 If a product catalog or sandbox account is missing, stop that row and report it
 as blocked with the exact missing prerequisite.
+
+## Leave the Normal Example on the Device
+
+Use the framework's existing example and keep its name and full menu intact.
+If a focused probe replaces it, reinstall and launch the normal example before
+finishing. Remove task-created diagnostic apps and obsolete test runners when
+finished; preserve apps whose ownership is unknown. Report any test app or
+server left running.
 
 ## Final Report
 

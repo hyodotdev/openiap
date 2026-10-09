@@ -18,15 +18,15 @@ function ScreenPreview({ screen }: { screen: ExampleScreen }) {
         ) : null}
         <img
           src={`/store-provider-example/${screen.image}`}
-          alt={`Amazon Provider Lab on a Fire tablet: ${screen.title}`}
+          alt={`Amazon Community Example on a Fire tablet: ${screen.title}`}
           width="800"
           height="1280"
           loading="lazy"
         />
       </picture>
       <figcaption>
-        {screen.detail} Actual Fire tablet capture, October 2, 2026. App Tester
-        simulates checkout.{wideNote}
+        {screen.detail} Actual Fire tablet capture. App Tester simulates
+        checkout.{wideNote}
       </figcaption>
     </figure>
   );

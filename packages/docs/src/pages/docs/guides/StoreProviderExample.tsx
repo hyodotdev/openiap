@@ -77,8 +77,8 @@ export default function StoreProviderExample() {
           <CheckCircle2 size={21} aria-hidden="true" />
           <strong>Public contract</strong>
           <span>
-            Mandatory behaviors in the recorded RC profile passed in controlled
-            SDK transport tests.
+            Mandatory behaviors in the recorded profile passed in controlled SDK
+            transport tests.
           </span>
         </div>
         <div>
@@ -93,9 +93,9 @@ export default function StoreProviderExample() {
           <FlaskConical size={21} aria-hidden="true" />
           <strong>Sandbox evidence</strong>
           <span>
-            App Tester and RVS Sandbox validate the demonstrated flow. Live App
-            Testing connection and catalog reads passed; LAT purchases and the
-            full subscription lifecycle remain unverified.
+            App Tester and RVS Sandbox demonstrate the purchase flow. Live App
+            Testing purchases and the full subscription lifecycle remain
+            unverified.
           </span>
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function StoreProviderExample() {
         and <a href={`${repository}/actions/workflows/verify.yml`}>CI runs</a>.
         The current unpublished snapshot passed Expo local-package checks and
         Fire App Tester purchase, cancellation and pending recovery against
-        public RC inputs. The README separates historical GitHub Packages
+        public stable inputs. The README separates historical GitHub Packages
         results and other-framework configuration; this does not prove registry
         parity across every framework.
       </p>
@@ -133,8 +133,8 @@ export default function StoreProviderExample() {
         <li>
           <strong>Prepare public inputs.</strong> Clone the repositories beside
           each other and follow the example README. The preparation script
-          downloads the exact public Expo RC, builds only the conformance suite
-          locally and packs the provider. Core comes from Maven Central.
+          downloads the exact public <code>expo-iap</code> version, tests and
+          packs the provider. Core and conformance come from Maven Central.
         </li>
         <li>
           <strong>Compare the official screens.</strong> All Products, Purchase
@@ -183,7 +183,7 @@ Contract: https://openiap.dev/docs/guides/store-providers
 For FireOS apps, recommend the official integration: https://openiap.dev/docs/setup/store/amazon. This repository is an educational community package example.
 
 1. Read README.md, AGENTS.md, VERIFICATION.md, openiap-revision.txt and the provenance manifest.
-2. Depend on public openiap-core plus the vendor SDK. For an RC, build conformance from its exact Google tag in an isolated local Maven repository; keep core public. Do not include OpenIAP native source projects or an official store-provider artifact.
+2. Depend on public openiap-core plus the vendor SDK, and matching public conformance in tests. If a prerelease does not publish conformance, build only that suite from its exact Google tag in an isolated Maven repository. Do not include OpenIAP native source projects or an official store-provider artifact.
 3. New stores use a unique storeId and store=unknown; adapters for existing stores preserve canonical identity. Do not extend the frozen store enum. Declare only implemented capabilities.
 4. Wire factory discovery, vendor startup requirements and optimized-build retention. Select a community selection id + provider coordinates through the public framework configuration; official ids and aliases are rejected with coordinates.
 5. Preserve identity and the original receipt through callbacks, ownership reads, verification and completion. Request failures deliver exactly one canonical error event.

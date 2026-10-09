@@ -13,16 +13,16 @@ Provider selection does not add IAPKit server validation for a new store.
 
 ## Verification coverage
 
-| Area                  | Executed coverage                                                                                                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Android provider      | Independent local Maven publication, required behavioral profile, negative capability/platform/token cases, discovery, manifest conflicts, and optimized host                                         |
-| Apple provider        | Independent Swift package, matching behavioral profile, explicit discovery failures, and optimized factory retention                                                                                  |
+| Area                  | Executed coverage                                                                                                                                                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android provider      | Independent local Maven publication, required behavioral profile, negative capability/platform/token cases, discovery, manifest conflicts, and optimized host                                                                |
+| Apple provider        | Independent Swift package, matching behavioral profile, explicit discovery failures, and optimized factory retention                                                                                                         |
 | SDK dispatch          | React Native, Expo, Flutter, Godot, KMP, and MAUI selection and identity handling; public storefront overrides and canonical redemption handlers, community KMP billing operations/events, ownership/restore, and completion |
-| Provider dependencies | Neutral Gradle consumer graphs and MAUI Maven runtime closure, including a separate vendor SDK and credits for existing app dependencies                                                              |
-| Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance                                                      |
-| Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                                                            |
-| Documentation         | Common provider authoring/selection guide, API/type consistency, affected release card, and production-site build                                                                                     |
-| Devices               | All 30 hardware cells attempted: 22 sandbox purchase/verify/finish passes, seven Horizon real-payment gates, one Vega tester failure; separate Onside build-only pass; see E2E_RESULTS.md             |
+| Provider dependencies | Neutral Gradle consumer graphs and MAUI Maven runtime closure, including a separate vendor SDK and credits for existing app dependencies                                                                                     |
+| Contracts             | Client Protocol generation and sync, frozen store enum, required store ids, legacy official identity decoding, and JavaScript/native conformance                                                                             |
+| Release wiring        | Registry validation, SBOM/provenance inputs, stable-release preflight, native core publication, framework packaging, and affected CI paths                                                                                   |
+| Documentation         | Common provider authoring/selection guide, API/type consistency, affected release card, and production-site build                                                                                                            |
+| Devices               | All 30 stable hardware cells executed: 23 purchase/verify/finish passes and seven Horizon paid-checkout gates; separate Onside build-only pass; see E2E_RESULTS.md                                                           |
 
 See [E2E_RESULTS.md](E2E_RESULTS.md) for every device row and limitation.
 Use [README.md](README.md) and the Apple compatibility fixture to reproduce
@@ -62,24 +62,25 @@ require new protocol members to provide default implementations.
 - Apple providers must be linked and retained in optimized app builds; an
   Info.plist factory name does not link a binary by itself.
 
-## Release targets
+## Published stable versions
 
 Client Protocol **1.0.0** is set in its publishing manifest and generated
-mirrors. The release card includes the following future stable publications.
-Native and framework versions remain managed by their existing release
-workflows; local Maven/SPM checks do not claim public publication.
+mirrors. All stable publications below are publicly available. Native and framework
+versions remain managed by their existing release workflows. Public registry
+artifacts, publishing provenance and consumer inputs were checked separately
+from local Maven/SPM fixture builds.
 
-| Publication                   | Release card target |
-| ----------------------------- | ------------------- |
-| Client Protocol / CLI         | 1.0.0 / 0.2.0       |
-| Google / core / Gradle plugin | 4.0.0               |
-| Android conformance           | Suite 4.0.0         |
-| Apple                         | 4.0.0               |
-| React Native                  | 17.0.0              |
-| Expo                          | 6.0.0               |
-| Flutter                       | 11.0.0              |
-| Godot / KMP                   | 4.0.0 / 4.0.0       |
-| MAUI                          | 3.0.0               |
+| Publication                   | Published version |
+| ----------------------------- | ----------------- |
+| Client Protocol / CLI         | 1.0.0 / 0.2.0     |
+| Google / core / Gradle plugin | 4.0.0             |
+| Android conformance           | Suite 4.0.0       |
+| Apple                         | 4.0.0             |
+| React Native                  | 17.0.0            |
+| Expo                          | 6.0.0             |
+| Flutter                       | 11.0.0            |
+| Godot / KMP                   | 4.0.0 / 4.0.0     |
+| MAUI                          | 3.0.0             |
 
 Client Protocol 1.0.0 removes the scheduled redemption and Horizon verification
 aliases, plus Apple `OpenIapVersion.specVersion`; see the public migration table.

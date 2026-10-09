@@ -149,15 +149,15 @@ export default function StoreProviders() {
         </p>
         <ol>
           <li>
-            <strong>Prepare matching public RC inputs.</strong> Version{' '}
+            <strong>Prepare matching public inputs.</strong> Version{' '}
             {examplePackage.version} is unpublished. Follow the pinned{' '}
             <a href={source('README.md')}>example README</a> to build the
-            provider and local conformance suite against public core and Expo
-            RCs. Install the exact Expo RC listed in the{' '}
+            provider against public core and conformance artifacts. Install the
+            exact <code>expo-iap</code> version listed in the{' '}
             <a href={source('package.json')}>package’s peer dependencies</a>.
             Historical GitHub Packages versions use the old hyphenated id and
-            fail the current contract. Rebuild the provider for each RC and for
-            stable.
+            fail the current contract. Rebuild providers compiled against the
+            earlier RCs.
           </li>
           <li>
             <strong>Install the prepared provider tarball.</strong> Preparation
@@ -202,11 +202,12 @@ export default function StoreProviders() {
             />
             Use local builds until you distribute the unpublished provider
             tarball to your build workers; absolute paths are not uploaded
-            automatically. Both profiles use the same exact public Expo RC and
-            public native artifacts. The plugin supplies its provider repository
-            and disables local native-source mode. Keep the existing application
-            id and catalog, and retain <code>android.amazon.appstoreKey</code>{' '}
-            for Appstore builds.
+            automatically. Both profiles use the same exact public{' '}
+            <code>expo-iap</code> version and public native artifacts. The
+            plugin supplies its provider repository and disables local
+            native-source mode. Keep the existing application id and catalog,
+            and retain <code>android.amazon.appstoreKey</code> for Appstore
+            builds.
           </li>
           <li>
             <strong>Rebuild the native Android app.</strong> Expo Go and a

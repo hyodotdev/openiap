@@ -4,7 +4,7 @@ export const repository =
 export const examplePackage = {
   name: '@hyodotdev/openiap-provider-amazon-example',
   version: '0.0.2',
-  revision: '63c8541d265d95592178a32b51ce6f127c18073b',
+  revision: 'ab0d0f227a09e784b47643ca5d152293baa1a904',
 } as const;
 export const source = (path: string): string =>
   `${repository}/blob/${examplePackage.revision}/${path}`;
@@ -14,7 +14,7 @@ export const screens = [
     title: 'Same example, new provider',
     image: 'home.png',
     detail:
-      'The official Expo example menus remain in place. Amazon Provider Lab changes the package selection and branding, so you can compare the same flows.',
+      'The official Expo example menus remain in place. Amazon Community Example changes the package selection and branding, so you can compare the same flows.',
   },
   {
     id: 'catalog',
@@ -22,13 +22,6 @@ export const screens = [
     image: 'catalog.png',
     detail:
       'The public fetchProducts API loads the App Tester catalog through the separately packaged provider.',
-  },
-  {
-    id: 'acceptance',
-    title: 'Inspect the extension boundary',
-    image: 'acceptance.png',
-    detail:
-      'Provider Acceptance checks connection, catalog, custom identity, receipt continuity, sandbox verification and completion. Pending or rejected purchases remain unfinished.',
   },
   {
     id: 'tutorial',
@@ -87,7 +80,7 @@ export const files = [
     title: 'Prove behavior and packaging',
     path: 'VERIFICATION.md',
     detail:
-      'Public conformance, consumer tests, optimized builds and observed device results, with their limits.',
+      'Public conformance, consumer tests, minified builds and observed device results, with their limits.',
   },
 ];
 
