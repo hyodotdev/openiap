@@ -195,7 +195,7 @@ type RequestPurchaseProps =
           each SKU with its offerToken from <code>fetchProducts</code>.
         </li>
         <li>
-          <code>request.google.obfuscatedAccountIdAndroid</code>{' '}
+          <code>request.google.obfuscatedAccountId</code>{' '}
           <em>
             (optional, <code>string</code>)
           </em>{' '}
@@ -203,7 +203,7 @@ type RequestPurchaseProps =
           Play.
         </li>
         <li>
-          <code>request.google.obfuscatedProfileIdAndroid</code>{' '}
+          <code>request.google.obfuscatedProfileId</code>{' '}
           <em>
             (optional, <code>string</code>)
           </em>{' '}

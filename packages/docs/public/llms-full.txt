@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-10-09T01:40:18.546Z
+> Generated: 2026-10-09T05:07:36.309Z
 
 ## Reading instructions for coding assistants
 
@@ -1923,9 +1923,9 @@ OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
 Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
-retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
-`StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and
-returns `nil`. Nil results from an actually presented sheet rely on the
+retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API's
+`StoreKitError.unknown` reaches callers as OpenIAP error code `unknown`. The
+Catalyst 15 StoreKit 1 call has no effect and returns `nil`. Nil results from an actually presented sheet rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
 declares `RedeemOption`,
 but its public symbol graph exposes no constructible option values, so OpenIAP

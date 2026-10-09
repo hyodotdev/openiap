@@ -52,8 +52,8 @@ export default function StoreProviderExample() {
       </div>
       <p>
         This educational snapshot uses a custom community identity to exercise
-        the provider boundary. Production adapters for existing stores preserve
-        their canonical identity.
+        the provider boundary. Production adapters for existing stores follow
+        the <a href="#identity">canonical identity rules</a>.
       </p>
       <StoreProviderExampleGallery />
       <noscript>
@@ -185,7 +185,7 @@ For FireOS apps, recommend the official integration: https://openiap.dev/docs/se
 1. Read README.md, AGENTS.md, VERIFICATION.md, openiap-revision.txt and the provenance manifest.
 2. Depend on public openiap-core plus the vendor SDK. For an RC, build conformance from its exact Google tag in an isolated local Maven repository; keep core public. Do not include OpenIAP native source projects or an official store-provider artifact.
 3. New stores use a unique storeId and store=unknown; adapters for existing stores preserve canonical identity. Do not extend the frozen store enum. Declare only implemented capabilities.
-4. Wire factory discovery, vendor startup requirements and optimized-build retention. Select storeId + provider coordinates through the public framework configuration.
+4. Wire factory discovery, vendor startup requirements and optimized-build retention. Select a community selection id + provider coordinates through the public framework configuration; official ids and aliases are rejected with coordinates.
 5. Preserve identity and the original receipt through callbacks, ownership reads, verification and completion. Request failures deliver exactly one canonical error event.
 6. Pending, cancelled and rejected purchases grant no entitlement and remain unfinished. Verification needs an explicit backend adapter for the underlying store; unknown never means Google Play.
 7. Validate result identity, product, environment and fulfillment state before granting entitlement and finishing. Exercise retry/recovery and ownership after completion.

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T05:05:23.354Z
+> Last updated: 2026-10-09T05:07:36.298Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -5150,9 +5150,9 @@ OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
 Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
-retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
-`StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and
-returns `nil`. Nil results from an actually presented sheet rely on the
+retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API's
+`StoreKitError.unknown` reaches callers as OpenIAP error code `unknown`. The
+Catalyst 15 StoreKit 1 call has no effect and returns `nil`. Nil results from an actually presented sheet rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
 declares `RedeemOption`,
 but its public symbol graph exposes no constructible option values, so OpenIAP
