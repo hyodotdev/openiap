@@ -105,6 +105,16 @@ const fetchPremiumOffers = async (periods: {
 };
 
 describe('Amazon Vega adapter', () => {
+  it('redemption is a no-op without initializing or calling the Amazon service', async () => {
+    const service = createService();
+    await expect(
+      createVegaIapModule(service).openRedeemOfferCode(),
+    ).resolves.toBeNull();
+    for (const method of Object.values(service)) {
+      expect(method).not.toHaveBeenCalled();
+    }
+  });
+
   it('initializes without fetching Amazon user data', async () => {
     const service = createService();
     const module = createVegaIapModule(service);

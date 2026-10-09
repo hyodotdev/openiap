@@ -2533,6 +2533,14 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.openRedeemOfferCode).toHaveBeenCalledTimes(1);
     });
 
+    it('openRedeemOfferCode rejects malformed native purchase data', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      mockIap.openRedeemOfferCode.mockResolvedValueOnce({productId: 'premium'});
+      await expect(IAP.openRedeemOfferCode()).rejects.toMatchObject({
+        message: 'Invalid redeemed purchase returned by native store',
+      });
+    });
+
     it('openRedeemOfferCode resolves null when the iOS sheet reports nothing', async () => {
       Object.assign(Platform, {OS: 'ios'});
       mockIap.openRedeemOfferCode.mockResolvedValueOnce(null);
