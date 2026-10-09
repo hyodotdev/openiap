@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 
-// Schema semver release guard: version labels are unreliable in practice —
-// ~1/3 of releases and 20.1% of non-major upgrades ship breaking changes
-// (raemaekers2017semver, ochoa2022breakingbad in
-// knowledge/research/bibliography.md; backlog item R1). Classifies schema
-// changes against a base git ref so a breaking change cannot ship unlabeled.
+// Schema removals require a Client Protocol major increase.
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -16,6 +12,7 @@ import {
   findDangerousChanges,
 } from "graphql";
 import { SCHEMA_FILE_NAMES } from "../schema-files.mjs";
+import { validateVersion } from "../../../scripts/release-branch-policy.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..", "..", "..");
@@ -236,14 +233,8 @@ function parseArgs(argv) {
 }
 
 export function isMajorProtocolUpgrade(baseVersion, headVersion) {
-  const major = (version) => {
-    const match =
-      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(
-        version,
-      );
-    if (!match) throw new Error(`invalid Client Protocol version: ${version}`);
-    return Number(match[1]);
-  };
+  const major = (version) =>
+    BigInt(validateVersion(version, "Client Protocol version").split(".")[0]);
   return major(headVersion) > major(baseVersion);
 }
 

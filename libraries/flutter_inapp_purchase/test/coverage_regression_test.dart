@@ -237,10 +237,6 @@ void main() {
         iap.showInAppMessagesAndroid(),
         throwsA(isA<PurchaseError>()),
       );
-      await expectLater(
-        iap.openRedeemOfferCode(),
-        throwsA(isA<PurchaseError>()),
-      );
     });
   });
 

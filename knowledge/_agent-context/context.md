@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T00:26:39.596Z
+> Last updated: 2026-10-09T01:40:18.514Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -31,7 +31,7 @@ All iOS-specific functions MUST end with `IOS` suffix:
 // CORRECT
 func clearTransactionIOS()
 func syncIOS()
-func presentCodeRedemptionSheetIOS()
+func presentExternalPurchaseNoticeIOS()
 func showManageSubscriptionsIOS()
 func isEligibleForIntroOfferIOS()
 func subscriptionStatusIOS()
@@ -46,7 +46,7 @@ func getPromotedProductIOS()
 
 // INCORRECT - Missing IOS suffix
 func clearTransaction()
-func presentCodeRedemptionSheet()
+func presentExternalPurchaseNotice()
 func sync()
 ```
 
@@ -186,7 +186,7 @@ getStorefront();
 | `request`      | User-initiated async operations  | `requestPurchase`                                             |
 | `clear`        | Remove/reset data                | `clearTransactionIOS`, `clearProductsIOS`                     |
 | `is/has`       | Boolean checks                   | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions`        |
-| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentCodeRedemptionSheetIOS` |
+| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentExternalPurchaseNoticeIOS` |
 | `begin`        | Start a multi-step process       | `beginRefundRequestIOS`                                       |
 | `finish/end`   | Complete a process               | `finishTransaction`, `endConnection`                          |
 | `init`         | Initialize resources             | `initConnection`                                              |
@@ -4956,7 +4956,8 @@ interface VerifyPurchaseHorizonOptions {
 
 ```typescript
 interface VerifyPurchaseResultHorizon {
-  success: boolean; // Verification result
+  isValid: boolean;
+  grantTime?: number | null;
 }
 ```
 
@@ -5102,9 +5103,9 @@ scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
-(openiap-apple 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
-return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
-client protocol 1.0.0. Xcode 27 builds call the new API, require a verified result, and
+(openiap-apple 3.3.0+). Client Protocol 1.0.0 removes the
+`presentCodeRedemptionSheetIOS` alias; use `openRedeemOfferCode()` instead.
+Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws

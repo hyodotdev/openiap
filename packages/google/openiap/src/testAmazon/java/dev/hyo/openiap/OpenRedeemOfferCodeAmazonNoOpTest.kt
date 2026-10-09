@@ -6,12 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * Amazon flavor: Google Play offer-code redemption has no Amazon Appstore
- * counterpart, so openRedeemOfferCode must stay an explicit no-op that
- * never launches an intent, while the mutation bundle still wires both
- * generated handlers (deprecated Boolean + unified Purchase?) for parity.
- */
+/** Amazon redemption is a no-op in both the native Boolean and SDK Purchase? paths. */
 class OpenRedeemOfferCodeAmazonNoOpTest {
 
     @Test

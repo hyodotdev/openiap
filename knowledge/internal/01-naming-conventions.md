@@ -13,7 +13,7 @@ All iOS-specific functions MUST end with `IOS` suffix:
 // CORRECT
 func clearTransactionIOS()
 func syncIOS()
-func presentCodeRedemptionSheetIOS()
+func presentExternalPurchaseNoticeIOS()
 func showManageSubscriptionsIOS()
 func isEligibleForIntroOfferIOS()
 func subscriptionStatusIOS()
@@ -28,7 +28,7 @@ func getPromotedProductIOS()
 
 // INCORRECT - Missing IOS suffix
 func clearTransaction()
-func presentCodeRedemptionSheet()
+func presentExternalPurchaseNotice()
 func sync()
 ```
 
@@ -168,7 +168,7 @@ getStorefront();
 | `request`      | User-initiated async operations  | `requestPurchase`                                             |
 | `clear`        | Remove/reset data                | `clearTransactionIOS`, `clearProductsIOS`                     |
 | `is/has`       | Boolean checks                   | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions`        |
-| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentCodeRedemptionSheetIOS` |
+| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentExternalPurchaseNoticeIOS` |
 | `begin`        | Start a multi-step process       | `beginRefundRequestIOS`                                       |
 | `finish/end`   | Complete a process               | `finishTransaction`, `endConnection`                          |
 | `init`         | Initialize resources             | `initConnection`                                              |

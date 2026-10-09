@@ -643,6 +643,14 @@ function Migration() {
             </tr>
             <tr>
               <td>
+                ObjC <code>presentCodeRedemptionSheetIOSWithCompletion:</code>
+              </td>
+              <td>
+                <code>openRedeemOfferCodeWithCompletion:</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
                 Horizon verification <code>success</code>
               </td>
               <td>
@@ -663,7 +671,10 @@ function Migration() {
           A null redemption result can mean the store opened its UI without
           reporting a purchase immediately, or has no redemption flow. Observe
           purchase updates and refresh available purchases when the app resumes.
-          The store can still report a typed error when its UI cannot open.
+          React Native, Expo, Flutter, and MAUI now reject with a typed error
+          when the Play redeem page cannot open; earlier versions resolved null.
+          Catch that error. Godot emits <code>purchase_error</code> on Android
+          and iOS failures while returning null.
         </p>
 
         <AnchorLink id="provider-contract-store-id" level="h3">

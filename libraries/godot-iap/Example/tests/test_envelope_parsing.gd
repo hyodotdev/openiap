@@ -280,6 +280,8 @@ func _run_all_tests() -> void:
 	await test_ios_missing_request_id_envelope()
 	await test_community_open_redeem_offer_code_envelope()
 	await test_ios_open_redeem_offer_code_envelope()
+	await test_redemption_failure_signals()
+	await test_unavailable_redemption_signals()
 	await test_ios_transaction_lists_skip_invalid_store_identities()
 	await test_macos_shared_api_routing()
 
@@ -1234,8 +1236,15 @@ func test_android_open_redeem_offer_code_envelope() -> void:
 	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": true, "launched": true})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Unified Android redemption should resolve null after launching")
 	_assert_equal(fake.last_method, "openRedeemOfferCode", "Unified Android redemption should dispatch the canonical native method")
-	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": false, "error": "Activity not available"})
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": false, "code": "activity-unavailable", "error": "Activity not available"})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Unified Android redemption should resolve null on failure envelopes")
+	_assert_equal(errors.size(), 1, "Missing Activity emits one redemption error")
+	_assert_equal(errors[0].get("code"), "activity-unavailable", "Missing Activity preserves its native error code")
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
 	_uninstall_fake()
 
 
@@ -1415,6 +1424,43 @@ func test_ios_open_redeem_offer_code_envelope() -> void:
 	fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": false, "error": "cancelled"})
 	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Failure envelopes should resolve null")
 	_uninstall_fake()
+
+
+func test_redemption_failure_signals() -> void:
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		var errors: Array[Dictionary] = []
+		var capture_error = func(error: Dictionary) -> void:
+			errors.append(error)
+		GodotIapPlugin.purchase_error.connect(capture_error)
+		fake.responses["openRedeemOfferCode"] = JSON.stringify({"success": true})
+		_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "A successful launch without a purchase returns null")
+		_assert_equal(errors.size(), 0, "A successful redemption must not emit an error")
+		fake.responses["openRedeemOfferCode"] = JSON.stringify({
+			"success": false, "code": "user-cancelled", "error": "Redemption cancelled",
+		})
+		_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Failed redemption returns null")
+		_assert_equal(errors.size(), 1, "Failed redemption must emit exactly one error")
+		_assert_equal(errors[0].get("code"), "user-cancelled", "Redemption preserves the provider error code")
+		_assert_equal(errors[0].get("message"), "Redemption cancelled", "Redemption preserves the provider error message")
+		GodotIapPlugin.purchase_error.disconnect(capture_error)
+		_uninstall_fake()
+
+
+func test_unavailable_redemption_signals() -> void:
+	for platform in ["macOS", "Linux", "iOS"]:
+		_install_apple_fake(platform)
+		if platform == "iOS":
+			GodotIapPlugin._native_plugin = null
+		var errors: Array[Dictionary] = []
+		var capture_error = func(error: Dictionary) -> void:
+			errors.append(error)
+		GodotIapPlugin.purchase_error.connect(capture_error)
+		_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "Unavailable redemption returns null")
+		_assert_equal(errors.size(), 1, "Unavailable redemption emits one error")
+		_assert_equal(errors[0].get("code"), "not-prepared" if platform == "iOS" else "feature-not-supported", "Unavailable redemption preserves the canonical error code")
+		GodotIapPlugin.purchase_error.disconnect(capture_error)
+		_uninstall_fake()
 
 
 func _purchase_payload(product_id: String, transaction_id: String) -> Dictionary:

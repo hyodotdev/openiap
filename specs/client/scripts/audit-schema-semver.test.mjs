@@ -209,7 +209,7 @@ test('falls back to the prior canonical directory for refs without an inventory'
 });
 
 test('breaking changes require a major protocol increase, including RC promotion', () => {
-  for (const [base, head] of [['0.2.0-rc.1', '1.0.0'], ['1.9.0', '2.0.0-rc.1']]) {
+  for (const [base, head] of [['0.2.0-rc.1', '1.0.0'], ['1.9.0', '2.0.0-rc.1'], ['9007199254740992.0.0', '9007199254740993.0.0']]) {
     assert.equal(isMajorProtocolUpgrade(base, head), true);
   }
   for (const [base, head] of [
@@ -218,8 +218,8 @@ test('breaking changes require a major protocol increase, including RC promotion
   ]) {
     assert.equal(isMajorProtocolUpgrade(base, head), false);
   }
-  for (const version of ['invalid', '01.0.0', '1.0', '']) {
-    assert.throws(() => isMajorProtocolUpgrade('0.2.0', version), /invalid Client Protocol version/);
-    assert.throws(() => isMajorProtocolUpgrade(version, '1.0.0'), /invalid Client Protocol version/);
+  for (const version of ['invalid', '01.0.0', '1.0', '1.0.0-01', '']) {
+    assert.throws(() => isMajorProtocolUpgrade('0.2.0', version), /Invalid Client Protocol version/);
+    assert.throws(() => isMajorProtocolUpgrade(version, '1.0.0'), /Invalid Client Protocol version/);
   }
 });

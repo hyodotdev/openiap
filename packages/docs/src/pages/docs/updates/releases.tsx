@@ -674,6 +674,16 @@ function Releases() {
               before.
             </li>
             <li>
+              React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and MAUI 3.0.0{' '}
+              now reject failed Play <code>openRedeemOfferCode()</code> launches
+              instead of resolving null; catch the error.
+            </li>
+            <li>
+              Godot 4.0.0 now emits <code>purchase_error</code> for failed
+              Android or iOS redemption while returning null; subscribe to the
+              signal.
+            </li>
+            <li>
               React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0
               forward the provider&apos;s Android error code where they returned
               fixed codes; handle specific codes such as{' '}

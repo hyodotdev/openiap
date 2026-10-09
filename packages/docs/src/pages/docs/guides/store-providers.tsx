@@ -641,6 +641,14 @@ class YourStoreFactory : OpenIapProviderFactory {
           has an unsupported default; prefer <code>getAvailablePurchases</code>.
         </p>
         <p>
+          SDK redemption calls <code>mutationHandlers.openRedeemOfferCode</code>{' '}
+          after supplying the host Activity with <code>setActivity</code>. Wire
+          that handler to your vendor flow and return a purchase or null. The
+          native Boolean <code>openRedeemOfferCode(activity)</code> remains for
+          direct native callers; implementing it alone does not enable SDK
+          redemption.
+        </p>
+        <p>
           Read Android purchase arguments from <code>request.google</code>,
           including for community stores. Preserve opaque purchase tokens
           through callbacks, owned-purchase reads, verification, and completion.
@@ -683,8 +691,9 @@ class YourStoreFactory : OpenIapProviderFactory {
           from your host or Robolectric test in both cases: when{' '}
           <code>offerCodeRedemption</code> is declared the suite opens the real
           flow with that activity, and when it is undeclared the suite calls the
-          provider with that activity and asserts the documented no-op. A
-          missing provider or activity fails the run with a message naming it.
+          canonical handler with that activity and asserts null or{' '}
+          <code>FeatureNotSupported</code>. A missing provider or activity fails
+          the run with a message naming it.
         </p>
         <CodeBlock
           language="kotlin"

@@ -2209,10 +2209,9 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 # ==========================================
 
 ## Open the platform offer/promo code redemption flow (cross-platform).
-## Returns the redeemed purchase only when the store reports it synchronously;
-## every other path returns null, so reconcile with get_available_purchases()
-## on resume.
-## @return Types.PurchaseIOS or null
+## Returns a purchase only when the store reports it immediately; otherwise null.
+## Refresh get_available_purchases() on resume. Failures emit purchase_error.
+## @return Types.PurchaseAndroid, Types.PurchaseIOS, or null
 ##
 ## See: https://openiap.dev/docs/apis/open-redeem-offer-code
 func open_redeem_offer_code() -> Variant:
@@ -2224,9 +2223,16 @@ func open_redeem_offer_code() -> Variant:
 		var parsed = JSON.parse_string(_native_plugin.call("openRedeemOfferCode"))
 		if parsed is Dictionary:
 			payload = parsed
-	elif _platform == "iOS" and _native_plugin:
+	elif _platform == "iOS":
 		payload = await _call_apple_async("openRedeemOfferCode", [], _apple_async_ui_timeout_seconds)
+	else:
+		payload = {"success": false, "code": "feature-not-supported", "error": "Offer code redemption is unsupported on this platform"}
 	if not payload.get("success", false):
+		_purchase_failure(
+			String(payload.get("code", "service-error")),
+			String(payload.get("error", "Failed to redeem offer code")),
+			payload
+		)
 		return null
 	var purchase_json = payload.get("purchaseJson", "")
 	if purchase_json is String and not purchase_json.is_empty():

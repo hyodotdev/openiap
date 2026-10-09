@@ -339,7 +339,8 @@ interface VerifyPurchaseHorizonOptions {
 
 ```typescript
 interface VerifyPurchaseResultHorizon {
-  success: boolean; // Verification result
+  isValid: boolean;
+  grantTime?: number | null;
 }
 ```
 

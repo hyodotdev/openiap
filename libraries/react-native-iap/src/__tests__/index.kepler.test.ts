@@ -296,4 +296,43 @@ describe('Amazon Vega public API', () => {
       nativeListener,
     );
   });
+
+  it('returns documented iOS fallbacks and rejects unsupported APIs', async () => {
+    await expect(IAP.getAppTransactionIOS()).resolves.toBeNull();
+    await expect(IAP.getPromotedProductIOS()).resolves.toBeNull();
+    await expect(IAP.showManageSubscriptionsIOS()).resolves.toEqual([]);
+    await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+
+    for (const call of [
+      () => IAP.verifyPurchase({}),
+      () => IAP.syncIOS(),
+      () => IAP.presentExternalPurchaseLinkIOS('https://example.com'),
+      () => IAP.deepLinkToSubscriptions({}),
+      () => IAP.isBillingProgramAvailableAndroid('external-offer'),
+      () => IAP.getBillingChoiceInfoAndroid({}),
+      () =>
+        IAP.launchExternalLinkAndroid({
+          billingProgram: 'external-offer',
+          launchMode: 'launch-in-external-browser-or-app',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://example.com',
+        }),
+      () =>
+        IAP.createBillingProgramReportingDetailsAndroid({
+          program: 'external-offer',
+        }),
+      () =>
+        IAP.showBillingProgramInformationDialogAndroid({
+          externalTransactionToken: 'token',
+        }),
+      () => IAP.showInAppMessagesAndroid({}),
+    ]) {
+      await expect(call()).rejects.toThrow(/not supported on Amazon Vega/);
+    }
+
+    IAP.promotedProductListenerIOS().remove();
+    IAP.userChoiceBillingListenerAndroid().remove();
+    IAP.developerProvidedBillingListenerAndroid().remove();
+    IAP.subscriptionBillingIssueListener().remove();
+  });
 });

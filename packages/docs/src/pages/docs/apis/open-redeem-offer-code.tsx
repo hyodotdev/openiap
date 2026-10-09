@@ -101,7 +101,7 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;Purchase | null&gt;</code> — the verified redeemed{' '}
+        <code>Promise&lt;Purchase | null&gt;</code> — the redeemed{' '}
         <Link to="/docs/types/purchase">
           <code>Purchase</code>
         </Link>{' '}
@@ -135,8 +135,9 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
         throw <code>feature-not-supported</code>. Official Horizon and Amazon
         providers resolve <code>null</code> without launching a flow; a
         community provider without this handler throws{' '}
-        <code>feature-not-supported</code>. Godot returns <code>null</code> on a
-        failed Android redemption flow.
+        <code>feature-not-supported</code>. Godot emits{' '}
+        <code>purchase_error</code> and returns <code>null</code> on a failed
+        Android or iOS redemption flow.
       </p>
 
       <h2>Example</h2>

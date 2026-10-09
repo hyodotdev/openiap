@@ -342,7 +342,7 @@ jobs:
           exit 1
 
       - name: Generate CHANGELOG entry
-        if: ${{ inputs.version != 'current' }}
+        if: ${{ inputs.version != 'current' && steps.bump.outputs.is_prerelease != 'true' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
           PREV_VERSION: ${{ steps.bump.outputs.prev_version }}

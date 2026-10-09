@@ -946,6 +946,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         val activity = activity ?: run {
             return JSONObject().apply {
                 put("success", false)
+                put("code", OpenIapError.MissingCurrentActivity.CODE)
                 put("error", "Activity not available")
             }.toString()
         }
