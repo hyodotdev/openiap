@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { escapeHtml, highlightXml } from '../lib/codeHighlight';
 
 interface CodeBlockProps {
   children: string;
@@ -244,13 +245,6 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
   );
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
 function highlightCode(element: HTMLElement, language: string) {
   const text = element.textContent || '';
 
@@ -452,50 +446,7 @@ function highlightCode(element: HTMLElement, language: string) {
 
     element.innerHTML = highlightedLines.join('\n');
   } else if (language === 'xml') {
-    // XML syntax highlighting
-    const lines = text.split('\n');
-    const highlightedLines = lines.map((line) => {
-      if (!line.trim()) return escapeHtml(line);
-
-      let result = escapeHtml(line);
-
-      // Comments
-      if (result.includes('&lt;!--')) {
-        return result.replace(
-          /(&lt;!--.*?--&gt;)/g,
-          '<span class="token comment">$1</span>'
-        );
-      }
-
-      // Opening/closing tags with attributes
-      result = result.replace(
-        /(&lt;\/?)([a-zA-Z][a-zA-Z0-9-]*)(.*?)(&gt;)/g,
-        (_match, open: string, tag: string, attrs: string, close: string) => {
-          let tagHtml = '<span class="token punctuation">' + open + '</span>';
-          tagHtml += '<span class="token tag">' + tag + '</span>';
-
-          // Process attributes if present
-          if (attrs.trim()) {
-            let processedAttrs = attrs.replace(
-              /\s*([a-zA-Z][a-zA-Z0-9-]*)=/g,
-              ' <span class="token attr-name">$1</span>='
-            );
-            processedAttrs = processedAttrs.replace(
-              /="([^"]*)"/g,
-              '=<span class="token attr-value">"$1"</span>'
-            );
-            tagHtml += processedAttrs;
-          }
-
-          tagHtml += '<span class="token punctuation">' + close + '</span>';
-          return tagHtml;
-        }
-      );
-
-      return result;
-    });
-
-    element.innerHTML = highlightedLines.join('\n');
+    element.innerHTML = highlightXml(text);
   } else if (language === 'json') {
     const lines = text.split('\n');
     const highlightedLines = lines.map((line) => {

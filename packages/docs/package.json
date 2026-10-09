@@ -9,7 +9,7 @@
     "showcase:metrics:test": "node --test scripts/refresh-showcase-metrics.test.mjs",
     "dev": "bunx vite",
     "build": "bun run typecheck && bun scripts/build-showcase-api.mjs && node scripts/check-showcase-api.mjs && bun scripts/check-commerce-composition.mjs && bunx vite build && node scripts/prerender.mjs",
-    "test:discoverability": "node --test scripts/prerender.test.mjs scripts/jsx-whitespace.test.mjs scripts/showcase.test.mjs",
+    "test:discoverability": "node --test scripts/prerender.test.mjs scripts/jsx-whitespace.test.mjs scripts/code-highlight.test.mjs scripts/showcase.test.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json",
     "lint": "eslint src --max-warnings 0",
     "preview": "bunx vite preview",
