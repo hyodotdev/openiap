@@ -235,6 +235,18 @@ function parseArgs(argv) {
   return args;
 }
 
+export function isMajorProtocolUpgrade(baseVersion, headVersion) {
+  const major = (version) => {
+    const match =
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(
+        version,
+      );
+    if (!match) throw new Error(`invalid Client Protocol version: ${version}`);
+    return Number(match[1]);
+  };
+  return major(headVersion) > major(baseVersion);
+}
+
 function main() {
   const { base, allowBreaking } = parseArgs(process.argv.slice(2));
   const baseRef = resolveBaseRef(base);
@@ -243,11 +255,31 @@ function main() {
   console.log(formatReport(baseRef, result));
 
   if (result.breaking.length > 0 && !allowBreaking) {
-    console.error(
-      "\nBreaking schema changes require a major spec release. If this break " +
-        "is deliberate and release-planned, re-run with --allow-breaking.",
+    const snapshot = selectSchemaSnapshot((file) =>
+      runGit(["show", `${baseRef}:${file}`], repositoryRoot),
     );
-    process.exitCode = 1;
+    const baseManifest = JSON.parse(
+      runGit(
+        ["show", `${baseRef}:${path.dirname(snapshot.directory)}/package.json`],
+        repositoryRoot,
+      ),
+    );
+    const headManifest = JSON.parse(
+      fs.readFileSync(
+        path.join(repositoryRoot, "specs/client/package.json"),
+        "utf8",
+      ),
+    );
+    if (isMajorProtocolUpgrade(baseManifest.version, headManifest.version)) {
+      console.log(
+        `  major release: ${baseManifest.version} → ${headManifest.version}`,
+      );
+    } else {
+      console.error(
+        "\nBreaking schema changes require a Client Protocol major version increase.",
+      );
+      process.exitCode = 1;
+    }
   }
 }
 
