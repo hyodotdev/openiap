@@ -431,10 +431,10 @@ android { defaultConfig { missingDimensionStrategy("platform", "provider") } }`}
           Use <code>purchase.storeId</code> when routing a purchase to your
           backend, and preserve it when finishing or verifying a purchase.
           Registered ids have generated <code>StoreIds</code> constants. Include{' '}
-          <code>storeId</code> when creating purchase or verification result
-          objects manually. Previously saved official purchases without this
-          field decode to their official id; community purchases require a valid
-          explicit id.
+          <code>storeId</code> when creating purchase or IAPKit verification
+          result objects manually. Previously saved official purchases without
+          this field decode to their official id; community purchases require a
+          valid explicit id.
         </p>
         <p>
           <Link to="/docs/types/purchase">Purchase fields</Link> ·{' '}
@@ -482,8 +482,10 @@ public final class YourStoreProviderFactory: NSObject, OpenIapProviderFactory {
           A new store returns <code>PurchaseIOS</code> with{' '}
           <code>store = .unknown</code> and its custom <code>storeId</code>. An
           App Store adapter uses <code>store = .apple</code> and{' '}
-          <code>storeId = "apple"</code>. Use <code>request.apple</code> for
-          Apple-platform purchase arguments, including community stores.
+          <code>storeId = "apple"</code>. Framework calls use{' '}
+          <code>request.apple</code>, including community stores. Native Swift
+          providers switch <code>params.request</code> between purchase and
+          subscription, then read the associated <code>props.apple</code>.
           Preserve opaque transaction IDs and receipts through listeners,
           ownership reads, and completion. Optional StoreKit-only methods
           default to <code>feature-not-supported</code>.
@@ -626,7 +628,7 @@ class YourStoreFactory : OpenIapProviderFactory {
         </p>
         <p>
           Implement the generated handlers and listeners, emit normalized
-          errors, and stamp both identity fields on every purchase and
+          errors, and stamp both identity fields on every purchase and IAPKit
           verification result. Declare only capabilities you implement:{' '}
           <code>pendingPurchases</code>, <code>subscriptionBillingIssue</code>,
           and <code>offerCodeRedemption</code>. Unsupported operations must
@@ -645,15 +647,16 @@ class YourStoreFactory : OpenIapProviderFactory {
           after supplying the host Activity with <code>setActivity</code>. Wire
           that handler to your vendor flow and return a purchase or null. The
           native Boolean <code>openRedeemOfferCode(activity)</code> remains for
-          direct native callers. Both entry points must open the same vendor
-          flow; implementing only the Boolean method does not enable SDK
-          redemption.
+          direct native callers. When <code>offerCodeRedemption</code> is
+          declared, both entry points must open the same vendor flow;
+          implementing only the Boolean method does not enable SDK redemption.
         </p>
         <p>
-          Read Android purchase arguments from <code>request.google</code>,
-          including for community stores. Preserve opaque purchase tokens
-          through callbacks, owned-purchase reads, verification, and completion.
-          The platform argument name does not select Google Play.
+          Framework calls use <code>request.google</code> for all Android
+          stores. In a native provider, read <code>RequestPurchaseProps</code>{' '}
+          with <code>toAndroidPurchaseArgs()</code>. Preserve opaque purchase
+          tokens through callbacks, owned-purchase reads, verification, and
+          completion. The platform argument name does not select Google Play.
         </p>
         <p>
           <code>setActivity</code> receives the current host Activity. The

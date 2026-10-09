@@ -1465,8 +1465,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// - Note: Builds made with Xcode 27+ return the verified transaction on
     ///   iOS 27+, Mac Catalyst 27+, and visionOS 27+. Earlier iOS and visionOS
     ///   paths return nil after presenting the system sheet. Mac Catalyst 16–26
-    ///   throws StoreKitError.unknown, and Catalyst 15 returns nil after a
-    ///   StoreKit 1 call that has no effect.
+    ///   throws PurchaseError with code .unknown. Catalyst 15 returns nil after
+    ///   a StoreKit 1 call that has no effect.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(from:options:)
     ///
     /// See: https://openiap.dev/docs/apis/open-redeem-offer-code

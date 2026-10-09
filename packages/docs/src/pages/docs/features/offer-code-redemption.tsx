@@ -29,8 +29,8 @@ function OfferCodeRedemption() {
         </Link>{' '}
         on both platforms. It returns the verified <code>Purchase</code>{' '}
         produced by Apple&apos;s new StoreKit API on iOS 27, Mac Catalyst 27,
-        and visionOS 27 or later (Xcode 27+ builds). Every other flow resolves{' '}
-        <code>null</code>: earlier iOS and visionOS runtimes present
+        and visionOS 27 or later (Xcode 27+ builds). Other official flows
+        resolve <code>null</code>: earlier iOS and visionOS runtimes present
         Apple&apos;s system sheet, Google Play opens the Play Store redeem page,
         and Meta Horizon and Amazon Appstore launch nothing. Observe the
         redeemed purchase through{' '}
@@ -38,8 +38,13 @@ function OfferCodeRedemption() {
           <code>purchaseUpdatedListener</code>
         </Link>{' '}
         or an explicit available-purchases refresh. Mac Catalyst 16–26 instead
-        throws <code>StoreKitError.unknown</code>, and the Catalyst 15 StoreKit
-        1 call has no effect.{' '}
+        fails with OpenIAP error code <code>unknown</code>, and the Catalyst 15
+        StoreKit 1 call has no effect.{' '}
+      </p>
+      <p>
+        Community providers may return a purchase or null. Verify the returned
+        purchase through the provider&apos;s supported verification path before
+        granting entitlement or finishing the transaction.
       </p>
 
       <section>
@@ -103,10 +108,9 @@ function OfferCodeRedemption() {
                   visionOS paths return <code>null</code> after presenting the
                   system sheet, and the redeemed transaction arrives through the
                   listener or a subsequent refresh. Mac Catalyst 16–26 rejects
-                  the StoreKit 2 scene API with{' '}
-                  <code>StoreKitError.unknown</code>; its StoreKit 1 call on
-                  Catalyst 15 has no effect. iOS 15 keeps the functional
-                  StoreKit 1 fallback.
+                  the StoreKit 2 scene API with OpenIAP error code{' '}
+                  <code>unknown</code>; its StoreKit 1 call on Catalyst 15 has
+                  no effect. iOS 15 keeps the functional StoreKit 1 fallback.
                 </p>
                 <LanguageTabs>
                   {{
@@ -131,7 +135,7 @@ export async function startIap() {
 export async function redeemCode() {
   const purchase = await openRedeemOfferCode();
   if (purchase) {
-    console.log('Verified redemption:', purchase.productId);
+    console.log('Redeemed purchase:', purchase.productId);
   }
   return purchase;
 }

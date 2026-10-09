@@ -82,7 +82,7 @@ const migrationGroups = [
       ['willExpireSoon', 'daysUntilExpirationIOS'],
       [
         'presentCodeRedemptionSheetIOS Boolean result',
-        'nullable PurchaseIOS result: verified on Apple 27+ with Xcode 27+; null after the system sheet on iOS 15–26 and visionOS 1–26; Catalyst 16–26 throws StoreKitError.unknown and Catalyst 15 has no effect',
+        'nullable PurchaseIOS result: verified on Apple 27+ with Xcode 27+; null after the system sheet on iOS 15–26 and visionOS 1–26; Catalyst 16–26 fails with OpenIAP error code unknown and Catalyst 15 has no effect',
       ],
       ['receipt-failed', 'purchase-verification-failed'],
       ['receipt-finished', 'purchase-verification-finished'],
