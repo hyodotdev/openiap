@@ -21,6 +21,10 @@ Before editing docs, read:
 If the task also changes package/library behavior, use `openiap-workflows` and
 read the package or library convention file before editing that code.
 
+For a public protocol change, also follow
+`knowledge/internal/05-docs-patterns.md#protocol-release-articles` for the
+companion article draft. Keep the format there rather than copying it here.
+
 ## Release Note Mode
 
 A PR into `main` writes its release card before the release, as already
@@ -31,10 +35,10 @@ Use `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`
 to inventory the full PR and selected release train. Complete the gate after
 writing or updating the card, including after scope changes.
 
-Stable and RC releases share `main`. Keep the eventual stable release card
-with its source PR; do not add a duplicate card for each npm `next` publication.
-Use preview docs while versions carry RC suffixes. Production `npm run deploy`
-requires stable package metadata.
+Stable releases use `main`; RC releases use the on-demand `next` branch. Keep
+the eventual stable release card with its source PR; do not add a duplicate
+card for each npm `next` publication. Use preview docs while versions carry RC
+suffixes. Production `npm run deploy` requires stable package metadata.
 
 Write every card this way:
 
@@ -145,7 +149,7 @@ Follow the existing card pattern:
   (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and resolves a
   hash only against a note's `id` or `aliases`, so a card without them leaves
   those links on page one — a dead link that still looks alive. `bun run
-  audit:docs` fails when a card lists `Package Releases` without them.
+audit:docs` fails when a card lists `Package Releases` without them.
 
 Card section layout (mandatory for multi-package cards):
 
