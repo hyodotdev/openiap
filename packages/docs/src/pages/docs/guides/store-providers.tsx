@@ -693,9 +693,10 @@ class YourStoreFactory : OpenIapProviderFactory {
           <code>offerCodeRedemption</code> is declared the suite opens the real
           flow with that activity, and when it is undeclared the suite calls the
           canonical handler with that activity and asserts null or{' '}
-          <code>FeatureNotSupported</code>. Separate native checks require true
-          for a declared flow, and false or <code>FeatureNotSupported</code>{' '}
-          when undeclared. A missing provider or activity fails the run with a
+          <code>FeatureNotSupported</code>. A separate native check requires
+          true for a declared flow. The unsupported-operation check requires
+          false or <code>FeatureNotSupported</code> for undeclared native
+          redemption. A missing provider or activity fails the run with a
           message naming it.
         </p>
         <CodeBlock

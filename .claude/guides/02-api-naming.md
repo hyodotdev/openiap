@@ -8,7 +8,6 @@ Functions only available on iOS/macOS must end with `IOS`:
 
 ```text
 clearTransactionIOS
-getStorefrontIOS
 getPromotedProductIOS
 getPendingTransactionsIOS
 isEligibleForIntroOfferIOS
@@ -21,7 +20,7 @@ isTransactionVerifiedIOS
 getTransactionJwsIOS
 getReceiptDataIOS
 syncIOS
-presentCodeRedemptionSheetIOS
+presentExternalPurchaseNoticeSheetIOS
 getAppTransactionIOS
 ```
 
@@ -96,7 +95,7 @@ iOS-specific functions still need `IOS` suffix for cross-platform API consistenc
 
 ```swift
 // Correct
-func presentCodeRedemptionSheetIOS()
+func presentExternalPurchaseNoticeSheetIOS()
 func syncIOS()
 
 // Cross-platform (no suffix)

@@ -72,8 +72,8 @@ export default function StoreProviderExample() {
           <CheckCircle2 size={21} aria-hidden="true" />
           <strong>Public contract</strong>
           <span>
-            All 16 mandatory conformance behaviors passed in controlled SDK
-            transport tests.
+            Mandatory behaviors in the recorded RC profile passed in controlled
+            SDK transport tests.
           </span>
         </div>
         <div>

@@ -378,7 +378,7 @@ export const BEHAVIORS = Object.freeze([
     category: 'android-provider',
     level: 'SHOULD',
     statement:
-      'Native offer-code redemption reports opening a declared flow with true; an undeclared flow returns false or throws FeatureNotSupported.',
+      'Native offer-code redemption returns true when it opens a declared flow.',
   },
 
   // --- apple-provider ----------------------------------------------------

@@ -182,11 +182,11 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
             }
             if (throwsError) {
                 assertThrows(IllegalStateException::class.java) {
-                    invalid.`native redemption matches the declared capability`()
+                    invalid.`declared native redemption opens the flow`()
                 }
             } else {
                 assertThrows(AssertionError::class.java) {
-                    invalid.`native redemption matches the declared capability`()
+                    invalid.`declared native redemption opens the flow`()
                 }
             }
         }
@@ -232,6 +232,11 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
                 override val mutationHandlers = base.provider.mutationHandlers.copy(openRedeemOfferCode = handler)
                 override suspend fun openRedeemOfferCode(activity: Activity): Boolean = nativeResult()
             }
+        }
+        try {
+            withoutRedemption({ null }).`declared native redemption opens the flow`()
+        } catch (error: Exception) {
+            throw AssertionError("Undeclared native behavior must pass without skipping", error)
         }
         withoutRedemption({ null }).`unsupported offer code redemption returns its documented no-op`()
         withoutRedemption(null).`unsupported offer code redemption returns its documented no-op`()
