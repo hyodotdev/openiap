@@ -16,7 +16,12 @@ import {
   trackIapKitClick,
 } from '../lib/config';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
-import { FEATURED_SHOWCASE_APPS } from '../lib/showcase';
+import {
+  FEATURED_SHOWCASE_APPS,
+  GITHUB_DEPENDENTS_LABEL,
+  GITHUB_DEPENDENTS_URL,
+  GITHUB_DEPENDENTS_DESCRIPTION,
+} from '../lib/showcase';
 import { CURRENT_SPONSORS } from '../lib/sponsors';
 import SEO from '../components/SEO';
 
@@ -577,6 +582,16 @@ function Home() {
             <p className="home-section-kicker">Community</p>
             <h2>OpenIAP Community</h2>
             <p>Resources, apps, and voices from across the ecosystem.</p>
+            <p>
+              <a
+                href={GITHUB_DEPENDENTS_URL}
+                target="_blank"
+                rel="noreferrer"
+                title={GITHUB_DEPENDENTS_DESCRIPTION}
+              >
+                {GITHUB_DEPENDENTS_LABEL}
+              </a>
+            </p>
           </div>
 
           <nav className="home-community-index" aria-label="Community sections">

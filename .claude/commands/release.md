@@ -27,9 +27,9 @@ Inspect the complete public payload before publishing it.
   sync. `clientProtocol` mirrors `specs/client/package.json`; never edit the
   mirror directly. Use `version=current` when the manifest already declares the
   version being published.
-- Production docs deploy from `main` only after all package metadata is stable
-  and the release card's links are public. Use a preview while RCs are active.
-  `--force` does not bypass the stable-version check.
+- Vercel automatically deploys production docs from `main`, including RC
+  metadata and release cards that precede publication. Docs deployment does
+  not publish packages.
 - Historical `next` tags remain immutable. The old branch is retained for tag
   verification and SBOM recovery; new work and releases do not need it. Do not
   force-reset or delete it without explicit maintainer approval.
@@ -83,8 +83,8 @@ bun run audit:release-state
    RCs do not publish its AAR. Follow
    `packages/google/core/README.md#test-a-published-rc` and the fixture README.
    Keep the consumer's local Maven repository free of a rebuilt core.
-6. Keep production docs unchanged while metadata carries RC versions. Preview
-   docs may show the RC inputs and eventual stable release card.
+6. Main's docs deploy automatically, showing the RC metadata and eventual
+   stable release card. Verify the deployed site after version commits.
 
 ```bash
 gh workflow run release-expo.yml --ref main \
@@ -132,8 +132,8 @@ For a multi-package release train, use this order when affected:
    - `cli`: `@hyodotdev/openiap`; independent package version.
      The standalone npm `openiap-conformance` package is retired. Its suite
      remains internal; its historical release tags stay immutable.
-10. `npm run deploy`. The docs site is not versioned: no tag, no GitHub
-    Release, no version argument.
+10. Wait for Vercel's production deployment of main's head, then verify it.
+    The docs site is not versioned: no tag or GitHub Release.
 
 All three scoped packages use the npm GitHub Trusted Publisher for owner
 `hyodotdev`, repository `openiap`, workflow `release-openiap.yml`, with no

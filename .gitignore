@@ -185,3 +185,4 @@ knowledge/research/_datasets/
 
 # Playwright MCP: screenshots, snapshots, and console logs from agent runs
 .playwright-mcp/
+.vercel

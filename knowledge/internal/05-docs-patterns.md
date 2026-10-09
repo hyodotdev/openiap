@@ -355,8 +355,9 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-By default, `npm run deploy` waits for every linked release to publish. To
-deploy docs earlier, use `-f` or `--force` as described in
+Vercel deploys main's docs even before linked releases publish. Manual
+`npm run deploy` checks release links; use `-f` or `--force` to deploy earlier,
+as described in
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).
 If a train will not resume, trim its card to the packages that published.
 
@@ -381,8 +382,8 @@ release-plan change expands the affected packages or behavior.
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
    versioned package needs its expected version, GitHub Release link, and tag
    alias/anchor. Every user-visible change needs a concise behavior or migration
-   note; packages that only pick up shared behavior need only a `Package
-Releases` entry. Resolve targets through the Release Package Version
+   note; packages that only pick up shared behavior need only a linked release
+   entry. Resolve targets through the Release Package Version
    Verification section below and `$generate-doc`.
 4. Fill gaps in the current PR and update the existing unreleased card for the
    same train. Do not defer missing packages or explanations to a separate
@@ -519,8 +520,8 @@ Before adding or editing a `Package Releases` list:
 
 Keep one concise, package-grouped stable release card with the source PR on
 `main`, including when an RC publishes first. Do not create duplicate cards for
-RC or npm `next` publications. Production docs wait for stable package metadata
-and published links; previews may show the upcoming card.
+RC or npm `next` publications. Main's docs deploy automatically, including RC
+metadata and release cards whose packages have not published yet.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
 Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,

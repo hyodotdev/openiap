@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "showcase:github": "node scripts/refresh-showcase-github.mjs",
     "showcase:metrics": "node scripts/refresh-showcase-metrics.mjs",
     "showcase:metrics:test": "node --test scripts/refresh-showcase-metrics.test.mjs",
     "dev": "bunx vite",
@@ -17,7 +18,8 @@
     "render:mcp-video": "node scripts/render-mcp-demo-video.mjs",
     "prepare": "husky",
     "deploy": "./deploy.sh",
-    "deploy:preview": "vercel pull --yes --environment=preview && vercel build --yes && vercel deploy --prebuilt --yes"
+    "deploy:preview": "cd ../.. && vercel pull --yes --environment=preview && vercel build --yes && vercel deploy --prebuilt --yes",
+    "showcase:downloads": "node scripts/refresh-showcase-metrics.mjs --downloads-only"
   },
   "dependencies": {
     "@preact/signals-react": "^3.2.1",

@@ -108,8 +108,8 @@ appropriate labels before merging.
 - Before creating or updating a PR, declaring review clean, or releasing, apply
   `knowledge/internal/05-docs-patterns.md#release-note-completeness-gate`.
 - Run stable and prerelease package releases from `main` through an explicit
-  dispatch. RCs use npm `next`; stable uses `latest`. Production docs require
-  stable package metadata, including when `--force` is selected. Run
+  dispatch. RCs use npm `next`; stable uses `latest`. Vercel automatically
+  deploys main's docs, including RC metadata. Run
   `bun run audit:release-state` before release work.
 - For PRs with new features, visible behavior changes, UI changes, docs pages,
   example flows, or developer workflows, record the actual changed surface,
