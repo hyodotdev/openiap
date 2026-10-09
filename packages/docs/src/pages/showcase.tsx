@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import SEO from '../components/SEO';
 import SelectInput from '../components/SelectInput';
 import {
@@ -75,22 +75,18 @@ function Showcase() {
             className="section-subtitle"
             style={{ fontSize: '1rem', marginBottom: '2rem' }}
           >
+            Explore apps built with OpenIAP and share your own. Across OpenIAP
+            packages, GitHub reports{' '}
             <a
               href={GITHUB_DEPENDENTS_URL}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               title={GITHUB_DEPENDENTS_DESCRIPTION}
-              style={{
-                color: 'inherit',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
             >
-              <Plus size={15} aria-hidden="true" />
-              <strong>{GITHUB_DEPENDENTS_LABEL}</strong>
+              {GITHUB_DEPENDENTS_LABEL}
             </a>
+            . Estimates are summed by package; shared repositories may count
+            more than once.
           </p>
           <section className="showcase-filters" aria-label="Find apps">
             <div className="showcase-search-controls">

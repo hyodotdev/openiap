@@ -12,14 +12,6 @@
 
 OpenIAP is two protocols for in-app purchases across platforms, frameworks, and emerging technologies: the Client Protocol for what an app calls, and the Commerce Protocol for what servers exchange.
 
-<!-- showcase:start -->
-
-## Apps built with OpenIAP
-
-[**+ 3,300+ public GitHub dependents**](https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS0zNjkzNzc2NQ%3D%3D "GitHub's publicly visible estimates, summed by package. Shared repositories may count more than once. Updated 2026-10-09.")
-
-<!-- showcase:end -->
-
 ## Overview
 
 The two protocols standardize IAP implementations to reduce fragmentation and enable consistent behavior across every platform. The Client Protocol gives an app one purchase API whatever the store; the Commerce Protocol gives backends one contract for verification, entitlements, and subscription lifecycle events. This is especially critical in the AI coding era where standardized APIs enable better code generation.
@@ -28,7 +20,7 @@ The two protocols standardize IAP implementations to reduce fragmentation and en
 
 The contracts every package and library implements live under `specs/`. They are publishable, implementation-independent, and never deployed as services:
 
-- **[Client Protocol](specs/client)** — Client purchase API and generated types for six languages. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-client-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-client-protocol)
+- **[Client Protocol](specs/client)** — Client purchase API and generated types for six languages. [![Client Protocol contract version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fspecs%2Fclient%2Fpackage.json&query=%24.version&label=contract&color=orange&prefix=v)](specs/client/package.json)
 - **[Commerce Protocol](specs/commerce-protocol)** — Server operations, events, bindings, and conformance. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-commerce-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-commerce-protocol)
 
 ## Packages
@@ -76,7 +68,7 @@ Framework SDK implementations built on top of OpenIAP. These libraries are manag
 
 ## Documentation
 
-Visit [openiap.dev](https://openiap.dev) for complete documentation and API reference.
+Visit [openiap.dev](https://openiap.dev) for complete documentation and API reference. Explore the [app showcase](https://openiap.dev/showcase) for apps built with OpenIAP.
 
 ## Community
 

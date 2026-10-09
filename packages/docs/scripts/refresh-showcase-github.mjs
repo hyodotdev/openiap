@@ -3,7 +3,6 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { format } from 'prettier';
 
 const dataPath = new URL('../showcase-apps.json', import.meta.url);
-const readmePath = new URL('../../../README.md', import.meta.url);
 const repositoryUrl = 'https://github.com/hyodotdev/openiap';
 
 async function fetchPage(url) {
@@ -16,10 +15,6 @@ async function fetchPage(url) {
 }
 
 const data = JSON.parse(await readFile(dataPath, 'utf8'));
-const readme = await readFile(readmePath, 'utf8');
-const readmeBlock = /<!-- showcase:start -->[\s\S]*?<!-- showcase:end -->/;
-if (!readmeBlock.test(readme))
-  throw new Error('Missing README showcase markers');
 const index = await fetchPage(`${repositoryUrl}/network/dependents`);
 const sources = [
   ...index.matchAll(
@@ -118,27 +113,8 @@ for (const app of data.github.apps) {
   }
 }
 
-const total = data.github.sources.reduce(
-  (sum, source) => sum + source.dependents,
-  0
-);
-const linkSource = data.github.sources.find(
-  (source) => source.package === data.github.linkPackage
-);
-if (!linkSource)
-  throw new Error(`Missing link package: ${data.github.linkPackage}`);
-const usage = `<!-- showcase:start -->
-## Apps built with OpenIAP
-
-[**+ ${(Math.floor(total / data.github.countPrecision) * data.github.countPrecision).toLocaleString('en-US')}+ public GitHub dependents**](${linkSource.url} "GitHub's publicly visible estimates, summed by package. Shared repositories may count more than once. Updated ${data.github.checkedAt}.")
-<!-- showcase:end -->`;
 const nextData = await format(JSON.stringify(data), { parser: 'json' });
-const nextReadme = await format(readme.replace(readmeBlock, usage), {
-  parser: 'markdown',
-});
-// Validate and format both outputs before saving the successful snapshot.
 await writeFile(dataPath, nextData);
-await writeFile(readmePath, nextReadme);
 console.log(
   `Saved ${data.github.repositories.length} projects with ${data.github.minimumStars}+ stars`
 );
