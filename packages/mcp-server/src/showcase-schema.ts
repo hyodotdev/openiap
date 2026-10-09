@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const APPLE_APP_ID = /\/id(\d+)$/;
+
 export interface ShowcaseOptions {
   categories: readonly string[];
   libraries: readonly string[];
@@ -60,7 +62,7 @@ export function createShowcaseSubmissionSchema(options: ShowcaseOptions) {
           if (!URL.canParse(value)) return false;
           const url = new URL(value);
           return (
-            url.hostname === "apps.apple.com" && /\/id\d+$/.test(url.pathname)
+            url.hostname === "apps.apple.com" && APPLE_APP_ID.test(url.pathname)
           );
         }, "Use an apps.apple.com app link")
         .optional(),
@@ -108,7 +110,7 @@ export function showcaseIdentities(app: ShowcaseAppLinks): string[] {
     identities.push(`play:${new URL(app.android).searchParams.get("id")}`);
   if (app.ios)
     identities.push(
-      `apple:${/\/id(\d+)/.exec(new URL(app.ios).pathname)?.[1]}`,
+      `apple:${APPLE_APP_ID.exec(new URL(app.ios).pathname)?.[1]}`,
     );
   if (identities.length) return identities;
   if (app.github)

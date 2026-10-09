@@ -155,8 +155,11 @@ test('concurrent submissions with different primary links cannot reuse an active
   const iosOnly = {
     ...app,
     android: undefined,
-    ios: 'https://apps.apple.com/kr/app/localized/id1234567890?l=ko',
+    ios: 'https://apps.apple.com/kr/app/id987-review/id1234567890?l=ko',
   };
+  const schema = createShowcaseSubmissionSchema(options);
+  expect(schema.safeParse(app).success).toBe(true);
+  expect(schema.safeParse(iosOnly).success).toBe(true);
   const results = await Promise.allSettled([
     store.submit(app, 'first'),
     store.submit(iosOnly, 'second'),
@@ -172,7 +175,15 @@ test('concurrent submissions with different primary links cannot reuse an active
     .parse(await store.pending());
   expect(rows).toHaveLength(1);
   await store.review(rows[0].id, 'rejected', '12345', null);
-  expect((await store.submit(app, 'owner')).status).toBe('pending');
+  expect((await store.submit(iosOnly, 'owner')).status).toBe('pending');
+  expect(
+    (
+      await store.submit(
+        { ...iosOnly, ios: 'https://apps.apple.com/us/app/other/id987' },
+        'another-app'
+      )
+    ).status
+  ).toBe('pending');
 });
 
 test('cross-site requests and review races cannot change a reviewed app', async () => {
