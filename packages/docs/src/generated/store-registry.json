@@ -29,7 +29,7 @@
       "aliases": ["google", "gplay", "googleplay", "google-play", "gms"],
       "maintainers": ["hyodotdev"],
       "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
-      "coordinates": "io.github.hyochan.openiap:openiap-google:4.0.0-rc.1",
+      "coordinates": "io.github.hyochan.openiap:openiap-google:4.0.0",
       "capabilities": [
         "pendingPurchases",
         "subscriptionBillingIssue",
@@ -46,7 +46,7 @@
       "aliases": ["meta", "quest"],
       "maintainers": ["hyodotdev"],
       "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
-      "coordinates": "io.github.hyochan.openiap:openiap-google-horizon:4.0.0-rc.1",
+      "coordinates": "io.github.hyochan.openiap:openiap-google-horizon:4.0.0",
       "capabilities": ["pendingPurchases"],
       "latestReport": null,
       "reports": []
@@ -59,7 +59,7 @@
       "aliases": ["fire", "fireos", "fire-os"],
       "maintainers": ["hyodotdev"],
       "repo": "https://github.com/hyodotdev/openiap/tree/main/packages/google",
-      "coordinates": "io.github.hyochan.openiap:openiap-google-amazon:4.0.0-rc.1",
+      "coordinates": "io.github.hyochan.openiap:openiap-google-amazon:4.0.0",
       "capabilities": ["pendingPurchases"],
       "latestReport": null,
       "reports": []
