@@ -9,7 +9,7 @@
   "godotPackageVersion": "4.0.0",
   "kmpPackageVersion": "4.0.0",
   "mauiPackageId": "OpenIap.Maui",
-  "mauiPackageVersion": "3.0.0-rc.1",
+  "mauiPackageVersion": "3.0.0",
   "googleCompileSdk": "36",
   "googleMinSdk": "23",
   "googlePlayBillingVersion": "9.1.0",
