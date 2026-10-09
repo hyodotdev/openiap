@@ -128,38 +128,7 @@ export function sitemapXml(pages) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexable.map(({ path }) => `  <url><loc>${origin}${path}</loc></url>`).join('\n')}\n</urlset>\n`;
 }
 
-// Mirrors release-branch-policy.mjs for Vercel builds isolated to packages/docs.
-export function assertProductionVersions(versions, environment) {
-  if (environment !== 'production') return;
-  const prereleases = Object.entries(versions).filter(
-    ([, version]) =>
-      typeof version === 'string' && version.split('+')[0].includes('-')
-  );
-  assert.equal(
-    prereleases.length,
-    0,
-    `Production docs require stable package versions: ${prereleases.map(([name, version]) => `${name}=${version}`).join(', ')}`
-  );
-}
-
 async function prerender() {
-  const nativeVersions = JSON.parse(
-    await readFile(join(root, 'openiap-versions.json'), 'utf8')
-  );
-  const metadata = JSON.parse(
-    await readFile(join(root, 'src/generated/version-metadata.json'), 'utf8')
-  );
-  assertProductionVersions(
-    {
-      ...nativeVersions,
-      ...Object.fromEntries(
-        Object.entries(metadata).filter(([name]) =>
-          name.endsWith('PackageVersion')
-        )
-      ),
-    },
-    process.env.VERCEL_ENV
-  );
   const paths = await canonicalPaths(join(root, 'src/pages'));
   const template = await readFile(join(root, 'dist/index.html'), 'utf8');
   const vite = await createServer({

@@ -1,30 +1,17 @@
 #!/usr/bin/env node
-// =============================================================================
-// Refresh showcase ordering metrics
-// =============================================================================
-// Fills `ratings` (App Store + Google Play review counts) and `installs`
-// (Google Play install floor) for every entry in showcase-apps.json.
-//
-// The home page and /showcase order apps by `ratings` first, then `installs`.
-// Neither store publishes download totals — Apple exposes no install data at
-// all and Play only reports a bucket like "1K+" — so review count is the one
-// verifiable signal both stores share.
-//
-//   bun run showcase:metrics
-// =============================================================================
+// Refresh public Play install floors and optional store review counts.
+// `--downloads-only` skips Apple's review-only storefront sweep.
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
+import { format } from 'prettier';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(HERE, '..', 'showcase-apps.json');
 const USER_AGENT = 'Mozilla/5.0 (compatible; openiap-showcase-metrics/1.0)';
 
-// Apple reports userRatingCount per storefront and publishes no global total,
-// so a US-only lookup misses every review left in other markets. Summing every
-// storefront reconstructs the worldwide count. (Google Play already reports a
-// single global review count, so it needs no equivalent pass.)
+// Apple exposes ratings per storefront; sum them for a worldwide count.
 const APP_STORE_STOREFRONTS =
   `ae ag ai al am ao ar at au az bb be bf bg bh bj bm bn bo br bs bt bw by bz
    ca cd cg ch ci cl cm cn co cr cv cy cz de dk dm do dz ec ee eg es fi fj fm
@@ -49,16 +36,14 @@ function parseCompact(value) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Apple throttles bursts of storefront lookups (HTTP 403), so retry with
- * exponential backoff instead of silently recording a zero.
- */
+// Retry throttled storefront lookups with backoff.
 async function fetchText(url, attempts = 4) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': USER_AGENT },
+        signal: AbortSignal.timeout(30_000),
       });
       if (response.ok) return response.text();
       lastError = new Error(`${response.status} ${url}`);
@@ -124,8 +109,7 @@ async function appleRatings(iosUrl) {
   }
 
   if (pending.length > 0) {
-    // A partial sweep would silently under-count, so surface it loudly rather
-    // than writing a number that looks authoritative.
+    // Partial storefront sweeps undercount reviews.
     throw new Error(
       `${pending.length}/${APP_STORE_STOREFRONTS.length} storefront lookups failed — ratings would be under-counted`
     );
@@ -136,23 +120,12 @@ async function appleRatings(iosUrl) {
 // Text nodes that end in "reviews" but are chrome, not a count.
 const PLAY_REVIEW_CHROME = /^(ratings and reviews|reviews|all reviews)$/i;
 
-/**
- * Extracts Play metrics from a store page, fail-closed.
- *
- * Play omits the review element entirely for apps with few or no reviews, so an
- * absent count is a legitimate zero. Anything else is treated as our selectors
- * having drifted from Play's markup, which must not be written over a real
- * number:
- *
- * - install block missing → the page shape changed (it renders on every app
- *   page, so it is the canary that our selectors still match)
- * - a count-shaped review node present but unparseable → the review markup
- *   changed underneath us
- */
+// Missing reviews can mean zero; a missing download count means markup drift.
 export function parsePlayMetrics(html, packageName = 'app') {
-  const installs = />([\d.,]+\s*[KMB]?\+)<\/div><div class="[^"]+">Downloads</i.exec(
-    html
-  )?.[1];
+  const installs =
+    />([\d.,]+\s*[KMB]?\+)<\/div><div class="[^"]+">Downloads</i.exec(
+      html
+    )?.[1];
   if (installs === undefined) {
     throw new Error(
       `install count not found for ${packageName} — Play markup likely changed`
@@ -185,7 +158,7 @@ export function parsePlayMetrics(html, packageName = 'app') {
 }
 
 async function playMetrics(androidUrl) {
-  const packageName = /[?&]id=([^&]+)/.exec(androidUrl)?.[1];
+  const packageName = new URL(androidUrl).searchParams.get('id');
   if (!packageName) return {};
   const html = await fetchText(
     `https://play.google.com/store/apps/details?id=${encodeURIComponent(packageName)}&hl=en&gl=US`
@@ -195,13 +168,15 @@ async function playMetrics(androidUrl) {
 
 async function main() {
   const data = JSON.parse(await readFile(DATA_PATH, 'utf8'));
+  const downloadsOnly = process.argv.includes('--downloads-only');
+  const apps = [...data.apps, ...(data.github?.apps ?? [])];
   let changed = 0;
 
   let stale = 0;
 
-  for (const app of data.apps) {
-    // Web-only entries have no store to measure; leave whatever is on record
-    // instead of writing a zero that looks like a real reading.
+  for (const app of apps) {
+    if (downloadsOnly && !app.android) continue;
+    // No public store means no new reading.
     if (!app.ios && !app.android) {
       console.log(`  ${app.name}: no store links — metrics left untouched`);
       continue;
@@ -212,7 +187,7 @@ async function main() {
     let appleMarkets = 0;
     let incomplete = false;
 
-    if (app.ios) {
+    if (app.ios && !downloadsOnly) {
       try {
         const apple = await appleRatings(app.ios);
         ratings += apple.ratings ?? 0;
@@ -228,16 +203,15 @@ async function main() {
         const play = await playMetrics(app.android);
         ratings += play.ratings ?? 0;
         installs = play.installs;
+        if (installs === undefined) throw new Error('No install count');
       } catch (error) {
         console.warn(`  ! ${app.name}: Play — ${error.message}`);
         incomplete = true;
       }
     }
 
-    // Last line of defence: every reading can look individually valid and still
-    // collapse a real count to zero if a selector drifts silently. Losing an
-    // established count is always a regression, never a legitimate reading.
-    if (ratings === 0 && (app.ratings ?? 0) > 0) {
+    // A zero must not erase an established review count.
+    if (!downloadsOnly && ratings === 0 && (app.ratings ?? 0) > 0) {
       incomplete = true;
       console.warn(
         `  ! ${app.name}: refusing to drop ratings ${app.ratings} → 0 — check the store selectors`
@@ -252,38 +226,53 @@ async function main() {
     }
 
     const nextInstalls = installs ?? app.installs;
-    if (app.ratings !== ratings || app.installs !== nextInstalls) changed += 1;
+    if (
+      (!downloadsOnly && app.ratings !== ratings) ||
+      app.installs !== nextInstalls
+    )
+      changed += 1;
 
-    app.ratings = ratings;
+    if (!downloadsOnly) app.ratings = ratings;
     if (nextInstalls === undefined) delete app.installs;
     else app.installs = nextInstalls;
 
     console.log(
-      `  ${app.name}: ratings=${ratings}` +
+      `  ${app.name}:` +
+        (downloadsOnly ? '' : ` ratings=${ratings}`) +
         (appleMarkets ? ` (App Store in ${appleMarkets} markets)` : '') +
         (nextInstalls === undefined ? '' : ` installs=${nextInstalls}`)
     );
   }
 
-  await writeFile(DATA_PATH, `${JSON.stringify(data, null, 2)}\n`);
+  await writeFile(
+    DATA_PATH,
+    await format(JSON.stringify(data), { parser: 'json' })
+  );
 
-  const ranking = [...data.apps]
+  const ranking = [...apps]
     .sort(
       (a, b) =>
-        (b.ratings ?? 0) - (a.ratings ?? 0) ||
-        (b.installs ?? 0) - (a.installs ?? 0)
+        (b.installs ?? -1) - (a.installs ?? -1) ||
+        a.name.localeCompare(b.name, 'en')
     )
-    .map((app, index) => `  ${index + 1}. ${app.name} (${app.ratings ?? 0})`)
+    .map(
+      (app, index) =>
+        `  ${index + 1}. ${app.name} (${app.installs ?? 'unknown'} installs)`
+    )
     .join('\n');
 
-  console.log(`\nUpdated ${changed} of ${data.apps.length} entries.`);
+  console.log(`\nUpdated ${changed} of ${apps.length} entries.`);
   if (stale > 0) {
     console.log(`${stale} kept previous numbers — rerun to refresh them.`);
+    process.exitCode = 1;
   }
   console.log(`\nRanking\n${ranking}`);
 }
 
 // Only refresh when run directly; importing for tests must stay side-effect free.
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   await main();
 }

@@ -43,15 +43,9 @@ bun run typecheck  # Type check
 
 ## Deployment
 
-Production deployment is manual and stable-only. Run it from a clean,
-up-to-date `main` checkout at the repository root:
-
-```bash
-npm run deploy
-```
-
-Merging to `main` does not publish docs — there is no docs deploy workflow, so
-this local command is the only path to production.
+Vercel automatically deploys `hyodotdev/openiap` main, including RC metadata.
+Manual deployment remains available from the repository root with
+`npm run deploy`. See the canonical deployment contract below.
 
 The docs site is not versioned, so a deployment cuts no tag and creates no
 GitHub Release. Branch guards, version ownership, deploy verification, and the

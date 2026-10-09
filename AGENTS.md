@@ -270,8 +270,8 @@ GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
 - Select the prerelease lane for RC versions and npm `next`, or the stable lane
   for the target without an RC suffix and npm `latest`. Merging source does not
   publish a package.
-- Production docs require stable package metadata and published release links.
-  Use previews during an RC train; `--force` does not bypass version eligibility.
+- Vercel automatically deploys production docs from `main`, including RC
+  metadata. Documentation deployment does not publish packages.
 - Historical `next` tags and their branch remain for verification and SBOM
   recovery. Do not reset or delete that branch without explicit approval.
 - Read `.claude/commands/release.md` before any package deployment.
@@ -404,7 +404,7 @@ Cursor-specific files.
 | `$ship-release`             | Merge, publish, document, and deploy a release                  | `$ship-release`                       |
 | `$rebase-main`              | Pull main and safely rebase the current branch                  | `$rebase-main`                        |
 | `$generate-doc`             | Write OpenIAP docs and pre-release release notes                | `$generate-doc`                       |
-| `$add-showcase-app`         | Add apps to the "Who uses OpenIAP?" showcase                    | `$add-showcase-app`                   |
+| `$add-showcase-app`         | Add apps to the "Apps built with OpenIAP" showcase              | `$add-showcase-app`                   |
 | `$opencollective-steward`   | Manage OpenCollective profile and updates                       | `$opencollective-steward`             |
 | `$iapkit-e2e-petgu`         | IAPKit product-sync E2E with the Petgu app                      | `$iapkit-e2e-petgu`                   |
 | `$iapkit-e2e-martie`        | IAPKit local receipt-validation E2E with Martie                 | `$iapkit-e2e-martie`                  |

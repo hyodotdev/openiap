@@ -308,17 +308,6 @@ export function findPrereleaseVersions(versions) {
   );
 }
 
-export function assertStableVersions(versions) {
-  const prereleases = findPrereleaseVersions(versions);
-  if (prereleases.length > 0) {
-    throw new Error(
-      `Production docs require stable package versions: ${prereleases
-        .map(([id, version]) => `${id}=${version}`)
-        .join(", ")}`,
-    );
-  }
-}
-
 function readAllVersions(root = repoRoot) {
   return Object.fromEntries(
     Object.entries(versionSources).map(([id, source]) => [
@@ -647,9 +636,9 @@ function runUpdateNative(args) {
 }
 
 function runAudit(args) {
+  if (args.length) throw new Error("Usage: release-branch-policy.mjs audit");
   assertClientProtocol(readVersionManifest());
   const versions = readAllVersions();
-  if (args.includes("--stable")) assertStableVersions(versions);
   console.log(
     `Release metadata audit: versions are valid and synchronized; ${findPrereleaseVersions(versions).length} prerelease package(s).`,
   );

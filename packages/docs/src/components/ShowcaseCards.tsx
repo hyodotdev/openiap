@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactElement } from 'react';
 import { SiApple, SiGoogleplay } from 'react-icons/si';
-import { Globe } from 'lucide-react';
+import { Github, Globe } from 'lucide-react';
 import type { ShowcaseApp } from '../lib/showcase';
+import { formatShowcaseCount } from '../lib/showcase';
 
 export const SHOWCASE_DISCUSSION_URL =
   'https://github.com/hyodotdev/openiap/discussions/350';
@@ -22,8 +23,6 @@ const cardStyle: CSSProperties = {
 const logoStyle: CSSProperties = {
   width: '56px',
   height: '56px',
-  // Matches the rounded mask baked into /showcase icons so store artwork with
-  // and without built-in corners renders identically.
   borderRadius: '22.37%',
   objectFit: 'cover',
   flexShrink: 0,
@@ -95,9 +94,40 @@ export function ShowcaseAppMeta({ app }: { app: ShowcaseApp }): ReactElement {
           <Globe size={15} strokeWidth={2} />
         </a>
       ) : null}
-      <span style={{ ...badgeStyle, marginLeft: '0.25rem' }}>
-        {app.library}
-      </span>
+      {app.github ? (
+        <a
+          href={app.github}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            ...storeLinkStyle,
+            width: app.stars === undefined ? '28px' : 'auto',
+            gap: '0.3rem',
+            padding: app.stars === undefined ? undefined : '0 0.4rem',
+            fontSize: '0.72rem',
+          }}
+          aria-label={
+            app.stars === undefined
+              ? `${app.name} on GitHub`
+              : `${app.name} on GitHub, ${formatShowcaseCount(app.stars)} stars`
+          }
+          title={
+            app.stars === undefined
+              ? 'GitHub'
+              : `${app.stars.toLocaleString('en-US')} stars on GitHub`
+          }
+        >
+          <Github size={15} aria-hidden="true" />
+          {app.stars === undefined ? null : formatShowcaseCount(app.stars)}
+        </a>
+      ) : null}
+      {(Array.isArray(app.library) ? app.library : [app.library]).map(
+        (library) => (
+          <span key={library} style={badgeStyle}>
+            {library}
+          </span>
+        )
+      )}
       {app.iapkit ? (
         <span
           style={{
@@ -113,7 +143,7 @@ export function ShowcaseAppMeta({ app }: { app: ShowcaseApp }): ReactElement {
   );
 }
 
-export function ShowcaseAppCard({ app }: { app: ShowcaseApp }) {
+export function ShowcaseAppCard({ app }: { app: ShowcaseApp }): ReactElement {
   return (
     <div style={cardStyle}>
       <img
@@ -125,7 +155,13 @@ export function ShowcaseAppCard({ app }: { app: ShowcaseApp }) {
         style={logoStyle}
       />
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, marginBottom: '0.2rem' }}>
+        <div
+          style={{
+            fontWeight: 700,
+            marginBottom: '0.2rem',
+            overflowWrap: 'anywhere',
+          }}
+        >
           {app.name}
         </div>
         <div

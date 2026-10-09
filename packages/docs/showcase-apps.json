@@ -116,5 +116,1019 @@
       "ratings": 0,
       "installs": 5
     }
-  ]
+  ],
+  "github": {
+    "checkedAt": "2026-10-09",
+    "minimumStars": 10,
+    "sources": [
+      {
+        "package": "@hyodotdev/openiap",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS03MTQ3MjY0OTQz",
+        "dependents": 1
+      },
+      {
+        "package": "@hyodotdev/openiap-client-protocol",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS03MTQ3MjQ3MTg5",
+        "dependents": 1
+      },
+      {
+        "package": "@hyodotdev/openiap-commerce-protocol",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS03MTQ3MjU3ODE2",
+        "dependents": 1
+      },
+      {
+        "package": "expo-iap",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS0zMTAxMTA2MzY2",
+        "dependents": 101
+      },
+      {
+        "package": "flutter_inapp_purchase",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS0zMzk0MTM2MzEx",
+        "dependents": 1034
+      },
+      {
+        "package": "openiap-conformance",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS03MDYwODIxNDQz",
+        "dependents": 0
+      },
+      {
+        "package": "react-native-iap",
+        "url": "https://github.com/hyodotdev/openiap/network/dependents?package_id=UGFja2FnZS0zNjkzNzc2NQ%3D%3D",
+        "dependents": 2225
+      }
+    ],
+    "repositories": [
+      { "name": "RSSNext/Folo", "stars": 39075, "packages": ["expo-iap"] },
+      {
+        "name": "linkwarden/linkwarden",
+        "stars": 19994,
+        "packages": ["expo-iap"]
+      },
+      {
+        "name": "streetwriters/notesnook",
+        "stars": 14733,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "standardnotes/app",
+        "stars": 6647,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "Flaque/quirk",
+        "stars": 2277,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "mkuczera/react-native-haptic-feedback",
+        "stars": 985,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "astashov/liftosaur",
+        "stars": 734,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "KjellConnelly/react-native-rate",
+        "stars": 678,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "raindropio/android",
+        "stars": 661,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "dappros/ethora",
+        "stars": 549,
+        "packages": ["react-native-iap"]
+      },
+      { "name": "BennyKok/omg.dev", "stars": 547, "packages": ["expo-iap"] },
+      {
+        "name": "manifoldmarkets/manifold",
+        "stars": 520,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "NasDock/AudioDock",
+        "stars": 422,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "oh-bear/2life",
+        "stars": 394,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "RobertBrunhage/Youtube-Tutorials",
+        "stars": 379,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "birkir/hekla",
+        "stars": 366,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "AppsFlyerSDK/appsflyer-react-native-plugin",
+        "stars": 323,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "luoxuhai/NightVision",
+        "stars": 317,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "better-rail/app",
+        "stars": 310,
+        "packages": ["expo-iap", "react-native-iap"]
+      },
+      {
+        "name": "podverse/podverse-rn",
+        "stars": 285,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "ecency/vision-mobile",
+        "stars": 262,
+        "packages": ["expo-iap", "react-native-iap"]
+      },
+      {
+        "name": "alvarolorentedev/opencode-mobile",
+        "stars": 242,
+        "packages": ["expo-iap"]
+      },
+      { "name": "alizahid/acorn", "stars": 231, "packages": ["expo-iap"] },
+      {
+        "name": "shahriarsajeeb/Becodemy-Mobile-App",
+        "stars": 198,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "Evai/RNExampleApp",
+        "stars": 182,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "tiagohm/restler",
+        "stars": 154,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "Nine-Minds/alga-psa",
+        "stars": 145,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "podverse/podverse-fdroid",
+        "stars": 125,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "haorendashu/nostrmo",
+        "stars": 121,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "Shadow60539/club_penguin_game",
+        "stars": 117,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      { "name": "suvam0451/Dhaaga", "stars": 113, "packages": ["expo-iap"] },
+      {
+        "name": "farcasterxyz/client",
+        "stars": 111,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "stxapps/brace-client",
+        "stars": 107,
+        "packages": ["expo-iap"]
+      },
+      {
+        "name": "Minds/mobile-native",
+        "stars": 99,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "bluefireteam/bgug",
+        "stars": 98,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "KeeperCommunity/bitcoin-keeper",
+        "stars": 95,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "tagattie/FreeBSD-Electron",
+        "stars": 93,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "RabbyHub/rabby-mobile",
+        "stars": 82,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "croma-app/huehive-mobile-app",
+        "stars": 69,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "robertalv/convex-panel",
+        "stars": 69,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "stxapps/justnote-client",
+        "stars": 68,
+        "packages": ["expo-iap"]
+      },
+      {
+        "name": "WizTeam/WizNoteLiteMobile",
+        "stars": 60,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "Bennik2000/DHBWStudentInformationApp",
+        "stars": 59,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "eemp/NetcastsOSS",
+        "stars": 59,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "mathewthe2/immersion_reader",
+        "stars": 57,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "hyochan/DoobooIAP",
+        "stars": 45,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "cherrybit-studios/bob_box",
+        "stars": 43,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "sticknet/sticknet-mobile",
+        "stars": 43,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "kwmt/flutter-inconne",
+        "stars": 42,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "likecoin/likecoin-app",
+        "stars": 40,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "ArthurCose/Language-Dex",
+        "stars": 38,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "mahadydev/AYat_Player_Flutter",
+        "stars": 35,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "alramalho/self-tracking-software",
+        "stars": 33,
+        "packages": ["expo-iap"]
+      },
+      {
+        "name": "kee-org/keevault2",
+        "stars": 33,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      { "name": "Melvynx/saveit.now", "stars": 32, "packages": ["expo-iap"] },
+      {
+        "name": "AndroidIRCx/AndroidIRCx",
+        "stars": 30,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "nikhilmufc7/Flutter_IeltsPrep",
+        "stars": 27,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "7kfpun/TWAQIReactNative",
+        "stars": 24,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "qvapay/mobile_app",
+        "stars": 24,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "cardstack/cardwallet",
+        "stars": 22,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "stonith404/gradely2",
+        "stars": 22,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "lockerpm/mobile",
+        "stars": 21,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "penghuili/PreCloud",
+        "stars": 21,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "Skjutsgruppen/skjutsgruppen-reactnative",
+        "stars": 21,
+        "packages": ["react-native-iap"]
+      },
+      { "name": "Musicoin/app", "stars": 20, "packages": ["react-native-iap"] },
+      {
+        "name": "bradjin8/MixNMatch-Fighting",
+        "stars": 18,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "DevSamurai/imc-calculator-fremium",
+        "stars": 17,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "awaik/flutter-examples",
+        "stars": 16,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "ItsCalebJones/SpaceLaunchNow-Flutter",
+        "stars": 16,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "namiml/react-native-nami-sdk",
+        "stars": 16,
+        "packages": ["react-native-iap"]
+      },
+      { "name": "Kilo-Org/cloud", "stars": 15, "packages": ["expo-iap"] },
+      {
+        "name": "shogo-labs/shogo-ai",
+        "stars": 15,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "linagora/cozy-flagship-app",
+        "stars": 14,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "a-down/quick-measure-gps-app",
+        "stars": 13,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "dayhaysoos/t7-chicken-plus",
+        "stars": 13,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "DBB-Software/dbbs-solutions",
+        "stars": 13,
+        "packages": ["react-native-iap"]
+      },
+      { "name": "dmadan86/waves", "stars": 13, "packages": ["expo-iap"] },
+      {
+        "name": "pratt3351/fast-campus-react-native",
+        "stars": 13,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "spragginsdesigns/bible-ai-explorer",
+        "stars": 13,
+        "packages": ["expo-iap"]
+      },
+      {
+        "name": "telldus/telldus-live-mobile-v3",
+        "stars": 13,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "jonbrennecke/Boca",
+        "stars": 12,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "xsoulspace/last_answer",
+        "stars": 12,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "candiedoperation/Monitoring-Center",
+        "stars": 11,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "JaimilPatel/OfflineSubscription",
+        "stars": 11,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "7kfpun/JapaneseReactNative",
+        "stars": 10,
+        "packages": ["react-native-iap"]
+      },
+      {
+        "name": "Emil1483/Showerthoughts",
+        "stars": 10,
+        "packages": ["flutter_inapp_purchase"]
+      },
+      {
+        "name": "NhaPCS/ezquiz_jp_flutter",
+        "stars": 10,
+        "packages": ["flutter_inapp_purchase"]
+      }
+    ],
+    "excludedPackages": [
+      "openiap-commerce-protocol",
+      "github.com/hyodotdev/openiap"
+    ],
+    "showcasePackages": [
+      "expo-iap",
+      "flutter_inapp_purchase",
+      "react-native-iap"
+    ],
+    "linkPackage": "react-native-iap",
+    "countPrecision": 100,
+    "apps": [
+      {
+        "repository": "RSSNext/Folo",
+        "name": "Folo",
+        "tagline": "Follow feeds, newsletters, and updates in one place",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0c/62/64/0c6264fb-30a5-7da1-61f5-017efa156ffd/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/folo-ai-rss-reader/id6739802604?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=is.follow",
+        "web": "https://app.folo.is",
+        "installs": 10000
+      },
+      {
+        "repository": "linkwarden/linkwarden",
+        "name": "Linkwarden",
+        "tagline": "Collect, organize, and preserve your bookmarks",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e0/35/ab/e035ab98-6136-b245-9063-146a797bfae9/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/linkwarden/id6752550960?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=app.linkwarden",
+        "web": "https://linkwarden.app",
+        "installs": 5000
+      },
+      {
+        "repository": "streetwriters/notesnook",
+        "name": "Notesnook",
+        "tagline": "Private, end-to-end encrypted notes",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/55/a3/d3/55a3d38f-0f12-821f-55f1-109d5b7a8f9e/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/notesnook-private-notepad/id1544027013?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.streetwriters.notesnook",
+        "web": "https://notesnook.com/",
+        "installs": 100000
+      },
+      {
+        "repository": "standardnotes/app",
+        "name": "Standard Notes",
+        "tagline": "Encrypted notes and a private workspace",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/bd/ca/6a/bdca6a08-0f85-dd36-8373-1fc863406c55/Blue-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/standard-notes/id1285392450?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.standardnotes",
+        "web": "https://standardnotes.com",
+        "installs": 500000
+      },
+      {
+        "repository": "Flaque/quirk",
+        "name": "Quirk",
+        "tagline": "Cognitive behavioral therapy journaling",
+        "logo": "https://raw.githubusercontent.com/Flaque/quirk/3e7fa234cdb3538d7e23ba6e819da0dce1a0f5f6/android/fastlane/metadata/android/en-US/images/icon.png"
+      },
+      {
+        "repository": "mkuczera/react-native-haptic-feedback",
+        "name": "Haptic Feedback Tryout",
+        "tagline": "Explore haptic feedback patterns on your phone",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c1/36/03/c1360378-6337-86ab-bc2c-e19152f51e5b/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/haptic-feedback-tryout/id6760615313?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.hapticfeedbackexample",
+        "web": "https://mkuczera.github.io/react-native-haptic-feedback/",
+        "installs": 100
+      },
+      {
+        "repository": "astashov/liftosaur",
+        "name": "Liftosaur",
+        "tagline": "Plan and track progressive strength training",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/02/86/59/02865900-3c6e-44c3-6538-73c63e993b22/AppIcon-0-0-1x_U007epad-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/liftosaur-scriptable-workouts/id1661880849?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.liftosaur.www.twa",
+        "web": "https://www.liftosaur.com",
+        "installs": 100000
+      },
+      {
+        "repository": "raindropio/android",
+        "name": "Raindrop.io",
+        "tagline": "Save and organize bookmarks across your devices",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/58/b2/a7/58b2a76d-8f11-73b8-e79e-fc6d5cde9bae/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/raindrop-io/id1021913807?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=io.raindrop.raindropio",
+        "installs": 100000
+      },
+      {
+        "repository": "BennyKok/omg.dev",
+        "name": "omg.dev",
+        "tagline": "Your AI coding workspace on the go",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/1a/ed/b21aed6b-0610-22d5-b4fb-ccda06be54c6/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/omg-dev-claude-code-codex/id6800792515?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=dev.omg.computer",
+        "web": "https://omg.dev",
+        "installs": 0
+      },
+      {
+        "repository": "manifoldmarkets/manifold",
+        "name": "Manifold Markets",
+        "tagline": "Explore community prediction markets",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/3e/eb/44/3eeb448e-bb27-db77-3a54-ec06c3225025/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/manifold-markets/id6444136749?uo=4",
+        "web": "https://manifold.markets"
+      },
+      {
+        "repository": "NasDock/AudioDock",
+        "name": "AudioDock",
+        "tagline": "An audiobook and audio file player",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/c3/0c/f7/c30cf77e-097b-0000-dc5c-38a9906ab832/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/audiodock/id6761128589?uo=4",
+        "web": "https://www.audiodock.cn"
+      },
+      {
+        "repository": "oh-bear/2life",
+        "name": "2life",
+        "tagline": "Keep a diary and explore your moods",
+        "logo": "https://raw.githubusercontent.com/oh-bear/2life/30dd0d802217325e0c7aa176ba526669f8edfb40/ios/twolife/Images.xcassets/AppIcon.appiconset/icon.png"
+      },
+      {
+        "repository": "birkir/hekla",
+        "name": "Hekla",
+        "tagline": "A reader for Hacker News",
+        "logo": "https://raw.githubusercontent.com/birkir/hekla/e6ba922341d90a181f63532d0467c915b65a81c8/ios/Hekla/Images.xcassets/AppIcon.appiconset/1024w.png"
+      },
+      {
+        "repository": "luoxuhai/NightVision",
+        "name": "Night Vision",
+        "tagline": "Scan surroundings and measure distances with LiDAR",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/af/38/79/af387992-0545-aa22-17d2-957dd6de251e/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/night-vision-lidar-camera/id1668629667?uo=4"
+      },
+      {
+        "repository": "better-rail/app",
+        "name": "Better Rail",
+        "tagline": "Plan train journeys in Israel",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/30/4e/5d/304e5df6-de07-5f0c-5470-149cc56758f6/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/il/app/better-rail/id1562982976?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.betterrail",
+        "web": "https://better-rail.co.il",
+        "installs": 10000
+      },
+      {
+        "repository": "podverse/podverse-rn",
+        "name": "Podverse",
+        "tagline": "Discover and listen to podcasts",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/74/23/84/74238474-3eab-a87d-4d9e-45c48196c9ad/AppIcon-1x_U007emarketing-0-10-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/podverse/id1390888454?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.podverse",
+        "web": "https://podverse.fm/about",
+        "installs": 10000
+      },
+      {
+        "repository": "ecency/vision-mobile",
+        "name": "Ecency",
+        "tagline": "A social publishing platform on Hive",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d1/27/94/d12794ff-1eb0-e2ce-96b0-f18063a158db/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/ecency/id1451896376?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=app.esteem.mobile.android",
+        "installs": 50000
+      },
+      {
+        "repository": "alvarolorentedev/opencode-mobile",
+        "name": "OpenCode Mobile",
+        "tagline": "Run and manage AI coding sessions from your phone",
+        "logo": "https://play-lh.googleusercontent.com/K1NsyqfjZwaURDkwGmJgOp5Pw8bqN4jorLEY9CI2u4hYRtja5USdNrjW06gUdYYM0D1LIHX5nLj1Opu-aC_fJg=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=app.getopencode",
+        "web": "https://getopencode.app/",
+        "installs": 1000
+      },
+      {
+        "repository": "alizahid/acorn",
+        "name": "Acorn",
+        "tagline": "A mobile client for Reddit",
+        "logo": "https://raw.githubusercontent.com/alizahid/acorn/776a18df9a254189739362042c4c1c43a1014e56/apps/mobile/assets/artwork/acorn.png",
+        "web": "https://acorn.blue"
+      },
+      {
+        "repository": "tiagohm/restler",
+        "name": "Restler",
+        "tagline": "Test REST APIs from your Android device",
+        "logo": "https://raw.githubusercontent.com/tiagohm/restler/906c3f6ae03ad955bbd6711f93df63e35fc15296/docs/img/logo.png",
+        "web": "https://tiagohm.github.io/restler"
+      },
+      {
+        "repository": "Nine-Minds/alga-psa",
+        "name": "Alga PSA",
+        "tagline": "Manage service tickets and work on the go",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d4/30/a2/d430a276-d267-84ef-8e49-96e069c4f245/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/algapsa-mobile/id6760326836?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.alga.psa.mobile",
+        "web": "https://www.nineminds.com/alga-psa",
+        "installs": 50
+      },
+      {
+        "repository": "haorendashu/nostrmo",
+        "name": "Nostrmo",
+        "tagline": "A mobile client for the Nostr social network",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/68/fd/85/68fd85ff-72e9-2a2b-2f45-e489f2c38bac/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/nostrmo/id6447441761?uo=4"
+      },
+      {
+        "repository": "Shadow60539/club_penguin_game",
+        "name": "Penguin Chat",
+        "tagline": "A multiplayer penguin world",
+        "logo": "https://play-lh.googleusercontent.com/ttg17TKYObXW9xmy5lrK5IhdYONV0HmILFEmlhccOnb7QFCUur0pp4R2lmfMw1RtHSADuIir8PSY8RP3948p=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=com.sanjeev.penguin_chat_game",
+        "installs": 1000
+      },
+      {
+        "repository": "suvam0451/Dhaaga",
+        "name": "Dhaaga",
+        "tagline": "A client for decentralized social networks",
+        "logo": "https://play-lh.googleusercontent.com/KY8-Dn3AZoPYaHilwUKXC-g0NF-fDDvVAqmYSki0gaGsBndidHbps8OnJ5sR4N24jikH79MUQDbH3sA5JjYo=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=io.suvam.dhaaga",
+        "web": "https://dhaaga.app",
+        "installs": 100
+      },
+      {
+        "repository": "farcasterxyz/client",
+        "name": "Farcaster",
+        "tagline": "Connect with communities on Farcaster",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ea/6a/4c/ea6a4cc4-5b4c-04ad-b7bb-c1affc420222/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/farcaster/id1600555445?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.farcaster.mobile",
+        "installs": 1000000
+      },
+      {
+        "repository": "stxapps/brace-client",
+        "name": "Brace.to",
+        "tagline": "Save links with private, encrypted bookmarking",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a7/48/65/a74865f5-1936-d9df-165b-217a097e3829/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/brace-to-bookmark-manager/id1531456778?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.bracedotto",
+        "web": "https://brace.to",
+        "installs": 5000
+      },
+      {
+        "repository": "Minds/mobile-native",
+        "name": "Minds",
+        "tagline": "An open-source social network",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/64/5c/56/645c56be-eca5-1974-e6b1-a3d5306e888c/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "web": "https://minds.com",
+        "ios": "https://apps.apple.com/us/app/minds-com/id961771928?uo=4"
+      },
+      {
+        "repository": "bluefireteam/bgug",
+        "name": "Break Guns Using Gems",
+        "tagline": "A side-scrolling endless runner",
+        "logo": "https://raw.githubusercontent.com/bluefireteam/bgug/d92523e3ad171a72ac0f946b4ecafdd55e426f82/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024%401x.png"
+      },
+      {
+        "repository": "KeeperCommunity/bitcoin-keeper",
+        "name": "Bitcoin Keeper",
+        "tagline": "Manage bitcoin with multisig wallets and vaults",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/df/6c/da/df6cda2c-a571-0c73-9cba-b83c878ffdc1/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/bitcoin-keeper/id1545535925?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=io.hexawallet.bitcoinkeeper",
+        "web": "https://bitcoinkeeper.app",
+        "installs": 1000
+      },
+      {
+        "repository": "RabbyHub/rabby-mobile",
+        "name": "Rabby Wallet",
+        "tagline": "A self-custody wallet for EVM networks",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f6/2f/67/f62f6719-4698-3ae4-7367-959e38839bfa/AppIcon-0-0-1x_U007epad-0-11-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/rabby-wallet-crypto-evm/id6474381673?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.debank.rabbymobile",
+        "installs": 500000
+      },
+      {
+        "repository": "croma-app/huehive-mobile-app",
+        "name": "HueHive",
+        "tagline": "Create and manage color palettes",
+        "logo": "https://raw.githubusercontent.com/croma-app/huehive-mobile-app/b163d8cd65128611b2119d3da2c150fbac64d1b8/assets/images/icon.png",
+        "web": "https://huehive.co"
+      },
+      {
+        "repository": "stxapps/justnote-client",
+        "name": "Justnote",
+        "tagline": "Private notes backed by decentralized storage",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/67/e6/74/67e6745d-d899-61eb-2eec-e028ef9f8045/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/justnote-note-taking-app/id1570111019?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.justnotecc",
+        "web": "https://justnote.cc",
+        "installs": 10000
+      },
+      {
+        "repository": "WizTeam/WizNoteLiteMobile",
+        "name": "WizNote Lite",
+        "tagline": "A lightweight note-taking app",
+        "logo": "https://raw.githubusercontent.com/WizTeam/WizNoteLiteMobile/980e2efa90b46004b7d897e95d83c39a596cafba/ios/WizNoteLiteMobile/Images.xcassets/AppIcon.appiconset/1024.png"
+      },
+      {
+        "repository": "Bennik2000/DHBWStudentInformationApp",
+        "name": "DHBW Student App",
+        "tagline": "Campus information and schedules for DHBW students",
+        "logo": "https://play-lh.googleusercontent.com/QShUxT5WHj6aWK3EZAqBfMNdqipHPAvvjgshJGMTZz7OtBt4YlmgomAI7Wiwoacu4JJHNJyCC39BgrpxAiZl0w=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=de.bennik2000.dhbwstudentapp",
+        "installs": 10000,
+        "ios": "https://apps.apple.com/de/app/dhbw-studenten-app/id1535213934?uo=4"
+      },
+      {
+        "repository": "eemp/NetcastsOSS",
+        "name": "NetcastsOSS",
+        "tagline": "An open-source podcast player",
+        "logo": "https://raw.githubusercontent.com/eemp/NetcastsOSS/350b3cecd1cc7a694885b295d5bfaf74ca3bcb04/assets/icons/app.png"
+      },
+      {
+        "repository": "mathewthe2/immersion_reader",
+        "name": "Immersion Reader",
+        "tagline": "Learn Japanese by reading with built-in dictionaries",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/98/d6/33/98d6338e-6876-5236-5ab5-9875d12167c1/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/immersion-reader/id6443721334?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.immersionkit.immersion_reader",
+        "installs": 1000
+      },
+      {
+        "repository": "cherrybit-studios/bob_box",
+        "name": "Bob Box",
+        "tagline": "A physics puzzle platformer",
+        "logo": "https://raw.githubusercontent.com/cherrybit-studios/bob_box/6125fcd847982c25fe7e3e1ac647b1a0f662a918/art/icon.png"
+      },
+      {
+        "repository": "sticknet/sticknet-mobile",
+        "name": "Sticknet",
+        "tagline": "Encrypted cloud storage and private social sharing",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/da/e3/5a/dae35af5-0b04-bab1-8025-75bf753aba71/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/sticknet-web3-social-storage/id1576169188?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.stiiick",
+        "web": "https://sticknet.org",
+        "installs": 1000
+      },
+      {
+        "repository": "kwmt/flutter-inconne",
+        "name": "Instantonnection",
+        "tagline": "Create instant groups and chat",
+        "logo": "https://raw.githubusercontent.com/kwmt/flutter-inconne/4c5a31c4c31aca5b25aab52fdf0509829c2effd1/assets/images/launcher-icons/icon-1024x1024.png"
+      },
+      {
+        "repository": "likecoin/likecoin-app",
+        "name": "LikeCoin",
+        "tagline": "Discover and support independent writing",
+        "logo": "https://raw.githubusercontent.com/likecoin/likecoin-app/6da3cb9f281ec235fc52fcae26db98c9ce2f3daa/ios/LikeCoinApp/Images.xcassets/AppIcon.appiconset/1024x1024%401x.png",
+        "web": "https://like.co/in"
+      },
+      {
+        "repository": "ArthurCose/Language-Dex",
+        "name": "Language Dex",
+        "tagline": "Keep a personal vocabulary notebook",
+        "logo": "https://play-lh.googleusercontent.com/9iONryO6mQJjhPSMz3XrfSo6UwUaGDgjCHFWHpC2oDgSWAryjofpKIGjIWzspePSHaiaHXM1KjETbERZR6Ml=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=dev.arthurcose.languagedex",
+        "installs": 100
+      },
+      {
+        "repository": "mahadydev/AYat_Player_Flutter",
+        "name": "AYaT Player",
+        "tagline": "An offline music player for Android",
+        "logo": "https://raw.githubusercontent.com/mahadydev/AYat_Player_Flutter/89d41eb84a566dd587913f2abecad341f017181e/assets/logo.png"
+      },
+      {
+        "repository": "alramalho/self-tracking-software",
+        "name": "tracking.so",
+        "tagline": "Track habits and goals with an AI coach",
+        "logo": "https://raw.githubusercontent.com/alramalho/self-tracking-software/e7aae2d32ce0d01da499d682fb97804784113091/apps/frontend-expo/assets/icon.png",
+        "web": "https://tracking.so"
+      },
+      {
+        "repository": "kee-org/keevault2",
+        "name": "Kee Vault",
+        "tagline": "An encrypted password manager",
+        "logo": "https://play-lh.googleusercontent.com/snWBeRSQ8y3WR92j_STlDcLU2ZEp8iLsD_KPPEGPBM7-uWBjJnvNezDyZrlwhswt6IorDTxsVqEwnuyZfrU7kg=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=com.keevault.keevault",
+        "installs": 1000
+      },
+      {
+        "repository": "Melvynx/saveit.now",
+        "name": "SaveIt.now",
+        "tagline": "Save links and find them with AI",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/a7/c0/19/a7c019c9-9d8a-45b6-c4bd-b22bbbe3540c/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/saveit-now/id6749254685?uo=4",
+        "web": "https://saveit-now-web.vercel.app"
+      },
+      {
+        "repository": "AndroidIRCx/AndroidIRCx",
+        "name": "AndroidIRCx",
+        "tagline": "Chat on IRC from your Android phone",
+        "logo": "https://play-lh.googleusercontent.com/Eqbb4GXyOXt-noqljvwobWGL7c3vAoTfssuS73K7Mm3v0pRG6RptN_ZZegl3nnqYBPSdEIoZWmBaW3TXhpxy=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=com.androidircx",
+        "web": "https://androidircx.com",
+        "installs": 1000
+      },
+      {
+        "repository": "nikhilmufc7/Flutter_IeltsPrep",
+        "name": "IELTS Vault",
+        "tagline": "Practice reading, writing, speaking, and listening",
+        "logo": "https://raw.githubusercontent.com/nikhilmufc7/Flutter_IeltsPrep/a72c180ab8d37a39a66934a5bee31164cd99e75f/assets/icon.png"
+      },
+      {
+        "repository": "7kfpun/TWAQIReactNative",
+        "name": "Taiwan AQI",
+        "tagline": "Check air quality across Taiwan",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/9a/d3/b6/9ad3b685-a8b4-05d6-bcc3-e91413b19303/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/tw/app/%E5%8F%B0%E7%81%A3%E7%A9%BA%E6%B0%A3%E5%93%81%E8%B3%AA-pm2-5-%E7%A9%BA%E6%B1%A1%E5%8D%B3%E6%99%82%E7%9B%A3%E6%B8%AC/id1286516443?uo=4"
+      },
+      {
+        "repository": "qvapay/mobile_app",
+        "name": "QvaPay",
+        "tagline": "Digital payments and a self-custody wallet",
+        "logo": "https://raw.githubusercontent.com/qvapay/mobile_app/15d47f8619340310754388919ab9a27ef03cf7b2/ios/QvaPay/Images.xcassets/AppIcon.appiconset/AppIcon~ios-marketing.png"
+      },
+      {
+        "repository": "cardstack/cardwallet",
+        "name": "Card Pay Wallet",
+        "tagline": "A mobile wallet for Cardstack payments",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple116/v4/d6/d3/94/d6d39474-29a5-a9a1-cd35-b1f35ef56b01/AppIcon-1x_U007emarketing-0-7-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/card-pay-wallet/id1549183378?uo=4"
+      },
+      {
+        "repository": "stonith404/gradely2",
+        "name": "Gradely 2",
+        "tagline": "Track grades and calculate your averages",
+        "logo": "https://raw.githubusercontent.com/stonith404/gradely2/1b8fca5d90748e5371e1256b5c747086caf953a1/assets/images/macOSlogo.png"
+      },
+      {
+        "repository": "lockerpm/mobile",
+        "name": "Locker",
+        "tagline": "Manage passwords with encrypted storage",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ba/b3/0f/bab30ffe-9f8d-f805-8844-c6c2070c8d30/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/vn/app/locker-password-manager/id1586927301?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.cystack.locker",
+        "web": "https://locker.io",
+        "installs": 50000
+      },
+      {
+        "repository": "penghuili/PreCloud",
+        "name": "PreCloud",
+        "tagline": "Encrypt files and text before uploading them",
+        "logo": "https://raw.githubusercontent.com/penghuili/PreCloud/4edbcc851d16e9eecd959fd41c1b8834b1961517/android/app/src/main/res/drawable-xxxhdpi/icon.png"
+      },
+      {
+        "repository": "Skjutsgruppen/skjutsgruppen-reactnative",
+        "name": "Skjutsgruppen",
+        "tagline": "Share rides with a ridesharing community",
+        "logo": "https://raw.githubusercontent.com/Skjutsgruppen/skjutsgruppen-reactnative/f963008da6233ad5764d5f52ec4ff736b26746aa/ios/skjutsgruppen/Images.xcassets/AppIcon.appiconset/Icon.png"
+      },
+      {
+        "repository": "Musicoin/app",
+        "name": "Musicoin",
+        "tagline": "Discover music and support its artists",
+        "logo": "https://raw.githubusercontent.com/Musicoin/app/83a1bf57334dd17eee25eadece3e8dc86f4aaf81/ios/musicoin/Assets.xcassets/AppIcon.appiconset/AppIcon1024x1024.png"
+      },
+      {
+        "repository": "ItsCalebJones/SpaceLaunchNow-Flutter",
+        "name": "Space Launch Now",
+        "tagline": "Track space launches and missions",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/23/73/cd/2373cdd6-ae1e-3664-e159-d539451819a7/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/space-launch-now/id1399715731?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=me.calebjones.spacelaunchnow",
+        "web": "https://spacelaunchnow.me",
+        "installs": 100000
+      },
+      {
+        "repository": "Kilo-Org/cloud",
+        "name": "Kilo Code",
+        "tagline": "Work with AI coding agents from your phone",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/a4/0c/1a/a40c1adc-4fac-dc61-23fd-100227f5fe47/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/kilo-code-code-with-ai-agents/id6761193135?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.kilocode.kiloapp",
+        "installs": 5000
+      },
+      {
+        "repository": "shogo-labs/shogo-ai",
+        "name": "Shogo AI",
+        "tagline": "Build with AI from your mobile device",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f8/03/8a/f8038af1-fbab-da6b-3609-834a4da14163/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/shogo-ai/id6769701378?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=ai.shogo.mobile",
+        "web": "https://shogo.ai",
+        "installs": 500
+      },
+      {
+        "repository": "linagora/cozy-flagship-app",
+        "name": "Twake Workplace",
+        "tagline": "A personal workspace for files and documents",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/8b/9b/b4/8b9bb481-1272-8238-f8f6-574fc5365f3e/AppIcon-0-0-1x_U007emarketing-0-6-0-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/fr/app/twake-workplace/id1600636174?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=io.cozy.flagship.mobile",
+        "installs": 10000
+      },
+      {
+        "repository": "a-down/quick-measure-gps-app",
+        "name": "Quick Measure GPS",
+        "tagline": "Measure distances and areas with GPS",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple126/v4/30/8d/7f/308d7f09-2047-697a-7c44-0f85313fc2de/AppIcon-1x_U007ephone-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/quick-measure-gps/id6473677147?uo=4"
+      },
+      {
+        "repository": "dayhaysoos/t7-chicken-plus",
+        "name": "T7 Chicken Plus",
+        "tagline": "A mobile companion for Tekken 7",
+        "logo": "https://raw.githubusercontent.com/dayhaysoos/t7-chicken-plus/334cf288539f5cbc7061363f1641f62fe590c804/app_icon.png"
+      },
+      {
+        "repository": "dmadan86/waves",
+        "name": "Waves",
+        "tagline": "Split expenses and settle shared bills",
+        "logo": "https://raw.githubusercontent.com/dmadan86/waves/82ee1875c090b1ba91c99b385069eb503dbc708c/infra/art/brand/waves-icon-1024.png"
+      },
+      {
+        "repository": "spragginsdesigns/bible-ai-explorer",
+        "name": "SureWord",
+        "tagline": "Study the Bible with AI, notes, and Scripture search",
+        "logo": "https://raw.githubusercontent.com/spragginsdesigns/bible-ai-explorer/2a10a6e43d01fae50259e988851467235f2d8717/docs/play-store/icon-512.png",
+        "web": "https://bible-ai-explorer.vercel.app"
+      },
+      {
+        "repository": "telldus/telldus-live-mobile-v3",
+        "name": "Telldus Live!",
+        "tagline": "Control your connected home devices",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/9b/ce/b29bce95-045f-0d0e-39c5-ac49348ab8fe/AppIcon-0-0-1x_U007emarketing-0-10-0-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/telldus-live-mobile/id603991598?uo=4",
+        "android": "https://play.google.com/store/apps/details?id=com.telldus.live.mobile",
+        "installs": 100000
+      },
+      {
+        "repository": "jonbrennecke/Boca",
+        "name": "Boca",
+        "tagline": "Create portrait-mode videos",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple113/v4/3a/9f/73/3a9f7366-9631-e88d-c401-fc0bf9f78098/AppIcon-0-1x_U007emarketing-0-0-GLES2_U002c0-512MB-sRGB-0-0-0-85-220-0-0-0-7.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/boca-portrait-mode-videos/id1478361742?uo=4"
+      },
+      {
+        "repository": "xsoulspace/last_answer",
+        "name": "Last Answer",
+        "tagline": "Capture ideas and organize your notes",
+        "logo": "https://play-lh.googleusercontent.com/7VFqcZjHHqhXHIslcTr0AEkzurMDHRJb52dXkJrPvzDZBFJZs2GCnABxhL5Ls2ng_upsmLm2YiR78HIrLEKTBQ=s0-br30",
+        "android": "https://play.google.com/store/apps/details?id=dev.xsoulspace.lastanswer",
+        "web": "https://xsoulspace.dev/last_answer/",
+        "installs": 10
+      },
+      {
+        "repository": "candiedoperation/Monitoring-Center",
+        "name": "Monitoring Center",
+        "tagline": "Manage and monitor Veyon computers",
+        "logo": "https://raw.githubusercontent.com/candiedoperation/Monitoring-Center/7612da12ded33706c54ad00affc22c82fad7b62e/appsource/icons/amzn_store_512.png"
+      },
+      {
+        "repository": "7kfpun/JapaneseReactNative",
+        "name": "Japanese Daily",
+        "tagline": "Learn Japanese with daily practice",
+        "logo": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/98/b3/cf/98b3cf96-06ba-716a-c59a-635fba51e995/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+        "ios": "https://apps.apple.com/us/app/japanese-daily-%E6%AF%8F%E6%97%A5%E6%97%A5%E6%9C%AC%E8%AA%9E/id1447639161?uo=4",
+        "web": "https://nihongo.app.link/b8fuSMbTmT"
+      },
+      {
+        "repository": "Emil1483/Showerthoughts",
+        "name": "Showerthoughts",
+        "tagline": "Read and share thought-provoking ideas",
+        "logo": "https://raw.githubusercontent.com/Emil1483/Showerthoughts/39ae695ac9797f6e54bf86cac1c5f84d1b742f0a/assets/app_icon.png"
+      },
+      {
+        "repository": "NhaPCS/ezquiz_jp_flutter",
+        "name": "EzQuiz Japanese",
+        "tagline": "Practice Japanese with quizzes",
+        "logo": "https://raw.githubusercontent.com/NhaPCS/ezquiz_jp_flutter/1de68a77e84e7ff66341f147b1cca0f123c052b7/icons/logo.png"
+      }
+    ]
+  }
 }

@@ -1,5 +1,7 @@
 /* CSS Variables */
 :root {
+  color-scheme: light;
+
   /* Light mode colors */
   --primary-color: #a47465;
   --primary-dark: #8a5d52;
@@ -12,7 +14,6 @@
   --code-bg: #282c34;
   --max-width: 1400px;
   --accent-color: #dc6843;
-  --logo-text-filter: none;
   --apple-logo-filter: invert(1);
   --expo-logo-filter: none;
   --iapkit-text-color: #ffffff;

@@ -32,12 +32,12 @@ for arg in "$@"; do
 done
 
 # Version metadata still has to be internally consistent before it ships.
-if ! node scripts/release-branch-policy.mjs audit --stable; then
-    echo -e "${RED}❌ Refusing to deploy inconsistent or prerelease version metadata${NC}"
+if ! node scripts/release-branch-policy.mjs audit; then
+    echo -e "${RED}❌ Refusing to deploy inconsistent version metadata${NC}"
     exit 1
 fi
 
-# Production docs require stable package versions and deploy from main.
+# Production docs deploy the reviewed main snapshot, including RC metadata.
 CURRENT_BRANCH=$(git branch --show-current)
 echo -e "${BLUE}📍 Current branch: $CURRENT_BRANCH${NC}"
 if [ "$CURRENT_BRANCH" != "main" ]; then
@@ -117,7 +117,7 @@ if ! command -v vercel &> /dev/null; then
     echo -e "${GREEN}✅ Vercel CLI installed successfully${NC}"
 fi
 
-VERCEL_PROJECT_FILE="packages/docs/.vercel/project.json"
+VERCEL_PROJECT_FILE=".vercel/project.json"
 if ! jq -e \
     --arg projectId "$EXPECTED_VERCEL_PROJECT_ID" \
     --arg orgId "$EXPECTED_VERCEL_ORG_ID" '
@@ -125,8 +125,8 @@ if ! jq -e \
     (.orgId == $orgId) and
     (.projectName == "openiap")
 ' "$VERCEL_PROJECT_FILE" >/dev/null 2>&1; then
-    echo -e "${RED}❌ packages/docs is not linked to the OpenIAP Vercel project${NC}"
-    echo -e "${YELLOW}Run 'cd packages/docs && vercel link' before deploying.${NC}"
+    echo -e "${RED}❌ Repository root is not linked to the OpenIAP Vercel project${NC}"
+    echo -e "${YELLOW}Run 'vercel link --project openiap' from the repository root.${NC}"
     exit 1
 fi
 
@@ -179,25 +179,7 @@ fi
 echo ""
 echo -e "${BLUE}📦 Step 2: Building and deploying to Vercel...${NC}"
 
-# Deploy to Vercel
-cd packages/docs
-
-echo -e "${BLUE}🔨 Running type check...${NC}"
-if ! bun run typecheck; then
-    echo -e "${RED}❌ TypeScript errors found. Please fix them before deploying.${NC}"
-    exit 1
-fi
-
-echo -e "${BLUE}🔨 Building project...${NC}"
-if ! bun run build; then
-    echo -e "${RED}❌ Build failed. Please check the errors above.${NC}"
-    exit 1
-fi
-
-# The docs package depends on the workspace-local `@hyodotdev/openiap-commerce-protocol`
-# package, which Vercel's remote `bun install` cannot resolve from an upload
-# of packages/docs alone. Build locally (where the workspace exists) and ship
-# the prebuilt output instead of letting Vercel install and build remotely.
+# Run from the monorepo root so Vercel includes workspace dependencies.
 echo -e "${BLUE}🚀 Building prebuilt output and deploying to Vercel...${NC}"
 if ! vercel pull --yes --environment=production; then
     echo -e "${RED}❌ vercel pull failed${NC}"
@@ -223,8 +205,6 @@ if ! DEPLOYMENT_URL=$(printf '%s' "$VERCEL_DEPLOYMENT" | jq -er '
 fi
 
 echo -e "${GREEN}✅ Successfully deployed to Vercel: $DEPLOYMENT_URL${NC}"
-
-cd ../..
 
 echo ""
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"

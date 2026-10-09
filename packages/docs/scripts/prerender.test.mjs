@@ -11,12 +11,7 @@ import { createServer as createViteServer } from 'vite';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { archiveDownloads } from '../vite.config.ts';
-import {
-  assertProductionVersions,
-  canonicalPaths,
-  pageHtml,
-  sitemapXml,
-} from './prerender.mjs';
+import { canonicalPaths, pageHtml, sitemapXml } from './prerender.mjs';
 
 const template = '<html><head></head><body><div id="root"></div></body></html>';
 const content =
@@ -205,39 +200,4 @@ test('discovers direct pages and shared store templates, ignoring unrelated path
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
-});
-
-test('production builds reject RC metadata while previews remain available', () => {
-  const rc = { google: '4.0.0-rc.1', expoPackageVersion: '6.0.0-rc.0' };
-  assert.doesNotThrow(() => assertProductionVersions(rc, 'preview'));
-  assert.doesNotThrow(() => assertProductionVersions(rc, undefined));
-  assert.throws(
-    () => assertProductionVersions(rc, 'production'),
-    /Production docs require stable package versions/
-  );
-  assert.doesNotThrow(() =>
-    assertProductionVersions(
-      { google: '4.0.0+build-rc', expoPackageVersion: '6.0.0' },
-      'production'
-    )
-  );
-});
-
-test('production checks include CLI metadata synced into the docs build', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const metadata = JSON.parse(
-    await readFile(
-      new URL('../src/generated/version-metadata.json', import.meta.url),
-      'utf8'
-    )
-  );
-  assert.equal(typeof metadata.cliPackageVersion, 'string');
-  assert.throws(
-    () =>
-      assertProductionVersions(
-        { cliPackageVersion: '0.2.0-rc.0' },
-        'production'
-      ),
-    /cliPackageVersion=0\.2\.0-rc\.0/u
-  );
 });
