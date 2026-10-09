@@ -45,6 +45,7 @@ enum ConformanceBehaviors {
     static let providerInvalidPurchaseEmitsErrorOnce = "provider.invalid-purchase-emits-error-once"
     static let androidProviderSubscriptionBillingIssue = "android-provider.subscription-billing-issue"
     static let androidProviderOfferCodeRedemption = "android-provider.offer-code-redemption"
+    static let androidProviderNativeOfferCodeRedemption = "android-provider.native-offer-code-redemption"
     static let appleProviderSubscriptionBillingIssue = "apple-provider.subscription-billing-issue"
     static let appleProviderOfferCodeRedemption = "apple-provider.offer-code-redemption"
 }

@@ -4800,7 +4800,9 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/release-flutter.yml",
     [
-      "flutter-iap-$PREV_VERSION",
+      "--match 'flutter-iap-*' --exclude 'flutter-iap-*-*'",
+      '--exclude "flutter-iap-$VERSION"',
+      "PREV_TAG: ${{ steps.previous_release.outputs.tag }}",
       'CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases#flutter-iap-$NEW_VERSION"',
     ],
     "Flutter release workflow should generate changelog entries from prefixed tags",

@@ -265,7 +265,11 @@ public struct ProviderConformanceSuite {
                     : provider.purchaseUpdatedListener({ probe.receive(.purchase($0)) }, options: nil)
                 let errors = provider.purchaseErrorListener { probe.receive(.error($0)) }
                 defer { provider.removeListener(subscription); provider.removeListener(errors) }
-                if capability == "offerCodeRedemption" { _ = try await provider.openRedeemOfferCode() }
+                if capability == "offerCodeRedemption", let returned = try await provider.openRedeemOfferCode() {
+                    guard returned.storeId == factory.storeId,
+                          returned.store == (factory.storeId == StoreIds.Apple ? .apple : .unknown),
+                          returned.purchaseState == .purchased else { return false }
+                }
                 do { try await self.adapter.triggerCapability(capability) }
                 catch let error as PurchaseError where capability == "pendingPurchases" && error.code == .deferredPayment {
                     probe.receive(.error(error))

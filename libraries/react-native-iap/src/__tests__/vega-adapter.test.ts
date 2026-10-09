@@ -1628,14 +1628,28 @@ describe('Amazon Vega adapter', () => {
       'https://[2001:db8::1]:65535///',
       'https://[2001:db8::1]:65535/v1/purchase/verify',
     ],
-  ])('supports custom IAPKit base URL %s', async (baseUrl, expectedUrl) => {
+  ])('supports %s with legacy URL', async (baseUrl, expectedUrl) => {
     const service = createService();
     const originalFetch = globalThis.fetch;
     const originalUrl = globalThis.URL;
-    class KeplerUrl extends originalUrl {
-      get protocol(): never {
-        throw new Error('URL.protocol is not implemented on Kepler');
-      }
+    class LegacyUrl extends originalUrl {}
+    for (const getter of [
+      'hash',
+      'host',
+      'hostname',
+      'origin',
+      'password',
+      'pathname',
+      'port',
+      'protocol',
+      'search',
+      'username',
+    ]) {
+      Object.defineProperty(LegacyUrl.prototype, getter, {
+        get(): never {
+          throw new Error(`URL.${getter} is not implemented`);
+        },
+      });
     }
     const fetchMock = createFetchMock(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
@@ -1647,7 +1661,7 @@ describe('Amazon Vega adapter', () => {
         }),
     );
     globalThis.fetch = fetchMock;
-    globalThis.URL = KeplerUrl;
+    globalThis.URL = LegacyUrl;
 
     try {
       const module = createVegaIapModule(service);

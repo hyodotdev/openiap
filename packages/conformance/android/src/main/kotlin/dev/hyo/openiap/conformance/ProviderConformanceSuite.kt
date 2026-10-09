@@ -210,6 +210,20 @@ abstract class ProviderConformanceSuite : StoreConformanceSuite() {
         } finally { provider.removePurchaseUpdateListener(listener) }
     }
 
+    @Test
+    @ConformanceBehavior(ConformanceBehaviors.ANDROID_PROVIDER_NATIVE_OFFER_CODE_REDEMPTION)
+    fun `native redemption matches the declared capability`() = runBlocking {
+        val declared = StoreCapability.OfferCodeRedemption in adapter.capabilities
+        val activity = requireNotNull(redemptionActivity) {
+            "Native redemption requires a host or Robolectric Activity"
+        }
+        try {
+            assertEquals("Native redemption must match the declared capability", declared, provider.openRedeemOfferCode(activity))
+        } catch (_: OpenIapError.FeatureNotSupported) {
+            assertFalse("Declared native redemption cannot be unsupported", declared)
+        }
+    }
+
     private fun assertRedemptionPurchase(purchase: Purchase) {
         assertTrue(purchase is PurchaseAndroid)
         assertEquals(factory.storeId, purchase.storeId)

@@ -179,6 +179,14 @@ abstract class StoreConformanceSuite {
             "${adapter.storeId} omits offerCodeRedemption but supplies no activity to verify the no-op"
         }
         try {
+            assertFalse(
+                "${adapter.storeId} must not open native redemption when undeclared",
+                provider.openRedeemOfferCode(activity),
+            )
+        } catch (_: OpenIapError.FeatureNotSupported) {
+            // Unsupported providers may reject instead of returning false.
+        }
+        try {
             assertNull(
                 "${adapter.storeId} must return null when redemption is undeclared",
                 redeemOfferCode(provider, activity),

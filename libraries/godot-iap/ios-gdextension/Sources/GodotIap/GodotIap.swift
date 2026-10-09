@@ -776,7 +776,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let purchase = try await self.openIap.openRedeemOfferCode()
+                let purchase = try await GodotIapHelper.withCompletionErrors {
+                    try await self.openIap.openRedeemOfferCode()
+                }
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("openRedeemOfferCode")

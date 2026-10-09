@@ -673,8 +673,8 @@ function Migration() {
           purchase updates and refresh available purchases when the app resumes.
           React Native, Expo, Flutter, and MAUI now reject with a typed error
           when the Play redeem page cannot open; earlier versions resolved null.
-          Catch that error. Godot emits <code>purchase_error</code> on Android
-          and iOS failures while returning null.
+          Catch that error. Godot emits <code>purchase_error</code> on failed or
+          unsupported redemption while returning null.
         </p>
 
         <AnchorLink id="provider-contract-store-id" level="h3">

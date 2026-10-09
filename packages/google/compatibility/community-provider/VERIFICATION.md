@@ -30,7 +30,8 @@ independent publication and conformance. Artifacts and raw device/backend
 evidence remain in ignored build outputs or the private local run directory.
 
 Both independent fixtures pass the 15 common provider behaviors and their
-three declared capability checks, including
+three declared capability checks. Android also requires its native-redemption
+result separately from the SDK result. The fixtures check
 exactly one canonical error event before a failed purchase request returns an
 empty result or throws.
 Negative cases reject missing, duplicate, and contradictory events. Swift

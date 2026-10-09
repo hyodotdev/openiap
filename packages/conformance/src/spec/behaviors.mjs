@@ -370,7 +370,15 @@ export const BEHAVIORS = Object.freeze([
     level: 'SHOULD',
     capability: 'offerCodeRedemption',
     statement:
-      'Opening offer-code redemption with a declared capability delivers the redeemed Purchased PurchaseAndroid with the provider store identity to the purchase-updated listener.',
+      'SDK offer-code redemption delivers the redeemed Purchased PurchaseAndroid with the provider store identity to the purchase-updated listener; any returned purchase has the same identity and Purchased state.',
+  },
+
+  {
+    id: 'android-provider.native-offer-code-redemption',
+    category: 'android-provider',
+    level: 'SHOULD',
+    statement:
+      'Native offer-code redemption reports opening a declared flow with true; an undeclared flow returns false or throws FeatureNotSupported.',
   },
 
   // --- apple-provider ----------------------------------------------------
@@ -388,7 +396,7 @@ export const BEHAVIORS = Object.freeze([
     level: 'SHOULD',
     capability: 'offerCodeRedemption',
     statement:
-      'Opening offer-code redemption with a declared capability delivers the redeemed Purchased PurchaseIOS with the provider store identity to the purchase-updated listener.',
+      'Opening offer-code redemption with a declared capability delivers the redeemed Purchased PurchaseIOS with the provider store identity to the purchase-updated listener; any returned purchase has the same identity and Purchased state.',
   },
 ]);
 

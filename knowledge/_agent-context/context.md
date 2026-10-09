@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T01:40:18.514Z
+> Last updated: 2026-10-09T02:36:31.658Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -31,7 +31,7 @@ All iOS-specific functions MUST end with `IOS` suffix:
 // CORRECT
 func clearTransactionIOS()
 func syncIOS()
-func presentExternalPurchaseNoticeIOS()
+func presentExternalPurchaseNoticeSheetIOS()
 func showManageSubscriptionsIOS()
 func isEligibleForIntroOfferIOS()
 func subscriptionStatusIOS()
@@ -46,7 +46,7 @@ func getPromotedProductIOS()
 
 // INCORRECT - Missing IOS suffix
 func clearTransaction()
-func presentExternalPurchaseNotice()
+func presentExternalPurchaseNoticeSheet()
 func sync()
 ```
 
@@ -186,7 +186,7 @@ getStorefront();
 | `request`      | User-initiated async operations  | `requestPurchase`                                             |
 | `clear`        | Remove/reset data                | `clearTransactionIOS`, `clearProductsIOS`                     |
 | `is/has`       | Boolean checks                   | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions`        |
-| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentExternalPurchaseNoticeIOS` |
+| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentExternalPurchaseNoticeSheetIOS` |
 | `begin`        | Start a multi-step process       | `beginRefundRequestIOS`                                       |
 | `finish/end`   | Complete a process               | `finishTransaction`, `endConnection`                          |
 | `init`         | Initialize resources             | `initConnection`                                              |

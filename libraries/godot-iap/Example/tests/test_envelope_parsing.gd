@@ -281,6 +281,7 @@ func _run_all_tests() -> void:
 	await test_community_open_redeem_offer_code_envelope()
 	await test_ios_open_redeem_offer_code_envelope()
 	await test_redemption_failure_signals()
+	await test_android_redemption_url_fallback()
 	await test_unavailable_redemption_signals()
 	await test_ios_transaction_lists_skip_invalid_store_identities()
 	await test_macos_shared_api_routing()
@@ -1445,6 +1446,24 @@ func test_redemption_failure_signals() -> void:
 		_assert_equal(errors[0].get("message"), "Redemption cancelled", "Redemption preserves the provider error message")
 		GodotIapPlugin.purchase_error.disconnect(capture_error)
 		_uninstall_fake()
+
+
+func test_android_redemption_url_fallback() -> void:
+	var wrapper = GodotIapWrapper.new()
+	wrapper._platform = "Android"
+	var opened_urls: Array[String] = []
+	var errors: Array[Dictionary] = []
+	wrapper.purchase_error.connect(func(error: Dictionary) -> void: errors.append(error))
+	for result in [OK, FAILED]:
+		wrapper._shell_open = func(url: String) -> Error:
+			opened_urls.append(url)
+			return result
+		_assert_equal(await wrapper.open_redeem_offer_code(), null, "The URL fallback returns no purchase")
+		_assert_equal(opened_urls.back(), "https://play.google.com/redeem", "The fallback opens the Play redeem page")
+		_assert_equal(errors.size(), 0 if result == OK else 1, "Only a failed URL launch emits one error")
+	_assert_equal(errors[0].get("code"), "service-error", "Failed URL launch reports a service error")
+	_assert_equal(errors[0].get("message"), "Failed to open the Play redeem page", "Failed URL launch reports its cause")
+	wrapper.free()
 
 
 func test_unavailable_redemption_signals() -> void:

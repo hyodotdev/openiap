@@ -136,8 +136,8 @@ suspend fun openRedeemOfferCode(activity: Activity): Boolean`}</CodeBlock>
         providers resolve <code>null</code> without launching a flow; a
         community provider without this handler throws{' '}
         <code>feature-not-supported</code>. Godot emits{' '}
-        <code>purchase_error</code> and returns <code>null</code> on a failed
-        Android or iOS redemption flow.
+        <code>purchase_error</code> and returns <code>null</code> on failed or
+        unsupported redemption.
       </p>
 
       <h2>Example</h2>
@@ -149,7 +149,7 @@ import { openRedeemOfferCode } from 'expo-iap';
 
 const purchase = await openRedeemOfferCode();
 if (purchase) {
-  console.log('Verified redemption:', purchase.productId);
+  console.log('Redeemed purchase:', purchase.productId);
 }
 // null: the flow was presented (pre-27 iOS sheet, Play redeem page) or the
 // store has none; reconcile through the purchase listener and
@@ -158,7 +158,7 @@ if (purchase) {
           swift: (
             <CodeBlock language="swift">{`let purchase = try await OpenIapModule.shared.openRedeemOfferCode()
 if let purchase {
-    print("Verified redemption:", purchase.productId)
+    print("Redeemed purchase:", purchase.productId)
 }`}</CodeBlock>
           ),
           kotlin: (
@@ -166,11 +166,11 @@ if let purchase {
           ),
           kmp: (
             <CodeBlock language="kotlin">{`val purchase = kmpIAP.openRedeemOfferCode()
-if (purchase != null) println("Verified redemption: " + purchase.productId)`}</CodeBlock>
+if (purchase != null) println("Redeemed purchase: " + purchase.productId)`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`final purchase = await FlutterInappPurchase.instance.openRedeemOfferCode();
-if (purchase != null) print('Verified redemption: \${purchase.productId}');`}</CodeBlock>
+if (purchase != null) print('Redeemed purchase: \${purchase.productId}');`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -179,12 +179,12 @@ using OpenIap.Maui;
 var purchase = await ((MutationResolver)OpenIapClient.Instance)
     .OpenRedeemOfferCodeAsync();
 if (purchase is not null)
-    Console.WriteLine($"Verified redemption: {purchase.ProductId}");`}</CodeBlock>
+    Console.WriteLine($"Redeemed purchase: {purchase.ProductId}");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`var purchase = await iap.open_redeem_offer_code()
 if purchase != null:
-    print("Verified redemption: ", purchase.product_id)`}</CodeBlock>
+    print("Redeemed purchase: ", purchase.product_id)`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

@@ -679,8 +679,8 @@ function Releases() {
               instead of resolving null; catch the error.
             </li>
             <li>
-              Godot 4.0.0 now emits <code>purchase_error</code> for failed
-              Android or iOS redemption while returning null; subscribe to the
+              Godot 4.0.0 now emits <code>purchase_error</code> for failed or
+              unsupported redemption while returning null; subscribe to the
               signal.
             </li>
             <li>

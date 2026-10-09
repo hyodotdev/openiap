@@ -224,7 +224,7 @@ const BREAKING_BULLETS = [
   "OpenIAP Apple 4.0.0 throws <code>CancellationError</code>, with no purchase-error event, when the calling task of <code>requestPurchase</code> or another StoreKit operation is cancelled; catch it at the call site.",
   "Flutter 11.0.0 <code>initConnection()</code> now returns false on iOS and macOS when StoreKit cannot make payments; it returned true before.",
   "React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and MAUI 3.0.0 now reject failed Play <code>openRedeemOfferCode()</code> launches instead of resolving null; catch the error.",
-  "Godot 4.0.0 now emits <code>purchase_error</code> for failed Android or iOS redemption while returning null; subscribe to the signal.",
+  "Godot 4.0.0 now emits <code>purchase_error</code> for failed or unsupported redemption while returning null; subscribe to the signal.",
   "React Native 17.0.0, Expo 6.0.0, Flutter 11.0.0, and Godot 4.0.0 forward the provider's Android error code where they returned fixed codes; handle specific codes such as <code>not-prepared</code>.",
   "Flutter 11.0.0 and Godot 4.0.0 (and KMP 4.0.0 on iOS) report the native error code from failed verification instead of always <code>purchase-verification-failed</code>; match specific codes.",
   "React Native 17.0.0, Expo 6.0.0, and Flutter 11.0.0 run the provider's Android restore first, and on Horizon deliver each owned purchase to purchase listeners; make the handler idempotent.",

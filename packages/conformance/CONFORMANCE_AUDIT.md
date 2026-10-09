@@ -21,12 +21,13 @@ Use the executable contracts and reports below for the current state.
 | Hardware                      | [Device results](../google/compatibility/community-provider/E2E_RESULTS.md), with executed revisions, sandbox evidence, and purchase limits                                                                         |
 | Server lifecycle              | Commerce Protocol conformance and IAPKit tests; separate from native provider profiles                                                                                                                              |
 
-The current source coverage report binds 37 of 42 behavior ids to non-reference
-implementations. Five SHOULD-level provider/capability ids have no non-reference
+The current source coverage report binds 37 of 43 behavior ids to non-reference
+implementations. Six SHOULD-level provider/capability ids have no non-reference
 implementation in that report; this is not a claim of complete runtime coverage.
 
-The native provider profiles cover 15 common required behaviors plus up to
-three declared capability checks (18 with all capabilities). They reject missing, skipped required, failed, and
+The native provider profiles cover 15 common required behaviors, a separate
+Android native-redemption check, and up to three declared capability checks
+(19 on Android and 18 on Apple with all capabilities). They reject missing, skipped required, failed, and
 contradictory results. Android mapping-only reports cannot promote a community
 provider. The fixture sources are maintained in this monorepo: an independent
 build proves artifact consumption, not third-party certification.

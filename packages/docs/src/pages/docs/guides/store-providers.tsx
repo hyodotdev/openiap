@@ -645,7 +645,8 @@ class YourStoreFactory : OpenIapProviderFactory {
           after supplying the host Activity with <code>setActivity</code>. Wire
           that handler to your vendor flow and return a purchase or null. The
           native Boolean <code>openRedeemOfferCode(activity)</code> remains for
-          direct native callers; implementing it alone does not enable SDK
+          direct native callers. Both entry points must open the same vendor
+          flow; implementing only the Boolean method does not enable SDK
           redemption.
         </p>
         <p>
@@ -692,8 +693,10 @@ class YourStoreFactory : OpenIapProviderFactory {
           <code>offerCodeRedemption</code> is declared the suite opens the real
           flow with that activity, and when it is undeclared the suite calls the
           canonical handler with that activity and asserts null or{' '}
-          <code>FeatureNotSupported</code>. A missing provider or activity fails
-          the run with a message naming it.
+          <code>FeatureNotSupported</code>. Separate native checks require true
+          for a declared flow, and false or <code>FeatureNotSupported</code>{' '}
+          when undeclared. A missing provider or activity fails the run with a
+          message naming it.
         </p>
         <CodeBlock
           language="kotlin"

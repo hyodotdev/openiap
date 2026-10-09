@@ -91,6 +91,7 @@ var _apple_async_ui_timeout_seconds := 300.0
 var _platform: String = ""
 ## OS.has_feature, swappable in tests: an editor run carries no export tags.
 var _has_feature: Callable = Callable(OS, "has_feature")
+var _shell_open: Callable = Callable(OS, "shell_open")
 
 
 func _is_apple() -> bool:
@@ -2218,7 +2219,8 @@ func open_redeem_offer_code() -> Variant:
 	var payload: Dictionary = {}
 	if _platform == "Android":
 		if not _native_plugin:
-			OS.shell_open("https://play.google.com/redeem")
+			if _shell_open.call("https://play.google.com/redeem") != OK:
+				_purchase_failure("service-error", "Failed to open the Play redeem page")
 			return null
 		var parsed = JSON.parse_string(_native_plugin.call("openRedeemOfferCode"))
 		if parsed is Dictionary:

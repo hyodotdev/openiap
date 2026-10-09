@@ -172,12 +172,31 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
             invalid.`declared redemption capability reaches the purchase listener`()
         }
     }
+    @Test fun `suite rejects declared native redemption that does not open`() {
+        for (throwsError in listOf(false, true)) {
+            val invalid = object : FixtureConformanceTest() {
+                override val provider = object : OpenIapProtocol by fixture {
+                    override suspend fun openRedeemOfferCode(activity: Activity): Boolean =
+                        if (throwsError) error("Vendor failure") else false
+                }
+            }
+            if (throwsError) {
+                assertThrows(IllegalStateException::class.java) {
+                    invalid.`native redemption matches the declared capability`()
+                }
+            } else {
+                assertThrows(AssertionError::class.java) {
+                    invalid.`native redemption matches the declared capability`()
+                }
+            }
+        }
+    }
     @Test fun `suite checks the receipt returned by canonical redemption`() {
         val receipt = fixture.purchase("conformance.product")
         val returned = listOf<Purchase>(
             PurchaseIOS.fromJson(receipt.toJson()),
             PurchaseAndroid.fromJson(receipt.toJson() + ("storeId" to "other_store")),
-            PurchaseAndroid.fromJson(receipt.toJson() + mapOf("store" to "google", "storeId" to "play")),
+            receipt.copy(store = IapStore.Google),
             PurchaseAndroid.fromJson(receipt.toJson() + ("purchaseState" to "pending")),
         )
         for (purchase in returned) {
@@ -199,7 +218,10 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
     }
     @Test fun `suite invokes the canonical handler when redemption is undeclared`() {
         val base = FixtureConformanceTest()
-        fun withoutRedemption(handler: MutationOpenRedeemOfferCodeHandler?) = object : FixtureConformanceTest() {
+        fun withoutRedemption(
+            handler: MutationOpenRedeemOfferCodeHandler?,
+            nativeResult: suspend () -> Boolean = { false },
+        ) = object : FixtureConformanceTest() {
             override val factory = object : OpenIapProviderFactory by base.factory {
                 override val capabilities = base.factory.capabilities - "offerCodeRedemption"
             }
@@ -208,20 +230,29 @@ open class FixtureConformanceTest : ProviderConformanceSuite() {
             }
             override val provider = object : OpenIapProtocol by base.provider {
                 override val mutationHandlers = base.provider.mutationHandlers.copy(openRedeemOfferCode = handler)
-                override suspend fun openRedeemOfferCode(activity: Activity): Boolean =
-                    error("SDKs must invoke the canonical handler")
+                override suspend fun openRedeemOfferCode(activity: Activity): Boolean = nativeResult()
             }
         }
-        withoutRedemption { null }.`unsupported offer code redemption returns its documented no-op`()
+        withoutRedemption({ null }).`unsupported offer code redemption returns its documented no-op`()
         withoutRedemption(null).`unsupported offer code redemption returns its documented no-op`()
-        withoutRedemption { throw OpenIapError.FeatureNotSupported() }
+        withoutRedemption({ throw OpenIapError.FeatureNotSupported() })
+            .`unsupported offer code redemption returns its documented no-op`()
+        withoutRedemption({ null }, { throw OpenIapError.FeatureNotSupported() })
             .`unsupported offer code redemption returns its documented no-op`()
         assertThrows(AssertionError::class.java) {
-            withoutRedemption { fixture.purchase("conformance.product") }
+            withoutRedemption({ null }, { true })
                 .`unsupported offer code redemption returns its documented no-op`()
         }
         assertThrows(IllegalStateException::class.java) {
-            withoutRedemption { error("Vendor failure") }
+            withoutRedemption({ null }, { error("Native vendor failure") })
+                .`unsupported offer code redemption returns its documented no-op`()
+        }
+        assertThrows(AssertionError::class.java) {
+            withoutRedemption({ fixture.purchase("conformance.product") })
+                .`unsupported offer code redemption returns its documented no-op`()
+        }
+        assertThrows(IllegalStateException::class.java) {
+            withoutRedemption({ error("Vendor failure") })
                 .`unsupported offer code redemption returns its documented no-op`()
         }
     }
