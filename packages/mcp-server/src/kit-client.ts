@@ -22,6 +22,7 @@ import type {
 export type KitClientOptions = {
   baseUrl?: string;
   apiKey: string;
+  fetch?: typeof fetch;
 };
 
 export interface KitProductListParams {
@@ -104,7 +105,11 @@ export class KitHttpError extends Error {
   }
 }
 
-export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
+export function kitClient({
+  baseUrl,
+  apiKey,
+  fetch: fetchRequest,
+}: KitClientOptions) {
   const root = normalizeKitBaseUrl(baseUrl);
   const hostname = new URL(root).hostname;
   const loopback =
@@ -114,7 +119,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     hostname === "::1";
 
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${root}${path}`, {
+    const response = await (fetchRequest ?? fetch)(`${root}${path}`, {
       ...init,
       headers: {
         "content-type": "application/json",

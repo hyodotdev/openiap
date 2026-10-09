@@ -68,3 +68,12 @@ Reviewed 2026-10-09. Tests live in `test/showcase.test.ts` and the docs site's
    per-call argument (Deployment gap above) — needs a product decision on
    how self-hosted kit deployments configure the endpoint.
 3. Periodic re-review trigger: wire a checklist line into `/audit-iapkit`.
+
+## Sites pilot boundary
+
+The isolated `pilots/sites` Worker registers only setup, catalog listing, and
+subscription status. Its injected client serves typed synthetic fixtures without
+network access. Direct write calls are unregistered; credentials and upstream
+overrides are rejected before dispatch. Sites must enforce owner-private access.
+The transport is stateless and caps request bodies at 64 KiB. The existing Fly
+transport and its authentication are unchanged.

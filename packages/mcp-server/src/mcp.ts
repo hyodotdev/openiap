@@ -110,7 +110,7 @@ function resolveApiKey(
   return opts.apiKey ?? extra?.authInfo?.token ?? process.env.IAPKIT_API_KEY;
 }
 
-function withClient(
+function resolveClient(
   opts: { apiKey?: string; baseUrl?: string },
   extra?: ToolExtra,
 ) {
@@ -205,44 +205,47 @@ export function redactSecretString(value: string, apiKey?: string): string {
     );
 }
 
-function registerTool<Args extends z.ZodRawShape>(
-  server: McpServer,
-  localName: string,
-  description: string,
-  schema: Args,
-  annotations: ToolAnnotations,
-  handler: ToolCallback<Args>,
-) {
-  server.tool(
-    `${IAPKIT_TOOL_PREFIX}_${localName}`,
-    description,
-    schema,
-    annotations,
-    handler,
-  );
+export interface IapKitMcpServerOptions {
+  allowedTools?: readonly string[];
+  client?: ReturnType<typeof kitClient>;
 }
 
-/**
- * Creates the IAPKit MCP server and registers the `iapkit_*` tool surface.
- *
- * The returned server is configured with the package name/version metadata and
- * `https://kit.openiap.dev` as its website URL. Tool registration is performed
- * before returning so callers can connect the server directly to stdio, HTTP,
- * or web-standard MCP transports.
- *
- * @returns An `McpServer` instance with all IAPKit tools registered.
- */
-export function createIapKitMcpServer(): McpServer {
+/** Creates the existing tool surface, optionally restricted for an isolated host. */
+export function createIapKitMcpServer(
+  options: IapKitMcpServerOptions = {},
+): McpServer {
   const server = new McpServer({
     name: IAPKIT_MCP_SERVER_NAME,
     version: IAPKIT_MCP_SERVER_VERSION,
     websiteUrl: "https://kit.openiap.dev",
   });
-  registerIapKitTools(server);
+  registerIapKitTools(server, options);
   return server;
 }
 
-function registerIapKitTools(server: McpServer) {
+function registerIapKitTools(
+  server: McpServer,
+  options: IapKitMcpServerOptions,
+) {
+  function withClient(
+    opts: { apiKey?: string; baseUrl?: string },
+    extra?: ToolExtra,
+  ) {
+    return options.client ?? resolveClient(opts, extra);
+  }
+  function registerTool<Args extends z.ZodRawShape>(
+    server: McpServer,
+    localName: string,
+    description: string,
+    schema: Args,
+    annotations: ToolAnnotations,
+    handler: ToolCallback<Args>,
+  ) {
+    const name = `${IAPKIT_TOOL_PREFIX}_${localName}`;
+    if (options.allowedTools && !options.allowedTools.includes(name)) return;
+    server.tool(name, description, schema, annotations, handler);
+  }
+
   // ---------------------------------------------------------------------------
   // 1. setup — generate per-framework integration snippet.
   // ---------------------------------------------------------------------------
