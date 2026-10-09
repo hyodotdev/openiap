@@ -12,6 +12,7 @@ bun.lockb
 dist/
 build/
 .turbo/
+packages/docs/server/generated/
 
 # Generated SBOMs. These are release artifacts published to GitHub Releases,
 # never committed — a checked-in copy would drift from the release it claims

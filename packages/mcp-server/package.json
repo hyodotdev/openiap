@@ -14,7 +14,9 @@
     "./http": "./src/http.ts",
     "./kit-client": "./src/kit-client.ts",
     "./mcp": "./src/mcp.ts",
-    "./web": "./src/web.ts"
+    "./web": "./src/web.ts",
+    "./showcase": "./src/showcase.ts",
+    "./showcase-schema": "./src/showcase-schema.ts"
   },
   "main": "src/index.ts",
   "scripts": {

@@ -157,8 +157,8 @@ Native modules must be released before framework libraries:
 Follow [the release workflow](.claude/commands/release.md) for package-specific
 inputs: `prerelease=true` starts at rc.1, `version=rc-bump` increments an RC
 where supported, and `version=patch` promotes an RC to its stable base version.
-Production docs deploy through `npm run deploy` only after every package is
-stable and its release links are public; use previews during prereleases.
+Vercel automatically deploys main's documentation, including RC metadata.
+Documentation deployment does not publish packages.
 The docs site has no version or release workflow.
 
 ### Version Management

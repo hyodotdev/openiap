@@ -214,9 +214,9 @@ Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
    directly to `main`. If review finds a product-code fix, return it to the PR
    loop instead of committing that fix directly to `main`. Do not open a PR for
    this post-release docs-only commit.
-6. Deploy main's head through `scripts/deploy.sh` after stable metadata and
-   every release-card link pass, then verify the production release page and
-   generated documentation assets.
+6. Wait for Vercel's production deployment of main's head, then verify the
+   production release page and generated documentation assets. Use the manual
+   deploy only when the automatic path cannot complete.
 7. Finish on `main`, fast-forward once more if a release workflow changed it,
    and verify `HEAD == origin/main` with a clean worktree.
 8. Complete the shipped-comment step in `ship-release` before ending the loop.

@@ -1,18 +1,24 @@
-import type { CSSProperties } from 'react';
-import { Plus } from 'lucide-react';
+import { useState, type CSSProperties } from 'react';
+import { Plus, Search } from 'lucide-react';
 import SEO from '../components/SEO';
+import SelectInput from '../components/SelectInput';
 import {
   ShowcaseAppCard,
   ShowcaseSubmitCard,
-  SHOWCASE_GUIDE_URL,
-  SHOWCASE_DISCUSSION_URL,
 } from '../components/ShowcaseCards';
 import {
   GITHUB_DEPENDENTS_LABEL,
   GITHUB_DEPENDENTS_URL,
   GITHUB_DEPENDENTS_DESCRIPTION,
-  SHOWCASE_APPS,
+  filterShowcaseApps,
+  getShowcaseAppLibraries,
+  type ShowcaseFilters,
 } from '../lib/showcase';
+import { showcaseIdentity } from '@hyodotdev/openiap-mcp-server/showcase-schema';
+
+import { LIBRARIES } from '../lib/images';
+import { useShowcaseApps } from '../hooks/useShowcaseApps';
+import ShowcaseSubmissionGuide from '../components/ShowcaseSubmissionGuide';
 
 const showcaseGridStyle: CSSProperties = {
   display: 'grid',
@@ -21,6 +27,31 @@ const showcaseGridStyle: CSSProperties = {
 };
 
 function Showcase() {
+  const apps = useShowcaseApps();
+  const libraries = LIBRARIES.filter((entry) =>
+    apps.some((app) => getShowcaseAppLibraries(app).includes(entry.name))
+  );
+  const categories = [...new Set(apps.map((app) => app.category))].sort(
+    (a, b) => a.localeCompare(b, 'en')
+  );
+  const [filters, setFilters] = useState<ShowcaseFilters>({
+    query: '',
+    category: '',
+    library: '',
+  });
+  const matchingApps = filterShowcaseApps(apps, {
+    ...filters,
+    library: '',
+  });
+  const visibleApps = filterShowcaseApps(matchingApps, {
+    query: '',
+    category: '',
+    library: filters.library,
+  });
+  const hasFilters = Boolean(
+    filters.query || filters.category || filters.library
+  );
+
   return (
     <div className="home">
       <SEO
@@ -61,98 +92,102 @@ function Showcase() {
               <strong>{GITHUB_DEPENDENTS_LABEL}</strong>
             </a>
           </p>
-          <div style={showcaseGridStyle}>
-            {SHOWCASE_APPS.map((app) => (
-              <ShowcaseAppCard key={app.github ?? app.name} app={app} />
-            ))}
-            <ShowcaseSubmitCard />
+          <section className="showcase-filters" aria-label="Find apps">
+            <div className="showcase-search-controls">
+              <label>
+                <span>Search apps</span>
+                <span className="showcase-search-input">
+                  <Search size={17} aria-hidden="true" />
+                  <input
+                    type="search"
+                    placeholder="Name, purpose, or library"
+                    value={filters.query}
+                    onChange={(event) =>
+                      setFilters({ ...filters, query: event.target.value })
+                    }
+                  />
+                </span>
+              </label>
+              <label>
+                <span>Category</span>
+                <SelectInput
+                  value={filters.category}
+                  onChange={(event) =>
+                    setFilters({ ...filters, category: event.target.value })
+                  }
+                >
+                  <option value="">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </SelectInput>
+              </label>
+            </div>
+            <fieldset className="showcase-library-filters">
+              <legend>Library</legend>
+              <div>
+                <button
+                  type="button"
+                  aria-pressed={!filters.library}
+                  onClick={() => setFilters({ ...filters, library: '' })}
+                >
+                  All <span>{matchingApps.length}</span>
+                </button>
+                {libraries.map((library) => (
+                  <button
+                    key={library.name}
+                    type="button"
+                    aria-pressed={filters.library === library.name}
+                    onClick={() =>
+                      setFilters({ ...filters, library: library.name })
+                    }
+                  >
+                    {library.homeLabel}{' '}
+                    <span>
+                      {
+                        matchingApps.filter((app) =>
+                          getShowcaseAppLibraries(app).includes(library.name)
+                        ).length
+                      }
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </section>
+          <div className="showcase-results-bar">
+            <p role="status">
+              {visibleApps.length} {visibleApps.length === 1 ? 'app' : 'apps'}
+              <span> · Sorted by downloads</span>
+            </p>
+            {hasFilters ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setFilters({ query: '', category: '', library: '' })
+                }
+              >
+                Clear filters
+              </button>
+            ) : null}
           </div>
+          {visibleApps.length ? (
+            <div style={showcaseGridStyle}>
+              {visibleApps.map((app) => (
+                <ShowcaseAppCard key={showcaseIdentity(app)} app={app} />
+              ))}
+              <ShowcaseSubmitCard />
+            </div>
+          ) : (
+            <div className="showcase-empty">
+              <h2>No apps match these filters</h2>
+              <p>Try a different search or clear the filters.</p>
+            </div>
+          )}
 
-          <div
-            style={{
-              marginTop: '3rem',
-              padding: '2rem',
-              border: '1px solid var(--border-color)',
-              borderRadius: '1rem',
-              textAlign: 'left',
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>Add your app</h3>
-            <p
-              style={{
-                color: 'var(--text-secondary)',
-                lineHeight: '1.7',
-                marginTop: '0.5rem',
-              }}
-            >
-              Reply to{' '}
-              <a
-                href={SHOWCASE_DISCUSSION_URL}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: 'var(--accent-color)' }}
-              >
-                the showcase discussion
-              </a>{' '}
-              with the details below and we'll add your app. Prefer a pull
-              request? Add an entry to{' '}
-              <a
-                href={SHOWCASE_GUIDE_URL}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: 'var(--accent-color)' }}
-              >
-                showcase-apps.json
-              </a>
-              . If you have multiple apps, include them in one pull request. You
-              can also email{' '}
-              <a
-                href="mailto:hyo@hyo.dev?subject=OpenIAP Showcase Request&body=App Name:%0AOne-liner:%0AApp Icon (512x512 PNG, attached):%0AStore Links:%0A- iOS: %0A- Android: %0AOpenIAP library:%0AUses IAPKit (yes/no):"
-                style={{ color: 'var(--accent-color)' }}
-              >
-                hyo@hyo.dev
-              </a>
-              .
-            </p>
-            <ul
-              style={{
-                color: 'var(--text-secondary)',
-                lineHeight: '1.9',
-                paddingLeft: '1.2rem',
-                margin: 0,
-              }}
-            >
-              <li>
-                <strong>App name</strong> and a one-line description
-              </li>
-              <li>
-                <strong>App icon</strong> — square, 512×512 PNG (we round the
-                corners and convert it for you)
-              </li>
-              <li>
-                <strong>Store links</strong> — App Store and/or Google Play
-              </li>
-              <li>
-                <strong>Library</strong> you ship with (expo-iap,
-                react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap,
-                godot-iap)
-              </li>
-              <li>
-                <strong>IAPKit</strong> — tell us whether you use it
-              </li>
-            </ul>
-            <p
-              style={{
-                fontSize: '0.85rem',
-                color: 'var(--text-secondary)',
-                marginBottom: 0,
-                marginTop: '1.25rem',
-              }}
-            >
-              Submitted apps are listed with your permission. Ask for an update
-              or removal anytime.
-            </p>
-          </div>
+          <ShowcaseSubmissionGuide />
         </div>
       </section>
     </div>

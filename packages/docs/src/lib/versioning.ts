@@ -1,4 +1,4 @@
-import versionsFile from '../../openiap-versions.json?raw';
+import versionsFile from '../../openiap-versions.json';
 import * as versionMetadata from '../generated/version-metadata.json';
 
 type VersionKey = 'clientProtocol' | 'google' | 'apple';
@@ -10,20 +10,6 @@ const REQUIRED_KEYS: readonly VersionKey[] = [
   'google',
   'apple',
 ] as const;
-
-function parseJson(json: string, label: string): Record<string, unknown> {
-  try {
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    throw new Error(
-      `${label} contains invalid JSON. Check the file for syntax errors.`
-    );
-  }
-}
-
-function parseVersions(json: string): Record<string, unknown> {
-  return parseJson(json, 'openiap-versions.json');
-}
 
 function ensureVersions(data: Record<string, unknown>): VersionRecord {
   return REQUIRED_KEYS.reduce<Partial<VersionRecord>>((accumulator, key) => {
@@ -53,7 +39,6 @@ function readRequiredMetadataString(
   return readRequiredString(versionMetadata[key], label);
 }
 
-const parsedVersions = parseVersions(versionsFile);
 const CLIENT_PROTOCOL_VERSION = readRequiredMetadataString(
   'clientProtocolPackageVersion',
   'clientProtocolPackageVersion'
@@ -124,7 +109,7 @@ if (!KMP_PACKAGE_VERSION) {
   throw new Error('kmp-iap gradle.properties missing libraryVersion');
 }
 
-export const OPENIAP_VERSIONS = Object.freeze(ensureVersions(parsedVersions));
+export const OPENIAP_VERSIONS = Object.freeze(ensureVersions(versionsFile));
 
 /** The two protocols OpenIAP governs. Versions come from each spec's own package manifest. */
 export const OPENIAP_PROTOCOLS = Object.freeze({

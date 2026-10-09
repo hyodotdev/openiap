@@ -43,9 +43,9 @@ bun run typecheck  # Type check
 
 ## Deployment
 
-Deploy production docs from the repository root with `npm run deploy` after
-stable package metadata and release links are public. Use previews during RC
-trains. See the canonical deployment contract below.
+Vercel automatically deploys main's docs, including RC metadata. Manual
+deployment remains available from the root with `npm run deploy`; see the
+canonical deployment contract below.
 
 The docs site is not versioned, so a deployment cuts no tag and creates no
 GitHub Release. Branch guards, version ownership, deploy verification, and the

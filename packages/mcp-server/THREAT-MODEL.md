@@ -8,6 +8,25 @@ open-source servers (hasan2025mcpfirstglance) — sources in
 
 Last reviewed: 2026-08-25.
 
+## Public showcase endpoint
+
+The docs site hosts a separate, stateless MCP endpoint at `openiap.dev/mcp`.
+It does not use IAPKit keys, sessions, or customer storage. Its three tools list
+submission choices, submit an app to a private queue, and read a receipt's status.
+It has no tool for listing private submissions, approving, or rejecting them.
+
+| Threat                                 | Control                                                                                                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unreviewed publication                 | New records always start pending; only the website's GitHub-authenticated maintainer can approve. Reviews atomically require pending status.                             |
+| Contact disclosure                     | Public reads select approved records and remove contact email and consent fields. Receipt lookups return status alone.                                                   |
+| Submission injection                   | Static tool descriptions, strict schema, HTTPS links, explicit ownership consent, and no submitted HTML rendering or arbitrary server-side URL fetches.                  |
+| Anonymous spam and resource exhaustion | 32 KB bodies, persistent per-client and global quotas, expiring HMAC IP buckets, and no MCP session allocation. Configure Vercel Firewall for additional abuse controls. |
+| Forged admin or cross-site review      | Auth.js encrypted sessions, current GitHub account ID allowlist, same-origin review POSTs with a custom header, and no public CORS on admin routes.                      |
+| Secret leakage                         | Storage failures return static errors; database and OAuth credentials remain server-only.                                                                                |
+
+Reviewed 2026-10-09. Tests live in `test/showcase.test.ts` and the docs site's
+`server/showcase.test.ts`; the latter exercises the SQL approval boundary.
+
 ## Creation
 
 | Threat                                                                 | Status                                                                                                                                                                                          |
