@@ -65,7 +65,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit receives that store evidence through verifyPurchase. The paywall, store purchase screen, and app login stay with your app; IAPKit does not replace them.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchase',
-      line: 221,
+      line: 220,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Route tests cover evidence parsing and errors with mocked store calls; they do not perform a mobile purchase.',
@@ -88,7 +88,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The handler sends evidence to the Apple, Google, Meta, or Amazon verifier and returns the same isValid answer. Store-specific work stays behind this call.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchaseVerdict',
-      line: 169,
+      line: 168,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'The route suite checks unreachable verification and retry behavior using mocked store I/O.',
@@ -203,7 +203,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'subscriptionStatusV2 selects a subscription and applies the same access deadline. The protocol handler turns that record into the shared response shape.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'subscriptionStatusV2',
-      line: 317,
+      line: 315,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The contract vectors compare status and access over REST and GraphQL with an in-memory database substitute.',
@@ -226,7 +226,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The delivery worker sends signed events to registered backend HTTPS endpoints and records attempts. Your receiver owns duplicate handling; the example shows how to build that side.',
       file: 'convex/commerce/delivery.ts',
       symbol: 'deliverPendingEventsHandler',
-      line: 168,
+      line: 167,
       checkFile: 'convex/commerce/delivery.test.ts',
       check:
         'Worker tests check signed requests, transport failures, and destination validation with test I/O.',
@@ -249,7 +249,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'eraseUser starts a project-scoped job. The worker removes identity from purchases, subscriptions, and events in batches, waiting for claimed deliveries before cleaning those events.',
       file: 'convex/subscriptions/internal.ts',
       symbol: 'drainSubscriptionUserErasurePage',
-      line: 1468,
+      line: 1453,
       checkFile: 'convex/subscriptions/mutation.test.ts',
       check:
         'Erasure request tests cover server authorization and repeated requests, including already completed jobs.',
@@ -295,7 +295,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit declares profiles, both API bindings, and support per store. IAPKit emits subscription events for Apple and Google, not yet for Meta or Amazon. Read the descriptor before choosing a store integration.',
       file: 'convex/commerce/capabilities.ts',
       symbol: 'PROVIDER_CAPABILITIES',
-      line: 36,
+      line: 34,
       checkFile: 'convex/commerce/spec.conformance.test.ts',
       check:
         'Capability tests compare the served descriptor, store mappings, and implementation declarations.',
@@ -364,7 +364,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The published conformance runner calls IAPKit’s real REST and GraphQL routes against fixture store/database I/O. Separate worker and mutation tests cover persistence responsibilities.',
       file: 'server/api/commerce/conformance.test.ts',
       symbol: 'IAPKit dual-binding conformance',
-      line: 307,
+      line: 559,
       checkFile: 'convex/commerce/spec.conformance.test.ts',
       check:
         'Run bun run test -- server/api/commerce/conformance.test.ts convex/commerce/spec.conformance.test.ts from packages/kit. These are local contract checks, not live store tests.',
