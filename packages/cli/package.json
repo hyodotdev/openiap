@@ -1,6 +1,6 @@
 {
   "name": "@hyodotdev/openiap",
-  "version": "0.2.0-rc.0",
+  "version": "0.2.0",
   "description": "Start an OpenIAP integration with AI and check local purchase configuration",
   "keywords": [
     "openiap",

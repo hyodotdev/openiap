@@ -18,14 +18,14 @@
     },
     "packages/apple": {
       "name": "@hyodotdev/openiap-ios",
-      "version": "4.0.0-rc.1",
+      "version": "4.0.0",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },
     },
     "packages/cli": {
       "name": "@hyodotdev/openiap",
-      "version": "0.2.0-rc.0",
+      "version": "0.2.0",
       "bin": {
         "openiap": "bin/openiap.mjs",
       },
@@ -90,7 +90,7 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "4.0.0-rc.1",
+      "version": "4.0.0",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },
