@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T05:56:30.177Z
+> Last updated: 2026-10-09T06:10:28.044Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
