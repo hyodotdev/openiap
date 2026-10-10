@@ -24,10 +24,23 @@ internal val SubscriptionProductIds = listOf(
 
 internal val AllProductIds = InAppProductIds + SubscriptionProductIds
 
+private const val AmazonSubscriptionBaseId = "dev.hyo.martie.premium.base"
+internal val SubscriptionQueryIds = SubscriptionProductIds + AmazonSubscriptionBaseId
+
+internal fun subscriptionProductId(productId: String, currentPlanId: String?): String? = when {
+    productId in SubscriptionProductIds -> productId
+    productId == AmazonSubscriptionBaseId && currentPlanId in SubscriptionProductIds -> currentPlanId
+    else -> null
+}
+
+internal fun subscriptionProductId(purchase: Purchase): String? =
+    if (purchase.productId in SubscriptionProductIds || verificationStore(purchase) == IapStore.Amazon)
+        subscriptionProductId(purchase.productId, purchase.currentPlanId) else null
+
 // These term-to-base IDs belong to Martie's Amazon catalog.
 internal fun verificationProductId(productId: String, store: IapStore): String =
     if (store == IapStore.Amazon && productId in SubscriptionProductIds)
-        "dev.hyo.martie.premium.base" else productId
+        AmazonSubscriptionBaseId else productId
 
 // Only this known community adapter uses Amazon's server verification.
 internal fun verificationStore(purchase: Purchase): IapStore =

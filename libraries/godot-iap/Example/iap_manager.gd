@@ -137,14 +137,24 @@ func _purchase_to_dict(purchase: Variant) -> Dictionary:
 
 
 func _purchase_product_id(purchase: Variant, purchase_dict: Dictionary) -> String:
-	if purchase_dict.has("productId") and purchase_dict["productId"] != null:
-		return str(purchase_dict["productId"])
-	if purchase_dict.has("product_id") and purchase_dict["product_id"] != null:
-		return str(purchase_dict["product_id"])
-	if typeof(purchase) == TYPE_OBJECT and purchase != null:
-		var product_id = purchase.get("product_id")
-		if product_id != null:
-			return str(product_id)
+	var product_id := _string_field(purchase_dict, ["productId", "product_id"])
+	if product_id.is_empty() and typeof(purchase) == TYPE_OBJECT and purchase != null:
+		product_id = _string_field(purchase, ["product_id"])
+	if _verification_store(purchase_dict) == "amazon":
+		var term_id := _subscription_product_id(product_id, _string_field(purchase_dict, ["currentPlanId", "current_plan_id"]))
+		if not term_id.is_empty():
+			return term_id
+	return product_id
+
+
+func _subscription_product_id(product_id: String, plan_id: String) -> String:
+	if product_id in [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]:
+		return product_id
+	if plan_id not in [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]:
+		return ""
+	var item: Dictionary = _amazon_catalog.get(plan_id, {})
+	if item.get("itemType") == "SUBSCRIPTION" and product_id == item.get("subscriptionBase"):
+		return plan_id
 	return ""
 
 
@@ -222,7 +232,7 @@ func _process_products(products_array: Array) -> void:
 
 
 func _on_purchase_updated(purchase: Dictionary) -> void:
-	var product_id: String = purchase.get("productId", "")
+	var product_id := _purchase_product_id(purchase, purchase)
 	var purchase_state: String = purchase.get("purchaseState", "")
 	var transaction_id: String = purchase.get("transactionId", purchase.get("id", ""))
 	if product_id not in [PRODUCT_10_BULBS, PRODUCT_30_BULBS, PRODUCT_CERTIFIED, PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]:
@@ -269,7 +279,7 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 			return
 
 		if product_id in [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]:
-			_verified_subscription_receipts[_subscription_receipt_identity(purchase)] = true
+			_verified_subscription_receipts[_subscription_receipt_identity(purchase)] = product_id
 		purchase_completed.emit(product_id)
 
 
@@ -644,16 +654,23 @@ func reconcile_subscription_entitlements() -> bool:
 
 func _reconcile_subscription_entitlements() -> bool:
 	var ids: Array[String] = [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]
+	# Amazon restore reports the shared base and the exact term in currentPlanId.
+	for term_id in ids.duplicate():
+		var item: Dictionary = _amazon_catalog.get(term_id, {})
+		var base_id: String = item.get("subscriptionBase", "")
+		if not base_id.is_empty() and base_id not in ids:
+			ids.append(base_id)
 	var result := await GodotIapPlugin.get_active_subscriptions_result(ids)
 	if not result.get("success", false):
 		push_warning("Subscription query failed; existing entitlements retained")
 		return false
 	var active := {}
 	for subscription in result.get("subscriptions", []):
-		if subscription.product_id in ids and subscription.is_active and not subscription.transaction_id.is_empty():
-			if not active.has(subscription.product_id):
-				active[subscription.product_id] = []
-			active[subscription.product_id].append(subscription.transaction_id)
+		var term_id := _subscription_product_id(subscription.product_id, _string_field(subscription, ["current_plan_id"]))
+		if not term_id.is_empty() and subscription.is_active and not subscription.transaction_id.is_empty():
+			if not active.has(term_id):
+				active[term_id] = []
+			active[term_id].append(subscription.transaction_id)
 	var next := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
 	if not active.is_empty():
 		var available := await GodotIapPlugin.get_available_purchases_result()
@@ -666,13 +683,13 @@ func _reconcile_subscription_entitlements() -> bool:
 			var transaction_id := str(data.get("transactionId", data.get("id", "")))
 			if not transaction_id in active.get(id, []) or receipt_id.is_empty() or data.get("purchaseState", "") != "purchased":
 				continue
-			if not _verified_subscription_receipts.has(receipt_id):
-				if _purchase_is_acknowledged(receipt, data):
+			if _verified_subscription_receipts.get(receipt_id) != id:
+				if _purchase_is_acknowledged(receipt, data) or _processed_transactions.has(transaction_id):
 					if await _verify_purchase(data, id):
-						_verified_subscription_receipts[receipt_id] = true
+						_verified_subscription_receipts[receipt_id] = id
 				else:
 					await _on_purchase_updated(data)
-			next[id] = next[id] or _verified_subscription_receipts.has(receipt_id)
+			next[id] = next[id] or _verified_subscription_receipts.get(receipt_id) == id
 	# A purchase or resume during these queries needs a fresh ownership snapshot.
 	if _subscription_refresh_requested:
 		return false

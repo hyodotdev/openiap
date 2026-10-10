@@ -101,7 +101,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     val handledPurchaseIds = remember { mutableSetOf<String>() }
     fun handlePurchased(purchase: Purchase) {
         val method = verificationMethod
-        if (purchase.productId !in SUBSCRIPTION_IDS) return
+        if (subscriptionProductId(purchase) !in SUBSCRIPTION_IDS) return
         isProcessing = false
         if (method == VerificationMethod.None) {
             purchaseResult = "Receipt retained. Choose verification to retry this receipt."
@@ -219,8 +219,12 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     finished = true
                     purchaseResult = "$purchaseSummary\n\n✅ Transaction finished successfully"
 
-                    activeSubscriptions = kmpIapInstance.getActiveSubscriptions(SUBSCRIPTION_IDS)
-                    hasActiveSubscription = kmpIapInstance.hasActiveSubscriptions(SUBSCRIPTION_IDS)
+                    activeSubscriptions = kmpIapInstance.getActiveSubscriptions(SubscriptionQueryIds).mapNotNull { subscription ->
+                        subscriptionProductId(subscription.productId, subscription.currentPlanId)?.let {
+                            subscription.copy(productId = it)
+                        }
+                    }
+                    hasActiveSubscription = activeSubscriptions.any { it.isActive }
                 } catch (e: Exception) {
                     purchaseResult = "$purchaseSummary\n\n❌ Failed to finish transaction: ${e.message}"
                 }
@@ -250,7 +254,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         launch {
             kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
-                if (purchase.productId !in SUBSCRIPTION_IDS) return@collect
+                if (subscriptionProductId(purchase) !in SUBSCRIPTION_IDS) return@collect
                 currentPurchase = purchase
 
                 when (purchase.purchaseState) {
@@ -301,19 +305,14 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 // Load active subscriptions and subscription products in parallel
                 val activeSubscriptionsDeferred = async {
                     try {
-                        kmpIapInstance.getActiveSubscriptions(SUBSCRIPTION_IDS)
+                        kmpIapInstance.getActiveSubscriptions(SubscriptionQueryIds).mapNotNull { subscription ->
+                            subscriptionProductId(subscription.productId, subscription.currentPlanId)?.let {
+                                subscription.copy(productId = it)
+                            }
+                        }
                     } catch (e: Exception) {
                         println("Failed to get active subscriptions: ${e.message}")
                         emptyList()
-                    }
-                }
-                
-                val hasActiveSubDeferred = async {
-                    try {
-                        kmpIapInstance.hasActiveSubscriptions(SUBSCRIPTION_IDS)
-                    } catch (e: Exception) {
-                        println("Failed to check active subscriptions: ${e.message}")
-                        false
                     }
                 }
                 
@@ -337,17 +336,13 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 // Wait for all results with timeout
                 val results = withTimeoutOrNull(10000) {
-                    Triple(
-                        activeSubscriptionsDeferred.await(),
-                        hasActiveSubDeferred.await(),
-                        subscriptionProductsDeferred.await()
-                    )
-                } ?: Triple(emptyList(), false, emptyList())
+                    Pair(activeSubscriptionsDeferred.await(), subscriptionProductsDeferred.await())
+                } ?: Pair(emptyList(), emptyList())
                 
                 // Process results
                 activeSubscriptions = results.first
-                hasActiveSubscription = results.second
-                val subscriptionProducts = results.third
+                hasActiveSubscription = activeSubscriptions.any { it.isActive }
+                val subscriptionProducts = results.second
                 
                 // Process subscription products
                 subscriptions = subscriptionProducts

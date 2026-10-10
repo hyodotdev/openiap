@@ -19,10 +19,23 @@ object IapkitConfig {
     /** Amazon App Tester receipts only verify against the RVS Cloud Sandbox. */
     val amazonRvsSandbox: Boolean = BuildConfig.AMAZON_RVS_SANDBOX
 
+    private const val amazonSubscriptionBaseId = "dev.hyo.martie.premium.base"
+    val subscriptionQueryIds = IapConstants.SUBS_SKUS + amazonSubscriptionBaseId
+
+    fun subscriptionProductId(productId: String, currentPlanId: String?): String? = when {
+        productId in IapConstants.SUBS_SKUS -> productId
+        productId == amazonSubscriptionBaseId && currentPlanId in IapConstants.SUBS_SKUS -> currentPlanId
+        else -> null
+    }
+
+    fun subscriptionProductId(purchase: PurchaseAndroid): String? =
+        if (purchase.productId in IapConstants.SUBS_SKUS || verificationStore(purchase) == IapStore.Amazon)
+            subscriptionProductId(purchase.productId, purchase.currentPlanId) else null
+
     // These term-to-base IDs belong to Martie's Amazon catalog.
     fun verificationProductId(productId: String, store: IapStore): String =
         if (store == IapStore.Amazon && productId in IapConstants.SUBS_SKUS)
-            "dev.hyo.martie.premium.base" else productId
+            amazonSubscriptionBaseId else productId
 
     fun verificationStore(purchase: PurchaseAndroid): IapStore =
         if (purchase.store == IapStore.Unknown && purchase.storeId == "amazon_example")

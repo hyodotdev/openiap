@@ -5,6 +5,8 @@ import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -75,4 +77,20 @@ class IapkitConfigTest {
         val google = subscription.copy(store = IapStore.Google, storeId = "play")
         assertTrue(IapkitConfig.acceptsVerification(verified(purchase = google, state = IapkitPurchaseState.PendingAcknowledgment), google))
     }
+    @Test fun restoredAmazonSubscriptionsResolveOnlyTheirExactTerm() {
+        for (term in listOf("dev.hyo.martie.premium", "dev.hyo.martie.premium_year")) {
+            for ((store, storeId) in listOf(IapStore.Amazon to "amazon", IapStore.Unknown to "amazon_example")) {
+                val restored = subscription.copy(productId = "dev.hyo.martie.premium.base", currentPlanId = term, store = store, storeId = storeId)
+                assertEquals(term, IapkitConfig.subscriptionProductId(restored))
+                assertEquals("dev.hyo.martie.premium.base", restored.productId)
+                assertTrue(IapkitConfig.acceptsVerification(verified(purchase = restored), restored))
+                assertNull(IapkitConfig.subscriptionProductId(restored.copy(currentPlanId = null)))
+                assertNull(IapkitConfig.subscriptionProductId(restored.copy(currentPlanId = "foreign.term")))
+                assertNull(IapkitConfig.subscriptionProductId(restored.copy(store = IapStore.Unknown, storeId = "foreign")))
+            }
+        }
+        assertTrue("dev.hyo.martie.premium.base" in IapkitConfig.subscriptionQueryIds)
+        assertEquals(subscription.productId, IapkitConfig.subscriptionProductId(subscription.copy(store = IapStore.Google, storeId = "play", currentPlanId = "premium-year")))
+    }
+
 }

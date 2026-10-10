@@ -44,6 +44,8 @@ import {
   getDirectVerificationError,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
+  getSubscriptionProductId,
+  getSubscriptionQueryIds,
   rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
   showNativeAlert,
@@ -70,11 +72,15 @@ type ExtendedPurchase = Purchase & {
   offerToken?: string;
 };
 
-function isSubscriptionFlowProduct(productId: string): boolean {
-  return SUBSCRIPTION_PRODUCT_IDS.some(
-    (subscriptionId) =>
-      productId === subscriptionId ||
-      productId.startsWith(`${subscriptionId}.`),
+function isSubscriptionFlowProduct(purchase: Purchase): boolean {
+  const productId = getSubscriptionProductId(
+    purchase.productId,
+    purchase.currentPlanId,
+    purchase.store,
+    purchase.storeId,
+  );
+  return (
+    productId !== undefined && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
   );
 }
 
@@ -192,7 +198,9 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
     // Android uses base plans within the same product
     activeSub = premiumSubs[0];
     const extendedSub = activeSub as ExtendedActiveSubscription;
-    if (extendedSub.basePlanId) {
+    if (activeSub?.productId === 'dev.hyo.martie.premium_year') {
+      currentBasePlan = 'premium-year';
+    } else if (extendedSub.basePlanId) {
       currentBasePlan = extendedSub.basePlanId;
     } else if (lastPurchasedPlan) {
       currentBasePlan = lastPurchasedPlan;
@@ -799,7 +807,13 @@ function SubscriptionFlow({
 
       {activeSubscriptions.length > 0 && (
         <View style={[styles.section, styles.statusSection]}>
-          <Text style={styles.sectionTitle}>Current Subscription Status</Text>
+          <Text style={styles.sectionTitle}>
+            Store-reported Subscription Status
+          </Text>
+          <Text style={styles.statusLabel}>
+            Store ownership is not server verification. Grant access only after
+            successful verification.
+          </Text>
           <View style={styles.statusCard}>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Status:</Text>
@@ -866,15 +880,12 @@ function SubscriptionFlow({
                     extendedSub.isUpgradedIOS,
                   );
 
-                  if (Platform.OS === 'ios') {
-                    // iOS: Detect based on product ID
-                    if (sub.productId === 'dev.hyo.martie.premium_year') {
-                      detectedBasePlanId = 'premium-year';
-                      activeOfferLabel = '📅 Yearly Plan';
-                    } else {
-                      detectedBasePlanId = 'premium';
-                      activeOfferLabel = '📆 Monthly Plan';
-                    }
+                  if (sub.productId === 'dev.hyo.martie.premium_year') {
+                    detectedBasePlanId = 'premium-year';
+                    activeOfferLabel = '📅 Yearly Plan';
+                  } else if (Platform.OS === 'ios') {
+                    detectedBasePlanId = 'premium';
+                    activeOfferLabel = '📆 Monthly Plan';
                   } else {
                     // Android: Try to detect the base plan from various sources
                     // Method 1: Check if basePlanId is directly available from native
@@ -1134,12 +1145,20 @@ function SubscriptionFlow({
           </View>
 
           {/* Upgrade/Downgrade button for Android only */}
-          <PlanChangeControls
-            activeSubscriptions={activeSubscriptions}
-            handlePlanChange={handlePlanChange}
-            isProcessing={isProcessing}
-            lastPurchasedPlan={lastPurchasedPlan}
-          />
+          {subscriptions.some((subscription) =>
+            subscription.subscriptionOffers?.some(
+              (offer) =>
+                offer.basePlanIdAndroid === 'premium' ||
+                offer.basePlanIdAndroid === 'premium-year',
+            ),
+          ) && (
+            <PlanChangeControls
+              activeSubscriptions={activeSubscriptions}
+              handlePlanChange={handlePlanChange}
+              isProcessing={isProcessing}
+              lastPurchasedPlan={lastPurchasedPlan}
+            />
+          )}
 
           <TouchableOpacity
             style={styles.refreshButton}
@@ -1590,7 +1609,7 @@ function SubscriptionFlowContainer() {
 
     console.log('Purchase successful:', purchase.productId);
     const productId = purchase.productId ?? '';
-    if (!isSubscriptionFlowProduct(productId)) {
+    if (!isSubscriptionFlowProduct(purchase)) {
       console.log('[SubscriptionFlow] ignoring non-subscription product:', {
         productId,
       });
@@ -1618,14 +1637,14 @@ function SubscriptionFlowContainer() {
             purchaseCleanupKey,
           );
           if (shouldRefreshAfterRemount && mountedRef.current) {
-            void getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS).catch(
-              (error) => {
-                console.log(
-                  'Failed to refresh subscriptions after remount:',
-                  getErrorMessage(error),
-                );
-              },
-            );
+            void getActiveSubscriptions(
+              getSubscriptionQueryIds(SUBSCRIPTION_PRODUCT_IDS),
+            ).catch((error) => {
+              console.log(
+                'Failed to refresh subscriptions after remount:',
+                getErrorMessage(error),
+              );
+            });
           }
         } else if (result === 'abandoned' && mountedRef.current) {
           void dispatchPurchaseSuccess(purchase);
@@ -1658,8 +1677,22 @@ function SubscriptionFlowContainer() {
     };
     inFlightSubscriptionTasks.set(purchaseCleanupKey, task);
 
-    // Try to detect which plan was purchased
-    if (Platform.OS === 'ios') {
+    const subscriptionProductId = getSubscriptionProductId(
+      purchase.productId,
+      purchase.currentPlanId,
+      purchase.store,
+      purchase.storeId,
+    );
+    if (
+      purchase.store === 'amazon' ||
+      (purchase.store === 'unknown' && purchase.storeId === 'amazon_example')
+    ) {
+      if (subscriptionProductId === 'dev.hyo.martie.premium_year') {
+        setLastPurchasedPlan('premium-year');
+      } else if (subscriptionProductId === 'dev.hyo.martie.premium') {
+        setLastPurchasedPlan('premium');
+      }
+    } else if (Platform.OS === 'ios') {
       // iOS uses separate products
       if (purchase.productId === 'dev.hyo.martie.premium_year') {
         setLastPurchasedPlan('premium-year');
@@ -1916,7 +1949,9 @@ function SubscriptionFlowContainer() {
       if (!mountedRef.current) return;
 
       try {
-        await getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS);
+        await getActiveSubscriptions(
+          getSubscriptionQueryIds(SUBSCRIPTION_PRODUCT_IDS),
+        );
       } catch (error) {
         console.log('Failed to refresh subscriptions:', getErrorMessage(error));
       }
@@ -1981,7 +2016,7 @@ function SubscriptionFlowContainer() {
     connected,
     subscriptions,
     availablePurchases,
-    activeSubscriptions,
+    activeSubscriptions: storeActiveSubscriptions,
     fetchProducts,
     finishTransaction,
     getAvailablePurchases,
@@ -2018,6 +2053,20 @@ function SubscriptionFlowContainer() {
       showNativeAlert('Subscription Failed', error.message);
     },
   });
+
+  const activeSubscriptions = useMemo(
+    () =>
+      storeActiveSubscriptions.flatMap((subscription) => {
+        const productId = getSubscriptionProductId(
+          subscription.productId,
+          subscription.currentPlanId,
+        );
+        return productId && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
+          ? [{...subscription, productId}]
+          : [];
+      }),
+    [storeActiveSubscriptions],
+  );
 
   useLayoutEffect(() => {
     mountedRef.current = true;
@@ -2101,7 +2150,7 @@ function SubscriptionFlowContainer() {
 
     for (const purchase of availablePurchases) {
       const productId = purchase.productId ?? '';
-      if (!isSubscriptionFlowProduct(productId)) {
+      if (!isSubscriptionFlowProduct(purchase)) {
         console.log(
           '[SubscriptionFlow] skipping cleanup for non-subscription product:',
           {productId},

@@ -3,6 +3,43 @@ import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase_example/src/constants.dart';
 
 void main() {
+  test(
+      'restored Amazon terms require exact catalog metadata and provider identity',
+      () {
+    for (final term in IapConstants.subscriptionProductIds) {
+      for (final store in [IapStore.Amazon, IapStore.Unknown]) {
+        PurchaseAndroid restored({String? planId, String? storeId}) =>
+            PurchaseAndroid(
+              id: 'restored-receipt',
+              productId: IapConstants.amazonSubscriptionBaseId,
+              currentPlanId: planId,
+              purchaseToken: 'restored-receipt',
+              purchaseState: PurchaseState.Purchased,
+              transactionDate: 1,
+              quantity: 1,
+              isAutoRenewing: true,
+              store: store,
+              storeId: storeId ??
+                  (store == IapStore.Amazon ? 'amazon' : 'amazon_example'),
+            );
+        final receipt = restored(planId: term);
+        expect(IapConstants.subscriptionProductId(receipt), term);
+        expect(receipt.productId, IapConstants.amazonSubscriptionBaseId);
+        expect(IapConstants.subscriptionProductId(restored()), isNull);
+        expect(
+            IapConstants.subscriptionProductId(
+                restored(planId: 'foreign.term')),
+            isNull);
+        if (store == IapStore.Unknown) {
+          expect(
+              IapConstants.subscriptionProductId(
+                  restored(planId: term, storeId: 'foreign')),
+              isNull);
+        }
+      }
+    }
+  });
+
   for (final sku in IapConstants.subscriptionProductIds) {
     test('Amazon term $sku must match its catalog base and active state', () {
       final purchase = PurchaseAndroid(

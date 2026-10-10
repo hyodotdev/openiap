@@ -187,12 +187,13 @@ fun SubscriptionFlowScreen(
     LaunchedEffect(androidPurchases) {
         val map = mutableMapOf<String, SubscriptionUiInfo>()
         androidPurchases
-            .filter { it.productId in subscriptionSkus }
+            .filter { IapkitConfig.subscriptionProductId(it) in subscriptionSkus }
             .forEach { purchase ->
                 val token = purchase.purchaseToken ?: return@forEach
-                val info = fetchSubStatusFromServer(purchase.productId, token)
+                val productId = IapkitConfig.subscriptionProductId(purchase) ?: return@forEach
+                val info = fetchSubStatusFromServer(productId, token)
                 if (info != null) {
-                    map[purchase.productId] = info.copy(autoRenewing = purchase.isAutoRenewing)
+                    map[productId] = info.copy(autoRenewing = purchase.isAutoRenewing)
                 }
             }
         subStatus = map
@@ -568,7 +569,7 @@ fun SubscriptionFlowScreen(
             // Active Subscriptions Section
             // Only show purchased subscriptions (filter out pending, failed, etc.)
             val activeSubscriptions = androidPurchases.filter {
-                it.productId in subscriptionSkus &&
+                IapkitConfig.subscriptionProductId(it) in subscriptionSkus &&
                     it.purchaseState == PurchaseState.Purchased
             }
             if (activeSubscriptions.isNotEmpty()) {
@@ -577,17 +578,18 @@ fun SubscriptionFlowScreen(
                 }
 
                 items(activeSubscriptions) { subscription ->
+                    val subscriptionProductId = IapkitConfig.subscriptionProductId(subscription) ?: return@items
                     // Platform-specific premium subscription detection
                     val isPremium = if (isHorizon) {
                         // Horizon: Both premium and premium_year are premium subscriptions
-                        subscription.productId == IapConstants.PREMIUM_PRODUCT_ID ||
-                        subscription.productId == IapConstants.PREMIUM_YEARLY_PRODUCT_ID_PLAY
+                        subscriptionProductId == IapConstants.PREMIUM_PRODUCT_ID ||
+                        subscriptionProductId == IapConstants.PREMIUM_YEARLY_PRODUCT_ID_PLAY
                     } else {
                         // Play: Only premium product ID (premium_year is separate)
-                        subscription.productId == IapConstants.PREMIUM_PRODUCT_ID
+                        subscriptionProductId == IapConstants.PREMIUM_PRODUCT_ID
                     }
-                    val isPremiumYearlyPlay = subscription.productId == IapConstants.PREMIUM_YEARLY_PRODUCT_ID_PLAY
-                    val info = subStatus[subscription.productId]
+                    val isPremiumYearlyPlay = subscriptionProductId == IapConstants.PREMIUM_YEARLY_PRODUCT_ID_PLAY
+                    val info = subStatus[subscriptionProductId]
                     val fmt = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault())
                     val statusText = when {
                         info?.freeTrialEndDate != null ->
@@ -611,7 +613,7 @@ fun SubscriptionFlowScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             ActiveSubscriptionListItem(
-                                purchase = subscription,
+                                purchase = subscription.copy(productId = subscriptionProductId),
                                 statusText = statusText,
                                 onClick = { selectedPurchase = subscription }
                             )
@@ -835,7 +837,7 @@ fun SubscriptionFlowScreen(
                             }
 
                             // Play Store: Show upgrade/downgrade option for dev.hyo.martie.premium subscription offers
-                            if (!isHorizon && subscription.productId == PREMIUM_SUBSCRIPTION_PRODUCT_ID) {
+                            if (!isHorizon && subscriptionProductId == PREMIUM_SUBSCRIPTION_PRODUCT_ID) {
                                 // Find the subscription product with offers
                                 val premiumSub = androidSubscriptions.find { it.id == PREMIUM_SUBSCRIPTION_PRODUCT_ID }
 
@@ -1084,10 +1086,10 @@ fun SubscriptionFlowScreen(
                     ProductCard(
                         product = product,
                         isPurchasing = status.isPurchasing(product.id),
-                        isSubscribed = androidPurchases.any { it.productId == product.id && it.purchaseState == PurchaseState.Purchased },
+                        isSubscribed = androidPurchases.any { IapkitConfig.subscriptionProductId(it) == product.id && it.purchaseState == PurchaseState.Purchased },
                         onPurchase = {
                             // Check if already subscribed to this product
-                            val alreadySubscribed = androidPurchases.any { it.productId == product.id && it.purchaseState == PurchaseState.Purchased }
+                            val alreadySubscribed = androidPurchases.any { IapkitConfig.subscriptionProductId(it) == product.id && it.purchaseState == PurchaseState.Purchased }
                             if (alreadySubscribed) {
                                 iapStore.postStatusMessage(
                                     message = "Already subscribed to ${product.id}",
@@ -1101,8 +1103,8 @@ fun SubscriptionFlowScreen(
                             // Note: In Horizon, purchasing Tier 1 (premium) automatically upgrades to Tier 2 (premium_year)
                             val otherPremiumSubscription = androidPurchases.find { purchase ->
                                 purchase.purchaseState == PurchaseState.Purchased &&
-                                purchase.productId in listOf(IapConstants.PREMIUM_PRODUCT_ID, IapConstants.PREMIUM_YEARLY_PRODUCT_ID_PLAY) &&
-                                purchase.productId != product.id
+                                IapkitConfig.subscriptionProductId(purchase) in listOf(IapConstants.PREMIUM_PRODUCT_ID, IapConstants.PREMIUM_YEARLY_PRODUCT_ID_PLAY) &&
+                                IapkitConfig.subscriptionProductId(purchase) != product.id
                             }
 
                             scope.launch {
@@ -1298,7 +1300,7 @@ fun SubscriptionFlowScreen(
     }
 
     suspend fun handlePurchased(purchase: PurchaseAndroid) {
-        if (purchase.productId !in subscriptionSkus) return
+        if (IapkitConfig.subscriptionProductId(purchase) !in subscriptionSkus) return
         val method = verificationMethod
         if (method == VerificationMethod.None || method == VerificationMethod.Local) {
             verificationResultMessage = "Receipt retained. Choose IAPKit verification to retry this receipt."
@@ -1462,7 +1464,7 @@ fun SubscriptionFlowScreen(
             // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
             println("SubscriptionFlow: Testing getActiveSubscriptions...")
             try {
-                val activeSubscriptions = iapStore.getActiveSubscriptions(subscriptionSkus)
+                val activeSubscriptions = iapStore.getActiveSubscriptions(IapkitConfig.subscriptionQueryIds)
                 println("SubscriptionFlow: getActiveSubscriptions returned ${activeSubscriptions.size} subscriptions")
                 activeSubscriptions.forEach { sub ->
                     println("  - ${sub.productId}: active=${sub.isActive}, autoRenew=${sub.autoRenewingAndroid}")

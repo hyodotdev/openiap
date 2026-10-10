@@ -45,7 +45,8 @@ const mockVerifyPurchaseWithProvider = jest
   )
   .mockName('verifyPurchaseWithProvider');
 let mockOnPurchaseSuccess:
-  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
+  | ((purchase: Record<string, unknown>) => Promise<void> | void)
+  | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
   id: 'dev.hyo.martie.premium',
@@ -110,7 +111,9 @@ jest.mock('../../src', () => ({
   },
 }));
 
-const SubscriptionFlow = require('../app/subscription-flow').default;
+const SubscriptionFlow = jest.requireActual<
+  typeof import('../app/subscription-flow')
+>('../app/subscription-flow').default;
 
 async function renderConnectedSubscriptionFlow() {
   const result = await render(<SubscriptionFlow />);
@@ -327,7 +330,7 @@ describe('SubscriptionFlow Component', () => {
     });
 
     const {getByText} = await renderConnectedSubscriptionFlow();
-    expect(getByText('Current Subscription Status')).toBeDefined();
+    expect(getByText('Store-reported Subscription Status')).toBeDefined();
     expect(getByText('✅ Active')).toBeDefined();
     expect(getByText('dev.hyo.martie.premium')).toBeDefined();
   });
@@ -403,9 +406,29 @@ describe('SubscriptionFlow Component', () => {
     });
 
     const {getByText} = await renderConnectedSubscriptionFlow();
-    // The status section should be present when there are active subscriptions
-    expect(getByText('Current Subscription Status')).toBeDefined();
+    expect(getByText('Store-reported Subscription Status')).toBeDefined();
     expect(getByText('✅ Active')).toBeDefined();
+  });
+
+  it('displays a restored Amazon yearly term without inventing renewal or completing it', async () => {
+    Platform.OS = 'android';
+    mockUseIAP.mockReturnValue({
+      ...mockUseIAP(),
+      activeSubscriptions: [
+        {
+          productId: 'dev.hyo.martie.premium.base',
+          currentPlanId: 'dev.hyo.martie.premium_year',
+          isActive: true,
+          autoRenewingAndroid: null,
+        },
+      ],
+    });
+
+    const {getByText, queryByText} = await renderConnectedSubscriptionFlow();
+    expect(getByText('dev.hyo.martie.premium_year')).toBeDefined();
+    expect(getByText('Unknown; check your backend')).toBeDefined();
+    expect(queryByText('⚠️ Cancelled')).toBeNull();
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
   });
 
   it('should show no subscriptions message when empty', async () => {

@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -45,6 +46,7 @@ import {
   getDirectVerificationError,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
+  getSubscriptionProductId,
   rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
   showNativeAlert,
@@ -70,11 +72,15 @@ const getSubscriptionTier = (productId: string): number => {
   return TIER_MAP[productId] ?? 0;
 };
 
-function isSubscriptionFlowProduct(productId: string): boolean {
-  return SUBSCRIPTION_PRODUCT_IDS.some(
-    (subscriptionId) =>
-      productId === subscriptionId ||
-      productId.startsWith(`${subscriptionId}.`),
+function isSubscriptionFlowProduct(purchase: Purchase): boolean {
+  const productId = getSubscriptionProductId(
+    purchase.productId,
+    purchase.currentPlanId,
+    purchase.store,
+    purchase.storeId,
+  );
+  return (
+    productId !== undefined && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
   );
 }
 
@@ -174,7 +180,6 @@ function SubscriptionFlow({
       }
       return best;
     }, activeSubs[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSubscriptions]);
 
   // Check if subscription is cancelled (active but won't auto-renew)
@@ -279,8 +284,8 @@ function SubscriptionFlow({
         message: canUpgrade
           ? 'Upgrade available'
           : isDowngrade
-            ? 'Downgrade option'
-            : undefined,
+          ? 'Downgrade option'
+          : undefined,
       };
     },
     [getCurrentSubscription, isCancelled],
@@ -716,10 +721,10 @@ function SubscriptionFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                  ? 'Local (Device)'
-                  : verificationMethod === 'iapkit-localhost'
-                    ? 'Local (IAPKit)'
-                    : 'IAPKit'}
+                ? 'Local (Device)'
+                : verificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonIcon}>▼</Text>
           </TouchableOpacity>
@@ -729,7 +734,13 @@ function SubscriptionFlow({
       {/* Subscription Status Section - Using library's activeSubscriptions */}
       {activeSubscriptions.length > 0 ? (
         <View style={[styles.section, styles.statusSection]}>
-          <Text style={styles.sectionTitle}>Current Subscription Status</Text>
+          <Text style={styles.sectionTitle}>
+            Store-reported Subscription Status
+          </Text>
+          <Text style={styles.statusLabel}>
+            Store ownership is not server verification. Grant access only after
+            successful verification.
+          </Text>
           <View style={styles.statusCard}>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Status:</Text>
@@ -782,12 +793,18 @@ function SubscriptionFlow({
                     <Text
                       style={[
                         styles.statusValue,
-                        sub.autoRenewingAndroid
+                        sub.autoRenewingAndroid === true
                           ? styles.activeStatus
-                          : styles.cancelledStatus,
+                          : sub.autoRenewingAndroid === false
+                          ? styles.cancelledStatus
+                          : undefined,
                       ]}
                     >
-                      {sub.autoRenewingAndroid ? '✅ Enabled' : '⚠️ Cancelled'}
+                      {sub.autoRenewingAndroid === true
+                        ? '✅ Enabled'
+                        : sub.autoRenewingAndroid === false
+                        ? '⚠️ Cancelled'
+                        : 'Unknown; check your backend'}
                     </Text>
                   </View>
                 ) : null}
@@ -883,7 +900,7 @@ function SubscriptionFlow({
             ))}
 
             {Platform.OS === 'android' &&
-            activeSubscriptions.some((s) => !s.autoRenewingAndroid) ? (
+            activeSubscriptions.some((s) => s.autoRenewingAndroid === false) ? (
               <Text style={styles.warningText}>
                 ⚠️ Your subscription will not auto-renew. You will lose access
                 when the current period ends.
@@ -1354,7 +1371,7 @@ function SubscriptionFlow({
  * 2. subscribeEvent     - Listen for purchase events (onPurchaseSuccess/Error)
  * 3. requestPurchase    - Apple: {sku}, Google: {skus, subscriptionOffers}
  * 4. verify purchase    - local device | local IAPKit | hosted IAPKit | skip
- * 5. grant entitlement  - Update activeSubscriptions state
+ * 5. refresh store ownership  - Update activeSubscriptions state
  * 6. finish transaction - finishTransaction({purchase, isConsumable: false})
  *
  * Subscription info on the client (a server can read all of it):
@@ -1423,7 +1440,7 @@ function SubscriptionFlowContainer() {
     );
 
     const productId = purchase.productId ?? '';
-    if (!isSubscriptionFlowProduct(productId)) {
+    if (!isSubscriptionFlowProduct(purchase)) {
       console.log('[SubscriptionFlow] ignoring non-subscription product:', {
         productId,
       });
@@ -1503,9 +1520,9 @@ function SubscriptionFlowContainer() {
     const normalizedPurchaseStore = purchase.store.toLowerCase();
     const hasAndroidPurchaseIdentity = Boolean(
       purchase.purchaseToken ||
-      purchase.id ||
-      purchase.transactionId ||
-      purchase.productId,
+        purchase.id ||
+        purchase.transactionId ||
+        purchase.productId,
     );
 
     if (Platform.OS === 'ios' && normalizedPurchaseStore === 'apple') {
@@ -1519,11 +1536,11 @@ function SubscriptionFlowContainer() {
       isPurchased = hasValidToken || hasValidTransactionId;
       isRestoration = Boolean(
         'originalTransactionIdentifierIOS' in purchase &&
-        purchase.originalTransactionIdentifierIOS &&
-        purchase.originalTransactionIdentifierIOS !== purchase.id &&
-        'transactionReasonIOS' in purchase &&
-        purchase.transactionReasonIOS &&
-        purchase.transactionReasonIOS !== 'PURCHASE',
+          purchase.originalTransactionIdentifierIOS &&
+          purchase.originalTransactionIdentifierIOS !== purchase.id &&
+          'transactionReasonIOS' in purchase &&
+          purchase.transactionReasonIOS &&
+          purchase.transactionReasonIOS !== 'PURCHASE',
       );
 
       console.log('iOS Purchase Analysis:');
@@ -1778,8 +1795,9 @@ function SubscriptionFlowContainer() {
 
     if (Platform.OS === 'android' && iapkitVerifyRequest) {
       try {
-        const refreshedResult =
-          await verifyPurchaseWithProvider(iapkitVerifyRequest);
+        const refreshedResult = await verifyPurchaseWithProvider(
+          iapkitVerifyRequest,
+        );
         console.log(
           '[SubscriptionFlow] IAPKit state after finishTransaction:',
           refreshedResult,
@@ -1807,7 +1825,7 @@ function SubscriptionFlowContainer() {
     );
 
     // ------------------------------------------------------------
-    // Step 5: grant entitlement
+    // Step 5: refresh store ownership
     // Refresh active subscriptions to update UI state
     // getActiveSubscriptions: Returns only currently active subscriptions
     // ------------------------------------------------------------
@@ -1853,7 +1871,7 @@ function SubscriptionFlowContainer() {
     finishTransaction,
     getAvailablePurchases,
     getActiveSubscriptions,
-    activeSubscriptions,
+    activeSubscriptions: storeActiveSubscriptions,
     verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
@@ -1879,6 +1897,20 @@ function SubscriptionFlowContainer() {
     },
   });
 
+  const activeSubscriptions = useMemo(
+    () =>
+      storeActiveSubscriptions.flatMap((subscription) => {
+        const productId = getSubscriptionProductId(
+          subscription.productId,
+          subscription.currentPlanId,
+        );
+        return productId && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
+          ? [{...subscription, productId}]
+          : [];
+      }),
+    [storeActiveSubscriptions],
+  );
+
   useLayoutEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -1897,7 +1929,7 @@ function SubscriptionFlowContainer() {
   // Checking Subscription Status (Periodically)
   // ============================================================
   // iOS: getActiveSubscriptions returns ActiveSubscriptionIOS with:
-  //   - isActive: true -> grant access
+  //   - isActive: store ownership, still requires verification
   //   - renewalInfoIOS.willAutoRenew: false -> show renewal prompt
   //   - renewalInfoIOS.isInBillingRetry: true -> show payment issue
   //   - renewalInfoIOS.pendingUpgradeProductId -> show pending change
@@ -1977,7 +2009,7 @@ function SubscriptionFlowContainer() {
 
     for (const purchase of availablePurchases) {
       const productId = purchase.productId ?? '';
-      if (!isSubscriptionFlowProduct(productId)) {
+      if (!isSubscriptionFlowProduct(purchase)) {
         console.log(
           '[SubscriptionFlow] skipping cleanup for non-subscription product:',
           {productId},
@@ -2125,10 +2157,10 @@ function SubscriptionFlowContainer() {
           const planType = offer.installmentPlanDetailsAndroid
             ? 'Installments'
             : recurring
-              ? 'Auto-renewing'
-              : prepaid
-                ? 'Prepaid'
-                : 'Subscription';
+            ? 'Auto-renewing'
+            : prepaid
+            ? 'Prepaid'
+            : 'Subscription';
           const pricing = phases
             .map((phase) => `${phase.formattedPrice} / ${phase.billingPeriod}`)
             .join(' → ');

@@ -18,6 +18,37 @@ const catalog: Readonly<
   >
 > = amazonCatalog;
 
+export function getSubscriptionProductId(
+  productId: string,
+  currentPlanId?: string | null,
+  store?: Purchase['store'],
+  storeId?: string,
+): string | undefined {
+  if (catalog[productId]?.itemType === 'SUBSCRIPTION') return productId;
+  if (
+    store !== undefined &&
+    store !== 'amazon' &&
+    !(store === 'unknown' && storeId === 'amazon_example')
+  )
+    return undefined;
+  const term = currentPlanId ? catalog[currentPlanId] : undefined;
+  return term?.itemType === 'SUBSCRIPTION' &&
+    productId === term.subscriptionBase
+    ? (currentPlanId ?? undefined)
+    : undefined;
+}
+
+export function getSubscriptionQueryIds(productIds: string[]): string[] {
+  return [
+    ...new Set(
+      productIds.flatMap((productId) => {
+        const base = catalog[productId]?.subscriptionBase;
+        return base ? [productId, base] : [productId];
+      }),
+    ),
+  ];
+}
+
 function getAmazonVerificationProductId(productId: string): string {
   const item = catalog[productId];
   return item?.itemType === 'SUBSCRIPTION'

@@ -1,3 +1,14 @@
+import {
+  createIapkitVerificationPayload,
+  getSubscriptionProductId,
+  getDefaultVerificationMethod,
+  getDirectVerificationError,
+  getIapkitVerificationError,
+  rememberCompletedPurchaseKey,
+  resolveIapkitVerificationBaseUrl,
+} from '../src/utils/vegaRuntime';
+import type {Purchase} from '../../src/types';
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
@@ -10,16 +21,6 @@ jest.mock('expo-constants', () => ({
     },
   },
 }));
-
-import {
-  createIapkitVerificationPayload,
-  getDefaultVerificationMethod,
-  getDirectVerificationError,
-  getIapkitVerificationError,
-  rememberCompletedPurchaseKey,
-  resolveIapkitVerificationBaseUrl,
-} from '../src/utils/vegaRuntime';
-import type {Purchase} from '../../src/types';
 
 describe('Vega runtime example helpers', () => {
   it('uses configured IAPKit credentials for Amazon purchases', () => {
@@ -420,5 +421,38 @@ describe('Vega runtime example helpers', () => {
     ).toThrow('No verification adapter');
     expect(purchase.store).toBe('unknown');
     expect(purchase.storeId).toBe('amazon_example');
+  });
+});
+
+describe('Amazon restored subscription catalog', () => {
+  const base = 'dev.hyo.martie.premium.base';
+  it.each(['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'])(
+    'resolves the exact %s term while preserving the raw receipt SKU',
+    (term) => {
+      expect(getSubscriptionProductId(base, term, 'amazon', 'amazon')).toBe(
+        term,
+      );
+      expect(
+        getSubscriptionProductId(base, term, 'unknown', 'amazon_example'),
+      ).toBe(term);
+      expect(
+        getSubscriptionProductId(term, 'play-base-plan', 'google', 'play'),
+      ).toBe(term);
+    },
+  );
+  it('never guesses a missing term or maps a foreign provider/catalog', () => {
+    expect(getSubscriptionProductId(base, null)).toBeUndefined();
+    expect(getSubscriptionProductId(base, 'foreign.term')).toBeUndefined();
+    expect(
+      getSubscriptionProductId('foreign.base', 'dev.hyo.martie.premium'),
+    ).toBeUndefined();
+    expect(
+      getSubscriptionProductId(
+        base,
+        'dev.hyo.martie.premium',
+        'unknown',
+        'foreign',
+      ),
+    ).toBeUndefined();
   });
 });

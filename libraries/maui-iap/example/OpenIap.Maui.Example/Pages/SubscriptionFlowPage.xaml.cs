@@ -145,10 +145,13 @@ public partial class SubscriptionFlowPage : ContentPage
         try
         {
             var query = (QueryResolver)OpenIapClient.Instance;
-            var active = await query.GetActiveSubscriptionsAsync(Constants.SubscriptionProductIds)
+            var active = await query.GetActiveSubscriptionsAsync(IapKitSettings.SubscriptionQueryIds)
                 .WaitAsync(TimeSpan.FromSeconds(20));
             _active.Clear();
-            _active.AddRange(active);
+            _active.AddRange(active.Select(subscription =>
+                (Subscription: subscription, ProductId: IapKitSettings.SubscriptionProductId(subscription.ProductId, subscription.CurrentPlanId)))
+                .Where(item => item.ProductId is not null)
+                .Select(item => item.Subscription with { ProductId = item.ProductId! }));
             RenderActive();
             if (renderSubscriptionCards)
             {
@@ -646,7 +649,7 @@ public partial class SubscriptionFlowPage : ContentPage
     private async Task OnPurchaseAsync(Purchase purchase)
     {
         var common = (PurchaseCommon)purchase;
-        if (!Constants.SubscriptionProductIds.Contains(common.ProductId)) return;
+        if (IapKitSettings.SubscriptionProductId(purchase) is null) return;
         _isProcessing = false;
         CancelPurchaseWatchdog();
         if (_verification == VerificationMethod.Ignore)

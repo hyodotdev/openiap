@@ -19,6 +19,26 @@ const catalog: Readonly<
   >
 > = amazonCatalog;
 
+export function getSubscriptionProductId(
+  productId: string,
+  currentPlanId?: string | null,
+  store?: Purchase['store'],
+  storeId?: string,
+): string | undefined {
+  if (catalog[productId]?.itemType === 'SUBSCRIPTION') return productId;
+  if (
+    store !== undefined &&
+    store !== 'amazon' &&
+    !(store === 'unknown' && storeId === 'amazon_example')
+  )
+    return undefined;
+  const term = currentPlanId ? catalog[currentPlanId] : undefined;
+  return term?.itemType === 'SUBSCRIPTION' &&
+    productId === term.subscriptionBase
+    ? (currentPlanId ?? undefined)
+    : undefined;
+}
+
 function getAmazonVerificationProductId(productId: string): string {
   const item = catalog[productId];
   return item?.itemType === 'SUBSCRIPTION'
@@ -37,7 +57,10 @@ type ExpoExtraWithIapkit = {
 };
 
 export type VerificationMethod =
-  'ignore' | 'local' | 'iapkit-localhost' | 'iapkit';
+  | 'ignore'
+  | 'local'
+  | 'iapkit-localhost'
+  | 'iapkit';
 
 function getConfiguredIapkitApiKey(): string | undefined {
   const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;

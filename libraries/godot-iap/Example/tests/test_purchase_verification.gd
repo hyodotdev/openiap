@@ -8,6 +8,16 @@ const Config = preload("res://iapkit_config.gd")
 var _failed := false
 
 
+class CatalogFilteredAndroidPlugin:
+	extends EnvelopeTests.FakeAndroidJsonPlugin
+
+	func getActiveSubscriptionsResult(ids_json) -> String:
+		var result: Dictionary = JSON.parse_string(super.getActiveSubscriptionsResult(ids_json))
+		var ids: Array = JSON.parse_string(ids_json)
+		result["subscriptions"] = result.get("subscriptions", []).filter(func(subscription): return ids.is_empty() or subscription.get("productId") in ids)
+		return JSON.stringify(result)
+
+
 func _init() -> void:
 	_run.call_deferred()
 
@@ -153,7 +163,8 @@ func _run() -> void:
 	await manager.reconcile_subscription_entitlements()
 	_check(manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "The same renewal can retry after verification recovers")
 
-	manager.purchase_completed.connect(func(_sku): manager.reconcile_subscription_entitlements())
+	var refresh_on_purchase := func(_sku): manager.reconcile_subscription_entitlements()
+	manager.purchase_completed.connect(refresh_on_purchase)
 	fake.responses["getActiveSubscriptions"] = JSON.stringify({"status": "pending", "requestId": "old-ownership-snapshot"})
 	create_timer(0.05).timeout.connect(func() -> void:
 		var incoming := replacement.duplicate()
@@ -167,8 +178,9 @@ func _run() -> void:
 	)
 	await manager.reconcile_subscription_entitlements()
 	_check(manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "A purchase during refresh replaces the stale empty snapshot")
+	manager.purchase_completed.disconnect(refresh_on_purchase)
 
-	var android_fake = EnvelopeTests.FakeAndroidJsonPlugin.new()
+	var android_fake = CatalogFilteredAndroidPlugin.new()
 	plugin._native_plugin = android_fake
 	plugin._platform = "Android"
 	var previous_key := Config._api_key
@@ -187,6 +199,59 @@ func _run() -> void:
 	await manager.reconcile_subscription_entitlements()
 	_check(manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "Acknowledged Android subscription is verified before granting access")
 	_check(android_fake.last_args.size() == 1 and JSON.parse_string(android_fake.last_args[0]).get("provider") == "iapkit", "Acknowledged Android receipt is not finished again")
+	var amazon_receipt := acknowledged.duplicate()
+	amazon_receipt["id"] = "restored-amazon-monthly"
+	amazon_receipt["transactionId"] = "restored-amazon-monthly"
+	amazon_receipt["productId"] = "dev.hyo.martie.premium.base"
+	amazon_receipt["currentPlanId"] = manager.PRODUCT_PREMIUM
+	amazon_receipt["store"] = "unknown"
+	amazon_receipt["storeId"] = "amazon_example"
+	amazon_receipt["userIdAmazon"] = "fixture-user"
+	var amazon_active := {"productId": amazon_receipt.productId, "currentPlanId": amazon_receipt.currentPlanId, "isActive": true, "transactionId": amazon_receipt.transactionId, "transactionDate": 1}
+	android_fake.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": true, "subscriptions": [amazon_active]})
+	android_fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [amazon_receipt]})
+	android_fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"provider": "iapkit", "iapkit": {"isValid": true, "productId": amazon_receipt.productId, "store": "unknown", "storeId": "amazon_example", "state": "entitled", "environment": "Sandbox" if Config.amazon_rvs_sandbox() else "Production"}})
+	manager.verification_method = Config.Method.NONE
+	await manager.reconcile_subscription_entitlements()
+	_check(not manager.subscription_entitlements.values().has(true), "Restored Amazon terms remain unavailable without verification")
+	manager.verification_method = Config.Method.IAPKIT
+	await manager.reconcile_subscription_entitlements()
+	_check(manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "Restored Amazon base SKU retains its exact verified monthly term")
+	_check(not manager.subscription_entitlements[manager.PRODUCT_PREMIUM_YEAR], "Shared Amazon base cannot grant the other term")
+	_check(manager._purchase_product_id(amazon_receipt, amazon_receipt) == manager.PRODUCT_PREMIUM, "Known community restore resolves its catalog term")
+	var foreign := amazon_receipt.duplicate()
+	foreign["storeId"] = "foreign"
+	_check(manager._purchase_product_id(foreign, foreign) == foreign.productId, "Foreign providers cannot use Amazon term aliases")
+	_check(manager._subscription_product_id(amazon_receipt.productId, "") == "", "A shared base without a term cannot grant a guessed subscription")
+	_check(manager._subscription_product_id("foreign.base", manager.PRODUCT_PREMIUM) == "", "An unrelated base cannot grant a known term")
+	manager._processed_transactions[amazon_receipt.id] = true
+	amazon_receipt["isAcknowledgedAndroid"] = null
+	amazon_receipt.erase("isAcknowledged")
+	amazon_receipt["currentPlanId"] = manager.PRODUCT_PREMIUM_YEAR
+	amazon_active["currentPlanId"] = manager.PRODUCT_PREMIUM_YEAR
+	android_fake.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": true, "subscriptions": [amazon_active]})
+	android_fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [amazon_receipt]})
+	var changed_term_result: Dictionary = JSON.parse_string(android_fake.responses["verifyPurchaseWithProvider"])
+	changed_term_result["iapkit"]["isValid"] = false
+	android_fake.responses["verifyPurchaseWithProvider"] = JSON.stringify(changed_term_result)
+	await manager.reconcile_subscription_entitlements()
+	_check(not manager.subscription_entitlements.values().has(true), "Monthly proof cannot grant a changed yearly term with the same receipt ID")
+	changed_term_result["iapkit"]["isValid"] = true
+	android_fake.responses["verifyPurchaseWithProvider"] = JSON.stringify(changed_term_result)
+	await manager.reconcile_subscription_entitlements()
+	_check(manager.subscription_entitlements[manager.PRODUCT_PREMIUM_YEAR], "A changed term can retry verification on the same completed receipt")
+	_check(android_fake.last_args.size() == 1, "Refreshing a completed receipt term does not repeat finish")
+	for store_id in ["amazon", "amazon_example"]:
+		amazon_receipt["id"] = "live-amazon-term-" + store_id
+		amazon_receipt["transactionId"] = amazon_receipt.id
+		amazon_receipt["store"] = "amazon" if store_id == "amazon" else "unknown"
+		amazon_receipt["storeId"] = store_id
+		amazon_receipt["currentPlanId"] = manager.PRODUCT_PREMIUM_YEAR
+		amazon_receipt["isAcknowledgedAndroid"] = false
+		android_fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"provider": "iapkit", "iapkit": {"isValid": true, "productId": amazon_receipt.productId, "store": amazon_receipt.store, "storeId": store_id, "state": "entitled", "environment": "Sandbox" if Config.amazon_rvs_sandbox() else "Production"}})
+		await manager._on_purchase_updated(amazon_receipt)
+		_check(android_fake.last_args.size() == 2 and JSON.parse_string(android_fake.last_args[0]).get("productId") == amazon_receipt.productId, "Amazon term recovery finishes the original purchase identity")
+		_check(manager._processed_transactions.has(amazon_receipt.id), "Amazon term recovery records successful completion")
 	Config._api_key = previous_key
 
 	manager.free()

@@ -1,6 +1,5 @@
 using System.Reflection;
 using OpenIap;
-using Microsoft.Maui.Storage;
 
 namespace OpenIap.Maui.Example.Utils;
 
@@ -114,10 +113,26 @@ internal static class IapKitSettings
         };
     }
 
+    private const string AmazonSubscriptionBaseId = "dev.hyo.martie.premium.base";
+    public static IReadOnlyList<string> SubscriptionQueryIds { get; } =
+        [.. Constants.SubscriptionProductIds, AmazonSubscriptionBaseId];
+
+    public static string? SubscriptionProductId(string productId, string? currentPlanId) =>
+        Constants.SubscriptionProductIds.Contains(productId) ? productId :
+        productId == AmazonSubscriptionBaseId && currentPlanId is not null &&
+        Constants.SubscriptionProductIds.Contains(currentPlanId) ? currentPlanId : null;
+
+    public static string? SubscriptionProductId(Purchase purchase)
+    {
+        var common = (PurchaseCommon)purchase;
+        return Constants.SubscriptionProductIds.Contains(common.ProductId) || VerificationStore(common) == IapStore.Amazon
+            ? SubscriptionProductId(common.ProductId, common.CurrentPlanId) : null;
+    }
+
     // These term-to-base IDs belong to Martie's Amazon catalog.
     public static string VerificationProductId(string productId, IapStore store) =>
         store == IapStore.Amazon && Constants.SubscriptionProductIds.Contains(productId)
-            ? "dev.hyo.martie.premium.base" : productId;
+            ? AmazonSubscriptionBaseId : productId;
 
     // Only this known community adapter uses Amazon's server verification.
     private static IapStore VerificationStore(PurchaseCommon purchase) =>

@@ -615,9 +615,11 @@ function FireOSExample() {
                 <code>dev.hyo.martie.30bulbs</code>, entitlement{' '}
                 <code>dev.hyo.martie.certified</code>, and subscriptions{' '}
                 <code>dev.hyo.martie.premium</code> /{' '}
-                <code>dev.hyo.martie.premium_year</code>. If Amazon App Tester
-                or a subscription group uses another internal SKU, update the
-                catalog instead of adding app-side alias code.
+                <code>dev.hyo.martie.premium_year</code>. Their shared receipt
+                base is <code>dev.hyo.martie.premium.base</code>. The example
+                resolves a restored base receipt to its exact{' '}
+                <code>currentPlanId</code> using this catalog; it preserves the
+                original purchase for verification and completion.
               </td>
             </tr>
             <tr>
@@ -625,10 +627,11 @@ function FireOSExample() {
               <td>
                 Amazon subscriptions can be organized through store-side groups
                 and terms, similar to the way Apple and Google structure
-                subscription families. The OpenIAP example should still receive
-                the requested SKU as <code>productId</code> and the active plan
-                as <code>currentPlanId</code>, so the same entitlement code
-                works across native Android, Expo, and React Native.
+                subscription families. A fresh callback can carry the requested
+                term as <code>productId</code>; restore can carry the base SKU
+                with the exact term in <code>currentPlanId</code>. Query both
+                catalog terms and the base for current ownership. A missing or
+                unrelated term must not grant access or complete the receipt.
               </td>
             </tr>
             <tr>
@@ -659,12 +662,12 @@ function FireOSExample() {
             <tr>
               <td>Kit entitlement identity</td>
               <td>
-                Kit verification stores and checks entitlements from the
-                verified receipt. Keep the Amazon receipt SKU aligned with the
-                app-facing OpenIAP SKU, otherwise server-side entitlement checks
-                can disagree with the client purchase response. Treat Kit or
-                store restore APIs as the source of truth for subscription
-                status.
+                Kit verifies the Amazon receipt base SKU and provider identity.
+                Map catalog terms to that base for verification; use the exact
+                restored term for plan display. Store ownership alone does not
+                prove access to a paid tier. Check verified backend entitlements
+                before granting access, and preserve the original purchase when
+                completing the receipt.
               </td>
             </tr>
           </tbody>

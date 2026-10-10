@@ -61,10 +61,24 @@ class IapConstants {
           .toLowerCase() ==
       'true';
 
+  static const amazonSubscriptionBaseId = 'dev.hyo.martie.premium.base';
+
+  static String? subscriptionProductId(Purchase purchase) {
+    if (subscriptionProductIds.contains(purchase.productId)) {
+      return purchase.productId;
+    }
+    final planId = purchase.currentPlanId;
+    return verificationStore(purchase) == IapStore.Amazon &&
+            purchase.productId == amazonSubscriptionBaseId &&
+            subscriptionProductIds.contains(planId)
+        ? planId
+        : null;
+  }
+
   // These term-to-base IDs belong to Martie's Amazon catalog.
   static String verificationProductId(String productId, IapStore store) =>
       store == IapStore.Amazon && subscriptionProductIds.contains(productId)
-          ? 'dev.hyo.martie.premium.base'
+          ? amazonSubscriptionBaseId
           : productId;
 
   // Only this known community adapter uses Amazon's server verification.

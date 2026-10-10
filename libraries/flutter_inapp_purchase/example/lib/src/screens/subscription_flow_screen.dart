@@ -138,7 +138,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
   }
 
   Future<void> _handlePurchaseUpdate(Purchase purchase) async {
-    if (!IapConstants.isSubscription(purchase.productId)) return;
+    if (IapConstants.subscriptionProductId(purchase) == null) return;
     if (mounted) {
       setState(() {
         _isProcessing = false;
@@ -610,7 +610,7 @@ Store: ${iapkitResult.store.value}
       // - Use Approach 2 for Meta Horizon Store (or when supporting both)
       final allPurchases = await _iap.getAvailablePurchases();
       final subscriptionPurchases = allPurchases
-          .where((p) => subscriptionIds.contains(p.productId))
+          .where((p) => IapConstants.subscriptionProductId(p) != null)
           .toList();
 
       // Convert to ActiveSubscription format
@@ -642,7 +642,7 @@ Store: ${iapkitResult.store.value}
         // Create ActiveSubscription from Purchase
         summaries.add(
           ActiveSubscription(
-            productId: purchase.productId,
+            productId: IapConstants.subscriptionProductId(purchase)!,
             transactionId: purchase.transactionIdFor ?? purchase.id,
             purchaseToken: purchase.purchaseToken,
             transactionDate: purchase.transactionDate is String
@@ -1596,8 +1596,8 @@ Store: ${iapkitResult.store.value}
                             ),
                             title: Text(
                               _hasActiveSubscription
-                                  ? 'Active Subscription: ${_currentActiveSubscription?.productId}'
-                                  : 'No Active Subscription',
+                                  ? 'Store ownership: ${_currentActiveSubscription?.productId}'
+                                  : 'No store-reported subscription',
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
                             ),
@@ -1778,7 +1778,7 @@ Store: ${iapkitResult.store.value}
 
                         if (_activeSubscriptionInfo.isNotEmpty) ...[
                           const Text(
-                            'Active Subscriptions',
+                            'Store-reported Subscriptions',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
