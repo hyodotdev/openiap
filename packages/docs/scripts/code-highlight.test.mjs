@@ -1646,7 +1646,19 @@ test('reads line ends, names and separators the way each rule defines them', () 
     ['toml', 'name    = "x"', '⟦attr-name:name⟧    = ⟦string:"x"⟧'],
     ['yaml', '_id: 1', '⟦attr-name:_id⟧: ⟦number:1⟧'],
     ['yaml', '200: OK', '⟦attr-name:200⟧: OK'],
+    // A YAML `:` needs a space or the line end after it.
+    ['yaml', '12:30', '⟦number:12⟧:⟦number:30⟧'],
+    ['yaml', 'http://x.dev', 'http://x.dev'],
+    ['yaml', 'key:', '⟦attr-name:key⟧:'],
+    ['yaml', 'a\n: 1', 'a\n: ⟦number:1⟧'],
+    ['yaml', 'k:\tv', '⟦attr-name:k⟧:\tv'],
+    [
+      'yaml',
+      'key:\r\nnext: 1',
+      '⟦attr-name:key⟧:\r\n⟦attr-name:next⟧: ⟦number:1⟧',
+    ],
     ['toml', '1234 = "v"', '⟦attr-name:1234⟧ = ⟦string:"v"⟧'],
+    ['toml', 'a- = 1', '⟦attr-name:a-⟧ = ⟦number:1⟧'],
     ['yaml', '  a : 1', '  ⟦attr-name:a⟧ : ⟦number:1⟧'],
     ['toml', ' a\t= 1', ' ⟦attr-name:a⟧\t= ⟦number:1⟧'],
     ['yaml', 'true: 1', '⟦attr-name:true⟧: ⟦number:1⟧'],
@@ -1820,6 +1832,14 @@ test('stays fast on long pathological lines', () => {
 });
 
 test('stays fast on long runs of openers that never close', () => {
+  const lineStart = [
+    'yaml',
+    'toml',
+    'properties',
+    'swift',
+    'csharp',
+    'graphql',
+  ];
   // Each run is long enough that a rescan per opener takes seconds.
   const runs = [
     ['a$'.repeat(30000), ['typescript', 'kotlin', 'groovy']],
@@ -1844,20 +1864,19 @@ test('stays fast on long runs of openers that never close', () => {
     ['\\"""\n'.repeat(60000), ['toml']],
     ['#'.repeat(100000), ['swift']],
     ['#"""a'.repeat(40000), ['swift']],
+    ['f(##"""a)'.repeat(30000), ['swift']],
+    // `^` also starts after \r, U+2028 and U+2029: a class that stops at \n only
+    // rescans from every one of them.
     ['[\r'.repeat(60000), ['toml']],
     ['[\u2028'.repeat(60000), ['toml']],
-    ['a\u2028'.repeat(60000), ['properties']],
     ['[\u2029'.repeat(60000), ['toml']],
-    [
-      '\n'.repeat(60000) + 'x',
-      ['yaml', 'toml', 'properties', 'swift', 'csharp', 'graphql'],
-    ],
-    [
-      ' \r\n'.repeat(30000) + 'x',
-      ['yaml', 'toml', 'properties', 'swift', 'csharp', 'graphql'],
-    ],
+    ['a\u2028'.repeat(60000), ['properties']],
     ['a\u2029'.repeat(60000), ['properties']],
-    ['f(##"""a)'.repeat(30000), ['swift']],
+    ['\n'.repeat(60000) + 'x', lineStart],
+    [' \r\n'.repeat(30000) + 'x', lineStart],
+    ['\r'.repeat(60000) + 'x', lineStart],
+    ['\u2028'.repeat(60000) + 'x', lineStart],
+    ['\u2029 '.repeat(30000) + 'x', lineStart],
   ];
   for (const [source, languages] of runs) {
     for (const language of languages) {
