@@ -298,11 +298,22 @@ test('colors GraphQL field types and trailing comments', () => {
   );
   assert.equal(
     highlightCode('  field(arg: Int = 1): Foo', 'graphql'),
-    `  field(arg${t('punctuation', ':')} ${t('builtin-type', 'Int')} = 1)${t('punctuation', ':')} ${t('custom-type', 'Foo')}`
+    `  field(${t('field', 'arg')}${t('punctuation', ':')} ${t('builtin-type', 'Int')} = 1)${t('punctuation', ':')} ${t('custom-type', 'Foo')}`
   );
   assert.equal(
     highlightCode('  n: String = "#fff" # c', 'graphql'),
     `  ${t('field', 'n')}${t('punctuation', ':')} ${t('builtin-type', 'String')} = ${t('string', '"#fff"')} ${t('comment', '# c')}`
+  );
+});
+
+test('colors the fields of a one-line GraphQL definition', () => {
+  assert.equal(
+    highlightCode('type Query { users: [User!]! }', 'graphql'),
+    `${t('keyword', 'type')} ${t('type-name', 'Query')} { ${t('field', 'users')}${t('punctuation', ':')} ${t('punctuation', '[')}${t('custom-type', 'User')}${t('required', '!')}${t('punctuation', ']')}${t('required', '!')} }`
+  );
+  assert.equal(
+    highlightCode('query Q($id: ID!) {', 'graphql'),
+    `${t('keyword', 'query')} ${t('type-name', 'Q')}($id${t('punctuation', ':')} ${t('builtin-type', 'ID')}${t('required', '!')}) {`
   );
 });
 
@@ -329,7 +340,7 @@ test('does not color a GraphQL alias or a string as a type', () => {
   for (const call of ['picture(size: 64)', 'picture (size: 64)']) {
     assert.equal(
       highlightCode(`  pic: ${call}`, 'graphql'),
-      `  ${t('field', 'pic')}${t('punctuation', ':')} ${call.replace('size:', `size${t('punctuation', ':')}`)}`
+      `  ${t('field', 'pic')}${t('punctuation', ':')} ${call.replace('size:', `${t('field', 'size')}${t('punctuation', ':')}`)}`
     );
   }
   assert.equal(
@@ -338,7 +349,7 @@ test('does not color a GraphQL alias or a string as a type', () => {
   );
   assert.equal(
     highlightCode('  a: Int @deprecated(reason: "Use amount: x")', 'graphql'),
-    `  ${t('field', 'a')}${t('punctuation', ':')} ${t('builtin-type', 'Int')} @deprecated(reason${t('punctuation', ':')} ${t('string', '"Use amount: x"')})`
+    `  ${t('field', 'a')}${t('punctuation', ':')} ${t('builtin-type', 'Int')} @deprecated(${t('field', 'reason')}${t('punctuation', ':')} ${t('string', '"Use amount: x"')})`
   );
 });
 
@@ -349,7 +360,7 @@ test('closes a string after an escaped backslash', () => {
   );
   assert.equal(
     highlightCode('  join(sep: String = "\\\\"): String', 'graphql'),
-    `  join(sep${t('punctuation', ':')} ${t('builtin-type', 'String')} = ${t('string', '"\\\\"')})${t('punctuation', ':')} ${t('builtin-type', 'String')}`
+    `  join(${t('field', 'sep')}${t('punctuation', ':')} ${t('builtin-type', 'String')} = ${t('string', '"\\\\"')})${t('punctuation', ':')} ${t('builtin-type', 'String')}`
   );
   assert.equal(
     highlightCode('a = "x\\"y"', 'swift'),

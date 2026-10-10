@@ -282,7 +282,9 @@ const GRAPHQL_RULES: Rule[] = [
     /^([ \t]*)([A-Z_][A-Z_0-9]*)(?=[ \t]*(?:#[^\n]*)?$)/my,
     'enum-value'
   ),
-  prefixed(/^([ \t]*)([A-Za-z_]\w*)(?=[ \t]*:)/my, 'field'),
+  // `$name` stays plain so a variable is not taken for a field.
+  { pattern: /\$[A-Za-z_]\w*/y },
+  { pattern: /\b[A-Za-z_]\w*(?=[ \t]*:)/y, type: 'field' },
   {
     pattern: GRAPHQL_COLON,
     render: (m) =>
