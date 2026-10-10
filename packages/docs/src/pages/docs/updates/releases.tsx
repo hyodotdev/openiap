@@ -537,7 +537,8 @@ function Releases() {
             transactions on macOS through{' '}
             <code>get_pending_transactions_ios()</code>, allowing apps to match
             the exact receipt before completing a purchase. The Martie examples
-            retain receipts until verification succeeds.
+            retain receipts until verification succeeds and show when
+            subscription products are unavailable.
           </p>
           <p>
             IAPKit returns Apple's verified transaction environment so examples

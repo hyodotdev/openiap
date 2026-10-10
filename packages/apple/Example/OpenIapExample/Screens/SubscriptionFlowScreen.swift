@@ -302,7 +302,7 @@ struct SubscriptionFlowScreen: View {
             try await iapStore.fetchProducts(skus: subscriptionIds, type: .all)
             await MainActor.run {
                 let ids = subscriptionProductIds
-                if ids.isEmpty {
+                if iapStore.iosSubscriptionProducts.isEmpty {
                     errorMessage = "No subscription products found. Please check your App Store Connect configuration."
                     showError = true
                 }
