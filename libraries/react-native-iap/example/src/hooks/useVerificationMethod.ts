@@ -87,7 +87,7 @@ export function useVerificationMethod(
           options,
           cancelButtonIndex: 4,
           title: 'Select Verification Method',
-          message: 'Choose how to verify purchases after completion',
+          message: 'Verify purchases before completing the transaction',
         },
         (buttonIndex) => {
           if (buttonIndex === 0) {

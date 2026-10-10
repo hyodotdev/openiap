@@ -1614,7 +1614,7 @@ function SubscriptionFlowContainer() {
 
     // ------------------------------------------------------------
     // Step 4: four verification selections
-    //   - ignore: Skip verification (for testing)
+    //   - ignore: Retain the receipt without verification or completion
     //   - local: Direct Apple/Google verification on the device
     //   - iapkit-localhost: IAPKit provider through the local server
     //   - iapkit: IAPKit provider through the hosted service
@@ -2266,11 +2266,11 @@ function SubscriptionFlowContainer() {
       {
         title: 'Select Purchase Verification Method',
         message:
-          'Choose how to verify purchases after successful transactions.\n\n' +
+          'Verify purchases before completing the transaction.\n\n' +
           '• Local (Device): Match a verified unfinished Apple transaction\n' +
           '• Local (IAPKit): Verify through your configured local server\n' +
           '• IAPKit: Verify through kit.openiap.dev\n' +
-          '• None (Skip): Skip verification (for testing)',
+          '• None (Skip): Retain the receipt without verification or completion',
         options,
         cancelButtonIndex,
       },

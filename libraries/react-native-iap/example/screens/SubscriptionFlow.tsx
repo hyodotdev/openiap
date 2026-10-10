@@ -1748,7 +1748,7 @@ function SubscriptionFlowContainer() {
     // STEP 3: VERIFY PURCHASE
     // ──────────────────────────────────────────────────────────────────────
     // Choose verification method:
-    // - 'ignore': Skip verification (testing only - NOT for production)
+    // - 'ignore': Retain the receipt without verification or completion
     // - 'local': Direct Apple/Google verification on the device
     // - 'iapkit-localhost': IAPKit provider through the local server
     // - 'iapkit': IAPKit provider through the hosted service

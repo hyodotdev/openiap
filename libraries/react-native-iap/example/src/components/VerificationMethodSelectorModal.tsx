@@ -24,7 +24,7 @@ const VERIFICATION_METHOD_OPTIONS: readonly {
   {
     value: 'ignore',
     label: 'None (Skip)',
-    description: 'Skip verification for this example flow.',
+    description: 'Retain the receipt without verification or completion.',
   },
 ];
 
@@ -60,7 +60,7 @@ export default function VerificationMethodSelectorModal({
         <View style={styles.sheet}>
           <Text style={styles.title}>Select Verification Method</Text>
           <Text style={styles.message}>
-            Choose how to verify purchases after completion
+            Verify purchases before completing the transaction
           </Text>
           {VERIFICATION_METHOD_OPTIONS.map((option) => {
             const isSelected = selectedMethod === option.value;
