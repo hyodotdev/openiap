@@ -112,9 +112,9 @@ export default function VerificationApplePage() {
       </p>
 
       <p>
-        The response includes the verified <code>productId</code> and
+        The response includes the verified <code>productId</code> and{" "}
         <code>environment</code> from Apple's signed transaction. Before
-        finishing a purchase, match both to the device transaction and require
+        finishing a purchase, match both to the device transaction and require{" "}
         <code>isValid</code> with the appropriate purchase state.
       </p>
 
