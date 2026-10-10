@@ -92,6 +92,7 @@ fun PurchaseFlowScreen(
     // Verification states
     val iapkitApiKey: String? = IapkitConfig.apiKey
     val iapkitLocalBaseUrl: String? = IapkitConfig.localBaseUrl
+    var recoveryRequest by remember { mutableIntStateOf(0) }
     var verificationMethod by remember {
         mutableStateOf(defaultVerificationMethod(iapkitApiKey, iapkitLocalBaseUrl))
     }
@@ -99,7 +100,7 @@ fun PurchaseFlowScreen(
     var verificationResultMessage by remember { mutableStateOf<String?>(null) }
     var verificationDropdownExpanded by remember { mutableStateOf(false) }
     // Track which purchase IDs have been processed (to allow re-purchase after failure)
-    var processedPurchaseKey by remember { mutableStateOf<String?>(null) }
+    val handledPurchaseIds = remember { mutableSetOf<String>() }
 
     fun purchasePropsFor(product: ProductAndroid): RequestPurchaseProps =
         if (product.type == ProductType.Subs) {
@@ -141,34 +142,7 @@ fun PurchaseFlowScreen(
     }
 
     // Initialize and connect on first composition (spec-aligned names)
-    LaunchedEffect(Unit) {
-        // Enable OpenIapLog for debugging
-        dev.hyo.openiap.OpenIapLog.isEnabled = true
 
-        try {
-            val connected = iapStore.initConnection()
-            if (connected) {
-                val request = ProductRequest(
-                    skus = IapConstants.INAPP_SKUS,
-                    type = ProductQueryType.InApp
-                )
-                iapStore.fetchProducts(request)
-                iapStore.getAvailablePurchases(null)
-            } else {
-                iapStore.postStatusMessage(
-                    message = "Failed to connect to billing service",
-                    status = PurchaseResultStatus.Error
-                )
-            }
-        } catch (e: Exception) {
-            iapStore.postStatusMessage(
-                message = "Failed to initialize: ${e.message}",
-                status = PurchaseResultStatus.Error
-            )
-        } finally {
-            isInitializing = false
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -237,14 +211,14 @@ fun PurchaseFlowScreen(
                                 modifier = Modifier.size(48.dp),
                                 tint = AppColors.primary
                             )
-                            
+
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "Purchase Flow",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
                                 )
-                                
+
                                 Text(
                                     "Test product purchases",
                                     style = MaterialTheme.typography.bodySmall,
@@ -252,7 +226,7 @@ fun PurchaseFlowScreen(
                                 )
                             }
                         }
-                        
+
                         Text(
                             "Purchase consumable and non-consumable products. Events are handled through OpenIapStore callbacks.",
                             style = MaterialTheme.typography.bodyMedium,
@@ -320,6 +294,7 @@ fun PurchaseFlowScreen(
                                         text = { Text(method.displayName) },
                                         onClick = {
                                             verificationMethod = method
+                                            recoveryRequest++
                                             verificationDropdownExpanded = false
                                         }
                                     )
@@ -418,7 +393,7 @@ fun PurchaseFlowScreen(
                     LoadingCard()
                 }
             }
-            
+
             statusMessage?.let { result ->
                 item("status-message") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -473,7 +448,7 @@ fun PurchaseFlowScreen(
             item {
                 InstructionCard()
             }
-            
+
             // Actions
             item {
                 Row(
@@ -530,7 +505,7 @@ fun PurchaseFlowScreen(
             }
         }
     }
-    
+
     // Verification helper functions
     suspend fun verifyWithIapkit(
         purchase: PurchaseAndroid,
@@ -548,6 +523,7 @@ fun PurchaseFlowScreen(
         val props = RequestVerifyPurchaseWithIapkitProps(
             amazon = if (purchase.store == IapStore.Amazon) {
                 RequestVerifyPurchaseWithIapkitAmazonProps(
+                    expectedProductId = IapkitConfig.verificationProductId(purchase.productId, purchase.store),
                     receiptId = requireToken(),
                     sandbox = IapkitConfig.amazonRvsSandbox,
                     userId = purchase.userIdAmazon
@@ -574,52 +550,26 @@ fun PurchaseFlowScreen(
         ) { "IAPKit returned no verification result" }
     }
 
-    // Local verification: For Android, we just check if the purchase state is authentic
-    // Real local verification should use Google Play Billing's acknowledgment
-    fun verifyLocally(purchase: PurchaseAndroid): Boolean {
-        return purchase.purchaseState == PurchaseState.Purchased
-    }
-
-    // Auto-handle purchase: validate then finish
-    // Use a unique key combining purchase ID and transaction date to ensure re-trigger on new purchases
-    // This fixes the issue where Buy button doesn't work after verification failure
-    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
-    LaunchedEffect(purchaseKey) {
-        val purchase = lastPurchaseAndroid ?: return@LaunchedEffect
-
-        // Skip if we've already processed this exact purchase
-        if (purchaseKey == processedPurchaseKey) {
-            println("PurchaseFlow: Skipping already processed purchase: $purchaseKey")
-            return@LaunchedEffect
+    suspend fun handlePurchased(purchase: PurchaseAndroid) {
+        if (purchase.productId !in IapConstants.INAPP_SKUS) return
+        val method = verificationMethod
+        if (method == VerificationMethod.None || method == VerificationMethod.Local) {
+            verificationResultMessage = "Receipt retained. Choose IAPKit verification to retry this receipt."
+            return
         }
-
+        if (purchase.purchaseState != PurchaseState.Purchased ||
+            purchase.id.isEmpty() || !handledPurchaseIds.add(purchase.id)) return
+        var finished = false
         // Clear any premature "success" message from purchase listener
         // We will only show the final result after verification completes
         iapStore.clearStatusMessage()
 
         try {
             // 1) Perform verification based on selected method
-            val isValid = when (verificationMethod) {
-                VerificationMethod.None -> {
-                    verificationResultMessage = "✅ No verification (skipped)"
-                    true
-                }
-                VerificationMethod.Local -> {
-                    isVerifying = true
-                    verificationResultMessage = "🔍 Verifying locally..."
-                    try {
-                        val result = verifyLocally(purchase)
-                        verificationResultMessage = if (result) "✅ Local verification passed" else "❌ Local verification failed"
-                        result
-                    } catch (e: Exception) {
-                        verificationResultMessage = "❌ Local verification error: ${e.message}"
-                        false
-                    } finally {
-                        isVerifying = false
-                    }
-                }
+            val isValid = when (method) {
+                VerificationMethod.None, VerificationMethod.Local -> false
                 VerificationMethod.IAPKitLocal, VerificationMethod.IAPKit -> {
-                    val label = verificationMethod.displayName
+                    val label = method.displayName
                     val apiKey = iapkitApiKey
                     if (apiKey == null) {
                         verificationResultMessage = "❌ IAPKit API Key not configured"
@@ -628,11 +578,10 @@ fun PurchaseFlowScreen(
                             status = PurchaseResultStatus.Error,
                             productId = purchase.productId
                         )
-                        // Mark as processed so user can retry
-                        processedPurchaseKey = purchaseKey
-                        return@LaunchedEffect
+
+                        return
                     }
-                    val baseUrl = if (verificationMethod == VerificationMethod.IAPKitLocal) {
+                    val baseUrl = if (method == VerificationMethod.IAPKitLocal) {
                         iapkitLocalBaseUrl ?: run {
                             verificationResultMessage =
                                 "❌ IAPKIT_BASE_URL not configured for Local (IAPKit)"
@@ -641,8 +590,8 @@ fun PurchaseFlowScreen(
                                 status = PurchaseResultStatus.Error,
                                 productId = purchase.productId
                             )
-                            processedPurchaseKey = purchaseKey
-                            return@LaunchedEffect
+
+                            return
                         }
                     } else null
                     isVerifying = true
@@ -651,15 +600,7 @@ fun PurchaseFlowScreen(
                     try {
                         val result = verifyWithIapkit(purchase, apiKey, baseUrl)
                         val storeProductId = result.productId ?: "not returned"
-                        val hasAllowedState =
-                            result.state == IapkitPurchaseState.Entitled ||
-                                result.state == IapkitPurchaseState.PendingAcknowledgment ||
-                                result.state == IapkitPurchaseState.ReadyToConsume
-                        val isVerifiedPurchase =
-                            result.isValid &&
-                                result.productId != null &&
-                                result.productId == purchase.productId &&
-                                hasAllowedState
+                        val isVerifiedPurchase = IapkitConfig.acceptsVerification(result, purchase)
                         val payloadSummary = result.clientPayload?.let { payload ->
                             val preview = if (payload.body.length > 200) {
                                 "${payload.body.take(199)}…"
@@ -693,6 +634,8 @@ fun PurchaseFlowScreen(
                             )
                         }
                         isVerifiedPurchase
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         println("PurchaseFlow: $label verification error: ${e.message}")
                         verificationResultMessage = "❌ $label verification error: ${e.message}"
@@ -711,17 +654,12 @@ fun PurchaseFlowScreen(
 
             if (!isValid) {
                 println("PurchaseFlow: Verification failed – not finishing transaction")
-                // Mark as processed so the same purchase isn't re-processed
-                processedPurchaseKey = purchaseKey
-                return@LaunchedEffect
+
+                return
             }
 
             // 2) Determine consumable vs non-consumable
-            val product = products.find { it.id == purchase.productId }
-            val isConsumable = product?.let {
-                it.type == ProductType.InApp &&
-                        (it.id.contains("consumable", true) || it.id.contains("bulb", true))
-            } == true
+            val isConsumable = purchase.productId in IapConstants.CONSUMABLE_SKUS
 
             // 3) Ensure connection (retry briefly if needed)
             if (!connectionStatus) {
@@ -736,6 +674,7 @@ fun PurchaseFlowScreen(
             val purchaseInput = purchase.toPurchaseInput()
             try {
                 iapStore.finishTransaction(purchaseInput, isConsumable)
+                finished = true
                 iapStore.getAvailablePurchases(null)  // Reload purchases after finishing
                 iapStore.postStatusMessage(
                     message = "Purchase finished successfully",
@@ -743,6 +682,8 @@ fun PurchaseFlowScreen(
                     productId = purchase.productId
                 )
                 selectedProduct = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 iapStore.postStatusMessage(
                     message = "finishTransaction failed: ${e.message}",
@@ -750,6 +691,8 @@ fun PurchaseFlowScreen(
                     productId = purchase.productId
                 )
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             iapStore.postStatusMessage(
                 message = e.message ?: "Failed to finish purchase",
@@ -757,8 +700,52 @@ fun PurchaseFlowScreen(
                 productId = purchase.productId
             )
         } finally {
-            // Mark as processed so user can retry if needed
-            processedPurchaseKey = purchaseKey
+            if (!finished) handledPurchaseIds.remove(purchase.id)
+        }
+    }
+
+    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
+    LaunchedEffect(verificationMethod, connectionStatus, recoveryRequest) {
+        if (!connectionStatus) return@LaunchedEffect
+        try {
+            iapStore.getAvailablePurchases(null).filterIsInstance<PurchaseAndroid>().forEach { handlePurchased(it) }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            verificationResultMessage = "Purchase recovery failed; receipts retained: ${error.message}"
+        }
+    }
+
+    LaunchedEffect(purchaseKey) {
+        lastPurchaseAndroid?.let { handlePurchased(it) }
+    }
+
+    LaunchedEffect(Unit) {
+        // Enable OpenIapLog for debugging
+        dev.hyo.openiap.OpenIapLog.isEnabled = true
+
+        try {
+            val connected = iapStore.initConnection()
+            if (connected) {
+                val request = ProductRequest(
+                    skus = IapConstants.INAPP_SKUS,
+                    type = ProductQueryType.InApp
+                )
+                iapStore.fetchProducts(request)
+
+            } else {
+                iapStore.postStatusMessage(
+                    message = "Failed to connect to billing service",
+                    status = PurchaseResultStatus.Error
+                )
+            }
+        } catch (e: Exception) {
+            iapStore.postStatusMessage(
+                message = "Failed to initialize: ${e.message}",
+                status = PurchaseResultStatus.Error
+            )
+        } finally {
+            isInitializing = false
         }
     }
 
@@ -771,7 +758,7 @@ fun PurchaseFlowScreen(
             isPurchasing = status.isPurchasing(product.id)
         )
     }
-    
+
     // Purchase Detail Modal
     selectedPurchase?.let { purchase ->
         PurchaseDetailModal(

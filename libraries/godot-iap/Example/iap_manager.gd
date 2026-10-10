@@ -5,7 +5,7 @@ extends Node
 ## - "dev.hyo.martie.10bulbs" : Consumable - 전구 10개
 ## - "dev.hyo.martie.30bulbs" : Consumable - 전구 30개
 ## - "dev.hyo.martie.certified" : Non-consumable - 인증 배지
-## - "dev.hyo.martie.premium" : Non-consumable - 프리미엄 (무제한 전구)
+## - "dev.hyo.martie.premium" : Subscription - Monthly premium access
 ## - "dev.hyo.martie.premium_year" : Subscription - 연간 프리미엄 구독
 
 # Load OpenIAP types
@@ -16,6 +16,7 @@ signal purchase_completed(product_id: String)
 signal purchase_failed(product_id: String, error: String)
 signal verification_changed(label: String)
 signal verification_result(message: String, ok: bool)
+signal subscription_entitlements_changed
 signal purchases_restored
 signal products_loaded
 signal connection_changed(connected: bool)
@@ -31,7 +32,14 @@ var store_connected := false
 var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
 var _processed_transactions: Dictionary = {}  # transactionId -> bool (to prevent duplicate processing)
+var _verified_subscription_receipts: Dictionary = {}
+var _reconciling_subscriptions := false
+var _subscription_refresh_requested := false
+var subscription_entitlements := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
+
 var _verifying_transactions: Dictionary = {}  # transactionId -> bool (in-flight verification)
+var _amazon_catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://amazon.sdktester.json"))
+
 var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 
 
@@ -97,7 +105,7 @@ func _clear_pending_purchases() -> void:
 		print("[IAPManager] No pending purchases found")
 		return
 
-	print("[IAPManager] Found %d pending purchase(s), finishing..." % pending_purchases.size())
+	print("[IAPManager] Found %d purchase(s) for verification..." % pending_purchases.size())
 
 	for purchase in pending_purchases:
 		var purchase_dict := _purchase_to_dict(purchase)
@@ -115,7 +123,7 @@ func _clear_pending_purchases() -> void:
 		# live one.
 		await _on_purchase_updated(purchase_dict)
 
-	print("[IAPManager] Pending purchases cleared")
+	print("[IAPManager] Pending purchase review complete")
 
 
 func _purchase_to_dict(purchase: Variant) -> Dictionary:
@@ -216,7 +224,9 @@ func _process_products(products_array: Array) -> void:
 func _on_purchase_updated(purchase: Dictionary) -> void:
 	var product_id: String = purchase.get("productId", "")
 	var purchase_state: String = purchase.get("purchaseState", "")
-	var transaction_id: String = purchase.get("transactionId", "")
+	var transaction_id: String = purchase.get("transactionId", purchase.get("id", ""))
+	if product_id not in [PRODUCT_10_BULBS, PRODUCT_30_BULBS, PRODUCT_CERTIFIED, PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]:
+		return
 
 	print("[IAPManager] Purchase updated: %s (state: %s, txn: %s)" % [product_id, purchase_state, transaction_id])
 
@@ -258,12 +268,17 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 			push_warning("[IAPManager] Finish failed, leaving %s for redelivery" % product_id)
 			return
 
+		if product_id in [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]:
+			_verified_subscription_receipts[_subscription_receipt_identity(purchase)] = true
 		purchase_completed.emit(product_id)
 
 
 func cycle_verification_method() -> void:
 	verification_method = IapkitConfig.next_method(verification_method)
 	verification_changed.emit(IapkitConfig.method_label(verification_method))
+	if verification_method != IapkitConfig.Method.NONE:
+		await _clear_pending_purchases()
+		await reconcile_subscription_entitlements()
 
 
 func verification_label() -> String:
@@ -275,11 +290,11 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 
 	match verification_method:
 		IapkitConfig.Method.NONE:
-			verification_result.emit("%s — skipped" % label, true)
-			return true
+			verification_result.emit("%s — receipt retained; select verification to retry" % label, false)
+			return false
 		IapkitConfig.Method.LOCAL_DEVICE:
 			if OS.get_name() not in ["iOS", "macOS"]:
-				verification_result.emit("%s — unavailable here; choose Local (IAPKit) or None (Skip)" % label, false)
+				verification_result.emit("%s — unavailable here; choose Local (IAPKit) or IAPKit (Server)" % label, false)
 				return false
 			var local_result = await GodotIapPlugin.verify_purchase({"apple": {"sku": product_id}})
 			var is_valid: bool = local_result != null and local_result.is_valid
@@ -311,6 +326,7 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 			# IAPKit rejects an Amazon receipt without the buyer's id.
 			var amazon_user_id := str(purchase.get("userIdAmazon", "")).strip_edges()
 			iapkit["amazon"] = {
+				"expectedProductId": _verification_product_id(product_id, "amazon"),
 				"receiptId": token,
 				"sandbox": IapkitConfig.amazon_rvs_sandbox(),
 			}
@@ -319,8 +335,11 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 		"horizon":
 			# Horizon identifies the entitlement by SKU, not a token.
 			iapkit["horizon"] = {"sku": product_id}
-		_:
+		"google":
 			iapkit["google"] = {"purchaseToken": token}
+		_:
+			verification_result.emit("Unsupported verification store; receipt retained", false)
+			return false
 
 	if store != "horizon" and token.is_empty():
 		verification_result.emit("%s — no purchase token" % label, false)
@@ -332,7 +351,7 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 	})
 
 	var verified = result.iapkit if result != null else null
-	if verified == null or not verified.is_valid:
+	if not _accepts_verification(verified, product_id, store):
 		var reason := "invalid" if verified != null else "no response"
 		verification_result.emit("%s — %s" % [label, reason], false)
 		purchase_failed.emit(product_id, "%s failed" % label)
@@ -342,6 +361,34 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 		"%s — valid, %s" % [label, _iapkit_state_name(verified.state)], true
 	)
 	return true
+
+
+func _verification_product_id(product_id: String, store: String) -> String:
+	var item: Dictionary = _amazon_catalog.get(product_id, {})
+	if store == "amazon" and item.get("itemType") == "SUBSCRIPTION":
+		return item.get("subscriptionBase", item.get("subscriptionParent", product_id))
+	return product_id
+
+
+func _accepts_verification(verified: Variant, product_id: String, store: String) -> bool:
+	if verified == null or not verified.is_valid:
+		return false
+	var store_names := {"apple": Types.IapStore.APPLE, "google": Types.IapStore.GOOGLE, "amazon": Types.IapStore.AMAZON, "horizon": Types.IapStore.HORIZON}
+	if not store_names.has(store) or verified.store != store_names[store]:
+		return false
+	if verified.product_id != _verification_product_id(product_id, store):
+		return false
+	var consumable := product_id in [PRODUCT_10_BULBS, PRODUCT_30_BULBS]
+	match store:
+		"apple", "amazon":
+			if store == "amazon" and verified.environment != ("Sandbox" if IapkitConfig.amazon_rvs_sandbox() else "Production"):
+				return false
+			return verified.state == (Types.IapkitPurchaseState.READY_TO_CONSUME if consumable else Types.IapkitPurchaseState.ENTITLED)
+		"google":
+			return verified.state in [Types.IapkitPurchaseState.ENTITLED, Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT] or (consumable and verified.state == Types.IapkitPurchaseState.READY_TO_CONSUME)
+		"horizon":
+			return verified.state == Types.IapkitPurchaseState.ENTITLED
+	return false
 
 
 func _iapkit_state_name(state: int) -> String:
@@ -395,7 +442,7 @@ func _purchase(product_id: String, offer_token: String = "") -> void:
 	print("[IAPManager] Requesting purchase: %s" % product_id)
 
 	# Determine product type (subscription vs in-app)
-	var is_subscription = (product_id == PRODUCT_PREMIUM_YEAR)
+	var is_subscription = product_id in [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]
 
 	# Create typed RequestPurchaseProps
 	var props = Types.RequestPurchaseProps.new()
@@ -568,25 +615,69 @@ func restore_purchases() -> void:
 	var result: Types.VoidResult = await GodotIapPlugin.restore_purchases()
 
 	if result.success:
+		await _clear_pending_purchases()
+		await reconcile_subscription_entitlements()
 		purchases_restored.emit()
 
 
+func reconcile_subscription_entitlements() -> bool:
+	_subscription_refresh_requested = true
+	if _reconciling_subscriptions:
+		return false
+	_reconciling_subscriptions = true
+	var succeeded := false
+	while _subscription_refresh_requested:
+		_subscription_refresh_requested = false
+		succeeded = await _reconcile_subscription_entitlements()
+	_reconciling_subscriptions = false
+	return succeeded
+
+
+func _reconcile_subscription_entitlements() -> bool:
+	var ids: Array[String] = [PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]
+	var result := await GodotIapPlugin.get_active_subscriptions_result(ids)
+	if not result.get("success", false):
+		push_warning("Subscription query failed; existing entitlements retained")
+		return false
+	var active := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
+	for subscription in result.get("subscriptions", []):
+		if active.has(subscription.product_id) and subscription.is_active:
+			active[subscription.product_id] = true
+	var next := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
+	if active.values().has(true):
+		var available := await GodotIapPlugin.get_available_purchases_result()
+		if not available.get("success", false):
+			return false
+		for receipt in available.get("purchases", []):
+			var data := _purchase_to_dict(receipt)
+			var id := _purchase_product_id(receipt, data)
+			var receipt_id := _subscription_receipt_identity(data)
+			if not active.get(id, false) or receipt_id.is_empty() or data.get("purchaseState", "") != "purchased":
+				continue
+			if not _verified_subscription_receipts.has(receipt_id):
+				if _purchase_is_acknowledged(receipt, data):
+					if await _verify_purchase(data, id):
+						_verified_subscription_receipts[receipt_id] = true
+				else:
+					await _on_purchase_updated(data)
+			next[id] = next[id] or _verified_subscription_receipts.has(receipt_id)
+	# A purchase or resume during these queries needs a fresh ownership snapshot.
+	if _subscription_refresh_requested:
+		return false
+
+	subscription_entitlements = next
+	subscription_entitlements_changed.emit()
+	return true
+
+
+func _subscription_receipt_identity(purchase: Dictionary) -> String:
+	var id := str(purchase.get("transactionId", purchase.get("id", "")))
+	if id.is_empty():
+		return ""
+	return "%s:%s" % [purchase.get("storeId", purchase.get("store", "")), id]
+
+
 func is_premium_purchased() -> Variant:
-	## Check if premium was purchased (for non-consumables)
-	## Returns null on query failure so callers do not revoke a valid entitlement.
-	var available_result = await GodotIapPlugin.get_available_purchases_result()
-	if not available_result.get("success", false):
-		push_error(
-			"Premium entitlement query failed: %s (%s)"
-			% [
-				available_result.get("error", "Unknown store error"),
-				available_result.get("code", "unknown"),
-			]
-		)
+	if not await reconcile_subscription_entitlements():
 		return null
-	var purchases: Array = available_result.get("purchases", [])
-	for purchase in purchases:
-		# Access typed property directly
-		if purchase.product_id == PRODUCT_PREMIUM:
-			return true
-	return false
+	return subscription_entitlements[PRODUCT_PREMIUM]

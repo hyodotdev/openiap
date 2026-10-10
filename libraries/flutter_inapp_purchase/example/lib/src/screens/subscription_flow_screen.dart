@@ -35,7 +35,9 @@ extension VerificationMethodX on VerificationMethod {
 
 /// Mirrors the other examples: no key skips, a local origin prefers it.
 VerificationMethod defaultVerificationMethod(
-    String apiKey, String localBaseUrl) {
+  String apiKey,
+  String localBaseUrl,
+) {
   if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
   if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
   return VerificationMethod.iapkit;
@@ -113,125 +115,184 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     super.dispose();
   }
 
-  void _setupListeners() {
-    // Listen to purchase updates
-    _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
-      (purchase) async {
-        debugPrint('🎯 Purchase updated: ${purchase.productId}');
-        debugPrint('  Store: ${purchase.store}');
-        debugPrint('  Purchase state: ${purchase.purchaseState}');
-        final transactionId = purchase.transactionIdFor;
-        final androidStateValue = purchase.androidPurchaseStateValue;
-        final iosTransactionState = purchase.iosTransactionState;
-        final acknowledgedAndroid = purchase.androidIsAcknowledged;
-        debugPrint(
-            '  Purchase state Android (legacy value): $androidStateValue');
-        debugPrint('  Transaction state iOS: $iosTransactionState');
-        debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
-        debugPrint(
-            '  Has transaction ID: ${transactionId?.isNotEmpty ?? false}');
-        debugPrint(
-            '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
-        if (purchase is PurchaseAndroid) {
-          debugPrint('  Auto renewing: ${purchase.autoRenewingAndroid}');
+  Future<void> _recoverPurchases() async {
+    if (!_connected || !mounted) return;
+    try {
+      final recovered = !kIsWeb &&
+              (defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.macOS)
+          ? await _iap.getPendingTransactionsIOS()
+          : await _iap.getAvailablePurchases();
+      for (final purchase in recovered) {
+        if (!mounted) return;
+        await _handlePurchaseUpdate(purchase);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              'Purchase recovery failed; receipts retained: $error';
+        });
+      }
+    }
+  }
+
+  Future<void> _handlePurchaseUpdate(Purchase purchase) async {
+    if (!IapConstants.isSubscription(purchase.productId)) return;
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+    if (_verificationMethod == VerificationMethod.ignore) {
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              'Receipt retained. Choose verification to retry this receipt.';
+        });
+      }
+      return;
+    }
+
+    debugPrint('🎯 Purchase updated: ${purchase.productId}');
+    debugPrint('  Store: ${purchase.store}');
+    debugPrint('  Purchase state: ${purchase.purchaseState}');
+    final transactionId = purchase.transactionIdFor;
+    final androidStateValue = purchase.androidPurchaseStateValue;
+    final iosTransactionState = purchase.iosTransactionState;
+    final acknowledgedAndroid = purchase.androidIsAcknowledged;
+    debugPrint('  Purchase state Android (legacy value): $androidStateValue');
+    debugPrint('  Transaction state iOS: $iosTransactionState');
+    debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
+    debugPrint('  Has transaction ID: ${transactionId?.isNotEmpty ?? false}');
+    debugPrint(
+      '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
+    );
+    if (purchase is PurchaseAndroid) {
+      debugPrint('  Auto renewing: ${purchase.autoRenewingAndroid}');
+    }
+
+    if (!mounted) {
+      debugPrint('  ⚠️ Widget not mounted, ignoring update');
+      return;
+    }
+
+    // Check for duplicate processing
+    final transactionKey = transactionId ?? purchase.purchaseToken ?? '';
+    if (transactionKey.isNotEmpty &&
+        _processedTransactionIds.contains(transactionKey)) {
+      debugPrint('  ⚠️ Transaction already processed');
+      return;
+    }
+
+    if (purchase.purchaseState == PurchaseState.Purchased) {
+      // Claim the key before verifying, since a redelivery can land
+      // mid-flight; a failed attempt releases it below.
+      if (transactionKey.isNotEmpty &&
+          !_processedTransactionIds.add(transactionKey)) {
+        debugPrint('  ⚠️ Transaction already in progress');
+        return;
+      }
+
+      debugPrint('✅ Purchase detected as successful, updating UI...');
+      debugPrint('  _isProcessing before setState: $_isProcessing');
+
+      // Update UI immediately
+      if (mounted) {
+        setState(() {
+          _purchaseResult = '✅ Purchase successful: ${purchase.productId}';
+          _isProcessing = false;
+        });
+        debugPrint('  _isProcessing after setState: $_isProcessing');
+        debugPrint('  UI should be updated now');
+      } else {
+        debugPrint('  ⚠️ Widget not mounted, cannot update UI');
+      }
+
+      var verificationOk = false;
+      if (_verificationMethod.isIapkit) {
+        verificationOk = await _verifyPurchaseWithIAPKit(purchase);
+      } else if (purchase.store == IapStore.Apple) {
+        try {
+          final result = await _iap.verifyPurchase(
+            apple: VerifyPurchaseAppleOptions(sku: purchase.productId),
+          );
+          verificationOk = result is VerifyPurchaseResultIOS && result.isValid;
+        } catch (e) {
+          debugPrint('Local subscription verification failed: $e');
         }
+      }
 
-        if (!mounted) {
-          debugPrint('  ⚠️ Widget not mounted, ignoring update');
-          return;
-        }
-
-        // Check for duplicate processing
-        final transactionKey = transactionId ?? purchase.purchaseToken ?? '';
-        if (transactionKey.isNotEmpty &&
-            _processedTransactionIds.contains(transactionKey)) {
-          debugPrint('  ⚠️ Transaction already processed');
-          return;
-        }
-
-        if (purchase.purchaseState == PurchaseState.Purchased) {
-          // Claim the key before verifying, since a redelivery can land
-          // mid-flight; a failed attempt releases it below.
-          if (transactionKey.isNotEmpty &&
-              !_processedTransactionIds.add(transactionKey)) {
-            debugPrint('  ⚠️ Transaction already in progress');
-            return;
-          }
-
-          debugPrint('✅ Purchase detected as successful, updating UI...');
-          debugPrint('  _isProcessing before setState: $_isProcessing');
-
-          // Update UI immediately
-          if (mounted) {
-            setState(() {
-              _purchaseResult = '✅ Purchase successful: ${purchase.productId}';
-              _isProcessing = false;
-            });
-            debugPrint('  _isProcessing after setState: $_isProcessing');
-            debugPrint('  UI should be updated now');
-          } else {
-            debugPrint('  ⚠️ Widget not mounted, cannot update UI');
-          }
-
-          var verificationOk = true;
-          if (_verificationMethod.isIapkit) {
-            verificationOk = await _verifyPurchaseWithIAPKit(purchase);
-          }
-
-          if (!verificationOk) {
-            debugPrint(
-                '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
-            // Leave the transaction unfinished so the platform retries, and
-            // release the key so the next listener emit gets a fresh chance.
-            _processedTransactionIds.remove(transactionKey);
-            return;
-          }
-
-          // Acknowledge/finish the transaction
-          var finishedOk = false;
-          try {
-            debugPrint('Calling finishTransaction...');
-            await _iap.finishTransaction(
-              purchase: purchase,
-            );
-            debugPrint('Transaction finished successfully');
-            finishedOk = true;
-          } catch (e) {
-            debugPrint('Error finishing transaction: $e');
-          }
-
-          // A transient finish failure must not short-circuit retries for
-          // the rest of the session.
-          if (!finishedOk) {
-            _processedTransactionIds.remove(transactionKey);
-          }
-
-          // Refresh subscriptions after a short delay to ensure transaction is processed
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-          debugPrint('Refreshing subscriptions...');
-          await _checkActiveSubscriptions();
-          debugPrint('Subscriptions refreshed');
-        } else if (purchase.purchaseState == PurchaseState.Pending ||
-            androidStateValue == AndroidPurchaseState.Unknown.value) {
-          // Pending
-          if (!mounted) return;
+      if (!verificationOk) {
+        if (mounted) {
           setState(() {
-            _purchaseResult = '⏳ Purchase pending: ${purchase.productId}';
+            _purchaseResult =
+                'Verification failed or unavailable; receipt retained for retry.';
           });
-        } else {
-          // Unknown state - log for debugging
-          debugPrint('❓ Unknown purchase state');
-          debugPrint('  Purchase state: ${purchase.purchaseState}');
-          debugPrint('  Transaction state iOS: $iosTransactionState');
-          debugPrint(
-              '  Purchase state Android (legacy value): $androidStateValue');
-          debugPrint(
-              '  Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty}');
+        }
+        debugPrint(
+          '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true',
+        );
+        // Leave the transaction unfinished so the platform retries, and
+        // release the key so the next listener emit gets a fresh chance.
+        _processedTransactionIds.remove(transactionKey);
+        return;
+      }
 
-          if (!mounted) return;
+      // Acknowledge/finish the transaction
+      var finishedOk = false;
+      try {
+        debugPrint('Calling finishTransaction...');
+        await _iap.finishTransaction(purchase: purchase);
+        debugPrint('Transaction finished successfully');
+        finishedOk = true;
+      } catch (e) {
+        debugPrint('Error finishing transaction: $e');
+      }
+
+      // A transient finish failure must not short-circuit retries for
+      // the rest of the session.
+      if (!finishedOk) {
+        _processedTransactionIds.remove(transactionKey);
+        if (mounted) {
           setState(() {
-            _isProcessing = false;
-            _purchaseResult = '''
+            _purchaseResult = 'Completion failed; receipt retained for retry.';
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _purchaseResult = 'Subscription verified and transaction finished.';
+        });
+      }
+
+      // Refresh subscriptions after a short delay to ensure transaction is processed
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      debugPrint('Refreshing subscriptions...');
+      await _checkActiveSubscriptions();
+      debugPrint('Subscriptions refreshed');
+    } else if (purchase.purchaseState == PurchaseState.Pending ||
+        androidStateValue == AndroidPurchaseState.Unknown.value) {
+      // Pending
+      if (!mounted) return;
+      setState(() {
+        _purchaseResult = '⏳ Purchase pending: ${purchase.productId}';
+      });
+    } else {
+      // Unknown state - log for debugging
+      debugPrint('❓ Unknown purchase state');
+      debugPrint('  Purchase state: ${purchase.purchaseState}');
+      debugPrint('  Transaction state iOS: $iosTransactionState');
+      debugPrint('  Purchase state Android (legacy value): $androidStateValue');
+      debugPrint(
+        '  Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty}',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _purchaseResult = '''
 ⚠️ Purchase received but state unknown
 Store: ${purchase.store}
 Purchase state: ${purchase.purchaseState}
@@ -239,10 +300,15 @@ iOS transaction state: $iosTransactionState
 Android purchase state (legacy value): $androidStateValue
 Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpty}
           '''
-                .trim();
-          });
-        }
-      },
+            .trim();
+      });
+    }
+  }
+
+  void _setupListeners() {
+    // Listen to purchase updates
+    _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
+      _handlePurchaseUpdate,
       onError: (Object error) {
         debugPrint('Purchase stream error: $error');
         if (!mounted) return;
@@ -275,15 +341,6 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     );
   }
 
-  /// Verify an active subscription purchase with IAPKit. The body mirrors
-  /// `_verifyPurchaseWithIAPKit` in `purchase_flow_screen.dart`; subscriptions
-  /// reuse the same `verifyPurchaseWithProvider` API but the canonical state
-  /// IAPKit returns (`Active` / `InGracePeriod` / `InBillingRetry` / `Expired`)
-  /// is the value-add for renewals.
-  ///
-  /// Returns `true` only on a positive `isValid` from the kit response. The
-  /// caller is expected to skip `finishTransaction` on `false` so an unverified
-  /// or refunded purchase is never silently acknowledged.
   Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
     final apiKey = IapConstants.iapkitApiKey;
     final label = _verificationMethod.label;
@@ -306,13 +363,16 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
       // collector. Log presence + length only (PR #124
       // (https://github.com/hyodotdev/openiap/pull/124) review).
       debugPrint(
-          'Token for verification: present=${jwsOrToken.isNotEmpty}, length=${jwsOrToken.length}');
+        'Token for verification: present=${jwsOrToken.isNotEmpty}, length=${jwsOrToken.length}',
+      );
 
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
         iapkit: RequestVerifyPurchaseWithIapkitProps(
           amazon: purchase.store == IapStore.Amazon
               ? RequestVerifyPurchaseWithIapkitAmazonProps(
+                  expectedProductId: IapConstants.verificationProductId(
+                      purchase.productId, purchase.store),
                   receiptId: jwsOrToken,
                   sandbox: IapConstants.amazonRvsSandbox,
                   // IAPKit rejects an Amazon receipt without the buyer's id.
@@ -341,7 +401,8 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
       // verification payload which can include the token, productId,
       // and the kit project context. Log only the high-level outcome.
       debugPrint(
-          'IAPKit verification completed: hasIapkit=${result.iapkit != null}');
+        'IAPKit verification completed: hasIapkit=${result.iapkit != null}',
+      );
 
       if (result.iapkit != null) {
         final iapkitResult = result.iapkit!;
@@ -361,7 +422,7 @@ Store: ${iapkitResult.store.value}
                 .trim();
           });
         }
-        return iapkitResult.isValid;
+        return IapConstants.acceptsVerification(iapkitResult, purchase);
       }
       // No iapkit payload returned — treat as unverified rather than as
       // a silent pass.
@@ -414,6 +475,7 @@ Store: ${iapkitResult.store.value}
                     _verificationMethod = VerificationMethod.iapkitLocalhost;
                   });
                   Navigator.pop(context);
+                  unawaited(_recoverPurchases());
                 },
               ),
               ListTile(
@@ -429,6 +491,7 @@ Store: ${iapkitResult.store.value}
                     _verificationMethod = VerificationMethod.iapkit;
                   });
                   Navigator.pop(context);
+                  unawaited(_recoverPurchases());
                 },
               ),
             ],
@@ -464,6 +527,7 @@ Store: ${iapkitResult.store.value}
 
       if (_connected) {
         await _loadSubscriptions();
+        await _recoverPurchases();
         await _checkActiveSubscriptions();
       }
     } catch (error) {
@@ -571,24 +635,26 @@ Store: ${iapkitResult.store.value}
         }
 
         // Create ActiveSubscription from Purchase
-        summaries.add(ActiveSubscription(
-          productId: purchase.productId,
-          transactionId: purchase.transactionIdFor ?? purchase.id,
-          purchaseToken: purchase.purchaseToken,
-          transactionDate: purchase.transactionDate is String
-              ? double.tryParse(purchase.transactionDate as String) ?? 0.0
-              : (purchase.transactionDate as num?)?.toDouble() ?? 0.0,
-          isActive: purchase.purchaseState == PurchaseState.Purchased,
-          autoRenewingAndroid: autoRenewing,
-          basePlanIdAndroid: basePlanId,
-          currentPlanId: purchase.currentPlanId,
-          daysUntilExpirationIOS: daysUntilExpirationIOS,
-          environmentIOS: environmentIOS,
-          expirationDateIOS: expirationDateIOS,
-          renewalInfoIOS: renewalInfoIOS,
-          purchaseTokenAndroid:
-              purchase is PurchaseAndroid ? purchase.purchaseToken : null,
-        ));
+        summaries.add(
+          ActiveSubscription(
+            productId: purchase.productId,
+            transactionId: purchase.transactionIdFor ?? purchase.id,
+            purchaseToken: purchase.purchaseToken,
+            transactionDate: purchase.transactionDate is String
+                ? double.tryParse(purchase.transactionDate as String) ?? 0.0
+                : (purchase.transactionDate as num?)?.toDouble() ?? 0.0,
+            isActive: purchase.purchaseState == PurchaseState.Purchased,
+            autoRenewingAndroid: autoRenewing,
+            basePlanIdAndroid: basePlanId,
+            currentPlanId: purchase.currentPlanId,
+            daysUntilExpirationIOS: daysUntilExpirationIOS,
+            environmentIOS: environmentIOS,
+            expirationDateIOS: expirationDateIOS,
+            renewalInfoIOS: renewalInfoIOS,
+            purchaseTokenAndroid:
+                purchase is PurchaseAndroid ? purchase.purchaseToken : null,
+          ),
+        );
       }
 
       debugPrint('Active subscription summaries: ${summaries.length}');
@@ -603,17 +669,22 @@ Store: ${iapkitResult.store.value}
           debugPrint('    renewalInfo: {');
           debugPrint('      willAutoRenew: ${renewal.willAutoRenew}');
           debugPrint(
-              '      pendingUpgradeProductId: ${renewal.pendingUpgradeProductId}');
+            '      pendingUpgradeProductId: ${renewal.pendingUpgradeProductId}',
+          );
           debugPrint(
-              '      autoRenewPreference: ${renewal.autoRenewPreference}');
+            '      autoRenewPreference: ${renewal.autoRenewPreference}',
+          );
           debugPrint(
-              '      renewalDate: ${renewal.renewalDate != null ? DateTime.fromMillisecondsSinceEpoch(renewal.renewalDate!.toInt()) : null}');
+            '      renewalDate: ${renewal.renewalDate != null ? DateTime.fromMillisecondsSinceEpoch(renewal.renewalDate!.toInt()) : null}',
+          );
           debugPrint('      expirationReason: ${renewal.expirationReason}');
           debugPrint('      isInBillingRetry: ${renewal.isInBillingRetry}');
           debugPrint(
-              '      gracePeriodExpirationDate: ${renewal.gracePeriodExpirationDate}');
+            '      gracePeriodExpirationDate: ${renewal.gracePeriodExpirationDate}',
+          );
           debugPrint(
-              '      priceIncreaseStatus: ${renewal.priceIncreaseStatus}');
+            '      priceIncreaseStatus: ${renewal.priceIncreaseStatus}',
+          );
           debugPrint('    }');
         }
       }
@@ -644,9 +715,7 @@ Store: ${iapkitResult.store.value}
           );
 
           final summary = _currentActiveSubscription!;
-          final buffer = StringBuffer(
-            'Active: ${summary.productId}',
-          );
+          final buffer = StringBuffer('Active: ${summary.productId}');
           if (summary.expirationDateIOS != null) {
             buffer.write(
               '\nExpires: ${_formatReadableDate(summary.expirationDateIOS!)}',
@@ -677,8 +746,10 @@ Store: ${iapkitResult.store.value}
     }
   }
 
-  Future<void> _purchaseSubscription(ProductCommon item,
-      {bool isUpgrade = false}) async {
+  Future<void> _purchaseSubscription(
+    ProductCommon item, {
+    bool isUpgrade = false,
+  }) async {
     if (_isProcessing) {
       debugPrint('⚠️ Already processing a purchase, ignoring');
       return;
@@ -687,7 +758,8 @@ Store: ${iapkitResult.store.value}
     debugPrint('🛒 Starting subscription purchase: ${item.id}');
     debugPrint('  isUpgrade: $isUpgrade');
     debugPrint(
-        '  Current subscription: ${_currentActiveSubscription?.productId}');
+      '  Current subscription: ${_currentActiveSubscription?.productId}',
+    );
 
     setState(() {
       _isProcessing = true;
@@ -712,14 +784,13 @@ Store: ${iapkitResult.store.value}
             _selectedProrationMode != null) {
           // This is an upgrade/downgrade with proration
           debugPrint(
-              'Upgrading subscription with proration mode: $_selectedProrationMode');
+            'Upgrading subscription with proration mode: $_selectedProrationMode',
+          );
           debugPrint('Using existing purchase token for subscription change');
 
           final requestProps = RequestPurchaseProps.subs((
             apple: null,
-            google: RequestSubscriptionAndroidProps(
-              skus: [item.id],
-            ),
+            google: RequestSubscriptionAndroidProps(skus: [item.id]),
           ));
 
           await _iap.requestPurchase(requestProps);
@@ -729,9 +800,7 @@ Store: ${iapkitResult.store.value}
 
           final requestProps = RequestPurchaseProps.subs((
             apple: null,
-            google: RequestSubscriptionAndroidProps(
-              skus: [item.id],
-            ),
+            google: RequestSubscriptionAndroidProps(skus: [item.id]),
           ));
 
           await _iap.requestPurchase(requestProps);
@@ -739,9 +808,7 @@ Store: ${iapkitResult.store.value}
       } else {
         // iOS
         final requestProps = RequestPurchaseProps.subs((
-          apple: RequestSubscriptionIosProps(
-            sku: item.id,
-          ),
+          apple: RequestSubscriptionIosProps(sku: item.id),
           google: null,
         ));
 
@@ -849,8 +916,9 @@ Store: ${iapkitResult.store.value}
 
       for (final subscription in _activeSubscriptionInfo.values) {
         debugPrint(
-            'Restored: ${subscription.productId}, has purchase credential: '
-            '${subscription.purchaseToken?.isNotEmpty ?? false}');
+          'Restored: ${subscription.productId}, has purchase credential: '
+          '${subscription.purchaseToken?.isNotEmpty ?? false}',
+        );
       }
     } catch (error) {
       debugPrint('Failed to restore purchases: $error');
@@ -879,9 +947,7 @@ Store: ${iapkitResult.store.value}
 
     final expiration = subscription.expirationDateIOS;
     if (expiration != null) {
-      chips.add(
-        _infoChip('Expires: ${_formatReadableDate(expiration)}'),
-      );
+      chips.add(_infoChip('Expires: ${_formatReadableDate(expiration)}'));
     }
     final daysUntilExpiration = subscription.daysUntilExpirationIOS;
     if (daysUntilExpiration != null &&
@@ -918,8 +984,10 @@ Store: ${iapkitResult.store.value}
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: (isCurrent
                             ? Colors.green.shade600
@@ -946,11 +1014,7 @@ Store: ${iapkitResult.store.value}
               ],
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: chips,
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: chips),
 
             // renewalInfoIOS showcase
             if (renewal != null) ...[
@@ -959,10 +1023,7 @@ Store: ${iapkitResult.store.value}
               const SizedBox(height: 8),
               const Text(
                 'Renewal Info (iOS)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               _buildRenewalInfoRow(
@@ -1173,29 +1234,20 @@ Store: ${iapkitResult.store.value}
           const SizedBox(width: 8),
           Text(
             offer.displayPrice,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           if (paymentModeLabel.isNotEmpty) ...[
             const SizedBox(width: 8),
             Text(
               paymentModeLabel,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
           ],
           if (periodLabel.isNotEmpty) ...[
             const SizedBox(width: 8),
             Text(
               periodLabel,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
           ],
         ],
@@ -1241,7 +1293,9 @@ Store: ${iapkitResult.store.value}
                           Container(
                             margin: const EdgeInsets.only(top: 4),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.blue,
                               borderRadius: BorderRadius.circular(12),
@@ -1284,8 +1338,10 @@ Store: ${iapkitResult.store.value}
               if (isCurrentSubscription) ...[
                 Container(
                   width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -1345,8 +1401,10 @@ Store: ${iapkitResult.store.value}
                     child: ElevatedButton(
                       onPressed: _isProcessing || isCurrentSubscription
                           ? null
-                          : () => _purchaseSubscription(subscription,
-                              isUpgrade: _hasActiveSubscription),
+                          : () => _purchaseSubscription(
+                                subscription,
+                                isUpgrade: _hasActiveSubscription,
+                              ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _hasActiveSubscription
                             ? Colors.orange.shade600
@@ -1386,8 +1444,10 @@ Store: ${iapkitResult.store.value}
                         ),
                         child: const Tooltip(
                           message: 'Test proration without token',
-                          child:
-                              Text('No Token', style: TextStyle(fontSize: 11)),
+                          child: Text(
+                            'No Token',
+                            style: TextStyle(fontSize: 11),
+                          ),
                         ),
                       ),
                     ),
@@ -1408,8 +1468,10 @@ Store: ${iapkitResult.store.value}
                         ),
                         child: const Tooltip(
                           message: 'Test proration with empty token',
-                          child: Text('Empty Token',
-                              style: TextStyle(fontSize: 11)),
+                          child: Text(
+                            'Empty Token',
+                            style: TextStyle(fontSize: 11),
+                          ),
                         ),
                       ),
                     ),
@@ -1545,9 +1607,11 @@ Store: ${iapkitResult.store.value}
                         const SizedBox(height: 24),
 
                         // Upgrade Detection Section
-                        if (_activeSubscriptionInfo.values.any((sub) =>
-                            sub.renewalInfoIOS?.pendingUpgradeProductId !=
-                            null)) ...[
+                        if (_activeSubscriptionInfo.values.any(
+                          (sub) =>
+                              sub.renewalInfoIOS?.pendingUpgradeProductId !=
+                              null,
+                        )) ...[
                           Card(
                             color: Colors.blue.shade50,
                             child: Padding(
@@ -1557,8 +1621,10 @@ Store: ${iapkitResult.store.value}
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.upgrade,
-                                          color: Colors.blue.shade700),
+                                      Icon(
+                                        Icons.upgrade,
+                                        color: Colors.blue.shade700,
+                                      ),
                                       const SizedBox(width: 8),
                                       const Text(
                                         'Pending Upgrade Detected',
@@ -1571,10 +1637,12 @@ Store: ${iapkitResult.store.value}
                                   ),
                                   const SizedBox(height: 8),
                                   ..._activeSubscriptionInfo.values
-                                      .where((sub) =>
-                                          sub.renewalInfoIOS
-                                              ?.pendingUpgradeProductId !=
-                                          null)
+                                      .where(
+                                    (sub) =>
+                                        sub.renewalInfoIOS
+                                            ?.pendingUpgradeProductId !=
+                                        null,
+                                  )
                                       .map((sub) {
                                     final renewal = sub.renewalInfoIOS!;
                                     return Padding(
@@ -1582,13 +1650,15 @@ Store: ${iapkitResult.store.value}
                                       child: RichText(
                                         text: TextSpan(
                                           style: TextStyle(
-                                              color: Colors.grey.shade800,
-                                              fontSize: 14),
+                                            color: Colors.grey.shade800,
+                                            fontSize: 14,
+                                          ),
                                           children: [
                                             TextSpan(
                                               text: sub.productId,
                                               style: const TextStyle(
-                                                  fontWeight: FontWeight.w600),
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                             const TextSpan(text: ' → '),
                                             TextSpan(
@@ -1621,10 +1691,12 @@ Store: ${iapkitResult.store.value}
                         ],
 
                         // Cancellation Detection Section
-                        if (_activeSubscriptionInfo.values.any((sub) =>
-                            sub.renewalInfoIOS?.willAutoRenew == false &&
-                            sub.renewalInfoIOS?.pendingUpgradeProductId ==
-                                null)) ...[
+                        if (_activeSubscriptionInfo.values.any(
+                          (sub) =>
+                              sub.renewalInfoIOS?.willAutoRenew == false &&
+                              sub.renewalInfoIOS?.pendingUpgradeProductId ==
+                                  null,
+                        )) ...[
                           Card(
                             color: Colors.orange.shade50,
                             child: Padding(
@@ -1634,8 +1706,10 @@ Store: ${iapkitResult.store.value}
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.warning,
-                                          color: Colors.orange.shade700),
+                                      Icon(
+                                        Icons.warning,
+                                        color: Colors.orange.shade700,
+                                      ),
                                       const SizedBox(width: 8),
                                       const Text(
                                         'Subscription Cancelled',
@@ -1648,29 +1722,34 @@ Store: ${iapkitResult.store.value}
                                   ),
                                   const SizedBox(height: 8),
                                   ..._activeSubscriptionInfo.values
-                                      .where((sub) =>
-                                          sub.renewalInfoIOS?.willAutoRenew ==
-                                              false &&
-                                          sub.renewalInfoIOS
-                                                  ?.pendingUpgradeProductId ==
-                                              null)
+                                      .where(
+                                    (sub) =>
+                                        sub.renewalInfoIOS?.willAutoRenew ==
+                                            false &&
+                                        sub.renewalInfoIOS
+                                                ?.pendingUpgradeProductId ==
+                                            null,
+                                  )
                                       .map((sub) {
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 8),
                                       child: RichText(
                                         text: TextSpan(
                                           style: TextStyle(
-                                              color: Colors.grey.shade800,
-                                              fontSize: 14),
+                                            color: Colors.grey.shade800,
+                                            fontSize: 14,
+                                          ),
                                           children: [
                                             TextSpan(
                                               text: sub.productId,
                                               style: const TextStyle(
-                                                  fontWeight: FontWeight.w600),
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                             const TextSpan(
-                                                text:
-                                                    ' is active but will not renew'),
+                                              text:
+                                                  ' is active but will not renew',
+                                            ),
                                             if (sub.expirationDateIOS != null)
                                               TextSpan(
                                                 text:
@@ -1701,8 +1780,9 @@ Store: ${iapkitResult.store.value}
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ..._activeSubscriptionInfo.values
-                              .map(_buildActiveSubscriptionCard),
+                          ..._activeSubscriptionInfo.values.map(
+                            _buildActiveSubscriptionCard,
+                          ),
                           const SizedBox(height: 24),
                         ],
 
@@ -1764,18 +1844,26 @@ Store: ${iapkitResult.store.value}
                                 ),
                               ),
                               SizedBox(height: 8),
-                              Text('1. Subscribe to Basic tier first',
-                                  style: TextStyle(fontSize: 12)),
-                              Text('2. Wait for purchase to complete',
-                                  style: TextStyle(fontSize: 12)),
                               Text(
-                                  '3. Tap "Restore Purchases" to load your subscription',
-                                  style: TextStyle(fontSize: 12)),
+                                '1. Subscribe to Basic tier first',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               Text(
-                                  '4. Select a proration mode (e.g., "Immediate with Time Proration")',
-                                  style: TextStyle(fontSize: 12)),
-                              Text('5. Upgrade to Premium or Pro tier',
-                                  style: TextStyle(fontSize: 12)),
+                                '2. Wait for purchase to complete',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              Text(
+                                '3. Tap "Restore Purchases" to load your subscription',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              Text(
+                                '4. Select a proration mode (e.g., "Immediate with Time Proration")',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              Text(
+                                '5. Upgrade to Premium or Pro tier',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               SizedBox(height: 8),
                               Text(
                                 'Test Buttons: "No Token" = without token, "Empty Token" = with empty string',

@@ -13,11 +13,13 @@ void main() {
 
   late List<MethodCall> log;
   late bool verificationValid;
+  late List<Map<String, dynamic>> retainedPurchases;
   PlatformException? verificationFailure;
 
   setUp(() {
     log = <MethodCall>[];
     verificationValid = true;
+    retainedPurchases = [];
     verificationFailure = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -50,11 +52,11 @@ void main() {
         case 'getAvailableItems':
         case 'getAvailablePurchases':
         case 'getPurchaseHistory':
-          return <Map<String, dynamic>>[];
+          return retainedPurchases;
         case 'requestPurchase':
           return null;
         case 'getPendingTransactionsIOS':
-          return <Map<String, dynamic>>[];
+          return retainedPurchases;
         case 'verifyPurchase':
           if (verificationFailure != null) throw verificationFailure!;
           return VerifyPurchaseResultIOS(
@@ -71,7 +73,8 @@ void main() {
     });
   });
 
-  tearDown(() {
+  tearDown(() async {
+    await FlutterInappPurchase.instance.endConnection();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
@@ -135,7 +138,7 @@ void main() {
 
         expect(
           log.where((call) => call.method == 'finishTransaction').length,
-          outcome == 'valid' || outcome == 'ignore' ? 1 : 0,
+          outcome == 'valid' ? 1 : 0,
           reason: outcome,
         );
         expect(
@@ -143,6 +146,23 @@ void main() {
           ['unsupported', 'pending', 'ignore'].contains(outcome) ? 0 : 1,
           reason: outcome,
         );
+        if (outcome == 'ignore') {
+          retainedPurchases = [purchase.toJson()];
+          await tester.tap(find.text('Ignore'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Local (Device)'));
+          await tester.pumpAndSettle();
+          expect(
+              log.where((call) => call.method == 'verifyPurchase').length, 1);
+          expect(log.where((call) => call.method == 'finishTransaction').length,
+              1);
+          await tester.tap(find.text('Local (Device)'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Local (Device)').last);
+          await tester.pumpAndSettle();
+          expect(log.where((call) => call.method == 'finishTransaction').length,
+              1);
+        }
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpAndSettle();
       }

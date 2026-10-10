@@ -64,11 +64,6 @@ import java.nio.charset.StandardCharsets
 private const val IAPKIT_HOSTED_BASE_URL = "https://kit.openiap.dev"
 private const val IAPKIT_EXAMPLE_USER_ID = "martie-e2e-user"
 
-private data class IapkitSubscriptionBindResult(
-    val bound: Boolean,
-    val active: Boolean,
-    val productId: String?
-)
 
 // Helper to format remaining time like "3d 4h" / "2h 12m" / "35m"
 private fun formatRemaining(deltaMillis: Long): String {
@@ -134,6 +129,7 @@ fun SubscriptionFlowScreen(
     var isInitializing by remember { mutableStateOf(true) }
 
     // Verification states
+    var recoveryRequest by remember { mutableIntStateOf(0) }
     var verificationMethod by remember {
         mutableStateOf(defaultVerificationMethod(IapkitConfig.apiKey, IapkitConfig.localBaseUrl))
     }
@@ -141,7 +137,7 @@ fun SubscriptionFlowScreen(
     var verificationResultMessage by remember { mutableStateOf<String?>(null) }
     var verificationDropdownExpanded by remember { mutableStateOf(false) }
     // Track which purchase IDs have been processed (to allow re-purchase after failure)
-    var processedPurchaseKey by remember { mutableStateOf<String?>(null) }
+    val handledPurchaseIds = remember { mutableSetOf<String>() }
     // Cross-platform subscriptionBillingIssue banner state.
     // Populated from Play Billing 8.1+ isSuspended signal via
     // openiap-google. See https://openiap.dev/docs/features/subscription-billing-issue
@@ -151,83 +147,7 @@ fun SubscriptionFlowScreen(
     val iapkitLocalBaseUrl: String? = IapkitConfig.localBaseUrl
 
     // Load subscription data on screen entry
-    LaunchedEffect(Unit) {
-        // Enable OpenIapLog for debugging
-        dev.hyo.openiap.OpenIapLog.isEnabled = true
 
-        try {
-            println("SubscriptionFlow: Loading subscription products and purchases")
-            println("SubscriptionFlow: Is Horizon = $isHorizon")
-            println("SubscriptionFlow: Subscription SKUs = $subscriptionSkus")
-
-            val connected = iapStore.initConnection()
-            if (connected) {
-
-            // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
-            println("SubscriptionFlow: Testing getActiveSubscriptions...")
-            try {
-                val activeSubscriptions = iapStore.getActiveSubscriptions(subscriptionSkus)
-                println("SubscriptionFlow: getActiveSubscriptions returned ${activeSubscriptions.size} subscriptions")
-                activeSubscriptions.forEach { sub ->
-                    println("  - ${sub.productId}: active=${sub.isActive}, autoRenew=${sub.autoRenewingAndroid}")
-                }
-            } catch (e: Exception) {
-                println("SubscriptionFlow: getActiveSubscriptions FAILED: ${e.message}")
-            }
-            delay(500)
-
-            // Fetch products
-            val request = ProductRequest(
-                skus = subscriptionSkus,
-                type = ProductQueryType.Subs
-            )
-            iapStore.fetchProducts(request)
-
-            // Log current state
-            val currentPurchases = iapStore.availablePurchases.value
-            println("SubscriptionFlow: Found ${currentPurchases.size} purchases")
-            currentPurchases.forEach { purchase ->
-                if (purchase is PurchaseAndroid) {
-                    println("  - ${purchase.productId}: state=${purchase.purchaseState}")
-                }
-            }
-
-            // Log product offers
-            delay(500)
-            val currentProducts = iapStore.products.value
-            println("SubscriptionFlow: Found ${currentProducts.size} products")
-            currentProducts.forEach { product ->
-                if (product is ProductAndroid) {
-                    println("  - Product: ${product.id}")
-                    println("    Title: ${product.title}")
-                    println("    Price: ${product.displayPrice}")
-                    product.subscriptionOffers?.forEachIndexed { index, offer ->
-                        println("    Offer $index:")
-                        println("      Base Plan: ${offer.basePlanIdAndroid}")
-                        println("      Offer ID: ${offer.id}")
-                        println("      Offer Token: present")
-                        offer.pricingPhasesAndroid?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
-                            println("      Phase $phaseIndex: ${phase.formattedPrice} for ${phase.billingPeriod}")
-                        }
-                    }
-                }
-            }
-        } else {
-            iapStore.postStatusMessage(
-                message = "Failed to connect to billing service",
-                status = PurchaseResultStatus.Error
-            )
-        }
-        } catch (e: Exception) {
-            println("SubscriptionFlow: Initialization error: ${e.message}")
-            iapStore.postStatusMessage(
-                message = "Failed to initialize: ${e.message}",
-                status = PurchaseResultStatus.Error
-            )
-        } finally {
-            isInitializing = false
-        }
-    }
 
     // Cross-platform subscriptionBillingIssue listener: fires when Play Billing 8.1+
     // reports isSuspended == true on any active subscription. No-op on Horizon flavor.
@@ -381,14 +301,14 @@ fun SubscriptionFlowScreen(
                                 modifier = Modifier.size(48.dp),
                                 tint = AppColors.secondary
                             )
-                            
+
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "Subscription Flow",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
                                 )
-                                
+
                                 Text(
                                     "Manage recurring subscriptions",
                                     style = MaterialTheme.typography.bodySmall,
@@ -396,7 +316,7 @@ fun SubscriptionFlowScreen(
                                 )
                             }
                         }
-                        
+
                         Text(
                             "Purchase and manage auto-renewable subscriptions. View active subscriptions and their renewal status.",
                             style = MaterialTheme.typography.bodyMedium,
@@ -534,6 +454,7 @@ fun SubscriptionFlowScreen(
                                         text = { Text(method.displayName) },
                                         onClick = {
                                             verificationMethod = method
+                                            recoveryRequest++
                                             verificationDropdownExpanded = false
                                         }
                                     )
@@ -636,14 +557,14 @@ fun SubscriptionFlowScreen(
                     )
                 }
             }
-            
+
             // Loading State
             if (isInitializing || status.isLoading) {
                 item {
                     LoadingCard()
                 }
             }
-            
+
             // Active Subscriptions Section
             // Only show purchased subscriptions (filter out pending, failed, etc.)
             val activeSubscriptions = androidPurchases.filter {
@@ -1288,7 +1209,7 @@ fun SubscriptionFlowScreen(
                     )
                 }
             }
-            
+
             // Subscription Management Info
             item {
                 Card(
@@ -1319,7 +1240,7 @@ fun SubscriptionFlowScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-                        
+
                         Text(
                             "• Subscriptions auto-renew until cancelled\n" +
                             "• Manage subscriptions in Google Play Store\n" +
@@ -1351,6 +1272,7 @@ fun SubscriptionFlowScreen(
         val props = RequestVerifyPurchaseWithIapkitProps(
             amazon = if (purchase.store == IapStore.Amazon) {
                 RequestVerifyPurchaseWithIapkitAmazonProps(
+                    expectedProductId = IapkitConfig.verificationProductId(purchase.productId, purchase.store),
                     receiptId = requireToken(),
                     sandbox = IapkitConfig.amazonRvsSandbox,
                     userId = purchase.userIdAmazon
@@ -1371,54 +1293,29 @@ fun SubscriptionFlowScreen(
                 provider = PurchaseVerificationProvider.Iapkit,
             )
         )
-        return result.iapkit?.isValid == true
+        return IapkitConfig.acceptsVerification(result.iapkit, purchase)
     }
 
-    // Local verification: For Android, we just check if the purchase state is authentic
-    fun verifyLocally(purchase: PurchaseAndroid): Boolean {
-        return purchase.purchaseState == PurchaseState.Purchased
-    }
-
-    // Auto-handle purchase: validate then finish
-    // Use a unique key combining purchase ID and transaction date to ensure re-trigger on new purchases
-    // This fixes the issue where Buy button doesn't work after verification failure
-    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
-    LaunchedEffect(purchaseKey) {
-        val purchase = lastPurchaseAndroid ?: return@LaunchedEffect
-
-        // Skip if we've already processed this exact purchase
-        if (purchaseKey == processedPurchaseKey) {
-            println("SubscriptionFlow: Skipping already processed purchase: $purchaseKey")
-            return@LaunchedEffect
+    suspend fun handlePurchased(purchase: PurchaseAndroid) {
+        if (purchase.productId !in subscriptionSkus) return
+        val method = verificationMethod
+        if (method == VerificationMethod.None || method == VerificationMethod.Local) {
+            verificationResultMessage = "Receipt retained. Choose IAPKit verification to retry this receipt."
+            return
         }
-
+        if (purchase.purchaseState != PurchaseState.Purchased ||
+            purchase.id.isEmpty() || !handledPurchaseIds.add(purchase.id)) return
+        var finished = false
         // Clear any premature "success" message from purchase listener
         // We will only show the final result after verification completes
         iapStore.clearStatusMessage()
 
         try {
             // 1) Perform verification based on selected method
-            val isValid = when (verificationMethod) {
-                VerificationMethod.None -> {
-                    verificationResultMessage = "✅ No verification (skipped)"
-                    true
-                }
-                VerificationMethod.Local -> {
-                    isVerifying = true
-                    verificationResultMessage = "🔍 Verifying locally..."
-                    try {
-                        val result = verifyLocally(purchase)
-                        verificationResultMessage = if (result) "✅ Local verification passed" else "❌ Local verification failed"
-                        result
-                    } catch (e: Exception) {
-                        verificationResultMessage = "❌ Local verification error: ${e.message}"
-                        false
-                    } finally {
-                        isVerifying = false
-                    }
-                }
+            val isValid = when (method) {
+                VerificationMethod.None, VerificationMethod.Local -> false
                 VerificationMethod.IAPKitLocal, VerificationMethod.IAPKit -> {
-                    val label = verificationMethod.displayName
+                    val label = method.displayName
                     val apiKey = iapkitApiKey
                     if (apiKey == null) {
                         verificationResultMessage = "❌ IAPKit API Key not configured"
@@ -1427,11 +1324,10 @@ fun SubscriptionFlowScreen(
                             status = PurchaseResultStatus.Error,
                             productId = purchase.productId
                         )
-                        // Mark as processed so user can retry
-                        processedPurchaseKey = purchaseKey
-                        return@LaunchedEffect
+
+                        return
                     }
-                    val baseUrl = if (verificationMethod == VerificationMethod.IAPKitLocal) {
+                    val baseUrl = if (method == VerificationMethod.IAPKitLocal) {
                         iapkitLocalBaseUrl ?: run {
                             verificationResultMessage =
                                 "❌ IAPKIT_BASE_URL not configured for Local (IAPKit)"
@@ -1440,8 +1336,8 @@ fun SubscriptionFlowScreen(
                                 status = PurchaseResultStatus.Error,
                                 productId = purchase.productId
                             )
-                            processedPurchaseKey = purchaseKey
-                            return@LaunchedEffect
+
+                            return
                         }
                     } else null
                     isVerifying = true
@@ -1450,31 +1346,13 @@ fun SubscriptionFlowScreen(
                     try {
                         val result = verifyWithIapkit(purchase, apiKey, baseUrl)
                         println("SubscriptionFlow: $label verification result: $result")
-                        verificationResultMessage = if (result) {
-                            val bindResult = runCatching {
-                                val token = purchase.purchaseToken
-                                    ?: throw IllegalStateException("Purchase token is required for IAPKit bindUser")
-                                bindIapkitSubscriptionUser(apiKey, token, baseUrl)
-                            }.getOrElse { error ->
-                                println("SubscriptionFlow: IAPKit bindUser error: ${error.message}")
-                                null
-                            }
-
-                            if (bindResult == null) {
-                                "✅ IAPKit verification passed\n❌ bindUser failed"
-                            } else {
-                                println(
-                                    "SubscriptionFlow: IAPKit bindUser result: " +
-                                        "bound=${bindResult.bound}, active=${bindResult.active}, " +
-                                        "productId=${bindResult.productId ?: "-"}"
-                                )
-                                "✅ IAPKit verification passed\n" +
-                                    "✅ bindUser($IAPKIT_EXAMPLE_USER_ID): bound=${bindResult.bound}, " +
-                                    "active=${bindResult.active}, product=${bindResult.productId ?: "-"}"
-                            }
-                        } else {
-                            "❌ IAPKit verification failed"
-                        }
+                        val bound = if (result && purchase.store == IapStore.Google) {
+                            val token = purchase.purchaseToken
+                                ?: throw IllegalStateException("Purchase token is required for IAPKit bindUser")
+                            bindIapkitSubscriptionUser(apiKey, token, baseUrl)
+                        } else result
+                        verificationResultMessage = if (bound) "Subscription verified." else
+                            "Verification or binding failed; receipt retained."
                         if (!result) {
                             // Post error with auto-refund notice
                             iapStore.postStatusMessage(
@@ -1483,7 +1361,9 @@ fun SubscriptionFlowScreen(
                                 productId = purchase.productId
                             )
                         }
-                        result
+                        result && bound
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         println("SubscriptionFlow: IAPKit verification error: ${e.message}")
                         verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
@@ -1502,17 +1382,12 @@ fun SubscriptionFlowScreen(
 
             if (!isValid) {
                 println("SubscriptionFlow: Verification failed – not finishing transaction")
-                // Mark as processed so the same purchase isn't re-processed
-                processedPurchaseKey = purchaseKey
-                return@LaunchedEffect
+
+                return
             }
 
             // 2) Determine consumable vs non-consumable (subs -> false)
-            val product = products.find { it.id == purchase.productId }
-            val isConsumable = product?.let {
-                it.type == ProductType.InApp &&
-                        (it.id.contains("consumable", true) || it.id.contains("bulb", true))
-            } == true
+            val isConsumable = purchase.productId in IapConstants.CONSUMABLE_SKUS
 
             // 3) Ensure connection (quick retry)
             if (!connectionStatus) {
@@ -1526,12 +1401,15 @@ fun SubscriptionFlowScreen(
             // 4) Finish transaction
             try {
                 iapStore.finishTransaction(purchase, isConsumable)
+                finished = true
                 iapStore.getAvailablePurchases(null)
                 iapStore.postStatusMessage(
                     message = "Transaction finished successfully",
                     status = PurchaseResultStatus.Success,
                     productId = purchase.productId
                 )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 iapStore.postStatusMessage(
                     message = "finishTransaction failed: ${e.message}",
@@ -1539,6 +1417,8 @@ fun SubscriptionFlowScreen(
                     productId = purchase.productId
                 )
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             iapStore.postStatusMessage(
                 message = e.message ?: "Failed to finish purchase",
@@ -1546,8 +1426,102 @@ fun SubscriptionFlowScreen(
                 productId = purchase.productId
             )
         } finally {
-            // Mark as processed so user can retry if needed
-            processedPurchaseKey = purchaseKey
+            if (!finished) handledPurchaseIds.remove(purchase.id)
+        }
+    }
+
+    val purchaseKey = lastPurchaseAndroid?.let { "${it.id}_${it.transactionDate}" }
+    LaunchedEffect(verificationMethod, connectionStatus, recoveryRequest) {
+        if (!connectionStatus) return@LaunchedEffect
+        try {
+            iapStore.getAvailablePurchases(null).filterIsInstance<PurchaseAndroid>().forEach { handlePurchased(it) }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            verificationResultMessage = "Purchase recovery failed; receipts retained: ${error.message}"
+        }
+    }
+
+    LaunchedEffect(purchaseKey) {
+        lastPurchaseAndroid?.let { handlePurchased(it) }
+    }
+
+    LaunchedEffect(Unit) {
+        // Enable OpenIapLog for debugging
+        dev.hyo.openiap.OpenIapLog.isEnabled = true
+
+        try {
+            println("SubscriptionFlow: Loading subscription products and purchases")
+            println("SubscriptionFlow: Is Horizon = $isHorizon")
+            println("SubscriptionFlow: Subscription SKUs = $subscriptionSkus")
+
+            val connected = iapStore.initConnection()
+            if (connected) {
+
+            // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
+            println("SubscriptionFlow: Testing getActiveSubscriptions...")
+            try {
+                val activeSubscriptions = iapStore.getActiveSubscriptions(subscriptionSkus)
+                println("SubscriptionFlow: getActiveSubscriptions returned ${activeSubscriptions.size} subscriptions")
+                activeSubscriptions.forEach { sub ->
+                    println("  - ${sub.productId}: active=${sub.isActive}, autoRenew=${sub.autoRenewingAndroid}")
+                }
+            } catch (e: Exception) {
+                println("SubscriptionFlow: getActiveSubscriptions FAILED: ${e.message}")
+            }
+            delay(500)
+
+            // Fetch products
+            val request = ProductRequest(
+                skus = subscriptionSkus,
+                type = ProductQueryType.Subs
+            )
+            iapStore.fetchProducts(request)
+
+            // Log current state
+            val currentPurchases = iapStore.getAvailablePurchases(null)
+
+            println("SubscriptionFlow: Found ${currentPurchases.size} purchases")
+            currentPurchases.forEach { purchase ->
+                if (purchase is PurchaseAndroid) {
+                    println("  - ${purchase.productId}: state=${purchase.purchaseState}")
+                }
+            }
+
+            // Log product offers
+            delay(500)
+            val currentProducts = iapStore.products.value
+            println("SubscriptionFlow: Found ${currentProducts.size} products")
+            currentProducts.forEach { product ->
+                if (product is ProductAndroid) {
+                    println("  - Product: ${product.id}")
+                    println("    Title: ${product.title}")
+                    println("    Price: ${product.displayPrice}")
+                    product.subscriptionOffers?.forEachIndexed { index, offer ->
+                        println("    Offer $index:")
+                        println("      Base Plan: ${offer.basePlanIdAndroid}")
+                        println("      Offer ID: ${offer.id}")
+                        println("      Offer Token: present")
+                        offer.pricingPhasesAndroid?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
+                            println("      Phase $phaseIndex: ${phase.formattedPrice} for ${phase.billingPeriod}")
+                        }
+                    }
+                }
+            }
+        } else {
+            iapStore.postStatusMessage(
+                message = "Failed to connect to billing service",
+                status = PurchaseResultStatus.Error
+            )
+        }
+        } catch (e: Exception) {
+            println("SubscriptionFlow: Initialization error: ${e.message}")
+            iapStore.postStatusMessage(
+                message = "Failed to initialize: ${e.message}",
+                status = PurchaseResultStatus.Error
+            )
+        } finally {
+            isInitializing = false
         }
     }
 
@@ -1595,7 +1569,7 @@ fun SubscriptionFlowScreen(
             isPurchasing = status.isPurchasing(product.id)
         )
     }
-    
+
     // Purchase Detail Modal
     selectedPurchase?.let { purchase ->
         PurchaseDetailModal(
@@ -1609,7 +1583,7 @@ private suspend fun bindIapkitSubscriptionUser(
     apiKey: String,
     purchaseToken: String,
     baseUrl: String?
-): IapkitSubscriptionBindResult = withContext(Dispatchers.IO) {
+): Boolean = withContext(Dispatchers.IO) {
     val origin = (baseUrl ?: IAPKIT_HOSTED_BASE_URL).trimEnd('/')
     val bindPayload = JSONObject()
         .put("purchaseToken", purchaseToken)
@@ -1620,17 +1594,7 @@ private suspend fun bindIapkitSubscriptionUser(
         method = "POST",
         body = bindPayload
     )
-    val statusResponse = requestIapkitJson(
-        url = "$origin/v1/subscriptions/status/${apiKey.urlEncode()}" +
-            "?userId=${IAPKIT_EXAMPLE_USER_ID.urlEncode()}",
-        method = "GET"
-    )
-    val subscription = statusResponse.optJSONObject("subscription")
-    IapkitSubscriptionBindResult(
-        bound = bindResponse.optBoolean("bound", false),
-        active = statusResponse.optBoolean("active", false),
-        productId = subscription?.optString("productId")?.takeIf { it.isNotBlank() }
-    )
+    bindResponse.optBoolean("bound", false)
 }
 
 private fun requestIapkitJson(

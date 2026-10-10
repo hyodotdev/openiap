@@ -54,15 +54,21 @@ describe('SubscriptionFlow Screen', () => {
     const defaultGetAvailablePurchases = jest.fn(() => Promise.resolve([]));
     const getActiveSubscriptions = jest.fn(() => Promise.resolve([]));
     const finishTransaction = jest.fn(() => Promise.resolve());
-    const verifyPurchase = jest.fn(() => Promise.resolve({}));
+    const verifyPurchase = jest.fn(() =>
+      Promise.resolve({
+        isValid: true,
+        jwsRepresentation: 'test-jws',
+        receiptData: 'test-receipt',
+      }),
+    );
     const verifyPurchaseWithProvider = jest.fn((_request: unknown) =>
       Promise.resolve({
         iapkit: {
           isValid: true,
           productId: 'dev.hyo.martie.premium',
           state: 'entitled',
-          store: 'google',
-          storeId: 'play',
+          store: Platform.OS === 'ios' ? 'apple' : 'google',
+          storeId: Platform.OS === 'ios' ? 'apple' : 'play',
         },
       }),
     );
@@ -203,6 +209,8 @@ describe('SubscriptionFlow Screen', () => {
         id: 'transaction-1',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'token',
+        store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
       });
@@ -272,6 +280,8 @@ describe('SubscriptionFlow Screen', () => {
         platform: 'android',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'android-token',
+        store: 'google',
+        storeId: 'play',
         transactionDate: Date.now(),
       });
     });

@@ -407,29 +407,16 @@ public partial class AlternativeBillingPage : ContentPage
         }
     }
 
-    private async void OnPurchase(Purchase purchase)
+    private void OnPurchase(Purchase purchase)
     {
         _lastPurchase = purchase;
         _isProcessing = false;
         UpdatePurchaseButton();
 
         var common = (PurchaseCommon)purchase;
-        ShowResult($"✅ Purchase successful\nProduct: {common.ProductId}\nTransaction ID: {common.Id}\nDate: {FormatDate(common.TransactionDate)}");
+        ShowResult($"Receipt received · verification required\nProduct: {common.ProductId}\nTransaction ID: {common.Id}\nDate: {FormatDate(common.TransactionDate)}");
         LastPurchasePanel.IsVisible = true;
         LastPurchaseLabel.Text = $"Product: {common.ProductId}\nTransaction: {common.Id}\nDate: {FormatDate(common.TransactionDate)}";
-
-        // Demo: finishes without verification; only bulb packs are consumed.
-        try
-        {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            await mutate.FinishTransactionAsync(
-                purchase: new PurchaseInput(purchase),
-                isConsumable: Constants.ConsumableProductIdSet.Contains(common.ProductId));
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[AlternativeBilling] finishTransaction failed: {ex.Message}");
-        }
     }
 
     private void OnPurchaseError(PurchaseError error)

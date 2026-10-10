@@ -393,23 +393,18 @@ struct AlternativeBillingScreen: View {
     // MARK: - Event Handlers
 
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
-        print("✅ [AlternativeBilling] Purchase successful: \(purchase.productId)")
+        print("[AlternativeBilling] Purchase received: \(purchase.productId)")
 
-        // Update UI state
         let transactionDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000)
         purchaseResultMessage = """
-        ✅ Purchase successful
+        Receipt received · verification required
+        For bulb purchases, open Purchase Flow to verify and complete this receipt.
         Product: \(purchase.productId)
         Transaction ID: \(purchase.id)
         Date: \(DateFormatter.localizedString(from: transactionDate, dateStyle: .short, timeStyle: .short))
         """
         showPurchaseResult = true
         latestPurchase = purchase
-
-        // In production, validate receipt on your server before finishing
-        Task {
-            await finishPurchase(purchase)
-        }
     }
 
     private func handlePurchaseError(_ error: OpenIapError) {
@@ -423,19 +418,6 @@ struct AlternativeBillingScreen: View {
         if error.code != .userCancelled {
             errorMessage = error.message
             showError = true
-        }
-    }
-
-    private func finishPurchase(_ purchase: OpenIapPurchase) async {
-        do {
-            try await iapStore.finishTransaction(purchase: purchase)
-            print("✅ [AlternativeBilling] Transaction finished: \(purchase.id)")
-        } catch {
-            print("❌ [AlternativeBilling] Failed to finish transaction: \(error)")
-            await MainActor.run {
-                errorMessage = "Failed to finish transaction: \(error.localizedDescription)"
-                showError = true
-            }
         }
     }
 }

@@ -16,7 +16,7 @@ struct SubscriptionFlowScreen: View {
     @State private var verificationMethod: VerificationMethod = .none
     @State private var isVerifying = false
     @State private var verificationResultMessage: String?
-    @State private var processedPurchaseKey: String?
+    @State private var handledPurchaseIds: Set<String> = []
     // Cross-platform subscriptionBillingIssue event (iOS 16.4+ StoreKit.Message.billingIssue).
     // See: https://openiap.dev/docs/features/subscription-billing-issue
     @State private var billingIssuePurchase: OpenIapPurchase?
@@ -267,6 +267,9 @@ struct SubscriptionFlowScreen: View {
                 await loadProducts()
                 await MainActor.run { isInitialLoading = false }
                 await loadPurchases()
+                for purchase in try await iapStore.getPendingTransactionsIOS() {
+                    handlePurchaseSuccess(purchase)
+                }
             } catch {
                 await MainActor.run {
                     errorMessage = "Failed to initialize connection: \(error.localizedDescription)"
@@ -378,7 +381,7 @@ struct SubscriptionFlowScreen: View {
         Task {
             do {
                 // Ignore return value - purchase events are emitted via onPurchaseSuccess listener
-                _ = try await iapStore.requestPurchase(sku: product.id, type: .subs, autoFinish: true)
+                _ = try await iapStore.requestPurchase(sku: product.id, type: .subs, autoFinish: false)
 
                 print("✅ [SubscriptionFlow] Purchase request completed")
                 print("📦 [SubscriptionFlow] onPurchaseSuccess callback will fire")
@@ -411,7 +414,7 @@ struct SubscriptionFlowScreen: View {
             _ = try await iapStore.requestPurchase(
                 sku: product.id,
                 type: .subs,
-                autoFinish: true
+                autoFinish: false
             )
 
             print("✅ [SubscriptionFlow] \(changeType.capitalized) request completed for: \(product.id)")
@@ -544,6 +547,10 @@ struct SubscriptionFlowScreen: View {
                 .cornerRadius(8)
             }
 
+            if let purchase = recentPurchase, !isVerifying {
+                Button("Retry verification and completion") { handlePurchaseSuccess(purchase) }
+            }
+
             if verificationMethod == .iapkit {
                 VStack(alignment: .leading, spacing: 8) {
                     if iapkitApiKey != nil {
@@ -601,119 +608,64 @@ struct SubscriptionFlowScreen: View {
 
     // MARK: - Verification Logic
 
-    private func verifyAndFinishPurchase(_ purchase: OpenIapPurchase) async {
-        switch verificationMethod {
-        case .none:
-            await MainActor.run {
-                verificationResultMessage = "✅ No verification (skipped)"
-            }
-            // Transaction already finished via autoFinish: true
-
-        case .local:
-            await MainActor.run {
-                isVerifying = true
-                verificationResultMessage = "🔍 Verifying locally..."
-            }
-
-            do {
+    @MainActor
+    private func verifyAndFinishPurchase(_ purchase: OpenIapPurchase, method: VerificationMethod) async -> Bool {
+        guard method != .none else {
+            verificationResultMessage = "Receipt retained. Choose a verification method, then retry."
+            return false
+        }
+        isVerifying = true
+        defer { isVerifying = false }
+        do {
+            switch method {
+            case .none:
+                return false
+            case .local:
                 let result = try await iapStore.verifyPurchase(sku: purchase.productId)
-                await MainActor.run {
-                    isVerifying = false
-                    verificationResultMessage = "✅ Local verification: Valid=\(result.isValid)"
+                guard result.isValid else {
+                    verificationResultMessage = "Local verification failed; receipt retained."
+                    return false
                 }
-            } catch {
-                await MainActor.run {
-                    isVerifying = false
-                    verificationResultMessage = "❌ Local verification failed: \(error.localizedDescription)"
-                    errorMessage = error.localizedDescription
-                    showError = true
+            case .iapkit:
+                guard let apiKey = iapkitApiKey, !apiKey.isEmpty,
+                      let jws = purchase.purchaseToken, !jws.isEmpty else {
+                    verificationResultMessage = "IAPKit key or signed receipt missing; receipt retained."
+                    return false
                 }
-            }
-
-        case .iapkit:
-            guard let apiKey = iapkitApiKey else {
-                await MainActor.run {
-                    verificationResultMessage = "❌ IAPKit API Key not configured"
-                    errorMessage = "Set IAPKIT_API_KEY in Xcode Scheme or Info.plist"
-                    showError = true
-                }
-                return
-            }
-
-            await MainActor.run {
-                isVerifying = true
-                verificationResultMessage = "☁️ Verifying with IAPKit..."
-            }
-
-            do {
-                guard let jws = purchase.purchaseToken, !jws.isEmpty else {
-                    await MainActor.run {
-                        isVerifying = false
-                        verificationResultMessage = "❌ Missing JWS token"
-                        errorMessage = "Missing JWS token"
-                        showError = true
-                    }
-                    return
-                }
-
                 let props = VerifyPurchaseWithProviderProps(
                     iapkit: RequestVerifyPurchaseWithIapkitProps(
                         apiKey: apiKey,
-                        apple: RequestVerifyPurchaseWithIapkitAppleProps(
-                            jws: jws
-                        ),
+                        apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: jws),
                         baseUrl: iapkitBaseUrl,
                         google: nil
                     ),
                     provider: .iapkit
                 )
-
                 let result = try await iapStore.verifyPurchaseWithProvider(props)
-                let isValid = result?.isValid ?? false
-                let state = result?.state.rawValue ?? "unknown"
-                var resultMessage = "\(isValid ? "✅" : "❌") IAPKit: isValid=\(isValid), state=\(state)"
-
-                print("📱 [SubscriptionFlow] IAPKit verification result:")
-                print("  - Product: \(purchase.productId)")
-                print("  - isValid: \(isValid)")
-                print("  - state: \(state)")
-
-                if isValid {
-                    do {
-                        let bindResult = try await bindIapkitSubscriptionUser(
-                            apiKey: apiKey,
-                            purchaseToken: jws
-                        )
-                        print("📱 [SubscriptionFlow] IAPKit bindUser result:")
-                        print("  - bound: \(bindResult.bound)")
-                        print("  - active: \(bindResult.active)")
-                        print("  - productId: \(bindResult.productId ?? "-")")
-                        resultMessage += "\n✅ bindUser(\(iapkitExampleUserId)): bound=\(bindResult.bound), active=\(bindResult.active), product=\(bindResult.productId ?? "-")"
-                    } catch {
-                        print("❌ [SubscriptionFlow] IAPKit bindUser failed: \(error.localizedDescription)")
-                        resultMessage += "\n❌ bindUser failed: \(error.localizedDescription)"
-                    }
+                guard let result, result.isValid, result.store == .apple,
+                      result.productId == purchase.productId, result.state == .entitled else {
+                    verificationResultMessage = "Subscription verification, identity or state check failed; receipt retained."
+                    return false
                 }
-
-                await MainActor.run {
-                    isVerifying = false
-                    verificationResultMessage = resultMessage
-                }
-            } catch {
-                await MainActor.run {
-                    isVerifying = false
-                    verificationResultMessage = "❌ IAPKit failed: \(error.localizedDescription)"
-                    errorMessage = error.localizedDescription
-                    showError = true
+                let binding = try await bindIapkitSubscriptionUser(apiKey: apiKey, purchaseToken: jws)
+                guard binding else {
+                    verificationResultMessage = "Subscription entitlement binding failed; receipt retained."
+                    return false
                 }
             }
+            try await iapStore.finishTransaction(purchase: purchase, isConsumable: false)
+            verificationResultMessage = "Subscription verified and transaction finished."
+            return true
+        } catch {
+            verificationResultMessage = "Verification or completion failed; receipt retained: \(error.localizedDescription)"
+            return false
         }
     }
 
     private func bindIapkitSubscriptionUser(
         apiKey: String,
         purchaseToken: String
-    ) async throws -> IapkitSubscriptionBindResult {
+    ) async throws -> Bool {
         let baseUrl = iapkitBaseUrl.trimmedTrailingSlash()
         let bindEndpoint = "\(baseUrl)/v1/subscriptions/bind-user/\(apiKey.urlPathEncoded())"
         guard let bindUrl = URL(string: bindEndpoint) else {
@@ -730,19 +682,7 @@ struct SubscriptionFlowScreen: View {
         ])
 
         let bindResponse: IapkitBindUserResponse = try await requestIapkitJson(bindRequest)
-        let statusEndpoint = "\(baseUrl)/v1/subscriptions/status/\(apiKey.urlPathEncoded())?userId=\(iapkitExampleUserId.urlQueryEncoded())"
-        guard let statusUrl = URL(string: statusEndpoint) else {
-            throw URLError(.badURL)
-        }
-        var statusRequest = URLRequest(url: statusUrl)
-        statusRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let statusResponse: IapkitSubscriptionStatusResponse = try await requestIapkitJson(statusRequest)
-        return IapkitSubscriptionBindResult(
-            bound: bindResponse.bound,
-            active: statusResponse.active,
-            productId: statusResponse.subscription?.productId
-        )
+        return bindResponse.bound
     }
 
     private func requestIapkitJson<T: Decodable>(_ request: URLRequest) async throws -> T {
@@ -791,101 +731,19 @@ struct SubscriptionFlowScreen: View {
     
     // MARK: - Event Handlers
 
+    @MainActor
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
-        print("✅ [SubscriptionFlow] Subscription successful: \(purchase.productId)")
-
-        // Create unique key for this purchase to prevent duplicate processing
-        let purchaseKey = "\(purchase.id)_\(purchase.transactionDate)"
-
-        // Skip if we've already processed this exact purchase
-        if purchaseKey == processedPurchaseKey {
-            print("🔄 [SubscriptionFlow] Skipping already processed purchase: \(purchaseKey)")
-            return
-        }
-
-        // Mark as processed
-        processedPurchaseKey = purchaseKey
-
-        print("📦 [SubscriptionFlow] Purchase fired immediately - no need to call getActiveSubscriptions()")
-
-        // Log detailed purchase info
-        print("   📋 Purchase Details:")
-        print("      • Transaction ID: \(purchase.id)")
-        print("      • Product ID: \(purchase.productId)")
-        print("      • Store: \(purchase.store)")
-        print("      • Purchase State: \(purchase.purchaseState)")
-        print("      • Is Auto-Renewing: \(purchase.isAutoRenewing)")
-
-        // Log iOS-specific info (purchase is already PurchaseIOS type)
-        print("   📱 iOS-specific Details:")
-        print("      • Subscription Group ID: \(purchase.subscriptionGroupIdIOS ?? "nil")")
-        print("      • Environment: \(purchase.environmentIOS ?? "nil")")
-        print("      • Transaction Reason: \(purchase.transactionReasonIOS ?? "nil")")
-        print("      • Is Upgraded: \(purchase.isUpgradedIOS ?? false)")
-
-        if let expirationDate = purchase.expirationDateIOS {
-            let date = Date(timeIntervalSince1970: expirationDate / 1000)
-            print("      • Expiration Date: \(date)")
-        }
-
-        // Log renewalInfo details (KEY INFO FOR UPGRADES!)
-        if let renewalInfo = purchase.renewalInfoIOS {
-            print("   🔄 RenewalInfo (CRITICAL FOR UPGRADE DETECTION):")
-            print("      • willAutoRenew: \(renewalInfo.willAutoRenew)")
-            print("      • autoRenewPreference: \(renewalInfo.autoRenewPreference ?? "nil")")
-
-            if let pendingUpgrade = renewalInfo.pendingUpgradeProductId {
-                print("      • pendingUpgradeProductId: \(pendingUpgrade)")
-
-                // Detect upgrade vs current subscription
-                if pendingUpgrade != purchase.productId {
-                    print("      ⚠️ UPGRADE SCHEDULED: \(purchase.productId) → \(pendingUpgrade)")
-                } else {
-                    print("      ✅ Current subscription (no upgrade)")
-                }
-            } else {
-                print("      • pendingUpgradeProductId: nil")
-            }
-
-            if let renewalDate = renewalInfo.renewalDate {
-                let date = Date(timeIntervalSince1970: renewalDate / 1000)
-                print("      • renewalDate: \(date)")
-            }
-
-            if let expirationReason = renewalInfo.expirationReason {
-                print("      • expirationReason: \(expirationReason)")
-            }
-
-            if let gracePeriod = renewalInfo.gracePeriodExpirationDate {
-                let date = Date(timeIntervalSince1970: gracePeriod / 1000)
-                print("      • gracePeriodExpirationDate: \(date)")
-            }
-
-            if let isInBillingRetry = renewalInfo.isInBillingRetry {
-                print("      • isInBillingRetry: \(isInBillingRetry)")
-            }
-
-            if let priceIncreaseStatus = renewalInfo.priceIncreaseStatus {
-                print("      • priceIncreaseStatus: \(priceIncreaseStatus)")
-            }
-        } else {
-            print("   ⚠️ RenewalInfo: nil (not a subscription or not available)")
-        }
-
-        print("   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        // Show the recent purchase
+        guard subscriptionIds.contains(purchase.productId), purchase.purchaseState == .purchased,
+              !purchase.id.isEmpty, handledPurchaseIds.insert(purchase.id).inserted else { return }
         recentPurchase = purchase
-
-        // Perform verification if method is selected
-        Task {
-            await verifyAndFinishPurchase(purchase)
+        let method = verificationMethod
+        Task { @MainActor in
+            if !(await verifyAndFinishPurchase(purchase, method: method)) {
+                handledPurchaseIds.remove(purchase.id)
+            }
         }
-
-        // DO NOT call getActiveSubscriptions() here - it causes infinite rendering
-        // The store's handlePurchaseUpdate already updates activeSubscriptions directly from purchase data
     }
-    
+
     private func handlePurchaseError(_ error: OpenIapError) {
         print("❌ [SubscriptionFlow] Subscription error: \(error.message)")
         // Error status is already handled internally by OpenIapStore
@@ -990,23 +848,8 @@ private extension SubscriptionFlowScreen {
     }
 }
 
-private struct IapkitSubscriptionBindResult {
-    let bound: Bool
-    let active: Bool
-    let productId: String?
-}
-
 private struct IapkitBindUserResponse: Decodable {
     let bound: Bool
-}
-
-private struct IapkitSubscriptionStatusResponse: Decodable {
-    let active: Bool
-    let subscription: IapkitSubscriptionSummary?
-}
-
-private struct IapkitSubscriptionSummary: Decodable {
-    let productId: String
 }
 
 private enum IapkitSubscriptionBindError: LocalizedError {

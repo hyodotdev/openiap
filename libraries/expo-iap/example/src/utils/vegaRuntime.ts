@@ -1,11 +1,30 @@
 import {Alert, Platform} from 'react-native';
+import amazonCatalog from '../../amazon.sdktester.json';
 import Constants from 'expo-constants';
 import type {
   Purchase,
   VerifyPurchaseResult,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
-} from '../../../src/types';
+} from 'expo-iap';
+
+const catalog: Readonly<
+  Record<
+    string,
+    {
+      itemType: string;
+      subscriptionBase?: string;
+      subscriptionParent?: string;
+    }
+  >
+> = amazonCatalog;
+
+function getAmazonVerificationProductId(productId: string): string {
+  const item = catalog[productId];
+  return item?.itemType === 'SUBSCRIPTION'
+    ? (item.subscriptionBase ?? item.subscriptionParent ?? productId)
+    : productId;
+}
 
 export type IapkitVerificationPayload = NonNullable<
   VerifyPurchaseWithProviderProps['iapkit']
@@ -18,10 +37,7 @@ type ExpoExtraWithIapkit = {
 };
 
 export type VerificationMethod =
-  | 'ignore'
-  | 'local'
-  | 'iapkit-localhost'
-  | 'iapkit';
+  'ignore' | 'local' | 'iapkit-localhost' | 'iapkit';
 
 function getConfiguredIapkitApiKey(): string | undefined {
   const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
@@ -136,6 +152,7 @@ export function getIapkitVerificationError(
   result: VerifyPurchaseWithProviderResult,
   expectedProductId: string,
   isConsumable: boolean,
+  expectedStore: Purchase['store'],
 ): string | null {
   const verified = result.iapkit;
   if (!verified) {
@@ -157,8 +174,16 @@ export function getIapkitVerificationError(
     return `IAPKit did not return a product ID for ${verified.store}`;
   }
 
-  if (verified.productId !== expectedProductId) {
-    return `IAPKit verified ${verified.productId}, expected ${expectedProductId}`;
+  if (verified.store !== expectedStore) {
+    return `IAPKit verified ${verified.store}, expected ${expectedStore}`;
+  }
+
+  const verificationProductId =
+    verified.store === 'amazon'
+      ? getAmazonVerificationProductId(expectedProductId)
+      : expectedProductId;
+  if (verified.productId !== verificationProductId) {
+    return `IAPKit verified ${verified.productId}, expected ${verificationProductId}`;
   }
 
   if (verified.store === 'amazon') {
@@ -184,7 +209,7 @@ export function getIapkitVerificationError(
 export function getDirectVerificationError(
   result: VerifyPurchaseResult,
 ): string | null {
-  if ('isValid' in result && result.isValid === false) {
+  if (!('isValid' in result) || result.isValid !== true) {
     return 'Store verification returned an invalid receipt';
   }
   return null;
@@ -223,7 +248,7 @@ export function createIapkitVerificationPayload(
       {
         apiKey,
         amazon: {
-          expectedProductId: purchase.productId,
+          expectedProductId: getAmazonVerificationProductId(purchase.productId),
           receiptId: purchaseToken,
           sandbox: isAmazonRvsSandboxEnabled(),
         },

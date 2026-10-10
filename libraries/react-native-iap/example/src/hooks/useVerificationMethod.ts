@@ -2,10 +2,7 @@ import {useState, useCallback, useRef, useEffect} from 'react';
 import {Platform, ActionSheetIOS} from 'react-native';
 
 export type VerificationMethod =
-  | 'ignore'
-  | 'local'
-  | 'iapkit-localhost'
-  | 'iapkit';
+  'ignore' | 'local' | 'iapkit-localhost' | 'iapkit';
 
 export function getDefaultVerificationMethod(
   iapkitApiKey?: string | null,
@@ -20,6 +17,7 @@ export function getDefaultVerificationMethod(
 
 interface UseVerificationMethodReturn {
   verificationMethod: VerificationMethod;
+  verificationSelection: number;
   verificationMethodRef: React.MutableRefObject<VerificationMethod>;
   setVerificationMethod: React.Dispatch<
     React.SetStateAction<VerificationMethod>
@@ -41,6 +39,7 @@ export function useVerificationMethod(
     useState<VerificationMethod>(initialMethod);
   const [verificationMethodSelectorVisible, setSelectorVisible] =
     useState(false);
+  const [verificationSelection, setVerificationSelection] = useState(0);
   const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
 
   // Keep ref in sync with state
@@ -53,7 +52,9 @@ export function useVerificationMethod(
   }, []);
 
   const selectVerificationMethod = useCallback((method: VerificationMethod) => {
+    verificationMethodRef.current = method;
     setVerificationMethod(method);
+    setVerificationSelection((selection) => selection + 1);
     setSelectorVisible(false);
   }, []);
 
@@ -107,6 +108,7 @@ export function useVerificationMethod(
 
   return {
     verificationMethod,
+    verificationSelection,
     verificationMethodRef,
     setVerificationMethod,
     verificationMethodSelectorVisible,

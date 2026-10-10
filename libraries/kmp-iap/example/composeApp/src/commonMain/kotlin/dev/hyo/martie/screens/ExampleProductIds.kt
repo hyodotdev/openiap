@@ -1,5 +1,11 @@
 package dev.hyo.martie.screens
 
+import dev.hyo.martie.config.AppConfig
+import io.github.hyochan.kmpiap.openiap.IapStore
+import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
+
 internal val ConsumableProductIds = listOf(
     "dev.hyo.martie.10bulbs",
     "dev.hyo.martie.30bulbs",
@@ -17,3 +23,25 @@ internal val SubscriptionProductIds = listOf(
 )
 
 internal val AllProductIds = InAppProductIds + SubscriptionProductIds
+
+// These term-to-base IDs belong to Martie's Amazon catalog.
+internal fun verificationProductId(productId: String, store: IapStore): String =
+    if (store == IapStore.Amazon && productId in SubscriptionProductIds)
+        "dev.hyo.martie.premium.base" else productId
+
+internal fun acceptsVerification(result: RequestVerifyPurchaseWithIapkitResult?, purchase: Purchase): Boolean {
+    if (result == null || !result.isValid || result.store != purchase.store ||
+        result.productId != verificationProductId(purchase.productId, purchase.store)) return false
+    val consumable = purchase.productId in ConsumableProductIds
+    return when (result.store) {
+        IapStore.Apple, IapStore.Amazon ->
+            (result.store != IapStore.Amazon || result.environment ==
+                if (AppConfig.amazonRvsSandbox) "Sandbox" else "Production") &&
+                result.state == if (consumable) IapkitPurchaseState.ReadyToConsume else IapkitPurchaseState.Entitled
+        IapStore.Google -> result.state == IapkitPurchaseState.Entitled ||
+            result.state == IapkitPurchaseState.PendingAcknowledgment ||
+            (consumable && result.state == IapkitPurchaseState.ReadyToConsume)
+        IapStore.Horizon -> result.state == IapkitPurchaseState.Entitled
+        IapStore.Unknown -> false
+    }
+}

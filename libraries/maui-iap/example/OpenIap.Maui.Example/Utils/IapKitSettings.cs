@@ -102,7 +102,7 @@ internal static class IapKitSettings
                 BaseUrl = endpoint,
                 Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps
                 {
-                    ExpectedProductId = common.ProductId,
+                    ExpectedProductId = VerificationProductId(common.ProductId, common.Store),
                     ReceiptId = storeToken,
                     UserId = (purchase as PurchaseAndroid)?.UserIdAmazon,
                     Sandbox = AmazonRvsSandbox,
@@ -110,6 +110,28 @@ internal static class IapKitSettings
             },
             _ => throw new NotSupportedException(
                 $"IAPKit verification is not supported for the {common.Store.ToJson()} store."),
+        };
+    }
+
+    // These term-to-base IDs belong to Martie's Amazon catalog.
+    public static string VerificationProductId(string productId, IapStore store) =>
+        store == IapStore.Amazon && Constants.SubscriptionProductIds.Contains(productId)
+            ? "dev.hyo.martie.premium.base" : productId;
+
+    public static bool AcceptsVerification(RequestVerifyPurchaseWithIapkitResult result, PurchaseCommon purchase)
+    {
+        if (!result.IsValid || result.Store != purchase.Store ||
+            result.ProductId != VerificationProductId(purchase.ProductId, purchase.Store)) return false;
+        var consumable = Constants.ConsumableProductIdSet.Contains(purchase.ProductId);
+        return result.Store switch
+        {
+            IapStore.Apple or IapStore.Amazon =>
+                (result.Store != IapStore.Amazon || result.Environment == (AmazonRvsSandbox ? "Sandbox" : "Production")) &&
+                result.State == (consumable ? IapkitPurchaseState.ReadyToConsume : IapkitPurchaseState.Entitled),
+            IapStore.Google => result.State is IapkitPurchaseState.Entitled or IapkitPurchaseState.PendingAcknowledgment ||
+                (consumable && result.State == IapkitPurchaseState.ReadyToConsume),
+            IapStore.Horizon => result.State == IapkitPurchaseState.Entitled,
+            _ => false,
         };
     }
 

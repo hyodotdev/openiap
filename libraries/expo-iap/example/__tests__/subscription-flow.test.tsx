@@ -45,8 +45,7 @@ const mockVerifyPurchaseWithProvider = jest
   )
   .mockName('verifyPurchaseWithProvider');
 let mockOnPurchaseSuccess:
-  | ((purchase: Record<string, unknown>) => Promise<void> | void)
-  | undefined;
+  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
   id: 'dev.hyo.martie.premium',
@@ -102,6 +101,7 @@ const createMockAndroidSubscription = () => ({
 
 const mockUseIAP = jest.fn();
 jest.mock('../../src', () => ({
+  ErrorCode: jest.requireActual('../../src/types').ErrorCode,
   initConnection: mockInitConnection,
   requestPurchase: mockRequestPurchase,
   useIAP: (options?: {onPurchaseSuccess?: typeof mockOnPurchaseSuccess}) => {
@@ -126,7 +126,7 @@ describe('SubscriptionFlow Component', () => {
     mockGetActiveSubscriptions.mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
     mockGetAvailablePurchases.mockResolvedValue([]);
-    mockVerifyPurchase.mockResolvedValue({});
+    mockVerifyPurchase.mockResolvedValue({isValid: true});
     mockVerifyPurchaseWithProvider.mockResolvedValue({
       iapkit: {
         isValid: true,

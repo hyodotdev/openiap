@@ -7,6 +7,7 @@ import {ErrorCode} from 'react-native-iap';
 import type {
   MutationFinishTransactionArgs,
   Purchase,
+  PurchaseIOS,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
 } from 'react-native-iap';
@@ -214,15 +215,22 @@ describe('PurchaseFlow Screen', () => {
     const fetchProducts = jest.fn(() => Promise.resolve());
     const getAvailablePurchases = jest.fn(() => Promise.resolve());
     const finishTransaction = jest.fn(() => Promise.resolve());
-    const verifyPurchase = jest.fn(() => Promise.resolve({}));
-    const verifyPurchaseWithProvider = jest.fn(() =>
+    const verifyPurchase = jest.fn(() =>
       Promise.resolve({
+        isValid: true,
+        jwsRepresentation: 'test-jws',
+        receiptData: 'test-receipt',
+      }),
+    );
+    const verifyPurchaseWithProvider = jest.fn(() =>
+      Promise.resolve<VerifyPurchaseWithProviderResult>({
+        provider: 'iapkit',
         iapkit: {
           isValid: true,
           productId: 'dev.hyo.martie.10bulbs',
-          state: 'entitled',
-          store: 'google',
-          storeId: 'play',
+          state: 'ready-to-consume',
+          store: Platform.OS === 'ios' ? 'apple' : 'google',
+          storeId: Platform.OS === 'ios' ? 'apple' : 'play',
         },
       }),
     );
@@ -279,6 +287,130 @@ describe('PurchaseFlow Screen', () => {
         type: 'in-app',
       });
     });
+  });
+
+  it('verifies a retained iOS consumable before finishing it when active ownership is empty', async () => {
+    const purchase: PurchaseIOS = {
+      id: 'retained-ios-consumable',
+      transactionId: 'retained-ios-consumable',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'retained-ios-receipt',
+      purchaseState: 'purchased',
+      quantity: 1,
+      isAutoRenewing: false,
+      store: 'apple',
+      storeId: 'apple',
+      transactionDate: 1,
+    };
+    jest.mocked(RNIap.getPendingTransactionsIOS).mockResolvedValueOnce([
+      purchase,
+      {
+        ...purchase,
+        id: 'retained-ios-subscription',
+        transactionId: 'retained-ios-subscription',
+        productId: 'dev.hyo.martie.premium',
+      },
+    ]);
+    const {finishTransaction, verifyPurchaseWithProvider} = mockIapState();
+    verifyPurchaseWithProvider.mockResolvedValueOnce({
+      provider: 'iapkit',
+      iapkit: {
+        isValid: true,
+        productId: purchase.productId,
+        state: 'ready-to-consume',
+        store: 'apple',
+        storeId: 'apple',
+      },
+    });
+    await render(<PurchaseFlow />);
+    await waitFor(() => expect(finishTransaction).toHaveBeenCalledTimes(1));
+    expect(RNIap.getPendingTransactionsIOS).toHaveBeenCalledTimes(1);
+    expect(finishTransaction).toHaveBeenCalledWith({
+      purchase,
+      isConsumable: true,
+    });
+    expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(verifyPurchaseWithProvider.mock.invocationCallOrder[0]).toBeLessThan(
+      finishTransaction.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('retains a receipt in None mode and retries the same receipt after selecting verification', async () => {
+    Platform.OS = 'android';
+    const purchase: Purchase = {
+      id: 'none-then-verified-rn',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'none-then-verified-token',
+      purchaseState: 'purchased',
+      quantity: 1,
+      isAutoRenewing: false,
+      transactionDate: 1,
+      store: 'google',
+      storeId: 'play',
+    };
+    const methods = mockIapState();
+    const screen = await render(<PurchaseFlow />);
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+    await fireEvent.press(
+      screen.getAllByTestId('verification-method-option')[3]!,
+    );
+    await act(async () => {
+      await onPurchaseSuccess?.(purchase);
+    });
+    expect(methods.verifyPurchaseWithProvider).not.toHaveBeenCalled();
+    expect(methods.finishTransaction).not.toHaveBeenCalled();
+    expect(screen.getByText(/Receipt retained/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('None (Skip)'));
+    await fireEvent.press(
+      screen.getAllByTestId('verification-method-option')[1]!,
+    );
+    await waitFor(() =>
+      expect(methods.finishTransaction).toHaveBeenCalledTimes(1),
+    );
+    await act(async () => {
+      await onPurchaseSuccess?.(purchase);
+    });
+    expect(methods.verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(methods.finishTransaction).toHaveBeenCalledWith({
+      purchase,
+      isConsumable: true,
+    });
+  });
+
+  it('retries a retained failed receipt when the same verification method is selected again', async () => {
+    Platform.OS = 'android';
+    const purchase: Purchase = {
+      id: 'same-method-retry-rn',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'same-method-retry-token',
+      purchaseState: 'purchased',
+      quantity: 1,
+      isAutoRenewing: false,
+      transactionDate: 1,
+      store: 'google',
+      storeId: 'play',
+    };
+    const methods = mockIapState();
+    methods.verifyPurchaseWithProvider.mockRejectedValueOnce(
+      new Error('offline'),
+    );
+    mockIapState({...methods, availablePurchases: [purchase]});
+    const screen = await render(<PurchaseFlow />);
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Purchase verification failed: offline/),
+      ).toBeTruthy(),
+    );
+    expect(methods.finishTransaction).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+    await fireEvent.press(
+      screen.getAllByTestId('verification-method-option')[1]!,
+    );
+    await waitFor(() =>
+      expect(methods.finishTransaction).toHaveBeenCalledTimes(1),
+    );
+    expect(methods.verifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
   });
 
   it('displays fetched products', async () => {
@@ -1140,6 +1272,8 @@ describe('PurchaseFlow Screen', () => {
       await onPurchaseSuccess?.({
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'token-123',
+        store: 'apple',
+        storeId: 'apple',
         purchaseState: 'purchased',
         transactionDate: Date.now(),
       });
@@ -1154,6 +1288,8 @@ describe('PurchaseFlow Screen', () => {
       purchase: expect.objectContaining({
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'token-123',
+        store: 'apple',
+        storeId: 'apple',
       }),
       isConsumable: true,
     });

@@ -1549,6 +1549,7 @@ function SubscriptionFlowContainer() {
   const {
     verificationMethod,
     verificationMethodRef,
+    verificationSelection,
     verificationMethodSelectorVisible,
     hideVerificationMethodSelector,
     selectVerificationMethod,
@@ -1570,6 +1571,7 @@ function SubscriptionFlowContainer() {
   const taskOwnerRef = useRef({});
   const mountedRef = useRef(true);
 
+  const retainedPurchaseRef = useRef<Purchase | null>(null);
   const dispatchPurchaseSuccess = useCallback(
     (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
     [],
@@ -1697,6 +1699,7 @@ function SubscriptionFlowContainer() {
     }
 
     lastSuccessAtRef.current = Date.now();
+    retainedPurchaseRef.current = purchase;
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -1720,14 +1723,23 @@ function SubscriptionFlowContainer() {
     // - iOS: App Store Server API + App Store Server Notifications V2
     // - Android: Google Play Developer API + RTDN
     const currentVerificationMethod = verificationMethodRef.current;
+    if (currentVerificationMethod === 'ignore') {
+      setIsProcessing(false);
+      setPurchaseResult(
+        'Receipt retained. Choose verification to retry this receipt.',
+      );
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
     let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
     console.log('[SubscriptionFlow] About to verify purchase:', {
       verificationMethod: currentVerificationMethod,
       productId,
-      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+      willVerify: !!productId,
     });
 
-    if (currentVerificationMethod !== 'ignore' && productId) {
+    if (productId) {
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -1800,6 +1812,7 @@ function SubscriptionFlowContainer() {
             productId,
             false,
             AMAZON_RVS_SANDBOX === 'true',
+            purchase.store,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -2063,6 +2076,26 @@ function SubscriptionFlowContainer() {
   }, [connected, fetchProducts, getAvailablePurchases]);
 
   useEffect(() => {
+    if (
+      !connected ||
+      verificationSelection === 0 ||
+      verificationMethod === 'ignore'
+    )
+      return;
+    void getAvailablePurchases().catch((error) => {
+      console.log('[SubscriptionFlow] Receipt recovery failed:', error);
+    });
+    if (retainedPurchaseRef.current)
+      void dispatchPurchaseSuccess(retainedPurchaseRef.current);
+  }, [
+    connected,
+    getAvailablePurchases,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
+
+  useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
 
     for (const purchase of availablePurchases) {
@@ -2085,7 +2118,13 @@ function SubscriptionFlowContainer() {
         );
       });
     }
-  }, [availablePurchases, connected, dispatchPurchaseSuccess]);
+  }, [
+    availablePurchases,
+    connected,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   // Log discount and promotional offer data
   useEffect(() => {

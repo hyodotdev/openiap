@@ -23,17 +23,15 @@ import {
   useIAP,
   showManageSubscriptionsIOS,
   deepLinkToSubscriptions,
-} from '../../src';
+  type ActiveSubscription,
+  type ProductSubscription,
+  type Purchase,
+  type VerifyPurchaseWithProviderProps,
+  ErrorCode,
+  type ExpoPurchaseError as PurchaseError,
+} from 'expo-iap';
 import Loading from '../src/components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../src/utils/constants';
-import type {
-  ActiveSubscription,
-  ProductSubscription,
-  Purchase,
-  VerifyPurchaseWithProviderProps,
-} from '../../src/types';
-import {ErrorCode} from '../../src/types';
-import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import {
@@ -281,8 +279,8 @@ function SubscriptionFlow({
         message: canUpgrade
           ? 'Upgrade available'
           : isDowngrade
-          ? 'Downgrade option'
-          : undefined,
+            ? 'Downgrade option'
+            : undefined,
       };
     },
     [getCurrentSubscription, isCancelled],
@@ -718,10 +716,10 @@ function SubscriptionFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? 'Local (Device)'
-                : verificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonIcon}>▼</Text>
           </TouchableOpacity>
@@ -1382,6 +1380,8 @@ function SubscriptionFlowContainer() {
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [verificationMethod, setVerificationMethod] =
     useState<VerificationMethod>(getDefaultVerificationMethod());
+  const [verificationSelection, setVerificationSelection] = useState(0);
+  const retainedPurchaseRef = useRef<Purchase | null>(null);
   const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
 
   // Keep ref in sync with state
@@ -1489,10 +1489,13 @@ function SubscriptionFlowContainer() {
       if (inFlightSubscriptionTasks.get(purchaseCleanupKey) === task) {
         inFlightSubscriptionTasks.delete(purchaseCleanupKey);
       }
+      if (result !== 'finished')
+        cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
       task.complete(result);
     };
     inFlightSubscriptionTasks.set(purchaseCleanupKey, task);
 
+    retainedPurchaseRef.current = purchase;
     setLastPurchase(purchase);
 
     let isPurchased = false;
@@ -1500,9 +1503,9 @@ function SubscriptionFlowContainer() {
     const normalizedPurchaseStore = purchase.store.toLowerCase();
     const hasAndroidPurchaseIdentity = Boolean(
       purchase.purchaseToken ||
-        purchase.id ||
-        purchase.transactionId ||
-        purchase.productId,
+      purchase.id ||
+      purchase.transactionId ||
+      purchase.productId,
     );
 
     if (Platform.OS === 'ios' && normalizedPurchaseStore === 'apple') {
@@ -1516,11 +1519,11 @@ function SubscriptionFlowContainer() {
       isPurchased = hasValidToken || hasValidTransactionId;
       isRestoration = Boolean(
         'originalTransactionIdentifierIOS' in purchase &&
-          purchase.originalTransactionIdentifierIOS &&
-          purchase.originalTransactionIdentifierIOS !== purchase.id &&
-          'transactionReasonIOS' in purchase &&
-          purchase.transactionReasonIOS &&
-          purchase.transactionReasonIOS !== 'PURCHASE',
+        purchase.originalTransactionIdentifierIOS &&
+        purchase.originalTransactionIdentifierIOS !== purchase.id &&
+        'transactionReasonIOS' in purchase &&
+        purchase.transactionReasonIOS &&
+        purchase.transactionReasonIOS !== 'PURCHASE',
       );
 
       console.log('iOS Purchase Analysis:');
@@ -1603,14 +1606,23 @@ function SubscriptionFlowContainer() {
     //   Android: Google Play Developer API + RTDN
     // ------------------------------------------------------------
     const currentVerificationMethod = verificationMethodRef.current;
+    if (currentVerificationMethod === 'ignore') {
+      setIsProcessing(false);
+      setPurchaseResult(
+        'Receipt retained. Choose verification to retry this receipt.',
+      );
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
     let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
     console.log('[SubscriptionFlow] About to verify purchase:', {
       verificationMethod: currentVerificationMethod,
       productId,
-      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+      willVerify: !!productId,
     });
 
-    if (currentVerificationMethod !== 'ignore' && productId) {
+    if (productId) {
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -1672,6 +1684,7 @@ function SubscriptionFlowContainer() {
             result,
             productId,
             false,
+            purchase.store,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -1764,9 +1777,8 @@ function SubscriptionFlowContainer() {
 
     if (Platform.OS === 'android' && iapkitVerifyRequest) {
       try {
-        const refreshedResult = await verifyPurchaseWithProvider(
-          iapkitVerifyRequest,
-        );
+        const refreshedResult =
+          await verifyPurchaseWithProvider(iapkitVerifyRequest);
         console.log(
           '[SubscriptionFlow] IAPKit state after finishTransaction:',
           refreshedResult,
@@ -1940,6 +1952,26 @@ function SubscriptionFlowContainer() {
   }, [connected]);
 
   useEffect(() => {
+    if (
+      !connected ||
+      verificationSelection === 0 ||
+      verificationMethod === 'ignore'
+    )
+      return;
+    void getAvailablePurchases().catch((error) => {
+      console.log('[subscription-flow] Receipt recovery failed:', error);
+    });
+    if (retainedPurchaseRef.current)
+      void enqueuePurchase(retainedPurchaseRef.current);
+  }, [
+    connected,
+    getAvailablePurchases,
+    enqueuePurchase,
+    verificationMethod,
+    verificationSelection,
+  ]);
+
+  useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
 
     for (const purchase of availablePurchases) {
@@ -1955,7 +1987,13 @@ function SubscriptionFlowContainer() {
       if (completedSubscriptionKeys.has(cleanupKey)) continue;
       void enqueuePurchase(purchase);
     }
-  }, [availablePurchases, connected, enqueuePurchase]);
+  }, [
+    availablePurchases,
+    connected,
+    enqueuePurchase,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   // ============================================================
   // On App Launch - Check Existing Subscriptions
@@ -2086,10 +2124,10 @@ function SubscriptionFlowContainer() {
           const planType = offer.installmentPlanDetailsAndroid
             ? 'Installments'
             : recurring
-            ? 'Auto-renewing'
-            : prepaid
-            ? 'Prepaid'
-            : 'Subscription';
+              ? 'Auto-renewing'
+              : prepaid
+                ? 'Prepaid'
+                : 'Subscription';
           const pricing = phases
             .map((phase) => `${phase.formattedPrice} / ${phase.billingPeriod}`)
             .join(' → ');
@@ -2195,6 +2233,8 @@ function SubscriptionFlowContainer() {
         cancelButtonIndex,
       },
       (selectedIndex?: number) => {
+        if (selectedIndex == null || selectedIndex > 3) return;
+        setVerificationSelection((selection) => selection + 1);
         switch (selectedIndex) {
           case 0:
             setVerificationMethod('local');

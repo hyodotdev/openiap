@@ -50,8 +50,9 @@ func _ready() -> void:
 	IapManager.connection_changed.connect(_on_connection_changed)
 	IapManager.loading_changed.connect(_on_loading_changed)
 
-	# Load saved premium status
-	_load_premium_status()
+	IapManager.subscription_entitlements_changed.connect(_on_subscription_entitlements_changed)
+	if IapManager.store_connected:
+		IapManager.reconcile_subscription_entitlements()
 
 	game_over_label.visible = false
 	restart_button.visible = false
@@ -253,12 +254,8 @@ func _on_purchase_completed(product_id: String) -> void:
 			print("[Main] Bulb count: %d" % bulb_count)
 		"dev.hyo.martie.certified":
 			print("[Main] Certified purchased!")
-		"dev.hyo.martie.premium":
-			is_premium = true
-			_save_premium_status()
-		"dev.hyo.martie.premium_year":
-			is_premium_year = true
-			_save_premium_status()
+		"dev.hyo.martie.premium", "dev.hyo.martie.premium_year":
+			IapManager.reconcile_subscription_entitlements()
 	update_ui()
 	_update_store_panel_buttons()
 
@@ -278,6 +275,7 @@ func _on_connection_changed(connected: bool) -> void:
 	if connected:
 		status_label.text = "Connected"
 		store_button.disabled = false
+		IapManager.reconcile_subscription_entitlements()
 	else:
 		status_label.text = "Not connected"
 		store_button.disabled = true
@@ -293,18 +291,16 @@ func _on_loading_changed(loading: bool) -> void:
 		status_label.text = "Not connected"
 
 
-func _save_premium_status() -> void:
-	var config := ConfigFile.new()
-	config.set_value("iap", "premium", is_premium)
-	config.set_value("iap", "premium_year", is_premium_year)
-	config.save("user://iap_data.cfg")
+func _on_subscription_entitlements_changed() -> void:
+	is_premium = IapManager.subscription_entitlements[IapManager.PRODUCT_PREMIUM]
+	is_premium_year = IapManager.subscription_entitlements[IapManager.PRODUCT_PREMIUM_YEAR]
+	update_ui()
+	_update_store_panel_buttons()
 
 
-func _load_premium_status() -> void:
-	var config := ConfigFile.new()
-	if config.load("user://iap_data.cfg") == OK:
-		is_premium = config.get_value("iap", "premium", false)
-		is_premium_year = config.get_value("iap", "premium_year", false)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_RESUMED and IapManager.store_connected:
+		IapManager.reconcile_subscription_entitlements()
 
 
 func update_ui() -> void:
@@ -312,7 +308,7 @@ func update_ui() -> void:
 	bulb_label.text = "Bulbs: %d" % bulb_count
 
 	if is_premium or is_premium_year:
-		var premium_type = "Year" if is_premium_year else "Lifetime"
+		var premium_type = "Yearly" if is_premium_year else "Monthly"
 		premium_label.text = "Premium: %s" % premium_type
 		premium_label.modulate = Color(1, 0.8, 0, 1)
 	else:

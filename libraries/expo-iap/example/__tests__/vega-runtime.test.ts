@@ -147,6 +147,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'amazon',
       ),
     ).toBeNull();
   });
@@ -166,6 +167,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'amazon',
       ),
     ).toBe('IAPKit did not return a product ID for amazon');
   });
@@ -186,6 +188,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'amazon',
       ),
     ).toContain('expected Sandbox');
   });
@@ -205,6 +208,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'google',
       ),
     ).toBeNull();
 
@@ -222,6 +226,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         false,
+        'google',
       ),
     ).toContain('cannot fulfill this non-consumable google purchase');
 
@@ -240,6 +245,7 @@ describe('Vega runtime example helpers', () => {
           },
           'dev.hyo.martie.10bulbs',
           true,
+          'google',
         ),
       ).toBeNull();
     }
@@ -265,5 +271,94 @@ describe('Vega runtime example helpers', () => {
     expect(
       getDirectVerificationError({isValid: false, grantTime: null}),
     ).toContain('invalid receipt');
+  });
+  it.each(['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'])(
+    'verifies Amazon term %s against its catalog base without relaxing other stores',
+    (productId) => {
+      const payload = createIapkitVerificationPayload(
+        {
+          id: 'receipt',
+          productId,
+          store: 'amazon',
+          storeId: 'amazon',
+        } as Purchase,
+        'receipt',
+      );
+      expect(payload.amazon?.expectedProductId).toBe(
+        'dev.hyo.martie.premium.base',
+      );
+      const result = {
+        provider: 'iapkit' as const,
+        iapkit: {
+          isValid: true,
+          productId: 'dev.hyo.martie.premium.base',
+          environment: 'Sandbox',
+          state: 'entitled' as const,
+          store: 'amazon' as const,
+          storeId: 'amazon',
+        },
+      };
+      expect(
+        getIapkitVerificationError(result, productId, false, 'amazon'),
+      ).toBeNull();
+      expect(
+        getIapkitVerificationError(
+          {
+            ...result,
+            iapkit: {...result.iapkit, productId: 'another.base'},
+          },
+          productId,
+          false,
+          'amazon',
+        ),
+      ).toContain('expected dev.hyo.martie.premium.base');
+      expect(
+        getIapkitVerificationError(
+          {
+            ...result,
+            iapkit: {...result.iapkit, store: 'google', storeId: 'play'},
+          },
+          productId,
+          false,
+          'google',
+        ),
+      ).toContain('expected ' + productId);
+      expect(
+        getIapkitVerificationError(
+          {
+            ...result,
+            iapkit: {
+              ...result.iapkit,
+              store: 'google',
+              storeId: 'play',
+              productId,
+            },
+          },
+          productId,
+          false,
+          'google',
+        ),
+      ).toBeNull();
+    },
+  );
+
+  it('rejects valid same-SKU verification from a different store', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId: 'dev.hyo.martie.premium',
+            state: 'entitled',
+            store: 'google',
+            storeId: 'play',
+          },
+        },
+        'dev.hyo.martie.premium',
+        false,
+        'apple',
+      ),
+    ).toContain('expected apple');
   });
 });

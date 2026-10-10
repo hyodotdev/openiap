@@ -86,11 +86,11 @@ function AlternativeBillingScreen() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const isVega = isVegaOS();
 
-  const {connected, products, fetchProducts, finishTransaction} = useIAP({
+  const {connected, products, fetchProducts} = useIAP({
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
-    onPurchaseSuccess: async (purchase: Purchase) => {
-      console.log('Purchase successful:', {
+    onPurchaseSuccess: (purchase: Purchase) => {
+      console.log('Purchase received:', {
         productId: purchase.productId,
         transactionId: purchase.id,
         store: purchase.store,
@@ -98,26 +98,16 @@ function AlternativeBillingScreen() {
       setLastPurchase(purchase);
       setIsProcessing(false);
 
-      const productId = purchase.productId ?? '';
-      const isConsumable = CONSUMABLE_PRODUCT_IDS.includes(productId);
-
       setPurchaseResult(
-        `✅ Purchase successful\nProduct: ${productId}\nTransaction ID: ${
+        `Receipt received · verification required\nProduct: ${purchase.productId}\nTransaction ID: ${
           purchase.id
         }\nDate: ${new Date(purchase.transactionDate).toLocaleString()}`,
       );
 
-      try {
-        await finishTransaction({
-          purchase,
-          isConsumable,
-        });
-        console.log('Transaction finished');
-      } catch (error) {
-        console.log('Failed to finish transaction:', error);
-      }
-
-      Alert.alert('Success', 'Purchase completed successfully!');
+      Alert.alert(
+        'Receipt retained',
+        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
+      );
     },
     onPurchaseError: (error: PurchaseError) => {
       console.log('Purchase failed:', error);
@@ -699,7 +689,7 @@ function AlternativeBillingScreen() {
                 Date: {new Date(lastPurchase.transactionDate).toLocaleString()}
               </Text>
               <Text style={styles.purchaseWarning}>
-                ℹ️ Transaction auto-finished for testing.{'\n'}
+                ℹ️ Receipt retained pending verification.{'\n'}
                 PRODUCTION: Validate on backend first!
               </Text>
             </View>

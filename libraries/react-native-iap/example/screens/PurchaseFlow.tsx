@@ -14,6 +14,7 @@ import {
   requestPurchase,
   useIAP,
   getAppTransactionIOS,
+  getPendingTransactionsIOS,
   getStorefront,
   ErrorCode,
 } from 'react-native-iap';
@@ -572,6 +573,7 @@ function PurchaseFlowContainer() {
   const {
     verificationMethod,
     verificationMethodRef,
+    verificationSelection,
     verificationMethodSelectorVisible,
     hideVerificationMethodSelector,
     selectVerificationMethod,
@@ -584,6 +586,7 @@ function PurchaseFlowContainer() {
   >(async () => {});
   const mountedRef = useRef(true);
 
+  const retainedPurchaseRef = useRef<Purchase | null>(null);
   const dispatchPurchaseSuccess = useCallback(
     (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
     [],
@@ -658,6 +661,7 @@ function PurchaseFlowContainer() {
     };
     inFlightPurchaseTasks.set(purchaseCleanupKey, task);
 
+    retainedPurchaseRef.current = purchase;
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -682,13 +686,22 @@ function PurchaseFlowContainer() {
     // - 'iapkit-localhost': IAPKit provider through the local server
     // - 'iapkit': IAPKit provider through the hosted service
     const currentVerificationMethod = verificationMethodRef.current;
+    if (currentVerificationMethod === 'ignore') {
+      setIsProcessing(false);
+      setPurchaseResult(
+        'Receipt retained. Choose verification to retry this receipt.',
+      );
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
     console.log('[PurchaseFlow] About to verify purchase:', {
       verificationMethod: currentVerificationMethod,
       productId,
-      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+      willVerify: !!productId,
     });
 
-    if (currentVerificationMethod !== 'ignore' && productId) {
+    if (productId) {
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -756,6 +769,7 @@ function PurchaseFlowContainer() {
             productId,
             isConsumablePurchase,
             AMAZON_RVS_SANDBOX === 'true',
+            purchase.store,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -922,7 +936,7 @@ function PurchaseFlowContainer() {
         });
 
       getAvailablePurchases()
-        .then(() => {
+        .then(async () => {
           console.log('[PurchaseFlow] getAvailablePurchases completed');
         })
         .catch((error) => {
@@ -935,7 +949,61 @@ function PurchaseFlowContainer() {
       console.log('[PurchaseFlow] Not fetching products - not connected');
       setStorefront(null);
     }
-  }, [connected, fetchProducts, fetchStorefront, getAvailablePurchases]);
+  }, [
+    connected,
+    dispatchPurchaseSuccess,
+    fetchProducts,
+    fetchStorefront,
+    getAvailablePurchases,
+  ]);
+
+  useEffect(() => {
+    if (!connected || Platform.OS !== 'ios' || verificationMethod === 'ignore')
+      return;
+    let active = true;
+    void getPendingTransactionsIOS()
+      .then(async (purchases) => {
+        for (const purchase of purchases) {
+          if (!active) return;
+          if (isPurchaseFlowProduct(purchase.productId ?? ''))
+            await dispatchPurchaseSuccess(purchase);
+        }
+      })
+      .catch((error) => {
+        if (active)
+          setPurchaseResult(
+            `Purchase recovery failed; receipts retained: ${String(error)}`,
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    connected,
+    verificationMethod,
+    verificationSelection,
+    dispatchPurchaseSuccess,
+  ]);
+
+  useEffect(() => {
+    if (
+      !connected ||
+      verificationSelection === 0 ||
+      verificationMethod === 'ignore'
+    )
+      return;
+    void getAvailablePurchases().catch((error) => {
+      console.log('[PurchaseFlow] Receipt recovery failed:', error);
+    });
+    if (retainedPurchaseRef.current)
+      void dispatchPurchaseSuccess(retainedPurchaseRef.current);
+  }, [
+    connected,
+    getAvailablePurchases,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
@@ -960,7 +1028,13 @@ function PurchaseFlowContainer() {
         );
       });
     }
-  }, [availablePurchases, connected, dispatchPurchaseSuccess]);
+  }, [
+    availablePurchases,
+    connected,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 3: REQUEST PURCHASE

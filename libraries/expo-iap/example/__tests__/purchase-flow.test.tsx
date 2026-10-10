@@ -32,8 +32,7 @@ const mockFinishTransaction = jest.fn();
 const mockVerifyPurchase = jest.fn();
 const mockVerifyPurchaseWithProvider = jest.fn();
 let mockOnPurchaseSuccess:
-  | ((purchase: Record<string, unknown>) => Promise<void> | void)
-  | undefined;
+  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
 const mockUseIAP = {
   connected: true,
   products: [
@@ -56,6 +55,7 @@ const mockUseIAP = {
 };
 
 jest.mock('../../src', () => ({
+  ErrorCode: jest.requireActual('../../src/types').ErrorCode,
   useIAP: jest.fn(
     (options?: {onPurchaseSuccess?: typeof mockOnPurchaseSuccess}) => {
       mockOnPurchaseSuccess = options?.onPurchaseSuccess;
@@ -76,7 +76,7 @@ describe('PurchaseFlow Component', () => {
     mockGetAvailablePurchases.mockResolvedValue([]);
     (getPendingTransactionsIOS as jest.Mock).mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
-    mockVerifyPurchase.mockResolvedValue({});
+    mockVerifyPurchase.mockResolvedValue({isValid: true});
     mockVerifyPurchaseWithProvider.mockResolvedValue({
       iapkit: {
         isValid: true,
@@ -140,6 +140,71 @@ describe('PurchaseFlow Component', () => {
       }),
       expect.any(Function),
     );
+  });
+
+  it('retains a receipt in None mode and retries it after selecting verification', async () => {
+    const purchase = {
+      id: 'none-then-verified-expo',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'none-then-verified-jws',
+      purchaseState: 'purchased',
+      store: 'apple',
+      storeId: 'apple',
+      transactionDate: 1,
+    };
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(3),
+    );
+    const screen = await render(<PurchaseFlow />);
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+    await act(async () => {
+      await mockOnPurchaseSuccess?.(purchase);
+    });
+    expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
+    expect(screen.getByText(/Receipt retained/)).toBeTruthy();
+
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(1),
+    );
+    await fireEvent.press(screen.getByText('None (Skip)'));
+    await waitFor(() => expect(mockFinishTransaction).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await mockOnPurchaseSuccess?.(purchase);
+    });
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).toHaveBeenCalledWith({
+      purchase,
+      isConsumable: true,
+    });
+  });
+
+  it('retries failed verification when the same method is selected again', async () => {
+    mockUseIAP.availablePurchases = [
+      {
+        id: 'same-method-retry-expo',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'same-method-retry-jws',
+        purchaseState: 'purchased',
+        store: 'apple',
+        storeId: 'apple',
+        transactionDate: 1,
+      },
+    ];
+    mockVerifyPurchaseWithProvider.mockRejectedValueOnce(new Error('offline'));
+    const screen = await render(<PurchaseFlow />);
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Purchase verification failed: offline/),
+      ).toBeTruthy(),
+    );
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(1),
+    );
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+    await waitFor(() => expect(mockFinishTransaction).toHaveBeenCalledTimes(1));
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
   });
 
   it('should fetch and show storefront information', async () => {

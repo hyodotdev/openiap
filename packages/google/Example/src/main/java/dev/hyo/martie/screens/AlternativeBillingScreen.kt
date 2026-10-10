@@ -153,19 +153,13 @@ fun AlternativeBillingScreen(navController: NavController) {
 
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
 
-    // AUTO-FINISH TRANSACTION FOR TESTING
-    // PRODUCTION: Validate purchase on your backend server first!
     LaunchedEffect(lastPurchase) {
         lastPurchase?.let { purchase ->
-            try {
-                val purchaseAndroid = purchase as? PurchaseAndroid
-                if (purchaseAndroid != null) {
-                    OpenIapLog.debug("Auto-finishing transaction for testing", tag = "AlternativeBilling")
-                    iapStore.finishTransaction(purchaseAndroid, true)
-                }
-            } catch (e: Exception) {
-                OpenIapLog.error("Auto-finish failed: ${e.message}", tag = "AlternativeBilling")
-            }
+            iapStore.postStatusMessage(
+                message = "Receipt received · verification required",
+                status = PurchaseResultStatus.Info,
+                productId = purchase.productId
+            )
         }
     }
 
@@ -935,8 +929,8 @@ fun AlternativeBillingScreen(navController: NavController) {
                                 )
 
                                 Text(
-                                    "ℹ️ Transaction auto-finished for testing.\n" +
-                                    "PRODUCTION: Validate on backend first!",
+                                    "Receipt retained pending verification.\n" +
+                                    "Open Purchase Flow or Subscription Flow to verify and complete it.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = AppColors.warning,
                                     modifier = Modifier.padding(top = 8.dp)

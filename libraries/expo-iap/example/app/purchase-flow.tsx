@@ -23,20 +23,18 @@ import {
   getAppTransactionIOS,
   getPendingTransactionsIOS,
   getStorefront,
-} from '../../src';
+  type Product,
+  type Purchase,
+  type VerifyPurchaseWithProviderProps,
+  ErrorCode,
+  type ExpoPurchaseError as PurchaseError,
+} from 'expo-iap';
 import Loading from '../src/components/Loading';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
   PRODUCT_IDS,
 } from '../src/utils/constants';
-import type {
-  Product,
-  Purchase,
-  VerifyPurchaseWithProviderProps,
-} from '../../src/types';
-import {ErrorCode} from '../../src/types';
-import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import {formatErrorForDisplay} from '../src/utils/errorUtils';
@@ -287,10 +285,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                ? storefront
-                : storefrontError
-                ? 'Unavailable'
-                : 'Not available'}
+                  ? storefront
+                  : storefrontError
+                    ? 'Unavailable'
+                    : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -325,10 +323,10 @@ function PurchaseFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? 'Local (Device)'
-                : verificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -341,8 +339,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-              ? 'All non-consumable products already purchased'
-              : 'Loading products...'}
+                ? 'All non-consumable products already purchased'
+                : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -360,15 +358,15 @@ function PurchaseFlow({
                   CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                     ? styles.productBadgeConsumable
                     : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? styles.productBadgeNonConsumable
-                    : null,
+                      ? styles.productBadgeNonConsumable
+                      : null,
                 ]}
               >
                 {CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                  ? 'Non-consumable product'
-                  : 'In-app product'}
+                    ? 'Non-consumable product'
+                    : 'In-app product'}
               </Text>
               <View style={styles.productActions}>
                 <TouchableOpacity
@@ -747,6 +745,8 @@ function PurchaseFlowContainer() {
   const [storefrontLoading, setStorefrontLoading] = useState(false);
   const [verificationMethod, setVerificationMethod] =
     useState<VerificationMethod>(getDefaultVerificationMethod());
+  const [verificationSelection, setVerificationSelection] = useState(0);
+  const retainedPurchaseRef = useRef<Purchase | null>(null);
   const verificationMethodRef = useRef<VerificationMethod>(verificationMethod);
 
   // Keep ref in sync with state
@@ -834,10 +834,13 @@ function PurchaseFlowContainer() {
       if (inFlightPurchaseTasks.get(purchaseCleanupKey) === task) {
         inFlightPurchaseTasks.delete(purchaseCleanupKey);
       }
+      if (result !== 'finished')
+        cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
       task.complete(result);
     };
     inFlightPurchaseTasks.set(purchaseCleanupKey, task);
 
+    retainedPurchaseRef.current = purchase;
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -861,13 +864,22 @@ function PurchaseFlowContainer() {
     //   - iapkit: IAPKit provider through the hosted service
     // ------------------------------------------------------------
     const currentVerificationMethod = verificationMethodRef.current;
+    if (currentVerificationMethod === 'ignore') {
+      setIsProcessing(false);
+      setPurchaseResult(
+        'Receipt retained. Choose verification to retry this receipt.',
+      );
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
     console.log('[PurchaseFlow] About to verify purchase:', {
       verificationMethod: currentVerificationMethod,
       productId,
-      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+      willVerify: !!productId,
     });
 
-    if (currentVerificationMethod !== 'ignore' && productId) {
+    if (productId) {
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -923,6 +935,7 @@ function PurchaseFlowContainer() {
             result,
             productId,
             isConsumablePurchase,
+            purchase.store,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -1112,14 +1125,6 @@ function PurchaseFlowContainer() {
       getAvailablePurchases()
         .then(async () => {
           console.log('[PurchaseFlow] getAvailablePurchases completed');
-          if (Platform.OS !== 'ios') return;
-
-          const pendingPurchases = await getPendingTransactionsIOS();
-          for (const purchase of pendingPurchases) {
-            if (isPurchaseFlowProduct(purchase.productId ?? '')) {
-              await enqueuePurchase(purchase);
-            }
-          }
         })
         .catch((error) => {
           console.log('[PurchaseFlow] getAvailablePurchases error:', error);
@@ -1130,6 +1135,49 @@ function PurchaseFlowContainer() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
+
+  useEffect(() => {
+    if (!connected || Platform.OS !== 'ios' || verificationMethod === 'ignore')
+      return;
+    let active = true;
+    void getPendingTransactionsIOS()
+      .then(async (purchases) => {
+        for (const purchase of purchases) {
+          if (!active) return;
+          if (isPurchaseFlowProduct(purchase.productId ?? ''))
+            await enqueuePurchase(purchase);
+        }
+      })
+      .catch((error) => {
+        if (active)
+          setPurchaseResult(
+            `Purchase recovery failed; receipts retained: ${String(error)}`,
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [connected, verificationMethod, verificationSelection, enqueuePurchase]);
+
+  useEffect(() => {
+    if (
+      !connected ||
+      verificationSelection === 0 ||
+      verificationMethod === 'ignore'
+    )
+      return;
+    void getAvailablePurchases().catch((error) => {
+      console.log('[purchase-flow] Receipt recovery failed:', error);
+    });
+    if (retainedPurchaseRef.current)
+      void enqueuePurchase(retainedPurchaseRef.current);
+  }, [
+    connected,
+    getAvailablePurchases,
+    enqueuePurchase,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
@@ -1147,7 +1195,13 @@ function PurchaseFlowContainer() {
       if (completedPurchaseKeys.has(cleanupKey)) continue;
       void enqueuePurchase(purchase);
     }
-  }, [availablePurchases, connected, enqueuePurchase]);
+  }, [
+    availablePurchases,
+    connected,
+    enqueuePurchase,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   const handleRefreshAvailablePurchases = useCallback(async () => {
     if (refreshingAvailablePurchases) {
@@ -1243,6 +1297,8 @@ function PurchaseFlowContainer() {
         message: 'Choose how to verify purchases after completion',
       },
       (buttonIndex) => {
+        if (buttonIndex == null || buttonIndex > 3) return;
+        setVerificationSelection((selection) => selection + 1);
         if (buttonIndex === 0) {
           setVerificationMethod('local');
         } else if (buttonIndex === 1) {

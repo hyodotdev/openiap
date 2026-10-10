@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Product IDs for testing in the example app
@@ -59,6 +60,43 @@ class IapConstants {
               : _fromDotenv('AMAZON_RVS_SANDBOX'))
           .toLowerCase() ==
       'true';
+
+  // These term-to-base IDs belong to Martie's Amazon catalog.
+  static String verificationProductId(String productId, IapStore store) =>
+      store == IapStore.Amazon && subscriptionProductIds.contains(productId)
+          ? 'dev.hyo.martie.premium.base'
+          : productId;
+
+  static bool acceptsVerification(
+      RequestVerifyPurchaseWithIapkitResult? result, Purchase purchase) {
+    if (result == null ||
+        !result.isValid ||
+        result.store != purchase.store ||
+        result.productId !=
+            verificationProductId(purchase.productId, purchase.store)) {
+      return false;
+    }
+    final consumable = consumableProductIds.contains(purchase.productId);
+    switch (result.store) {
+      case IapStore.Apple:
+      case IapStore.Amazon:
+        return (result.store != IapStore.Amazon ||
+                result.environment ==
+                    (amazonRvsSandbox ? 'Sandbox' : 'Production')) &&
+            result.state ==
+                (consumable
+                    ? IapkitPurchaseState.ReadyToConsume
+                    : IapkitPurchaseState.Entitled);
+      case IapStore.Google:
+        return result.state == IapkitPurchaseState.Entitled ||
+            result.state == IapkitPurchaseState.PendingAcknowledgment ||
+            (consumable && result.state == IapkitPurchaseState.ReadyToConsume);
+      case IapStore.Horizon:
+        return result.state == IapkitPurchaseState.Entitled;
+      case IapStore.Unknown:
+        return false;
+    }
+  }
 
   // Consumable Product IDs
   static const List<String> consumableProductIds = [
