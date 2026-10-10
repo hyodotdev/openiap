@@ -34,284 +34,222 @@ export function escapeHtml(value: string): string {
 const token = (type: string, html: string): string =>
   `<span class="token ${type}">${html}</span>`;
 
-interface Part {
-  type: 'string' | 'code';
-  value: string;
-}
-
-// Splits a line into quoted strings and the code between them. With
-// `escapes`, a backslash escapes the next character, so `\"` does not close
-// a string but `\\"` does.
-function splitStrings(line: string, quotes: string, escapes: boolean): Part[] {
-  const parts: Part[] = [];
-  let current = '';
-  let quote = '';
-  let escaped = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (!quote && quotes.includes(char)) {
-      if (current) parts.push({ type: 'code', value: current });
-      quote = char;
-      current = char;
-    } else if (quote && char === quote && !escaped) {
-      parts.push({ type: 'string', value: current + char });
-      current = '';
-      quote = '';
-    } else {
-      current += char;
-    }
-    escaped = escapes && !escaped && char === '\\';
-  }
-  if (current) parts.push({ type: quote ? 'string' : 'code', value: current });
-  return parts;
-}
-
-function mapLines(
-  text: string,
-  highlightLine: (line: string) => string
-): string {
-  return text.split('\n').map(highlightLine).join('\n');
-}
-
 // Wraps a class-name token in an anchor when it matches a known type.
-// Caller is responsible for HTML-escaping the input.
 function linkifyType(name: string): string {
   const href = TYPE_LINKS[name];
   if (href) {
-    return `<a class="token class-name type-ref" href="${href}">${name}</a>`;
+    return `<a class="token class-name type-ref" href="${href}">${escapeHtml(name)}</a>`;
   }
-  return `<span class="token class-name">${name}</span>`;
+  return token('class-name', escapeHtml(name));
 }
 
-// Links capitalized identifiers only in text outside every tag, so words inside
-// a span an earlier pass emitted (Dart `Future`, GDScript `String`, wrapped
-// calls) keep their color. No lookbehind: Safari < 16.4 lacks it under Vite's
-// default target.
-function linkifyTypesInTextSegments(html: string): string {
-  let depth = 0;
-  return html
-    .split(/(<[^>]+>)/)
-    .map((segment) => {
-      if (segment.startsWith('<')) {
-        // Self-closing `<br/>` etc. don't change depth.
-        if (segment.endsWith('/>')) return segment;
-        if (segment.startsWith('</')) depth = Math.max(0, depth - 1);
-        else depth += 1;
-        return segment;
+// A rule matches at the current position. Its text becomes a token span, goes
+// through `render`, or, with neither, stays plain so no later rule can match
+// inside it. Patterns are sticky; `^` needs the `m` flag to mean line start.
+interface Rule {
+  pattern: RegExp;
+  type?: string;
+  render?: (match: RegExpExecArray) => string;
+}
+
+// One left-to-right scan: every character belongs to exactly one token or to
+// the plain text between tokens, and each piece is escaped once.
+function lex(text: string, rules: readonly Rule[]): string {
+  let html = '';
+  let plainFrom = 0;
+  let i = 0;
+  while (i < text.length) {
+    let hit: { rule: Rule; match: RegExpExecArray } | undefined;
+    for (const rule of rules) {
+      rule.pattern.lastIndex = i;
+      const match = rule.pattern.exec(text);
+      if (match?.[0]) {
+        hit = { rule, match };
+        break;
       }
-      if (depth > 0) return segment;
-      return segment.replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, (_, name: string) =>
-        linkifyType(name)
-      );
-    })
-    .join('');
+    }
+    if (!hit) {
+      i++;
+      continue;
+    }
+    const { rule, match } = hit;
+    html += escapeHtml(text.slice(plainFrom, i));
+    if (rule.render) html += rule.render(match);
+    else if (rule.type) html += token(rule.type, escapeHtml(match[0]));
+    else html += escapeHtml(match[0]);
+    i = plainFrom = i + match[0].length;
+  }
+  return html + escapeHtml(text.slice(plainFrom));
 }
 
-const NUMBER = /\b(\d+\.?\d*)\b/g;
-const FUNCTION_CALL = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)(\s*)(?=\()/g;
+const lexer =
+  (rules: readonly Rule[]) =>
+  (text: string): string =>
+    lex(text, rules);
 
-const wrapNumbers = (html: string): string =>
-  html.replace(NUMBER, '<span class="token number">$1</span>');
-const wrapCalls = (html: string): string =>
-  html.replace(FUNCTION_CALL, '<span class="token function">$1</span>$2');
+// A comment that starts at a word boundary: `#` in bash and YAML.
+const wordComment: Rule = {
+  pattern: /(^|[ \t])(#[^\n]*)/my,
+  render: (m) => escapeHtml(m[1]) + token('comment', escapeHtml(m[2])),
+};
+// The first group stays plain; the second group is the token.
+const prefixed = (pattern: RegExp, type: string): Rule => ({
+  pattern,
+  render: (m) => escapeHtml(m[1]) + token(type, escapeHtml(m[2])),
+});
 
-const TYPESCRIPT_KEYWORDS =
-  /\b(import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with)\b/g;
+const LINE_COMMENT: Rule = { pattern: /\/\/[^\n]*/y, type: 'comment' };
+const BLOCK_COMMENT: Rule = {
+  pattern: /\/\*[\s\S]*?(?:\*\/|$)/y,
+  type: 'comment',
+};
+const HASH_COMMENT: Rule = { pattern: /#[^\n]*/y, type: 'comment' };
 
-function highlightTypescript(text: string): string {
-  return mapLines(text, (line) => {
-    if (line.trim().startsWith('//')) return token('comment', escapeHtml(line));
-    return splitStrings(line, '"\'`', false)
-      .map((part) => {
-        if (part.type === 'string') {
-          return token('string', escapeHtml(part.value));
-        }
-        const code = escapeHtml(part.value).replace(
-          TYPESCRIPT_KEYWORDS,
-          '<span class="token keyword">$1</span>'
-        );
-        return linkifyTypesInTextSegments(wrapCalls(wrapNumbers(code)));
-      })
-      .join('');
-  });
-}
-
-const keywordPattern = (words: string): RegExp =>
-  new RegExp(`\\b(${words})\\b`, 'g');
-
-const NATIVE_KEYWORDS = {
-  swift: keywordPattern(
-    'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|@available'
-  ),
-  kotlin: keywordPattern(
-    'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where'
-  ),
-  gdscript: keywordPattern(
-    'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as'
-  ),
-  csharp: keywordPattern(
-    'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with'
-  ),
-  dart: keywordPattern(
-    'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream'
-  ),
+const DOUBLE_QUOTED: Rule = {
+  pattern: /"(?:[^"\\\n]|\\.)*"?/y,
+  type: 'string',
+};
+const SINGLE_QUOTED: Rule = {
+  pattern: /'(?:[^'\\\n]|\\.)*'?/y,
+  type: 'string',
+};
+const LITERAL_SINGLE_QUOTED: Rule = { pattern: /'[^'\n]*'?/y, type: 'string' };
+const BACKTICK_QUOTED: Rule = {
+  pattern: /`(?:[^`\\]|\\[\s\S])*`?/y,
+  type: 'string',
+};
+const TRIPLE_QUOTED: Rule = {
+  pattern: /"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)/y,
+  type: 'string',
 };
 
-function highlightNative(
-  text: string,
-  language: keyof typeof NATIVE_KEYWORDS
-): string {
-  const keywords = NATIVE_KEYWORDS[language];
-  return mapLines(text, (line) => {
-    if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
-      return token('comment', escapeHtml(line));
-    }
-    return splitStrings(line, '"\'', true)
-      .map((part) => {
-        if (part.type === 'string') {
-          return token('string', escapeHtml(part.value));
-        }
-        const code = escapeHtml(part.value).replace(
-          keywords,
-          '<span class="token keyword">$1</span>'
-        );
-        return linkifyTypesInTextSegments(wrapCalls(wrapNumbers(code))).replace(
-          /@([a-zA-Z_][a-zA-Z0-9_]*)/g,
-          '<span class="token decorator">@$1</span>'
-        );
-      })
-      .join('');
-  });
-}
+const keyword = (words: string): Rule => ({
+  pattern: new RegExp(`\\b(?:${words})\\b`, 'y'),
+  type: 'keyword',
+});
+const NUMBER: Rule = { pattern: /\b\d+\.?\d*\b/y, type: 'number' };
+const CALL: Rule = {
+  pattern: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=[ \t]*\()/y,
+  type: 'function',
+};
+const TYPE: Rule = {
+  pattern: /\b[A-Z][a-zA-Z0-9_]*\b/y,
+  render: (m) => linkifyType(m[0]),
+};
+const DECORATOR: Rule = { pattern: /@[A-Za-z_]\w*/y, type: 'decorator' };
+// C# `@params` is an identifier, not an annotation or a keyword.
+const VERBATIM_IDENTIFIER: Rule = { pattern: /@[A-Za-z_]\w*/y };
+const DIRECTIVE = prefixed(/^([ \t]*)(#[a-z]\w*)/my, 'keyword');
 
-function highlightJson(text: string): string {
-  return mapLines(text, (line) => {
-    if (!line.trim()) return escapeHtml(line);
-    const parts = splitStrings(line, '"', true);
-    return parts
-      .map((part, i) => {
-        if (part.type === 'string') {
-          const next = parts[i + 1];
-          const isKey = next && next.value.trim().startsWith(':');
-          return token(isKey ? 'attr-name' : 'string', escapeHtml(part.value));
-        }
-        return wrapNumbers(
-          escapeHtml(part.value).replace(
-            /\b(true|false|null)\b/g,
-            '<span class="token keyword">$1</span>'
-          )
-        );
-      })
-      .join('');
-  });
-}
+const slashComments = [LINE_COMMENT, BLOCK_COMMENT];
 
-function highlightBash(text: string): string {
-  return mapLines(text, (line) => {
-    if (!line.trim()) return escapeHtml(line);
-    if (line.trim().startsWith('#')) return token('comment', escapeHtml(line));
-    let isFirstCode = true;
-    return splitStrings(line, '"\'', true)
-      .map((part) => {
-        if (part.type === 'string') {
-          return token('string', escapeHtml(part.value));
-        }
-        let code = escapeHtml(part.value);
-        if (isFirstCode) {
-          code = code.replace(
-            /^(\s*)((?:npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild)\b|EXPO_TV=\S+)/,
-            '$1<span class="token function">$2</span>'
-          );
-        }
-        isFirstCode = false;
-        return code
-          .replace(
-            /(\$\{[^}<]+\}|\$[A-Za-z_][A-Za-z0-9_]*)/g,
-            '<span class="token variable">$1</span>'
-          )
-          .replace(
-            /(\s)(--?[a-zA-Z][\w-]*)/g,
-            '$1<span class="token attr-name">$2</span>'
-          )
-          .replace(
-            /(\||&amp;&amp;|&gt;|&lt;)/g,
-            '<span class="token keyword">$1</span>'
-          );
-      })
-      .join('');
-  });
-}
+const TYPESCRIPT_RULES: Rule[] = [
+  ...slashComments,
+  BACKTICK_QUOTED,
+  DOUBLE_QUOTED,
+  SINGLE_QUOTED,
+  keyword(
+    'import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with'
+  ),
+  NUMBER,
+  CALL,
+  TYPE,
+];
 
-function highlightYaml(text: string): string {
-  return mapLines(text, (line) => {
-    if (!line.trim()) return escapeHtml(line);
-    if (line.trim().startsWith('#')) return token('comment', escapeHtml(line));
-    if (/^\s*\[/.test(line)) {
-      return escapeHtml(line).replace(
+const NATIVE_KEYWORDS = {
+  swift:
+    'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false',
+  kotlin:
+    'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where',
+  gdscript:
+    'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as',
+  csharp:
+    'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with',
+  dart: 'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream',
+};
+
+const nativeRules = (language: keyof typeof NATIVE_KEYWORDS): Rule[] => [
+  ...(language === 'gdscript' ? [HASH_COMMENT] : slashComments),
+  ...(language === 'swift' || language === 'csharp' ? [DIRECTIVE] : []),
+  TRIPLE_QUOTED,
+  DOUBLE_QUOTED,
+  SINGLE_QUOTED,
+  language === 'csharp' ? VERBATIM_IDENTIFIER : DECORATOR,
+  keyword(NATIVE_KEYWORDS[language]),
+  NUMBER,
+  CALL,
+  TYPE,
+];
+
+const GROOVY_RULES: Rule[] = [
+  ...slashComments,
+  TRIPLE_QUOTED,
+  DOUBLE_QUOTED,
+  SINGLE_QUOTED,
+  keyword(
+    'android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project'
+  ),
+  NUMBER,
+  CALL,
+];
+
+const JSON_RULES: Rule[] = [
+  { pattern: /"(?:[^"\\\n]|\\.)*"(?=[ \t]*:)/y, type: 'attr-name' },
+  DOUBLE_QUOTED,
+  keyword('true|false|null'),
+  NUMBER,
+];
+
+const BASH_RULES: Rule[] = [
+  wordComment,
+  DOUBLE_QUOTED,
+  LITERAL_SINGLE_QUOTED,
+  prefixed(
+    /^([ \t]*)((?:npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild)\b|EXPO_TV=\S+)/my,
+    'function'
+  ),
+  {
+    pattern: /\$\{[^}\n]+\}|\$[A-Za-z_][A-Za-z0-9_]*/y,
+    type: 'variable',
+  },
+  prefixed(/([ \t])(--?[a-zA-Z][\w-]*)/y, 'attr-name'),
+  { pattern: /\||&&|>|</y, type: 'keyword' },
+];
+
+const YAML_RULES: Rule[] = [
+  wordComment,
+  {
+    pattern: /^[ \t]*\[[^\n]*/my,
+    render: (m) =>
+      escapeHtml(m[0]).replace(
         /(\[[^\]]+\])/g,
         '<span class="token keyword">$1</span>'
-      );
-    }
-    let isFirst = true;
-    return splitStrings(line, '"\'', false)
-      .map((part) => {
-        if (part.type === 'string') {
-          return token('string', escapeHtml(part.value));
-        }
-        let code = escapeHtml(part.value);
-        if (isFirst) {
-          code = code.replace(
-            /^(\s*)([A-Za-z_][\w.-]*)(\s*)([:=])/,
-            '$1<span class="token attr-name">$2</span>$3$4'
-          );
-        }
-        isFirst = false;
-        return wrapNumbers(
-          code.replace(
-            /\b(true|false)\b/g,
-            '<span class="token keyword">$1</span>'
-          )
-        );
-      })
-      .join('');
-  });
-}
+      ),
+  },
+  DOUBLE_QUOTED,
+  LITERAL_SINGLE_QUOTED,
+  {
+    pattern: /^([ \t]*)([A-Za-z_][\w.-]*)([ \t]*[:=])/my,
+    render: (m) =>
+      escapeHtml(m[1]) +
+      token('attr-name', escapeHtml(m[2])) +
+      escapeHtml(m[3]),
+  },
+  keyword('true|false'),
+  NUMBER,
+];
 
-const GROOVY_KEYWORDS =
-  /\b(android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project)\b/g;
-
-function highlightGroovy(text: string): string {
-  return mapLines(text, (line) => {
-    if (!line.trim()) return escapeHtml(line);
-    if (line.trim().startsWith('//')) return token('comment', escapeHtml(line));
-    return splitStrings(line, '"\'', true)
-      .map((part) => {
-        if (part.type === 'string') {
-          return token('string', escapeHtml(part.value));
-        }
-        return wrapCalls(
-          wrapNumbers(
-            escapeHtml(part.value).replace(
-              GROOVY_KEYWORDS,
-              '<span class="token keyword">$1</span>'
-            )
-          )
-        );
-      })
-      .join('');
-  });
-}
-
-function highlightProperties(text: string): string {
-  return mapLines(text, (line) => {
-    if (!line.trim()) return escapeHtml(line);
-    if (line.trim().startsWith('#')) return token('comment', escapeHtml(line));
-    return escapeHtml(line).replace(
-      /^(\s*)([^=]+?)(\s*)(=)(\s*)(.*)/gm,
-      '$1<span class="token attr-name">$2</span>$3$4$5<span class="token string">$6</span>'
-    );
-  });
-}
+const PROPERTIES_RULES: Rule[] = [
+  prefixed(/^([ \t]*)([#!][^\n]*)/my, 'comment'),
+  {
+    pattern: /^([ \t]*)([^=\r\n]+?)([ \t]*=[ \t]*)([^\r\n]*)/my,
+    render: (m) =>
+      escapeHtml(m[1]) +
+      token('attr-name', escapeHtml(m[2])) +
+      escapeHtml(m[3]) +
+      (m[4] ? token('string', escapeHtml(m[4])) : ''),
+  },
+];
 
 const GRAPHQL_BUILT_IN_TYPES = [
   'String',
@@ -323,103 +261,47 @@ const GRAPHQL_BUILT_IN_TYPES = [
   'Void',
 ];
 
-// A type after a colon: `Int`, `[Product!]!`. A name followed by `(` or `{` is
-// an aliased field, not a type.
-const GRAPHQL_TYPE =
-  /:(\s*)(?![A-Za-z_]\w*\s*[({])(\[*)([A-Za-z_]\w*)([!\]]*)/g;
-const GRAPHQL_FIELD = /^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*)(:)/;
+// A colon with the type that follows it: `: Int`, `: [Product!]!`. A name
+// followed by `(` or `{` is an aliased field, not a type.
+const GRAPHQL_COLON =
+  /:(?:([ \t]*)(?![A-Za-z_]\w*[ \t]*[({])(\[*)([A-Za-z_]\w*)([!\]]*))?/y;
 
-// Splits off a trailing `# comment`, ignoring a `#` inside a string.
-function splitComment(line: string): [string, string] {
-  const parts = splitStrings(line, '"', true);
-  let code = '';
-  for (let i = 0; i < parts.length; i++) {
-    const { type, value } = parts[i];
-    const hash = type === 'code' ? value.indexOf('#') : -1;
-    if (hash >= 0) {
-      const rest = parts.slice(i + 1).map((part) => part.value);
-      return [code + value.slice(0, hash), value.slice(hash) + rest.join('')];
-    }
-    code += value;
-  }
-  return [code, ''];
-}
-
-function highlightGraphqlDefinition(code: string): string {
-  const declaration = code.match(/^(\s*)(type|input|enum)(\s+)(\w+)(.*)$/);
-  if (declaration) {
-    const [, indent, keyword, gap, name, rest] = declaration;
-    return `${escapeHtml(indent)}${token('keyword', escapeHtml(keyword))}${escapeHtml(gap)}${token('type-name', escapeHtml(name))}${escapeHtml(rest)}`;
-  }
-
-  // Enum values (all caps with underscores)
-  if (/^\s*[A-Z_]+\s*$/.test(code)) {
-    return escapeHtml(code).replace(
-      /([A-Z_]+)/g,
-      '<span class="token enum-value">$1</span>'
-    );
-  }
-
-  if (!code.includes(':')) return escapeHtml(code);
-
-  const wrapType = (
-    _match: string,
-    space: string,
-    brackets: string,
-    name: string,
-    suffix: string
-  ): string =>
-    ':' +
-    space +
-    brackets.replace(/\[/g, token('punctuation', '[')) +
-    token(
-      GRAPHQL_BUILT_IN_TYPES.includes(name) ? 'builtin-type' : 'custom-type',
-      name
-    ) +
-    suffix.replace(/[!\]]/g, (mark) =>
-      mark === '!' ? token('required', '!') : token('punctuation', ']')
-    );
-
-  return splitStrings(code, '"', true)
-    .map((part) =>
-      part.type === 'string'
-        ? escapeHtml(part.value)
-        : // Types first: the field pass wraps the first colon.
-          escapeHtml(part.value)
-            .replace(GRAPHQL_TYPE, wrapType)
-            .replace(
-              GRAPHQL_FIELD,
-              '$1<span class="token field">$2</span>$3<span class="token punctuation">$4</span>'
-            )
-    )
-    .join('');
-}
-
-function highlightGraphql(text: string): string {
-  let inBlockString = false;
-
-  return mapLines(text, (line) => {
-    const trimmed = line.trim();
-    if (!trimmed) return escapeHtml(line);
-
-    // Block string delimiters and contents
-    if (trimmed.startsWith('"""')) {
-      const isSingleLineBlock =
-        trimmed.length > 3 && trimmed.endsWith('"""') && trimmed !== '"""';
-      if (!isSingleLineBlock) inBlockString = !inBlockString;
-      return token('string', escapeHtml(line));
-    }
-    if (inBlockString) return token('string', escapeHtml(line));
-
-    if (trimmed.startsWith('#')) return token('comment', escapeHtml(line));
-
-    const [code, comment] = splitComment(line);
-    return (
-      highlightGraphqlDefinition(code) +
-      (comment ? token('comment', escapeHtml(comment)) : '')
-    );
-  });
-}
+const GRAPHQL_RULES: Rule[] = [
+  { pattern: /"""[\s\S]*?(?:"""|$)/y, type: 'string' },
+  HASH_COMMENT,
+  DOUBLE_QUOTED,
+  {
+    pattern:
+      /^([ \t]*)((?:extend[ \t]+)?(?:type|input|enum|interface|union|scalar|directive|schema|query|mutation|subscription|fragment))(?=[ \t{]|$)(?:([ \t]+)(\w+))?/my,
+    render: (m) =>
+      escapeHtml(m[1]) +
+      token('keyword', escapeHtml(m[2])) +
+      (m[4] ? escapeHtml(m[3]) + token('type-name', escapeHtml(m[4])) : ''),
+  },
+  prefixed(
+    /^([ \t]*)([A-Z_][A-Z_0-9]*)(?=[ \t]*(?:#[^\n]*)?$)/my,
+    'enum-value'
+  ),
+  prefixed(/^([ \t]*)([A-Za-z_]\w*)(?=[ \t]*:)/my, 'field'),
+  {
+    pattern: GRAPHQL_COLON,
+    render: (m) =>
+      token('punctuation', ':') +
+      escapeHtml(m[1] ?? '') +
+      (m[2] ?? '').replace(/\[/g, token('punctuation', '[')) +
+      (m[3]
+        ? token(
+            GRAPHQL_BUILT_IN_TYPES.includes(m[3])
+              ? 'builtin-type'
+              : 'custom-type',
+            escapeHtml(m[3])
+          )
+        : '') +
+      (m[4] ?? '').replace(/[!\]]/g, (mark) =>
+        mark === '!' ? token('required', '!') : token('punctuation', ']')
+      ),
+  },
+];
 
 // Both patterns read escaped text. A quoted value is consumed whole, so a `>`
 // inside it cannot end the tag; an unquoted `<` ends the search, so an unclosed
@@ -453,36 +335,28 @@ export function highlightXml(source: string): string {
   );
 }
 
+const HIGHLIGHTERS: Record<HighlightLanguage, (text: string) => string> = {
+  graphql: lexer(GRAPHQL_RULES),
+  typescript: lexer(TYPESCRIPT_RULES),
+  javascript: lexer(TYPESCRIPT_RULES),
+  swift: lexer(nativeRules('swift')),
+  kotlin: lexer(nativeRules('kotlin')),
+  dart: lexer(nativeRules('dart')),
+  xml: highlightXml,
+  gdscript: lexer(nativeRules('gdscript')),
+  csharp: lexer(nativeRules('csharp')),
+  bash: lexer(BASH_RULES),
+  json: lexer(JSON_RULES),
+  yaml: lexer(YAML_RULES),
+  groovy: lexer(GROOVY_RULES),
+  toml: lexer(YAML_RULES),
+  text: escapeHtml,
+  properties: lexer(PROPERTIES_RULES),
+};
+
 export function highlightCode(
   text: string,
   language: HighlightLanguage
 ): string {
-  switch (language) {
-    case 'typescript':
-    case 'javascript':
-      return highlightTypescript(text);
-    case 'swift':
-    case 'kotlin':
-    case 'dart':
-    case 'gdscript':
-    case 'csharp':
-      return highlightNative(text, language);
-    case 'xml':
-      return highlightXml(text);
-    case 'json':
-      return highlightJson(text);
-    case 'bash':
-      return highlightBash(text);
-    case 'yaml':
-    case 'toml':
-      return highlightYaml(text);
-    case 'groovy':
-      return highlightGroovy(text);
-    case 'properties':
-      return highlightProperties(text);
-    case 'text':
-      return escapeHtml(text);
-    case 'graphql':
-      return highlightGraphql(text);
-  }
+  return (HIGHLIGHTERS[language] ?? escapeHtml)(text);
 }

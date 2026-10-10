@@ -18,8 +18,8 @@ const plain = (html) =>
 
 const TAG = /<(\/?)(span|a)(?: class="token [a-z -]+")?(?: href="[^"]*")?>/y;
 
-// Why highlighted markup is wrong, or null when it is only balanced token
-// spans and links around the unchanged source text.
+// Why highlighted markup is wrong, or null when it is only flat token spans
+// and links around the unchanged source text.
 function problem(source, html) {
   const open = [];
   let text = '';
@@ -36,8 +36,10 @@ function problem(source, html) {
     TAG.lastIndex = i;
     const tag = TAG.exec(html);
     if (!tag) return `unknown markup at ${i}`;
-    if (!tag[1]) open.push(tag[2]);
-    else if (open.pop() !== tag[2]) return `unbalanced </${tag[2]}>`;
+    if (!tag[1]) {
+      if (open.length) return `<${tag[2]}> inside <${open[0]}>`;
+      open.push(tag[2]);
+    } else if (open.pop() !== tag[2]) return `unbalanced </${tag[2]}>`;
     i += tag[0].length;
   }
   if (/&(?!amp;|lt;|gt;)/.test(run)) return 'split entity at the end';
@@ -110,6 +112,28 @@ test('never changes the text it highlights in XML', () => {
   }
 });
 
+test('does not call a name across a line break', () => {
+  assert.equal(
+    highlightCode('KmpIAP\n(x)', 'kotlin'),
+    `${t('class-name', 'KmpIAP')}\n(x)`
+  );
+});
+
+test('colors keywords, numbers, calls and types in order', () => {
+  assert.equal(
+    highlightCode('if (x > 10) return new Foo(1.5);', 'typescript'),
+    `${t('keyword', 'if')} (x &gt; ${t('number', '10')}) ${t('keyword', 'return')} ${t('keyword', 'new')} ${t('function', 'Foo')}(${t('number', '1.5')});`
+  );
+  assert.equal(
+    highlightCode('val a: Bar = Foo(2)', 'kotlin'),
+    `${t('keyword', 'val')} a: ${t('class-name', 'Bar')} = ${t('function', 'Foo')}(${t('number', '2')})`
+  );
+  assert.equal(
+    highlightCode('x = def(y) + 3', 'groovy'),
+    `x = ${t('keyword', 'def')}(y) + ${t('number', '3')}`
+  );
+});
+
 test('keeps the space before a call paren', () => {
   assert.equal(
     highlightCode('foo (x)', 'typescript'),
@@ -121,24 +145,25 @@ test('keeps the space before a call paren', () => {
   );
 });
 
-test('keeps a variable inside a bash command intact', () => {
+test('colors a bash assignment command as one token', () => {
   assert.equal(
     highlightCode('EXPO_TV=$X npx expo', 'bash'),
-    `${t('function', `EXPO_TV=${t('variable', '$X')}`)} npx expo`
+    `${t('function', 'EXPO_TV=$X')} npx expo`
   );
-});
-
-test('keeps a braced variable inside a bash command intact', () => {
   assert.equal(
     highlightCode('EXPO_TV=${A} npx expo start', 'bash'),
-    `${t('function', `EXPO_TV=${t('variable', '${A}')}`)} npx expo start`
+    `${t('function', 'EXPO_TV=${A}')} npx expo start`
   );
-});
-
-test('keeps a variable from straddling the end of a bash command', () => {
   assert.equal(
     highlightCode('EXPO_TV=${A b} npx', 'bash'),
     `${t('function', 'EXPO_TV=${A')} b} npx`
+  );
+});
+
+test('colors bash commands only at the start of a line', () => {
+  assert.equal(
+    highlightCode('cd a && npm run x > out 2>&1 | cat', 'bash'),
+    `${t('function', 'cd')} a ${t('keyword', '&amp;&amp;')} npm run x ${t('keyword', '&gt;')} out 2${t('keyword', '&gt;')}&amp;1 ${t('keyword', '|')} cat`
   );
 });
 
@@ -166,10 +191,103 @@ test('keeps the spacing around : and = in YAML, TOML and properties', () => {
     highlightCode('a = b', 'properties'),
     `${t('attr-name', 'a')} = ${t('string', 'b')}`
   );
+  assert.equal(highlightCode('a=', 'properties'), `${t('attr-name', 'a')}=`);
+  assert.equal(
+    highlightCode('[tool.x] # c\nk = true', 'toml'),
+    `${t('keyword', '[tool.x]')} # c\n${t('attr-name', 'k')} = ${t('keyword', 'true')}`
+  );
   // Classic Mac line endings leave several records in one "line".
   assert.equal(
     highlightCode('a=1\rb=2', 'properties'),
     `${t('attr-name', 'a')}=${t('string', '1')}\r${t('attr-name', 'b')}=${t('string', '2')}`
+  );
+});
+
+test('colors a trailing comment as a comment, quotes and all', () => {
+  assert.equal(
+    highlightCode(
+      'const a = 1; // Human-readable (if applicable)',
+      'typescript'
+    ),
+    `${t('keyword', 'const')} a = ${t('number', '1')}; ${t('comment', '// Human-readable (if applicable)')}`
+  );
+  assert.equal(
+    highlightCode('autoFinish: false  // We\'ll finish "later"', 'swift'),
+    `autoFinish: ${t('keyword', 'false')}  ${t('comment', '// We\'ll finish "later"')}`
+  );
+  assert.equal(
+    highlightCode("var a = 1 # don't color me", 'gdscript'),
+    `${t('keyword', 'var')} a = ${t('number', '1')} ${t('comment', "# don't color me")}`
+  );
+});
+
+test('colors block comments, also over several lines', () => {
+  assert.equal(
+    highlightCode('{/* Original price */}', 'typescript'),
+    `{${t('comment', '/* Original price */')}}`
+  );
+  assert.equal(
+    highlightCode('/**\n * if 42\n */\nfun f() {} // tail', 'kotlin'),
+    `${t('comment', '/**\n * if 42\n */')}\n${t('keyword', 'fun')} ${t('function', 'f')}() {} ${t('comment', '// tail')}`
+  );
+  assert.equal(
+    highlightCode('a /* open\nb', 'dart'),
+    `a ${t('comment', '/* open\nb')}`
+  );
+});
+
+test('starts a bash or YAML comment only at a word', () => {
+  assert.equal(
+    highlightCode('echo ${#arr[@]} a#b # note\nnpm run x # n', 'bash'),
+    `echo ${t('variable', '${#arr[@]}')} a#b ${t('comment', '# note')}\n${t('function', 'npm')} run x ${t('comment', '# n')}`
+  );
+  assert.equal(
+    highlightCode('url: "http://a#b" # note\n# all', 'yaml'),
+    `${t('attr-name', 'url')}: ${t('string', '"http://a#b"')} ${t('comment', '# note')}\n${t('comment', '# all')}`
+  );
+  assert.equal(
+    highlightCode('! bang\n# hash\na=b # kept', 'properties'),
+    `${t('comment', '! bang')}\n${t('comment', '# hash')}\n${t('attr-name', 'a')}=${t('string', 'b # kept')}`
+  );
+});
+
+test('keeps a multi-line string whole', () => {
+  assert.equal(
+    highlightCode('const s = `one\ntwo ${x}`;\nfoo();', 'typescript'),
+    `${t('keyword', 'const')} s = ${t('string', '`one\ntwo ${x}`')};\n${t('function', 'foo')}();`
+  );
+  assert.equal(
+    highlightCode('val j = """\n  {"a": 1}\n"""\nprintln(j)', 'kotlin'),
+    `${t('keyword', 'val')} j = ${t('string', '"""\n  {"a": 1}\n"""')}\n${t('function', 'println')}(j)`
+  );
+});
+
+test('colors annotations and leaves a C# @identifier alone', () => {
+  assert.equal(
+    highlightCode('@Composable\nfun Screen(vm: ViewModel) {}', 'kotlin'),
+    `${t('decorator', '@Composable')}\n${t('keyword', 'fun')} ${t('function', 'Screen')}(vm: ${t('class-name', 'ViewModel')}) {}`
+  );
+  assert.equal(
+    highlightCode('f(_ l: @escaping (String) -> Void)', 'swift'),
+    `${t('function', 'f')}(_ l: ${t('decorator', '@escaping')} (${t('class-name', 'String')}) -&gt; ${t('class-name', 'Void')})`
+  );
+  assert.equal(
+    highlightCode('var a = @params;', 'csharp'),
+    `${t('keyword', 'var')} a = @params;`
+  );
+});
+
+test('colors compiler directives as keywords', () => {
+  assert.equal(
+    highlightCode('#if DEBUG\nlog(true)\n#endif', 'swift'),
+    `${t('keyword', '#if')} ${t('class-name', 'DEBUG')}\n${t('function', 'log')}(${t('keyword', 'true')})\n${t('keyword', '#endif')}`
+  );
+});
+
+test('tells JSON keys from values', () => {
+  assert.equal(
+    highlightCode('{"a:b": "c:d", "n": [1, true, null]}', 'json'),
+    `{${t('attr-name', '"a:b"')}: ${t('string', '"c:d"')}, ${t('attr-name', '"n"')}: [${t('number', '1')}, ${t('keyword', 'true')}, ${t('keyword', 'null')}]}`
   );
 });
 
@@ -180,15 +298,30 @@ test('colors GraphQL field types and trailing comments', () => {
   );
   assert.equal(
     highlightCode('  field(arg: Int = 1): Foo', 'graphql'),
-    `  field(arg: ${t('builtin-type', 'Int')} = 1): ${t('custom-type', 'Foo')}`
+    `  field(arg${t('punctuation', ':')} ${t('builtin-type', 'Int')} = 1)${t('punctuation', ':')} ${t('custom-type', 'Foo')}`
   );
   assert.equal(
     highlightCode('  n: String = "#fff" # c', 'graphql'),
-    `  ${t('field', 'n')}${t('punctuation', ':')} ${t('builtin-type', 'String')} = "#fff" ${t('comment', '# c')}`
+    `  ${t('field', 'n')}${t('punctuation', ':')} ${t('builtin-type', 'String')} = ${t('string', '"#fff"')} ${t('comment', '# c')}`
   );
+});
+
+test('colors GraphQL declarations, enum values and block strings', () => {
   assert.equal(
     highlightCode('type  Foo {', 'graphql'),
     `${t('keyword', 'type')}  ${t('type-name', 'Foo')} {`
+  );
+  assert.equal(
+    highlightCode('extend interface Node {', 'graphql'),
+    `${t('keyword', 'extend interface')} ${t('type-name', 'Node')} {`
+  );
+  assert.equal(
+    highlightCode('  TIER_1 # first', 'graphql'),
+    `  ${t('enum-value', 'TIER_1')} ${t('comment', '# first')}`
+  );
+  assert.equal(
+    highlightCode('"""\nA: b\n"""\ntype A {', 'graphql'),
+    `${t('string', '"""\nA: b\n"""')}\n${t('keyword', 'type')} ${t('type-name', 'A')} {`
   );
 });
 
@@ -196,7 +329,7 @@ test('does not color a GraphQL alias or a string as a type', () => {
   for (const call of ['picture(size: 64)', 'picture (size: 64)']) {
     assert.equal(
       highlightCode(`  pic: ${call}`, 'graphql'),
-      `  ${t('field', 'pic')}${t('punctuation', ':')} ${call}`
+      `  ${t('field', 'pic')}${t('punctuation', ':')} ${call.replace('size:', `size${t('punctuation', ':')}`)}`
     );
   }
   assert.equal(
@@ -204,12 +337,8 @@ test('does not color a GraphQL alias or a string as a type', () => {
     `  ${t('field', 'small')}${t('punctuation', ':')} thumbnail { url }`
   );
   assert.equal(
-    highlightCode('"desc" amount: Int', 'graphql'),
-    `"desc" ${t('field', 'amount')}${t('punctuation', ':')} ${t('builtin-type', 'Int')}`
-  );
-  assert.equal(
     highlightCode('  a: Int @deprecated(reason: "Use amount: x")', 'graphql'),
-    `  ${t('field', 'a')}${t('punctuation', ':')} ${t('builtin-type', 'Int')} @deprecated(reason: "Use amount: x")`
+    `  ${t('field', 'a')}${t('punctuation', ':')} ${t('builtin-type', 'Int')} @deprecated(reason${t('punctuation', ':')} ${t('string', '"Use amount: x"')})`
   );
 });
 
@@ -220,7 +349,7 @@ test('closes a string after an escaped backslash', () => {
   );
   assert.equal(
     highlightCode('  join(sep: String = "\\\\"): String', 'graphql'),
-    `  join(sep: ${t('builtin-type', 'String')} = "\\\\"): ${t('builtin-type', 'String')}`
+    `  join(sep${t('punctuation', ':')} ${t('builtin-type', 'String')} = ${t('string', '"\\\\"')})${t('punctuation', ':')} ${t('builtin-type', 'String')}`
   );
   assert.equal(
     highlightCode('a = "x\\"y"', 'swift'),
@@ -265,6 +394,8 @@ const PIECES = [
   '!',
   '#',
   '//',
+  '/*',
+  '*/',
   '@',
   '$',
   '-',
@@ -276,6 +407,7 @@ const PIECES = [
   '"',
   "'",
   '`',
+  '"""',
   '\\',
   '1',
   '2.5',
@@ -294,6 +426,8 @@ const PIECES = [
   'Future',
   '@available',
   '@Composable',
+  '@params',
+  '#if',
   'foo (x)',
   'a=b',
   'a = b',
@@ -301,12 +435,15 @@ const PIECES = [
   'x:Int',
   '[ID!]!',
   '# note: v',
+  '! note',
   'type',
   'enum',
-  '"""',
+  'interface Node',
+  'TIER_1',
   '[section]',
   'EXPO_TV=$X',
   '${a -b}',
+  '${#a}',
   '$HOME',
   'npx',
   '--flag',
