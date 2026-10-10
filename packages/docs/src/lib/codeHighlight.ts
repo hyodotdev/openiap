@@ -562,7 +562,7 @@ const BASH_RULES: Rule[] = [
 
 // A name at the start of a line, then its separator: `:` in YAML, `=` in TOML.
 // A name may start with a digit (`200:`, TOML `1234 =`). A YAML `:` needs a
-// space or the line end after it, so `12:30` and `http://x` are no keys.
+// space, a tab or the line end after it, so `12:30` and `http://x` are no keys.
 const key = (separator: string): Rule => ({
   pattern: new RegExp(
     String.raw`^([ \t]*)(\w[\w.-]*)([ \t]*${separator})`,
