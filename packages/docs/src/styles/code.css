@@ -223,9 +223,11 @@ pre code {
   font-weight: 600;
 }
 
-/* Strings */
+/* Strings and regex literals */
 .code-block .token.string,
-.code-snippet .token.string {
+.code-block .token.regex,
+.code-snippet .token.string,
+.code-snippet .token.regex {
   color: #0a3d6a;
 }
 
@@ -302,7 +304,9 @@ pre code {
 }
 
 :root.dark .code-block .token.string,
-:root.dark .code-snippet .token.string {
+:root.dark .code-block .token.regex,
+:root.dark .code-snippet .token.string,
+:root.dark .code-snippet .token.regex {
   color: #98c379;
 }
 

@@ -485,8 +485,16 @@ test('colors compiler directives as keywords', () => {
   );
 });
 
-test('takes only a lowercase #name for a directive', () => {
-  assert.equal(highlightCode('#If x', 'swift'), `#${t('class-name', 'If')} x`);
+test('takes only a lowercase #name for a C# directive, and any #name in Swift', () => {
+  assert.equal(highlightCode('#If x', 'csharp'), `#${t('class-name', 'If')} x`);
+  assert.equal(
+    highlightCode('#Preview { Text("a") }', 'swift'),
+    `${t('keyword', '#Preview')} { ${t('function', 'Text')}(${t('string', '"a"')}) }`
+  );
+  assert.equal(
+    highlightCode('if #available(iOS 15, *) { print(#function) }', 'swift'),
+    `${t('keyword', 'if')} ${t('keyword', '#available')}(iOS ${t('number', '15')}, *) { ${t('function', 'print')}(${t('keyword', '#function')}) }`
+  );
 });
 
 test('tells JSON keys from values', () => {
@@ -608,23 +616,33 @@ test('ends a string at a line break, and honors escapes in all quote kinds', () 
 test('lets a backslash escape the next character in TypeScript code', () => {
   assert.equal(
     highlightCode('const r = /\\//; // end', 'typescript'),
-    `${t('keyword', 'const')} r = /\\//; ${t('comment', '// end')}`
+    `${t('keyword', 'const')} r = ${t('regex', '/\\//')}; ${t('comment', '// end')}`
   );
   assert.equal(
     highlightCode('const r = /\\"/; y = 1', 'typescript'),
-    `${t('keyword', 'const')} r = /\\"/; y = ${t('number', '1')}`
+    `${t('keyword', 'const')} r = ${t('regex', '/\\"/')}; y = ${t('number', '1')}`
   );
+  // Outside a regex literal too: `\/` is no comment, `\"` opens no string.
+  assert.equal(highlightCode('a = b \\// c', 'typescript'), 'a = b \\// c');
 });
 
 test('opens a template at a backtick that follows a backslash', () => {
-  // A regex literal with a backtick throws the lexer out of step; an escaped
-  // backtick later on has to get it back in step.
+  // A regex literal with a backtick is no template.
   assert.equal(
     highlightCode(
       'const r = /`/;\nconst s = `a \\`b\\` c`;\nif (x) foo(`y`);',
       'typescript'
     ),
-    `${t('keyword', 'const')} r = /${t('string', '`/;\nconst s = `')}a \\${t('string', '`b\\` c`')};\n${t('keyword', 'if')} (x) ${t('function', 'foo')}(${t('string', '`y`')});`
+    `${t('keyword', 'const')} r = ${t('regex', '/`/')};\n${t('keyword', 'const')} s = ${t('string', '`a \\`b\\` c`')};\n${t('keyword', 'if')} (x) ${t('function', 'foo')}(${t('string', '`y`')});`
+  );
+  // After `)` a `/` divides, so this backtick throws the lexer out of step; an
+  // escaped backtick later on has to get it back in step.
+  assert.equal(
+    highlightCode(
+      'if (x) /`/.test(y);\nconst s = `a \\`b\\` c`;\nif (x) foo(`y`);',
+      'typescript'
+    ),
+    `${t('keyword', 'if')} (x) /${t('string', '`/.test(y);\nconst s = `')}a \\${t('string', '`b\\` c`')};\n${t('keyword', 'if')} (x) ${t('function', 'foo')}(${t('string', '`y`')});`
   );
 });
 
@@ -960,7 +978,7 @@ test('keeps a template literal whole when its holes hold templates or backticks'
     highlightCode("x = `${'`'}` + 1;", 'typescript'),
     `x = ${t('string', "`${'`'}`")} + ${t('number', '1')};`
   );
-  // A template that runs past its line is read flat.
+  // A template and its hole run past the line.
   assert.equal(
     highlightCode('x = `a ${b\nc}`;\nfoo();', 'typescript'),
     `x = ${t('string', '`a ${b\nc}`')};\n${t('function', 'foo')}();`
@@ -969,6 +987,217 @@ test('keeps a template literal whole when its holes hold templates or backticks'
     highlightCode('x = `a ${b\nfoo();', 'typescript'),
     `x = ${t('string', '`a ${b')}\n${t('function', 'foo')}();`
   );
+});
+
+test('reads strings, holes and heredocs that run past a line', () => {
+  const forms = [
+    // A template and its holes go on to the next lines; a nested template or
+    // a quoted backtick in a hole does not end it.
+    [
+      'typescript',
+      'x = `a\n${b.map((c) => `<${c}>`)}\nz`; f(1)',
+      'x = ⟦string:`a\n${b.map((c) => `<${c}>`)}\nz`⟧; ⟦function:f⟧(⟦number:1⟧)',
+    ],
+    [
+      'typescript',
+      'x = `a ${f(\n  "`",\n  y\n)} b`; g(1)',
+      'x = ⟦string:`a ${f(\n  "`",\n  y\n)} b`⟧; ⟦function:g⟧(⟦number:1⟧)',
+    ],
+    [
+      'typescript',
+      "x = `${a ? `b\n${c}` : '`'}`; h(1)",
+      "x = ⟦string:`${a ? `b\n${c}` : '`'}`⟧; ⟦function:h⟧(⟦number:1⟧)",
+    ],
+    // A string in a hole stays on its line, so this hole is read flat.
+    [
+      'typescript',
+      'x = `a ${"b\nc"} d`; f(1)',
+      'x = ⟦string:`a ${"b\nc"} d`⟧; ⟦function:f⟧(⟦number:1⟧)',
+    ],
+    [
+      'typescript',
+      'x = `a ${b\nc\n`; f(1)',
+      'x = ⟦string:`a ${b\nc\n`⟧; ⟦function:f⟧(⟦number:1⟧)',
+    ],
+    // A hole may span lines in Kotlin, Dart, C# and Groovy, but not in Swift.
+    [
+      'kotlin',
+      'val s = "a ${xs.map {\n  "x" }} b"\nf(1)',
+      '⟦keyword:val⟧ s = ⟦string:"a ${xs.map {\n  "x" }} b"⟧\n⟦function:f⟧(⟦number:1⟧)',
+    ],
+    [
+      'dart',
+      "var s = 'a ${xs.map((x) {\n  return 'x';\n})} b';\nf(1);",
+      "⟦keyword:var⟧ s = ⟦string:'a ${xs.map((x) {\n  return 'x';\n})} b'⟧;\n⟦function:f⟧(⟦number:1⟧);",
+    ],
+    [
+      'csharp',
+      'var s = $"a {xs.Select(x =>\n  x + "!")} b";\nf(1);',
+      '⟦keyword:var⟧ s = $⟦string:"a {xs.Select(x =>\n  x + "!")} b"⟧;\n⟦function:f⟧(⟦number:1⟧);',
+    ],
+    [
+      'csharp',
+      'var s = @$"a {x}\n{y} b";\nf(1);',
+      '⟦keyword:var⟧ s = ⟦string:@$"a {x}\n{y} b"⟧;\n⟦function:f⟧(⟦number:1⟧);',
+    ],
+    [
+      'csharp',
+      'var s = @$"a\n{f("x")} b";\nf(1);',
+      '⟦keyword:var⟧ s = ⟦string:@$"a\n{f("x")} b"⟧;\n⟦function:f⟧(⟦number:1⟧);',
+    ],
+    [
+      'groovy',
+      'def s = "a ${xs.collect {\n  "x" }} b"\nf(1)',
+      '⟦keyword:def⟧ s = ⟦string:"a ${xs.collect {\n  "x" }} b"⟧\n⟦function:f⟧(⟦number:1⟧)',
+    ],
+    // A string in a hole ends at its line, so the hole is read flat.
+    [
+      'kotlin',
+      'val s = "a ${f("x\ny")} b"\nz(1)',
+      '⟦keyword:val⟧ s = ⟦string:"a ${f("⟧x\ny⟦string:")} b"⟧\n⟦function:z⟧(⟦number:1⟧)',
+    ],
+    [
+      'groovy',
+      'def s = "a\\\nb ${ c" d',
+      '⟦keyword:def⟧ s = ⟦string:"a\\\nb ${ c"⟧ d',
+    ],
+    [
+      'swift',
+      'let s = "a \\(x\n) b"\nf(1)',
+      '⟦keyword:let⟧ s = ⟦string:"a \\(x⟧\n) b⟦string:"⟧\n⟦function:f⟧(⟦number:1⟧)',
+    ],
+    // Bash strings hold line breaks, and a $( hole is shell code.
+    [
+      'bash',
+      'v="$(\n  sed -n \'s/.*("\\(a\\)").*/\\1/p\' f\n)"\nls',
+      'v=⟦string:"$(\n  sed -n \'s/.*("\\(a\\)").*/\\1/p\' f\n)"⟧\nls',
+    ],
+    [
+      'bash',
+      'python3 -c \'\nprint("hi")\n\'\nls',
+      'python3 ⟦attr-name:-c⟧ ⟦string:\'\nprint("hi")\n\'⟧\nls',
+    ],
+    ['bash', 'echo "a ${ b\nc" d', 'echo ⟦string:"a ${ b\nc"⟧ d'],
+    ['bash', 'echo "${a:-\n"x"}" ls', 'echo ⟦string:"${a:-\n"x"}"⟧ ls'],
+    [
+      'bash',
+      'v="$(sed -n \'a"\nb\' f)"\nls',
+      'v=⟦string:"$(sed -n \'a"\nb\' f)"⟧\nls',
+    ],
+    ['bash', 'echo "a\nb', 'echo ⟦string:"a⟧\nb'],
+    ['bash', 'echo "$(\\\n" && ls', 'echo ⟦string:"$(\\\n"⟧ ⟦keyword:&&⟧ ls'],
+    ['bash', "echo 'a\nb", "echo ⟦string:'a⟧\nb"],
+    // A heredoc body runs from the next line to a line with only the word.
+    [
+      'bash',
+      'cat <<EOF > f\nhi $x\nEOF\nls',
+      'cat ⟦keyword:<<⟧⟦string:EOF⟧ ⟦keyword:>⟧ f\n⟦string:hi $x\nEOF⟧\nls',
+    ],
+    [
+      'bash',
+      "python3 - <<'PY' | tee o\nprint('it')\nPY\nls",
+      "python3 - ⟦keyword:<<⟧⟦string:'PY'⟧ ⟦keyword:|⟧ tee o\n⟦string:print('it')\nPY⟧\nls",
+    ],
+    [
+      'bash',
+      'cat << "E"\n"x"\nE\nls',
+      'cat ⟦keyword:<<⟧ ⟦string:"E"⟧\n⟦string:"x"\nE⟧\nls',
+    ],
+    [
+      'bash',
+      'cat <<\\E\nx\nE\nls',
+      'cat ⟦keyword:<<⟧⟦string:\\E⟧\n⟦string:x\nE⟧\nls',
+    ],
+    // `<<-` lets tabs lead the closing line; plain `<<` does not.
+    [
+      'bash',
+      'cat <<-E\n\tx\n\tE\nls',
+      'cat ⟦keyword:<<-⟧⟦string:E⟧\n⟦string:\tx\n\tE⟧\nls',
+    ],
+    [
+      'bash',
+      'cat <<E\n\tE\nE\nls',
+      'cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:\tE\nE⟧\nls',
+    ],
+    // Two heredocs on a line take their bodies in turn.
+    [
+      'bash',
+      'cat <<A <<B\none\nA\ntwo\nB\nls',
+      'cat ⟦keyword:<<⟧⟦string:A⟧ ⟦keyword:<<⟧⟦string:B⟧\n⟦string:one\nA⟧\n⟦string:two\nB⟧\nls',
+    ],
+    ['bash', 'cat <<E\nE\nls', 'cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:E⟧\nls'],
+    [
+      'bash',
+      'cat <<"1"\nx\n1\nls',
+      'cat ⟦keyword:<<⟧⟦string:"1"⟧\n⟦string:x\n1⟧\nls',
+    ],
+    ['bash', 'cat <<E\nx\nE', 'cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:x\nE⟧'],
+    // A word closes only the heredocs after it, and only as a line of its own.
+    [
+      'bash',
+      'cat <<E\nx\nE\ncat <<E\ny\nE\ncat <<-E\n\tz\n\tE\nls',
+      'cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:x\nE⟧\ncat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:y\nE⟧\ncat ⟦keyword:<<-⟧⟦string:E⟧\n⟦string:\tz\n\tE⟧\nls',
+    ],
+    ['bash', 'E\ncat <<E\nx\nls', 'E\ncat ⟦keyword:<<⟧⟦string:E⟧\nx\nls'],
+    [
+      'bash',
+      'cat <<E\nE x\nE\nls',
+      'cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:E x\nE⟧\nls',
+    ],
+    [
+      'bash',
+      'cat <<E\nE \nE\nls',
+      'cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:E \nE⟧\nls',
+    ],
+    [
+      'bash',
+      'cat <<-E\n  E\n\tE\nls',
+      'cat ⟦keyword:<<-⟧⟦string:E⟧\n⟦string:  E\n\tE⟧\nls',
+    ],
+    [
+      'bash',
+      'cat <<E\r\nx\r\nE\r\nls',
+      'cat ⟦keyword:<<⟧⟦string:E⟧\r\n⟦string:x\r\nE⟧\r\nls',
+    ],
+    [
+      'bash',
+      'x=$(cat <<E\nbody\nE\n)\nls',
+      'x=$(cat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:body\nE⟧\n)\nls',
+    ],
+    // A string that spans lines on the opener's line moves the body after it.
+    [
+      'bash',
+      'cat <<E "a\nb"\nx\nE\nls',
+      'cat ⟦keyword:<<⟧⟦string:E⟧ ⟦string:"a\nb"⟧\n⟦string:x\nE⟧\nls',
+    ],
+    // No closing line leaves the opener alone.
+    [
+      'bash',
+      'cat <<E\nls -la',
+      'cat ⟦keyword:<<⟧⟦string:E⟧\nls ⟦attr-name:-la⟧',
+    ],
+    // A here-string, a shift, and an opener in a comment or string are no
+    // heredocs.
+    [
+      'bash',
+      'cat <<< x\nx\nls',
+      'cat ⟦keyword:<⟧⟦keyword:<⟧⟦keyword:<⟧ x\nx\nls',
+    ],
+    [
+      'bash',
+      'echo $((1 << 3))\n3\nls',
+      'echo $((1 ⟦keyword:<⟧⟦keyword:<⟧ 3))\n3\nls',
+    ],
+    ['bash', '# <<E\nE\nls', '⟦comment:# <<E⟧\nE\nls'],
+    ['bash', 'echo "<<E"\nE\nls', 'echo ⟦string:"<<E"⟧\nE\nls'],
+  ];
+  for (const [language, source, expected] of forms) {
+    assert.equal(
+      highlightCode(source, language),
+      marked(expected),
+      `${language}: ${source}`
+    );
+  }
 });
 
 test('closes a raw string at the last of a run of quotes', () => {
@@ -1058,10 +1287,11 @@ test('scans the holes of the lines after a failed scan', () => {
     highlightCode('a = "${b /* it\'s */}"\nc = "${m["k"]}" + 1', 'kotlin'),
     `a = ${t('string', '"${b /* it\'s */}"')}\nc = ${t('string', '"${m["k"]}"')} + ${t('number', '1')}`
   );
-  // A backslash before a line break escapes nothing.
+  // A backslash before a line break escapes nothing, and a Swift hole ends at
+  // its line.
   assert.equal(
-    highlightCode('x = "${a\\\n}" + 1', 'kotlin'),
-    `x = ${t('string', '"${a\\')}\n}${t('string', '" + 1')}`
+    highlightCode('x = "\\(a\\\n)" + 1', 'swift'),
+    `x = ${t('string', '"\\(a\\')}\n)${t('string', '" + 1')}`
   );
 });
 
@@ -1145,33 +1375,44 @@ test('lets a backslash keep a $ from opening a hole', () => {
 });
 
 test('reads holes like the recursive reading, also when unbalanced', () => {
-  // A recursive reading of interpolated strings, to hold the scanner against.
-  function readStrings(source, { open, nest, close, quotes }) {
-    const string = (from, quote) => {
+  // A recursive reading of interpolated strings, to hold the scanner against. A
+  // failure is ~i, for the position i where the reading gave up.
+  function readStrings(source, { open, nest, close, quotes, multiline }) {
+    // `outer` is the quote of the outermost string, and a string in a hole that
+    // has seen the hole's end and then meets it was probably no string.
+    const string = (from, quote, outer, inHole) => {
+      let sawClose = false;
       for (let i = from; i < source.length; i++) {
-        if (source[i] === '\n') return -1;
+        if (source[i] === '\n') return ~i;
+        if (inHole) {
+          if (source[i] === close) sawClose = true;
+          else if (sawClose && source[i] === outer && source[i] !== quote) {
+            return ~i;
+          }
+        }
         if (source.startsWith(open, i)) {
-          const end = hole(i + open.length);
-          if (end < 0) return -1;
+          const end = hole(i + open.length, outer);
+          if (end < 0) return end;
           i = end - 1;
         } else if (source[i] === '\\' && source[i + 1] !== '\n') i++;
         else if (source[i] === quote) return i + 1;
       }
-      return -1;
+      return ~source.length;
     };
-    const hole = (from) => {
+    const hole = (from, outer) => {
       let depth = 1;
       for (let i = from; i < source.length; i++) {
-        if (source[i] === '\n') return -1;
-        if (source[i] === '\\' && source[i + 1] !== '\n') i++;
+        if (source[i] === '\n') {
+          if (!multiline) return ~i;
+        } else if (source[i] === '\\' && source[i + 1] !== '\n') i++;
         else if (quotes.includes(source[i])) {
-          const end = string(i + 1, source[i]);
-          if (end < 0) return -1;
+          const end = string(i + 1, source[i], outer, true);
+          if (end < 0) return end;
           i = end - 1;
         } else if (source[i] === nest) depth++;
         else if (source[i] === close && --depth === 0) return i + 1;
       }
-      return -1;
+      return ~source.length;
     };
     const lineEnd = (from) => {
       const newline = source.indexOf('\n', from);
@@ -1187,17 +1428,24 @@ test('reads holes like the recursive reading, also when unbalanced', () => {
       return source.length;
     };
     let html = '';
-    let failedLine = -1;
+    let failedUntil = -1;
     for (let i = 0; i < source.length; ) {
+      // Outside a string a backslash escapes a quote.
+      if (source[i] === '\\' && `"'`.includes(source[i + 1] ?? '\n')) {
+        html += source.slice(i, i + 2);
+        i += 2;
+        continue;
+      }
       if (!quotes.includes(source[i])) {
         html += source[i++];
         continue;
       }
-      let end = i + 1 > failedLine ? string(i + 1, source[i]) : -1;
-      if (end < 0) {
-        if (i + 1 > failedLine) failedLine = lineEnd(i + 1);
-        end = flat(i + 1, source[i]);
+      let end = -1;
+      if (i + 1 > failedUntil) {
+        end = string(i + 1, source[i], source[i], false);
+        if (end < 0) failedUntil = Math.max(~end, lineEnd(i + 1));
       }
+      if (end < 0) end = flat(i + 1, source[i]);
       html += t('string', source.slice(i, end));
       i = end;
     }
@@ -1207,7 +1455,7 @@ test('reads holes like the recursive reading, also when unbalanced', () => {
   const variants = [
     [
       'dart',
-      { open: '${', nest: '{', close: '}', quotes: `"'` },
+      { open: '${', nest: '{', close: '}', quotes: `"'`, multiline: true },
       ['"', "'", '${', '{', '}', '\\', 'x', ' ', '\n', '$'],
     ],
     [
@@ -1385,6 +1633,36 @@ test('colors an empty or unclosed form as the token it is', () => {
       `var a = @$"{x /* it's */}"; var b = @$""; var c = 1;`,
       `⟦keyword:var⟧ a = ⟦string:@$"{x /* it's */}"⟧; ⟦keyword:var⟧ b = ⟦string:@$""⟧; ⟦keyword:var⟧ c = ⟦number:1⟧;`,
     ],
+    // Single quotes that are empty or unclosed, and a lone shebang.
+    ['kotlin', "val c = ''", "⟦keyword:val⟧ c = ⟦string:''⟧"],
+    [
+      'kotlin',
+      "val c = 'a'; val d = '; f(1)",
+      "⟦keyword:val⟧ c = ⟦string:'a'⟧; ⟦keyword:val⟧ d = ⟦string:'; f(1)⟧",
+    ],
+    ['csharp', "char c = '", "⟦keyword:char⟧ c = ⟦string:'⟧"],
+    ['yaml', "a: ''", "⟦attr-name:a⟧: ⟦string:''⟧"],
+    ['yaml', "a: 'x", "⟦attr-name:a⟧: ⟦string:'x⟧"],
+    ['yaml', "a: '", "⟦attr-name:a⟧: ⟦string:'⟧"],
+    ['toml', "a = ''", "⟦attr-name:a⟧ = ⟦string:''⟧"],
+    ['toml', "a = 'x", "⟦attr-name:a⟧ = ⟦string:'x⟧"],
+    ['toml', "a = '", "⟦attr-name:a⟧ = ⟦string:'⟧"],
+    ['bash', "echo '' ls", "echo ⟦string:''⟧ ls"],
+    ['bash', "echo $'' ls", "echo ⟦string:$''⟧ ls"],
+    ['bash', "echo $'a ls", "echo ⟦string:$'a ls⟧"],
+    ['bash', 'cat <<"" x\nls', 'cat ⟦keyword:<⟧⟦keyword:<⟧⟦string:""⟧ x\nls'],
+    ['typescript', '#!', '⟦comment:#!⟧'],
+    // C# raw strings take no escapes and may span lines.
+    [
+      'csharp',
+      'var s = """\n  {"a": 1}\n  """; f(1);',
+      '⟦keyword:var⟧ s = ⟦string:"""\n  {"a": 1}\n  """⟧; ⟦function:f⟧(⟦number:1⟧);',
+    ],
+    [
+      'csharp',
+      'var s = """abc\nf(1);',
+      '⟦keyword:var⟧ s = ⟦string:"""abc⟧\n⟦function:f⟧(⟦number:1⟧);',
+    ],
     // Triple quotes: empty, two on a line, and unclosed.
     ['dart', 'f("""""", 1)', '⟦function:f⟧(⟦string:""""""⟧, ⟦number:1⟧)'],
     ['dart', "f('''''', 1)", "⟦function:f⟧(⟦string:''''''⟧, ⟦number:1⟧)"],
@@ -1505,12 +1783,17 @@ test('colors an empty or unclosed form as the token it is', () => {
 
 test('reads line ends, names and separators the way each rule defines them', () => {
   const forms = [
-    // By design a quoted string ends at its line, also after a backslash.
+    // A quoted string ends at its line, also after a backslash; only
+    // TypeScript, JavaScript and Groovy go on to the next line. Bash strings
+    // hold line breaks.
     ['typescript', 'x = "a\nb"', 'x = ⟦string:"a⟧\nb⟦string:"⟧'],
-    ['typescript', 'x = "a\\\nb"', 'x = ⟦string:"a⟧\\\nb⟦string:"⟧'],
-    ['typescript', "x = 'a\nb'", "x = ⟦string:'a⟧\nb⟦string:'⟧"],
-    ['typescript', "x = 'a\\\nb'", "x = ⟦string:'a⟧\\\nb⟦string:'⟧"],
-    ['bash', "echo 'a\nb'", "echo ⟦string:'a⟧\nb⟦string:'⟧"],
+    ['typescript', 'x = "a\\\nb"', 'x = ⟦string:"a\\\nb"⟧'],
+    ['typescript', "x = 'a\nb'", "x = ⟦string:'a⟧\nb'"],
+    ['typescript', "x = 'a\\\nb'", "x = ⟦string:'a\\\nb'⟧"],
+    ['bash', "echo 'a\nb'", "echo ⟦string:'a\nb'⟧"],
+    ['bash', 'echo "a\nb"', 'echo ⟦string:"a\nb"⟧'],
+    ['bash', "echo 'a\\\nb'", "echo ⟦string:'a\\\nb'⟧"],
+    ['bash', 'echo "a\\\nb"', 'echo ⟦string:"a\\\nb"⟧'],
     ['csharp', "char c = 'x';", "⟦keyword:char⟧ c = ⟦string:'x'⟧;"],
     ['swift', "let r = /it's/", "⟦keyword:let⟧ r = /it's/"],
     ['groovy', "def s = 'a'", "⟦keyword:def⟧ s = ⟦string:'a'⟧"],
@@ -1779,11 +2062,327 @@ test('reads line ends, names and separators the way each rule defines them', () 
   }
 });
 
+test('reads the forms that need their context', () => {
+  const forms = [
+    // A backtick name may hold a quote or a keyword; Swift also has `if`.
+    [
+      'kotlin',
+      "fun `purchase isn't ok`() {}",
+      "⟦keyword:fun⟧ `purchase isn't ok`() {}",
+    ],
+    ['kotlin', 'val `class` = 1', '⟦keyword:val⟧ `class` = ⟦number:1⟧'],
+    [
+      'swift',
+      'func `default`(_ `if`: Int) {}',
+      '⟦keyword:func⟧ `default`(_ `if`: ⟦class-name:Int⟧) {}',
+    ],
+    // A Swift `#name` is a keyword anywhere, not only at a line start.
+    [
+      'swift',
+      'if #available(iOS 15, *) { print(#function) }',
+      '⟦keyword:if⟧ ⟦keyword:#available⟧(iOS ⟦number:15⟧, *) { ⟦function:print⟧(⟦keyword:#function⟧) }',
+    ],
+    [
+      'swift',
+      'x = #selector(Foo.bar) + #colorLiteral(red: 1, alpha: 1)',
+      'x = ⟦keyword:#selector⟧(⟦class-name:Foo⟧.bar) + ⟦keyword:#colorLiteral⟧(red: ⟦number:1⟧, alpha: ⟦number:1⟧)',
+    ],
+    [
+      'swift',
+      'let e = try #require(value)',
+      '⟦keyword:let⟧ e = ⟦keyword:try⟧ ⟦keyword:#require⟧(value)',
+    ],
+    ['swift', 'a#b', 'a#b'],
+    [
+      'swift',
+      'let k = \\Person.name',
+      '⟦keyword:let⟧ k = \\⟦class-name:Person⟧.name',
+    ],
+    // `$` belongs to a name: `Schema$Order` is one type, `$Foo` none.
+    [
+      'typescript',
+      'type T = Schema$Order; const el = $Foo; Foo$Bar.x',
+      '⟦keyword:type⟧ ⟦class-name:T⟧ = ⟦class-name:Schema$Order⟧; ⟦keyword:const⟧ el = $Foo; ⟦class-name:Foo$Bar⟧.x',
+    ],
+    [
+      'gdscript',
+      '@onready var p = $Player/Sprite2D',
+      '⟦decorator:@onready⟧ ⟦keyword:var⟧ p = $Player/⟦class-name:Sprite2D⟧',
+    ],
+    // A YAML list item is indentation: its key is a key.
+    ['yaml', '- name: x', '- ⟦attr-name:name⟧: x'],
+    ['yaml', '  - uses: a/b@v4', '  - ⟦attr-name:uses⟧: a/b@v4'],
+    ['yaml', '- - a: 1', '- - ⟦attr-name:a⟧: ⟦number:1⟧'],
+    ['yaml', '- 200: OK', '- ⟦attr-name:200⟧: OK'],
+    ['yaml', '-name: y', '-name: y'],
+    ['yaml', '- http://x', '- http://x'],
+    ['yaml', '- run: |', '- ⟦attr-name:run⟧: |'],
+    // Bash `$'…'` takes backslash escapes.
+    [
+      'bash',
+      "IFS=$'\\n' x=$'it\\'s' y='a'",
+      "IFS=⟦string:$'\\n'⟧ x=⟦string:$'it\\'s'⟧ y=⟦string:'a'⟧",
+    ],
+    // Swift, Dart, Groovy and GDScript triple quotes take backslash escapes;
+    // Kotlin and C# raw strings do not.
+    [
+      'swift',
+      'let s = """\nA \\"""B\nC\n""" + x',
+      '⟦keyword:let⟧ s = ⟦string:"""\nA \\"""B\nC\n"""⟧ + x',
+    ],
+    [
+      'dart',
+      "var s = '''a\\'''b''' + x;",
+      "⟦keyword:var⟧ s = ⟦string:'''a\\'''b'''⟧ + x;",
+    ],
+    [
+      'groovy',
+      'def s = """a\\"""b""" + x',
+      '⟦keyword:def⟧ s = ⟦string:"""a\\"""b"""⟧ + x',
+    ],
+    [
+      'gdscript',
+      'var s = """a\\"""b""" + x',
+      '⟦keyword:var⟧ s = ⟦string:"""a\\"""b"""⟧ + x',
+    ],
+    [
+      'kotlin',
+      'f("""C:\\""", 1)',
+      '⟦function:f⟧(⟦string:"""C:\\"""⟧, ⟦number:1⟧)',
+    ],
+    [
+      'csharp',
+      'var s = """C:\\"""; var t = 1;',
+      '⟦keyword:var⟧ s = ⟦string:"""C:\\"""⟧; ⟦keyword:var⟧ t = ⟦number:1⟧;',
+    ],
+    // A stray `\"""` outside a string opens nothing.
+    ['swift', 'let k = \\"""', '⟦keyword:let⟧ k = \\"⟦string:""⟧'],
+    // A backslash before a line break goes on in TypeScript and Groovy only.
+    [
+      'typescript',
+      'const a = "one \\\ntwo"; const b = \'x\\\ny\';',
+      '⟦keyword:const⟧ a = ⟦string:"one \\\ntwo"⟧; ⟦keyword:const⟧ b = ⟦string:\'x\\\ny\'⟧;',
+    ],
+    [
+      'typescript',
+      'const a = "one \\\r\ntwo"; x = 1',
+      '⟦keyword:const⟧ a = ⟦string:"one \\\r\ntwo"⟧; x = ⟦number:1⟧',
+    ],
+    [
+      'groovy',
+      'def a = \'one \\\ntwo\'; def b = "x ${y}\\\nz"',
+      '⟦keyword:def⟧ a = ⟦string:\'one \\\ntwo\'⟧; ⟦keyword:def⟧ b = ⟦string:"x ${y}\\\nz"⟧',
+    ],
+    [
+      'swift',
+      'let a = "one \\\ntwo"',
+      '⟦keyword:let⟧ a = ⟦string:"one \\⟧\ntwo⟦string:"⟧',
+    ],
+    // A Dart raw string in a hole takes no escapes, so its quote closes it.
+    [
+      'dart',
+      'x = "${f(r\'\\\')}" + 1',
+      'x = ⟦string:"${f(r\'\\\')}"⟧ + ⟦number:1⟧',
+    ],
+    // A Swift raw string: holes open with `\#(`, and a quote closes it only
+    // with the same hashes after it.
+    [
+      'swift',
+      'let s = #"a \\#(name) b"# + x',
+      '⟦keyword:let⟧ s = ⟦string:#"a \\#(name) b"#⟧ + x',
+    ],
+    [
+      'swift',
+      'let s = #"\\#(f(#"x"#))"# + x',
+      '⟦keyword:let⟧ s = ⟦string:#"\\#(f(#"x"#))"#⟧ + x',
+    ],
+    [
+      'swift',
+      'let s = ##"a "# \\##(n) "## + x',
+      '⟦keyword:let⟧ s = ⟦string:##"a "# \\##(n) "##⟧ + x',
+    ],
+    [
+      'swift',
+      'let s = #"a \\#"b"# + x',
+      '⟦keyword:let⟧ s = ⟦string:#"a \\#"b"#⟧ + x',
+    ],
+    [
+      'swift',
+      'let s = #"a\\#(f("b"))c"# + x',
+      '⟦keyword:let⟧ s = ⟦string:#"a\\#(f("b"))c"#⟧ + x',
+    ],
+    [
+      'swift',
+      'let s = #"a\\#(oops\nlet t = 1',
+      '⟦keyword:let⟧ s = ⟦string:#"a\\#(oops⟧\n⟦keyword:let⟧ t = ⟦number:1⟧',
+    ],
+    // A regex literal after an operator, a bracket or `return`: its quotes open
+    // no string, and a `/` between values divides.
+    [
+      'typescript',
+      "s.replace(/\"/g, '').split(/\\s+/)",
+      "s.⟦function:replace⟧(⟦regex:/\"/g⟧, ⟦string:''⟧).⟦function:split⟧(⟦regex:/\\s+/⟧)",
+    ],
+    [
+      'typescript',
+      'return /a"b/.test(s) ? /x/i : /[/]"/',
+      '⟦keyword:return⟧ ⟦regex:/a"b/⟧.⟦function:test⟧(s) ? ⟦regex:/x/i⟧ : ⟦regex:/[/]"/⟧',
+    ],
+    [
+      'typescript',
+      'z = !/^a/.test(s) && /b$/.test(t) || /c/.exec(u)',
+      'z = !⟦regex:/^a/⟧.⟦function:test⟧(s) && ⟦regex:/b$/⟧.⟦function:test⟧(t) || ⟦regex:/c/⟧.⟦function:exec⟧(u)',
+    ],
+    [
+      'typescript',
+      '[1, 2].map((x) => /a/.test(x))',
+      '[⟦number:1⟧, ⟦number:2⟧].⟦function:map⟧((x) => ⟦regex:/a/⟧.⟦function:test⟧(x))',
+    ],
+    [
+      'typescript',
+      'const o = { re: /x"y/g, n: 4 / 2 }',
+      '⟦keyword:const⟧ o = { re: ⟦regex:/x"y/g⟧, n: ⟦number:4⟧ / ⟦number:2⟧ }',
+    ],
+    [
+      'typescript',
+      'const q = (a + b) / (c - d) / 2; x = arr[i] / 2;',
+      '⟦keyword:const⟧ q = (a + b) / (c - d) / ⟦number:2⟧; x = arr[i] / ⟦number:2⟧;',
+    ],
+    ['typescript', 'a = b\n/ c\n/ d', 'a = b\n/ c\n/ d'],
+    [
+      'typescript',
+      '<Foo bar={x} /> <br/> </div> {count}/{total}',
+      '<⟦class-name:Foo⟧ bar={x} /> <br/> </div> {count}/{total}',
+    ],
+    ['typescript', 'x = /unclosed', 'x = /unclosed'],
+    ['typescript', 'x = /[/', 'x = /[/'],
+    [
+      'groovy',
+      'def r = ~/a"b/; def s = x =~ /c\'d/; def q = a / b',
+      '⟦keyword:def⟧ r = ~⟦regex:/a"b/⟧; ⟦keyword:def⟧ s = x =~ ⟦regex:/c\'d/⟧; ⟦keyword:def⟧ q = a / b',
+    ],
+    // A shebang is a comment.
+    [
+      'javascript',
+      '#!/usr/bin/env node\nx = /a/.test(y)',
+      '⟦comment:#!/usr/bin/env node⟧\nx = ⟦regex:/a/⟧.⟦function:test⟧(y)',
+    ],
+    // JSX text: an apostrophe after a word is text; after a keyword it opens a
+    // string.
+    [
+      'typescript',
+      "<p className='x'>the user's own</p>",
+      "<p className=⟦string:'x'⟧>the user's own</p>",
+    ],
+    [
+      'typescript',
+      "import x from'y'; const r = f(a)'b'",
+      "⟦keyword:import⟧ x ⟦keyword:from⟧⟦string:'y'⟧; ⟦keyword:const⟧ r = ⟦function:f⟧(a)⟦string:'b'⟧",
+    ],
+    [
+      'typescript',
+      "switch (k) { case'a': return'b' }",
+      "⟦keyword:switch⟧ (k) { ⟦keyword:case⟧⟦string:'a'⟧: ⟦keyword:return⟧⟦string:'b'⟧ }",
+    ],
+  ];
+  for (const [language, source, expected] of forms) {
+    assert.equal(
+      highlightCode(source, language),
+      marked(expected),
+      `${language}: ${source}`
+    );
+  }
+});
+
 test('starts a properties key at any non-blank character', () => {
   assert.equal(
     highlightCode('\u00a0k=v', 'properties'),
     `${t('attr-name', '\u00a0k')}=${t('string', 'v')}`
   );
+});
+
+// The reserved words each language's own specification lists, plus the
+// contextual ones a snippet is likely to use. A word dropped from a list shows here.
+const words = (list) => list.split(' ');
+const KEYWORDS = {
+  typescript: words(
+    'break case catch class const continue debugger default delete do else enum export extends false finally for function if import in instanceof new null return super switch this throw true try typeof var void while with yield ' +
+      'let static implements interface private protected public async await of from as get set undefined ' +
+      'type declare namespace module abstract readonly constructor keyof infer satisfies override asserts'
+  ),
+  swift: words(
+    'associatedtype class deinit enum extension fileprivate func import init inout internal let open operator private precedencegroup protocol public rethrows static struct subscript typealias var ' +
+      'break case catch continue default defer do else fallthrough for guard if in repeat return throw switch where while ' +
+      'as await false is nil self super throws true try async willSet didSet'
+  ),
+  kotlin: words(
+    'as break class continue do else false for fun if in interface is null object package return super this throw true try typealias val var when while ' +
+      'abstract actual companion const crossinline data enum expect external final infix inline inner internal lateinit noinline open operator out override private protected public reified sealed suspend tailrec vararg ' +
+      'by catch constructor finally import init where'
+  ),
+  dart: words(
+    'assert break case catch class const continue default do else enum extends false final finally for if in is new null rethrow return super switch this throw true try var void while with ' +
+      'abstract as covariant deferred dynamic export extension external factory Function get implements import interface late library mixin operator part required set show static typedef ' +
+      'async await hide on sealed sync yield'
+  ),
+  csharp: words(
+    'abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof stackalloc static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using virtual void volatile while ' +
+      'async await var yield when nameof with record required init get set partial dynamic'
+  ),
+  gdscript: words(
+    'if elif else for while match break continue pass return class class_name extends is in as self signal func static const enum var breakpoint preload assert await yield void and or not true false null super PI TAU INF NAN'
+  ),
+  groovy: words(
+    'abstract as assert break case catch class continue def default do else enum extends false finally for if implements import in instanceof interface new null package private protected public return static super switch this throw throws trait true try var void while'
+  ),
+};
+
+test('colors the reserved words of each language', () => {
+  for (const [language, list] of Object.entries(KEYWORDS)) {
+    for (const word of list) {
+      assert.equal(
+        highlightCode(word, language),
+        t('keyword', word),
+        `${language}: ${word}`
+      );
+    }
+  }
+  // JavaScript reads the same words as TypeScript.
+  assert.equal(highlightCode('const', 'javascript'), t('keyword', 'const'));
+});
+
+test('takes a name after a member dot for no keyword', () => {
+  const forms = [
+    [
+      'typescript',
+      'a.get(1); b?.catch(c); d\n  .delete(e); [...new Set(f)]; g.type',
+      'a.⟦function:get⟧(⟦number:1⟧); b?.⟦function:catch⟧(c); d\n  .⟦function:delete⟧(e); [...⟦keyword:new⟧ ⟦function:Set⟧(f)]; g.type',
+    ],
+    // Swift keeps `.self` and `.init`, and reads `.default` as a case.
+    [
+      'swift',
+      'a.as(B.self); C.init(); k = .default; return .none',
+      'a.⟦function:as⟧(⟦class-name:B⟧.⟦keyword:self⟧); ⟦class-name:C⟧.⟦keyword:init⟧(); k = .default; ⟦keyword:return⟧ .none',
+    ],
+    [
+      'kotlin',
+      'x?.out(1); y.is(2); z.data',
+      'x?.⟦function:out⟧(⟦number:1⟧); y.⟦function:is⟧(⟦number:2⟧); z.data',
+    ],
+    [
+      'dart',
+      'a.on(b); c.in(d); e.show',
+      'a.⟦function:on⟧(b); c.⟦function:in⟧(d); e.show',
+    ],
+    ['groovy', 'a.in(b); c.default', 'a.⟦function:in⟧(b); c.default'],
+  ];
+  for (const [language, source, expected] of forms) {
+    assert.equal(
+      highlightCode(source, language),
+      marked(expected),
+      `${language}: ${source}`
+    );
+  }
 });
 
 test('escapes the text of a language it does not know', () => {
@@ -1845,6 +2444,10 @@ test('stays fast on long runs of openers that never close', () => {
     ['a$'.repeat(30000), ['typescript', 'kotlin', 'groovy']],
     ['${'.repeat(50000), ['bash']],
     ['\\`\n'.repeat(50000), ['typescript']],
+    // A regex class that never closes: each `/` must not scan to the end.
+    ['/['.repeat(60000), ['typescript', 'javascript', 'groovy']],
+    ['[/'.repeat(60000), ['typescript', 'javascript', 'groovy']],
+    ['*/['.repeat(40000), ['typescript']],
     ['/*\n'.repeat(60000), ['typescript', 'csharp', 'kotlin', 'swift', 'dart']],
     ['/*\n'.repeat(40000) + '*/\n'.repeat(20000), ['kotlin', 'swift', 'dart']],
     ['*/* /*\n'.repeat(15000), ['kotlin', 'swift', 'dart']],
@@ -1860,6 +2463,30 @@ test('stays fast on long runs of openers that never close', () => {
     ['"$('.repeat(40000), ['bash']],
     ['`${'.repeat(40000), ['typescript']],
     ['`${\n'.repeat(40000), ['typescript']],
+    // A scan that fails far from its opener must not be repeated by every one
+    // after it, whether a line break or the outer quote ends it.
+    ['`${a\n'.repeat(40000) + '"\n', ['typescript']],
+    ['`${\n'.repeat(40000) + '"}`\n', ['typescript']],
+    ['"${\n'.repeat(40000) + '"}"\n', ['kotlin', 'groovy']],
+    ["'${\n".repeat(40000) + "'}'\n", ['dart']],
+    ['$"{\n'.repeat(40000), ['csharp']],
+    ['"$(\n'.repeat(40000), ['bash']],
+    ['<<A\n'.repeat(60000), ['bash']],
+    ['<<A\nA\n'.repeat(40000), ['bash']],
+    ['<<-A\n\tA\n'.repeat(30000), ['bash']],
+    [Array.from({ length: 20000 }, (_, i) => `<<W${i}\n`).join(''), ['bash']],
+    [
+      Array.from({ length: 12000 }, (_, i) => `<<W${i}\nW${i}\n`).join(''),
+      ['bash'],
+    ],
+    [
+      Array.from({ length: 10000 }, (_, i) => `<<W${i} `).join('') +
+        '\n' +
+        Array.from({ length: 10000 }, (_, i) => `W${i}\n`).join(''),
+      ['bash'],
+    ],
+    ['<<A\n' + 'word\n'.repeat(60000), ['bash']],
+    ["'\n".repeat(60000), ['bash']],
     ['\\"\n'.repeat(50000), ['gdscript']],
     ['\\"""\n'.repeat(60000), ['toml']],
     ['#'.repeat(100000), ['swift']],

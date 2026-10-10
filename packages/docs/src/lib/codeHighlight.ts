@@ -40,7 +40,8 @@ const token = (type: string, html: string): string =>
 interface Rule {
   pattern: RegExp;
   type?: string;
-  render?: (match: RegExpExecArray) => string;
+  // `matched` is the whole token, also the part past the match that `end` added.
+  render?: (match: RegExpExecArray, matched: string) => string;
   // Applies only right after a character that matches, like the `$` of `$"`.
   after?: RegExp;
   // Skips the rule right after a character that matches, like the `s` in
@@ -49,6 +50,9 @@ interface Rule {
   // Where the token ends when a regex cannot tell, such as a comment that
   // nests. The pattern matches only the opener.
   end?: (text: string, start: number, afterOpener: number) => number;
+  // Applies only when this says so for the match at `at`, like a `/` that
+  // starts a regex literal only after an operator.
+  when?: (text: string, at: number) => boolean;
 }
 
 const IDENTIFIER_CHAR = /[\w$]/;
@@ -67,7 +71,7 @@ function lex(text: string, rules: readonly Rule[]): string {
       if (rule.notAfter?.test(previous)) continue;
       rule.pattern.lastIndex = i;
       const match = rule.pattern.exec(text);
-      if (match?.[0]) {
+      if (match?.[0] && (!rule.when || rule.when(text, i))) {
         hit = { rule, match };
         break;
       }
@@ -81,7 +85,7 @@ function lex(text: string, rules: readonly Rule[]): string {
     const end = rule.end ? rule.end(text, i, matchEnd) : matchEnd;
     const matched = text.slice(i, end);
     html += escapeHtml(text.slice(plainFrom, i));
-    if (rule.render) html += rule.render(match);
+    if (rule.render) html += rule.render(match, matched);
     else if (rule.type) html += token(rule.type, escapeHtml(matched));
     else html += escapeHtml(matched);
     i = plainFrom = end;
@@ -141,6 +145,8 @@ interface Hole {
   close: string;
   // A doubled opener is plain text (C# `{{`).
   doubled?: boolean;
+  // The hole may span lines.
+  multiline?: boolean;
 }
 interface Interpolation {
   holes: Hole[];
@@ -150,14 +156,23 @@ interface Interpolation {
   interpolating: string;
   // Quotes whose strings take no backslash escapes (bash `'…'`).
   literal?: string;
+  // A letter before a quote makes that string raw: no escapes, no holes (Dart
+  // `r'…'`).
+  raw?: string;
+  // Quotes whose strings may span lines (bash, a template literal).
+  multiline?: string;
 }
 
 const DOLLAR_BRACE: Interpolation = {
-  holes: [{ open: '${', nest: '{', close: '}' }],
+  holes: [{ open: '${', nest: '{', close: '}', multiline: true }],
   quotes: `"'`,
   interpolating: '"',
 };
-const DART_BRACE: Interpolation = { ...DOLLAR_BRACE, interpolating: `"'` };
+const DART_BRACE: Interpolation = {
+  ...DOLLAR_BRACE,
+  interpolating: `"'`,
+  raw: 'r',
+};
 const SWIFT_PAREN: Interpolation = {
   holes: [{ open: '\\(', nest: '(', close: ')' }],
   quotes: '"',
@@ -165,102 +180,160 @@ const SWIFT_PAREN: Interpolation = {
 };
 // A plain string inside a hole has no holes: `{f("{")}`.
 const CSHARP_BRACE: Interpolation = {
-  holes: [{ open: '{', nest: '{', close: '}', doubled: true }],
+  holes: [{ open: '{', nest: '{', close: '}', doubled: true, multiline: true }],
   quotes: `"'`,
   interpolating: '',
 };
 const BASH_SUBSTITUTION: Interpolation = {
   holes: [
-    { open: '$(', nest: '(', close: ')' },
-    { open: '${', nest: '{', close: '}' },
+    { open: '$(', nest: '(', close: ')', multiline: true },
+    { open: '${', nest: '{', close: '}', multiline: true },
   ],
   quotes: `"'`,
   interpolating: '"',
   literal: "'",
+  multiline: `"'`,
 };
 const TEMPLATE_BRACE: Interpolation = {
-  holes: [{ open: '${', nest: '{', close: '}' }],
+  holes: [{ open: '${', nest: '{', close: '}', multiline: true }],
   quotes: `"'\``,
   interpolating: '`',
+  multiline: '`',
 };
 
 type Frame =
-  | { quote: string; escapes: boolean; doubled: boolean; sawClose?: boolean }
+  | {
+      quote: string;
+      escapes: boolean;
+      doubled: boolean;
+      holes: boolean;
+      multiline: boolean;
+      sawClose?: boolean;
+    }
   | { hole: Hole; depth: number };
 
-// A string that closes on its line is scanned with its holes. If the scan
-// fails, the string is read flat: up to the next closer `body` finds, or to the
-// end of its line, and the rest of that line is read the same way. With
-// `monotonic`, a search that finds no closer ends the search for every later
-// opener too, because escapes pair up. Both keep a run of openers from
-// rescanning the text.
+// Scans from `from`, inside the frames, to the end of the outermost one: just
+// past the quote that closes the string, or past the bracket that closes the
+// hole. A line break ends it unless the innermost frame may span lines, and so
+// does a string in a hole that meets the outer quote `outer`; the result is
+// then `~i`, for the position i where it gave up. A verbatim string has no
+// backslash escapes and writes a quote as `""`; with `continuation`, a
+// backslash before a line break goes on.
+function scanFrames(
+  text: string,
+  from: number,
+  frames: Frame[],
+  {
+    holes,
+    quotes,
+    interpolating,
+    literal = '',
+    raw = '',
+    multiline = '',
+  }: Interpolation,
+  outer: string,
+  continuation: boolean
+): number {
+  for (let i = from; i < text.length; i++) {
+    const char = text[i];
+    const frame = frames[frames.length - 1];
+    if (
+      char === '\n' &&
+      !('quote' in frame ? frame.multiline : frame.hole.multiline)
+    ) {
+      return ~i;
+    }
+    if ('quote' in frame) {
+      // A string in a hole that has seen the hole's end and now meets the
+      // outer quote was probably no string: a regex or a comment held a quote.
+      const below = frames[frames.length - 2];
+      if (below && 'hole' in below && !literal.includes(frame.quote)) {
+        if (char === below.hole.close) frame.sawClose = true;
+        else if (frame.sawClose && char === outer && char !== frame.quote) {
+          return ~i;
+        }
+      }
+      const hole = frame.holes
+        ? holes.find((h) => text.startsWith(h.open, i))
+        : undefined;
+      if (hole?.doubled && text.startsWith(hole.open + hole.open, i)) {
+        i += hole.open.length;
+      } else if (hole) {
+        frames.push({ hole, depth: 1 });
+        i += hole.open.length - 1;
+      } else if (
+        char === '\\' &&
+        frame.escapes &&
+        (continuation || text[i + 1] !== '\n')
+      ) {
+        i += continuation && text.startsWith('\r\n', i + 1) ? 2 : 1;
+      } else if (char === frame.quote) {
+        if (frame.doubled && text[i + 1] === char) {
+          i++;
+        } else {
+          frames.pop();
+          if (!frames.length) return i + 1;
+        }
+      }
+    } else if (char === '\\' && text[i + 1] !== '\n') {
+      i++;
+    } else if (quotes.includes(char)) {
+      const isRaw =
+        raw.includes(text[i - 1] ?? '') && !/[\w$]/.test(text[i - 2] ?? '');
+      frames.push({
+        quote: char,
+        escapes: !literal.includes(char) && !isRaw,
+        doubled: false,
+        holes: interpolating.includes(char) && !isRaw,
+        multiline: multiline.includes(char),
+      });
+    } else if (char === frame.hole.nest) {
+      frame.depth++;
+    } else if (char === frame.hole.close && --frame.depth === 0) {
+      frames.pop();
+      if (!frames.length) return i + 1;
+    }
+  }
+  return ~text.length;
+}
+
+// A string is scanned with its holes. If the scan fails, the string is read
+// flat: up to the next closer `body` finds, or to the end of its line, and the
+// rest of the text the scan covered is read the same way. With `monotonic`, a
+// search that finds no closer ends the search for every later opener too,
+// because escapes pair up. Both keep a run of openers from rescanning the
+// text.
 function spanning(
   body: RegExp,
   quote: string,
-  { holes, quotes, interpolating, literal = '' }: Interpolation,
-  { verbatim = false, monotonic = false } = {}
+  interpolation: Interpolation,
+  { verbatim = false, monotonic = false, continuation = false } = {}
 ): NonNullable<Rule['end']> {
-  const memo = perCall(() => ({ failedLine: -1, noCloser: false }));
-  // Just past the quote that closes the string whose body starts at `from`, or
-  // -1 when its line ends first. A verbatim string has no backslash escapes and
-  // writes a quote as `""`.
-  function scan(text: string, from: number): number {
-    const frames: Frame[] = [{ quote, escapes: !verbatim, doubled: verbatim }];
-    for (let i = from; i < text.length; i++) {
-      const char = text[i];
-      if (char === '\n') return -1;
-      const frame = frames[frames.length - 1];
-      if ('quote' in frame) {
-        // A string in a hole that has seen the hole's end and now meets the
-        // outer quote was probably no string: a regex or a comment held a quote.
-        const below = frames[frames.length - 2];
-        if (below && 'hole' in below && !literal.includes(frame.quote)) {
-          if (char === below.hole.close) frame.sawClose = true;
-          else if (frame.sawClose && char === quote && char !== frame.quote) {
-            return -1;
-          }
-        }
-        const hole =
-          frames.length === 1 || interpolating.includes(frame.quote)
-            ? holes.find((h) => text.startsWith(h.open, i))
-            : undefined;
-        if (hole?.doubled && text.startsWith(hole.open + hole.open, i)) {
-          i += hole.open.length;
-        } else if (hole) {
-          frames.push({ hole, depth: 1 });
-          i += hole.open.length - 1;
-        } else if (char === '\\' && frame.escapes && text[i + 1] !== '\n') {
-          i++;
-        } else if (char === frame.quote) {
-          if (frame.doubled && text[i + 1] === char) {
-            i++;
-          } else {
-            frames.pop();
-            if (!frames.length) return i + 1;
-          }
-        }
-      } else if (char === '\\' && text[i + 1] !== '\n') {
-        i++;
-      } else if (quotes.includes(char)) {
-        frames.push({
-          quote: char,
-          escapes: !literal.includes(char),
-          doubled: false,
-        });
-      } else if (char === frame.hole.nest) {
-        frame.depth++;
-      } else if (char === frame.hole.close && --frame.depth === 0) {
-        frames.pop();
-      }
-    }
-    return -1;
-  }
+  const memo = perCall(() => ({ failedUntil: -1, noCloser: false }));
+  const multiline = verbatim || !!interpolation.multiline?.includes(quote);
+  const scan = (text: string, from: number): number =>
+    scanFrames(
+      text,
+      from,
+      [
+        {
+          quote,
+          escapes: !verbatim,
+          doubled: verbatim,
+          holes: true,
+          multiline,
+        },
+      ],
+      interpolation,
+      quote,
+      continuation
+    );
   return (text, _start, afterOpener) => {
     const seen = memo(text);
-    if (afterOpener > seen.failedLine) {
+    if (afterOpener > seen.failedUntil) {
       const end = scan(text, afterOpener);
       if (end >= 0) return end;
-      seen.failedLine = lineEnd(text, afterOpener);
+      seen.failedUntil = Math.max(~end, lineEnd(text, afterOpener));
     }
     if (monotonic && seen.noCloser) return lineEnd(text, afterOpener);
     body.lastIndex = afterOpener;
@@ -273,19 +346,31 @@ function spanning(
   };
 }
 
-// A string on one line whose holes can hold quotes.
+// A string whose holes can hold quotes. It ends on its line, unless its quote is
+// one of the interpolation's `multiline` quotes. With `continuation`, a
+// backslash before a line break goes on to the next line.
 const interpolated = (
   quote: '"' | "'",
-  interpolation: Interpolation
-): Rule => ({
-  pattern: quote === '"' ? /"/y : /'/y,
-  type: 'string',
-  end: spanning(
-    quote === '"' ? /(?:[^"\\\n]|\\.)*"/y : /(?:[^'\\\n]|\\.)*'/y,
-    quote,
-    interpolation
-  ),
-});
+  interpolation: Interpolation,
+  continuation = false
+): Rule => {
+  const multiline = !!interpolation.multiline?.includes(quote);
+  const escape =
+    continuation || multiline ? String.raw`\\(?:\r\n|[\s\S])` : String.raw`\\.`;
+  return {
+    pattern: quote === '"' ? /"/y : /'/y,
+    type: 'string',
+    end: spanning(
+      new RegExp(
+        String.raw`(?:[^${quote}\\${multiline ? '' : String.raw`\n`}]|${escape})*${quote}`,
+        'y'
+      ),
+      quote,
+      interpolation,
+      { continuation }
+    ),
+  };
+};
 const DOLLAR_DOUBLE_QUOTED = interpolated('"', DOLLAR_BRACE);
 const DART_DOUBLE_QUOTED = interpolated('"', DART_BRACE);
 const DART_SINGLE_QUOTED = interpolated("'", DART_BRACE);
@@ -340,6 +425,56 @@ const NESTED_BLOCK_COMMENT: Rule = {
 };
 const HASH_COMMENT: Rule = { pattern: /#[^\n]*/y, type: 'comment' };
 
+// Words after which an expression, not an operator, comes: a `/` starts a regex
+// literal and a quote starts a string there (`return /x/`, `from 'y'`).
+const EXPRESSION_WORD =
+  /^(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await|from|import|export|default|extends)$/;
+
+// The identifier that ends at index `last`, up to 32 characters of it.
+function wordEndingAt(text: string, last: number): string {
+  let start = last;
+  while (start > 0 && last - start < 32 && /[\w$]/.test(text[start - 1]))
+    start--;
+  return text.slice(start, last + 1);
+}
+
+// A `/` starts a regex literal at the start of the text, after an operator or
+// bracket that begins an expression, and after a word like `return`. After a
+// name, number, `)`, `]` or `}` it divides, and `</` and `/>` close a tag.
+function regexAllowed(text: string, at: number): boolean {
+  let last = at - 1;
+  while (last >= 0 && /\s/.test(text[last])) {
+    if (at - last > 200) return false;
+    last--;
+  }
+  if (last < 0) return true;
+  const char = text[last];
+  if (/[\w$]/.test(char)) return EXPRESSION_WORD.test(wordEndingAt(text, last));
+  if (char === '>') return text[last - 1] === '=';
+  return '(,=:[!&|?{;~'.includes(char);
+}
+
+// A quote cannot follow a word character straight away unless the word is a
+// keyword: in `<Text>Don't</Text>` the apostrophe is text.
+function quoteMayOpen(text: string, at: number): boolean {
+  return (
+    !/[\w$]/.test(text[at - 1] ?? '') ||
+    EXPRESSION_WORD.test(wordEndingAt(text, at - 1))
+  );
+}
+
+// A regex literal: one line, classes may hold a `/`, and a long literal or
+// class is read as a division instead. Comments come first in every rule list,
+// so `//` and `/*` never get here.
+const REGEX_LITERAL: Rule = {
+  pattern:
+    /\/(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.){0,100}\]){1,300}\/[dgimsuvy]*/y,
+  type: 'regex',
+  when: regexAllowed,
+};
+// A backtick name may hold anything, a quote too: Kotlin `it's fine`.
+const BACKTICK_NAME: Rule = { pattern: /`[^`\n]*`/y };
+
 // A backslash escapes the next character, so an escaped quote or slash never
 // opens a token. A backtick stays free: it may start a template.
 const ESCAPED: Rule = { pattern: /\\(?!`)./y };
@@ -353,6 +488,21 @@ const SINGLE_QUOTED: Rule = {
   type: 'string',
 };
 const LITERAL_SINGLE_QUOTED: Rule = { pattern: /'[^'\n]*'?/y, type: 'string' };
+// In JavaScript, TypeScript and Groovy a backslash before a line break goes on
+// to the next line.
+const CONTINUING_DOUBLE_QUOTED: Rule = {
+  pattern: /"(?:[^"\\\n]|\\(?:\r\n|[\s\S]))*"?/y,
+  type: 'string',
+};
+const CONTINUING_SINGLE_QUOTED: Rule = {
+  pattern: /'(?:[^'\\\n]|\\(?:\r\n|[\s\S]))*'?/y,
+  type: 'string',
+};
+// TypeScript has JSX text, where an apostrophe is a letter of a word.
+const TYPESCRIPT_SINGLE_QUOTED: Rule = {
+  ...CONTINUING_SINGLE_QUOTED,
+  when: quoteMayOpen,
+};
 const BACKTICK_QUOTED: Rule = {
   pattern: /`/y,
   type: 'string',
@@ -370,9 +520,17 @@ const GDSCRIPT_SINGLE_QUOTED: Rule = {
   type: 'string',
 };
 const TRIPLE_QUOTED: Rule = {
-  pattern: /"""[\s\S]*?"""|'''[\s\S]*?'''|"""[^\n]*|'''[^\n]*/y,
+  pattern: /"""[\s\S]*?"""|"""[^\n]*/y,
   type: 'string',
 };
+// Swift, Dart, Groovy and GDScript triple quotes take backslash escapes, so
+// `\"""` is no closer. ESCAPED_QUOTE keeps a stray `\"""` from opening one.
+const ESCAPING_TRIPLE_QUOTED: Rule = {
+  pattern:
+    /"""(?:\\[\s\S]|[^\\])*?"""|'''(?:\\[\s\S]|[^\\])*?'''|"""[^\n]*|'''[^\n]*/y,
+  type: 'string',
+};
+const ESCAPED_QUOTE: Rule = { pattern: /\\["']/y };
 // Kotlin closes a raw string at the last quote of a run: `"""a""""`. An
 // unclosed one is left to TRIPLE_QUOTED.
 const KOTLIN_RAW_STRING: Rule = {
@@ -402,16 +560,52 @@ const DART_RAW_STRING: Rule = {
     /\br(?:'''[\s\S]*?'''|"""[\s\S]*?"""|'''[^\n]*|"""[^\n]*|'[^'\n]*'?|"[^"\n]*"?)/y,
   type: 'string',
 };
-// `#"…"#` closes at a quote followed by the same number of hashes. A `#"""`
-// opener is left to TRIPLE_QUOTED; the guard also keeps a run of them linear.
+// `#"…"#` closes at a quote followed by the same number of hashes, takes no
+// escape without them (`\#n`), and opens a hole with `\#(`. A `#"""` opener is
+// left to TRIPLE_QUOTED; the guard also keeps a run of them linear. A string
+// whose scan fails ends at its line, and so do the later ones on that line.
+const SWIFT_RAW_FAILURES = perCall(() => ({ failedLine: -1 }));
 const SWIFT_RAW_STRING: Rule = {
-  pattern: /(#+)"(?!"")[^\n]*?"\1|#+"(?!"")[^\n]*/y,
+  pattern: /#+"(?!"")/y,
   type: 'string',
   notAfter: /#/,
+  end: (text, start, afterOpener) => {
+    const seen = SWIFT_RAW_FAILURES(text);
+    const hashes = '#'.repeat(afterOpener - start - 1);
+    const hole = `\\${hashes}(`;
+    if (afterOpener > seen.failedLine) {
+      for (let i = afterOpener; i < text.length; i++) {
+        if (text[i] === '\n') break;
+        if (text.startsWith(`"${hashes}`, i)) return i + hashes.length + 1;
+        if (text.startsWith(hole, i)) {
+          const holeEnd = scanFrames(
+            text,
+            i + hole.length,
+            [{ hole: SWIFT_PAREN.holes[0], depth: 1 }],
+            SWIFT_PAREN,
+            '"',
+            false
+          );
+          if (holeEnd < 0) break;
+          i = holeEnd - 1;
+        } else if (text[i] === '\\' && text.startsWith(hashes, i + 1)) {
+          i += hashes.length + 1;
+        }
+      }
+      seen.failedLine = lineEnd(text, afterOpener);
+    }
+    return lineEnd(text, afterOpener);
+  },
 };
 
-const keyword = (words: string): Rule => ({
-  pattern: new RegExp(`\\b(?:${words})\\b`, 'y'),
+// A name after a member dot is no keyword (`x.catch`, `a?.get`), but `...new`
+// spreads. `afterDot` lists the words that stay keywords there (Swift `.self`).
+const keyword = (words: string, afterDot = ''): Rule => ({
+  pattern: new RegExp(
+    String.raw`(?<![^.]\.)\b(?:${words})\b` +
+      (afterDot ? String.raw`|(?<=[^.]\.)\b(?:${afterDot})\b` : ''),
+    'y'
+  ),
   type: 'keyword',
 });
 // Digits with `_` only between them: `1_000`, not `1_`. After a prefix a `_` may
@@ -438,7 +632,8 @@ const CALL: Rule = {
 };
 // A capitalized word links to its type page when it names one.
 const TYPE: Rule = {
-  pattern: /\b[A-Z]\w*/y,
+  pattern: /\b[A-Z][\w$]*/y,
+  notAfter: /\$/,
   render: ([name]) => {
     const href = TYPE_LINKS[name];
     return href
@@ -454,18 +649,28 @@ const DECORATOR: Rule = {
 // C# `@params` is an identifier, not an annotation or a keyword.
 const VERBATIM_IDENTIFIER: Rule = { pattern: /@[A-Za-z_]\w*/y };
 const DIRECTIVE = prefixed(/^([ \t]*)(#[a-z]\w*)/my, 'keyword');
+// Swift: `#if` at a line start, `#available(…)`, `#selector(…)` and `#Preview`
+// anywhere.
+const POUND_NAME: Rule = {
+  pattern: /#[A-Za-z_]\w*/y,
+  type: 'keyword',
+  notAfter: /[\w#]/,
+};
 
 const slashComments = [LINE_COMMENT, BLOCK_COMMENT];
 const nestingComments = [LINE_COMMENT, NESTED_BLOCK_COMMENT];
 
 const TYPESCRIPT_RULES: Rule[] = [
+  // `#!/usr/bin/env node` on the first line.
+  { pattern: /^#![^\n]*/y, type: 'comment' },
   ESCAPED,
   ...slashComments,
+  REGEX_LITERAL,
   BACKTICK_QUOTED,
-  DOUBLE_QUOTED,
-  SINGLE_QUOTED,
+  CONTINUING_DOUBLE_QUOTED,
+  TYPESCRIPT_SINGLE_QUOTED,
   keyword(
-    'import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with'
+    'import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts'
   ),
   NUMBER,
   CALL,
@@ -474,21 +679,27 @@ const TYPESCRIPT_RULES: Rule[] = [
 
 const NATIVE_KEYWORDS = {
   swift:
-    'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false',
+    'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|inout|operator|precedencegroup|break|continue|default|fallthrough|repeat|willSet|didSet',
   kotlin:
-    'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where',
+    'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where|break|continue|const|final|out|vararg|operator|infix|tailrec|external|expect|actual',
   gdscript:
-    'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as',
+    'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as|assert|breakpoint|super|PI|TAU|INF|NAN',
   csharp:
-    'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with',
-  dart: 'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream',
+    'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with|get|set|partial|dynamic',
+  dart: 'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream|extension|external|interface|sealed|in|is|on|deferred',
 };
 
 // What each language adds before the shared rules: its comments, and the
 // directives and string forms only it has.
 const NATIVE_EXTRAS = {
-  swift: [...nestingComments, DIRECTIVE, SWIFT_RAW_STRING],
-  kotlin: [...nestingComments, KOTLIN_RAW_STRING],
+  swift: [
+    ...nestingComments,
+    ESCAPED_QUOTE,
+    POUND_NAME,
+    SWIFT_RAW_STRING,
+    BACKTICK_NAME,
+  ],
+  kotlin: [...nestingComments, KOTLIN_RAW_STRING, BACKTICK_NAME],
   gdscript: [ESCAPED, HASH_COMMENT],
   csharp: [
     ...slashComments,
@@ -497,8 +708,17 @@ const NATIVE_EXTRAS = {
     DOLLAR_VERBATIM_STRING,
     VERBATIM_STRING,
   ],
-  dart: [...nestingComments, DART_RAW_STRING],
+  dart: [...nestingComments, ESCAPED_QUOTE, DART_RAW_STRING],
 } satisfies Record<keyof typeof NATIVE_KEYWORDS, Rule[]>;
+
+// Kotlin and C# raw strings take no backslash escapes.
+const NATIVE_TRIPLE = {
+  swift: ESCAPING_TRIPLE_QUOTED,
+  kotlin: TRIPLE_QUOTED,
+  gdscript: ESCAPING_TRIPLE_QUOTED,
+  csharp: TRIPLE_QUOTED,
+  dart: ESCAPING_TRIPLE_QUOTED,
+} satisfies Record<keyof typeof NATIVE_KEYWORDS, Rule>;
 
 // The quoted strings of each language. Only a C# string after `$` has holes.
 const NATIVE_QUOTES = {
@@ -515,10 +735,10 @@ const NATIVE_QUOTES = {
 
 const nativeRules = (language: keyof typeof NATIVE_KEYWORDS): Rule[] => [
   ...NATIVE_EXTRAS[language],
-  TRIPLE_QUOTED,
+  NATIVE_TRIPLE[language],
   ...NATIVE_QUOTES[language],
   language === 'csharp' ? VERBATIM_IDENTIFIER : DECORATOR,
-  keyword(NATIVE_KEYWORDS[language]),
+  keyword(NATIVE_KEYWORDS[language], language === 'swift' ? 'self|init' : ''),
   NUMBER,
   CALL,
   TYPE,
@@ -526,11 +746,13 @@ const nativeRules = (language: keyof typeof NATIVE_KEYWORDS): Rule[] => [
 
 const GROOVY_RULES: Rule[] = [
   ...slashComments,
-  TRIPLE_QUOTED,
-  DOLLAR_DOUBLE_QUOTED,
-  SINGLE_QUOTED,
+  REGEX_LITERAL,
+  ESCAPED_QUOTE,
+  ESCAPING_TRIPLE_QUOTED,
+  interpolated('"', DOLLAR_BRACE, true),
+  CONTINUING_SINGLE_QUOTED,
   keyword(
-    'android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project'
+    'android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project|try|catch|finally|throw|in|as|instanceof|switch|case|default|break|continue|do|assert|enum|interface|var|this|super|abstract|private|public|protected|throws|trait'
   ),
   NUMBER,
   CALL,
@@ -543,11 +765,96 @@ const JSON_RULES: Rule[] = [
   DATA_NUMBER,
 ];
 
+// A heredoc body starts on the line after `<<WORD` and ends at a line that holds
+// only WORD (`<<-WORD` also lets tabs lead it). A bare WORD starts with a letter,
+// so a shift like `<< 3` is no opener. The opener leaves the heredoc waiting;
+// the line break that ends the opener's line takes the body.
+interface Heredoc {
+  word: string;
+  tabs: boolean;
+}
+const HEREDOCS = perCall(() => ({ waiting: [] as Heredoc[] }));
+// Where lines holding only a word start, by word, under `-` with leading tabs
+// allowed and under `=` without any. Found once per text, so a closer costs a
+// search, not a rescan.
+const WORD_LINE = /(\t*)(\w+)\r?(?=\n|$)/y;
+const wordLines = perCall((text) => {
+  const starts = new Map<string, number[]>();
+  const add = (key: string, start: number): void => {
+    const list = starts.get(key);
+    if (list) list.push(start);
+    else starts.set(key, [start]);
+  };
+  for (let start = 0; start < text.length; start = lineEnd(text, start) + 1) {
+    WORD_LINE.lastIndex = start;
+    const line = WORD_LINE.exec(text);
+    if (!line) continue;
+    if (!line[1]) add(`=${line[2]}`, start);
+    add(`-${line[2]}`, start);
+  }
+  return starts;
+});
+// The end of the line that closes the heredoc, found from `from`; -1 for none.
+function heredocEnd(
+  text: string,
+  { word, tabs }: Heredoc,
+  from: number
+): number {
+  const starts = wordLines(text).get(`${tabs ? '-' : '='}${word}`) ?? [];
+  let low = 0;
+  let high = starts.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (starts[middle] < from) low = middle + 1;
+    else high = middle;
+  }
+  if (low === starts.length) return -1;
+  const end = lineEnd(text, starts[low]);
+  return text[end - 1] === '\r' ? end - 1 : end;
+}
+const HEREDOC_OPENER: Rule = {
+  pattern: /<<(-?)([ \t]*)(?:(['"])(\w+)\3|\\?([A-Za-z_]\w*))/y,
+  // Not the `<<<` of a here-string.
+  notAfter: /</,
+  render: (m) => {
+    HEREDOCS(m.input).waiting.push({
+      word: m[4] ?? m[5],
+      tabs: m[1] === '-',
+    });
+    const word = m[0].slice(2 + m[1].length + m[2].length);
+    return (
+      token('keyword', escapeHtml(`<<${m[1]}`)) +
+      escapeHtml(m[2]) +
+      token('string', escapeHtml(word))
+    );
+  },
+};
+// The body is a string. A line break that no heredoc waits for, or that finds no
+// closing line, stays plain.
+const HEREDOC_BODY: Rule = {
+  pattern: /\n/y,
+  end: (text, _start, afterBreak) => {
+    const heredoc = HEREDOCS(text).waiting.shift();
+    const end = heredoc ? heredocEnd(text, heredoc, afterBreak) : -1;
+    return end < 0 ? afterBreak : end;
+  },
+  render: (_match, matched) =>
+    matched.length > 1
+      ? `\n${token('string', escapeHtml(matched.slice(1)))}`
+      : '\n',
+};
+
 const BASH_RULES: Rule[] = [
   ESCAPED,
+  HEREDOC_BODY,
   wordComment,
   interpolated('"', BASH_SUBSTITUTION),
-  LITERAL_SINGLE_QUOTED,
+  // `$'it\'s\n'` takes backslash escapes.
+  { pattern: /\$'(?:[^'\\\n]|\\.)*'?/y, type: 'string' },
+  // Single quotes take no escape and may hold line breaks; an unclosed one ends
+  // at its line.
+  { pattern: /'[^']*'|'[^\n]*/y, type: 'string' },
+  HEREDOC_OPENER,
   prefixed(
     /^([ \t]*)((?:npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild)\b|EXPO_TV=[^\s"']+)/my,
     'function'
@@ -563,9 +870,9 @@ const BASH_RULES: Rule[] = [
 // A name at the start of a line, then its separator: `:` in YAML, `=` in TOML.
 // A name may start with a digit (`200:`, TOML `1234 =`). A YAML `:` needs a
 // space, a tab or the line end after it, so `12:30` and `http://x` are no keys.
-const key = (separator: string): Rule => ({
+const key = (separator: string, indent = String.raw`[ \t]*`): Rule => ({
   pattern: new RegExp(
-    String.raw`^([ \t]*)(\w[\w.-]*)([ \t]*${separator})`,
+    String.raw`^(${indent})(\w[\w.-]*)([ \t]*${separator})`,
     'my'
   ),
   render: (m) =>
@@ -579,7 +886,8 @@ const YAML_RULES: Rule[] = [
   DOUBLE_QUOTED,
   { pattern: /'(?=\w)(?![^'\s]*')/y, after: /\w/ },
   LITERAL_SINGLE_QUOTED,
-  key(':(?=[ \t]|$)'),
+  // A list item (`- name: x`) is indentation too.
+  key(':(?=[ \t]|$)', String.raw`[ \t]*(?:-[ \t]+)*`),
   keyword('true|false'),
   DATA_NUMBER,
 ];
