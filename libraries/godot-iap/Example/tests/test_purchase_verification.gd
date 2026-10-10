@@ -94,6 +94,18 @@ func _run() -> void:
 	_check(manager._accepts_verification(verified, manager.PRODUCT_10_BULBS, "google"), "Google consumable state can fulfill consumable")
 	_check(not manager._accepts_verification(verified, manager.PRODUCT_10_BULBS, "amazon"), "Wrong verified store cannot fulfill")
 
+	var community_verified = Types.RequestVerifyPurchaseWithIapkitResult.from_dict({
+		"isValid": true, "productId": "dev.hyo.martie.premium.base",
+		"store": "unknown", "storeId": "amazon_example", "state": "entitled",
+		"environment": "Sandbox" if Config.amazon_rvs_sandbox() else "Production",
+	})
+	_check(manager._verification_store({"store": "unknown", "storeId": "amazon_example"}) == "amazon", "Configured provider routes to Amazon RVS")
+	_check(manager._accepts_verification(community_verified, manager.PRODUCT_PREMIUM, "unknown", "amazon_example"), "Community receipt verifies without changing identity")
+	_check(not manager._accepts_verification(community_verified, manager.PRODUCT_PREMIUM, "unknown", "foreign"), "Foreign provider cannot fulfill")
+	_check(not manager._accepts_verification(community_verified, manager.PRODUCT_PREMIUM, "unknown"), "Unknown identity requires explicit provider")
+	community_verified.environment = "Production" if Config.amazon_rvs_sandbox() else "Sandbox"
+	_check(not manager._accepts_verification(community_verified, manager.PRODUCT_PREMIUM, "unknown", "amazon_example"), "Community environment cannot be skipped")
+
 	manager.verification_method = Config.Method.NONE
 	var subscription_receipts: Array = []
 	var active_subscriptions: Array = []

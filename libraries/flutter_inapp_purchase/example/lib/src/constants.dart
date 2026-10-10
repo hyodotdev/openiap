@@ -67,20 +67,29 @@ class IapConstants {
           ? 'dev.hyo.martie.premium.base'
           : productId;
 
+  // Only this known community adapter uses Amazon's server verification.
+  static IapStore verificationStore(Purchase purchase) =>
+      purchase.store == IapStore.Unknown && purchase.storeId == 'amazon_example'
+          ? IapStore.Amazon
+          : purchase.store;
+
   static bool acceptsVerification(
       RequestVerifyPurchaseWithIapkitResult? result, Purchase purchase) {
     if (result == null ||
         !result.isValid ||
         result.store != purchase.store ||
+        result.storeId != purchase.storeId ||
         result.productId !=
-            verificationProductId(purchase.productId, purchase.store)) {
+            verificationProductId(
+                purchase.productId, verificationStore(purchase))) {
       return false;
     }
     final consumable = consumableProductIds.contains(purchase.productId);
-    switch (result.store) {
+    final store = verificationStore(purchase);
+    switch (store) {
       case IapStore.Apple:
       case IapStore.Amazon:
-        return (result.store != IapStore.Amazon ||
+        return (store != IapStore.Amazon ||
                 result.environment ==
                     (amazonRvsSandbox ? 'Sandbox' : 'Production')) &&
             result.state ==

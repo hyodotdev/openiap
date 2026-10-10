@@ -73,7 +73,8 @@ internal static class IapKitSettings
         // Null leaves the SDK on its hosted default, matching the other examples.
         var endpoint = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
 
-        return common.Store switch
+        var store = VerificationStore(common);
+        return store switch
         {
             IapStore.Apple => new RequestVerifyPurchaseWithIapkitProps
             {
@@ -102,7 +103,7 @@ internal static class IapKitSettings
                 BaseUrl = endpoint,
                 Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps
                 {
-                    ExpectedProductId = VerificationProductId(common.ProductId, common.Store),
+                    ExpectedProductId = VerificationProductId(common.ProductId, store),
                     ReceiptId = storeToken,
                     UserId = (purchase as PurchaseAndroid)?.UserIdAmazon,
                     Sandbox = AmazonRvsSandbox,
@@ -118,15 +119,22 @@ internal static class IapKitSettings
         store == IapStore.Amazon && Constants.SubscriptionProductIds.Contains(productId)
             ? "dev.hyo.martie.premium.base" : productId;
 
+    // Only this known community adapter uses Amazon's server verification.
+    private static IapStore VerificationStore(PurchaseCommon purchase) =>
+        purchase.Store == IapStore.Unknown && purchase.StoreId == "amazon_example"
+            ? IapStore.Amazon : purchase.Store;
+
     public static bool AcceptsVerification(RequestVerifyPurchaseWithIapkitResult result, PurchaseCommon purchase)
     {
         if (!result.IsValid || result.Store != purchase.Store ||
-            result.ProductId != VerificationProductId(purchase.ProductId, purchase.Store)) return false;
+            result.StoreId != purchase.StoreId ||
+            result.ProductId != VerificationProductId(purchase.ProductId, VerificationStore(purchase))) return false;
         var consumable = Constants.ConsumableProductIdSet.Contains(purchase.ProductId);
-        return result.Store switch
+        var store = VerificationStore(purchase);
+        return store switch
         {
             IapStore.Apple or IapStore.Amazon =>
-                (result.Store != IapStore.Amazon || result.Environment == (AmazonRvsSandbox ? "Sandbox" : "Production")) &&
+                (store != IapStore.Amazon || result.Environment == (AmazonRvsSandbox ? "Sandbox" : "Production")) &&
                 result.State == (consumable ? IapkitPurchaseState.ReadyToConsume : IapkitPurchaseState.Entitled),
             IapStore.Google => result.State is IapkitPurchaseState.Entitled or IapkitPurchaseState.PendingAcknowledgment ||
                 (consumable && result.State == IapkitPurchaseState.ReadyToConsume),

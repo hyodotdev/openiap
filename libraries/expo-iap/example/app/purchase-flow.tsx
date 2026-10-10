@@ -936,6 +936,7 @@ function PurchaseFlowContainer() {
             productId,
             isConsumablePurchase,
             purchase.store,
+            purchase.storeId,
           );
           if (verificationError) {
             throw new Error(verificationError);

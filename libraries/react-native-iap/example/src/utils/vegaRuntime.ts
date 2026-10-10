@@ -71,11 +71,19 @@ export function showNativeAlert(title: string, message?: string): void {
   }
 }
 
+// This example explicitly adapts the educational provider to Amazon RVS.
+function verificationStore(
+  store: Purchase['store'],
+  storeId?: string,
+): Purchase['store'] {
+  return store === 'unknown' && storeId === 'amazon_example' ? 'amazon' : store;
+}
+
 function isIapkitStateReadyForFulfillment(
   verified: NonNullable<VerifyPurchaseWithProviderResult['iapkit']>,
   isConsumable: boolean,
 ): boolean {
-  switch (verified.store) {
+  switch (verificationStore(verified.store, verified.storeId)) {
     case 'apple':
     case 'amazon':
       return (
@@ -100,6 +108,7 @@ export function getIapkitVerificationError(
   isConsumable: boolean,
   amazonRvsSandbox: boolean,
   expectedStore: Purchase['store'],
+  expectedStoreId?: string,
 ): string | null {
   const verified = result.iapkit;
   if (!verified) {
@@ -125,15 +134,23 @@ export function getIapkitVerificationError(
     return `IAPKit verified ${verified.store}, expected ${expectedStore}`;
   }
 
+  if (
+    (expectedStore === 'unknown' && !expectedStoreId) ||
+    (expectedStoreId && verified.storeId !== expectedStoreId)
+  ) {
+    return 'IAPKit changed or omitted the expected provider identity';
+  }
+  const store = verificationStore(verified.store, verified.storeId);
+
   const verificationProductId =
-    verified.store === 'amazon'
+    store === 'amazon'
       ? getAmazonVerificationProductId(expectedProductId)
       : expectedProductId;
   if (verified.productId !== verificationProductId) {
     return `IAPKit verified ${verified.productId}, expected ${verificationProductId}`;
   }
 
-  if (verified.store === 'amazon') {
+  if (store === 'amazon') {
     const expectedEnvironment = amazonRvsSandbox ? 'Sandbox' : 'Production';
     if (verified.environment !== expectedEnvironment) {
       return `IAPKit verified Amazon in ${
@@ -190,7 +207,10 @@ export function createIapkitVerificationPayload(
   const purchaseStore = (
     (purchase as Purchase & {store?: string | null}).store ?? ''
   ).toLowerCase();
-  if (purchaseStore === 'amazon') {
+  if (
+    purchaseStore === 'amazon' ||
+    (purchaseStore === 'unknown' && purchase.storeId === 'amazon_example')
+  ) {
     return withIapkitEndpoint(
       {
         apiKey: trimmedApiKey,
@@ -201,6 +221,11 @@ export function createIapkitVerificationPayload(
         },
       },
       baseUrl,
+    );
+  }
+  if (purchaseStore === 'unknown') {
+    throw new Error(
+      `No verification adapter configured for ${purchase.storeId}`,
     );
   }
   if (purchaseStore === 'horizon') {

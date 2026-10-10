@@ -318,7 +318,7 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 		iapkit["baseUrl"] = base_url
 
 	var token := str(purchase.get("purchaseToken", ""))
-	var store := str(purchase.get("store", "")).to_lower()
+	var store := _verification_store(purchase)
 	match store:
 		"apple":
 			iapkit["apple"] = {"jws": token}
@@ -351,7 +351,7 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 	})
 
 	var verified = result.iapkit if result != null else null
-	if not _accepts_verification(verified, product_id, store):
+	if not _accepts_verification(verified, product_id, str(purchase.get("store", "")).to_lower(), str(purchase.get("storeId", ""))):
 		var reason := "invalid" if verified != null else "no response"
 		verification_result.emit("%s — %s" % [label, reason], false)
 		purchase_failed.emit(product_id, "%s failed" % label)
@@ -363,6 +363,12 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 	return true
 
 
+# Only this known community adapter uses Amazon's server verification.
+func _verification_store(purchase: Dictionary) -> String:
+	var store := str(purchase.get("store", "")).to_lower()
+	return "amazon" if store == "unknown" and purchase.get("storeId") == "amazon_example" else store
+
+
 func _verification_product_id(product_id: String, store: String) -> String:
 	var item: Dictionary = _amazon_catalog.get(product_id, {})
 	if store == "amazon" and item.get("itemType") == "SUBSCRIPTION":
@@ -370,12 +376,15 @@ func _verification_product_id(product_id: String, store: String) -> String:
 	return product_id
 
 
-func _accepts_verification(verified: Variant, product_id: String, store: String) -> bool:
+func _accepts_verification(verified: Variant, product_id: String, store: String, store_id: String = "") -> bool:
 	if verified == null or not verified.is_valid:
 		return false
-	var store_names := {"apple": Types.IapStore.APPLE, "google": Types.IapStore.GOOGLE, "amazon": Types.IapStore.AMAZON, "horizon": Types.IapStore.HORIZON}
+	var store_names := {"apple": Types.IapStore.APPLE, "google": Types.IapStore.GOOGLE, "amazon": Types.IapStore.AMAZON, "horizon": Types.IapStore.HORIZON, "unknown": Types.IapStore.UNKNOWN}
 	if not store_names.has(store) or verified.store != store_names[store]:
 		return false
+	if (store == "unknown" and store_id != "amazon_example") or (not store_id.is_empty() and verified.store_id != store_id):
+		return false
+	store = _verification_store({"store": store, "storeId": store_id})
 	if verified.product_id != _verification_product_id(product_id, store):
 		return false
 	var consumable := product_id in [PRODUCT_10_BULBS, PRODUCT_30_BULBS]

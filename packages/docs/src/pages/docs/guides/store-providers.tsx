@@ -230,7 +230,15 @@ export default function StoreProviders() {
             <code>storeId: 'amazon_example'</code>. Configure the backend for
             Amazon receipt verification, grant entitlement only after valid
             verification, then finish. The native package does not install a
-            server verification adapter. Follow the{' '}
+            server verification adapter. Route <code>amazon_example</code>
+            explicitly to Amazon RVS in your app’s verification helper; an
+            unknown provider must not fall back to Google verification. The{' '}
+            <a href={source('example/src/utils/vegaRuntime.ts')}>
+              example verification helper
+            </a>{' '}
+            checks provider identity, product, environment and state while
+            preserving <code>store: 'unknown'</code>. Other community stores
+            require their own supported backend adapter. Follow the{' '}
             <a href={`${source('README.md')}#verify-before-finishing`}>
               verification flow
             </a>{' '}

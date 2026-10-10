@@ -166,27 +166,30 @@ fun PurchaseFlowScreen(navController: NavController) {
                                     "Set IAPKIT_API_KEY in .env (Android) or Secrets.xcconfig (iOS)."
                             } else {
                                 val jwsOrToken = purchase.purchaseToken ?: ""
-                                if (jwsOrToken.isEmpty() && purchase.store != IapStore.Horizon) {
+                                val store = verificationStore(purchase)
+                                require(store != IapStore.Unknown) {
+                                    "No verification adapter configured for ${purchase.storeId}"
+                                }
+                                if (jwsOrToken.isEmpty() && store != IapStore.Horizon) {
                                     verificationOk = false
                                     verificationResult = "❌ No purchase token available for verification"
                                 } else {
-                                    val isIos = getCurrentPlatform() == IapPlatform.Ios
                                     val result = kmpIapInstance.verifyPurchaseWithProvider(
                                         VerifyPurchaseWithProviderProps(
                                             provider = PurchaseVerificationProvider.Iapkit,
                                             iapkit = RequestVerifyPurchaseWithIapkitProps(
-                                                amazon = if (purchase.store == IapStore.Amazon) RequestVerifyPurchaseWithIapkitAmazonProps(
-                                                    expectedProductId = verificationProductId(purchase.productId, purchase.store),
-                                                                    receiptId = jwsOrToken,
+                                                amazon = if (store == IapStore.Amazon) RequestVerifyPurchaseWithIapkitAmazonProps(
+                                                    expectedProductId = verificationProductId(purchase.productId, store),
+                                                    receiptId = jwsOrToken,
                                                     sandbox = AppConfig.amazonRvsSandbox,
                                                     // IAPKit rejects an Amazon receipt without the buyer's id.
                                                     userId = (purchase as? PurchaseAndroid)?.userIdAmazon,
                                                 ) else null,
                                                 apiKey = apiKey,
-                                                apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,
+                                                apple = if (store == IapStore.Apple) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,
                                                 baseUrl = if (verificationMethodAtStart == VerificationMethod.IAPKitLocal) localBaseUrl else null,
-                                                google = if (!isIos && purchase.store == IapStore.Google) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null,
-                                                horizon = if (purchase.store == IapStore.Horizon) RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId) else null,
+                                                google = if (store == IapStore.Google) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null,
+                                                horizon = if (store == IapStore.Horizon) RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId) else null,
                                             )
                                         )
                                     )

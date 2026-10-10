@@ -425,15 +425,20 @@ JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
     try {
       debugPrint('Verifying purchase with IAPKit...');
       final jwsOrToken = purchase.purchaseToken ?? '';
+      final store = IapConstants.verificationStore(purchase);
+      if (store == IapStore.Unknown) {
+        throw UnsupportedError(
+            'No verification adapter for ${purchase.storeId}');
+      }
       debugPrint('Has verification credential: ${jwsOrToken.isNotEmpty}');
 
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
         iapkit: RequestVerifyPurchaseWithIapkitProps(
-          amazon: purchase.store == IapStore.Amazon
+          amazon: store == IapStore.Amazon
               ? RequestVerifyPurchaseWithIapkitAmazonProps(
                   expectedProductId: IapConstants.verificationProductId(
-                      purchase.productId, purchase.store),
+                      purchase.productId, store),
                   receiptId: jwsOrToken,
                   sandbox: IapConstants.amazonRvsSandbox,
                   // IAPKit rejects an Amazon receipt without the buyer's id.
@@ -441,16 +446,16 @@ JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
                 )
               : null,
           apiKey: apiKey.isNotEmpty ? apiKey : null,
-          apple: purchase.store == IapStore.Apple
+          apple: store == IapStore.Apple
               ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
               : null,
           baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
-          google: purchase.store == IapStore.Google
+          google: store == IapStore.Google
               ? RequestVerifyPurchaseWithIapkitGoogleProps(
                   purchaseToken: jwsOrToken,
                 )
               : null,
-          horizon: purchase.store == IapStore.Horizon
+          horizon: store == IapStore.Horizon
               ? RequestVerifyPurchaseWithIapkitHorizonProps(
                   sku: purchase.productId,
                 )

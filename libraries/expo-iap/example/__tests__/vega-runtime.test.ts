@@ -361,4 +361,64 @@ describe('Vega runtime example helpers', () => {
       ),
     ).toContain('expected apple');
   });
+
+  it('routes only the configured community provider to Amazon RVS and preserves identity', () => {
+    const purchase = {
+      id: 'receipt',
+      productId: 'dev.hyo.martie.premium',
+      store: 'unknown',
+      storeId: 'amazon_example',
+    } as Purchase;
+    const payload = createIapkitVerificationPayload(purchase, 'receipt');
+    expect(payload.amazon?.expectedProductId).toBe(
+      'dev.hyo.martie.premium.base',
+    );
+    expect(payload).not.toHaveProperty('google');
+    const result = {
+      provider: 'iapkit' as const,
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.premium.base',
+        environment: 'Sandbox',
+        state: 'entitled' as const,
+        store: 'unknown' as const,
+        storeId: 'amazon_example',
+      },
+    };
+    expect(
+      getIapkitVerificationError(
+        result,
+        purchase.productId,
+        false,
+        purchase.store,
+        purchase.storeId,
+      ),
+    ).toBeNull();
+    for (const changed of [
+      {storeId: 'other_provider'},
+      {store: 'amazon' as const},
+      {environment: 'Production'},
+      {state: 'pending' as const},
+      {productId: 'foreign.base'},
+    ]) {
+      const rejected = {...result, iapkit: {...result.iapkit, ...changed}};
+      expect(
+        getIapkitVerificationError(
+          rejected,
+          purchase.productId,
+          false,
+          purchase.store,
+          purchase.storeId,
+        ),
+      ).not.toBeNull();
+    }
+    expect(() =>
+      createIapkitVerificationPayload(
+        {...purchase, storeId: 'other_provider'},
+        'receipt',
+      ),
+    ).toThrow('No verification adapter');
+    expect(purchase.store).toBe('unknown');
+    expect(purchase.storeId).toBe('amazon_example');
+  });
 });

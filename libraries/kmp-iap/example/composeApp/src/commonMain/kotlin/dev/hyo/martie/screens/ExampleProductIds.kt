@@ -29,13 +29,20 @@ internal fun verificationProductId(productId: String, store: IapStore): String =
     if (store == IapStore.Amazon && productId in SubscriptionProductIds)
         "dev.hyo.martie.premium.base" else productId
 
+// Only this known community adapter uses Amazon's server verification.
+internal fun verificationStore(purchase: Purchase): IapStore =
+    if (purchase.store == IapStore.Unknown && purchase.storeId == "amazon_example")
+        IapStore.Amazon else purchase.store
+
 internal fun acceptsVerification(result: RequestVerifyPurchaseWithIapkitResult?, purchase: Purchase): Boolean {
     if (result == null || !result.isValid || result.store != purchase.store ||
-        result.productId != verificationProductId(purchase.productId, purchase.store)) return false
+        result.storeId != purchase.storeId ||
+        result.productId != verificationProductId(purchase.productId, verificationStore(purchase))) return false
     val consumable = purchase.productId in ConsumableProductIds
-    return when (result.store) {
+    val store = verificationStore(purchase)
+    return when (store) {
         IapStore.Apple, IapStore.Amazon ->
-            (result.store != IapStore.Amazon || result.environment ==
+            (store != IapStore.Amazon || result.environment ==
                 if (AppConfig.amazonRvsSandbox) "Sandbox" else "Production") &&
                 result.state == if (consumable) IapkitPurchaseState.ReadyToConsume else IapkitPurchaseState.Entitled
         IapStore.Google -> result.state == IapkitPurchaseState.Entitled ||
