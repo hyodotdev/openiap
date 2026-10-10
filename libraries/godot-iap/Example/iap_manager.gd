@@ -648,12 +648,14 @@ func _reconcile_subscription_entitlements() -> bool:
 	if not result.get("success", false):
 		push_warning("Subscription query failed; existing entitlements retained")
 		return false
-	var active := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
+	var active := {}
 	for subscription in result.get("subscriptions", []):
-		if active.has(subscription.product_id) and subscription.is_active:
-			active[subscription.product_id] = true
+		if subscription.product_id in ids and subscription.is_active and not subscription.transaction_id.is_empty():
+			if not active.has(subscription.product_id):
+				active[subscription.product_id] = []
+			active[subscription.product_id].append(subscription.transaction_id)
 	var next := {PRODUCT_PREMIUM: false, PRODUCT_PREMIUM_YEAR: false}
-	if active.values().has(true):
+	if not active.is_empty():
 		var available := await GodotIapPlugin.get_available_purchases_result()
 		if not available.get("success", false):
 			return false
@@ -661,7 +663,8 @@ func _reconcile_subscription_entitlements() -> bool:
 			var data := _purchase_to_dict(receipt)
 			var id := _purchase_product_id(receipt, data)
 			var receipt_id := _subscription_receipt_identity(data)
-			if not active.get(id, false) or receipt_id.is_empty() or data.get("purchaseState", "") != "purchased":
+			var transaction_id := str(data.get("transactionId", data.get("id", "")))
+			if not transaction_id in active.get(id, []) or receipt_id.is_empty() or data.get("purchaseState", "") != "purchased":
 				continue
 			if not _verified_subscription_receipts.has(receipt_id):
 				if _purchase_is_acknowledged(receipt, data):

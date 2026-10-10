@@ -16,7 +16,8 @@ struct SubscriptionFlowScreen: View {
     @State private var verificationMethod: VerificationMethod = .none
     @State private var isVerifying = false
     @State private var verificationResultMessage: String?
-    @State private var handledPurchaseIds: Set<String> = []
+    @State private var completedPurchaseIds: Set<String> = []
+    @State private var pendingPurchases: [String: OpenIapPurchase] = [:]
     // Cross-platform subscriptionBillingIssue event (iOS 16.4+ StoreKit.Message.billingIssue).
     // See: https://openiap.dev/docs/features/subscription-billing-issue
     @State private var billingIssuePurchase: OpenIapPurchase?
@@ -222,6 +223,7 @@ struct SubscriptionFlowScreen: View {
             iapStore.resetEphemeralState()
             teardownConnection()
             recentPurchase = nil
+            pendingPurchases.removeAll()
             selectedPurchase = nil
         }
     }
@@ -532,6 +534,7 @@ struct SubscriptionFlowScreen: View {
                 ForEach(VerificationMethod.allCases, id: \.self) { method in
                     Button(method.displayName) {
                         verificationMethod = method
+                        retryPendingPurchases()
                     }
                 }
             } label: {
@@ -547,8 +550,11 @@ struct SubscriptionFlowScreen: View {
                 .cornerRadius(8)
             }
 
-            if let purchase = recentPurchase, !isVerifying {
-                Button("Retry verification and completion") { handlePurchaseSuccess(purchase) }
+            .disabled(isVerifying)
+
+            if !pendingPurchases.isEmpty {
+                Button("Retry retained subscriptions") { retryPendingPurchases() }
+                    .disabled(isVerifying || verificationMethod == .none)
             }
 
             if verificationMethod == .iapkit {
@@ -614,15 +620,13 @@ struct SubscriptionFlowScreen: View {
             verificationResultMessage = "Receipt retained. Choose a verification method, then retry."
             return false
         }
-        isVerifying = true
-        defer { isVerifying = false }
         do {
             switch method {
             case .none:
                 return false
             case .local:
-                let result = try await iapStore.verifyPurchase(sku: purchase.productId)
-                guard result.isValid else {
+                let pending = try await iapStore.getPendingTransactionsIOS()
+                guard purchase.matchesVerifiedPendingTransaction(in: pending) else {
                     verificationResultMessage = "Local verification failed; receipt retained."
                     return false
                 }
@@ -642,9 +646,8 @@ struct SubscriptionFlowScreen: View {
                     provider: .iapkit
                 )
                 let result = try await iapStore.verifyPurchaseWithProvider(props)
-                guard let result, result.isValid, result.store == .apple,
-                      result.productId == purchase.productId, result.state == .entitled else {
-                    verificationResultMessage = "Subscription verification, identity or state check failed; receipt retained."
+                guard purchase.acceptsIapkitVerification(result, isConsumable: false) else {
+                    verificationResultMessage = "Subscription verification, identity, environment or state check failed; receipt retained."
                     return false
                 }
                 let binding = try await bindIapkitSubscriptionUser(apiKey: apiKey, purchaseToken: jws)
@@ -734,12 +737,33 @@ struct SubscriptionFlowScreen: View {
     @MainActor
     private func handlePurchaseSuccess(_ purchase: OpenIapPurchase) {
         guard subscriptionIds.contains(purchase.productId), purchase.purchaseState == .purchased,
-              !purchase.id.isEmpty, handledPurchaseIds.insert(purchase.id).inserted else { return }
+              !purchase.id.isEmpty, !completedPurchaseIds.contains(purchase.id) else { return }
+        pendingPurchases[purchase.id] = purchase
         recentPurchase = purchase
+        if verificationMethod == .none {
+            verificationResultMessage = "Receipt retained. Choose a verification method to retry retained subscriptions."
+            return
+        }
+        retryPendingPurchases()
+    }
+
+    @MainActor
+    private func retryPendingPurchases() {
+        guard verificationMethod != .none, !isVerifying, !pendingPurchases.isEmpty else { return }
         let method = verificationMethod
+        isVerifying = true
         Task { @MainActor in
-            if !(await verifyAndFinishPurchase(purchase, method: method)) {
-                handledPurchaseIds.remove(purchase.id)
+            defer { isVerifying = false }
+            var attempted: Set<String> = []
+            while let purchase = pendingPurchases.values
+                .filter({ !attempted.contains($0.id) })
+                .sorted(by: { $0.transactionDate < $1.transactionDate }).first {
+                attempted.insert(purchase.id)
+                recentPurchase = purchase
+                if await verifyAndFinishPurchase(purchase, method: method) {
+                    pendingPurchases.removeValue(forKey: purchase.id)
+                    completedPurchaseIds.insert(purchase.id)
+                }
             }
         }
     }

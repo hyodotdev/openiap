@@ -9,11 +9,7 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 
 /** IAPKit settings the example reads from local.properties or Gradle properties. */
 object IapkitConfig {
-    /**
-     * Sent as `Bearer {apiKey}`; null when unset or when a secret key was pasted.
-     * The guard stops the key reaching a request, not the build — an sk_ key is
-     * still compiled into BuildConfig, so keep it out of local.properties.
-     */
+    // Secret keys still enter BuildConfig, so never paste one into local.properties.
     val apiKey: String? = BuildConfig.IAPKIT_API_KEY.trim()
         .takeIf { it.isNotEmpty() && !it.startsWith("openiap-kit_sk_") }
 
@@ -28,13 +24,19 @@ object IapkitConfig {
         if (store == IapStore.Amazon && productId in IapConstants.SUBS_SKUS)
             "dev.hyo.martie.premium.base" else productId
 
+    fun verificationStore(purchase: PurchaseAndroid): IapStore =
+        if (purchase.store == IapStore.Unknown && purchase.storeId == "amazon_example")
+            IapStore.Amazon else purchase.store
+
     fun acceptsVerification(result: RequestVerifyPurchaseWithIapkitResult?, purchase: PurchaseAndroid): Boolean {
         if (result == null || !result.isValid || result.store != purchase.store ||
-            result.productId != verificationProductId(purchase.productId, purchase.store)) return false
+            result.storeId != purchase.storeId ||
+            result.productId != verificationProductId(purchase.productId, verificationStore(purchase))) return false
         val consumable = purchase.productId in IapConstants.CONSUMABLE_SKUS
-        return when (result.store) {
+        val store = verificationStore(purchase)
+        return when (store) {
             IapStore.Apple, IapStore.Amazon ->
-                (result.store != IapStore.Amazon || result.environment ==
+                (store != IapStore.Amazon || result.environment ==
                     if (amazonRvsSandbox) "Sandbox" else "Production") &&
                     result.state == if (consumable) IapkitPurchaseState.ReadyToConsume else IapkitPurchaseState.Entitled
             IapStore.Google -> result.state == IapkitPurchaseState.Entitled ||

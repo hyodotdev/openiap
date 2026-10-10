@@ -520,10 +520,11 @@ fun PurchaseFlowScreen(
         println("  - store: ${purchase.store.rawValue}")
         println("  - endpoint: ${baseUrl ?: "kit.openiap.dev"}")
 
+        val store = IapkitConfig.verificationStore(purchase)
         val props = RequestVerifyPurchaseWithIapkitProps(
-            amazon = if (purchase.store == IapStore.Amazon) {
+            amazon = if (store == IapStore.Amazon) {
                 RequestVerifyPurchaseWithIapkitAmazonProps(
-                    expectedProductId = IapkitConfig.verificationProductId(purchase.productId, purchase.store),
+                    expectedProductId = IapkitConfig.verificationProductId(purchase.productId, store),
                     receiptId = requireToken(),
                     sandbox = IapkitConfig.amazonRvsSandbox,
                     userId = purchase.userIdAmazon
@@ -531,10 +532,10 @@ fun PurchaseFlowScreen(
             } else null,
             apiKey = apiKey,
             baseUrl = baseUrl,
-            google = if (purchase.store == IapStore.Google) {
+            google = if (store == IapStore.Google) {
                 RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = requireToken())
             } else null,
-            horizon = if (purchase.store == IapStore.Horizon) {
+            horizon = if (store == IapStore.Horizon) {
                 RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId)
             } else null,
             // Client payload is public configuration, never entitlement authority or secrets.

@@ -141,12 +141,13 @@ func _run() -> void:
 	var replacement: Dictionary = subscription_receipts[0].duplicate()
 	replacement["id"] = "renewal-new-receipt"
 	replacement["transactionId"] = "renewal-new-receipt"
+	active_subscriptions[0]["transactionId"] = "renewal-new-receipt"
 	fake.responses["getActiveSubscriptions"] = JSON.stringify({"success": true, "subscriptionsJson": JSON.stringify(active_subscriptions)})
-	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([replacement])})
+	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([subscription_receipts[0], replacement])})
 	fake.responses["verifyPurchase"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"isValid": false})})
 	fake.responses.erase("last_finish_args")
 	await manager.reconcile_subscription_entitlements()
-	_check(not manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "Another receipt for the same SKU needs its own verification")
+	_check(not manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "Cached expired receipt cannot grant access to an unverified current renewal")
 	_check(not fake.responses.has("last_finish_args"), "Invalid renewal stays unfinished")
 	fake.responses["verifyPurchase"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"isValid": true})})
 	await manager.reconcile_subscription_entitlements()
@@ -159,6 +160,7 @@ func _run() -> void:
 		incoming["id"] = "purchased-during-refresh"
 		incoming["transactionId"] = "purchased-during-refresh"
 		await manager._on_purchase_updated(incoming)
+		active_subscriptions[0]["transactionId"] = "purchased-during-refresh"
 		fake.responses["getActiveSubscriptions"] = JSON.stringify({"success": true, "subscriptionsJson": JSON.stringify(active_subscriptions)})
 		fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([incoming])})
 		plugin._on_products_fetched({"method": "getActiveSubscriptions", "requestId": "old-ownership-snapshot", "success": true, "subscriptionsJson": "[]"})
@@ -178,6 +180,7 @@ func _run() -> void:
 	acknowledged["store"] = "google"
 	acknowledged["storeId"] = "play"
 	acknowledged["isAcknowledgedAndroid"] = true
+	active_subscriptions[0]["transactionId"] = "acknowledged-android"
 	android_fake.responses["getActiveSubscriptionsResult"] = JSON.stringify({"success": true, "subscriptions": active_subscriptions})
 	android_fake.responses["getAvailablePurchasesResult"] = JSON.stringify({"success": true, "purchases": [acknowledged]})
 	android_fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"provider": "iapkit", "iapkit": {"isValid": true, "productId": manager.PRODUCT_PREMIUM, "store": "google", "storeId": "play", "state": "entitled"}})

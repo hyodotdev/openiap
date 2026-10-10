@@ -24,6 +24,18 @@ extension PurchaseState {
 
 @available(iOS 15.0, *)
 extension PurchaseIOS {
+    func matchesVerifiedPendingTransaction(in purchases: [PurchaseIOS]) -> Bool {
+        purchases.contains { $0.id == id && $0.productId == productId && $0.storeId == storeId }
+    }
+
+    func acceptsIapkitVerification(_ result: RequestVerifyPurchaseWithIapkitResult?, isConsumable: Bool) -> Bool {
+        guard let result, result.isValid, result.store == .apple, result.storeId == storeId,
+              result.productId == productId,
+              result.state == (isConsumable ? .readyToConsume : .entitled) else { return false }
+        if let expected = environmentIOS { return result.environment == expected }
+        return true
+    }
+
     var isSubscription: Bool {
         if expirationDateIOS != nil { return true }
         if isAutoRenewing { return true }
