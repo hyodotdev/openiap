@@ -675,9 +675,12 @@ public partial class SubscriptionFlowPage : ContentPage
                 UpdateResult("Subscription verification failed; the transaction was not finalized.");
                 return;
             }
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            await mutate.FinishTransactionAsync(new PurchaseInput(purchase), isConsumable: false)
-                .WaitAsync(TimeSpan.FromSeconds(10));
+            if (purchase is not PurchaseAndroid { IsAcknowledgedAndroid: true })
+            {
+                var mutate = (MutationResolver)OpenIapClient.Instance;
+                await mutate.FinishTransactionAsync(new PurchaseInput(purchase), isConsumable: false)
+                    .WaitAsync(TimeSpan.FromSeconds(10));
+            }
             finished = true;
             UpdateResult(IsRestoration(purchase)
                 ? "Restored subscription verified and transaction finished."
@@ -707,20 +710,14 @@ public partial class SubscriptionFlowPage : ContentPage
             var mutate = (MutationResolver)OpenIapClient.Instance;
             if (method == VerificationMethod.Local)
             {
-                var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
-                {
-                    Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
-                    Google = new VerifyPurchaseGoogleOptions
-                    {
-                        Sku = common.ProductId,
-                        PackageName = "dev.hyo.martie",
-                        PurchaseToken = common.PurchaseToken ?? string.Empty,
-                        AccessToken = string.Empty,
-                        IsSub = true,
-                    },
-                });
-                Console.WriteLine("[SubscriptionFlow] local verification completed");
-                return result.IsValid;
+#if IOS || MACCATALYST
+                var query = (QueryResolver)OpenIapClient.Instance;
+                var pending = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
+                return IapKitSettings.MatchesVerifiedPendingPurchase(common, pending);
+#else
+                UpdateResult("Local (Device) verification is unavailable here. Choose Local (IAPKit).");
+                return false;
+#endif
             }
             else if (method is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
             {

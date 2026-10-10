@@ -48,19 +48,16 @@ func _run() -> void:
 		"store": "apple",
 		"storeId": "apple",
 	}
-	fake.responses["verifyPurchase"] = JSON.stringify({
-		"success": true,
-		"resultJson": JSON.stringify({"isValid": false}),
-	})
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify([purchase.merged({"id": "same-sku-other-transaction"}, true)])})
 	await manager._on_purchase_updated(purchase)
-	_check(fake.responses.has("last_verify_props"), "Local mode calls store verification")
+	_check(fake.last_method == "getPendingTransactionsIOS", "macOS local mode checks verified pending identity")
 	_check(not fake.responses.has("last_finish_args"), "Invalid local verification stays unfinished")
 	_check(not manager._processed_transactions.has("example-local"), "Invalid verification permits retry")
 
-	fake.responses["verifyPurchase"] = JSON.stringify({
-		"success": true,
-		"resultJson": JSON.stringify({"isValid": true}),
-	})
+	for invalid in [purchase.merged({"revocationDateIOS": 1}, true), purchase.merged({"isUpgradedIOS": true}, true), purchase.merged({"expirationDateIOS": 1}, true)]:
+		_check(not manager._matches_apple_receipt(purchase, [invalid]), "Inactive signed receipt cannot deliver")
+	_check(not manager._matches_apple_receipt(purchase.merged({"environmentIOS": "Sandbox"}, true), [purchase.merged({"environmentIOS": "Production"}, true)]), "Known Apple environment must match")
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify([purchase])})
 	await manager._on_purchase_updated(purchase)
 	_check(fake.responses.has("last_finish_args"), "The same transaction finishes after valid verification")
 	_check(manager._processed_transactions.has("example-local"), "Successful finish records completion")
@@ -133,9 +130,18 @@ func _run() -> void:
 	await manager.reconcile_subscription_entitlements()
 	_check(not manager.subscription_entitlements.values().has(true), "Active store ownership alone cannot grant unverified subscriptions")
 	manager.verification_method = Config.Method.LOCAL_DEVICE
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify(subscription_receipts)})
 	await manager.reconcile_subscription_entitlements()
 	_check(manager.subscription_entitlements.values().all(func(active): return active), "Verified active monthly and yearly subscriptions grant current access")
 	_check(fake.responses.has("last_finish_args"), "Unfinished Apple subscriptions complete after verification")
+	manager._verified_subscription_receipts.clear()
+	manager._processed_transactions.clear()
+	fake.responses.erase("last_finish_args")
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": "[]"})
+	await manager.reconcile_subscription_entitlements()
+	_check(manager.subscription_entitlements.values().all(func(active): return active), "Cold finished Apple subscriptions verify exact active ownership")
+	_check(not fake.responses.has("last_finish_args"), "Finished Apple ownership is not finalized twice")
+
 	fake.responses["getActiveSubscriptions"] = JSON.stringify({"success": false, "code": "network-error", "error": "Offline"})
 	_check(not await manager.reconcile_subscription_entitlements(), "Failed subscription query is reported")
 	_check(manager.subscription_entitlements.values().all(func(active): return active), "Query failure preserves existing access")
@@ -153,13 +159,12 @@ func _run() -> void:
 	replacement["transactionId"] = "renewal-new-receipt"
 	active_subscriptions[0]["transactionId"] = "renewal-new-receipt"
 	fake.responses["getActiveSubscriptions"] = JSON.stringify({"success": true, "subscriptionsJson": JSON.stringify(active_subscriptions)})
-	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([subscription_receipts[0], replacement])})
-	fake.responses["verifyPurchase"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"isValid": false})})
+	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([subscription_receipts[0].merged({"id": "renewal-new-receipt", "storeId": "foreign"}, true)])})
 	fake.responses.erase("last_finish_args")
 	await manager.reconcile_subscription_entitlements()
 	_check(not manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "Cached expired receipt cannot grant access to an unverified current renewal")
 	_check(not fake.responses.has("last_finish_args"), "Invalid renewal stays unfinished")
-	fake.responses["verifyPurchase"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"isValid": true})})
+	fake.responses["getAvailablePurchases"] = JSON.stringify({"success": true, "purchasesJson": JSON.stringify([replacement])})
 	await manager.reconcile_subscription_entitlements()
 	_check(manager.subscription_entitlements[manager.PRODUCT_PREMIUM], "The same renewal can retry after verification recovers")
 
@@ -170,6 +175,7 @@ func _run() -> void:
 		var incoming := replacement.duplicate()
 		incoming["id"] = "purchased-during-refresh"
 		incoming["transactionId"] = "purchased-during-refresh"
+		fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify([incoming])})
 		await manager._on_purchase_updated(incoming)
 		active_subscriptions[0]["transactionId"] = "purchased-during-refresh"
 		fake.responses["getActiveSubscriptions"] = JSON.stringify({"success": true, "subscriptionsJson": JSON.stringify(active_subscriptions)})

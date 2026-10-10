@@ -2,7 +2,7 @@ import {
   createIapkitVerificationPayload,
   getSubscriptionProductId,
   getDefaultVerificationMethod,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
@@ -23,6 +23,103 @@ jest.mock('expo-constants', () => ({
 }));
 
 describe('Vega runtime example helpers', () => {
+  it('local Apple verification binds the exact pending transaction and provider', () => {
+    const receipt: Purchase = {
+      id: 'unfinished-old',
+      productId: 'dev.hyo.martie.10bulbs',
+      store: 'apple',
+      storeId: 'apple',
+      purchaseState: 'purchased',
+      transactionDate: 1,
+      quantity: 1,
+      isAutoRenewing: false,
+    };
+    expect(
+      matchesVerifiedPendingPurchase(receipt, [
+        {...receipt, id: 'latest-other'},
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase(receipt, [
+        {...receipt, productId: 'another-sku'},
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, storeId: 'community-apple'}, [
+        receipt,
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, id: ''}, [
+        {...receipt, id: ''},
+      ]),
+    ).toBe(false);
+    expect(matchesVerifiedPendingPurchase(receipt, [{...receipt}])).toBe(true);
+    for (const extra of [
+      {revocationDateIOS: 1},
+      {isUpgradedIOS: true},
+      {expirationDateIOS: 1},
+    ]) {
+      expect(
+        matchesVerifiedPendingPurchase(receipt, [{...receipt, ...extra}]),
+      ).toBe(false);
+    }
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
+        {...receipt, environmentIOS: 'Production'},
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
+        receipt,
+      ]),
+    ).toBe(false);
+  });
+
+  it('known Apple environments must match server verification', () => {
+    const verified = {
+      provider: 'iapkit' as const,
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume' as const,
+        store: 'apple' as const,
+        storeId: 'apple',
+        environment: 'Sandbox',
+      },
+    };
+    expect(
+      getIapkitVerificationError(
+        verified,
+        'dev.hyo.martie.10bulbs',
+        true,
+        'apple',
+        'apple',
+        'Sandbox',
+      ),
+    ).toBeNull();
+    expect(
+      getIapkitVerificationError(
+        verified,
+        'dev.hyo.martie.10bulbs',
+        true,
+        'apple',
+        'apple',
+        'Production',
+      ),
+    ).not.toBeNull();
+    expect(
+      getIapkitVerificationError(
+        {...verified, iapkit: {...verified.iapkit, environment: undefined}},
+        'dev.hyo.martie.10bulbs',
+        true,
+        'apple',
+        'apple',
+        'Sandbox',
+      ),
+    ).not.toBeNull();
+  });
+
   it('uses configured IAPKit credentials for Amazon purchases', () => {
     const payload = createIapkitVerificationPayload(
       {
@@ -261,18 +358,6 @@ describe('Vega runtime example helpers', () => {
     expect([...completedKeys]).toEqual(['oldest', 'newest']);
   });
 
-  it('rejects explicit invalid direct-store results', () => {
-    expect(
-      getDirectVerificationError({
-        isValid: false,
-        jwsRepresentation: '',
-        receiptData: '',
-      }),
-    ).toContain('invalid receipt');
-    expect(
-      getDirectVerificationError({isValid: false, grantTime: null}),
-    ).toContain('invalid receipt');
-  });
   it.each(['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'])(
     'verifies Amazon term %s against its catalog base without relaxing other stores',
     (productId) => {

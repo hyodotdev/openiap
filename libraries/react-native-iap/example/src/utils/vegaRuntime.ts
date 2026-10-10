@@ -2,7 +2,6 @@ import {Alert, Platform} from 'react-native';
 import amazonCatalog from '../../amazon.sdktester.json';
 import type {
   Purchase,
-  VerifyPurchaseResult,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
 } from 'react-native-iap';
@@ -140,6 +139,7 @@ export function getIapkitVerificationError(
   amazonRvsSandbox: boolean,
   expectedStore: Purchase['store'],
   expectedStoreId?: string,
+  expectedEnvironment?: string | null,
 ): string | null {
   const verified = result.iapkit;
   if (!verified) {
@@ -171,6 +171,13 @@ export function getIapkitVerificationError(
   ) {
     return 'IAPKit changed or omitted the expected provider identity';
   }
+  if (
+    expectedStore === 'apple' &&
+    expectedEnvironment != null &&
+    verified.environment !== expectedEnvironment
+  ) {
+    return `IAPKit verified Apple in ${verified.environment ?? 'an unknown environment'}, expected ${expectedEnvironment}`;
+  }
   const store = verificationStore(verified.store, verified.storeId);
 
   const verificationProductId =
@@ -199,13 +206,34 @@ export function getIapkitVerificationError(
   return null;
 }
 
-export function getDirectVerificationError(
-  result: VerifyPurchaseResult,
-): string | null {
-  if (result.isValid !== true) {
-    return 'Store verification returned an invalid receipt';
-  }
-  return null;
+export function matchesVerifiedPendingPurchase(
+  purchase: Purchase,
+  pending: Purchase[],
+): boolean {
+  return (
+    purchase.store === 'apple' &&
+    purchase.storeId === 'apple' &&
+    !!purchase.id &&
+    pending.some(
+      (candidate) =>
+        candidate.store === 'apple' &&
+        candidate.storeId === 'apple' &&
+        candidate.id === purchase.id &&
+        candidate.productId === purchase.productId &&
+        !(
+          'revocationDateIOS' in candidate &&
+          candidate.revocationDateIOS != null
+        ) &&
+        !('isUpgradedIOS' in candidate && candidate.isUpgradedIOS === true) &&
+        (!('expirationDateIOS' in candidate) ||
+          candidate.expirationDateIOS == null ||
+          candidate.expirationDateIOS > Date.now()) &&
+        (!('environmentIOS' in purchase) ||
+          purchase.environmentIOS == null ||
+          ('environmentIOS' in candidate &&
+            candidate.environmentIOS === purchase.environmentIOS)),
+    )
+  );
 }
 
 export function rememberCompletedPurchaseKey(

@@ -41,8 +41,6 @@ import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.IapPlatform
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseAppleOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -51,7 +49,6 @@ import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProp
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import io.github.hyochan.kmpiap.openiap.IapStore
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.SubscriptionOffer
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionIOS
@@ -113,7 +110,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
             .toLocalDateTime(TimeZone.currentSystemDefault())
         val purchaseSummary = """
-                    ✅ Subscription successful (${purchase.store})
+                    Subscription receipt received (${purchase.store}); verification required
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
@@ -136,10 +133,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     verificationOk = false
                                     verificationResult = "Local (Device) verification is unavailable here. Choose Local (IAPKit) or None (Skip)."
                                 } else {
-                                    val result = kmpIapInstance.verifyPurchase(
-                                        VerifyPurchaseProps(apple = VerifyPurchaseAppleOptions(sku = purchase.productId))
-                                    )
-                                    verificationOk = (result as? VerifyPurchaseResultIOS)?.isValid == true
+                                    val pending = kmpIapInstance.getPendingTransactionsIOS()
+                                    verificationOk = matchesVerifiedPendingPurchase(purchase, pending)
                                     verificationResult = "📱 Local Verification (iOS):\n" +
                                         "Valid: $verificationOk\n" +
                                         "Purchase credential: ${credentialStatus(purchase.purchaseToken)}"
@@ -210,23 +205,33 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     return@launch
                 }
 
-                // Finish the transaction
                 try {
-                    kmpIapInstance.finishTransaction(
-                        purchase = purchase.toPurchaseInput(),
-                        isConsumable = false
-                    )
+                    if ((purchase as? PurchaseAndroid)?.isAcknowledgedAndroid != true) {
+                        kmpIapInstance.finishTransaction(
+                            purchase = purchase.toPurchaseInput(),
+                            isConsumable = false
+                        )
+                    }
                     finished = true
                     purchaseResult = "$purchaseSummary\n\n✅ Transaction finished successfully"
-
-                    activeSubscriptions = kmpIapInstance.getActiveSubscriptions(SubscriptionQueryIds).mapNotNull { subscription ->
-                        subscriptionProductId(subscription.productId, subscription.currentPlanId)?.let {
-                            subscription.copy(productId = it)
-                        }
-                    }
-                    hasActiveSubscription = activeSubscriptions.any { it.isActive }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     purchaseResult = "$purchaseSummary\n\n❌ Failed to finish transaction: ${e.message}"
+                }
+                if (finished) {
+                    try {
+                        activeSubscriptions = kmpIapInstance.getActiveSubscriptions(SubscriptionQueryIds).mapNotNull { subscription ->
+                            subscriptionProductId(subscription.productId, subscription.currentPlanId)?.let {
+                                subscription.copy(productId = it)
+                            }
+                        }
+                        hasActiveSubscription = activeSubscriptions.any { it.isActive }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        transactionResult = "Subscription refresh failed: ${e.message}"
+                    }
                 }
             } finally {
                 if (!finished) handledPurchaseIds.remove(purchase.id)

@@ -674,9 +674,10 @@ fun PurchaseFlowScreen(
             // 4) Finish transaction
             val purchaseInput = purchase.toPurchaseInput()
             try {
-                iapStore.finishTransaction(purchaseInput, isConsumable)
+                if (isConsumable || purchase.isAcknowledgedAndroid != true) {
+                    iapStore.finishTransaction(purchaseInput, isConsumable)
+                }
                 finished = true
-                iapStore.getAvailablePurchases(null)  // Reload purchases after finishing
                 iapStore.postStatusMessage(
                     message = "Purchase finished successfully",
                     status = PurchaseResultStatus.Success,
@@ -691,6 +692,15 @@ fun PurchaseFlowScreen(
                     status = PurchaseResultStatus.Error,
                     productId = purchase.productId
                 )
+            }
+            if (finished) {
+                try {
+                    iapStore.getAvailablePurchases(null)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    verificationResultMessage = "Purchase refresh failed: ${e.message}"
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

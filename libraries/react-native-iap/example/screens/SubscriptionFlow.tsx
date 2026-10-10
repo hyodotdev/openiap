@@ -20,6 +20,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
   requestPurchase,
+  getPendingTransactionsIOS,
   useIAP,
   deepLinkToSubscriptions,
   type ActiveSubscription,
@@ -41,7 +42,7 @@ import {
 } from '../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
   getSubscriptionProductId,
@@ -1777,21 +1778,20 @@ function SubscriptionFlowContainer() {
       try {
         if (currentVerificationMethod === 'local') {
           console.log('[SubscriptionFlow] Verifying with Local (Device)...');
-          // Production apps must obtain Google Play API credentials from
-          // their backend rather than bundling them in the client.
-          const result = await verifyPurchase({
-            apple: {sku: productId},
-            google: {
-              sku: productId,
-              accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-              packageName: 'dev.hyo.martie',
-              purchaseToken: purchase.purchaseToken ?? '',
-              isSub: true,
-            },
-          });
-          const verificationError = getDirectVerificationError(result);
-          if (verificationError) {
-            throw new Error(verificationError);
+          if (
+            Platform.OS !== 'ios' ||
+            purchase.store !== 'apple' ||
+            purchase.storeId !== 'apple'
+          ) {
+            throw new Error(
+              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
+            );
+          }
+          const pending = await getPendingTransactionsIOS();
+          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
+            throw new Error(
+              'Local verification did not match this pending transaction',
+            );
           }
           console.log(
             '[SubscriptionFlow] Local (Device) verification completed',
@@ -1847,6 +1847,7 @@ function SubscriptionFlowContainer() {
             AMAZON_RVS_SANDBOX === 'true',
             purchase.store,
             purchase.storeId,
+            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -1897,8 +1898,7 @@ function SubscriptionFlowContainer() {
     // ──────────────────────────────────────────────────────────────────────
     // STEP 5: FINISH TRANSACTION
     // ──────────────────────────────────────────────────────────────────────
-    // Always finish: iOS removes the transaction from the StoreKit queue;
-    // Android acknowledges the purchase (required within 3 days).
+    // Finish verified iOS transactions and unacknowledged Android purchases.
     // Subscriptions are not consumable (isConsumable: false).
     const isConsumable = false;
 
@@ -1906,10 +1906,15 @@ function SubscriptionFlowContainer() {
       finishLogLabel: string,
     ): Promise<void> => {
       try {
-        await finishTransaction({
-          purchase,
-          isConsumable,
-        });
+        if (!(
+          'isAcknowledgedAndroid' in purchase &&
+          purchase.isAcknowledgedAndroid === true
+        )) {
+          await finishTransaction({
+            purchase,
+            isConsumable,
+          });
+        }
       } catch (error) {
         const message = getErrorMessage(error);
         if (mountedRef.current) {
@@ -2021,7 +2026,6 @@ function SubscriptionFlowContainer() {
     finishTransaction,
     getAvailablePurchases,
     getActiveSubscriptions,
-    verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
     // ────────────────────────────────────────────────────────────────────────

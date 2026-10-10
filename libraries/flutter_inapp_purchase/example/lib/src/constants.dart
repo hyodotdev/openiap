@@ -87,6 +87,26 @@ class IapConstants {
           ? IapStore.Amazon
           : purchase.store;
 
+  static bool matchesVerifiedPendingPurchase(
+          Purchase purchase, List<Purchase> pending) =>
+      purchase is PurchaseIOS &&
+      purchase.store == IapStore.Apple &&
+      purchase.storeId == 'apple' &&
+      purchase.id.isNotEmpty &&
+      pending.any((candidate) =>
+          candidate is PurchaseIOS &&
+          candidate.store == IapStore.Apple &&
+          candidate.storeId == 'apple' &&
+          candidate.id == purchase.id &&
+          candidate.productId == purchase.productId &&
+          candidate.revocationDateIOS == null &&
+          candidate.isUpgradedIOS != true &&
+          (candidate.expirationDateIOS == null ||
+              candidate.expirationDateIOS! >
+                  DateTime.now().millisecondsSinceEpoch) &&
+          (purchase.environmentIOS == null ||
+              candidate.environmentIOS == purchase.environmentIOS));
+
   static bool acceptsVerification(
       RequestVerifyPurchaseWithIapkitResult? result, Purchase purchase) {
     if (result == null ||
@@ -96,6 +116,11 @@ class IapConstants {
         result.productId !=
             verificationProductId(
                 purchase.productId, verificationStore(purchase))) {
+      return false;
+    }
+    if (purchase is PurchaseIOS &&
+        purchase.environmentIOS != null &&
+        result.environment != purchase.environmentIOS) {
       return false;
     }
     final consumable = consumableProductIds.contains(purchase.productId);

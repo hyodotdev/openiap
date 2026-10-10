@@ -84,7 +84,7 @@ func _fetch_products_delayed() -> void:
 func _clear_pending_purchases() -> void:
 	print("[IAPManager] Checking for pending purchases...")
 	var pending_purchases: Array = []
-	if OS.get_name() == "iOS":
+	if OS.get_name() in ["iOS", "macOS"]:
 		# Available purchases also lists every expired renewal; only an
 		# unfinished transaction is still pending on iOS.
 		pending_purchases = await GodotIapPlugin.get_pending_transactions_ios()
@@ -113,11 +113,6 @@ func _clear_pending_purchases() -> void:
 		var is_acknowledged := _purchase_is_acknowledged(purchase, purchase_dict)
 
 		print("[IAPManager] Processing pending purchase: %s (acknowledged: %s)" % [product_id, is_acknowledged])
-
-		# Skip already acknowledged purchases (non-consumables that are properly owned)
-		if is_acknowledged:
-			print("[IAPManager] Skipping acknowledged purchase: %s" % product_id)
-			continue
 
 		# A recovered purchase takes the live path, so it is handled like a
 		# live one.
@@ -269,8 +264,9 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
 		# Use the raw purchase dictionary directly to preserve transactionId
-		var finished = await GodotIapPlugin.finish_transaction_dict(purchase, consumable)
-		if finished == null or not finished.success:
+		var needs_finish := consumable or not _purchase_is_acknowledged(purchase, purchase)
+		var finished = await GodotIapPlugin.finish_transaction_dict(purchase, consumable) if needs_finish else null
+		if needs_finish and (finished == null or not finished.success):
 			# The store redelivers an unfinished transaction; crediting now
 			# would credit it again on that redelivery.
 			if transaction_id != "":
@@ -295,7 +291,7 @@ func verification_label() -> String:
 	return IapkitConfig.method_label(verification_method)
 
 
-func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
+func _verify_purchase(purchase: Dictionary, product_id: String, pending_only: bool = true) -> bool:
 	var label := IapkitConfig.method_label(verification_method)
 
 	match verification_method:
@@ -306,8 +302,14 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 			if OS.get_name() not in ["iOS", "macOS"]:
 				verification_result.emit("%s — unavailable here; choose Local (IAPKit) or IAPKit (Server)" % label, false)
 				return false
-			var local_result = await GodotIapPlugin.verify_purchase({"apple": {"sku": product_id}})
-			var is_valid: bool = local_result != null and local_result.is_valid
+			var receipts: Array = []
+			if pending_only:
+				receipts = await GodotIapPlugin.get_pending_transactions_ios()
+			else:
+				var owned := await GodotIapPlugin.get_available_purchases_result({"onlyIncludeActiveItemsIOS": true})
+				if owned.get("success", false):
+					receipts = owned.get("purchases", [])
+			var is_valid := _matches_apple_receipt(purchase, receipts)
 			verification_result.emit("%s — valid: %s" % [label, str(is_valid)], is_valid)
 			return is_valid
 
@@ -361,7 +363,7 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 	})
 
 	var verified = result.iapkit if result != null else null
-	if not _accepts_verification(verified, product_id, str(purchase.get("store", "")).to_lower(), str(purchase.get("storeId", ""))):
+	if not _accepts_verification(verified, product_id, str(purchase.get("store", "")).to_lower(), str(purchase.get("storeId", "")), purchase.get("environmentIOS")):
 		var reason := "invalid" if verified != null else "no response"
 		verification_result.emit("%s — %s" % [label, reason], false)
 		purchase_failed.emit(product_id, "%s failed" % label)
@@ -371,6 +373,22 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 		"%s — valid, %s" % [label, _iapkit_state_name(verified.state)], true
 	)
 	return true
+
+
+func _matches_apple_receipt(purchase: Dictionary, receipts: Array) -> bool:
+	if purchase.get("store") != "apple" or purchase.get("storeId") != "apple" or str(purchase.get("id", "")).is_empty():
+		return false
+	for receipt in receipts:
+		var data := _purchase_to_dict(receipt)
+		if data.get("store") != "apple" or data.get("storeId") != "apple" or data.get("id") != purchase.get("id") or data.get("productId") != purchase.get("productId"):
+			continue
+		if data.get("revocationDateIOS") != null or data.get("isUpgradedIOS") == true:
+			continue
+		if data.get("expirationDateIOS") != null and float(data.expirationDateIOS) <= Time.get_unix_time_from_system() * 1000:
+			continue
+		if purchase.get("environmentIOS") == null or data.get("environmentIOS") == purchase.get("environmentIOS"):
+			return true
+	return false
 
 
 # Only this known community adapter uses Amazon's server verification.
@@ -386,13 +404,15 @@ func _verification_product_id(product_id: String, store: String) -> String:
 	return product_id
 
 
-func _accepts_verification(verified: Variant, product_id: String, store: String, store_id: String = "") -> bool:
+func _accepts_verification(verified: Variant, product_id: String, store: String, store_id: String = "", environment: Variant = null) -> bool:
 	if verified == null or not verified.is_valid:
 		return false
 	var store_names := {"apple": Types.IapStore.APPLE, "google": Types.IapStore.GOOGLE, "amazon": Types.IapStore.AMAZON, "horizon": Types.IapStore.HORIZON, "unknown": Types.IapStore.UNKNOWN}
 	if not store_names.has(store) or verified.store != store_names[store]:
 		return false
 	if (store == "unknown" and store_id != "amazon_example") or (not store_id.is_empty() and verified.store_id != store_id):
+		return false
+	if store == "apple" and environment != null and verified.environment != environment:
 		return false
 	store = _verification_store({"store": store, "storeId": store_id})
 	if verified.product_id != _verification_product_id(product_id, store):
@@ -684,7 +704,13 @@ func _reconcile_subscription_entitlements() -> bool:
 			if not transaction_id in active.get(id, []) or receipt_id.is_empty() or data.get("purchaseState", "") != "purchased":
 				continue
 			if _verified_subscription_receipts.get(receipt_id) != id:
-				if _purchase_is_acknowledged(receipt, data) or _processed_transactions.has(transaction_id):
+				if data.get("store") == "apple" and data.get("storeId") == "apple":
+					var pending: Array = await GodotIapPlugin.get_pending_transactions_ios()
+					if _matches_apple_receipt(data, pending):
+						await _on_purchase_updated(data)
+					elif await _verify_purchase(data, id, false):
+						_verified_subscription_receipts[receipt_id] = id
+				elif _purchase_is_acknowledged(receipt, data) or _processed_transactions.has(transaction_id):
 					if await _verify_purchase(data, id):
 						_verified_subscription_receipts[receipt_id] = id
 				else:

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+import 'package:platform/platform.dart';
 import 'package:flutter_inapp_purchase_example/src/screens/subscription_flow_screen.dart';
 
 void main() {
@@ -11,9 +12,11 @@ void main() {
   const channel = MethodChannel('flutter_inapp');
 
   late List<MethodCall> log;
+  late List<Map<String, dynamic>> ownership;
 
   setUp(() {
     log = <MethodCall>[];
+    ownership = [];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
       log.add(call);
@@ -50,7 +53,7 @@ void main() {
         case 'getAvailablePurchases':
         case 'getAvailableItems':
         case 'getPurchaseHistory':
-          return <Map<String, dynamic>>[];
+          return ownership;
         case 'requestPurchase':
           return null;
         case 'finishTransaction':
@@ -67,10 +70,48 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  testWidgets('renders subscriptions and leaves pending purchases unfinished',
+  testWidgets('pending subscription ownership and callbacks grant no access',
       (tester) async {
+    ownership = [
+      const PurchaseIOS(
+        id: 'pending-subscription',
+        transactionId: 'pending-subscription',
+        productId: 'dev.hyo.martie.premium',
+        purchaseState: PurchaseState.Pending,
+        transactionDate: 1,
+        quantity: 1,
+        isAutoRenewing: true,
+        store: IapStore.Apple,
+        storeId: 'apple',
+      ).toJson()
+    ];
+    await tester.pumpWidget(MaterialApp(
+      home: SubscriptionFlowScreen(
+        iap: FlutterInappPurchase(
+          platform: FakePlatform(operatingSystem: 'ios'),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('No active subscriptions found'), findsOneWidget);
+    expect(find.text('Subscribe'), findsOneWidget);
+    expect(log.where((call) => call.method == 'finishTransaction'), isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('renders subscriptions and leaves pending callbacks unfinished',
+      (tester) async {
+    ownership = [];
+    log.clear();
     await tester.pumpWidget(
-      const MaterialApp(home: SubscriptionFlowScreen()),
+      MaterialApp(
+        home: SubscriptionFlowScreen(
+          iap: FlutterInappPurchase(
+            platform: FakePlatform(operatingSystem: 'ios'),
+          ),
+        ),
+      ),
     );
 
     await tester.pumpAndSettle();
@@ -104,5 +145,6 @@ void main() {
         isEmpty);
 
     await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
   });
 }

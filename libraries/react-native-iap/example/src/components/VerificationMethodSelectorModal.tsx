@@ -9,7 +9,7 @@ const VERIFICATION_METHOD_OPTIONS: readonly {
   {
     value: 'local',
     label: 'Local (Device)',
-    description: 'Verify directly with Apple or Google on this device.',
+    description: 'Match a verified unfinished Apple transaction.',
   },
   {
     value: 'iapkit-localhost',

@@ -139,11 +139,21 @@ internal static class IapKitSettings
         purchase.Store == IapStore.Unknown && purchase.StoreId == "amazon_example"
             ? IapStore.Amazon : purchase.Store;
 
+    public static bool MatchesVerifiedPendingPurchase(PurchaseCommon purchase, IEnumerable<PurchaseIOS> pending) =>
+        purchase is PurchaseIOS && purchase.Store == IapStore.Apple && purchase.StoreId == "apple" &&
+        !string.IsNullOrEmpty(purchase.Id) && pending.Any(candidate =>
+            candidate.Store == IapStore.Apple && candidate.StoreId == "apple" &&
+            candidate.Id == purchase.Id && candidate.ProductId == purchase.ProductId &&
+            candidate.RevocationDateIOS is null && candidate.IsUpgradedIOS != true &&
+            (candidate.ExpirationDateIOS is null || candidate.ExpirationDateIOS > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) &&
+            (purchase is not PurchaseIOS { EnvironmentIOS: { } expected } || candidate.EnvironmentIOS == expected));
+
     public static bool AcceptsVerification(RequestVerifyPurchaseWithIapkitResult result, PurchaseCommon purchase)
     {
         if (!result.IsValid || result.Store != purchase.Store ||
             result.StoreId != purchase.StoreId ||
             result.ProductId != VerificationProductId(purchase.ProductId, VerificationStore(purchase))) return false;
+        if (purchase is PurchaseIOS { EnvironmentIOS: { } expected } && result.Environment != expected) return false;
         var consumable = Constants.ConsumableProductIdSet.Contains(purchase.ProductId);
         var store = VerificationStore(purchase);
         return store switch

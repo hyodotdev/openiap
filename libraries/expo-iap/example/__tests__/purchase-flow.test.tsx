@@ -1,4 +1,6 @@
+import type {Purchase} from '../../src';
 import React from 'react';
+import {Platform} from 'react-native';
 import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
 import PurchaseFlow from '../app/purchase-flow';
 import {
@@ -32,7 +34,8 @@ const mockFinishTransaction = jest.fn();
 const mockVerifyPurchase = jest.fn();
 const mockVerifyPurchaseWithProvider = jest.fn();
 let mockOnPurchaseSuccess:
-  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
+  | ((purchase: Record<string, unknown>) => Promise<void> | void)
+  | undefined;
 const mockUseIAP = {
   connected: true,
   products: [
@@ -158,7 +161,7 @@ describe('PurchaseFlow Component', () => {
     const screen = await render(<PurchaseFlow />);
     await fireEvent.press(screen.getByText('Local (IAPKit)'));
     await act(async () => {
-      await mockOnPurchaseSuccess?.(purchase);
+      await mockOnPurchaseSuccess?.({...purchase});
     });
     expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
     expect(mockFinishTransaction).not.toHaveBeenCalled();
@@ -170,7 +173,7 @@ describe('PurchaseFlow Component', () => {
     await fireEvent.press(screen.getByText('None (Skip)'));
     await waitFor(() => expect(mockFinishTransaction).toHaveBeenCalledTimes(1));
     await act(async () => {
-      await mockOnPurchaseSuccess?.(purchase);
+      await mockOnPurchaseSuccess?.({...purchase});
     });
     expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
     expect(mockFinishTransaction).toHaveBeenCalledWith({
@@ -263,6 +266,66 @@ describe('PurchaseFlow Component', () => {
     expect(requestPurchase).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['dev.hyo.martie.certified', false],
+    ['dev.hyo.martie.10bulbs', true],
+  ])(
+    'verifies an acknowledged %s and consumes only consumables',
+    async (productId, isConsumable) => {
+      const previousPlatform = Platform.OS;
+      Platform.OS = 'android';
+      try {
+        const purchase = {
+          id: `acknowledged-expo-${productId}`,
+          productId,
+          purchaseToken: `acknowledged-expo-token-${productId}`,
+          purchaseState: 'purchased',
+          transactionDate: 1,
+          quantity: 1,
+          isAutoRenewing: false,
+          isAcknowledgedAndroid: true,
+          store: 'google',
+          storeId: 'play',
+        };
+        mockVerifyPurchaseWithProvider.mockResolvedValue({
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId,
+            state: isConsumable ? 'ready-to-consume' : 'entitled',
+            store: 'google',
+            storeId: 'play',
+          },
+        });
+        mockUseIAP.availablePurchases = [purchase];
+        const screen = await render(<PurchaseFlow />);
+        await waitFor(() =>
+          expect(
+            screen.getByText(/Purchase completed and finished successfully/),
+          ).toBeTruthy(),
+        );
+        expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+        expect(mockFinishTransaction).toHaveBeenCalledTimes(
+          isConsumable ? 1 : 0,
+        );
+        if (isConsumable)
+          expect(mockFinishTransaction).toHaveBeenCalledWith({
+            purchase,
+            isConsumable: true,
+          });
+        await act(async () => {
+          await mockOnPurchaseSuccess?.({...purchase});
+        });
+        expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+        expect(mockFinishTransaction).toHaveBeenCalledTimes(
+          isConsumable ? 1 : 0,
+        );
+      } finally {
+        Platform.OS = previousPlatform;
+      }
+    },
+  );
+
   it('routes Local (IAPKit) through the configured local server', async () => {
     await render(<PurchaseFlow />);
 
@@ -342,7 +405,7 @@ describe('PurchaseFlow Component', () => {
 
     await render(<PurchaseFlow />);
     await act(async () => {
-      await mockOnPurchaseSuccess?.(purchase);
+      await mockOnPurchaseSuccess?.({...purchase});
     });
 
     expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledWith({
@@ -378,7 +441,7 @@ describe('PurchaseFlow Component', () => {
     mockGetAvailablePurchases.mockClear();
 
     await act(async () => {
-      await mockOnPurchaseSuccess?.(purchase);
+      await mockOnPurchaseSuccess?.({...purchase});
     });
 
     expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
@@ -386,19 +449,16 @@ describe('PurchaseFlow Component', () => {
     expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
   });
 
-  it('keeps Local (Device) on direct Apple/Google verification', async () => {
-    mockShowActionSheetWithOptions.mockImplementation(
-      (_options: unknown, callback: (index?: number) => void) => callback(0),
-    );
-    const {getByText} = await render(<PurchaseFlow />);
-
-    await fireEvent.press(getByText('Local (IAPKit)'));
-    await waitFor(() => {
-      expect(getByText('Local (Device)')).toBeDefined();
-    });
-
-    await act(async () => {
-      await mockOnPurchaseSuccess?.({
+  it.each([true, false])(
+    'matches the exact verified unfinished Apple transaction (match: %s)',
+    async (matches) => {
+      mockShowActionSheetWithOptions.mockImplementation(
+        (_options: unknown, callback: (index?: number) => void) => callback(0),
+      );
+      const {getByText} = await render(<PurchaseFlow />);
+      await fireEvent.press(getByText('Local (IAPKit)'));
+      await waitFor(() => expect(getByText('Local (Device)')).toBeDefined());
+      const purchase: Purchase = {
         id: 'transaction-device-1',
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'device-apple-jws',
@@ -406,23 +466,20 @@ describe('PurchaseFlow Component', () => {
         storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
+        quantity: 1,
+        isAutoRenewing: false,
+      };
+      (getPendingTransactionsIOS as jest.Mock).mockResolvedValue([
+        {...purchase, id: matches ? purchase.id : 'same-sku-other-transaction'},
+      ]);
+      await act(async () => {
+        await mockOnPurchaseSuccess?.({...purchase});
       });
-    });
-
-    expect(mockVerifyPurchase).toHaveBeenCalledWith({
-      apple: {sku: 'dev.hyo.martie.10bulbs'},
-      google: {
-        sku: 'dev.hyo.martie.10bulbs',
-        packageName: 'dev.hyo.martie',
-        purchaseToken: 'device-apple-jws',
-        accessToken: '',
-      },
-    });
-    expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
-    expect(mockVerifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
-      mockFinishTransaction.mock.invocationCallOrder[0]!,
-    );
-  });
+      expect(mockVerifyPurchase).not.toHaveBeenCalled();
+      expect(mockVerifyPurchaseWithProvider).not.toHaveBeenCalled();
+      expect(mockFinishTransaction).toHaveBeenCalledTimes(matches ? 1 : 0);
+    },
+  );
 
   it('omits the local base URL when hosted IAPKit is selected', async () => {
     mockShowActionSheetWithOptions.mockImplementation(

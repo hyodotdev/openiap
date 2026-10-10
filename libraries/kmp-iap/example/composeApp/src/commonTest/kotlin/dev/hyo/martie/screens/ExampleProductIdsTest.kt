@@ -2,6 +2,10 @@ package dev.hyo.martie.screens
 
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
+import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
+import kotlin.test.assertFalse
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,6 +13,26 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ExampleProductIdsTest {
+    @Test fun appleVerificationBindsTheExactActiveReceiptAndEnvironment() {
+        val receipt = PurchaseIOS(id = "old", transactionId = "old", productId = ConsumableProductIds.first(),
+            purchaseState = PurchaseState.Purchased, transactionDate = 1.0,
+            quantity = 1, isAutoRenewing = false, store = IapStore.Apple,
+            storeId = "apple", environmentIOS = "Sandbox")
+        assertTrue(matchesVerifiedPendingPurchase(receipt, listOf(receipt)))
+        for (other in listOf(receipt.copy(id = "new"), receipt.copy(productId = "foreign"),
+            receipt.copy(storeId = "community"), receipt.copy(environmentIOS = "Production"),
+            receipt.copy(environmentIOS = null), receipt.copy(revocationDateIOS = 1.0),
+            receipt.copy(expirationDateIOS = 1.0), receipt.copy(isUpgradedIOS = true))) {
+            assertFalse(matchesVerifiedPendingPurchase(receipt, listOf(other)))
+        }
+        fun result(environment: String?) = RequestVerifyPurchaseWithIapkitResult(isValid = true, productId = receipt.productId,
+            store = IapStore.Apple, storeId = "apple", state = IapkitPurchaseState.ReadyToConsume,
+            environment = environment)
+        assertTrue(acceptsVerification(result("Sandbox"), receipt))
+        assertFalse(acceptsVerification(result("Production"), receipt))
+        assertFalse(acceptsVerification(result(null), receipt))
+    }
+
     private fun restored(term: String?, store: IapStore = IapStore.Unknown, storeId: String = "amazon_example") =
         PurchaseAndroid(
             id = "receipt",

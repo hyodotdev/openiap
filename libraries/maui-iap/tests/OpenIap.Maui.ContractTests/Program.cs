@@ -23,6 +23,7 @@ internal static class Program
         (nameof(GeneratedVerificationResultDegradesUnknownValues), GeneratedVerificationResultDegradesUnknownValues),
         (nameof(GeneratedAmazonVerificationContractRoundTrips), GeneratedAmazonVerificationContractRoundTrips),
         (nameof(ExampleRestoredAmazonTermsPreserveReceiptIdentity), ExampleRestoredAmazonTermsPreserveReceiptIdentity),
+        (nameof(ExampleAppleVerificationBindsActiveReceipt), ExampleAppleVerificationBindsActiveReceipt),
     ];
 
     public static async Task<int> Main()
@@ -55,6 +56,25 @@ internal static class Program
             Console.Error.WriteLine(failure);
         }
         return 1;
+    }
+
+    private static Task ExampleAppleVerificationBindsActiveReceipt()
+    {
+        var receipt = new PurchaseIOS { Id = "old", TransactionId = "old", ProductId = OpenIap.Maui.Example.Constants.ConsumableProductIdSet.First(),
+            PurchaseState = PurchaseState.Purchased, TransactionDate = 1, Quantity = 1,
+            IsAutoRenewing = false, Store = IapStore.Apple, StoreId = "apple", EnvironmentIOS = "Sandbox" };
+        AssertEqual(true, IapKitSettings.MatchesVerifiedPendingPurchase(receipt, [receipt]), "exact receipt");
+        foreach (var other in new[] { receipt with { Id = "new" }, receipt with { ProductId = "foreign" },
+            receipt with { Store = IapStore.Unknown, StoreId = "community" }, receipt with { EnvironmentIOS = "Production" },
+            receipt with { EnvironmentIOS = null }, receipt with { RevocationDateIOS = 1 },
+            receipt with { ExpirationDateIOS = 1 }, receipt with { IsUpgradedIOS = true } })
+            AssertEqual(false, IapKitSettings.MatchesVerifiedPendingPurchase(receipt, [other]), "unusable receipt");
+        var result = new RequestVerifyPurchaseWithIapkitResult { IsValid = true, ProductId = receipt.ProductId,
+            Store = IapStore.Apple, StoreId = "apple", State = IapkitPurchaseState.ReadyToConsume, Environment = "Sandbox" };
+        AssertEqual(true, IapKitSettings.AcceptsVerification(result, receipt), "matching environment");
+        AssertEqual(false, IapKitSettings.AcceptsVerification(result with { Environment = "Production" }, receipt), "wrong environment");
+        AssertEqual(false, IapKitSettings.AcceptsVerification(result with { Environment = null }, receipt), "missing environment");
+        return Task.CompletedTask;
     }
 
     private static Task ProductsRequirePlatformForClientPayload()

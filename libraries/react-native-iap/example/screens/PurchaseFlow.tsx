@@ -33,7 +33,7 @@ import {
 } from '../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
   rememberCompletedPurchaseKey,
@@ -706,21 +706,20 @@ function PurchaseFlowContainer() {
       try {
         if (currentVerificationMethod === 'local') {
           console.log('[PurchaseFlow] Verifying with Local (Device)...');
-          // This token is intentionally a placeholder. Production apps must
-          // obtain Google Play API credentials from their backend.
-          const result = await verifyPurchase({
-            apple: {sku: productId},
-            google: {
-              sku: productId,
-              accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-              packageName: 'dev.hyo.martie',
-              purchaseToken: purchase.purchaseToken ?? '',
-              isSub: false,
-            },
-          });
-          const verificationError = getDirectVerificationError(result);
-          if (verificationError) {
-            throw new Error(verificationError);
+          if (
+            Platform.OS !== 'ios' ||
+            purchase.store !== 'apple' ||
+            purchase.storeId !== 'apple'
+          ) {
+            throw new Error(
+              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
+            );
+          }
+          const pending = await getPendingTransactionsIOS();
+          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
+            throw new Error(
+              'Local verification did not match this pending transaction',
+            );
           }
           console.log('[PurchaseFlow] Local (Device) verification completed');
         } else {
@@ -771,6 +770,7 @@ function PurchaseFlowContainer() {
             AMAZON_RVS_SANDBOX === 'true',
             purchase.store,
             purchase.storeId,
+            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -820,13 +820,21 @@ function PurchaseFlowContainer() {
     // ──────────────────────────────────────────────────────────────────────
     // Step 6: FINISH TRANSACTION
     // ──────────────────────────────────────────────────────────────────────
-    // Always finish, or the transaction causes issues on the next app launch.
+    // Finish verified purchases; acknowledged non-consumables are already complete.
     // isConsumable: true lets a consumable be bought again; false otherwise.
     try {
-      await finishTransaction({
-        purchase,
-        isConsumable: isConsumablePurchase,
-      });
+      if (
+        isConsumablePurchase ||
+        !(
+          'isAcknowledgedAndroid' in purchase &&
+          purchase.isAcknowledgedAndroid === true
+        )
+      ) {
+        await finishTransaction({
+          purchase,
+          isConsumable: isConsumablePurchase,
+        });
+      }
       rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
       releasePurchaseTask('finished');
       if (mountedRef.current) {
@@ -855,7 +863,6 @@ function PurchaseFlowContainer() {
     fetchProducts,
     finishTransaction,
     getAvailablePurchases,
-    verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
     // ────────────────────────────────────────────────────────────────────────

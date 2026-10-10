@@ -627,6 +627,64 @@ describe('PurchaseFlow Screen', () => {
     },
   );
 
+  it.each([
+    ['dev.hyo.martie.certified', false],
+    ['dev.hyo.martie.10bulbs', true],
+  ])(
+    'verifies an acknowledged %s and consumes only consumables',
+    async (productId, isConsumable) => {
+      Platform.OS = 'android';
+      const purchase: Purchase = {
+        id: `acknowledged-rn-${productId}`,
+        productId,
+        purchaseToken: `acknowledged-rn-token-${productId}`,
+        purchaseState: 'purchased',
+        transactionDate: 1,
+        quantity: 1,
+        isAutoRenewing: false,
+        isAcknowledgedAndroid: true,
+        store: 'google',
+        storeId: 'play',
+      };
+      const verifyPurchaseWithProvider = jest.fn(() =>
+        Promise.resolve<VerifyPurchaseWithProviderResult>({
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId,
+            state: isConsumable ? 'ready-to-consume' : 'entitled',
+            store: 'google',
+            storeId: 'play',
+          },
+        }),
+      );
+      const finishTransaction = jest.fn(() => Promise.resolve());
+      mockIapState({
+        availablePurchases: [purchase],
+        verifyPurchaseWithProvider,
+        finishTransaction,
+      });
+      const screen = await render(<PurchaseFlow />);
+      await waitFor(() =>
+        expect(
+          screen.getByText(/Purchase completed and finished successfully/),
+        ).toBeTruthy(),
+      );
+      expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+      expect(finishTransaction).toHaveBeenCalledTimes(isConsumable ? 1 : 0);
+      if (isConsumable)
+        expect(finishTransaction).toHaveBeenCalledWith({
+          purchase,
+          isConsumable: true,
+        });
+      await act(async () => {
+        await onPurchaseSuccess?.({...purchase});
+      });
+      expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+      expect(finishTransaction).toHaveBeenCalledTimes(isConsumable ? 1 : 0);
+    },
+  );
+
   it('deduplicates reconnect restoration and callback replay while verification is pending', async () => {
     Platform.OS = 'android';
     const purchase: Purchase = {
@@ -1161,48 +1219,49 @@ describe('PurchaseFlow Screen', () => {
     );
   });
 
-  it('keeps Local (Device) on direct Apple/Google verification', async () => {
-    const selectorSpy = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-      .mockImplementation((_options, callback) => callback(0));
-    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
-      mockIapState();
-    const {getByText} = await render(<PurchaseFlow />);
-
-    await fireEvent.press(getByText('Local (IAPKit)'));
-    await waitFor(() => {
-      expect(getByText('Local (Device)')).toBeTruthy();
-    });
-
-    await act(async () => {
-      await onPurchaseSuccess?.({
-        id: 'transaction-device-1',
+  it.each([true, false])(
+    'Local (Device) completes only the exact verified pending receipt (%s)',
+    async (matches) => {
+      const selectorSpy = jest
+        .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+        .mockImplementation((_options, callback) => callback(0));
+      const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+        mockIapState();
+      const purchase: PurchaseIOS = {
+        id: `transaction-device-${matches}`,
+        transactionId: `transaction-device-${matches}`,
         productId: 'dev.hyo.martie.10bulbs',
         purchaseToken: 'device-apple-jws',
         store: 'apple',
         storeId: 'apple',
-        transactionDate: Date.now(),
+        transactionDate: 1,
         purchaseState: 'purchased',
-      });
-    });
-
-    expect(verifyPurchase).toHaveBeenCalledWith({
-      apple: {sku: 'dev.hyo.martie.10bulbs'},
-      google: {
-        sku: 'dev.hyo.martie.10bulbs',
-        accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-        packageName: 'dev.hyo.martie',
-        purchaseToken: 'device-apple-jws',
-        isSub: false,
-      },
-    });
-    expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
-    expect(verifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
-    );
-
-    selectorSpy.mockRestore();
-  });
+        quantity: 1,
+        isAutoRenewing: false,
+      };
+      try {
+        const screen = await render(<PurchaseFlow />);
+        await fireEvent.press(screen.getByText('Local (IAPKit)'));
+        await waitFor(() =>
+          expect(screen.getByText('Local (Device)')).toBeTruthy(),
+        );
+        (RNIap.getPendingTransactionsIOS as jest.Mock).mockResolvedValue([
+          {
+            ...purchase,
+            id: matches ? purchase.id : 'another-transaction-for-the-same-sku',
+          },
+        ]);
+        await act(async () => {
+          await onPurchaseSuccess?.(purchase);
+        });
+        expect(finishTransaction).toHaveBeenCalledTimes(matches ? 1 : 0);
+        expect(verifyPurchase).not.toHaveBeenCalled();
+        expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
+      } finally {
+        selectorSpy.mockRestore();
+      }
+    },
+  );
 
   it('omits the local base URL when hosted IAPKit is selected', async () => {
     const selectorSpy = jest

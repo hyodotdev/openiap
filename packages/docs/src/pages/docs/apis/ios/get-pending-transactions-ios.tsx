@@ -34,6 +34,13 @@ function GetPendingTransactionsIOS() {
         .
       </p>
 
+      <p>
+        Godot supports this query on both iOS and macOS. Match the returned
+        transaction ID, product, store identity, and known environment to the
+        receipt being handled. Reject revoked, upgraded, or expired receipts
+        before granting access or finishing a purchase.
+      </p>
+
       <h2>Signature</h2>
       <LanguageTabs>
         {{

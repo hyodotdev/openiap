@@ -4,6 +4,7 @@ import dev.hyo.martie.config.AppConfig
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
 import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 
 internal val ConsumableProductIds = listOf(
@@ -47,10 +48,22 @@ internal fun verificationStore(purchase: Purchase): IapStore =
     if (purchase.store == IapStore.Unknown && purchase.storeId == "amazon_example")
         IapStore.Amazon else purchase.store
 
+internal fun matchesVerifiedPendingPurchase(purchase: Purchase, pending: List<Purchase>): Boolean =
+    purchase is PurchaseIOS && purchase.store == IapStore.Apple && purchase.storeId == "apple" &&
+        purchase.id.isNotBlank() && pending.any {
+            it is PurchaseIOS && it.store == IapStore.Apple && it.storeId == "apple" &&
+                it.id == purchase.id && it.productId == purchase.productId &&
+                it.revocationDateIOS == null && it.isUpgradedIOS != true &&
+                (it.expirationDateIOS ?: Double.POSITIVE_INFINITY) > currentTimeMillis() &&
+                (purchase.environmentIOS == null || it.environmentIOS == purchase.environmentIOS)
+        }
+
 internal fun acceptsVerification(result: RequestVerifyPurchaseWithIapkitResult?, purchase: Purchase): Boolean {
     if (result == null || !result.isValid || result.store != purchase.store ||
         result.storeId != purchase.storeId ||
         result.productId != verificationProductId(purchase.productId, verificationStore(purchase))) return false
+    if (purchase is PurchaseIOS && purchase.environmentIOS != null &&
+        result.environment != purchase.environmentIOS) return false
     val consumable = purchase.productId in ConsumableProductIds
     val store = verificationStore(purchase)
     return when (store) {

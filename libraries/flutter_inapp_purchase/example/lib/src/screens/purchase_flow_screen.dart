@@ -9,7 +9,9 @@ import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
 class PurchaseFlowScreen extends StatefulWidget {
-  const PurchaseFlowScreen({super.key});
+  const PurchaseFlowScreen({super.key, this.iap});
+
+  final FlutterInappPurchase? iap;
 
   @override
   State<PurchaseFlowScreen> createState() => _PurchaseFlowScreenState();
@@ -42,7 +44,8 @@ VerificationMethod defaultVerificationMethod(
 }
 
 class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
-  final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
+  late final FlutterInappPurchase _iap =
+      widget.iap ?? FlutterInappPurchase.instance;
 
   // Use product IDs from constants
   final List<String> productIds = IapConstants.inAppProductIds;
@@ -107,17 +110,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
 
       _setupPurchaseListeners();
       await _loadProducts();
-      try {
-        await _recoverPurchases();
-      } catch (error) {
-        if (error is! PurchaseError ||
-            error.code != ErrorCode.FeatureNotSupported) {
-          if (!mounted) return;
-          setState(() {
-            _purchaseResult = 'Purchase recovery failed: $error';
-          });
-        }
-      }
+      await _recoverPurchases();
     } catch (e) {
       debugPrint('Failed to initialize IAP connection: $e');
     } finally {
@@ -194,6 +187,10 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         await _handlePurchaseUpdate(purchase);
       }
     } catch (error) {
+      if (error is PurchaseError &&
+          error.code == ErrorCode.FeatureNotSupported) {
+        return;
+      }
       if (mounted) {
         setState(() {
           _purchaseResult =
@@ -222,7 +219,8 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     debugPrint('🎯 Purchase update received: ${purchase.productId}');
     debugPrint('  Store: ${purchase.store}');
     debugPrint('  Purchase state: ${purchase.purchaseState}');
-    final transactionId = purchase.transactionIdFor;
+    final transactionId =
+        purchase.id.isNotEmpty ? purchase.id : purchase.transactionIdFor;
     final androidStateValue = purchase.androidPurchaseStateValue;
     final iosTransactionState = purchase.iosTransactionState;
     final acknowledgedAndroid = purchase.androidIsAcknowledged;
@@ -295,7 +293,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 
       // Format purchase result like KMP-IAP
       _purchaseResult = '''
-✅ Purchase successful (${defaultTargetPlatform.name})
+Receipt received (${defaultTargetPlatform.name}); verification required
 Product: ${purchase.productId}
 ID: ${purchase.id.isNotEmpty ? purchase.id : "N/A"}
 Transaction ID: ${transactionId ?? "N/A"}
@@ -317,13 +315,15 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
       return;
     }
 
-    // Consuming the badge would drop its entitlement on Android, so only
-    // bulb packs are consumed.
+    // Acknowledged consumables still need consumption; the badge does not.
+    final isConsumable = IapConstants.isConsumable(purchase.productId);
     try {
-      await _iap.finishTransaction(
-        purchase: purchase,
-        isConsumable: IapConstants.isConsumable(purchase.productId),
-      );
+      if (isConsumable || purchase.androidIsAcknowledged != true) {
+        await _iap.finishTransaction(
+          purchase: purchase,
+          isConsumable: isConsumable,
+        );
+      }
       debugPrint('Transaction finished successfully');
       if (!mounted) return;
       setState(() {
@@ -375,22 +375,15 @@ Message: ${error.message}
     }
 
     try {
-      final result = await _iap.verifyPurchase(
-        apple: VerifyPurchaseAppleOptions(sku: productId),
-      );
-      if (result is! VerifyPurchaseResultIOS || !mounted) return false;
-      final statusText = result.isValid ? '[Valid]' : '[Invalid]';
+      final pending = await _iap.getPendingTransactionsIOS();
+      final verified =
+          IapConstants.matchesVerifiedPendingPurchase(purchase, pending);
+      if (!mounted) return false;
       setState(() {
-        _purchaseResult = '''
-$_purchaseResult
-
-$statusText Local Verification (iOS)
-Valid: ${result.isValid}
-JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
-          '''
-            .trim();
+        _purchaseResult =
+            '$_purchaseResult\n\nLocal Verification (iOS): $verified';
       });
-      return result.isValid;
+      return verified;
     } catch (error) {
       debugPrint('Local verification failed: $error');
       if (mounted) {

@@ -3,6 +3,61 @@ import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase_example/src/constants.dart';
 
 void main() {
+  test('Apple local verification rejects unrelated or inactive signed receipts',
+      () {
+    PurchaseIOS receipt(
+            {String id = 'old',
+            String storeId = 'apple',
+            String productId = 'dev.hyo.martie.10bulbs',
+            String? environment = 'Sandbox',
+            double? revoked,
+            double? expired,
+            bool? upgraded}) =>
+        PurchaseIOS(
+            id: id,
+            transactionId: id,
+            productId: productId,
+            purchaseState: PurchaseState.Purchased,
+            transactionDate: 1,
+            quantity: 1,
+            isAutoRenewing: false,
+            store: IapStore.Apple,
+            storeId: storeId,
+            environmentIOS: environment,
+            revocationDateIOS: revoked,
+            expirationDateIOS: expired,
+            isUpgradedIOS: upgraded);
+    final purchase = receipt();
+    expect(IapConstants.matchesVerifiedPendingPurchase(purchase, [receipt()]),
+        isTrue);
+    for (final other in [
+      receipt(id: 'new'),
+      receipt(productId: 'foreign'),
+      receipt(storeId: 'community'),
+      receipt(environment: 'Production'),
+      receipt(environment: null),
+      receipt(revoked: 1),
+      receipt(expired: 1),
+      receipt(upgraded: true)
+    ]) {
+      expect(IapConstants.matchesVerifiedPendingPurchase(purchase, [other]),
+          isFalse);
+    }
+    RequestVerifyPurchaseWithIapkitResult result(String? environment) =>
+        RequestVerifyPurchaseWithIapkitResult(
+            isValid: true,
+            productId: purchase.productId,
+            store: IapStore.Apple,
+            storeId: 'apple',
+            state: IapkitPurchaseState.ReadyToConsume,
+            environment: environment);
+    expect(
+        IapConstants.acceptsVerification(result('Sandbox'), purchase), isTrue);
+    expect(IapConstants.acceptsVerification(result('Production'), purchase),
+        isFalse);
+    expect(IapConstants.acceptsVerification(result(null), purchase), isFalse);
+  });
+
   test(
       'restored Amazon terms require exact catalog metadata and provider identity',
       () {

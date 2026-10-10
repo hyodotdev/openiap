@@ -1403,9 +1403,10 @@ fun SubscriptionFlowScreen(
 
             // 4) Finish transaction
             try {
-                iapStore.finishTransaction(purchase, isConsumable)
+                if (isConsumable || purchase.isAcknowledgedAndroid != true) {
+                    iapStore.finishTransaction(purchase, isConsumable)
+                }
                 finished = true
-                iapStore.getAvailablePurchases(null)
                 iapStore.postStatusMessage(
                     message = "Transaction finished successfully",
                     status = PurchaseResultStatus.Success,
@@ -1419,6 +1420,15 @@ fun SubscriptionFlowScreen(
                     status = PurchaseResultStatus.Error,
                     productId = purchase.productId
                 )
+            }
+            if (finished) {
+                try {
+                    iapStore.getAvailablePurchases(null)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    verificationResultMessage = "Purchase refresh failed: ${e.message}"
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

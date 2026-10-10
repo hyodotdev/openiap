@@ -927,25 +927,22 @@ private extension SubscriptionFlowScreen {
         let transactionDate = Date(timeIntervalSince1970: purchase.transactionDate / 1000)
         let formattedDate = DateFormatter.localizedString(from: transactionDate, dateStyle: .short, timeStyle: .short)
 
-        // Check if this is an upgrade by looking at renewalInfo
+        let isCompleted = completedPurchaseIds.contains(purchase.id)
         let isUpgrade = purchase.renewalInfoIOS?.pendingUpgradeProductId != nil &&
                        purchase.renewalInfoIOS?.pendingUpgradeProductId != purchase.productId
 
         let message = """
-        ✅ \(isUpgrade ? "Upgrade" : "Subscription") successful
+        \(isCompleted ? "✅ Subscription verified and transaction finished" : "Receipt retained. Verification and completion are still required.")
         Product: \(purchase.productId)
         Transaction ID: \(purchase.id)
         Date: \(formattedDate)
-
-        🔥 Fired immediately via onPurchaseSuccess
-        (No getActiveSubscriptions() call needed)
         """
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: isUpgrade ? "arrow.up.circle.fill" : "checkmark.circle.fill")
-                    .foregroundColor(AppColors.success)
-                Text(isUpgrade ? "Upgrade Completed" : "Purchase Completed")
+                Image(systemName: isCompleted ? (isUpgrade ? "arrow.up.circle.fill" : "checkmark.circle.fill") : "clock.fill")
+                    .foregroundColor(isCompleted ? AppColors.success : AppColors.warning)
+                Text(isCompleted ? (isUpgrade ? "Upgrade Completed" : "Purchase Completed") : "Receipt Retained")
                     .font(.headline)
 
                 Spacer()

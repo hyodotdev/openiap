@@ -42,7 +42,7 @@ import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
   createIapkitVerificationPayload,
   getDefaultVerificationMethod,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
   rememberCompletedPurchaseKey,
@@ -285,10 +285,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                  ? storefront
-                  : storefrontError
-                    ? 'Unavailable'
-                    : 'Not available'}
+                ? storefront
+                : storefrontError
+                ? 'Unavailable'
+                : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -323,10 +323,10 @@ function PurchaseFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                  ? 'Local (Device)'
-                  : verificationMethod === 'iapkit-localhost'
-                    ? 'Local (IAPKit)'
-                    : 'IAPKit'}
+                ? 'Local (Device)'
+                : verificationMethod === 'iapkit-localhost'
+                ? 'Local (IAPKit)'
+                : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -339,8 +339,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-                ? 'All non-consumable products already purchased'
-                : 'Loading products...'}
+              ? 'All non-consumable products already purchased'
+              : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -358,15 +358,15 @@ function PurchaseFlow({
                   CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                     ? styles.productBadgeConsumable
                     : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                      ? styles.productBadgeNonConsumable
-                      : null,
+                    ? styles.productBadgeNonConsumable
+                    : null,
                 ]}
               >
                 {CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? 'Non-consumable product'
-                    : 'In-app product'}
+                  ? 'Non-consumable product'
+                  : 'In-app product'}
               </Text>
               <View style={styles.productActions}>
                 <TouchableOpacity
@@ -501,13 +501,13 @@ function PurchaseFlow({
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>How to test:</Text>
           <Text style={styles.instructionsText}>
-            1. Make sure you're signed in with a Sandbox account
+            1. Make sure you are signed in with a Sandbox account
           </Text>
           <Text style={styles.instructionsText}>
             2. Configure products in the selected store console
           </Text>
           <Text style={styles.instructionsText}>
-            3. Tap "Purchase" to initiate the transaction
+            3. Tap Purchase to initiate the transaction
           </Text>
           <Text style={styles.instructionsText}>
             4. The transaction will be processed via the hook callbacks
@@ -742,7 +742,7 @@ function PurchaseFlowContainer() {
     useState(false);
   const [storefront, setStorefront] = useState('');
   const [storefrontError, setStorefrontError] = useState<string | null>(null);
-  const [storefrontLoading, setStorefrontLoading] = useState(false);
+  const [storefrontLoading, setStorefrontLoading] = useState(true);
   const [verificationMethod, setVerificationMethod] =
     useState<VerificationMethod>(getDefaultVerificationMethod());
   const [verificationSelection, setVerificationSelection] = useState(0);
@@ -884,18 +884,20 @@ function PurchaseFlowContainer() {
       try {
         if (currentVerificationMethod === 'local') {
           console.log('[PurchaseFlow] Verifying with Local (Device)...');
-          const result = await verifyPurchase({
-            apple: {sku: productId},
-            google: {
-              sku: productId,
-              packageName: 'dev.hyo.martie',
-              purchaseToken: purchase.purchaseToken ?? '',
-              accessToken: '', // Requires a server-issued OAuth token.
-            },
-          });
-          const verificationError = getDirectVerificationError(result);
-          if (verificationError) {
-            throw new Error(verificationError);
+          if (
+            Platform.OS !== 'ios' ||
+            purchase.store !== 'apple' ||
+            purchase.storeId !== 'apple'
+          ) {
+            throw new Error(
+              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
+            );
+          }
+          const pending = await getPendingTransactionsIOS();
+          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
+            throw new Error(
+              'Local verification did not match this pending transaction',
+            );
           }
           console.log('[PurchaseFlow] Local (Device) verification completed');
         } else {
@@ -937,6 +939,7 @@ function PurchaseFlowContainer() {
             isConsumablePurchase,
             purchase.store,
             purchase.storeId,
+            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -987,13 +990,21 @@ function PurchaseFlowContainer() {
 
     // ------------------------------------------------------------
     // Step 6: finish transaction
-    // IMPORTANT: Must call finishTransaction to complete the purchase
+    // Finish verified purchases unless an Android non-consumable is acknowledged.
     // ------------------------------------------------------------
     try {
-      await finishTransaction({
-        purchase,
-        isConsumable: isConsumablePurchase,
-      });
+      if (
+        isConsumablePurchase ||
+        !(
+          'isAcknowledgedAndroid' in purchase &&
+          purchase.isAcknowledgedAndroid === true
+        )
+      ) {
+        await finishTransaction({
+          purchase,
+          isConsumable: isConsumablePurchase,
+        });
+      }
       rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
       releasePurchaseTask('finished');
     } catch (error) {
@@ -1067,7 +1078,6 @@ function PurchaseFlowContainer() {
     fetchProducts,
     finishTransaction,
     getAvailablePurchases,
-    verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
     onPurchaseSuccess: enqueuePurchase,
@@ -1313,32 +1323,35 @@ function PurchaseFlowContainer() {
     );
   }, [showActionSheetWithOptions]);
 
-  const loadStorefront = useCallback(async () => {
-    setStorefrontLoading(true);
-    setStorefrontError(null);
-    try {
-      const code = await getStorefront();
-      setStorefront(code ?? '');
-    } catch (error) {
-      console.log('[PurchaseFlow] getStorefront error:', error);
-      setStorefrontError(
-        error instanceof Error ? error.message : 'Failed to load storefront',
-      );
-      setStorefront('');
-    } finally {
-      setStorefrontLoading(false);
-    }
+  const loadStorefront = useCallback(() => {
+    return getStorefront()
+      .then((code) => {
+        if (!mountedRef.current) return;
+        setStorefront(code ?? '');
+        setStorefrontError(null);
+      })
+      .catch((error: unknown) => {
+        if (!mountedRef.current) return;
+        console.log('[PurchaseFlow] getStorefront error:', error);
+        setStorefrontError(
+          error instanceof Error ? error.message : 'Failed to load storefront',
+        );
+        setStorefront('');
+      })
+      .finally(() => {
+        if (mountedRef.current) setStorefrontLoading(false);
+      });
   }, []);
 
   useEffect(() => {
-    if (connected) {
-      loadStorefront();
-    } else {
-      setStorefront('');
-      setStorefrontError(null);
-      setStorefrontLoading(false);
-    }
+    if (connected) void loadStorefront();
   }, [connected, loadStorefront]);
+
+  const handleRefreshStorefront = useCallback(() => {
+    setStorefrontLoading(true);
+    setStorefrontError(null);
+    return loadStorefront();
+  }, [loadStorefront]);
 
   return (
     <PurchaseFlow
@@ -1351,10 +1364,10 @@ function PurchaseFlowContainer() {
       refreshingAvailablePurchases={refreshingAvailablePurchases}
       onPurchase={handlePurchase}
       onRefreshAvailablePurchases={handleRefreshAvailablePurchases}
-      storefront={storefront}
-      storefrontError={storefrontError}
-      storefrontLoading={storefrontLoading}
-      onRefreshStorefront={loadStorefront}
+      storefront={connected ? storefront : ''}
+      storefrontError={connected ? storefrontError : null}
+      storefrontLoading={connected && storefrontLoading}
+      onRefreshStorefront={handleRefreshStorefront}
       verificationMethod={verificationMethod}
       onChangeVerificationMethod={handleChangeVerificationMethod}
     />

@@ -231,51 +231,41 @@ describe('SubscriptionFlow Screen', () => {
     );
   });
 
-  it('keeps Local (Device) subscription verification direct', async () => {
-    const selectorSpy = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-      .mockImplementation((_options, callback) => callback(0));
-    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
-      mockIapState();
-    const {getByText} = await render(<SubscriptionFlow />);
-
-    await fireEvent.press(getByText('Local (IAPKit)'));
-    await waitFor(() => {
-      expect(getByText('Local (Device)')).toBeTruthy();
-    });
-
-    await act(async () => {
-      await onPurchaseSuccess?.({
-        id: 'transaction-device-sub-1',
+  it.each([true, false])(
+    'Local (Device) matches the exact subscription transaction (%s)',
+    async (matches) => {
+      const selectorSpy = jest
+        .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+        .mockImplementation((_options, callback) => callback(0));
+      const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+        mockIapState();
+      const {getByText} = await render(<SubscriptionFlow />);
+      await fireEvent.press(getByText('Local (IAPKit)'));
+      await waitFor(() => expect(getByText('Local (Device)')).toBeTruthy());
+      const receipt = {
+        id: 'old-subscription',
+        transactionId: 'old-subscription',
         productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'device-sub-jws',
-        transactionDate: Date.now(),
-        store: 'apple',
+        purchaseToken: 'jws',
+        transactionDate: 1,
+        store: 'apple' as const,
         storeId: 'apple',
-        purchaseState: 'purchased',
+        purchaseState: 'purchased' as const,
         isAutoRenewing: true,
         quantity: 1,
-        transactionId: 'transaction-device-sub-1',
+      };
+      (RNIap.getPendingTransactionsIOS as jest.Mock).mockResolvedValue([
+        {...receipt, id: matches ? receipt.id : 'newer-subscription'},
+      ]);
+      await act(async () => {
+        await onPurchaseSuccess?.(receipt);
       });
-    });
-
-    expect(verifyPurchase).toHaveBeenCalledWith({
-      apple: {sku: 'dev.hyo.martie.premium'},
-      google: {
-        sku: 'dev.hyo.martie.premium',
-        accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-        packageName: 'dev.hyo.martie',
-        purchaseToken: 'device-sub-jws',
-        isSub: true,
-      },
-    });
-    expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
-    expect(verifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
-    );
-
-    selectorSpy.mockRestore();
-  });
+      expect(verifyPurchase).not.toHaveBeenCalled();
+      expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
+      expect(finishTransaction).toHaveBeenCalledTimes(matches ? 1 : 0);
+      selectorSpy.mockRestore();
+    },
+  );
 
   it('re-verifies the Android IAPKit snapshot after finishing', async () => {
     Platform.OS = 'android';

@@ -9,7 +9,9 @@ import '../widgets/product_detail_modal.dart';
 import '../constants.dart';
 
 class SubscriptionFlowScreen extends StatefulWidget {
-  const SubscriptionFlowScreen({super.key});
+  const SubscriptionFlowScreen({super.key, this.iap});
+
+  final FlutterInappPurchase? iap;
 
   @override
   State<SubscriptionFlowScreen> createState() => _SubscriptionFlowScreenState();
@@ -44,7 +46,8 @@ VerificationMethod defaultVerificationMethod(
 }
 
 class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
-  final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
+  late final FlutterInappPurchase _iap =
+      widget.iap ?? FlutterInappPurchase.instance;
 
   VerificationMethod _verificationMethod = defaultVerificationMethod(
     IapConstants.iapkitApiKey,
@@ -157,7 +160,8 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     debugPrint('🎯 Purchase updated: ${purchase.productId}');
     debugPrint('  Store: ${purchase.store}');
     debugPrint('  Purchase state: ${purchase.purchaseState}');
-    final transactionId = purchase.transactionIdFor;
+    final transactionId =
+        purchase.id.isNotEmpty ? purchase.id : purchase.transactionIdFor;
     final androidStateValue = purchase.androidPurchaseStateValue;
     final iosTransactionState = purchase.iosTransactionState;
     final acknowledgedAndroid = purchase.androidIsAcknowledged;
@@ -200,7 +204,8 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
       // Update UI immediately
       if (mounted) {
         setState(() {
-          _purchaseResult = '✅ Purchase successful: ${purchase.productId}';
+          _purchaseResult =
+              'Receipt received: ${purchase.productId}. Verification required.';
           _isProcessing = false;
         });
         debugPrint('  _isProcessing after setState: $_isProcessing');
@@ -214,10 +219,9 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         verificationOk = await _verifyPurchaseWithIAPKit(purchase);
       } else if (purchase.store == IapStore.Apple) {
         try {
-          final result = await _iap.verifyPurchase(
-            apple: VerifyPurchaseAppleOptions(sku: purchase.productId),
-          );
-          verificationOk = result is VerifyPurchaseResultIOS && result.isValid;
+          final pending = await _iap.getPendingTransactionsIOS();
+          verificationOk =
+              IapConstants.matchesVerifiedPendingPurchase(purchase, pending);
         } catch (e) {
           debugPrint('Local subscription verification failed: $e');
         }
@@ -239,11 +243,11 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         return;
       }
 
-      // Acknowledge/finish the transaction
       var finishedOk = false;
       try {
-        debugPrint('Calling finishTransaction...');
-        await _iap.finishTransaction(purchase: purchase);
+        if (acknowledgedAndroid != true) {
+          await _iap.finishTransaction(purchase: purchase);
+        }
         debugPrint('Transaction finished successfully');
         finishedOk = true;
       } catch (e) {
@@ -610,7 +614,9 @@ Store: ${iapkitResult.store.value}
       // - Use Approach 2 for Meta Horizon Store (or when supporting both)
       final allPurchases = await _iap.getAvailablePurchases();
       final subscriptionPurchases = allPurchases
-          .where((p) => IapConstants.subscriptionProductId(p) != null)
+          .where((p) =>
+              p.purchaseState == PurchaseState.Purchased &&
+              IapConstants.subscriptionProductId(p) != null)
           .toList();
 
       // Convert to ActiveSubscription format

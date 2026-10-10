@@ -21,6 +21,7 @@ import * as Clipboard from 'expo-clipboard';
 import {useActionSheet} from '@expo/react-native-action-sheet';
 import {
   requestPurchase,
+  getPendingTransactionsIOS,
   useIAP,
   showManageSubscriptionsIOS,
   deepLinkToSubscriptions,
@@ -43,7 +44,7 @@ import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
   createIapkitVerificationPayload,
   getDefaultVerificationMethod,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
   getSubscriptionProductId,
@@ -1644,19 +1645,20 @@ function SubscriptionFlowContainer() {
       try {
         if (currentVerificationMethod === 'local') {
           console.log('[SubscriptionFlow] Verifying with Local (Device)...');
-          const result = await verifyPurchase({
-            apple: {sku: productId},
-            google: {
-              sku: productId,
-              packageName: 'dev.hyo.martie',
-              purchaseToken: purchase.purchaseToken ?? '',
-              accessToken: '', // Requires a server-issued OAuth token.
-              isSub: true,
-            },
-          });
-          const verificationError = getDirectVerificationError(result);
-          if (verificationError) {
-            throw new Error(verificationError);
+          if (
+            Platform.OS !== 'ios' ||
+            purchase.store !== 'apple' ||
+            purchase.storeId !== 'apple'
+          ) {
+            throw new Error(
+              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
+            );
+          }
+          const pending = await getPendingTransactionsIOS();
+          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
+            throw new Error(
+              'Local verification did not match this pending transaction',
+            );
           }
           console.log(
             '[SubscriptionFlow] Local (Device) verification completed',
@@ -1703,6 +1705,7 @@ function SubscriptionFlowContainer() {
             false,
             purchase.store,
             purchase.storeId,
+            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -1753,14 +1756,21 @@ function SubscriptionFlowContainer() {
 
     // ------------------------------------------------------------
     // Step 6: finish transaction
-    // IMPORTANT: Must call finishTransaction to complete the purchase
+    // Finish verified purchases unless an Android non-consumable is acknowledged.
     // Subscriptions are NOT consumable (isConsumable: false)
     // ------------------------------------------------------------
     try {
-      await finishTransaction({
-        purchase,
-        isConsumable: false,
-      });
+      if (
+        !(
+          'isAcknowledgedAndroid' in purchase &&
+          purchase.isAcknowledgedAndroid === true
+        )
+      ) {
+        await finishTransaction({
+          purchase,
+          isConsumable: false,
+        });
+      }
       rememberCompletedPurchaseKey(
         completedSubscriptionKeys,
         purchaseCleanupKey,
@@ -1872,7 +1882,6 @@ function SubscriptionFlowContainer() {
     getAvailablePurchases,
     getActiveSubscriptions,
     activeSubscriptions: storeActiveSubscriptions,
-    verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
     onPurchaseSuccess: enqueuePurchase,
@@ -2258,7 +2267,7 @@ function SubscriptionFlowContainer() {
         title: 'Select Purchase Verification Method',
         message:
           'Choose how to verify purchases after successful transactions.\n\n' +
-          '• Local (Device): Verify directly with Apple or Google\n' +
+          '• Local (Device): Match a verified unfinished Apple transaction\n' +
           '• Local (IAPKit): Verify through your configured local server\n' +
           '• IAPKit: Verify through kit.openiap.dev\n' +
           '• None (Skip): Skip verification (for testing)',

@@ -1,3 +1,4 @@
+import Foundation
 import OpenIAP
 
 // Maintain previous sample code naming expectations while using generated models
@@ -25,7 +26,13 @@ extension PurchaseState {
 @available(iOS 15.0, *)
 extension PurchaseIOS {
     func matchesVerifiedPendingTransaction(in purchases: [PurchaseIOS]) -> Bool {
-        purchases.contains { $0.id == id && $0.productId == productId && $0.storeId == storeId }
+        guard store == .apple, storeId == "apple", !id.isEmpty else { return false }
+        return purchases.contains {
+            $0.store == .apple && $0.storeId == "apple" && $0.id == id && $0.productId == productId &&
+            (environmentIOS == nil || $0.environmentIOS == environmentIOS) &&
+            $0.revocationDateIOS == nil && $0.isUpgradedIOS != true &&
+            ($0.expirationDateIOS ?? .infinity) > Date().timeIntervalSince1970 * 1000
+        }
     }
 
     func acceptsIapkitVerification(_ result: RequestVerifyPurchaseWithIapkitResult?, isConsumable: Bool) -> Bool {
