@@ -1,7 +1,5 @@
-// Identifier → Type doc page slug. Used by `linkifyType` so capitalized
-// identifiers (Swift/Kotlin/Dart/GDScript class-name tokens, TypeScript
-// type references) render as clickable anchors that jump to the matching
-// `/docs/types/...` page. Add new entries here when a new type page ships.
+// Identifier → Type doc page slug, read by the TYPE rule in `codeHighlight.ts`.
+// Add an entry when a type page ships.
 export const TYPE_LINKS: Record<string, string> = {
   // Cross-platform
   ActiveSubscription: '/docs/types/active-subscription',

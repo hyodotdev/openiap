@@ -4,10 +4,16 @@ import {
   HIGHLIGHT_LANGUAGES,
   escapeHtml,
   highlightCode,
-  highlightXml,
 } from '../src/lib/codeHighlight.ts';
 
 const t = (type, text) => `<span class="token ${type}">${text}</span>`;
+const highlightXml = (source) => highlightCode(source, 'xml');
+
+// ⟦type:text⟧ stands for a token span, so a table row reads like the output.
+const marked = (notation) =>
+  escapeHtml(notation).replace(/⟦([a-z-]+):([^⟧]*)⟧/g, (_, type, text) =>
+    t(type, text)
+  );
 
 // Highlighting only wraps text, so removing the markup must give the source back.
 const plain = (html) =>
@@ -95,10 +101,31 @@ test('marks comments and leaves broken markup as text', () => {
   assert.equal(highlightXml('<a b="c>text'), '&lt;a b="c&gt;text');
 });
 
+test('ends an XML comment only at -->', () => {
+  assert.equal(
+    highlightXml('<!-- a -> b -->'),
+    t('comment', '&lt;!-- a -&gt; b --&gt;')
+  );
+});
+
+test('ends an unclosed XML comment at its line', () => {
+  assert.equal(
+    highlightXml('<!-- a <b>x</b>\n<c/>'),
+    `${t('comment', '&lt;!-- a &lt;b&gt;x&lt;/b&gt;')}\n${t('punctuation', '&lt;')}${t('tag', 'c')}${t('punctuation', '/&gt;')}`
+  );
+});
+
 test('stops a broken tag at the next one', () => {
   assert.equal(
     highlightXml('<a\n<b c="d">'),
     '&lt;a\n<span class="token punctuation">&lt;</span><span class="token tag">b</span> <span class="token attr-name">c</span>=<span class="token attr-value">"d"</span><span class="token punctuation">&gt;</span>'
+  );
+});
+
+test('ends a tag at its first unquoted >', () => {
+  assert.equal(
+    highlightXml('<a>1 > 0</a>'),
+    `${t('punctuation', '&lt;')}${t('tag', 'a')}${t('punctuation', '&gt;')}1 &gt; 0${t('punctuation', '&lt;/')}${t('tag', 'a')}${t('punctuation', '&gt;')}`
   );
 });
 
@@ -247,11 +274,117 @@ test('colors block comments, also over several lines', () => {
   );
 });
 
+test('nests block comments in Kotlin, Swift and Dart only', () => {
+  const source = 'a /* b /* c */ d */ e';
+  for (const language of ['kotlin', 'swift', 'dart']) {
+    assert.equal(
+      highlightCode(source, language),
+      `a ${t('comment', '/* b /* c */ d */')} e`,
+      language
+    );
+  }
+  for (const language of ['typescript', 'csharp', 'groovy']) {
+    assert.equal(
+      highlightCode(source, language),
+      `a ${t('comment', '/* b /* c */')} d */ e`,
+      language
+    );
+  }
+});
+
+test('does not close a comment with the star of its own opener', () => {
+  for (const language of ['typescript', 'csharp', 'groovy', 'kotlin']) {
+    assert.equal(
+      highlightCode('/*/ x */ y', language),
+      `${t('comment', '/*/ x */')} y`,
+      language
+    );
+  }
+});
+
+test('closes an empty comment and each of two on one line', () => {
+  for (const language of ['typescript', 'kotlin']) {
+    assert.equal(
+      highlightCode('a /**/ b /* c */ d', language),
+      `a ${t('comment', '/**/')} b ${t('comment', '/* c */')} d`,
+      language
+    );
+    assert.equal(
+      highlightCode('a /**/ b', language),
+      `a ${t('comment', '/**/')} b`,
+      language
+    );
+  }
+});
+
+test('ends an unclosed nested comment at its line and keeps the closed ones', () => {
+  assert.equal(
+    highlightCode('/* a /* b */\nfoo()', 'kotlin'),
+    `${t('comment', '/* a /* b */')}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('/* x\n/* y */\nfoo()', 'swift'),
+    `${t('comment', '/* x')}\n${t('comment', '/* y */')}\n${t('function', 'foo')}()`
+  );
+});
+
+test('reads nested comments like the plain reading, also around */* and /*/', () => {
+  // A plain reading of Kotlin comments, to hold the fast one against.
+  function readComments(source) {
+    const lineEnd = (from) => {
+      const newline = source.indexOf('\n', from);
+      return newline < 0 ? source.length : newline;
+    };
+    const delimiter = (at) =>
+      source.startsWith('/*', at) ? 1 : source.startsWith('*/', at) ? -1 : 0;
+    let html = '';
+    for (let i = 0; i < source.length; ) {
+      let end = i + 1;
+      if (source.startsWith('//', i)) end = lineEnd(i);
+      else if (source.startsWith('/*', i)) {
+        let depth = 1;
+        end = i + 2;
+        while (end < source.length && depth > 0) {
+          const step = delimiter(end);
+          depth += step;
+          end += step ? 2 : 1;
+        }
+        if (depth > 0) end = lineEnd(i + 2);
+      } else {
+        html += source[i++];
+        continue;
+      }
+      html += t('comment', source.slice(i, end));
+      i = end;
+    }
+    return html;
+  }
+  const next = random(7);
+  const pieces = ['/*', '*/', '/*', '*/', '/', '*', '//', 'x', ' ', '\n', '\n'];
+  for (let i = 0; i < 3000; i++) {
+    let source = '';
+    for (let n = 1 + Math.floor(next() * 14); n > 0; n--) {
+      source += pieces[Math.floor(next() * pieces.length)];
+    }
+    for (const language of ['kotlin', 'swift', 'dart']) {
+      assert.equal(
+        highlightCode(source, language),
+        readComments(source),
+        `${language} ${JSON.stringify(source)}`
+      );
+    }
+  }
+});
+
 test('starts a GDScript comment at any #', () => {
   assert.equal(highlightCode('a#b', 'gdscript'), `a${t('comment', '#b')}`);
 });
 
 test('starts a bash or YAML comment only at a word', () => {
+  assert.equal(
+    highlightCode('echo a\t# c', 'bash'),
+    `echo a\t${t('comment', '# c')}`
+  );
   assert.equal(
     highlightCode('echo ${#arr[@]} a#b # note\nnpm run x # n', 'bash'),
     `echo ${t('variable', '${#arr[@]}')} a#b ${t('comment', '# note')}\n${t('function', 'npm')} run x ${t('comment', '# n')}`
@@ -277,6 +410,40 @@ test('keeps a multi-line string whole', () => {
   );
 });
 
+test('lets a backslash end a line inside a template or GDScript string', () => {
+  assert.equal(
+    highlightCode('x = `a\\\nb`; foo();', 'typescript'),
+    `x = ${t('string', '`a\\\nb`')}; ${t('function', 'foo')}();`
+  );
+  assert.equal(
+    highlightCode('x = "a\\\nb"; y = 1', 'gdscript'),
+    `x = ${t('string', '"a\\\nb"')}; y = ${t('number', '1')}`
+  );
+});
+
+test('lets a GDScript string hold a line break', () => {
+  assert.equal(
+    highlightCode('var s = "a\nb"\nvar t = \'c\nd\'\nfoo()', 'gdscript'),
+    `${t('keyword', 'var')} s = ${t('string', '"a\nb"')}\n${t('keyword', 'var')} t = ${t('string', "'c\nd'")}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('x = "a\\"\nb"; y = 1', 'gdscript'),
+    `x = ${t('string', '"a\\"\nb"')}; y = ${t('number', '1')}`
+  );
+  assert.equal(
+    highlightCode('x = "a\nfoo()', 'gdscript'),
+    `x = ${t('string', '"a')}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode("x = 'a\nfoo()", 'gdscript'),
+    `x = ${t('string', "'a")}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('x = \\"a\nfoo()', 'gdscript'),
+    `x = \\"a\n${t('function', 'foo')}()`
+  );
+});
+
 test('colors annotations and leaves a C# @identifier alone', () => {
   assert.equal(
     highlightCode('@Composable\nfun Screen(vm: ViewModel) {}', 'kotlin'),
@@ -289,6 +456,25 @@ test('colors annotations and leaves a C# @identifier alone', () => {
   assert.equal(
     highlightCode('var a = @params;', 'csharp'),
     `${t('keyword', 'var')} a = @params;`
+  );
+});
+
+test('does not take a label for an annotation', () => {
+  assert.equal(
+    highlightCode('return@collect', 'kotlin'),
+    `${t('keyword', 'return')}@collect`
+  );
+  assert.equal(
+    highlightCode('f(this@MainActivity)', 'kotlin'),
+    `${t('function', 'f')}(${t('keyword', 'this')}@${t('class-name', 'MainActivity')})`
+  );
+  assert.equal(
+    highlightCode('loop@for (i in l) {}', 'kotlin'),
+    `loop@${t('keyword', 'for')} (i ${t('keyword', 'in')} l) {}`
+  );
+  assert.equal(
+    highlightCode('@A fun f(@B x: X)', 'kotlin'),
+    `${t('decorator', '@A')} ${t('keyword', 'fun')} ${t('function', 'f')}(${t('decorator', '@B')} x: ${t('class-name', 'X')})`
   );
 });
 
@@ -419,6 +605,29 @@ test('ends a string at a line break, and honors escapes in all quote kinds', () 
   );
 });
 
+test('lets a backslash escape the next character in TypeScript code', () => {
+  assert.equal(
+    highlightCode('const r = /\\//; // end', 'typescript'),
+    `${t('keyword', 'const')} r = /\\//; ${t('comment', '// end')}`
+  );
+  assert.equal(
+    highlightCode('const r = /\\"/; y = 1', 'typescript'),
+    `${t('keyword', 'const')} r = /\\"/; y = ${t('number', '1')}`
+  );
+});
+
+test('opens a template at a backtick that follows a backslash', () => {
+  // A regex literal with a backtick throws the lexer out of step; an escaped
+  // backtick later on has to get it back in step.
+  assert.equal(
+    highlightCode(
+      'const r = /`/;\nconst s = `a \\`b\\` c`;\nif (x) foo(`y`);',
+      'typescript'
+    ),
+    `${t('keyword', 'const')} r = /${t('string', '`/;\nconst s = `')}a \\${t('string', '`b\\` c`')};\n${t('keyword', 'if')} (x) ${t('function', 'foo')}(${t('string', '`y`')});`
+  );
+});
+
 test('ends an unclosed block comment, template or triple quote at the line', () => {
   assert.equal(
     highlightCode('a /* b\nfoo()', 'typescript'),
@@ -465,6 +674,20 @@ test('colors whole numeric literals', () => {
     `x = ${t('number', '0b1010_1010')} + ${t('number', '0B1')} + ${t('number', '0XFF')} + ${t('number', '0o17')} + ${t('number', '0O7')} + ${t('number', '10UL')} + ${t('number', '1.5M')} + ${t('number', '1m')} + ${t('number', '1u')} + ${t('number', '1d')}`
   );
   assert.equal(highlightCode('v2 + 4K', 'kotlin'), 'v2 + 4K');
+  assert.equal(
+    highlightCode(
+      'x = 0xff + 0b102 + 0o78 + 1_0_0 + 1E5 + 1e+5 + 1e10 + 1.5F + 2D + 3l',
+      'kotlin'
+    ),
+    `x = ${t('number', '0xff')} + 0b102 + 0o78 + ${t('number', '1_0_0')} + ${t('number', '1E5')} + ${t('number', '1e+5')} + ${t('number', '1e10')} + ${t('number', '1.5F')} + ${t('number', '2D')} + ${t('number', '3l')}`
+  );
+});
+
+test('leaves a trailing underscore out of a number', () => {
+  assert.equal(
+    highlightCode('x = 1_ + 0x_ + 1__000 + 0xDE_AD + 0x_FF + 0b_01', 'kotlin'),
+    `x = 1_ + 0x_ + ${t('number', '1__000')} + ${t('number', '0xDE_AD')} + ${t('number', '0x_FF')} + ${t('number', '0b_01')}`
+  );
 });
 
 test('leaves a unit suffix out of a number in JSON, YAML and TOML', () => {
@@ -488,6 +711,10 @@ test('takes $ as part of a call name and keeps a dot out of a number', () => {
     `${t('function', 'a$b')}(${t('number', '1')})`
   );
   assert.equal(
+    highlightCode('$el(1) + x.$el(2)', 'typescript'),
+    `${t('function', '$el')}(${t('number', '1')}) + x.${t('function', '$el')}(${t('number', '2')})`
+  );
+  assert.equal(
     highlightCode('val p = 16.dp + 1.5', 'kotlin'),
     `${t('keyword', 'val')} p = ${t('number', '16')}.dp + ${t('number', '1.5')}`
   );
@@ -505,6 +732,24 @@ test('colors bash strings, redirects and variables', () => {
   assert.equal(
     highlightCode('EXPO_TV="a b" npx expo start', 'bash'),
     `EXPO_TV=${t('string', '"a b"')} npx expo start`
+  );
+});
+
+test('colors an unclosed bash ${ to the end of the line', () => {
+  assert.equal(
+    highlightCode('echo ${abc\nnext', 'bash'),
+    `echo ${t('variable', '${abc')}\nnext`
+  );
+});
+
+test('lets a bash backslash escape the next character', () => {
+  assert.equal(
+    highlightCode('echo \\$HOME \\"a\\" \\\'b\\\' \\# c', 'bash'),
+    'echo \\$HOME \\"a\\" \\\'b\\\' \\# c'
+  );
+  assert.equal(
+    highlightCode('npm run \\\n  --flag # n', 'bash'),
+    `${t('function', 'npm')} run \\\n  ${t('attr-name', '--flag')} ${t('comment', '# n')}`
   );
 });
 
@@ -530,6 +775,13 @@ test('colors GraphQL keywords only at column 0', () => {
       'graphql'
     ),
     `${t('keyword', 'union')} ${t('type-name', 'X')} = A | B\n${t('keyword', 'fragment')} ${t('type-name', 'F')} on T {\n${t('keyword', 'mutation')} ${t('type-name', 'M')} {\n${t('keyword', 'directive')} @d on FIELD\n${t('keyword', 'scalar')} ${t('type-name', 'Date')}\n${t('keyword', 'schema')} {\n${t('keyword', 'query')}($id${t('punctuation', ':')} ${t('builtin-type', 'ID')}${t('required', '!')}) {`
+  );
+});
+
+test('does not open a GraphQL block string at an escaped triple quote', () => {
+  assert.equal(
+    highlightCode('\\"""abc\nf: Int', 'graphql'),
+    `\\"""abc\n${t('field', 'f')}${t('punctuation', ':')} ${t('builtin-type', 'Int')}`
   );
 });
 
@@ -574,11 +826,945 @@ test('keeps a TOML header indented and stops EXPO_TV at either quote', () => {
   );
 });
 
+test('starts a TOML comment at any # but a YAML one only after a space', () => {
+  assert.equal(
+    highlightCode('a=1#c\nb = "x#y" # z\n[s]#t', 'toml'),
+    `${t('attr-name', 'a')}=${t('number', '1')}${t('comment', '#c')}\n${t('attr-name', 'b')} = ${t('string', '"x#y"')} ${t('comment', '# z')}\n${t('keyword', '[s]')}${t('comment', '#t')}`
+  );
+  assert.equal(highlightCode('a: b#c', 'yaml'), `${t('attr-name', 'a')}: b#c`);
+});
+
+test('takes an apostrophe between letters in a YAML value as text unless a quote closes it', () => {
+  assert.equal(
+    highlightCode(
+      "run: sed -e's/a/b/' f # c\nrun2: cut -d'x' -f2\nrun3: cut -d' ' -f1 # c\nkey: don't 'q' # c\nk2: 'v'\n- ['a']\nrun4: cut -d'\"' -f2\nok: true\nit: it's Bob's # c",
+      'yaml'
+    ),
+    `${t('attr-name', 'run')}: sed -e${t('string', "'s/a/b/'")} f ${t('comment', '# c')}\n${t('attr-name', 'run2')}: cut -d${t('string', "'x'")} -f2\n${t('attr-name', 'run3')}: cut -d${t('string', "' '")} -f1 ${t('comment', '# c')}\n${t('attr-name', 'key')}: don't ${t('string', "'q'")} ${t('comment', '# c')}\n${t('attr-name', 'k2')}: ${t('string', "'v'")}\n- [${t('string', "'a'")}]\n${t('attr-name', 'run4')}: cut -d${t('string', "'\"'")} -f2\n${t('attr-name', 'ok')}: ${t('keyword', 'true')}\n${t('attr-name', 'it')}: it's Bob's ${t('comment', '# c')}`
+  );
+});
+
+test('closes a TOML literal string and a multi-line one with quotes before the end', () => {
+  assert.equal(
+    highlightCode("k = 'v#w' # c", 'toml'),
+    `${t('attr-name', 'k')} = ${t('string', "'v#w'")} ${t('comment', '# c')}`
+  );
+  assert.equal(
+    highlightCode("s = ''''That,' she said.'''' # c", 'toml'),
+    `${t('attr-name', 's')} = ${t('string', "''''That,' she said.''''")} ${t('comment', '# c')}`
+  );
+});
+
+test('lets a backslash escape a quote in a TOML multi-line string and keep a literal one raw', () => {
+  const line =
+    'str = """Here are fifteen quotes: ""\\"""\\"""\\"""\\"""\\"."""';
+  assert.equal(
+    highlightCode(`${line} # c`, 'toml'),
+    `${t('attr-name', 'str')} = ${t('string', line.slice(6))} ${t('comment', '# c')}`
+  );
+  // A '…' string takes no escapes, in TOML and in YAML.
+  for (const [language, separator] of [
+    ['toml', ' ='],
+    ['yaml', ':'],
+  ]) {
+    assert.equal(
+      highlightCode(`k${separator} 'C:\\' # c`, language),
+      `${t('attr-name', 'k')}${separator} ${t('string', "'C:\\'")} ${t('comment', '# c')}`,
+      language
+    );
+  }
+});
+
+test('keeps a TOML multi-line string whole', () => {
+  assert.equal(
+    highlightCode('s = """a\nb # not"""\nt = 1', 'toml'),
+    `${t('attr-name', 's')} = ${t('string', '"""a\nb # not"""')}\n${t('attr-name', 't')} = ${t('number', '1')}`
+  );
+});
+
+test('leaves a YAML flow sequence at the start of a line alone', () => {
+  assert.equal(highlightCode('[a, b]', 'yaml'), '[a, b]');
+});
+
 test('ends an unclosed Dart triple quote at the line', () => {
   assert.equal(
     highlightCode("x = '''a\nfoo()", 'dart'),
     `x = ${t('string', "'''a")}\n${t('function', 'foo')}()`
   );
+});
+
+test('keeps a string whole when its holes hold quotes', () => {
+  assert.equal(
+    highlightCode(
+      'text = "${a.currency} ${String.format("%.2f", b)}",',
+      'kotlin'
+    ),
+    `text = ${t('string', '"${a.currency} ${String.format("%.2f", b)}"')},`
+  );
+  assert.equal(
+    highlightCode('"${xs.joinToString { "[${it}]" }}" + 1', 'kotlin'),
+    `${t('string', '"${xs.joinToString { "[${it}]" }}"')} + ${t('number', '1')}`
+  );
+  assert.equal(
+    highlightCode('"${if (c == \'}\') 1 else 2}" + 1', 'kotlin'),
+    `${t('string', '"${if (c == \'}\') 1 else 2}"')} + ${t('number', '1')}`
+  );
+  assert.equal(
+    highlightCode('print("failed: \\(e ?? "")")', 'swift'),
+    `${t('function', 'print')}(${t('string', '"failed: \\(e ?? "")"')})`
+  );
+  assert.equal(
+    highlightCode('f($"P: {string.Join(", ", p)}");', 'csharp'),
+    `${t('function', 'f')}($${t('string', '"P: {string.Join(", ", p)}"')});`
+  );
+  assert.equal(
+    highlightCode(`print('a \${b ?? ""}' + "c \${d('e')}");`, 'dart'),
+    `${t('function', 'print')}(${t('string', `'a \${b ?? ""}'`)} + ${t('string', `"c \${d('e')}"`)});`
+  );
+  assert.equal(
+    highlightCode("print('p ${q('r')} s');", 'dart'),
+    `${t('function', 'print')}(${t('string', "'p ${q('r')} s'")});`
+  );
+  assert.equal(
+    highlightCode("print('a ${b('c ${d('e')}')}');", 'dart'),
+    `${t('function', 'print')}(${t('string', "'a ${b('c ${d('e')}')}'")});`
+  );
+  assert.equal(
+    highlightCode('x = "${a ? "p" : "q"}" + 1', 'groovy'),
+    `x = ${t('string', '"${a ? "p" : "q"}"')} + ${t('number', '1')}`
+  );
+  assert.equal(
+    highlightCode('cd "$(dirname "$0")" && echo "${a:-"b"}"', 'bash'),
+    `${t('function', 'cd')} ${t('string', '"$(dirname "$0")"')} ${t('keyword', '&amp;&amp;')} echo ${t('string', '"${a:-"b"}"')}`
+  );
+});
+
+test('keeps a template literal whole when its holes hold templates or backticks', () => {
+  assert.equal(
+    highlightCode('x = `a ${b ? `c ${d}` : "e"} f` + 1;', 'typescript'),
+    `x = ${t('string', '`a ${b ? `c ${d}` : "e"} f`')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('x = `a ${b ? `c ${`d`}` : 1} e` + 1;', 'typescript'),
+    `x = ${t('string', '`a ${b ? `c ${`d`}` : 1} e`')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode("x = `a ${b ? `c ${'`'} d` : 1} e` + 1;", 'typescript'),
+    `x = ${t('string', "`a ${b ? `c ${'`'} d` : 1} e`")} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('x = `a ${b ? `}` : 1} e` + 1;', 'typescript'),
+    `x = ${t('string', '`a ${b ? `}` : 1} e`')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode("x = `${'`'}` + 1;", 'typescript'),
+    `x = ${t('string', "`${'`'}`")} + ${t('number', '1')};`
+  );
+  // A template that runs past its line is read flat.
+  assert.equal(
+    highlightCode('x = `a ${b\nc}`;\nfoo();', 'typescript'),
+    `x = ${t('string', '`a ${b\nc}`')};\n${t('function', 'foo')}();`
+  );
+  assert.equal(
+    highlightCode('x = `a ${b\nfoo();', 'typescript'),
+    `x = ${t('string', '`a ${b')}\n${t('function', 'foo')}();`
+  );
+});
+
+test('closes a raw string at the last of a run of quotes', () => {
+  assert.equal(
+    highlightCode('f("""a"b""""); g("""c""")', 'kotlin'),
+    `${t('function', 'f')}(${t('string', '"""a"b""""')}); ${t('function', 'g')}(${t('string', '"""c"""')})`
+  );
+});
+
+test('lets a C# hole hold a char literal with a quote', () => {
+  assert.equal(
+    highlightCode('x = $"{(c == \'"\' ? "a" : "b")}" + 1;', 'csharp'),
+    `x = $${t('string', '"{(c == \'"\' ? "a" : "b")}"')} + ${t('number', '1')};`
+  );
+});
+
+test('highlights the same text the same way on every call', () => {
+  // The first string scans fine; the scan of the second one fails.
+  const source = 'x = "${f("a")}" + "${"';
+  const expected = `x = ${t('string', '"${f("a")}"')} + ${t('string', '"${"')}`;
+  assert.equal(highlightCode(source, 'kotlin'), expected);
+  assert.equal(highlightCode(source, 'kotlin'), expected);
+  assert.equal(highlightCode('"${"', 'groovy'), t('string', '"${"'));
+  assert.equal(highlightCode(source, 'kotlin'), expected);
+});
+
+test('reads a nested string or hole by its own brackets', () => {
+  // The paren of a Swift hole and the brace of a template hole nest.
+  assert.equal(
+    highlightCode('print("\\(f(x) ?? "a")")', 'swift'),
+    `${t('function', 'print')}(${t('string', '"\\(f(x) ?? "a")"')})`
+  );
+  assert.equal(
+    highlightCode("x = `${f({}) ? `a` : 'b'}`", 'typescript'),
+    `x = ${t('string', "`${f({}) ? `a` : 'b'}`")}`
+  );
+});
+
+test('reads a string flat when a hole holds a quote that starts no string and the outer quote follows', () => {
+  // The stray ' pairs with a later one, so the scan fails and each string is
+  // read flat.
+  assert.equal(
+    highlightCode(
+      'a = `${s.replace(/\'/g, "")}`, b = `${t.replace(/\'/g, "")}`;',
+      'typescript'
+    ),
+    `a = ${t('string', '`${s.replace(/\'/g, "")}`')}, b = ${t('string', '`${t.replace(/\'/g, "")}`')};`
+  );
+  assert.equal(
+    highlightCode('val a = "${x /* it\'s */}" + \'}\' + "y"', 'kotlin'),
+    `${t('keyword', 'val')} a = ${t('string', '"${x /* it\'s */}"')} + ${t('string', "'}'")} + ${t('string', '"y"')}`
+  );
+});
+
+test('reads the rest of a line flat after a failed hole scan', () => {
+  assert.equal(
+    highlightCode('a = "${b /* it\'s */}" + "${f("x")}"', 'kotlin'),
+    `a = ${t('string', '"${b /* it\'s */}"')} + ${t('string', '"${f("')}x${t('string', '")}"')}`
+  );
+});
+
+test('keeps two plain C# strings with lone braces apart', () => {
+  assert.equal(
+    highlightCode('var a = "{", b = "}"; c = @"{", d = @"}";', 'csharp'),
+    `${t('keyword', 'var')} a = ${t('string', '"{"')}, b = ${t('string', '"}"')}; c = ${t('string', '@"{"')}, d = ${t('string', '@"}"')};`
+  );
+  // {{ is text, so the first quote after it ends the string.
+  assert.equal(
+    highlightCode('f($"{{ "x" }}")', 'csharp'),
+    `${t('function', 'f')}($${t('string', '"{{ "')}x${t('string', '" }}"')})`
+  );
+});
+
+test('reads a brace in a plain C# string as text and {{ as a brace', () => {
+  assert.equal(
+    highlightCode('var s = "{"; var t = 1;', 'csharp'),
+    `${t('keyword', 'var')} s = ${t('string', '"{"')}; ${t('keyword', 'var')} t = ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('var s = $"{{a}} {f("{")}"; var t = 1;', 'csharp'),
+    `${t('keyword', 'var')} s = $${t('string', '"{{a}} {f("{")}"')}; ${t('keyword', 'var')} t = ${t('number', '1')};`
+  );
+});
+
+test('scans the holes of the lines after a failed scan', () => {
+  assert.equal(
+    highlightCode('a = "${b /* it\'s */}"\nc = "${m["k"]}" + 1', 'kotlin'),
+    `a = ${t('string', '"${b /* it\'s */}"')}\nc = ${t('string', '"${m["k"]}"')} + ${t('number', '1')}`
+  );
+  // A backslash before a line break escapes nothing.
+  assert.equal(
+    highlightCode('x = "${a\\\n}" + 1', 'kotlin'),
+    `x = ${t('string', '"${a\\')}\n}${t('string', '" + 1')}`
+  );
+});
+
+test('gives each string inside a hole the holes its language gives it', () => {
+  // C#: {{ is text, so the string ends at its quote.
+  assert.equal(
+    highlightCode('f($"{{"); g();', 'csharp'),
+    `${t('function', 'f')}($${t('string', '"{{"')}); ${t('function', 'g')}();`
+  );
+  // Kotlin: a string in a hole has holes, here around a '"' char.
+  assert.equal(
+    highlightCode('x = "${a("${\'"\'}")}" + 1', 'kotlin'),
+    `x = ${t('string', '"${a("${\'"\'}")}"')} + ${t('number', '1')}`
+  );
+  // Dart: the same for a single-quoted string around a "'" string.
+  assert.equal(
+    highlightCode(`x = '\${a('\${"'"}')}' + 1`, 'dart'),
+    `x = ${t('string', `'\${a('\${"'"}')}'`)} + ${t('number', '1')}`
+  );
+  // bash: a single-quoted string in a hole has none.
+  assert.equal(
+    highlightCode('echo "$(echo \'${\')" && ls', 'bash'),
+    `echo ${t('string', '"$(echo \'${\')"')} ${t('keyword', '&amp;&amp;')} ls`
+  );
+});
+
+test('reads a bash $( hole as shell code', () => {
+  const cases = [
+    // A backslash escapes a quote or a paren; a '…' string takes no escapes.
+    ['echo "$(echo \\")" && ls', '"$(echo \\")"'],
+    ['echo "$(echo \\()" && ls', '"$(echo \\()"'],
+    ['echo "$(echo \'a\\\')" && ls', '"$(echo \'a\\\')"'],
+    // A ')' inside a '…' string does not end the hole; parens nest.
+    ['echo "$(echo \')"\')" && ls', '"$(echo \')"\')"'],
+    ['echo "$(echo $((1 + 2)) "x")" && ls', '"$(echo $((1 + 2)) "x")"'],
+    // Braces nest in a ${ hole.
+    ['echo "${a:-${b}"x"}" && ls', '"${a:-${b}"x"}"'],
+    // Each of these ends at another quote when read flat.
+    ['echo "$(echo "$(echo ")")")" && ls', '"$(echo "$(echo ")")")"'],
+    ['echo "$(echo \\" "x")" && ls', '"$(echo \\" "x")"'],
+    ['echo "$(echo \'a\\\' "b")" && ls', '"$(echo \'a\\\' "b")"'],
+    ['echo "$(echo \'${\' "x")" && ls', '"$(echo \'${\' "x")"'],
+  ];
+  for (const [source, string] of cases) {
+    assert.equal(
+      highlightCode(source, 'bash'),
+      `echo ${t('string', string)} ${t('keyword', '&amp;&amp;')} ls`,
+      source
+    );
+  }
+});
+
+test('ends a string with an open hole at the line', () => {
+  assert.equal(
+    highlightCode('x = "${a\nfoo()', 'kotlin'),
+    `x = ${t('string', '"${a')}\n${t('function', 'foo')}()`
+  );
+  // The scan fails, so the string is read flat: up to the next quote.
+  assert.equal(
+    highlightCode('x = "${a "b\nfoo()', 'kotlin'),
+    `x = ${t('string', '"${a "')}b\n${t('function', 'foo')}()`
+  );
+});
+
+test('reads a string flat when its hole holds a quote that starts no string', () => {
+  assert.equal(
+    highlightCode("s = `${x.replace(/\"/g, '')}`; foo(1);", 'typescript'),
+    `s = ${t('string', "`${x.replace(/\"/g, '')}`")}; ${t('function', 'foo')}(${t('number', '1')});`
+  );
+  assert.equal(
+    highlightCode('x = "${/* it\'s */ y}" + 1', 'kotlin'),
+    `x = ${t('string', '"${/* it\'s */ y}"')} + ${t('number', '1')}`
+  );
+});
+
+test('lets a backslash keep a $ from opening a hole', () => {
+  assert.equal(
+    highlightCode('"\\${x" + y', 'kotlin'),
+    `${t('string', '"\\${x"')} + y`
+  );
+});
+
+test('reads holes like the recursive reading, also when unbalanced', () => {
+  // A recursive reading of interpolated strings, to hold the scanner against.
+  function readStrings(source, { open, nest, close, quotes }) {
+    const string = (from, quote) => {
+      for (let i = from; i < source.length; i++) {
+        if (source[i] === '\n') return -1;
+        if (source.startsWith(open, i)) {
+          const end = hole(i + open.length);
+          if (end < 0) return -1;
+          i = end - 1;
+        } else if (source[i] === '\\' && source[i + 1] !== '\n') i++;
+        else if (source[i] === quote) return i + 1;
+      }
+      return -1;
+    };
+    const hole = (from) => {
+      let depth = 1;
+      for (let i = from; i < source.length; i++) {
+        if (source[i] === '\n') return -1;
+        if (source[i] === '\\' && source[i + 1] !== '\n') i++;
+        else if (quotes.includes(source[i])) {
+          const end = string(i + 1, source[i]);
+          if (end < 0) return -1;
+          i = end - 1;
+        } else if (source[i] === nest) depth++;
+        else if (source[i] === close && --depth === 0) return i + 1;
+      }
+      return -1;
+    };
+    const lineEnd = (from) => {
+      const newline = source.indexOf('\n', from);
+      return newline < 0 ? source.length : newline;
+    };
+    // The flat reading: up to the next quote.
+    const flat = (from, quote) => {
+      for (let i = from; i < source.length; i++) {
+        if (source[i] === '\n') return i;
+        if (source[i] === '\\' && source[i + 1] !== '\n') i++;
+        else if (source[i] === quote) return i + 1;
+      }
+      return source.length;
+    };
+    let html = '';
+    let failedLine = -1;
+    for (let i = 0; i < source.length; ) {
+      if (!quotes.includes(source[i])) {
+        html += source[i++];
+        continue;
+      }
+      let end = i + 1 > failedLine ? string(i + 1, source[i]) : -1;
+      if (end < 0) {
+        if (i + 1 > failedLine) failedLine = lineEnd(i + 1);
+        end = flat(i + 1, source[i]);
+      }
+      html += t('string', source.slice(i, end));
+      i = end;
+    }
+    return html;
+  }
+  const next = random(11);
+  const variants = [
+    [
+      'dart',
+      { open: '${', nest: '{', close: '}', quotes: `"'` },
+      ['"', "'", '${', '{', '}', '\\', 'x', ' ', '\n', '$'],
+    ],
+    [
+      'swift',
+      { open: '\\(', nest: '(', close: ')', quotes: '"' },
+      ['"', '\\(', '(', ')', '\\', '.', ' ', '\n'],
+    ],
+  ];
+  for (const [language, spec, pieces] of variants) {
+    for (let i = 0; i < 4000; i++) {
+      let source = '';
+      for (let n = 1 + Math.floor(next() * 14); n > 0; n--) {
+        source += pieces[Math.floor(next() * pieces.length)];
+      }
+      // Triple quotes are a separate rule.
+      if (source.includes('"""') || source.includes("'''")) continue;
+      assert.equal(
+        highlightCode(source, language),
+        readStrings(source, spec),
+        `${language} ${JSON.stringify(source)}`
+      );
+    }
+  }
+});
+
+test('closes a C# verbatim string at its quote and lets it span lines', () => {
+  assert.equal(
+    highlightCode('var p = @"C:\\dir\\" + x;', 'csharp'),
+    `${t('keyword', 'var')} p = ${t('string', '@"C:\\dir\\"')} + x;`
+  );
+  assert.equal(
+    highlightCode('var q = @"a\nb""c";', 'csharp'),
+    `${t('keyword', 'var')} q = ${t('string', '@"a\nb""c"')};`
+  );
+  assert.equal(
+    highlightCode('$@"{x}" + @$"{y}"', 'csharp'),
+    `$${t('string', '@"{x}"')} + ${t('string', '@$"{y}"')}`
+  );
+  assert.equal(
+    highlightCode('@"abc\nfoo()', 'csharp'),
+    `${t('string', '@"abc')}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('@"abc""\nfoo()', 'csharp'),
+    `${t('string', '@"abc""')}\n${t('function', 'foo')}()`
+  );
+});
+
+test('scans the holes of a C# interpolated verbatim string', () => {
+  assert.equal(
+    highlightCode('x = @$"C:\\{d["k"]}" + 1;', 'csharp'),
+    `x = ${t('string', '@$"C:\\{d["k"]}"')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('x = @$"a{"b"}c" + 1;', 'csharp'),
+    `x = ${t('string', '@$"a{"b"}c"')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('x = $@"a{"b"}c" + 1;', 'csharp'),
+    `x = $${t('string', '@"a{"b"}c"')} + ${t('number', '1')};`
+  );
+  // A quote is written "" and a backslash is no escape.
+  assert.equal(
+    highlightCode('x = @$"say ""hi"" {y}\\" + 1;', 'csharp'),
+    `x = ${t('string', '@$"say ""hi"" {y}\\"')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('x = @$"{{a}} {y}" + 1;', 'csharp'),
+    `x = ${t('string', '@$"{{a}} {y}"')} + ${t('number', '1')};`
+  );
+  // Past its line it is read flat; unclosed, it ends at its line.
+  assert.equal(
+    highlightCode('x = $@"a\n{b}\nc" + 1;', 'csharp'),
+    `x = $${t('string', '@"a\n{b}\nc"')} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode('x = @$"abc\nfoo();', 'csharp'),
+    `x = ${t('string', '@$"abc')}\n${t('function', 'foo')}();`
+  );
+  // A doubled quote at the end does not close it.
+  assert.equal(
+    highlightCode('x = $@"a\n{b}\nc""\nfoo();', 'csharp'),
+    `x = $${t('string', '@"a')}\n{b}\nc${t('string', '""')}\n${t('function', 'foo')}();`
+  );
+  // Without a $ the string has no holes.
+  assert.equal(
+    highlightCode('x = @"{"; y = 1;', 'csharp'),
+    `x = ${t('string', '@"{"')}; y = ${t('number', '1')};`
+  );
+});
+
+test('closes a Dart triple quote at its first three quotes', () => {
+  assert.equal(
+    highlightCode("x = \"a\" + '''b''''c'", 'dart'),
+    `x = ${t('string', '"a"')} + ${t('string', "'''b'''")}${t('string', "'c'")}`
+  );
+  assert.equal(
+    highlightCode("x = '''a''''b'", 'dart'),
+    `x = ${t('string', "'''a'''")}${t('string', "'b'")}`
+  );
+  assert.equal(
+    highlightCode("var s = r'abc\nfoo()", 'dart'),
+    `${t('keyword', 'var')} s = ${t('string', "r'abc")}\n${t('function', 'foo')}()`
+  );
+});
+
+test('closes a Dart raw string at its quote', () => {
+  assert.equal(
+    highlightCode("var p = r'C:\\dir\\';", 'dart'),
+    `${t('keyword', 'var')} p = ${t('string', "r'C:\\dir\\'")};`
+  );
+  assert.equal(
+    highlightCode("var q = r\"a\\\" + r'''b\n\\''';", 'dart'),
+    `${t('keyword', 'var')} q = ${t('string', 'r"a\\"')} + ${t('string', "r'''b\n\\'''")};`
+  );
+  assert.equal(highlightCode("bar'x'", 'dart'), `bar${t('string', "'x'")}`);
+});
+
+test('closes a Swift raw string at a quote with the same number of hashes', () => {
+  assert.equal(
+    highlightCode('let s = #"say "hi""# + x', 'swift'),
+    `${t('keyword', 'let')} s = ${t('string', '#"say "hi""#')} + x`
+  );
+  assert.equal(
+    highlightCode('x(#"a"#, #"b"#)', 'swift'),
+    `${t('function', 'x')}(${t('string', '#"a"#')}, ${t('string', '#"b"#')})`
+  );
+  assert.equal(
+    highlightCode('let s = ##"a"#b"##', 'swift'),
+    `${t('keyword', 'let')} s = ${t('string', '##"a"#b"##')}`
+  );
+  assert.equal(
+    highlightCode('let s = #"abc\nfoo()', 'swift'),
+    `${t('keyword', 'let')} s = ${t('string', '#"abc')}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('let m = #"""\nx\n"""#', 'swift'),
+    `${t('keyword', 'let')} m = #${t('string', '"""\nx\n"""')}#`
+  );
+  assert.equal(
+    highlightCode('let h = "#"', 'swift'),
+    `${t('keyword', 'let')} h = ${t('string', '"#"')}`
+  );
+});
+
+test('colors an empty or unclosed form as the token it is', () => {
+  const forms = [
+    // A lone `#` is an empty comment.
+    ['bash', '#', '⟦comment:#⟧'],
+    ['yaml', '#', '⟦comment:#⟧'],
+    ['gdscript', '#', '⟦comment:#⟧'],
+    ['toml', '#', '⟦comment:#⟧'],
+    ['graphql', '#', '⟦comment:#⟧'],
+    ['properties', '#', '⟦comment:#⟧'],
+    // An empty string ends at once; a lone quote runs to the end of the line.
+    ['typescript', "f('', 1)", "⟦function:f⟧(⟦string:''⟧, ⟦number:1⟧)"],
+    ['typescript', "f('abc", "⟦function:f⟧(⟦string:'abc⟧"],
+    ['typescript', "'", "⟦string:'⟧"],
+    ['gdscript', 'f("", 1)', '⟦function:f⟧(⟦string:""⟧, ⟦number:1⟧)'],
+    ['gdscript', "f('', 1)", "⟦function:f⟧(⟦string:''⟧, ⟦number:1⟧)"],
+    ['gdscript', '"', '⟦string:"⟧'],
+    ['gdscript', "'", "⟦string:'⟧"],
+    ['json', '{"": 1}', '{⟦attr-name:""⟧: ⟦number:1⟧}'],
+    ['csharp', 'f(@"", 1)', '⟦function:f⟧(⟦string:@""⟧, ⟦number:1⟧)'],
+    ['csharp', '@"', '⟦string:@"⟧'],
+    // A template or C# string whose hole scan failed leaves a later empty one
+    // on the line alone.
+    [
+      'typescript',
+      'const a = `${"}`; const b = ``; const c = 1;',
+      '⟦keyword:const⟧ a = ⟦string:`${"}`⟧; ⟦keyword:const⟧ b = ⟦string:``⟧; ⟦keyword:const⟧ c = ⟦number:1⟧;',
+    ],
+    [
+      'csharp',
+      `var a = @$"{x /* it's */}"; var b = @$""; var c = 1;`,
+      `⟦keyword:var⟧ a = ⟦string:@$"{x /* it's */}"⟧; ⟦keyword:var⟧ b = ⟦string:@$""⟧; ⟦keyword:var⟧ c = ⟦number:1⟧;`,
+    ],
+    // Triple quotes: empty, two on a line, and unclosed.
+    ['dart', 'f("""""", 1)', '⟦function:f⟧(⟦string:""""""⟧, ⟦number:1⟧)'],
+    ['dart', "f('''''', 1)", "⟦function:f⟧(⟦string:''''''⟧, ⟦number:1⟧)"],
+    [
+      'dart',
+      'f("""a""", """b""")',
+      '⟦function:f⟧(⟦string:"""a"""⟧, ⟦string:"""b"""⟧)',
+    ],
+    [
+      'dart',
+      "f('''a''', '''b''')",
+      "⟦function:f⟧(⟦string:'''a'''⟧, ⟦string:'''b'''⟧)",
+    ],
+    ['swift', '"""', '⟦string:"""⟧'],
+    [
+      'kotlin',
+      'f("""""", """a""")',
+      '⟦function:f⟧(⟦string:""""""⟧, ⟦string:"""a"""⟧)',
+    ],
+    ['dart', "'''", "⟦string:'''⟧"],
+    // Dart raw strings, the same ways.
+    ['dart', 'f(r\'\', r"")', '⟦function:f⟧(⟦string:r\'\'⟧, ⟦string:r""⟧)'],
+    ['dart', "f(r'''''', 1)", "⟦function:f⟧(⟦string:r''''''⟧, ⟦number:1⟧)"],
+    ['dart', 'f(r"""""", 1)', '⟦function:f⟧(⟦string:r""""""⟧, ⟦number:1⟧)'],
+    [
+      'dart',
+      "f(r'''a''', r'''b''')",
+      "⟦function:f⟧(⟦string:r'''a'''⟧, ⟦string:r'''b'''⟧)",
+    ],
+    [
+      'dart',
+      'f(r"""a""", r"""b""")',
+      '⟦function:f⟧(⟦string:r"""a"""⟧, ⟦string:r"""b"""⟧)',
+    ],
+    ['dart', "r'", "⟦string:r'⟧"],
+    ['dart', 'r"', '⟦string:r"⟧'],
+    ['dart', "r'abc", "⟦string:r'abc⟧"],
+    ['dart', 'r"abc', '⟦string:r"abc⟧'],
+    ['dart', "r'''", "⟦string:r'''⟧"],
+    ['dart', 'r"""', '⟦string:r"""⟧'],
+    // Swift raw strings: empty, unclosed, and a `#"""` opener that stays a
+    // triple quote even with `"#` after it on the line.
+    ['swift', 'f(#""#, 1)', '⟦function:f⟧(⟦string:#""#⟧, ⟦number:1⟧)'],
+    ['swift', '#"', '⟦string:#"⟧'],
+    ['swift', '#"""a"""#', '#⟦string:"""a"""⟧#'],
+    // A one-letter annotation or directive is still one.
+    ['swift', '@a', '⟦decorator:@a⟧'],
+    ['kotlin', '@a', '⟦decorator:@a⟧'],
+    ['csharp', '#r "x"', '⟦keyword:#r⟧ ⟦string:"x"⟧'],
+    ['csharp', '@a(1)', '@a(⟦number:1⟧)'],
+    ['csharp', '@params(1)', '@params(⟦number:1⟧)'],
+    // Bash: a command needs a word boundary; one-letter variables and flags.
+    ['bash', 'rmdir build', 'rmdir build'],
+    ['bash', 'echo $a', 'echo ⟦variable:$a⟧'],
+    ['bash', 'ls -a', 'ls ⟦attr-name:-a⟧'],
+    ['bash', 'echo ${} ${', 'echo ${} ${'],
+    // TOML: a multi-line string closes at the last quote of a run, takes its
+    // own backslash escapes, and does not run on into the next one.
+    ['toml', 'a = """', '⟦attr-name:a⟧ = ⟦string:"""⟧'],
+    ['toml', 'a = """""" # c', '⟦attr-name:a⟧ = ⟦string:""""""⟧ ⟦comment:# c⟧'],
+    ['toml', "a = '''''' # c", "⟦attr-name:a⟧ = ⟦string:''''''⟧ ⟦comment:# c⟧"],
+    [
+      'toml',
+      'a = """x"""" # c',
+      '⟦attr-name:a⟧ = ⟦string:"""x""""⟧ ⟦comment:# c⟧',
+    ],
+    ['toml', 'a = """x\\""" b', '⟦attr-name:a⟧ = ⟦string:"""x\\""" b⟧'],
+    [
+      'toml',
+      'a = """x"""\nb = 1\nc = """y"""',
+      '⟦attr-name:a⟧ = ⟦string:"""x"""⟧\n⟦attr-name:b⟧ = ⟦number:1⟧\n⟦attr-name:c⟧ = ⟦string:"""y"""⟧',
+    ],
+    ['toml', "a = '''", "⟦attr-name:a⟧ = ⟦string:'''⟧"],
+    [
+      'toml',
+      "a = '''x\nb = 1",
+      "⟦attr-name:a⟧ = ⟦string:'''x⟧\n⟦attr-name:b⟧ = ⟦number:1⟧",
+    ],
+    [
+      'toml',
+      "a = '''x'''\nb = 1\nc = '''y'''",
+      "⟦attr-name:a⟧ = ⟦string:'''x'''⟧\n⟦attr-name:b⟧ = ⟦number:1⟧\n⟦attr-name:c⟧ = ⟦string:'''y'''⟧",
+    ],
+    ['toml', '[]', '⟦keyword:[]⟧'],
+    ['toml', '[', '['],
+    // GraphQL: block strings, enum values at any indent, a type after a colon
+    // with no space, an alias, and a word that is no keyword.
+    ['graphql', 'a(b: """""")', 'a(⟦field:b⟧⟦punctuation::⟧ ⟦string:""""""⟧)'],
+    ['graphql', '"""a""" """b"""', '⟦string:"""a"""⟧ ⟦string:"""b"""⟧'],
+    ['graphql', '"""', '⟦string:"""⟧'],
+    ['graphql', 'RED', '⟦enum-value:RED⟧'],
+    ['graphql', 'A', '⟦enum-value:A⟧'],
+    ['graphql', '  RED # c', '  ⟦enum-value:RED⟧ ⟦comment:# c⟧'],
+    ['graphql', 'A #', '⟦enum-value:A⟧ ⟦comment:#⟧'],
+    [
+      'graphql',
+      'query($a: Int)',
+      '⟦keyword:query⟧($a⟦punctuation::⟧ ⟦builtin-type:Int⟧)',
+    ],
+    ['graphql', 'extendtype Foo', 'extendtype Foo'],
+    ['graphql', 'name:Int', '⟦field:name⟧⟦punctuation::⟧⟦builtin-type:Int⟧'],
+    ['graphql', 'x: a { b }', '⟦field:x⟧⟦punctuation::⟧ a { b }'],
+    // XML: an empty attribute value.
+    [
+      'xml',
+      `<a b="" c=''/>`,
+      `⟦punctuation:<⟧⟦tag:a⟧ ⟦attr-name:b⟧=⟦attr-value:""⟧ ⟦attr-name:c⟧=⟦attr-value:''⟧⟦punctuation:/>⟧`,
+    ],
+  ];
+  for (const [language, source, expected] of forms) {
+    assert.equal(
+      highlightCode(source, language),
+      marked(expected),
+      `${language}: ${source}`
+    );
+  }
+});
+
+test('reads line ends, names and separators the way each rule defines them', () => {
+  const forms = [
+    // By design a quoted string ends at its line, also after a backslash.
+    ['typescript', 'x = "a\nb"', 'x = ⟦string:"a⟧\nb⟦string:"⟧'],
+    ['typescript', 'x = "a\\\nb"', 'x = ⟦string:"a⟧\\\nb⟦string:"⟧'],
+    ['typescript', "x = 'a\nb'", "x = ⟦string:'a⟧\nb⟦string:'⟧"],
+    ['typescript', "x = 'a\\\nb'", "x = ⟦string:'a⟧\\\nb⟦string:'⟧"],
+    ['bash', "echo 'a\nb'", "echo ⟦string:'a⟧\nb⟦string:'⟧"],
+    ['csharp', "char c = 'x';", "⟦keyword:char⟧ c = ⟦string:'x'⟧;"],
+    ['swift', "let r = /it's/", "⟦keyword:let⟧ r = /it's/"],
+    ['groovy', "def s = 'a'", "⟦keyword:def⟧ s = ⟦string:'a'⟧"],
+    ['groovy', 'def t = """a\nb"""', '⟦keyword:def⟧ t = ⟦string:"""a\nb"""⟧'],
+    ['groovy', 'println(x)', '⟦function:println⟧(x)'],
+    ['json', '{"a\n": 1}', '{⟦string:"a⟧\n⟦string:": 1}⟧'],
+    ['json', '{"a\\\n": 1}', '{⟦string:"a⟧\\\n⟦string:": 1}⟧'],
+    ['json', '{"a\\"b": 1}', '{⟦attr-name:"a\\"b"⟧: ⟦number:1⟧}'],
+    ['json', '{"a"\t: 1}', '{⟦attr-name:"a"⟧\t: ⟦number:1⟧}'],
+    ['json', '{"a\\": 1}', '{⟦string:"a\\": 1}⟧'],
+    ['dart', 'r"a\nb"', '⟦string:r"a⟧\nb⟦string:"⟧'],
+    ['dart', "r'a\nb'", "⟦string:r'a⟧\nb⟦string:'⟧"],
+    ['swift', '#"a\nb"#', '⟦string:#"a⟧\nb⟦string:"#⟧'],
+    // GDScript strings hold line breaks and take backslash escapes.
+    ['gdscript', 'f("a", "b")', '⟦function:f⟧(⟦string:"a"⟧, ⟦string:"b"⟧)'],
+    ['gdscript', "f('a', 'b')", "⟦function:f⟧(⟦string:'a'⟧, ⟦string:'b'⟧)"],
+    ['gdscript', "x = 'it\\'s'", "x = ⟦string:'it\\'s'⟧"],
+    ['gdscript', "x = 'a\\\nb'", "x = ⟦string:'a\\\nb'⟧"],
+    // A template closes at an unescaped backtick, also on a later line.
+    [
+      'typescript',
+      'x = `a\\`\nb`; y = 1',
+      'x = ⟦string:`a\\`\nb`⟧; y = ⟦number:1⟧',
+    ],
+    // A nested string holding the hole's closer or opener, then the outer
+    // quote, or another kind of quote, still closes with the outer one.
+    ['kotlin', `x = "\${f("}'")}"`, `x = ⟦string:"\${f("}'")}"⟧`],
+    ['kotlin', 'x = "${f("")}" + 1', 'x = ⟦string:"${f("")}"⟧ + ⟦number:1⟧'],
+    ['csharp', '$"{f("a")}" + x', '$⟦string:"{f("a")}"⟧ + x'],
+    ['typescript', 'x = `${f(")`")}`', 'x = ⟦string:`${f(")`")}`⟧'],
+    ['typescript', 'x = `${f("{`")}`', 'x = ⟦string:`${f("{`")}`⟧'],
+    // A plain string in a template hole has no holes of its own.
+    [
+      'typescript',
+      'x = `${a + `` + "${"}`; y = 1',
+      'x = ⟦string:`${a + `` + "${"}`⟧; y = ⟦number:1⟧',
+    ],
+    [
+      'typescript',
+      "x = `${a + `` + '${'}`; y = 1",
+      "x = ⟦string:`${a + `` + '${'}`⟧; y = ⟦number:1⟧",
+    ],
+    // Brackets nest inside a hole, and a string in a hole takes its language's holes.
+    [
+      'kotlin',
+      'val s = "${run { 1 } + "x"}" + 1',
+      '⟦keyword:val⟧ s = ⟦string:"${run { 1 } + "x"}"⟧ + ⟦number:1⟧',
+    ],
+    [
+      'dart',
+      'x = "${f("${g("a")}")}" + 1',
+      'x = ⟦string:"${f("${g("a")}")}"⟧ + ⟦number:1⟧',
+    ],
+    [
+      'dart',
+      'x = "${f("${g("}")}")}" + 1',
+      'x = ⟦string:"${f("${g("}")}")}"⟧ + ⟦number:1⟧',
+    ],
+    [
+      'swift',
+      'x = "\\(f("\\(g("a"))"))" + 1',
+      'x = ⟦string:"\\(f("\\(g("a"))"))"⟧ + ⟦number:1⟧',
+    ],
+    [
+      'swift',
+      'x = "\\(f(1) + "x")" + 1',
+      'x = ⟦string:"\\(f(1) + "x")"⟧ + ⟦number:1⟧',
+    ],
+    ['bash', 'echo "$(f "a\\"b")" y', 'echo ⟦string:"$(f "a\\"b")"⟧ y'],
+    // Multi-line triple, raw and TOML strings; an unclosed one stops at its line.
+    ['dart', "f('''a\nb''')", "⟦function:f⟧(⟦string:'''a\nb'''⟧)"],
+    ['dart', 'f(r"""a\nb""")', '⟦function:f⟧(⟦string:r"""a\nb"""⟧)'],
+    ['dart', "r'''a\nf()", "⟦string:r'''a⟧\n⟦function:f⟧()"],
+    ['dart', 'r"""a\nf()', '⟦string:r"""a⟧\n⟦function:f⟧()'],
+    ['dart', "r'''abc", "⟦string:r'''abc⟧"],
+    ['dart', 'r"""abc', '⟦string:r"""abc⟧'],
+    ['kotlin', 'f("""a\nb"""")', '⟦function:f⟧(⟦string:"""a\nb""""⟧)'],
+    [
+      'toml',
+      'a = """x \\\n  y""" # c',
+      '⟦attr-name:a⟧ = ⟦string:"""x \\\n  y"""⟧ ⟦comment:# c⟧',
+    ],
+    [
+      'toml',
+      "a = '''x\ny''' # c",
+      "⟦attr-name:a⟧ = ⟦string:'''x\ny'''⟧ ⟦comment:# c⟧",
+    ],
+    [
+      'toml',
+      "a = '''C:\\''' # c",
+      "⟦attr-name:a⟧ = ⟦string:'''C:\\'''⟧ ⟦comment:# c⟧",
+    ],
+    [
+      'toml',
+      'a = """x\nb = 1',
+      '⟦attr-name:a⟧ = ⟦string:"""x⟧\n⟦attr-name:b⟧ = ⟦number:1⟧',
+    ],
+    // Names take capitals, digits, underscores and, where the language does,
+    // dots and dashes.
+    ['typescript', '_a1B_\t(x)', '⟦function:_a1B_⟧\t(x)'],
+    [
+      'typescript',
+      'await initConnection(); newValue willAutoRenew',
+      '⟦keyword:await⟧ ⟦function:initConnection⟧(); newValue willAutoRenew',
+    ],
+    [
+      'typescript',
+      'X.EXTERNAL_OFFER',
+      '⟦class-name:X⟧.⟦class-name:EXTERNAL_OFFER⟧',
+    ],
+    [
+      'kotlin',
+      'val m: Map<Foo, Bar>',
+      '⟦keyword:val⟧ m: ⟦class-name:Map⟧<⟦class-name:Foo⟧, ⟦class-name:Bar⟧>',
+    ],
+    ['kotlin', '@Composable', '⟦decorator:@Composable⟧'],
+    [
+      'swift',
+      '@_exported import X',
+      '⟦decorator:@_exported⟧ ⟦keyword:import⟧ ⟦class-name:X⟧',
+    ],
+    ['csharp', '@Event', '@Event'],
+    ['kotlin', 'x@Label', 'x@⟦class-name:Label⟧'],
+    ['csharp', '@_x(1)', '@_x(⟦number:1⟧)'],
+    ['bash', 'echo $_a $A_b9', 'echo ⟦variable:$_a⟧ ⟦variable:$A_b9⟧'],
+    [
+      'bash',
+      'npm i -D --save-dev',
+      '⟦function:npm⟧ i ⟦attr-name:-D⟧ ⟦attr-name:--save-dev⟧',
+    ],
+    ['yaml', 'Key_1.sub-x\t: v', '⟦attr-name:Key_1.sub-x⟧\t: v'],
+    ['toml', 'Key_1.sub-x = 1', '⟦attr-name:Key_1.sub-x⟧ = ⟦number:1⟧'],
+    ['toml', 'name    = "x"', '⟦attr-name:name⟧    = ⟦string:"x"⟧'],
+    ['yaml', '_id: 1', '⟦attr-name:_id⟧: ⟦number:1⟧'],
+    ['yaml', '200: OK', '⟦attr-name:200⟧: OK'],
+    ['toml', '1234 = "v"', '⟦attr-name:1234⟧ = ⟦string:"v"⟧'],
+    ['yaml', '  a : 1', '  ⟦attr-name:a⟧ : ⟦number:1⟧'],
+    ['toml', ' a\t= 1', ' ⟦attr-name:a⟧\t= ⟦number:1⟧'],
+    ['yaml', 'true: 1', '⟦attr-name:true⟧: ⟦number:1⟧'],
+    ['toml', 'true = 1', '⟦attr-name:true⟧ = ⟦number:1⟧'],
+    ['yaml', 'VERSION=$(jq -r .v p.json)', 'VERSION=$(jq -r .v p.json)'],
+    ['toml', 'a: 1', 'a: ⟦number:1⟧'],
+    // An apostrophe after a word is text, also after a number or a keyword.
+    ['yaml', "msg: I'm here", "⟦attr-name:msg⟧: I'm here"],
+    ['yaml', "name: O'Brien", "⟦attr-name:name⟧: O'Brien"],
+    ['yaml', "note: 1990's music", "⟦attr-name:note⟧: ⟦number:1990⟧'s music"],
+    ['yaml', "ok: true's", "⟦attr-name:ok⟧: ⟦keyword:true⟧'s"],
+    // A quote after a bracket still opens a string.
+    ['yaml', "run: f('a b')", "⟦attr-name:run⟧: f(⟦string:'a b'⟧)"],
+    ['toml', '_id = 1', '⟦attr-name:_id⟧ = ⟦number:1⟧'],
+    [
+      'graphql',
+      '  _id\t: ID',
+      '  ⟦field:_id⟧\t⟦punctuation::⟧ ⟦builtin-type:ID⟧',
+    ],
+    [
+      'graphql',
+      'query($Id: ID, $_x: Int)',
+      '⟦keyword:query⟧($Id⟦punctuation::⟧ ⟦builtin-type:ID⟧, $_x⟦punctuation::⟧ ⟦builtin-type:Int⟧)',
+    ],
+    [
+      'graphql',
+      'x: my_type!',
+      '⟦field:x⟧⟦punctuation::⟧ ⟦custom-type:my_type⟧⟦required:!⟧',
+    ],
+    [
+      'graphql',
+      'x: Foo_1\t(y: 1)',
+      '⟦field:x⟧⟦punctuation::⟧ Foo_1\t(⟦field:y⟧⟦punctuation::⟧ 1)',
+    ],
+    ['graphql', 'x: a\t{ b }', '⟦field:x⟧⟦punctuation::⟧ a\t{ b }'],
+    [
+      'graphql',
+      'x: __Schema!',
+      '⟦field:x⟧⟦punctuation::⟧ ⟦custom-type:__Schema⟧⟦required:!⟧',
+    ],
+    ['graphql', 'x: _a { b }', '⟦field:x⟧⟦punctuation::⟧ _a { b }'],
+    [
+      'xml',
+      '<a _b.c-d="1" e:f="2"/>',
+      '⟦punctuation:<⟧⟦tag:a⟧ ⟦attr-name:_b.c-d⟧=⟦attr-value:"1"⟧ ⟦attr-name:e:f⟧=⟦attr-value:"2"⟧⟦punctuation:/>⟧',
+    ],
+    ['xml', '<_a.b:c-d/>', '⟦punctuation:<⟧⟦tag:_a.b:c-d⟧⟦punctuation:/>⟧'],
+    [
+      'xml',
+      '<a 1.b="x" 2-c="y">',
+      '⟦punctuation:<⟧⟦tag:a⟧ 1.b="x" 2-c="y"⟦punctuation:>⟧',
+    ],
+    // A tab or a space indents any line-start rule.
+    ['bash', ' cd build', ' ⟦function:cd⟧ build'],
+    ['bash', '\tcd build', '\t⟦function:cd⟧ build'],
+    ['yaml', ' a: 1', ' ⟦attr-name:a⟧: ⟦number:1⟧'],
+    ['toml', '\ta = 1', '\t⟦attr-name:a⟧ = ⟦number:1⟧'],
+    ['toml', '\t[table]', '\t⟦keyword:[table]⟧'],
+    ['csharp', '\t#endif', '\t⟦keyword:#endif⟧'],
+    ['properties', ' # c', ' ⟦comment:# c⟧'],
+    ['properties', '\t! c', '\t⟦comment:! c⟧'],
+    ['properties', '  a=1', '  ⟦attr-name:a⟧=⟦string:1⟧'],
+    ['properties', '\ta\t=\tb', '\t⟦attr-name:a⟧\t=\t⟦string:b⟧'],
+    [
+      'graphql',
+      'enum Color {\n\tRED\n  _HIDDEN\t\n}',
+      '⟦keyword:enum⟧ ⟦type-name:Color⟧ {\n\t⟦enum-value:RED⟧\n  ⟦enum-value:_HIDDEN⟧\t\n}',
+    ],
+    ['graphql', 'type\tQuery {', '⟦keyword:type⟧\t⟦type-name:Query⟧ {'],
+    [
+      'graphql',
+      'extend\ttype Query',
+      '⟦keyword:extend\ttype⟧ ⟦type-name:Query⟧',
+    ],
+    [
+      'graphql',
+      'name:\tInt',
+      '⟦field:name⟧⟦punctuation::⟧\t⟦builtin-type:Int⟧',
+    ],
+    // A TOML header and a properties line end at the line; a value keeps `=`.
+    ['toml', '[a\nb]', '[a\nb]'],
+    ['toml', '[table] # note]', '⟦keyword:[table]⟧ ⟦comment:# note]⟧'],
+    ['properties', 'a=b=c', '⟦attr-name:a⟧=⟦string:b=c⟧'],
+    ['properties', 'a==b', '⟦attr-name:a⟧=⟦string:=b⟧'],
+    ['properties', '# a=b', '⟦comment:# a=b⟧'],
+    ['properties', '! a=b', '⟦comment:! a=b⟧'],
+    ['properties', 'a\rb=2', 'a\r⟦attr-name:b⟧=⟦string:2⟧'],
+    ['properties', 'a\r=1', 'a\r=1'],
+    ['properties', 'a\n=1', 'a\n=1'],
+    [
+      'properties',
+      'a=1\r\nb=2',
+      '⟦attr-name:a⟧=⟦string:1⟧\r\n⟦attr-name:b⟧=⟦string:2⟧',
+    ],
+    ['properties', 'a\nb=2', 'a\n⟦attr-name:b⟧=⟦string:2⟧'],
+    ['properties', 'a=\nb=2', '⟦attr-name:a⟧=\n⟦attr-name:b⟧=⟦string:2⟧'],
+    ['properties', '=value', '=value'],
+    ['properties', '=a=b', '=a=b'],
+    // An XML value may hold a line break; a lone quote leaves the tag as text.
+    [
+      'xml',
+      '<a b="x\ny"/>',
+      '⟦punctuation:<⟧⟦tag:a⟧ ⟦attr-name:b⟧=⟦attr-value:"x\ny"⟧⟦punctuation:/>⟧',
+    ],
+    [
+      'xml',
+      "<a b='x\ny'/>",
+      "⟦punctuation:<⟧⟦tag:a⟧ ⟦attr-name:b⟧=⟦attr-value:'x\ny'⟧⟦punctuation:/>⟧",
+    ],
+    ['xml', "<a b='c>text", "<a b='c>text"],
+  ];
+  for (const [language, source, expected] of forms) {
+    assert.equal(
+      highlightCode(source, language),
+      marked(expected),
+      `${language}: ${source}`
+    );
+  }
 });
 
 test('starts a properties key at any non-blank character', () => {
@@ -633,6 +1819,59 @@ test('stays fast on long pathological lines', () => {
   }
 });
 
+test('stays fast on long runs of openers that never close', () => {
+  // Each run is long enough that a rescan per opener takes seconds.
+  const runs = [
+    ['a$'.repeat(30000), ['typescript', 'kotlin', 'groovy']],
+    ['${'.repeat(50000), ['bash']],
+    ['\\`\n'.repeat(50000), ['typescript']],
+    ['/*\n'.repeat(60000), ['typescript', 'csharp', 'kotlin', 'swift', 'dart']],
+    ['/*\n'.repeat(40000) + '*/\n'.repeat(20000), ['kotlin', 'swift', 'dart']],
+    ['*/* /*\n'.repeat(15000), ['kotlin', 'swift', 'dart']],
+    ['<!--'.repeat(100000), ['xml']],
+    ['<!--\n'.repeat(60000), ['xml']],
+    ['<' + 'k'.repeat(100000), ['xml']],
+    ['<' + 'k:'.repeat(50000), ['xml']],
+    ['<a ' + 'k:'.repeat(50000) + '>', ['xml']],
+    ['<a ' + 'k'.repeat(100000) + '>', ['xml']],
+    ['"${'.repeat(40000), ['kotlin', 'dart', 'groovy']],
+    ['"\\('.repeat(40000), ['swift']],
+    ['$"{'.repeat(40000), ['csharp']],
+    ['"$('.repeat(40000), ['bash']],
+    ['`${'.repeat(40000), ['typescript']],
+    ['`${\n'.repeat(40000), ['typescript']],
+    ['\\"\n'.repeat(50000), ['gdscript']],
+    ['\\"""\n'.repeat(60000), ['toml']],
+    ['#'.repeat(100000), ['swift']],
+    ['#"""a'.repeat(40000), ['swift']],
+    ['[\r'.repeat(60000), ['toml']],
+    ['[\u2028'.repeat(60000), ['toml']],
+    ['a\u2028'.repeat(60000), ['properties']],
+    ['[\u2029'.repeat(60000), ['toml']],
+    [
+      '\n'.repeat(60000) + 'x',
+      ['yaml', 'toml', 'properties', 'swift', 'csharp', 'graphql'],
+    ],
+    [
+      ' \r\n'.repeat(30000) + 'x',
+      ['yaml', 'toml', 'properties', 'swift', 'csharp', 'graphql'],
+    ],
+    ['a\u2029'.repeat(60000), ['properties']],
+    ['f(##"""a)'.repeat(30000), ['swift']],
+  ];
+  for (const [source, languages] of runs) {
+    for (const language of languages) {
+      const start = performance.now();
+      highlightCode(source, language);
+      const elapsed = performance.now() - start;
+      assert.ok(
+        elapsed < 1000,
+        `${language} ${JSON.stringify(source.slice(0, 12))} ${elapsed}ms`
+      );
+    }
+  }
+});
+
 // Pieces that have broken a highlighter before, mixed with plain syntax.
 const PIECES = [
   ' ',
@@ -672,6 +1911,17 @@ const PIECES = [
   '`',
   '"""',
   '\\',
+  '@"',
+  '#"',
+  "r'",
+  'r"',
+  'this@A',
+  '${',
+  '1_',
+  '0x_',
+  '\\`',
+  '*/*',
+  '/*/',
   '1',
   '2.5',
   'x',
@@ -736,8 +1986,15 @@ test('never changes the text it highlights, in any language', () => {
       for (let n = 1 + Math.floor(next() * 12); n > 0; n--) {
         source += PIECES[Math.floor(next() * PIECES.length)];
       }
-      const issue = problem(source, highlightCode(source, language));
-      assert.equal(issue, null, `${language} ${JSON.stringify(source)}`);
+      const html = highlightCode(source, language);
+      assert.equal(
+        problem(source, html),
+        null,
+        `${language} ${JSON.stringify(source)}`
+      );
+      // The same text gives the same output again, also after another language.
+      highlightCode(source, i % 2 ? 'kotlin' : 'typescript');
+      assert.equal(highlightCode(source, language), html);
     }
   }
 });

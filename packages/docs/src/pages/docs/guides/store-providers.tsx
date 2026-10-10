@@ -798,7 +798,9 @@ class YourStoreFactory : OpenIapProviderFactory {
         </p>
         <CodeBlock
           language="bash"
-          children="bun run stores:generate\n(cd specs/client && bun run generate)\nbun run audit:stores\nbun audit:parity"
+          children={
+            'bun run stores:generate\n(cd specs/client && bun run generate)\nbun run audit:stores\nbun audit:parity'
+          }
         />
         <p>
           <strong>Experimental</strong> entries have an unverified or failing
