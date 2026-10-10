@@ -830,26 +830,20 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private async void OnChangeVerificationClicked(object sender, EventArgs e)
     {
-        var choice = await DisplayActionSheetAsync(
-            "Select Purchase Verification Method",
-            "Cancel",
-            null,
-            "Ignore Verification",
-            "Local (Device) Verification",
-            "Local (IAPKit) Verification",
-            "IAPKit (Server) Verification");
-
-        if (string.IsNullOrEmpty(choice) || choice == "Cancel") return;
-
-        _verification = choice switch
+        var methods = new[]
         {
-            "Local (Device) Verification" => VerificationMethod.Local,
-            "Local (IAPKit) Verification" => VerificationMethod.IapkitLocal,
-            "IAPKit (Server) Verification" => VerificationMethod.Iapkit,
-            _ when choice != "Cancel" => VerificationMethod.Ignore,
-            _ => _verification,
+            VerificationMethod.Ignore,
+            VerificationMethod.Local,
+            VerificationMethod.IapkitLocal,
+            VerificationMethod.Iapkit,
         };
+        var choice = await DisplayActionSheetAsync(
+            "Select verification method", "Cancel", null,
+            methods.Select(VerificationLabel).ToArray());
+        var selected = Array.FindIndex(methods, method => VerificationLabel(method) == choice);
+        if (selected < 0) return;
 
+        _verification = methods[selected];
         VerificationButton.Text = VerificationLabel(_verification);
         if (_verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
     }

@@ -553,6 +553,10 @@ function Releases() {
             the screen remains open.
           </p>
           <p>
+            MAUI examples let you choose the verification method directly and
+            select it again to retry unfinished purchases.
+          </p>
+          <p>
             See the{' '}
             <Link to="/docs/apis/ios/get-pending-transactions-ios">
               pending transaction guide

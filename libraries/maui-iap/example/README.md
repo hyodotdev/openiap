@@ -77,12 +77,16 @@ Unlike the other examples this one permits loopback cleartext in every build
 type, because .NET for Android has no per-configuration manifest merge; the
 network security config still allows nothing beyond loopback.
 
-The verification button cycles in this order:
+The verification button opens a picker:
 
-1. **None (Skip)** — skip verification.
-2. **Local (Device)** — verify on device.
-3. **Local (IAPKit)** — IAPKit routed to `IapkitBaseUrl`.
-4. **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
+- **None (Skip)** — retain the receipt without verification or completion.
+- **Local (Device)** — match a verified unfinished Apple transaction
+  (iOS/macCatalyst only).
+- **Local (IAPKit)** — IAPKit routed to `IapkitBaseUrl`.
+- **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
+
+Select the current verification method again to retry available unfinished
+receipts. Cancel keeps the method unchanged and makes no verification request.
 
 With both values configured, the example defaults to **Local (IAPKit)**. With
 only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to

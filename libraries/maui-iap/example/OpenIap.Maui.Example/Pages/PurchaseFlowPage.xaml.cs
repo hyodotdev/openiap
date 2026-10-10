@@ -589,13 +589,20 @@ public partial class PurchaseFlowPage : ContentPage
 
     private async void OnChangeVerificationClicked(object sender, EventArgs e)
     {
-        _verification = _verification switch
+        var methods = new[]
         {
-            VerificationMethod.Ignore => VerificationMethod.Local,
-            VerificationMethod.Local => VerificationMethod.IapkitLocal,
-            VerificationMethod.IapkitLocal => VerificationMethod.Iapkit,
-            _ => VerificationMethod.Ignore,
+            VerificationMethod.Ignore,
+            VerificationMethod.Local,
+            VerificationMethod.IapkitLocal,
+            VerificationMethod.Iapkit,
         };
+        var choice = await DisplayActionSheetAsync(
+            "Select verification method", "Cancel", null,
+            methods.Select(VerificationLabel).ToArray());
+        var selected = Array.FindIndex(methods, method => VerificationLabel(method) == choice);
+        if (selected < 0) return;
+
+        _verification = methods[selected];
         VerificationButton.Text = VerificationLabel(_verification);
         if (_verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
     }
