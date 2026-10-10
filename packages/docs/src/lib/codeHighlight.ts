@@ -122,8 +122,10 @@ const keyword = (words: string): Rule => ({
 // Decimal with a fraction or exponent, `_` separators, hex, binary or octal.
 // `16.dp` is the number 16 then `.dp`.
 const NUMBER_BODY = String.raw`(?:0[xX][\da-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?)`;
+// The lookahead plus backreference commits to the longest body, so `1.5M` in a
+// value cannot fall back to the number `1`.
 const number = (suffix: string): Rule => ({
-  pattern: new RegExp(String.raw`\b${NUMBER_BODY}${suffix}\b`, 'y'),
+  pattern: new RegExp(String.raw`\b(?=(${NUMBER_BODY}))\1${suffix}\b`, 'y'),
   type: 'number',
 });
 // Code adds the f/d/l/u/m suffixes of the C-like languages; a value in JSON,
@@ -269,6 +271,8 @@ const GRAPHQL_COLON =
   /:(?:([ \t]*)(?![A-Za-z_]\w*[ \t]*[({])(\[*)([A-Za-z_]\w*)([!\]]*))?/y;
 
 const GRAPHQL_RULES: Rule[] = [
+  // An escaped triple quote outside a string is not an opener.
+  { pattern: /\\"""/y },
   {
     pattern: /"""(?:\\"""|\\(?!""")|[^\\])*?"""|"""[^\n]*/y,
     type: 'string',

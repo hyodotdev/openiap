@@ -459,22 +459,22 @@ test('colors whole numeric literals', () => {
   );
   assert.equal(
     highlightCode(
-      'x = 0b1010_1010 + 0XFF + 0o17 + 10UL + 1.5M + 1m + 1u + 1d',
+      'x = 0b1010_1010 + 0B1 + 0XFF + 0o17 + 0O7 + 10UL + 1.5M + 1m + 1u + 1d',
       'swift'
     ),
-    `x = ${t('number', '0b1010_1010')} + ${t('number', '0XFF')} + ${t('number', '0o17')} + ${t('number', '10UL')} + ${t('number', '1.5M')} + ${t('number', '1m')} + ${t('number', '1u')} + ${t('number', '1d')}`
+    `x = ${t('number', '0b1010_1010')} + ${t('number', '0B1')} + ${t('number', '0XFF')} + ${t('number', '0o17')} + ${t('number', '0O7')} + ${t('number', '10UL')} + ${t('number', '1.5M')} + ${t('number', '1m')} + ${t('number', '1u')} + ${t('number', '1d')}`
   );
   assert.equal(highlightCode('v2 + 4K', 'kotlin'), 'v2 + 4K');
 });
 
 test('leaves a unit suffix out of a number in JSON, YAML and TOML', () => {
   assert.equal(
-    highlightCode('timeout: 10m\nlimit: 0xFF', 'yaml'),
-    `${t('attr-name', 'timeout')}: 10m\n${t('attr-name', 'limit')}: ${t('number', '0xFF')}`
+    highlightCode('timeout: 10m\nkeep: 7d\nsize: 1.5M\nlimit: 0xFF', 'yaml'),
+    `${t('attr-name', 'timeout')}: 10m\n${t('attr-name', 'keep')}: 7d\n${t('attr-name', 'size')}: 1.5M\n${t('attr-name', 'limit')}: ${t('number', '0xFF')}`
   );
   assert.equal(
-    highlightCode('{"a": 1e3, "b": -2.5}', 'json'),
-    `{${t('attr-name', '"a"')}: ${t('number', '1e3')}, ${t('attr-name', '"b"')}: -${t('number', '2.5')}}`
+    highlightCode('{"a": 1e3, "b": -2.5, "c": 10m}', 'json'),
+    `{${t('attr-name', '"a"')}: ${t('number', '1e3')}, ${t('attr-name', '"b"')}: -${t('number', '2.5')}, ${t('attr-name', '"c"')}: 10m}`
   );
   assert.equal(
     highlightCode('n = 1_000', 'toml'),
@@ -557,6 +557,10 @@ test('colors a GraphQL keyword before a brace or at the end of a line', () => {
 
 test('does not read an escaped triple quote as the end of a block string', () => {
   assert.equal(
+    highlightCode('"""a\n\\""" b\nc"""\ntype Y', 'graphql'),
+    `${t('string', '"""a\n\\""" b\nc"""')}\n${t('keyword', 'type')} ${t('type-name', 'Y')}`
+  );
+  assert.equal(
     highlightCode('"""a \\""" b\ntype X {', 'graphql'),
     `${t('string', '"""a \\""" b')}\n${t('keyword', 'type')} ${t('type-name', 'X')} {`
   );
@@ -579,8 +583,8 @@ test('ends an unclosed Dart triple quote at the line', () => {
 
 test('starts a properties key at any non-blank character', () => {
   assert.equal(
-    highlightCode(' k=v', 'properties'),
-    `${t('attr-name', ' k')}=${t('string', 'v')}`
+    highlightCode('\u00a0k=v', 'properties'),
+    `${t('attr-name', '\u00a0k')}=${t('string', 'v')}`
   );
 });
 
