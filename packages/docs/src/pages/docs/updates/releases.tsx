@@ -535,10 +535,11 @@ function Releases() {
           <p>
             <strong>godot-iap 4.0.1</strong> returns verified unfinished Apple
             transactions on macOS through{' '}
-            <code>get_pending_transactions_ios()</code>, allowing apps to match
-            the exact receipt before completing a purchase. The Martie examples
-            retain receipts until verification succeeds and show when
-            subscription products are unavailable.
+            <code>get_pending_transactions_ios()</code>, so apps can match
+            receipts before finishing. Godot projects preserve configured
+            autoloads during import, and the Martie examples retain receipts
+            until verification succeeds and show unavailable subscription
+            products.
           </p>
           <p>
             IAPKit returns Apple's verified transaction environment so examples
