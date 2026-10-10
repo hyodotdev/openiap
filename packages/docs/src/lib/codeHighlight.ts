@@ -426,7 +426,8 @@ const NESTED_BLOCK_COMMENT: Rule = {
 const HASH_COMMENT: Rule = { pattern: /#[^\n]*/y, type: 'comment' };
 
 // Words after which an expression, not an operator, comes: a `/` starts a regex
-// literal and a quote starts a string there (`return /x/`, `from 'y'`).
+// literal and a quote starts a string there (`return /x/`, `from 'y'`). `of` and
+// `from` can be names too, so a `/` after them divides.
 const EXPRESSION_WORD =
   /^(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await|from|import|export|default|extends)$/;
 
@@ -438,20 +439,59 @@ function wordEndingAt(text: string, last: number): string {
   return text.slice(start, last + 1);
 }
 
+// The same word, or '' after a member dot, where it is a name (`a.default`).
+// `...new` spreads, so it keeps its word.
+function keywordEndingAt(text: string, last: number): string {
+  const word = wordEndingAt(text, last);
+  const before = last - word.length;
+  return text[before] === '.' && !text.startsWith('...', before - 2)
+    ? ''
+    : word;
+}
+
+// The index of the last character before the `/` at `at` that is code: blanks,
+// a `/* … */` comment and a line that holds only a `//` comment are skipped. -1
+// is the start of the text; -2 means it gave up after 200 characters.
+function lastCodeIndex(text: string, at: number): number {
+  const stop = Math.max(0, at - 200);
+  let last = at - 1;
+  let newline = false;
+  while (last >= stop) {
+    if (/\s/.test(text[last])) {
+      newline ||= text[last] === '\n';
+      last--;
+    } else if (text[last] === '/' && text[last - 1] === '*') {
+      let open = last - 2;
+      while (open >= stop && !text.startsWith('/*', open)) open--;
+      if (open < stop) return last;
+      last = open - 1;
+    } else {
+      // A comment line is above the slash's own line.
+      if (!newline) return last;
+      let line = last;
+      while (line > stop && text[line - 1] !== '\n') line--;
+      if (!/^[ \t]*\/\//.test(text.slice(line, last + 1))) return last;
+      last = line - 1;
+    }
+  }
+  return stop > 0 ? -2 : -1;
+}
+
 // A `/` starts a regex literal at the start of the text, after an operator or
 // bracket that begins an expression, and after a word like `return`. After a
-// name, number, `)`, `]` or `}` it divides, and `</` and `/>` close a tag.
+// name, number, `)`, `]` or `}` it divides, and so after `++` or `--`; `</` and
+// `/>` close a tag.
 function regexAllowed(text: string, at: number): boolean {
-  let last = at - 1;
-  while (last >= 0 && /\s/.test(text[last])) {
-    if (at - last > 200) return false;
-    last--;
-  }
-  if (last < 0) return true;
+  const last = lastCodeIndex(text, at);
+  if (last < 0) return last === -1;
   const char = text[last];
-  if (/[\w$]/.test(char)) return EXPRESSION_WORD.test(wordEndingAt(text, last));
+  if (/[\w$]/.test(char)) {
+    const word = keywordEndingAt(text, last);
+    return EXPRESSION_WORD.test(word) && word !== 'of' && word !== 'from';
+  }
   if (char === '>') return text[last - 1] === '=';
-  return '(,=:[!&|?{;~'.includes(char);
+  if (char === '+' || char === '-') return text[last - 1] !== char;
+  return '(,=:[!&|?{;~*%^'.includes(char);
 }
 
 // A quote cannot follow a word character straight away unless the word is a
@@ -459,18 +499,25 @@ function regexAllowed(text: string, at: number): boolean {
 function quoteMayOpen(text: string, at: number): boolean {
   return (
     !/[\w$]/.test(text[at - 1] ?? '') ||
-    EXPRESSION_WORD.test(wordEndingAt(text, at - 1))
+    EXPRESSION_WORD.test(keywordEndingAt(text, at - 1))
   );
 }
 
-// A regex literal: one line, classes may hold a `/`, and a long literal or
-// class is read as a division instead. Comments come first in every rule list,
-// so `//` and `/*` never get here.
+// A regex literal is one line and its classes may hold a `/`. It is read from
+// the 300 characters after its slash, so a longer one is a division and a failed
+// try costs no more than that.
+const REGEX_BODY = /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[dgimsuvy]*/y;
+function regexEnd(text: string, at: number): number {
+  REGEX_BODY.lastIndex = 0;
+  const body = REGEX_BODY.exec(text.slice(at + 1, at + 301));
+  return body ? at + 1 + body[0].length : -1;
+}
+// Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {
-  pattern:
-    /\/(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.){0,100}\]){1,300}\/[dgimsuvy]*/y,
+  pattern: /\//y,
   type: 'regex',
-  when: regexAllowed,
+  when: (text, at) => regexAllowed(text, at) && regexEnd(text, at) >= 0,
+  end: (text, start) => regexEnd(text, start),
 };
 // A backtick name may hold anything, a quote too: Kotlin `it's fine`.
 const BACKTICK_NAME: Rule = { pattern: /`[^`\n]*`/y };
@@ -563,36 +610,31 @@ const DART_RAW_STRING: Rule = {
 // `#"…"#` closes at a quote followed by the same number of hashes, takes no
 // escape without them (`\#n`), and opens a hole with `\#(`. A `#"""` opener is
 // left to TRIPLE_QUOTED; the guard also keeps a run of them linear. A string
-// whose scan fails ends at its line, and so do the later ones on that line.
-const SWIFT_RAW_FAILURES = perCall(() => ({ failedLine: -1 }));
+// that never closes ends at its line.
 const SWIFT_RAW_STRING: Rule = {
   pattern: /#+"(?!"")/y,
   type: 'string',
   notAfter: /#/,
   end: (text, start, afterOpener) => {
-    const seen = SWIFT_RAW_FAILURES(text);
     const hashes = '#'.repeat(afterOpener - start - 1);
     const hole = `\\${hashes}(`;
-    if (afterOpener > seen.failedLine) {
-      for (let i = afterOpener; i < text.length; i++) {
-        if (text[i] === '\n') break;
-        if (text.startsWith(`"${hashes}`, i)) return i + hashes.length + 1;
-        if (text.startsWith(hole, i)) {
-          const holeEnd = scanFrames(
-            text,
-            i + hole.length,
-            [{ hole: SWIFT_PAREN.holes[0], depth: 1 }],
-            SWIFT_PAREN,
-            '"',
-            false
-          );
-          if (holeEnd < 0) break;
-          i = holeEnd - 1;
-        } else if (text[i] === '\\' && text.startsWith(hashes, i + 1)) {
-          i += hashes.length + 1;
-        }
+    for (let i = afterOpener; i < text.length; i++) {
+      if (text[i] === '\n') break;
+      if (text.startsWith(`"${hashes}`, i)) return i + hashes.length + 1;
+      if (text.startsWith(hole, i)) {
+        const holeEnd = scanFrames(
+          text,
+          i + hole.length,
+          [{ hole: SWIFT_PAREN.holes[0], depth: 1 }],
+          SWIFT_PAREN,
+          '"',
+          false
+        );
+        if (holeEnd < 0) break;
+        i = holeEnd - 1;
+      } else if (text[i] === '\\' && text.startsWith(hashes, i + 1)) {
+        i += hashes.length + 1;
       }
-      seen.failedLine = lineEnd(text, afterOpener);
     }
     return lineEnd(text, afterOpener);
   },
@@ -602,8 +644,8 @@ const SWIFT_RAW_STRING: Rule = {
 // spreads. `afterDot` lists the words that stay keywords there (Swift `.self`).
 const keyword = (words: string, afterDot = ''): Rule => ({
   pattern: new RegExp(
-    String.raw`(?<![^.]\.)\b(?:${words})\b` +
-      (afterDot ? String.raw`|(?<=[^.]\.)\b(?:${afterDot})\b` : ''),
+    String.raw`(?:(?<=\.\.\.)|(?<!\.))\b(?:${words})\b` +
+      (afterDot ? String.raw`|\b(?:${afterDot})\b` : ''),
     'y'
   ),
   type: 'keyword',
@@ -670,7 +712,7 @@ const TYPESCRIPT_RULES: Rule[] = [
   CONTINUING_DOUBLE_QUOTED,
   TYPESCRIPT_SINGLE_QUOTED,
   keyword(
-    'import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts'
+    'import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts|is'
   ),
   NUMBER,
   CALL,
@@ -679,13 +721,13 @@ const TYPESCRIPT_RULES: Rule[] = [
 
 const NATIVE_KEYWORDS = {
   swift:
-    'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|inout|operator|precedencegroup|break|continue|default|fallthrough|repeat|willSet|didSet',
+    'import|func|let|var|if|else|for|while|do|switch|case|return|try|await|async|class|struct|enum|protocol|extension|guard|defer|in|is|as|self|super|static|final|override|public|private|internal|fileprivate|open|weak|unowned|lazy|mutating|nonmutating|convenience|required|subscript|deinit|init|typealias|associatedtype|where|throws|rethrows|catch|throw|nil|true|false|inout|operator|precedencegroup|break|continue|default|fallthrough|repeat|willSet|didSet|some',
   kotlin:
-    'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where|break|continue|const|final|out|vararg|operator|infix|tailrec|external|expect|actual',
+    'import|package|fun|val|var|if|else|for|while|do|when|return|try|catch|finally|throw|class|object|interface|enum|sealed|data|inner|open|abstract|override|public|private|internal|protected|suspend|inline|crossinline|noinline|reified|lateinit|by|companion|init|constructor|this|super|null|true|false|it|in|is|as|typealias|where|break|continue|const|final|out|vararg|operator|infix|tailrec|external|expect|actual|typeof',
   gdscript:
     'func|var|const|class|class_name|extends|signal|enum|static|onready|export|preload|load|if|elif|else|for|while|match|break|continue|pass|return|await|yield|true|false|null|self|void|int|float|bool|String|Array|Dictionary|Vector2|Vector3|Object|Node|and|or|not|in|is|as|assert|breakpoint|super|PI|TAU|INF|NAN',
   csharp:
-    'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with|get|set|partial|dynamic',
+    'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|init|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|yield|when|nameof|with|get|set|partial|dynamic|where|not',
   dart: 'import|export|library|part|show|hide|as|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|rethrow|assert|class|abstract|extends|implements|with|mixin|enum|typedef|static|final|const|late|required|covariant|get|set|operator|factory|async|await|yield|sync|true|false|null|this|super|new|void|dynamic|var|Function|Future|Stream|extension|external|interface|sealed|in|is|on|deferred',
 };
 
@@ -700,7 +742,8 @@ const NATIVE_EXTRAS = {
     BACKTICK_NAME,
   ],
   kotlin: [...nestingComments, KOTLIN_RAW_STRING, BACKTICK_NAME],
-  gdscript: [ESCAPED, HASH_COMMENT],
+  // `$Node/Child` is a node path, plain from the `$` to its last name.
+  gdscript: [ESCAPED, HASH_COMMENT, { pattern: /\$[\w/]+/y }],
   csharp: [
     ...slashComments,
     DIRECTIVE,
@@ -752,7 +795,7 @@ const GROOVY_RULES: Rule[] = [
   interpolated('"', DOLLAR_BRACE, true),
   CONTINUING_SINGLE_QUOTED,
   keyword(
-    'android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project|try|catch|finally|throw|in|as|instanceof|switch|case|default|break|continue|do|assert|enum|interface|var|this|super|abstract|private|public|protected|throws|trait'
+    'android|compileSdkVersion|compileSdk|minSdkVersion|minSdk|targetSdkVersion|targetSdk|defaultConfig|dependencies|implementation|def|if|else|for|while|return|true|false|null|new|class|extends|implements|import|package|static|final|void|int|boolean|String|project|try|catch|finally|throw|in|as|instanceof|switch|case|default|break|continue|do|assert|enum|interface|var|this|super|abstract|private|public|protected|throws|trait|const|goto|native|strictfp|synchronized|threadsafe|transient|volatile|byte|char|double|float|long|short'
   ),
   NUMBER,
   CALL,
@@ -766,9 +809,8 @@ const JSON_RULES: Rule[] = [
 ];
 
 // A heredoc body starts on the line after `<<WORD` and ends at a line that holds
-// only WORD (`<<-WORD` also lets tabs lead it). A bare WORD starts with a letter,
-// so a shift like `<< 3` is no opener. The opener leaves the heredoc waiting;
-// the line break that ends the opener's line takes the body.
+// only WORD (`<<-WORD` also lets tabs lead it). The opener leaves the heredoc
+// waiting; the line break that ends the opener's line takes the body.
 interface Heredoc {
   word: string;
   tabs: boolean;
@@ -777,7 +819,7 @@ const HEREDOCS = perCall(() => ({ waiting: [] as Heredoc[] }));
 // Where lines holding only a word start, by word, under `-` with leading tabs
 // allowed and under `=` without any. Found once per text, so a closer costs a
 // search, not a rescan.
-const WORD_LINE = /(\t*)(\w+)\r?(?=\n|$)/y;
+const WORD_LINE = /(\t*)([\w.-]+)\r?(?=\n|$)/y;
 const wordLines = perCall((text) => {
   const starts = new Map<string, number[]>();
   const add = (key: string, start: number): void => {
@@ -812,10 +854,17 @@ function heredocEnd(
   const end = lineEnd(text, starts[low]);
   return text[end - 1] === '\r' ? end - 1 : end;
 }
+// `((` opens arithmetic on the line, where `<<` shifts: `$(( 1 << n ))`.
+function inArithmetic(text: string, at: number): boolean {
+  const before = text.slice(Math.max(0, at - 200), at);
+  const line = before.slice(before.lastIndexOf('\n') + 1);
+  return line.lastIndexOf('((') > line.lastIndexOf('))');
+}
 const HEREDOC_OPENER: Rule = {
-  pattern: /<<(-?)([ \t]*)(?:(['"])(\w+)\3|\\?([A-Za-z_]\w*))/y,
+  pattern: /<<(-?)([ \t]*)(?:(['"])([\w.-]+)\3|\\?([\w.-]+))/y,
   // Not the `<<<` of a here-string.
   notAfter: /</,
+  when: (text, at) => !inArithmetic(text, at),
   render: (m) => {
     HEREDOCS(m.input).waiting.push({
       word: m[4] ?? m[5],
