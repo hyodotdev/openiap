@@ -131,6 +131,10 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         await _handlePurchaseUpdate(purchase);
       }
     } catch (error) {
+      if (error is PurchaseError &&
+          error.code == ErrorCode.FeatureNotSupported) {
+        return;
+      }
       if (mounted) {
         setState(() {
           _purchaseResult =

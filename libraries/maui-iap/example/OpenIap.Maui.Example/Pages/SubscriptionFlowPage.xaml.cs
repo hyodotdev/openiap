@@ -640,6 +640,7 @@ public partial class SubscriptionFlowPage : ContentPage
 #endif
             foreach (var purchase in recovered) await OnPurchaseAsync(purchase);
         }
+        catch (OpenIapException error) when (error.Error.Code == ErrorCode.FeatureNotSupported) { }
         catch (Exception error)
         {
             UpdateResult($"Purchase recovery failed; receipts retained: {error.Message}");

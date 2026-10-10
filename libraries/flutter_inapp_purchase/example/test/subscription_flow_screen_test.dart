@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,10 +14,12 @@ void main() {
 
   late List<MethodCall> log;
   late List<Map<String, dynamic>> ownership;
+  PlatformException? recoveryFailure;
 
   setUp(() {
     log = <MethodCall>[];
     ownership = [];
+    recoveryFailure = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
       log.add(call);
@@ -54,6 +57,9 @@ void main() {
         case 'getAvailableItems':
         case 'getPurchaseHistory':
           return ownership;
+        case 'getPendingTransactionsIOS':
+          if (recoveryFailure != null) throw recoveryFailure!;
+          return [];
         case 'requestPurchase':
           return null;
         case 'finishTransaction':
@@ -66,9 +72,46 @@ void main() {
   });
 
   tearDown(() {
+    debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
+
+  for (final unsupported in [true, false]) {
+    testWidgets(
+        'subscription recovery reports only genuine failures ($unsupported)',
+        (tester) async {
+      recoveryFailure = PlatformException(
+        code: unsupported ? 'feature-not-supported' : 'service-error',
+        message: 'Recovery unavailable',
+      );
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        await tester.pumpWidget(MaterialApp(
+          home: SubscriptionFlowScreen(
+            iap: FlutterInappPurchase(
+              platform: FakePlatform(operatingSystem: 'ios'),
+            ),
+          ),
+        ));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ignore'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Local (IAPKit)'));
+        await tester.pumpAndSettle();
+        expect(log.where((call) => call.method == 'getPendingTransactionsIOS'),
+            isNotEmpty);
+        expect(find.textContaining('Purchase recovery failed'),
+            unsupported ? findsNothing : findsOneWidget);
+        expect(
+            log.where((call) => call.method == 'finishTransaction'), isEmpty);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
+    });
+  }
 
   testWidgets('pending subscription ownership and callbacks grant no access',
       (tester) async {
