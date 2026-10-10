@@ -167,6 +167,13 @@ test('colors bash commands only at the start of a line', () => {
   );
 });
 
+test('keeps a backslash literal in single quotes', () => {
+  assert.equal(
+    highlightCode("echo 'a\\'b'", 'bash'),
+    `echo ${t('string', "'a\\'")}b${t('string', "'")}`
+  );
+});
+
 test('keeps the tab before a bash flag', () => {
   assert.equal(
     highlightCode('ls\t-la', 'bash'),
@@ -193,8 +200,12 @@ test('keeps the spacing around : and = in YAML, TOML and properties', () => {
   );
   assert.equal(highlightCode('a=', 'properties'), `${t('attr-name', 'a')}=`);
   assert.equal(
+    highlightCode('[[tool.src]]\nn = 1', 'toml'),
+    `${t('keyword', '[[tool.src]]')}\n${t('attr-name', 'n')} = ${t('number', '1')}`
+  );
+  assert.equal(
     highlightCode('[tool.x] # c\nk = true', 'toml'),
-    `${t('keyword', '[tool.x]')} # c\n${t('attr-name', 'k')} = ${t('keyword', 'true')}`
+    `${t('keyword', '[tool.x]')} ${t('comment', '# c')}\n${t('attr-name', 'k')} = ${t('keyword', 'true')}`
   );
   // Classic Mac line endings leave several records in one "line".
   assert.equal(
@@ -232,8 +243,12 @@ test('colors block comments, also over several lines', () => {
   );
   assert.equal(
     highlightCode('a /* open\nb', 'dart'),
-    `a ${t('comment', '/* open\nb')}`
+    `a ${t('comment', '/* open')}\nb`
   );
+});
+
+test('starts a GDScript comment at any #', () => {
+  assert.equal(highlightCode('a#b', 'gdscript'), `a${t('comment', '#b')}`);
 });
 
 test('starts a bash or YAML comment only at a word', () => {
@@ -284,10 +299,18 @@ test('colors compiler directives as keywords', () => {
   );
 });
 
+test('takes only a lowercase #name for a directive', () => {
+  assert.equal(highlightCode('#If x', 'swift'), `#${t('class-name', 'If')} x`);
+});
+
 test('tells JSON keys from values', () => {
   assert.equal(
     highlightCode('{"a:b": "c:d", "n": [1, true, null]}', 'json'),
     `{${t('attr-name', '"a:b"')}: ${t('string', '"c:d"')}, ${t('attr-name', '"n"')}: [${t('number', '1')}, ${t('keyword', 'true')}, ${t('keyword', 'null')}]}`
+  );
+  assert.equal(
+    highlightCode('{"a" : 1}', 'json'),
+    `{${t('attr-name', '"a"')} : ${t('number', '1')}}`
   );
 });
 
@@ -379,6 +402,153 @@ test('links known type names and leaves unknown ones as plain class names', () =
     assert.ok(html.includes(link), language);
     assert.ok(html.includes(t('class-name', 'Nope')), language);
   }
+});
+
+test('ends a string at a line break, and honors escapes in all quote kinds', () => {
+  assert.equal(
+    highlightCode('x = "a\nb"', 'typescript'),
+    `x = ${t('string', '"a')}\nb${t('string', '"')}`
+  );
+  assert.equal(
+    highlightCode("x = 'it\\'s'", 'typescript'),
+    `x = ${t('string', "'it\\'s'")}`
+  );
+  assert.equal(
+    highlightCode('x = `a\\`b`', 'typescript'),
+    `x = ${t('string', '`a\\`b`')}`
+  );
+});
+
+test('ends an unclosed block comment, template or triple quote at the line', () => {
+  assert.equal(
+    highlightCode('a /* b\nfoo()', 'typescript'),
+    `a ${t('comment', '/* b')}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('x = `a\nfoo()', 'typescript'),
+    `x = ${t('string', '`a')}\n${t('function', 'foo')}()`
+  );
+  assert.equal(
+    highlightCode('x = """abc\nfoo()', 'kotlin'),
+    `x = ${t('string', '"""abc')}\n${t('function', 'foo')}()`
+  );
+});
+
+test('colors Kotlin chars, Dart triple quotes and an indented C# directive', () => {
+  assert.equal(
+    highlightCode("val c = 'a'", 'kotlin'),
+    `${t('keyword', 'val')} c = ${t('string', "'a'")}`
+  );
+  assert.equal(
+    highlightCode("var s = '''x'''", 'dart'),
+    `${t('keyword', 'var')} s = ${t('string', "'''x'''")}`
+  );
+  assert.equal(
+    highlightCode('  #region X', 'csharp'),
+    `  ${t('keyword', '#region')} ${t('class-name', 'X')}`
+  );
+});
+
+test('colors whole numeric literals', () => {
+  assert.equal(
+    highlightCode('x = 0.1f + 0xFF + 1_000 + 10L + 1e3 + 2.5e-3', 'kotlin'),
+    `x = ${t('number', '0.1f')} + ${t('number', '0xFF')} + ${t('number', '1_000')} + ${t('number', '10L')} + ${t('number', '1e3')} + ${t('number', '2.5e-3')}`
+  );
+  assert.equal(highlightCode('v2 + 4K', 'kotlin'), 'v2 + 4K');
+});
+
+test('takes $ as part of a call name and keeps a dot out of a number', () => {
+  assert.equal(
+    highlightCode('a$b(1)', 'typescript'),
+    `${t('function', 'a$b')}(${t('number', '1')})`
+  );
+  assert.equal(
+    highlightCode('val p = 16.dp + 1.5', 'kotlin'),
+    `${t('keyword', 'val')} p = ${t('number', '16')}.dp + ${t('number', '1.5')}`
+  );
+  assert.equal(
+    highlightCode('pair.0.self', 'swift'),
+    `pair.${t('number', '0')}.${t('keyword', 'self')}`
+  );
+});
+
+test('colors bash strings, redirects and variables', () => {
+  assert.equal(
+    highlightCode(`echo "a b" 'c d' $HOME < in`, 'bash'),
+    `echo ${t('string', '"a b"')} ${t('string', "'c d'")} ${t('variable', '$HOME')} ${t('keyword', '&lt;')} in`
+  );
+  assert.equal(
+    highlightCode('EXPO_TV="a b" npx expo start', 'bash'),
+    `EXPO_TV=${t('string', '"a b"')} npx expo start`
+  );
+});
+
+test('does not take a # inside a YAML single-quoted string for a comment', () => {
+  assert.equal(
+    highlightCode("k: 'v # x'", 'yaml'),
+    `${t('attr-name', 'k')}: ${t('string', "'v # x'")}`
+  );
+});
+
+test('colors GraphQL keywords only at column 0', () => {
+  assert.equal(
+    highlightCode('  subscription { productId }', 'graphql'),
+    '  subscription { productId }'
+  );
+  assert.equal(
+    highlightCode('typeName: String', 'graphql'),
+    `${t('field', 'typeName')}${t('punctuation', ':')} ${t('builtin-type', 'String')}`
+  );
+  assert.equal(
+    highlightCode(
+      'union X = A | B\nfragment F on T {\nmutation M {\ndirective @d on FIELD\nscalar Date\nschema {\nquery($id: ID!) {',
+      'graphql'
+    ),
+    `${t('keyword', 'union')} ${t('type-name', 'X')} = A | B\n${t('keyword', 'fragment')} ${t('type-name', 'F')} on T {\n${t('keyword', 'mutation')} ${t('type-name', 'M')} {\n${t('keyword', 'directive')} @d on FIELD\n${t('keyword', 'scalar')} ${t('type-name', 'Date')}\n${t('keyword', 'schema')} {\n${t('keyword', 'query')}($id${t('punctuation', ':')} ${t('builtin-type', 'ID')}${t('required', '!')}) {`
+  );
+});
+
+test('ends a GraphQL block string at the right quotes', () => {
+  assert.equal(
+    highlightCode('"""abc\nf: Int', 'graphql'),
+    `${t('string', '"""abc')}\n${t('field', 'f')}${t('punctuation', ':')} ${t('builtin-type', 'Int')}`
+  );
+  assert.equal(
+    highlightCode('"""a \\""" b"""\ntype X {', 'graphql'),
+    `${t('string', '"""a \\""" b"""')}\n${t('keyword', 'type')} ${t('type-name', 'X')} {`
+  );
+});
+
+test('does not take an upper-case field name for an enum value', () => {
+  assert.equal(
+    highlightCode('  URL: String', 'graphql'),
+    `  ${t('field', 'URL')}${t('punctuation', ':')} ${t('builtin-type', 'String')}`
+  );
+});
+
+test('colors nested GraphQL lists and a space before the colon', () => {
+  assert.equal(
+    highlightCode('  n: [[A!]!]!\n  a : Int', 'graphql'),
+    `  ${t('field', 'n')}${t('punctuation', ':')} ${t('punctuation', '[')}${t('punctuation', '[')}${t('custom-type', 'A')}${t('required', '!')}${t('punctuation', ']')}${t('required', '!')}${t('punctuation', ']')}${t('required', '!')}\n  ${t('field', 'a')} ${t('punctuation', ':')} ${t('builtin-type', 'Int')}`
+  );
+});
+
+test('stays fast on long pathological lines', () => {
+  const inputs = [
+    ' '.repeat(50000),
+    'x' + ' '.repeat(50000),
+    'k'.repeat(50000),
+    '/* '.repeat(5000),
+    '`'.repeat(5000),
+    'a$'.repeat(2000),
+    '"""'.repeat(3000),
+    'a: '.repeat(5000),
+  ];
+  const start = performance.now();
+  for (const language of HIGHLIGHT_LANGUAGES) {
+    for (const source of inputs) highlightCode(source, language);
+  }
+  assert.ok(performance.now() - start < 5000);
 });
 
 // Pieces that have broken a highlighter before, mixed with plain syntax.

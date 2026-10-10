@@ -34,15 +34,6 @@ export function escapeHtml(value: string): string {
 const token = (type: string, html: string): string =>
   `<span class="token ${type}">${html}</span>`;
 
-// Wraps a class-name token in an anchor when it matches a known type.
-function linkifyType(name: string): string {
-  const href = TYPE_LINKS[name];
-  if (href) {
-    return `<a class="token class-name type-ref" href="${href}">${escapeHtml(name)}</a>`;
-  }
-  return token('class-name', escapeHtml(name));
-}
-
 // A rule matches at the current position. Its text becomes a token span, goes
 // through `render`, or, with neither, stays plain so no later rule can match
 // inside it. Patterns are sticky; `^` needs the `m` flag to mean line start.
@@ -82,10 +73,9 @@ function lex(text: string, rules: readonly Rule[]): string {
   return html + escapeHtml(text.slice(plainFrom));
 }
 
-const lexer =
-  (rules: readonly Rule[]) =>
-  (text: string): string =>
-    lex(text, rules);
+function lexer(rules: readonly Rule[]): (text: string) => string {
+  return (text) => lex(text, rules);
+}
 
 // A comment that starts at a word boundary: `#` in bash and YAML.
 const wordComment: Rule = {
@@ -99,8 +89,10 @@ const prefixed = (pattern: RegExp, type: string): Rule => ({
 });
 
 const LINE_COMMENT: Rule = { pattern: /\/\/[^\n]*/y, type: 'comment' };
+// Only a closed token spans lines; an unclosed opener ends at the line break
+// so a stray `/*` or backtick cannot swallow the rest of the block.
 const BLOCK_COMMENT: Rule = {
-  pattern: /\/\*[\s\S]*?(?:\*\/|$)/y,
+  pattern: /\/\*[\s\S]*?\*\/|\/\*[^\n]*/y,
   type: 'comment',
 };
 const HASH_COMMENT: Rule = { pattern: /#[^\n]*/y, type: 'comment' };
@@ -115,11 +107,11 @@ const SINGLE_QUOTED: Rule = {
 };
 const LITERAL_SINGLE_QUOTED: Rule = { pattern: /'[^'\n]*'?/y, type: 'string' };
 const BACKTICK_QUOTED: Rule = {
-  pattern: /`(?:[^`\\]|\\[\s\S])*`?/y,
+  pattern: /`(?:[^`\\]|\\[\s\S])*`|`[^\n]*/y,
   type: 'string',
 };
 const TRIPLE_QUOTED: Rule = {
-  pattern: /"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)/y,
+  pattern: /"""[\s\S]*?"""|'''[\s\S]*?'''|"""[^\n]*|'''[^\n]*/y,
   type: 'string',
 };
 
@@ -127,14 +119,26 @@ const keyword = (words: string): Rule => ({
   pattern: new RegExp(`\\b(?:${words})\\b`, 'y'),
   type: 'keyword',
 });
-const NUMBER: Rule = { pattern: /\b\d+\.?\d*\b/y, type: 'number' };
+// Decimal with a fraction or exponent, hex or binary, `_` separators, and the
+// f/d/l/u/m suffixes of the C-like languages. `16.dp` is a number then `.dp`.
+const NUMBER: Rule = {
+  pattern:
+    /\b(?:0[xX][\da-fA-F_]+|0[bB][01_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?)[fFdDlLuUmM]*\b/y,
+  type: 'number',
+};
 const CALL: Rule = {
   pattern: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=[ \t]*\()/y,
   type: 'function',
 };
+// A capitalized word links to its type page when it names one.
 const TYPE: Rule = {
   pattern: /\b[A-Z][a-zA-Z0-9_]*\b/y,
-  render: (m) => linkifyType(m[0]),
+  render: ([name]) => {
+    const href = TYPE_LINKS[name];
+    return href
+      ? `<a class="token class-name type-ref" href="${href}">${escapeHtml(name)}</a>`
+      : token('class-name', escapeHtml(name));
+  },
 };
 const DECORATOR: Rule = { pattern: /@[A-Za-z_]\w*/y, type: 'decorator' };
 // C# `@params` is an identifier, not an annotation or a keyword.
@@ -205,7 +209,7 @@ const BASH_RULES: Rule[] = [
   DOUBLE_QUOTED,
   LITERAL_SINGLE_QUOTED,
   prefixed(
-    /^([ \t]*)((?:npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild)\b|EXPO_TV=\S+)/my,
+    /^([ \t]*)((?:npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild)\b|EXPO_TV=[^\s"']+)/my,
     'function'
   ),
   {
@@ -218,14 +222,7 @@ const BASH_RULES: Rule[] = [
 
 const YAML_RULES: Rule[] = [
   wordComment,
-  {
-    pattern: /^[ \t]*\[[^\n]*/my,
-    render: (m) =>
-      escapeHtml(m[0]).replace(
-        /(\[[^\]]+\])/g,
-        '<span class="token keyword">$1</span>'
-      ),
-  },
+  prefixed(/^([ \t]*)(\[[^\]\n]*\]+)/my, 'keyword'),
   DOUBLE_QUOTED,
   LITERAL_SINGLE_QUOTED,
   {
@@ -242,7 +239,8 @@ const YAML_RULES: Rule[] = [
 const PROPERTIES_RULES: Rule[] = [
   prefixed(/^([ \t]*)([#!][^\n]*)/my, 'comment'),
   {
-    pattern: /^([ \t]*)([^=\r\n]+?)([ \t]*=[ \t]*)([^\r\n]*)/my,
+    pattern:
+      /^([ \t]*)(?![ \t])(?=[^=\r\n]*=)([^\s=][^=\r\n]*?)([ \t]*=[ \t]*)([^\r\n]*)/my,
     render: (m) =>
       escapeHtml(m[1]) +
       token('attr-name', escapeHtml(m[2])) +
@@ -267,16 +265,16 @@ const GRAPHQL_COLON =
   /:(?:([ \t]*)(?![A-Za-z_]\w*[ \t]*[({])(\[*)([A-Za-z_]\w*)([!\]]*))?/y;
 
 const GRAPHQL_RULES: Rule[] = [
-  { pattern: /"""[\s\S]*?(?:"""|$)/y, type: 'string' },
+  { pattern: /"""(?:\\"""|[\s\S])*?"""|"""[^\n]*/y, type: 'string' },
   HASH_COMMENT,
   DOUBLE_QUOTED,
   {
+    // Column 0 only: an indented `subscription { … }` is a field in a selection.
     pattern:
-      /^([ \t]*)((?:extend[ \t]+)?(?:type|input|enum|interface|union|scalar|directive|schema|query|mutation|subscription|fragment))(?=[ \t{]|$)(?:([ \t]+)(\w+))?/my,
+      /^((?:extend[ \t]+)?(?:type|input|enum|interface|union|scalar|directive|schema|query|mutation|subscription|fragment))(?=[ \t{(]|$)(?:([ \t]+)(\w+))?/my,
     render: (m) =>
-      escapeHtml(m[1]) +
-      token('keyword', escapeHtml(m[2])) +
-      (m[4] ? escapeHtml(m[3]) + token('type-name', escapeHtml(m[4])) : ''),
+      token('keyword', escapeHtml(m[1])) +
+      (m[3] ? escapeHtml(m[2]) + token('type-name', escapeHtml(m[3])) : ''),
   },
   prefixed(
     /^([ \t]*)([A-Z_][A-Z_0-9]*)(?=[ \t]*(?:#[^\n]*)?$)/my,
@@ -360,5 +358,5 @@ export function highlightCode(
   text: string,
   language: HighlightLanguage
 ): string {
-  return (HIGHLIGHTERS[language] ?? escapeHtml)(text);
+  return HIGHLIGHTERS[language](text);
 }
