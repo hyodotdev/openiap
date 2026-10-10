@@ -1,6 +1,6 @@
 extends Node
-## Test runner that executes all tests
-## Run with: godot --headless --script tests/run_tests.gd
+## Scene-based types and plugin tests.
+## Run the maintained headless suites with `make test` from the library root.
 
 const Types = preload("res://addons/godot-iap/types.gd")
 const GodotIapScript = preload("res://addons/godot-iap/godot_iap.gd")

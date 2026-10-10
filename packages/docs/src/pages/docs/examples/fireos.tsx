@@ -672,6 +672,19 @@ function FireOSExample() {
             </tr>
           </tbody>
         </table>
+        <p>
+          App Tester can label yearly terms as monthly; compare the requested
+          SKU and receipt plan rather than the dialog title.{' '}
+          <a href="https://developer.amazon.com/docs/in-app-purchasing/iap-faqs.html">
+            Amazon documents this display limitation
+          </a>
+          .{' '}
+          <a href="https://developer.amazon.com/docs/in-app-purchasing/rvs-cloud-sandbox.html">
+            RVS Cloud Sandbox
+          </a>{' '}
+          also generates a synthetic <code>termSku</code>. Use Live App Testing
+          to certify renewal and access-end behavior.
+        </p>
       </section>
 
       <section>
