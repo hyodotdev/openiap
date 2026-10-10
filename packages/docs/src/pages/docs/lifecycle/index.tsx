@@ -209,7 +209,7 @@ function LifeCycle() {
           Check for pending purchases on app launch. Purchases may complete
           while app is closed:
         </p>
-        <CodeBlock language={undefined}>{`On app launch:
+        <CodeBlock language="text">{`On app launch:
 1. getAvailablePurchases() → [Purchase]
 2. For each purchase:
    → validate purchase

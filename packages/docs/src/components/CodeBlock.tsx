@@ -6,7 +6,7 @@ interface CodeBlockProps {
   language?: HighlightLanguage;
 }
 
-function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
+function CodeBlock({ children, language = 'text' }: CodeBlockProps) {
   const codeRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
 
