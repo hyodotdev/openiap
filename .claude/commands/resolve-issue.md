@@ -80,6 +80,10 @@ gh issue edit $ISSUE_NUMBER --repo hyodotdev/openiap --add-label "<label1>,<labe
 | Affects multiple platforms            | `cross-platform`   |
 | Breaking change                       | `⚡️ breaking`      |
 
+Keep to the cap and priority of the PR label guide in
+`.claude/commands/commit.md` step 8: an issue that names several libraries gets
+`cross-platform`, not one label each.
+
 ### 3. Analyze and Decide
 
 Classify the issue:
