@@ -451,10 +451,35 @@ test('colors Kotlin chars, Dart triple quotes and an indented C# directive', () 
 
 test('colors whole numeric literals', () => {
   assert.equal(
-    highlightCode('x = 0.1f + 0xFF + 1_000 + 10L + 1e3 + 2.5e-3', 'kotlin'),
-    `x = ${t('number', '0.1f')} + ${t('number', '0xFF')} + ${t('number', '1_000')} + ${t('number', '10L')} + ${t('number', '1e3')} + ${t('number', '2.5e-3')}`
+    highlightCode(
+      'x = 0.1f + 0xFF_FF + 1_000 + 1.0_5 + 10L + 1e3 + 2.5e-3',
+      'kotlin'
+    ),
+    `x = ${t('number', '0.1f')} + ${t('number', '0xFF_FF')} + ${t('number', '1_000')} + ${t('number', '1.0_5')} + ${t('number', '10L')} + ${t('number', '1e3')} + ${t('number', '2.5e-3')}`
+  );
+  assert.equal(
+    highlightCode(
+      'x = 0b1010_1010 + 0XFF + 0o17 + 10UL + 1.5M + 1m + 1u + 1d',
+      'swift'
+    ),
+    `x = ${t('number', '0b1010_1010')} + ${t('number', '0XFF')} + ${t('number', '0o17')} + ${t('number', '10UL')} + ${t('number', '1.5M')} + ${t('number', '1m')} + ${t('number', '1u')} + ${t('number', '1d')}`
   );
   assert.equal(highlightCode('v2 + 4K', 'kotlin'), 'v2 + 4K');
+});
+
+test('leaves a unit suffix out of a number in JSON, YAML and TOML', () => {
+  assert.equal(
+    highlightCode('timeout: 10m\nlimit: 0xFF', 'yaml'),
+    `${t('attr-name', 'timeout')}: 10m\n${t('attr-name', 'limit')}: ${t('number', '0xFF')}`
+  );
+  assert.equal(
+    highlightCode('{"a": 1e3, "b": -2.5}', 'json'),
+    `{${t('attr-name', '"a"')}: ${t('number', '1e3')}, ${t('attr-name', '"b"')}: -${t('number', '2.5')}}`
+  );
+  assert.equal(
+    highlightCode('n = 1_000', 'toml'),
+    `${t('attr-name', 'n')} = ${t('number', '1_000')}`
+  );
 });
 
 test('takes $ as part of a call name and keeps a dot out of a number', () => {
@@ -519,6 +544,52 @@ test('ends a GraphQL block string at the right quotes', () => {
   );
 });
 
+test('colors a GraphQL keyword before a brace or at the end of a line', () => {
+  assert.equal(
+    highlightCode('query{ a }', 'graphql'),
+    `${t('keyword', 'query')}{ a }`
+  );
+  assert.equal(
+    highlightCode('schema\nx', 'graphql'),
+    `${t('keyword', 'schema')}\nx`
+  );
+});
+
+test('does not read an escaped triple quote as the end of a block string', () => {
+  assert.equal(
+    highlightCode('"""a \\""" b\ntype X {', 'graphql'),
+    `${t('string', '"""a \\""" b')}\n${t('keyword', 'type')} ${t('type-name', 'X')} {`
+  );
+});
+
+test('keeps a TOML header indented and stops EXPO_TV at either quote', () => {
+  assert.equal(highlightCode('  [x]', 'toml'), `  ${t('keyword', '[x]')}`);
+  assert.equal(
+    highlightCode("EXPO_TV='1' npx", 'bash'),
+    `EXPO_TV=${t('string', "'1'")} npx`
+  );
+});
+
+test('ends an unclosed Dart triple quote at the line', () => {
+  assert.equal(
+    highlightCode("x = '''a\nfoo()", 'dart'),
+    `x = ${t('string', "'''a")}\n${t('function', 'foo')}()`
+  );
+});
+
+test('starts a properties key at any non-blank character', () => {
+  assert.equal(
+    highlightCode(' k=v', 'properties'),
+    `${t('attr-name', ' k')}=${t('string', 'v')}`
+  );
+});
+
+test('escapes the text of a language it does not know', () => {
+  for (const language of ['python', 'toString', 'constructor', '__proto__']) {
+    assert.equal(highlightCode('<b>x</b>', language), '&lt;b&gt;x&lt;/b&gt;');
+  }
+});
+
 test('does not take an upper-case field name for an enum value', () => {
   assert.equal(
     highlightCode('  URL: String', 'graphql'),
@@ -537,6 +608,7 @@ test('stays fast on long pathological lines', () => {
   const inputs = [
     ' '.repeat(50000),
     'x' + ' '.repeat(50000),
+    'a' + ' '.repeat(50000) + 'b=c',
     'k'.repeat(50000),
     '/* '.repeat(5000),
     '`'.repeat(5000),
@@ -544,11 +616,17 @@ test('stays fast on long pathological lines', () => {
     '"""'.repeat(3000),
     'a: '.repeat(5000),
   ];
-  const start = performance.now();
   for (const language of HIGHLIGHT_LANGUAGES) {
-    for (const source of inputs) highlightCode(source, language);
+    for (const source of inputs) {
+      const start = performance.now();
+      highlightCode(source, language);
+      const elapsed = performance.now() - start;
+      assert.ok(
+        elapsed < 1000,
+        `${language} ${JSON.stringify(source.slice(0, 12))} ${elapsed}ms`
+      );
+    }
   }
-  assert.ok(performance.now() - start < 5000);
 });
 
 // Pieces that have broken a highlighter before, mixed with plain syntax.

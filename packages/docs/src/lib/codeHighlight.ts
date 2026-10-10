@@ -119,13 +119,17 @@ const keyword = (words: string): Rule => ({
   pattern: new RegExp(`\\b(?:${words})\\b`, 'y'),
   type: 'keyword',
 });
-// Decimal with a fraction or exponent, hex or binary, `_` separators, and the
-// f/d/l/u/m suffixes of the C-like languages. `16.dp` is a number then `.dp`.
-const NUMBER: Rule = {
-  pattern:
-    /\b(?:0[xX][\da-fA-F_]+|0[bB][01_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?)[fFdDlLuUmM]*\b/y,
+// Decimal with a fraction or exponent, `_` separators, hex, binary or octal.
+// `16.dp` is the number 16 then `.dp`.
+const NUMBER_BODY = String.raw`(?:0[xX][\da-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:[eE][+-]?\d+)?)`;
+const number = (suffix: string): Rule => ({
+  pattern: new RegExp(String.raw`\b${NUMBER_BODY}${suffix}\b`, 'y'),
   type: 'number',
-};
+});
+// Code adds the f/d/l/u/m suffixes of the C-like languages; a value in JSON,
+// YAML or TOML does not (`10m` there is not a number).
+const NUMBER = number('[fFdDlLuUmM]*');
+const DATA_NUMBER = number('');
 const CALL: Rule = {
   pattern: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=[ \t]*\()/y,
   type: 'function',
@@ -201,7 +205,7 @@ const JSON_RULES: Rule[] = [
   { pattern: /"(?:[^"\\\n]|\\.)*"(?=[ \t]*:)/y, type: 'attr-name' },
   DOUBLE_QUOTED,
   keyword('true|false|null'),
-  NUMBER,
+  DATA_NUMBER,
 ];
 
 const BASH_RULES: Rule[] = [
@@ -233,14 +237,14 @@ const YAML_RULES: Rule[] = [
       escapeHtml(m[3]),
   },
   keyword('true|false'),
-  NUMBER,
+  DATA_NUMBER,
 ];
 
 const PROPERTIES_RULES: Rule[] = [
   prefixed(/^([ \t]*)([#!][^\n]*)/my, 'comment'),
   {
     pattern:
-      /^([ \t]*)(?![ \t])(?=[^=\r\n]*=)([^\s=][^=\r\n]*?)([ \t]*=[ \t]*)([^\r\n]*)/my,
+      /^([ \t]*)([^ \t\r\n=](?:[^=\r\n]*[^ \t\r\n=])?)([ \t]*=[ \t]*)([^\r\n]*)/my,
     render: (m) =>
       escapeHtml(m[1]) +
       token('attr-name', escapeHtml(m[2])) +
@@ -265,7 +269,10 @@ const GRAPHQL_COLON =
   /:(?:([ \t]*)(?![A-Za-z_]\w*[ \t]*[({])(\[*)([A-Za-z_]\w*)([!\]]*))?/y;
 
 const GRAPHQL_RULES: Rule[] = [
-  { pattern: /"""(?:\\"""|[\s\S])*?"""|"""[^\n]*/y, type: 'string' },
+  {
+    pattern: /"""(?:\\"""|\\(?!""")|[^\\])*?"""|"""[^\n]*/y,
+    type: 'string',
+  },
   HASH_COMMENT,
   DOUBLE_QUOTED,
   {
@@ -358,5 +365,7 @@ export function highlightCode(
   text: string,
   language: HighlightLanguage
 ): string {
-  return HIGHLIGHTERS[language](text);
+  return HIGHLIGHT_LANGUAGES.includes(language)
+    ? HIGHLIGHTERS[language](text)
+    : escapeHtml(text);
 }
