@@ -349,7 +349,7 @@ function highlightGraphqlDefinition(code: string): string {
   const declaration = code.match(/^(\s*)(type|input|enum)(\s+)(\w+)(.*)$/);
   if (declaration) {
     const [, indent, keyword, gap, name, rest] = declaration;
-    return `${indent}${token('keyword', keyword)}${gap}${token('type-name', name)}${escapeHtml(rest)}`;
+    return `${escapeHtml(indent)}${token('keyword', escapeHtml(keyword))}${escapeHtml(gap)}${token('type-name', escapeHtml(name))}${escapeHtml(rest)}`;
   }
 
   // Enum values (all caps with underscores)

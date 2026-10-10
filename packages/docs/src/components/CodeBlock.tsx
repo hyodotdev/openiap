@@ -11,9 +11,8 @@ function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const code = codeRef.current;
-    if (code) {
-      code.innerHTML = highlightCode(code.textContent || '', language);
+    if (codeRef.current) {
+      codeRef.current.innerHTML = highlightCode(children, language);
     }
   }, [children, language]);
 
