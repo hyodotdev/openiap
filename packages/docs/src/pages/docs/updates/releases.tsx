@@ -547,6 +547,12 @@ function Releases() {
             finishing a receipt.
           </p>
           <p>
+            KMP purchase and subscription examples retry received receipts when
+            ownership queries omit them and keep purchase results visible while
+            products load. Select the verification method again to retry while
+            the screen remains open.
+          </p>
+          <p>
             See the{' '}
             <Link to="/docs/apis/ios/get-pending-transactions-ios">
               pending transaction guide

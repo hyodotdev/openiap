@@ -64,6 +64,7 @@ jobs:
             :library:testPlayDebugUnitTest \
             :library:testHorizonDebugUnitTest \
             :library:testAmazonDebugUnitTest \
+            :example:composeApp:testPlayDebugUnitTest \
             :example:composeApp:assemblePlayDebug \
             :example:composeApp:assembleHorizonDebug \
             :example:composeApp:assembleAmazonDebug

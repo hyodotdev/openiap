@@ -78,7 +78,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     var purchaseResult by remember { mutableStateOf<String?>(null) }
-    var transactionResult by remember { mutableStateOf<String?>(null) }
+    var catalogResult by remember { mutableStateOf<String?>(null) }
     var initError by remember { mutableStateOf<String?>(null) }
     
     var connected by remember { mutableStateOf(false) }
@@ -95,17 +95,18 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var showVerificationDialog by remember { mutableStateOf(false) }
     var verificationResult by remember { mutableStateOf<String?>(null) }
 
-    val handledPurchaseIds = remember { mutableSetOf<String>() }
+    val receiptRecovery = remember {
+        ExampleReceiptRecovery { subscriptionProductId(it) in SUBSCRIPTION_IDS }
+    }
     fun handlePurchased(purchase: Purchase) {
         val method = verificationMethod
-        if (subscriptionProductId(purchase) !in SUBSCRIPTION_IDS) return
+        if (!receiptRecovery.retain(purchase)) return
         isProcessing = false
         if (method == VerificationMethod.None) {
             purchaseResult = "Receipt retained. Choose verification to retry this receipt."
             return
         }
-        if (purchase.purchaseState != PurchaseState.Purchased ||
-            purchase.id.isEmpty() || !handledPurchaseIds.add(purchase.id)) return
+        if (!receiptRecovery.begin(purchase)) return
 
         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
             .toLocalDateTime(TimeZone.currentSystemDefault())
@@ -194,6 +195,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 }
                             }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         verificationOk = false
                         verificationResult = "❌ Verification failed: ${e.message}"
@@ -213,6 +216,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         )
                     }
                     finished = true
+                    receiptRecovery.completed(purchase)
                     purchaseResult = "$purchaseSummary\n\n✅ Transaction finished successfully"
                 } catch (e: CancellationException) {
                     throw e
@@ -230,11 +234,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        transactionResult = "Subscription refresh failed: ${e.message}"
+                        verificationResult = "Subscription refresh failed: ${e.message}"
                     }
                 }
             } finally {
-                if (!finished) handledPurchaseIds.remove(purchase.id)
+                receiptRecovery.retryable(purchase)
             }
         }
     }
@@ -243,17 +247,18 @@ fun SubscriptionFlowScreen(navController: NavController) {
     LaunchedEffect(verificationMethod, connected, recoveryRequest) {
         if (!connected) return@LaunchedEffect
         try {
-                val recovered = if (getCurrentPlatform() == IapPlatform.Ios) {
-                    kmpIapInstance.getPendingTransactionsIOS()
-                } else {
-                    kmpIapInstance.getAvailablePurchases()
-                }
-                recovered.forEach { handlePurchased(it) }
+            val recovered = if (getCurrentPlatform() == IapPlatform.Ios) {
+                kmpIapInstance.getPendingTransactionsIOS()
+            } else {
+                kmpIapInstance.getAvailablePurchases()
+            }
+            recovered.forEach { receiptRecovery.retain(it) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            transactionResult = "Purchase recovery failed; receipts retained: ${error.message}"
+            verificationResult = "Purchase recovery failed; receipts retained: ${error.message}"
         }
+        receiptRecovery.receipts().forEach { handlePurchased(it) }
     }
 
     LaunchedEffect(Unit) {
@@ -353,11 +358,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 subscriptions = subscriptionProducts
                 
                 if (subscriptions.isEmpty()) {
-                    purchaseResult = "No subscriptions found for IDs: ${SUBSCRIPTION_IDS.joinToString()}"
+                    catalogResult = "No subscriptions found for IDs: ${SUBSCRIPTION_IDS.joinToString()}"
                 }
                 
             } catch (e: Exception) {
-                purchaseResult = "Initialization error: ${e.message}"
+                catalogResult = "Initialization error: ${e.message}"
                 connected = false
             } finally {
                 isConnecting = false
@@ -784,6 +789,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
             
             Spacer(modifier = Modifier.height(12.dp))
             
+            catalogResult?.let { Text(it, color = AppColors.Secondary) }
+
             if (isLoadingProducts) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -987,7 +994,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     )
                                     Text(
                                         text = when (method) {
-                                            VerificationMethod.None -> "Skip verification"
+                                            VerificationMethod.None -> "Retain receipt without verification or completion"
                                             VerificationMethod.Local -> "Verify on device (iOS only)"
                                             VerificationMethod.IAPKitLocal -> "IAPKit routed to IAPKIT_BASE_URL"
                                             VerificationMethod.IAPKit -> "Server-side verification via IAPKit"
