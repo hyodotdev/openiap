@@ -73,6 +73,10 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const GODOT_VERIFIED_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '4.0.1', tag: 'godot-iap-4.0.1' },
+];
+
 const GODOT_RESTORE_EXPORT_NOTE_ID = 'godot-restore-export-2026-10-08';
 
 const USER_CHOICE_RETRY_RELEASES: readonly ReleaseMetadata[] = [
@@ -516,6 +520,69 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'godot-verified-recovery-2026-10-10',
+      aliases: GODOT_VERIFIED_RECOVERY_RELEASES.map((release) => release.tag),
+      date: new Date('2026-10-10'),
+      element: (
+        <div key="godot-verified-recovery-2026-10-10" style={noteCardStyle}>
+          {GODOT_VERIFIED_RECOVERY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="godot-verified-recovery-2026-10-10" level="h4">
+            October 10, 2026 - Verified purchase recovery on macOS
+          </AnchorLink>
+          <p>
+            <strong>godot-iap 4.0.1</strong> returns verified unfinished Apple
+            transactions on macOS through{' '}
+            <code>get_pending_transactions_ios()</code>, allowing apps to match
+            the exact receipt before completing a purchase. The Martie examples
+            retain receipts until verification succeeds and show when
+            subscription products are unavailable.
+          </p>
+          <p>
+            IAPKit returns Apple's verified transaction environment so examples
+            can check it alongside the product and purchase state before
+            finishing a receipt.
+          </p>
+          <p>
+            See the{' '}
+            <Link to="/docs/apis/ios/get-pending-transactions-ios">
+              pending transaction guide
+            </Link>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/520"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #520
+            </a>
+            .
+          </p>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-4.0.1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap v4.0.1
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'user-choice-retry-2026-10-07',
       aliases: USER_CHOICE_RETRY_RELEASES.map((release) => release.tag),

@@ -1516,13 +1516,13 @@ func clear_transaction_ios() -> bool:
 	var payload = await _call_apple_async("clearTransactionIOS")
 	return payload.get("success", false)
 
-## Get pending transactions (iOS only).
+## Get verified unfinished transactions on iOS and macOS.
 ## @return Array[Types.PurchaseIOS]
 ##
 ## See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
 func get_pending_transactions_ios() -> Array:
 	var purchases: Array = []
-	if _native_plugin and _platform == "iOS":
+	if _native_plugin and _is_apple():
 		var payload = await _call_apple_async("getPendingTransactionsIOS")
 		if payload.get("success", false):
 			var transactions_json = payload.get("transactionsJson", "[]")

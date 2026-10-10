@@ -1,6 +1,5 @@
 using System.Reflection;
 using OpenIap;
-using Microsoft.Maui.Storage;
 
 namespace OpenIap.Maui.Example.Utils;
 
@@ -73,7 +72,8 @@ internal static class IapKitSettings
         // Null leaves the SDK on its hosted default, matching the other examples.
         var endpoint = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
 
-        return common.Store switch
+        var store = VerificationStore(common);
+        return store switch
         {
             IapStore.Apple => new RequestVerifyPurchaseWithIapkitProps
             {
@@ -102,7 +102,7 @@ internal static class IapKitSettings
                 BaseUrl = endpoint,
                 Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps
                 {
-                    ExpectedProductId = common.ProductId,
+                    ExpectedProductId = VerificationProductId(common.ProductId, store),
                     ReceiptId = storeToken,
                     UserId = (purchase as PurchaseAndroid)?.UserIdAmazon,
                     Sandbox = AmazonRvsSandbox,
@@ -110,6 +110,61 @@ internal static class IapKitSettings
             },
             _ => throw new NotSupportedException(
                 $"IAPKit verification is not supported for the {common.Store.ToJson()} store."),
+        };
+    }
+
+    private const string AmazonSubscriptionBaseId = "dev.hyo.martie.premium.base";
+    public static IReadOnlyList<string> SubscriptionQueryIds { get; } =
+        [.. Constants.SubscriptionProductIds, AmazonSubscriptionBaseId];
+
+    public static string? SubscriptionProductId(string productId, string? currentPlanId) =>
+        Constants.SubscriptionProductIds.Contains(productId) ? productId :
+        productId == AmazonSubscriptionBaseId && currentPlanId is not null &&
+        Constants.SubscriptionProductIds.Contains(currentPlanId) ? currentPlanId : null;
+
+    public static string? SubscriptionProductId(Purchase purchase)
+    {
+        var common = (PurchaseCommon)purchase;
+        return Constants.SubscriptionProductIds.Contains(common.ProductId) || VerificationStore(common) == IapStore.Amazon
+            ? SubscriptionProductId(common.ProductId, common.CurrentPlanId) : null;
+    }
+
+    // These term-to-base IDs belong to Martie's Amazon catalog.
+    public static string VerificationProductId(string productId, IapStore store) =>
+        store == IapStore.Amazon && Constants.SubscriptionProductIds.Contains(productId)
+            ? AmazonSubscriptionBaseId : productId;
+
+    // Only this known community adapter uses Amazon's server verification.
+    private static IapStore VerificationStore(PurchaseCommon purchase) =>
+        purchase.Store == IapStore.Unknown && purchase.StoreId == "amazon_example"
+            ? IapStore.Amazon : purchase.Store;
+
+    public static bool MatchesVerifiedPendingPurchase(PurchaseCommon purchase, IEnumerable<PurchaseIOS> pending) =>
+        purchase is PurchaseIOS && purchase.Store == IapStore.Apple && purchase.StoreId == "apple" &&
+        !string.IsNullOrEmpty(purchase.Id) && pending.Any(candidate =>
+            candidate.Store == IapStore.Apple && candidate.StoreId == "apple" &&
+            candidate.Id == purchase.Id && candidate.ProductId == purchase.ProductId &&
+            candidate.RevocationDateIOS is null && candidate.IsUpgradedIOS != true &&
+            (candidate.ExpirationDateIOS is null || candidate.ExpirationDateIOS > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) &&
+            (purchase is not PurchaseIOS { EnvironmentIOS: { } expected } || candidate.EnvironmentIOS == expected));
+
+    public static bool AcceptsVerification(RequestVerifyPurchaseWithIapkitResult result, PurchaseCommon purchase)
+    {
+        if (!result.IsValid || result.Store != purchase.Store ||
+            result.StoreId != purchase.StoreId ||
+            result.ProductId != VerificationProductId(purchase.ProductId, VerificationStore(purchase))) return false;
+        if (purchase is PurchaseIOS { EnvironmentIOS: { } expected } && result.Environment != expected) return false;
+        var consumable = Constants.ConsumableProductIdSet.Contains(purchase.ProductId);
+        var store = VerificationStore(purchase);
+        return store switch
+        {
+            IapStore.Apple or IapStore.Amazon =>
+                (store != IapStore.Amazon || result.Environment == (AmazonRvsSandbox ? "Sandbox" : "Production")) &&
+                result.State == (consumable ? IapkitPurchaseState.ReadyToConsume : IapkitPurchaseState.Entitled),
+            IapStore.Google => result.State is IapkitPurchaseState.Entitled or IapkitPurchaseState.PendingAcknowledgment ||
+                (consumable && result.State == IapkitPurchaseState.ReadyToConsume),
+            IapStore.Horizon => result.State == IapkitPurchaseState.Entitled,
+            _ => false,
         };
     }
 

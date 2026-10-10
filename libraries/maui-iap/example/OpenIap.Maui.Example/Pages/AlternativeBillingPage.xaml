@@ -117,7 +117,7 @@
                         <VerticalStackLayout Spacing="8">
                             <Label Text="Last Purchase" FontSize="18" FontAttributes="Bold" TextColor="#1A1A1A" />
                             <Label x:Name="LastPurchaseLabel" FontSize="13" LineHeight="1.35" TextColor="#333" />
-                            <Label Text="ℹ️ Transaction auto-finished for testing. PRODUCTION: Validate on backend first!"
+                            <Label Text="Receipt retained. Open Purchase Flow or Subscription Flow to verify and complete it."
                                    FontSize="12"
                                    TextColor="#856404" />
                         </VerticalStackLayout>

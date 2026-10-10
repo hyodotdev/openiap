@@ -127,24 +127,11 @@ fun AlternativeBillingScreen(navController: NavController) {
                     .toLocalDateTime(TimeZone.currentSystemDefault())
 
                 purchaseResult = """
-                    ✅ Purchase successful
+                    Receipt received · verification required
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id}
                     Date: $dateText
                 """.trimIndent()
-
-                // Demo: finishes without verification; only bulb packs are consumed.
-                scope.launch {
-                    try {
-                        kmpIapInstance.finishTransaction(
-                            purchase = purchase,
-                            // The listener also receives a badge redelivered from elsewhere.
-                            isConsumable = purchase.productId in ConsumableProductIds
-                        )
-                    } catch (e: Exception) {
-                        println("Failed to finish transaction: ${e.message}")
-                    }
-                }
             }
         }
     }
@@ -1130,8 +1117,8 @@ private fun LastPurchaseCard(purchase: Purchase) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = """
-                        ℹ️ Transaction auto-finished for testing.
-                        PRODUCTION: Validate on backend first!
+                        Receipt retained pending verification.
+                        Open Purchase Flow or Subscription Flow to verify and complete it.
                     """.trimIndent(),
                     fontSize = 12.sp,
                     color = Color(0xFFFF9800),

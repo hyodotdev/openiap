@@ -7,6 +7,7 @@ import type {
   MutationFinishTransactionArgs,
   ProductSubscriptionAndroid,
   Purchase,
+  PurchaseError,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
 } from 'react-native-iap';
@@ -42,8 +43,9 @@ const sampleSubscription: ProductSubscriptionAndroid & {
 };
 
 describe('SubscriptionFlow Screen', () => {
-  let onPurchaseSuccess: ((purchase: any) => Promise<void> | void) | undefined;
-  let onPurchaseError: ((error: any) => void) | undefined;
+  let onPurchaseSuccess:
+    ((purchase: Purchase) => Promise<void> | void) | undefined;
+  let onPurchaseError: ((error: PurchaseError) => void) | undefined;
 
   const mockIapState = (
     overrides: Partial<ReturnType<typeof RNIap.useIAP>> & {
@@ -54,15 +56,21 @@ describe('SubscriptionFlow Screen', () => {
     const defaultGetAvailablePurchases = jest.fn(() => Promise.resolve([]));
     const getActiveSubscriptions = jest.fn(() => Promise.resolve([]));
     const finishTransaction = jest.fn(() => Promise.resolve());
-    const verifyPurchase = jest.fn(() => Promise.resolve({}));
+    const verifyPurchase = jest.fn(() =>
+      Promise.resolve({
+        isValid: true,
+        jwsRepresentation: 'test-jws',
+        receiptData: 'test-receipt',
+      }),
+    );
     const verifyPurchaseWithProvider = jest.fn((_request: unknown) =>
       Promise.resolve({
         iapkit: {
           isValid: true,
           productId: 'dev.hyo.martie.premium',
           state: 'entitled',
-          store: 'google',
-          storeId: 'play',
+          store: Platform.OS === 'ios' ? 'apple' : 'google',
+          storeId: Platform.OS === 'ios' ? 'apple' : 'play',
         },
       }),
     );
@@ -203,8 +211,13 @@ describe('SubscriptionFlow Screen', () => {
         id: 'transaction-1',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'token',
+        store: 'apple',
+        storeId: 'apple',
         transactionDate: Date.now(),
         purchaseState: 'purchased',
+        isAutoRenewing: true,
+        quantity: 1,
+        transactionId: 'transaction-1',
       });
     });
 
@@ -218,46 +231,41 @@ describe('SubscriptionFlow Screen', () => {
     );
   });
 
-  it('keeps Local (Device) subscription verification direct', async () => {
-    const selectorSpy = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-      .mockImplementation((_options, callback) => callback(0));
-    const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
-      mockIapState();
-    const {getByText} = await render(<SubscriptionFlow />);
-
-    await fireEvent.press(getByText('Local (IAPKit)'));
-    await waitFor(() => {
-      expect(getByText('Local (Device)')).toBeTruthy();
-    });
-
-    await act(async () => {
-      await onPurchaseSuccess?.({
-        id: 'transaction-device-sub-1',
-        platform: 'ios',
+  it.each([true, false])(
+    'Local (Device) matches the exact subscription transaction (%s)',
+    async (matches) => {
+      const selectorSpy = jest
+        .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+        .mockImplementation((_options, callback) => callback(0));
+      const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
+        mockIapState();
+      const {getByText} = await render(<SubscriptionFlow />);
+      await fireEvent.press(getByText('Local (IAPKit)'));
+      await waitFor(() => expect(getByText('Local (Device)')).toBeTruthy());
+      const receipt = {
+        id: 'old-subscription',
+        transactionId: 'old-subscription',
         productId: 'dev.hyo.martie.premium',
-        purchaseToken: 'device-sub-jws',
-        transactionDate: Date.now(),
+        purchaseToken: 'jws',
+        transactionDate: 1,
+        store: 'apple' as const,
+        storeId: 'apple',
+        purchaseState: 'purchased' as const,
+        isAutoRenewing: true,
+        quantity: 1,
+      };
+      (RNIap.getPendingTransactionsIOS as jest.Mock).mockResolvedValue([
+        {...receipt, id: matches ? receipt.id : 'newer-subscription'},
+      ]);
+      await act(async () => {
+        await onPurchaseSuccess?.(receipt);
       });
-    });
-
-    expect(verifyPurchase).toHaveBeenCalledWith({
-      apple: {sku: 'dev.hyo.martie.premium'},
-      google: {
-        sku: 'dev.hyo.martie.premium',
-        accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-        packageName: 'dev.hyo.martie',
-        purchaseToken: 'device-sub-jws',
-        isSub: true,
-      },
-    });
-    expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
-    expect(verifyPurchase.mock.invocationCallOrder[0]).toBeLessThan(
-      finishTransaction.mock.invocationCallOrder[0]!,
-    );
-
-    selectorSpy.mockRestore();
-  });
+      expect(verifyPurchase).not.toHaveBeenCalled();
+      expect(verifyPurchaseWithProvider).not.toHaveBeenCalled();
+      expect(finishTransaction).toHaveBeenCalledTimes(matches ? 1 : 0);
+      selectorSpy.mockRestore();
+    },
+  );
 
   it('re-verifies the Android IAPKit snapshot after finishing', async () => {
     Platform.OS = 'android';
@@ -269,10 +277,14 @@ describe('SubscriptionFlow Screen', () => {
     await act(async () => {
       await onPurchaseSuccess?.({
         id: 'transaction-android-1',
-        platform: 'android',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'android-token',
+        store: 'google',
+        storeId: 'play',
         transactionDate: Date.now(),
+        purchaseState: 'purchased',
+        isAutoRenewing: true,
+        quantity: 1,
       });
     });
 
@@ -1080,15 +1092,16 @@ describe('SubscriptionFlow Screen', () => {
   it('does not finish or report success when IAPKit rejects a subscription', async () => {
     Platform.OS = 'android';
     const alertSpy = jest.spyOn(Alert, 'alert');
-    const purchase = {
+    const purchase: Purchase = {
       id: 'transaction-sub-invalid-1',
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseToken: 'google-sub-token-invalid-1',
       store: 'google',
       storeId: 'play',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
+      isAutoRenewing: true,
+      quantity: 1,
     };
     const finishTransaction = jest.fn(() => Promise.resolve());
     const verifyPurchaseWithProvider = jest.fn(
@@ -1136,7 +1149,10 @@ describe('SubscriptionFlow Screen', () => {
     const {getByText} = await render(<SubscriptionFlow />);
 
     await act(async () => {
-      onPurchaseError?.({message: 'Subscription failed'});
+      onPurchaseError?.({
+        code: RNIap.ErrorCode.Unknown,
+        message: 'Subscription failed',
+      });
     });
 
     await waitFor(() => {
@@ -1470,5 +1486,31 @@ describe('SubscriptionFlow Screen', () => {
       expect(androidRequest?.purchaseToken).toBeUndefined();
       // obfuscatedProfileId can be included for new purchases (but is optional)
     }
+  });
+  it('displays a cold restored Amazon yearly term without Play plan controls', async () => {
+    Platform.OS = 'android';
+    const mocks = mockIapState({
+      subscriptions: [
+        sampleSubscription,
+        {...sampleSubscription, id: 'dev.hyo.martie.premium_year'},
+      ],
+      activeSubscriptions: [
+        {
+          productId: 'dev.hyo.martie.premium.base',
+          currentPlanId: 'dev.hyo.martie.premium_year',
+          isActive: true,
+          transactionDate: 1,
+          transactionId: 'restored-yearly',
+        },
+      ],
+    });
+    const {getByText, queryByText, getAllByText} = await render(
+      <SubscriptionFlow />,
+    );
+    expect(getByText('Store-reported Subscription Status')).toBeTruthy();
+    expect(queryByText('⬆️ Upgrade to Yearly Plan')).toBeNull();
+    expect(queryByText('⬇️ Downgrade to Monthly Plan')).toBeNull();
+    expect(getAllByText(/Yearly Plan/).length).toBeGreaterThan(0);
+    expect(mocks.finishTransaction).not.toHaveBeenCalled();
   });
 });

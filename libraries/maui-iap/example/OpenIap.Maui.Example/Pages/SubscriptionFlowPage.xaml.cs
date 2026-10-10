@@ -32,7 +32,6 @@ public partial class SubscriptionFlowPage : ContentPage
     private string? _purchaseResult;
     private bool _isProcessing;
     private bool _isCheckingStatus;
-    private bool _isHandlingPurchase;
     private bool _didFetch;
     private int _tapCount;
     private readonly HashSet<string> _handledPurchaseIds = new(StringComparer.Ordinal);
@@ -65,7 +64,7 @@ public partial class SubscriptionFlowPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(() => OnPurchase(p)));
+        _purchaseSub ??= OpenIapClient.Instance.PurchaseUpdated.Subscribe(p => MainThread.BeginInvokeOnMainThread(async () => await OnPurchaseAsync(p)));
         _errorSub ??= OpenIapClient.Instance.PurchaseError.Subscribe(err => MainThread.BeginInvokeOnMainThread(() => OnPurchaseError(err)));
         await ConnectAndFetchAsync();
     }
@@ -93,14 +92,17 @@ public partial class SubscriptionFlowPage : ContentPage
             ContentScroll.IsVisible = true;
             LoadingView.IsVisible = false;
 
-            if (_didFetch) return;
-            _didFetch = true;
+            if (!_didFetch)
+            {
+                _didFetch = true;
 
             SubsCountLabel.Text = "Loading subscriptions...";
             RenderActive();
 
             _ = FetchSubscriptionsAsync();
-            _ = RefreshActiveAsync(showAlert: false, renderSubscriptionCards: false);
+                _ = RefreshActiveAsync(showAlert: false, renderSubscriptionCards: false);
+            }
+            await RecoverPurchasesAsync();
         }
         catch (Exception ex)
         {
@@ -143,10 +145,13 @@ public partial class SubscriptionFlowPage : ContentPage
         try
         {
             var query = (QueryResolver)OpenIapClient.Instance;
-            var active = await query.GetActiveSubscriptionsAsync(Constants.SubscriptionProductIds)
+            var active = await query.GetActiveSubscriptionsAsync(IapKitSettings.SubscriptionQueryIds)
                 .WaitAsync(TimeSpan.FromSeconds(20));
             _active.Clear();
-            _active.AddRange(active);
+            _active.AddRange(active.Select(subscription =>
+                (Subscription: subscription, ProductId: IapKitSettings.SubscriptionProductId(subscription.ProductId, subscription.CurrentPlanId)))
+                .Where(item => item.ProductId is not null)
+                .Select(item => item.Subscription with { ProductId = item.ProductId! }));
             RenderActive();
             if (renderSubscriptionCards)
             {
@@ -435,7 +440,6 @@ public partial class SubscriptionFlowPage : ContentPage
         catch (Exception ex)
         {
             _isProcessing = false;
-            _isHandlingPurchase = false;
             UpdateResult($"Subscription tap failed: {ErrorUtils.ExtractErrorMessage(ex)}");
             RenderSubscriptions();
         }
@@ -564,11 +568,11 @@ public partial class SubscriptionFlowPage : ContentPage
             if (cancellationToken.IsCancellationRequested) return;
             if (result is RequestPurchaseResultPurchase { Value: { } purchase })
             {
-                MainThread.BeginInvokeOnMainThread(() =>
+                MainThread.BeginInvokeOnMainThread(async () =>
                 {
                     if (_isProcessing)
                     {
-                        OnPurchase(purchase);
+                        await OnPurchaseAsync(purchase);
                     }
                 });
             }
@@ -624,125 +628,99 @@ public partial class SubscriptionFlowPage : ContentPage
         _purchaseTimeoutCts = null;
     }
 
-    private async void OnPurchase(Purchase purchase)
-    {
-        var common = (PurchaseCommon)purchase;
-        _lastPurchase = purchase;
-        var purchaseId = common.Id;
-
-        if (common.PurchaseState != PurchaseState.Purchased)
-        {
-            CancelPurchaseWatchdog();
-            _isProcessing = false;
-            UpdateResult($"Subscription callback received but state is {common.PurchaseState.ToJson()}.");
-            RenderSubscriptions();
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(purchaseId) && !_handledPurchaseIds.Add(purchaseId))
-        {
-            CancelPurchaseWatchdog();
-            _isProcessing = false;
-            UpdateResult($"Subscription callback already handled: {common.ProductId ?? purchaseId}");
-            RenderSubscriptions();
-            return;
-        }
-
-        CancelPurchaseWatchdog();
-
-        if (_isHandlingPurchase)
-        {
-            _isProcessing = false;
-            RenderSubscriptions();
-            return;
-        }
-
-        _isHandlingPurchase = true;
-        _isProcessing = false;
-
-        var isRestoration = IsRestoration(purchase);
-        UpdateResult(isRestoration
-            ? "Subscription restored successfully."
-            : "Subscription activated successfully.");
-        RenderSubscriptions();
-
-        if (!isRestoration)
-        {
-            var verificationPassed = await VerifySubscriptionIfNeededAsync(purchase);
-            if (!verificationPassed)
-            {
-                if (!string.IsNullOrEmpty(purchaseId))
-                {
-                    _handledPurchaseIds.Remove(purchaseId);
-                }
-
-                UpdateResult("Subscription verification failed; the transaction was not finalized.");
-                _isHandlingPurchase = false;
-                _isProcessing = false;
-                RenderSubscriptions();
-                return;
-            }
-        }
-
-        _ = FinishSubscriptionTransactionAsync(purchase);
-        _ = RefreshActiveAsync(showAlert: false);
-        _isHandlingPurchase = false;
-        _isProcessing = false;
-        RenderSubscriptions();
-
-        if (!isRestoration)
-        {
-            await DisplayAlertAsync("Success", "New subscription activated successfully!", "OK");
-        }
-    }
-
-    private static async Task FinishSubscriptionTransactionAsync(Purchase purchase)
+    private async Task RecoverPurchasesAsync()
     {
         try
         {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            await mutate.FinishTransactionAsync(
-                purchase: new PurchaseInput(purchase),
-                isConsumable: false).WaitAsync(TimeSpan.FromSeconds(10));
+            var query = (QueryResolver)OpenIapClient.Instance;
+#if IOS || MACCATALYST
+            var recovered = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
+#else
+            var recovered = await query.GetAvailablePurchasesAsync(new PurchaseOptions()).WaitAsync(TimeSpan.FromSeconds(15));
+#endif
+            foreach (var purchase in recovered) await OnPurchaseAsync(purchase);
         }
-        catch (TimeoutException)
+        catch (OpenIapException error) when (error.Error.Code == ErrorCode.FeatureNotSupported) { }
+        catch (Exception error)
         {
-            Console.WriteLine("[SubscriptionFlow] finishTransaction timed out; continuing UI flow");
+            UpdateResult($"Purchase recovery failed; receipts retained: {error.Message}");
+        }
+    }
+
+    private async Task OnPurchaseAsync(Purchase purchase)
+    {
+        var common = (PurchaseCommon)purchase;
+        if (IapKitSettings.SubscriptionProductId(purchase) is null) return;
+        _isProcessing = false;
+        CancelPurchaseWatchdog();
+        if (_verification == VerificationMethod.Ignore)
+        {
+            UpdateResult("Receipt retained. Choose verification to retry this receipt.");
+            RenderSubscriptions();
+            return;
+        }
+        _lastPurchase = purchase;
+        if (common.PurchaseState != PurchaseState.Purchased || string.IsNullOrEmpty(common.Id))
+        {
+            UpdateResult($"Subscription is not completed (state: {common.PurchaseState.ToJson()}).");
+            RenderSubscriptions();
+            return;
+        }
+        if (!_handledPurchaseIds.Add(common.Id)) return;
+        var method = _verification;
+        var finished = false;
+        try
+        {
+            if (!await VerifySubscriptionIfNeededAsync(purchase, method))
+            {
+                UpdateResult("Subscription verification failed; the transaction was not finalized.");
+                return;
+            }
+            if (purchase is not PurchaseAndroid { IsAcknowledgedAndroid: true })
+            {
+                var mutate = (MutationResolver)OpenIapClient.Instance;
+                await mutate.FinishTransactionAsync(new PurchaseInput(purchase), isConsumable: false)
+                    .WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            finished = true;
+            UpdateResult(IsRestoration(purchase)
+                ? "Restored subscription verified and transaction finished."
+                : "Subscription verified and transaction finished.");
+            await RefreshActiveAsync(showAlert: false);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SubscriptionFlow] finishTransaction failed: {ex.Message}");
+            UpdateResult($"Subscription completion failed; receipt retained: {ErrorUtils.ExtractErrorMessage(ex)}");
+        }
+        finally
+        {
+            if (!finished) _handledPurchaseIds.Remove(common.Id);
+            RenderSubscriptions();
         }
     }
 
-    private async Task<bool> VerifySubscriptionIfNeededAsync(Purchase purchase)
+    private async Task<bool> VerifySubscriptionIfNeededAsync(Purchase purchase, VerificationMethod method)
     {
-        if (_verification == VerificationMethod.Ignore) return true;
+        if (method == VerificationMethod.Ignore) return false;
 
         var common = (PurchaseCommon)purchase;
-        if (string.IsNullOrEmpty(common.ProductId)) return true;
+        if (string.IsNullOrEmpty(common.ProductId)) return false;
 
         try
         {
             var mutate = (MutationResolver)OpenIapClient.Instance;
-            if (_verification == VerificationMethod.Local)
+            if (method == VerificationMethod.Local)
             {
-                var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
-                {
-                    Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
-                    Google = new VerifyPurchaseGoogleOptions
-                    {
-                        Sku = common.ProductId,
-                        PackageName = "dev.hyo.martie",
-                        PurchaseToken = common.PurchaseToken ?? string.Empty,
-                        AccessToken = string.Empty,
-                        IsSub = true,
-                    },
-                });
-                Console.WriteLine("[SubscriptionFlow] local verification completed");
-                return result.IsValid;
+#if IOS || MACCATALYST
+                var query = (QueryResolver)OpenIapClient.Instance;
+                var pending = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
+                return IapKitSettings.MatchesVerifiedPendingPurchase(common, pending);
+#else
+                UpdateResult("Local (Device) verification is unavailable here. Choose Local (IAPKit).");
+                return false;
+#endif
             }
-            else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
+            else if (method is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
             {
                 var token = common.PurchaseToken ?? string.Empty;
                 // Horizon identifies the entitlement by SKU and carries no token.
@@ -752,10 +730,10 @@ public partial class SubscriptionFlowPage : ContentPage
                     return false;
                 }
 
-                var localBaseUrl = _verification == VerificationMethod.IapkitLocal
+                var localBaseUrl = method == VerificationMethod.IapkitLocal
                     ? IapKitSettings.LocalBaseUrl
                     : null;
-                if (_verification == VerificationMethod.IapkitLocal && string.IsNullOrWhiteSpace(localBaseUrl))
+                if (method == VerificationMethod.IapkitLocal && string.IsNullOrWhiteSpace(localBaseUrl))
                 {
                     await DisplayAlertAsync("Verification Failed", "IAPKit base URL not configured for Local (IAPKit)", "OK");
                     return false;
@@ -769,12 +747,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
                 if (result.Iapkit is { } ik)
                 {
-                    var status = ik.IsValid ? "✅" : "⚠";
-                    await DisplayAlertAsync(
-                        $"{status} {VerificationLabel(_verification)} Verification",
-                        $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
-                        "OK");
-                    return ik.IsValid;
+                    return IapKitSettings.AcceptsVerification(ik, common);
                 }
 
                 return false;
@@ -795,7 +768,6 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         CancelPurchaseWatchdog();
         _isProcessing = false;
-        _isHandlingPurchase = false;
         UpdateResult(ErrorUtils.FormatPurchaseFailure(error, "Subscription"));
         RenderSubscriptions();
     }
@@ -867,6 +839,8 @@ public partial class SubscriptionFlowPage : ContentPage
             "Local (IAPKit) Verification",
             "IAPKit (Server) Verification");
 
+        if (string.IsNullOrEmpty(choice) || choice == "Cancel") return;
+
         _verification = choice switch
         {
             "Local (Device) Verification" => VerificationMethod.Local,
@@ -877,6 +851,7 @@ public partial class SubscriptionFlowPage : ContentPage
         };
 
         VerificationButton.Text = VerificationLabel(_verification);
+        if (_verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
     }
 
     private async void OnCopyResultClicked(object sender, EventArgs e)

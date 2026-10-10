@@ -1,6 +1,6 @@
 extends Node
 ## Unit tests for types.gd
-## Run with: godot --headless --script tests/test_types.gd
+## Run the maintained headless suites with `make test` from the library root.
 
 const Types = preload("res://addons/godot-iap/types.gd")
 

@@ -7,7 +7,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import {useIAP} from '../../src';
+import {useIAP, type Product, type ProductSubscription} from 'expo-iap';
 import Loading from '../src/components/Loading';
 import {
   PRODUCT_IDS,
@@ -16,7 +16,6 @@ import {
   NON_CONSUMABLE_PRODUCT_IDS,
 } from '../src/utils/constants';
 import {extractErrorMessage} from '../src/utils/errorUtils';
-import type {Product, ProductSubscription} from '../../src/types';
 
 /**
  * All Products example: fetches in-app products and subscriptions separately

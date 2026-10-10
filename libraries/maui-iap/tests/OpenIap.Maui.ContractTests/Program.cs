@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using OpenIap;
 using OpenIap.Maui;
+using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.ContractTests;
 
@@ -21,6 +22,8 @@ internal static class Program
         (nameof(GeneratedVerificationResultDeserializesClientPayload), GeneratedVerificationResultDeserializesClientPayload),
         (nameof(GeneratedVerificationResultDegradesUnknownValues), GeneratedVerificationResultDegradesUnknownValues),
         (nameof(GeneratedAmazonVerificationContractRoundTrips), GeneratedAmazonVerificationContractRoundTrips),
+        (nameof(ExampleRestoredAmazonTermsPreserveReceiptIdentity), ExampleRestoredAmazonTermsPreserveReceiptIdentity),
+        (nameof(ExampleAppleVerificationBindsActiveReceipt), ExampleAppleVerificationBindsActiveReceipt),
     ];
 
     public static async Task<int> Main()
@@ -53,6 +56,25 @@ internal static class Program
             Console.Error.WriteLine(failure);
         }
         return 1;
+    }
+
+    private static Task ExampleAppleVerificationBindsActiveReceipt()
+    {
+        var receipt = new PurchaseIOS { Id = "old", TransactionId = "old", ProductId = OpenIap.Maui.Example.Constants.ConsumableProductIdSet.First(),
+            PurchaseState = PurchaseState.Purchased, TransactionDate = 1, Quantity = 1,
+            IsAutoRenewing = false, Store = IapStore.Apple, StoreId = "apple", EnvironmentIOS = "Sandbox" };
+        AssertEqual(true, IapKitSettings.MatchesVerifiedPendingPurchase(receipt, [receipt]), "exact receipt");
+        foreach (var other in new[] { receipt with { Id = "new" }, receipt with { ProductId = "foreign" },
+            receipt with { Store = IapStore.Unknown, StoreId = "community" }, receipt with { EnvironmentIOS = "Production" },
+            receipt with { EnvironmentIOS = null }, receipt with { RevocationDateIOS = 1 },
+            receipt with { ExpirationDateIOS = 1 }, receipt with { IsUpgradedIOS = true } })
+            AssertEqual(false, IapKitSettings.MatchesVerifiedPendingPurchase(receipt, [other]), "unusable receipt");
+        var result = new RequestVerifyPurchaseWithIapkitResult { IsValid = true, ProductId = receipt.ProductId,
+            Store = IapStore.Apple, StoreId = "apple", State = IapkitPurchaseState.ReadyToConsume, Environment = "Sandbox" };
+        AssertEqual(true, IapKitSettings.AcceptsVerification(result, receipt), "matching environment");
+        AssertEqual(false, IapKitSettings.AcceptsVerification(result with { Environment = "Production" }, receipt), "wrong environment");
+        AssertEqual(false, IapKitSettings.AcceptsVerification(result with { Environment = null }, receipt), "missing environment");
+        return Task.CompletedTask;
     }
 
     private static Task ProductsRequirePlatformForClientPayload()
@@ -319,6 +341,43 @@ internal static class Program
         AssertEqual(props.ReceiptId, restoredProps.ReceiptId, "Amazon receipt id");
         AssertEqual("Sandbox", restoredResult.Environment, "Amazon environment");
         AssertEqual(IapStore.Amazon, restoredResult.Store, "Amazon store");
+        return Task.CompletedTask;
+    }
+
+    private static Task ExampleRestoredAmazonTermsPreserveReceiptIdentity()
+    {
+        var restored = new PurchaseAndroid
+        {
+            Id = "receipt",
+            ProductId = "dev.hyo.martie.premium.base",
+            PurchaseToken = "receipt",
+            PurchaseState = PurchaseState.Purchased,
+            TransactionDate = 1,
+            Quantity = 1,
+            IsAutoRenewing = true,
+            Store = IapStore.Unknown,
+            StoreId = "amazon_example",
+        };
+        foreach (var term in OpenIap.Maui.Example.Constants.SubscriptionProductIds)
+        {
+            foreach (var (store, storeId) in new[] { (IapStore.Amazon, "amazon"), (IapStore.Unknown, "amazon_example") })
+            {
+                var purchase = restored with { CurrentPlanId = term, Store = store, StoreId = storeId };
+                AssertEqual(term, IapKitSettings.SubscriptionProductId(purchase), "restored plan");
+                AssertEqual(restored.ProductId, purchase.ProductId, "raw receipt SKU");
+                AssertEqual(restored.PurchaseToken, purchase.PurchaseToken, "raw receipt token");
+                AssertEqual(restored.ProductId, IapKitSettings.CreateVerifyProps(purchase).Amazon?.ExpectedProductId, "RVS base SKU");
+            }
+        }
+        AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored), "missing term");
+        AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored with { CurrentPlanId = "foreign.term" }), "foreign term");
+        AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored with { CurrentPlanId = "dev.hyo.martie.premium", StoreId = "foreign" }), "foreign provider");
+        AssertEqual<string?>(null, IapKitSettings.SubscriptionProductId(restored with { CurrentPlanId = "dev.hyo.martie.premium", ProductId = "foreign.base" }), "foreign base");
+        AssertEqual("dev.hyo.martie.premium", IapKitSettings.SubscriptionProductId(restored with
+        {
+            ProductId = "dev.hyo.martie.premium", CurrentPlanId = "premium-monthly", Store = IapStore.Google, StoreId = "play",
+        }), "unchanged Play plan");
+        AssertEqual(true, IapKitSettings.SubscriptionQueryIds.Contains(restored.ProductId), "ownership query includes base");
         return Task.CompletedTask;
     }
 

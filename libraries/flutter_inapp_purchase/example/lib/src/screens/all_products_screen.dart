@@ -26,7 +26,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
   String? _purchaseResult;
   StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
   StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
-  final Set<String> _processedTransactionIds = {};
   final Set<String> _processedErrorMessages = {};
   String? _storefront;
 
@@ -99,20 +98,11 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
 
     _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
       (purchase) {
-        final transactionId = purchase.purchaseToken ?? purchase.id;
-        if (_processedTransactionIds.contains(transactionId)) {
-          return;
-        }
-        _processedTransactionIds.add(transactionId);
-
         if (!mounted) return;
         setState(() {
-          _purchaseResult = 'Purchase successful!';
+          _purchaseResult =
+              'Receipt retained; verify in Purchase Flow or Subscription Flow';
         });
-
-        if (purchase.purchaseState == PurchaseState.Purchased) {
-          _finalizePurchase(purchase);
-        }
       },
       onError: (error) {
         debugPrint('Purchase update error: $error');
@@ -128,12 +118,10 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
       },
     );
 
-    _purchaseErrorSubscription = _iap.purchaseErrorListener.listen(
-      (error) {
-        debugPrint('Purchase error received: ${error.message}');
-        _handlePurchaseError(error);
-      },
-    );
+    _purchaseErrorSubscription = _iap.purchaseErrorListener.listen((error) {
+      debugPrint('Purchase error received: ${error.message}');
+      _handlePurchaseError(error);
+    });
   }
 
   void _handlePurchaseError(PurchaseError error) {
@@ -195,7 +183,8 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
       debugPrint('Loaded ${products.length} products');
       for (final product in products) {
         debugPrint(
-            '  - ${product.id}: ${product.title} (${IapConstants.getProductTypeLabel(product.id)})');
+          '  - ${product.id}: ${product.title} (${IapConstants.getProductTypeLabel(product.id)})',
+        );
       }
 
       if (!mounted) return;
@@ -217,20 +206,6 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
           ),
         );
       }
-    }
-  }
-
-  Future<void> _finalizePurchase(Purchase purchase) async {
-    try {
-      final prod = _originalProducts[purchase.productId];
-      final isConsumable = prod != null && IapConstants.isConsumable(prod.id);
-      await _iap.finishTransaction(
-        purchase: purchase,
-        isConsumable: isConsumable,
-      );
-      debugPrint('Purchase finalized successfully');
-    } catch (e) {
-      debugPrint('Failed to finalize purchase: $e');
     }
   }
 
@@ -269,10 +244,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ),
         ...products.map((product) => _buildProductCard(product)),
@@ -318,11 +290,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                   color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: accentColor,
-                  size: 28,
-                ),
+                child: Icon(icon, color: accentColor, size: 28),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -339,10 +307,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                     const SizedBox(height: 4),
                     Text(
                       product.description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -494,10 +459,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                       const SizedBox(height: 16),
                       Text(
                         'Store not connected',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -530,10 +492,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                              ),
+                              Icon(Icons.check_circle, color: Colors.green),
                               SizedBox(width: 12),
                               Expanded(
                                 child: Text(

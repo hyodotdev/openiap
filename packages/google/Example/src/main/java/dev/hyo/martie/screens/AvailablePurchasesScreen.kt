@@ -231,87 +231,15 @@ fun AvailablePurchasesScreen(
                 it.isAutoRenewing || it.productId == PREMIUM_SUBSCRIPTION_PRODUCT_ID
             }
             
-            // Check for unfinished transactions (purchases that need acknowledgment/consumption)
-            val unfinishedPurchases = androidPurchases.filter { purchase ->
-                // In a real app, check whether the purchase still needs acknowledgment/consumption
-                // This would typically check: purchase.purchaseState == PurchaseState.Purchased && !purchase.isAcknowledged
-                // For demo purposes, let's assume some consumable purchases might need finishing
-                (purchase.productId.contains("consumable", ignoreCase = true) ||
-                 purchase.productId.contains("bulb", ignoreCase = true)) && 
-                purchases.indexOf(purchase) < 2 // Show first 2 consumables as unfinished for demo
+            item {
+                Text(
+                    "Receipts are retained. Open Purchase Flow or Subscription Flow to verify and finish them.",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppColors.textSecondary
+                )
             }
-            
-            // Unfinished Transactions Section
-            if (unfinishedPurchases.isNotEmpty()) {
-                item {
-                    SectionHeaderView(title = "⚠️ Unfinished Transactions (${unfinishedPurchases.size})")
-                }
-                
-                items(unfinishedPurchases) { purchase ->
-                    UnfinishedTransactionCard(
-                        purchase = purchase,
-                        onFinish = { isConsumable ->
-                            scope.launch {
-                                try {
-                                    iapStore.finishTransaction(purchase, isConsumable)
-                                    iapStore.postStatusMessage(
-                                        message = "Transaction finished successfully",
-                                        status = PurchaseResultStatus.Success,
-                                        productId = purchase.productId
-                                    )
-                                    iapStore.getAvailablePurchases(null)
-                                } catch (e: Exception) {
-                                    iapStore.postStatusMessage(
-                                        message = e.message ?: "Failed to finish transaction",
-                                        status = PurchaseResultStatus.Error,
-                                        productId = purchase.productId
-                                    )
-                                }
-                            }
-                        },
-                        onClick = { selectedPurchase = purchase }
-                    )
-                }
-                
-                // Warning card for unfinished transactions
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = AppColors.warning.copy(alpha = 0.1f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = AppColors.warning
-                            )
-                            
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    "Unfinished Transactions",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    "These purchases need to be acknowledged or consumed to complete the transaction. Tap 'Finish' to complete them after server validation.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = AppColors.textSecondary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            
+
             // Active Subscriptions
             if (subscriptions.isNotEmpty()) {
                 item {
@@ -592,121 +520,6 @@ fun StatisticItem(
             label,
             style = MaterialTheme.typography.labelSmall,
             color = AppColors.textSecondary
-        )
-    }
-}
-
-@Composable
-fun UnfinishedTransactionCard(
-    purchase: PurchaseAndroid,
-    onFinish: (Boolean) -> Unit,
-    onClick: () -> Unit
-) {
-    var showFinishDialog by remember { mutableStateOf(false) }
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = AppColors.warning.copy(alpha = 0.1f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = AppColors.warning,
-                    modifier = Modifier.size(24.dp)
-                )
-                
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        purchase.productId,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    
-                    Text(
-                        "Needs acknowledgment/consumption",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AppColors.warning
-                    )
-                    
-                    Text(
-                        "Date: ${java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(purchase.transactionDate.toLong()))}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AppColors.textSecondary
-                    )
-                }
-            }
-            
-            Button(
-                onClick = { showFinishDialog = true },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AppColors.warning
-                ),
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Text("Finish", color = MaterialTheme.colorScheme.onPrimary)
-            }
-        }
-    }
-    
-    // Finish Dialog
-    if (showFinishDialog) {
-        AlertDialog(
-            onDismissRequest = { showFinishDialog = false },
-            title = { Text("Finish Transaction") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Product: ${purchase.productId}")
-                    Text("Choose how to finish this transaction:")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showFinishDialog = false }) {
-                    Text("Cancel")
-                }
-            },
-            confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (purchase.productId.contains("consumable", ignoreCase = true) ||
-                        purchase.productId.contains("bulb", ignoreCase = true)) {
-                        TextButton(
-                            onClick = {
-                                showFinishDialog = false
-                                onFinish(true) // Consume
-                            }
-                        ) {
-                            Text("Consume")
-                        }
-                    } else {
-                        TextButton(
-                            onClick = {
-                                showFinishDialog = false
-                                onFinish(false) // Acknowledge
-                            }
-                        ) {
-                            Text("Acknowledge")
-                        }
-                    }
-                }
-            }
         )
     }
 }

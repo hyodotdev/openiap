@@ -1,5 +1,5 @@
 import {type ReactElement} from 'react';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
 import {Alert, Platform} from 'react-native';
 import AvailablePurchases from '../../screens/AvailablePurchases';
 import * as RNIap from 'react-native-iap';
@@ -113,6 +113,34 @@ describe('AvailablePurchases Screen', () => {
 
     expect(getByText('🔄 Active Subscriptions')).toBeTruthy();
   });
+
+  it.each(['apple', 'community_fixture'] as const)(
+    'retains an unverified %s purchase received while viewing ownership',
+    async (storeId) => {
+      await renderWithProviders(<AvailablePurchases />);
+      await waitFor(() =>
+        expect(mockGetActiveSubscriptions).toHaveBeenCalled(),
+      );
+      const options = jest.mocked(RNIap.useIAP).mock.calls.at(-1)?.[0];
+      expect(options?.onPurchaseSuccess).toBeDefined();
+      await act(async () => {
+        await options?.onPurchaseSuccess?.({
+          id: 'unfinished-consumable',
+          transactionId: 'unfinished-consumable',
+          productId: 'dev.hyo.martie.10bulbs',
+          purchaseToken: 'unverified-receipt',
+          purchaseState: 'purchased',
+          quantity: 1,
+          isAutoRenewing: false,
+          store: storeId === 'apple' ? 'apple' : 'unknown',
+          storeId,
+          transactionDate: 1,
+        });
+      });
+      expect(mockFinishTransaction).not.toHaveBeenCalled();
+      expect(RNIap.finishTransaction).not.toHaveBeenCalled();
+    },
+  );
 
   it('shows Vega guidance instead of opening unsupported subscription management deep links', async () => {
     const originalPlatform = Platform.OS;

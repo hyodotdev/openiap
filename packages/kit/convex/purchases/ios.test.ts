@@ -36,6 +36,7 @@ describe("App Store mappings (real data)", () => {
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
       productId: "untold_full_premium",
+      environment: "Production",
     });
   });
 
@@ -64,6 +65,7 @@ describe("App Store mappings (real data)", () => {
       isValid: true,
       state: HarmonizedPurchaseState.READY_TO_CONSUME,
       productId: "dev.hyo.martie.10bulbs",
+      environment: "Sandbox",
     });
   });
 
@@ -96,6 +98,7 @@ describe("App Store mappings (real data)", () => {
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
       productId: "dev.hyo.martie.premium",
+      environment: "Sandbox",
     });
   });
 
@@ -128,6 +131,7 @@ describe("App Store mappings (real data)", () => {
       isValid: false,
       state: HarmonizedPurchaseState.EXPIRED,
       productId: "dev.hyo.martie.premium",
+      environment: "Sandbox",
     });
   });
 
@@ -162,6 +166,7 @@ describe("App Store mappings (real data)", () => {
       isValid: false,
       state: HarmonizedPurchaseState.CANCELED,
       productId: "dev.hyo.martie.premium",
+      environment: "Sandbox",
     });
   });
 
@@ -179,6 +184,7 @@ describe("App Store mappings (real data)", () => {
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
       productId: "untold_full_premium",
+      environment: "Production",
     });
   });
 
@@ -196,6 +202,7 @@ describe("App Store mappings (real data)", () => {
       isValid: true,
       state: HarmonizedPurchaseState.READY_TO_CONSUME,
       productId: "dev.hyo.martie.10bulbs",
+      environment: "Sandbox",
     });
   });
 
@@ -214,6 +221,7 @@ describe("App Store mappings (real data)", () => {
       isValid: false,
       state: HarmonizedPurchaseState.UNKNOWN,
       productId: "dev.hyo.martie.10bulbs",
+      environment: "Sandbox",
     });
   });
 
@@ -223,6 +231,7 @@ describe("App Store mappings (real data)", () => {
         isValid: true,
         state: HarmonizedPurchaseState.ENTITLED,
         productId: "dev.hyo.martie.premium",
+        environment: "Sandbox",
       },
       "dev.hyo.martie.coins",
     );
@@ -231,6 +240,7 @@ describe("App Store mappings (real data)", () => {
       isValid: false,
       state: HarmonizedPurchaseState.INAUTHENTIC,
       productId: "dev.hyo.martie.premium",
+      environment: "Sandbox",
     });
   });
 });

@@ -38,24 +38,13 @@ export default function AvailablePurchases() {
     getAvailablePurchases,
     getActiveSubscriptions,
     fetchProducts,
-    finishTransaction,
   } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      console.log('[AVAILABLE-PURCHASES] Purchase successful:', {
+    onPurchaseSuccess: (purchase) => {
+      console.log('[AVAILABLE-PURCHASES] Purchase received:', {
         productId: purchase.productId,
         transactionId: purchase.id,
         store: purchase.store,
       });
-
-      await finishTransaction({
-        purchase,
-        isConsumable: false,
-      });
-
-      // Refresh status after success
-      setTimeout(() => {
-        checkSubscriptionStatus();
-      }, 1000);
     },
     onPurchaseError: (error: PurchaseError) => {
       console.log('[AVAILABLE-PURCHASES] Purchase failed:', error);

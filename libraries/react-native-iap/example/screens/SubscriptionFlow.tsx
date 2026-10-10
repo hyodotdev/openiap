@@ -20,6 +20,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
   requestPurchase,
+  getPendingTransactionsIOS,
   useIAP,
   deepLinkToSubscriptions,
   type ActiveSubscription,
@@ -41,9 +42,11 @@ import {
 } from '../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
+  getSubscriptionProductId,
+  getSubscriptionQueryIds,
   rememberCompletedPurchaseKey,
   resolveIapkitVerificationBaseUrl,
   showNativeAlert,
@@ -70,11 +73,15 @@ type ExtendedPurchase = Purchase & {
   offerToken?: string;
 };
 
-function isSubscriptionFlowProduct(productId: string): boolean {
-  return SUBSCRIPTION_PRODUCT_IDS.some(
-    (subscriptionId) =>
-      productId === subscriptionId ||
-      productId.startsWith(`${subscriptionId}.`),
+function isSubscriptionFlowProduct(purchase: Purchase): boolean {
+  const productId = getSubscriptionProductId(
+    purchase.productId,
+    purchase.currentPlanId,
+    purchase.store,
+    purchase.storeId,
+  );
+  return (
+    productId !== undefined && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
   );
 }
 
@@ -192,7 +199,9 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
     // Android uses base plans within the same product
     activeSub = premiumSubs[0];
     const extendedSub = activeSub as ExtendedActiveSubscription;
-    if (extendedSub.basePlanId) {
+    if (activeSub?.productId === 'dev.hyo.martie.premium_year') {
+      currentBasePlan = 'premium-year';
+    } else if (extendedSub.basePlanId) {
       currentBasePlan = extendedSub.basePlanId;
     } else if (lastPurchasedPlan) {
       currentBasePlan = lastPurchasedPlan;
@@ -799,7 +808,13 @@ function SubscriptionFlow({
 
       {activeSubscriptions.length > 0 && (
         <View style={[styles.section, styles.statusSection]}>
-          <Text style={styles.sectionTitle}>Current Subscription Status</Text>
+          <Text style={styles.sectionTitle}>
+            Store-reported Subscription Status
+          </Text>
+          <Text style={styles.statusLabel}>
+            Store ownership is not server verification. Grant access only after
+            successful verification.
+          </Text>
           <View style={styles.statusCard}>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Status:</Text>
@@ -866,15 +881,12 @@ function SubscriptionFlow({
                     extendedSub.isUpgradedIOS,
                   );
 
-                  if (Platform.OS === 'ios') {
-                    // iOS: Detect based on product ID
-                    if (sub.productId === 'dev.hyo.martie.premium_year') {
-                      detectedBasePlanId = 'premium-year';
-                      activeOfferLabel = '📅 Yearly Plan';
-                    } else {
-                      detectedBasePlanId = 'premium';
-                      activeOfferLabel = '📆 Monthly Plan';
-                    }
+                  if (sub.productId === 'dev.hyo.martie.premium_year') {
+                    detectedBasePlanId = 'premium-year';
+                    activeOfferLabel = '📅 Yearly Plan';
+                  } else if (Platform.OS === 'ios') {
+                    detectedBasePlanId = 'premium';
+                    activeOfferLabel = '📆 Monthly Plan';
                   } else {
                     // Android: Try to detect the base plan from various sources
                     // Method 1: Check if basePlanId is directly available from native
@@ -1134,12 +1146,20 @@ function SubscriptionFlow({
           </View>
 
           {/* Upgrade/Downgrade button for Android only */}
-          <PlanChangeControls
-            activeSubscriptions={activeSubscriptions}
-            handlePlanChange={handlePlanChange}
-            isProcessing={isProcessing}
-            lastPurchasedPlan={lastPurchasedPlan}
-          />
+          {subscriptions.some((subscription) =>
+            subscription.subscriptionOffers?.some(
+              (offer) =>
+                offer.basePlanIdAndroid === 'premium' ||
+                offer.basePlanIdAndroid === 'premium-year',
+            ),
+          ) && (
+            <PlanChangeControls
+              activeSubscriptions={activeSubscriptions}
+              handlePlanChange={handlePlanChange}
+              isProcessing={isProcessing}
+              lastPurchasedPlan={lastPurchasedPlan}
+            />
+          )}
 
           <TouchableOpacity
             style={styles.refreshButton}
@@ -1549,6 +1569,7 @@ function SubscriptionFlowContainer() {
   const {
     verificationMethod,
     verificationMethodRef,
+    verificationSelection,
     verificationMethodSelectorVisible,
     hideVerificationMethodSelector,
     selectVerificationMethod,
@@ -1570,6 +1591,7 @@ function SubscriptionFlowContainer() {
   const taskOwnerRef = useRef({});
   const mountedRef = useRef(true);
 
+  const retainedPurchaseRef = useRef<Purchase | null>(null);
   const dispatchPurchaseSuccess = useCallback(
     (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
     [],
@@ -1588,7 +1610,7 @@ function SubscriptionFlowContainer() {
 
     console.log('Purchase successful:', purchase.productId);
     const productId = purchase.productId ?? '';
-    if (!isSubscriptionFlowProduct(productId)) {
+    if (!isSubscriptionFlowProduct(purchase)) {
       console.log('[SubscriptionFlow] ignoring non-subscription product:', {
         productId,
       });
@@ -1616,14 +1638,14 @@ function SubscriptionFlowContainer() {
             purchaseCleanupKey,
           );
           if (shouldRefreshAfterRemount && mountedRef.current) {
-            void getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS).catch(
-              (error) => {
-                console.log(
-                  'Failed to refresh subscriptions after remount:',
-                  getErrorMessage(error),
-                );
-              },
-            );
+            void getActiveSubscriptions(
+              getSubscriptionQueryIds(SUBSCRIPTION_PRODUCT_IDS),
+            ).catch((error) => {
+              console.log(
+                'Failed to refresh subscriptions after remount:',
+                getErrorMessage(error),
+              );
+            });
           }
         } else if (result === 'abandoned' && mountedRef.current) {
           void dispatchPurchaseSuccess(purchase);
@@ -1656,8 +1678,22 @@ function SubscriptionFlowContainer() {
     };
     inFlightSubscriptionTasks.set(purchaseCleanupKey, task);
 
-    // Try to detect which plan was purchased
-    if (Platform.OS === 'ios') {
+    const subscriptionProductId = getSubscriptionProductId(
+      purchase.productId,
+      purchase.currentPlanId,
+      purchase.store,
+      purchase.storeId,
+    );
+    if (
+      purchase.store === 'amazon' ||
+      (purchase.store === 'unknown' && purchase.storeId === 'amazon_example')
+    ) {
+      if (subscriptionProductId === 'dev.hyo.martie.premium_year') {
+        setLastPurchasedPlan('premium-year');
+      } else if (subscriptionProductId === 'dev.hyo.martie.premium') {
+        setLastPurchasedPlan('premium');
+      }
+    } else if (Platform.OS === 'ios') {
       // iOS uses separate products
       if (purchase.productId === 'dev.hyo.martie.premium_year') {
         setLastPurchasedPlan('premium-year');
@@ -1697,6 +1733,7 @@ function SubscriptionFlowContainer() {
     }
 
     lastSuccessAtRef.current = Date.now();
+    retainedPurchaseRef.current = purchase;
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -1720,33 +1757,41 @@ function SubscriptionFlowContainer() {
     // - iOS: App Store Server API + App Store Server Notifications V2
     // - Android: Google Play Developer API + RTDN
     const currentVerificationMethod = verificationMethodRef.current;
+    if (currentVerificationMethod === 'ignore') {
+      setIsProcessing(false);
+      setPurchaseResult(
+        'Receipt retained. Choose verification to retry this receipt.',
+      );
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
     let iapkitVerifyRequest: VerifyPurchaseWithProviderProps | null = null;
     console.log('[SubscriptionFlow] About to verify purchase:', {
       verificationMethod: currentVerificationMethod,
       productId,
-      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+      willVerify: !!productId,
     });
 
-    if (currentVerificationMethod !== 'ignore' && productId) {
+    if (productId) {
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
           console.log('[SubscriptionFlow] Verifying with Local (Device)...');
-          // Production apps must obtain Google Play API credentials from
-          // their backend rather than bundling them in the client.
-          const result = await verifyPurchase({
-            apple: {sku: productId},
-            google: {
-              sku: productId,
-              accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-              packageName: 'dev.hyo.martie',
-              purchaseToken: purchase.purchaseToken ?? '',
-              isSub: true,
-            },
-          });
-          const verificationError = getDirectVerificationError(result);
-          if (verificationError) {
-            throw new Error(verificationError);
+          if (
+            Platform.OS !== 'ios' ||
+            purchase.store !== 'apple' ||
+            purchase.storeId !== 'apple'
+          ) {
+            throw new Error(
+              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
+            );
+          }
+          const pending = await getPendingTransactionsIOS();
+          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
+            throw new Error(
+              'Local verification did not match this pending transaction',
+            );
           }
           console.log(
             '[SubscriptionFlow] Local (Device) verification completed',
@@ -1800,6 +1845,9 @@ function SubscriptionFlowContainer() {
             productId,
             false,
             AMAZON_RVS_SANDBOX === 'true',
+            purchase.store,
+            purchase.storeId,
+            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -1850,8 +1898,7 @@ function SubscriptionFlowContainer() {
     // ──────────────────────────────────────────────────────────────────────
     // STEP 5: FINISH TRANSACTION
     // ──────────────────────────────────────────────────────────────────────
-    // Always finish: iOS removes the transaction from the StoreKit queue;
-    // Android acknowledges the purchase (required within 3 days).
+    // Finish verified iOS transactions and unacknowledged Android purchases.
     // Subscriptions are not consumable (isConsumable: false).
     const isConsumable = false;
 
@@ -1859,10 +1906,15 @@ function SubscriptionFlowContainer() {
       finishLogLabel: string,
     ): Promise<void> => {
       try {
-        await finishTransaction({
-          purchase,
-          isConsumable,
-        });
+        if (!(
+          'isAcknowledgedAndroid' in purchase &&
+          purchase.isAcknowledgedAndroid === true
+        )) {
+          await finishTransaction({
+            purchase,
+            isConsumable,
+          });
+        }
       } catch (error) {
         const message = getErrorMessage(error);
         if (mountedRef.current) {
@@ -1902,7 +1954,9 @@ function SubscriptionFlowContainer() {
       if (!mountedRef.current) return;
 
       try {
-        await getActiveSubscriptions(SUBSCRIPTION_PRODUCT_IDS);
+        await getActiveSubscriptions(
+          getSubscriptionQueryIds(SUBSCRIPTION_PRODUCT_IDS),
+        );
       } catch (error) {
         console.log('Failed to refresh subscriptions:', getErrorMessage(error));
       }
@@ -1967,12 +2021,11 @@ function SubscriptionFlowContainer() {
     connected,
     subscriptions,
     availablePurchases,
-    activeSubscriptions,
+    activeSubscriptions: storeActiveSubscriptions,
     fetchProducts,
     finishTransaction,
     getAvailablePurchases,
     getActiveSubscriptions,
-    verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
     // ────────────────────────────────────────────────────────────────────────
@@ -2004,6 +2057,20 @@ function SubscriptionFlowContainer() {
       showNativeAlert('Subscription Failed', error.message);
     },
   });
+
+  const activeSubscriptions = useMemo(
+    () =>
+      storeActiveSubscriptions.flatMap((subscription) => {
+        const productId = getSubscriptionProductId(
+          subscription.productId,
+          subscription.currentPlanId,
+        );
+        return productId && SUBSCRIPTION_PRODUCT_IDS.includes(productId)
+          ? [{...subscription, productId}]
+          : [];
+      }),
+    [storeActiveSubscriptions],
+  );
 
   useLayoutEffect(() => {
     mountedRef.current = true;
@@ -2063,11 +2130,31 @@ function SubscriptionFlowContainer() {
   }, [connected, fetchProducts, getAvailablePurchases]);
 
   useEffect(() => {
+    if (
+      !connected ||
+      verificationSelection === 0 ||
+      verificationMethod === 'ignore'
+    )
+      return;
+    void getAvailablePurchases().catch((error) => {
+      console.log('[SubscriptionFlow] Receipt recovery failed:', error);
+    });
+    if (retainedPurchaseRef.current)
+      void dispatchPurchaseSuccess(retainedPurchaseRef.current);
+  }, [
+    connected,
+    getAvailablePurchases,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
+
+  useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
 
     for (const purchase of availablePurchases) {
       const productId = purchase.productId ?? '';
-      if (!isSubscriptionFlowProduct(productId)) {
+      if (!isSubscriptionFlowProduct(purchase)) {
         console.log(
           '[SubscriptionFlow] skipping cleanup for non-subscription product:',
           {productId},
@@ -2085,7 +2172,13 @@ function SubscriptionFlowContainer() {
         );
       });
     }
-  }, [availablePurchases, connected, dispatchPurchaseSuccess]);
+  }, [
+    availablePurchases,
+    connected,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   // Log discount and promotional offer data
   useEffect(() => {

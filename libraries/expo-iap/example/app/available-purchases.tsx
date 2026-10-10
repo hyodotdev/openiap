@@ -10,12 +10,16 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import {useIAP, getStorefront, deepLinkToSubscriptions} from '../../src';
-import type {ActiveSubscription} from '../../src';
+import {
+  useIAP,
+  getStorefront,
+  deepLinkToSubscriptions,
+  type ActiveSubscription,
+  type Purchase,
+  type ExpoPurchaseError as PurchaseError,
+} from 'expo-iap';
 import Loading from '../src/components/Loading';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../src/utils/constants';
-import type {Purchase} from '../../src/types';
-import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 
@@ -73,23 +77,13 @@ export default function AvailablePurchases() {
     getAvailablePurchases,
     getActiveSubscriptions,
     fetchProducts,
-    finishTransaction,
   } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      console.log('[AVAILABLE-PURCHASES] Purchase successful:', {
+    onPurchaseSuccess: (purchase) => {
+      console.log('[AVAILABLE-PURCHASES] Purchase received:', {
         productId: purchase.productId,
         transactionId: purchase.id,
         store: purchase.store,
       });
-
-      // Finish transaction like in subscription-flow
-      await finishTransaction({
-        purchase,
-        isConsumable: false,
-      });
-
-      // Refresh status after success
-      checkSubscriptionStatus();
     },
     onPurchaseError: (error: PurchaseError) => {
       console.log('[AVAILABLE-PURCHASES] Purchase failed:', error);

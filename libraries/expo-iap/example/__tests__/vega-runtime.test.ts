@@ -1,3 +1,14 @@
+import {
+  createIapkitVerificationPayload,
+  getSubscriptionProductId,
+  getDefaultVerificationMethod,
+  matchesVerifiedPendingPurchase,
+  getIapkitVerificationError,
+  rememberCompletedPurchaseKey,
+  resolveIapkitVerificationBaseUrl,
+} from '../src/utils/vegaRuntime';
+import type {Purchase} from '../../src/types';
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
@@ -11,17 +22,104 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
-import {
-  createIapkitVerificationPayload,
-  getDefaultVerificationMethod,
-  getDirectVerificationError,
-  getIapkitVerificationError,
-  rememberCompletedPurchaseKey,
-  resolveIapkitVerificationBaseUrl,
-} from '../src/utils/vegaRuntime';
-import type {Purchase} from '../../src/types';
-
 describe('Vega runtime example helpers', () => {
+  it('local Apple verification binds the exact pending transaction and provider', () => {
+    const receipt: Purchase = {
+      id: 'unfinished-old',
+      productId: 'dev.hyo.martie.10bulbs',
+      store: 'apple',
+      storeId: 'apple',
+      purchaseState: 'purchased',
+      transactionDate: 1,
+      quantity: 1,
+      isAutoRenewing: false,
+    };
+    expect(
+      matchesVerifiedPendingPurchase(receipt, [
+        {...receipt, id: 'latest-other'},
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase(receipt, [
+        {...receipt, productId: 'another-sku'},
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, storeId: 'community-apple'}, [
+        receipt,
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, id: ''}, [
+        {...receipt, id: ''},
+      ]),
+    ).toBe(false);
+    expect(matchesVerifiedPendingPurchase(receipt, [{...receipt}])).toBe(true);
+    for (const extra of [
+      {revocationDateIOS: 1},
+      {isUpgradedIOS: true},
+      {expirationDateIOS: 1},
+    ]) {
+      expect(
+        matchesVerifiedPendingPurchase(receipt, [{...receipt, ...extra}]),
+      ).toBe(false);
+    }
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
+        {...receipt, environmentIOS: 'Production'},
+      ]),
+    ).toBe(false);
+    expect(
+      matchesVerifiedPendingPurchase({...receipt, environmentIOS: 'Sandbox'}, [
+        receipt,
+      ]),
+    ).toBe(false);
+  });
+
+  it('known Apple environments must match server verification', () => {
+    const verified = {
+      provider: 'iapkit' as const,
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume' as const,
+        store: 'apple' as const,
+        storeId: 'apple',
+        environment: 'Sandbox',
+      },
+    };
+    expect(
+      getIapkitVerificationError(
+        verified,
+        'dev.hyo.martie.10bulbs',
+        true,
+        'apple',
+        'apple',
+        'Sandbox',
+      ),
+    ).toBeNull();
+    expect(
+      getIapkitVerificationError(
+        verified,
+        'dev.hyo.martie.10bulbs',
+        true,
+        'apple',
+        'apple',
+        'Production',
+      ),
+    ).not.toBeNull();
+    expect(
+      getIapkitVerificationError(
+        {...verified, iapkit: {...verified.iapkit, environment: undefined}},
+        'dev.hyo.martie.10bulbs',
+        true,
+        'apple',
+        'apple',
+        'Sandbox',
+      ),
+    ).not.toBeNull();
+  });
+
   it('uses configured IAPKit credentials for Amazon purchases', () => {
     const payload = createIapkitVerificationPayload(
       {
@@ -147,6 +245,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'amazon',
       ),
     ).toBeNull();
   });
@@ -166,6 +265,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'amazon',
       ),
     ).toBe('IAPKit did not return a product ID for amazon');
   });
@@ -186,6 +286,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'amazon',
       ),
     ).toContain('expected Sandbox');
   });
@@ -205,6 +306,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         true,
+        'google',
       ),
     ).toBeNull();
 
@@ -222,6 +324,7 @@ describe('Vega runtime example helpers', () => {
         },
         'dev.hyo.martie.10bulbs',
         false,
+        'google',
       ),
     ).toContain('cannot fulfill this non-consumable google purchase');
 
@@ -240,6 +343,7 @@ describe('Vega runtime example helpers', () => {
           },
           'dev.hyo.martie.10bulbs',
           true,
+          'google',
         ),
       ).toBeNull();
     }
@@ -254,16 +358,186 @@ describe('Vega runtime example helpers', () => {
     expect([...completedKeys]).toEqual(['oldest', 'newest']);
   });
 
-  it('rejects explicit invalid direct-store results', () => {
+  it.each(['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'])(
+    'verifies Amazon term %s against its catalog base without relaxing other stores',
+    (productId) => {
+      const payload = createIapkitVerificationPayload(
+        {
+          id: 'receipt',
+          productId,
+          store: 'amazon',
+          storeId: 'amazon',
+        } as Purchase,
+        'receipt',
+      );
+      expect(payload.amazon?.expectedProductId).toBe(
+        'dev.hyo.martie.premium.base',
+      );
+      const result = {
+        provider: 'iapkit' as const,
+        iapkit: {
+          isValid: true,
+          productId: 'dev.hyo.martie.premium.base',
+          environment: 'Sandbox',
+          state: 'entitled' as const,
+          store: 'amazon' as const,
+          storeId: 'amazon',
+        },
+      };
+      expect(
+        getIapkitVerificationError(result, productId, false, 'amazon'),
+      ).toBeNull();
+      expect(
+        getIapkitVerificationError(
+          {
+            ...result,
+            iapkit: {...result.iapkit, productId: 'another.base'},
+          },
+          productId,
+          false,
+          'amazon',
+        ),
+      ).toContain('expected dev.hyo.martie.premium.base');
+      expect(
+        getIapkitVerificationError(
+          {
+            ...result,
+            iapkit: {...result.iapkit, store: 'google', storeId: 'play'},
+          },
+          productId,
+          false,
+          'google',
+        ),
+      ).toContain('expected ' + productId);
+      expect(
+        getIapkitVerificationError(
+          {
+            ...result,
+            iapkit: {
+              ...result.iapkit,
+              store: 'google',
+              storeId: 'play',
+              productId,
+            },
+          },
+          productId,
+          false,
+          'google',
+        ),
+      ).toBeNull();
+    },
+  );
+
+  it('rejects valid same-SKU verification from a different store', () => {
     expect(
-      getDirectVerificationError({
-        isValid: false,
-        jwsRepresentation: '',
-        receiptData: '',
-      }),
-    ).toContain('invalid receipt');
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId: 'dev.hyo.martie.premium',
+            state: 'entitled',
+            store: 'google',
+            storeId: 'play',
+          },
+        },
+        'dev.hyo.martie.premium',
+        false,
+        'apple',
+      ),
+    ).toContain('expected apple');
+  });
+
+  it('routes only the configured community provider to Amazon RVS and preserves identity', () => {
+    const purchase = {
+      id: 'receipt',
+      productId: 'dev.hyo.martie.premium',
+      store: 'unknown',
+      storeId: 'amazon_example',
+    } as Purchase;
+    const payload = createIapkitVerificationPayload(purchase, 'receipt');
+    expect(payload.amazon?.expectedProductId).toBe(
+      'dev.hyo.martie.premium.base',
+    );
+    expect(payload).not.toHaveProperty('google');
+    const result = {
+      provider: 'iapkit' as const,
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.premium.base',
+        environment: 'Sandbox',
+        state: 'entitled' as const,
+        store: 'unknown' as const,
+        storeId: 'amazon_example',
+      },
+    };
     expect(
-      getDirectVerificationError({isValid: false, grantTime: null}),
-    ).toContain('invalid receipt');
+      getIapkitVerificationError(
+        result,
+        purchase.productId,
+        false,
+        purchase.store,
+        purchase.storeId,
+      ),
+    ).toBeNull();
+    for (const changed of [
+      {storeId: 'other_provider'},
+      {store: 'amazon' as const},
+      {environment: 'Production'},
+      {state: 'pending' as const},
+      {productId: 'foreign.base'},
+    ]) {
+      const rejected = {...result, iapkit: {...result.iapkit, ...changed}};
+      expect(
+        getIapkitVerificationError(
+          rejected,
+          purchase.productId,
+          false,
+          purchase.store,
+          purchase.storeId,
+        ),
+      ).not.toBeNull();
+    }
+    expect(() =>
+      createIapkitVerificationPayload(
+        {...purchase, storeId: 'other_provider'},
+        'receipt',
+      ),
+    ).toThrow('No verification adapter');
+    expect(purchase.store).toBe('unknown');
+    expect(purchase.storeId).toBe('amazon_example');
+  });
+});
+
+describe('Amazon restored subscription catalog', () => {
+  const base = 'dev.hyo.martie.premium.base';
+  it.each(['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'])(
+    'resolves the exact %s term while preserving the raw receipt SKU',
+    (term) => {
+      expect(getSubscriptionProductId(base, term, 'amazon', 'amazon')).toBe(
+        term,
+      );
+      expect(
+        getSubscriptionProductId(base, term, 'unknown', 'amazon_example'),
+      ).toBe(term);
+      expect(
+        getSubscriptionProductId(term, 'play-base-plan', 'google', 'play'),
+      ).toBe(term);
+    },
+  );
+  it('never guesses a missing term or maps a foreign provider/catalog', () => {
+    expect(getSubscriptionProductId(base, null)).toBeUndefined();
+    expect(getSubscriptionProductId(base, 'foreign.term')).toBeUndefined();
+    expect(
+      getSubscriptionProductId('foreign.base', 'dev.hyo.martie.premium'),
+    ).toBeUndefined();
+    expect(
+      getSubscriptionProductId(
+        base,
+        'dev.hyo.martie.premium',
+        'unknown',
+        'foreign',
+      ),
+    ).toBeUndefined();
   });
 });

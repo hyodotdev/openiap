@@ -1,11 +1,49 @@
 import {Alert, Platform} from 'react-native';
+import amazonCatalog from '../../amazon.sdktester.json';
 import Constants from 'expo-constants';
 import type {
   Purchase,
-  VerifyPurchaseResult,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
-} from '../../../src/types';
+} from 'expo-iap';
+
+const catalog: Readonly<
+  Record<
+    string,
+    {
+      itemType: string;
+      subscriptionBase?: string;
+      subscriptionParent?: string;
+    }
+  >
+> = amazonCatalog;
+
+export function getSubscriptionProductId(
+  productId: string,
+  currentPlanId?: string | null,
+  store?: Purchase['store'],
+  storeId?: string,
+): string | undefined {
+  if (catalog[productId]?.itemType === 'SUBSCRIPTION') return productId;
+  if (
+    store !== undefined &&
+    store !== 'amazon' &&
+    !(store === 'unknown' && storeId === 'amazon_example')
+  )
+    return undefined;
+  const term = currentPlanId ? catalog[currentPlanId] : undefined;
+  return term?.itemType === 'SUBSCRIPTION' &&
+    productId === term.subscriptionBase
+    ? currentPlanId ?? undefined
+    : undefined;
+}
+
+function getAmazonVerificationProductId(productId: string): string {
+  const item = catalog[productId];
+  return item?.itemType === 'SUBSCRIPTION'
+    ? item.subscriptionBase ?? item.subscriptionParent ?? productId
+    : productId;
+}
 
 export type IapkitVerificationPayload = NonNullable<
   VerifyPurchaseWithProviderProps['iapkit']
@@ -109,11 +147,19 @@ export function showNativeAlert(title: string, message?: string): void {
   }
 }
 
+// This example explicitly adapts the educational provider to Amazon RVS.
+function verificationStore(
+  store: Purchase['store'],
+  storeId?: string,
+): Purchase['store'] {
+  return store === 'unknown' && storeId === 'amazon_example' ? 'amazon' : store;
+}
+
 function isIapkitStateReadyForFulfillment(
   verified: NonNullable<VerifyPurchaseWithProviderResult['iapkit']>,
   isConsumable: boolean,
 ): boolean {
-  switch (verified.store) {
+  switch (verificationStore(verified.store, verified.storeId)) {
     case 'apple':
     case 'amazon':
       return (
@@ -136,6 +182,9 @@ export function getIapkitVerificationError(
   result: VerifyPurchaseWithProviderResult,
   expectedProductId: string,
   isConsumable: boolean,
+  expectedStore: Purchase['store'],
+  expectedStoreId?: string,
+  expectedEnvironment?: string | null,
 ): string | null {
   const verified = result.iapkit;
   if (!verified) {
@@ -157,11 +206,36 @@ export function getIapkitVerificationError(
     return `IAPKit did not return a product ID for ${verified.store}`;
   }
 
-  if (verified.productId !== expectedProductId) {
-    return `IAPKit verified ${verified.productId}, expected ${expectedProductId}`;
+  if (verified.store !== expectedStore) {
+    return `IAPKit verified ${verified.store}, expected ${expectedStore}`;
   }
 
-  if (verified.store === 'amazon') {
+  if (
+    (expectedStore === 'unknown' && !expectedStoreId) ||
+    (expectedStoreId && verified.storeId !== expectedStoreId)
+  ) {
+    return 'IAPKit changed or omitted the expected provider identity';
+  }
+  if (
+    expectedStore === 'apple' &&
+    expectedEnvironment != null &&
+    verified.environment !== expectedEnvironment
+  ) {
+    return `IAPKit verified Apple in ${
+      verified.environment ?? 'an unknown environment'
+    }, expected ${expectedEnvironment}`;
+  }
+  const store = verificationStore(verified.store, verified.storeId);
+
+  const verificationProductId =
+    store === 'amazon'
+      ? getAmazonVerificationProductId(expectedProductId)
+      : expectedProductId;
+  if (verified.productId !== verificationProductId) {
+    return `IAPKit verified ${verified.productId}, expected ${verificationProductId}`;
+  }
+
+  if (store === 'amazon') {
     const expectedEnvironment = isAmazonRvsSandboxEnabled()
       ? 'Sandbox'
       : 'Production';
@@ -181,13 +255,34 @@ export function getIapkitVerificationError(
   return null;
 }
 
-export function getDirectVerificationError(
-  result: VerifyPurchaseResult,
-): string | null {
-  if ('isValid' in result && result.isValid === false) {
-    return 'Store verification returned an invalid receipt';
-  }
-  return null;
+export function matchesVerifiedPendingPurchase(
+  purchase: Purchase,
+  pending: Purchase[],
+): boolean {
+  return (
+    purchase.store === 'apple' &&
+    purchase.storeId === 'apple' &&
+    !!purchase.id &&
+    pending.some(
+      (candidate) =>
+        candidate.store === 'apple' &&
+        candidate.storeId === 'apple' &&
+        candidate.id === purchase.id &&
+        candidate.productId === purchase.productId &&
+        !(
+          'revocationDateIOS' in candidate &&
+          candidate.revocationDateIOS != null
+        ) &&
+        !('isUpgradedIOS' in candidate && candidate.isUpgradedIOS === true) &&
+        (!('expirationDateIOS' in candidate) ||
+          candidate.expirationDateIOS == null ||
+          candidate.expirationDateIOS > Date.now()) &&
+        (!('environmentIOS' in purchase) ||
+          purchase.environmentIOS == null ||
+          ('environmentIOS' in candidate &&
+            candidate.environmentIOS === purchase.environmentIOS)),
+    )
+  );
 }
 
 export function rememberCompletedPurchaseKey(
@@ -218,17 +313,25 @@ export function createIapkitVerificationPayload(
   const purchaseStore = (
     (purchase as Purchase & {store?: string | null}).store ?? ''
   ).toLowerCase();
-  if (purchaseStore === 'amazon') {
+  if (
+    purchaseStore === 'amazon' ||
+    (purchaseStore === 'unknown' && purchase.storeId === 'amazon_example')
+  ) {
     return withIapkitEndpoint(
       {
         apiKey,
         amazon: {
-          expectedProductId: purchase.productId,
+          expectedProductId: getAmazonVerificationProductId(purchase.productId),
           receiptId: purchaseToken,
           sandbox: isAmazonRvsSandboxEnabled(),
         },
       },
       baseUrl,
+    );
+  }
+  if (purchaseStore === 'unknown') {
+    throw new Error(
+      `No verification adapter configured for ${purchase.storeId}`,
     );
   }
   if (purchaseStore === 'horizon') {

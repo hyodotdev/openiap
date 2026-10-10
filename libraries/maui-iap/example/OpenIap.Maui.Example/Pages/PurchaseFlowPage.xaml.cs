@@ -85,19 +85,7 @@ public partial class PurchaseFlowPage : ContentPage
                 _ = LoadProductsAsync();
                 _ = RefreshAvailablePurchasesAsync(showAlert: false);
             }
-#if IOS || MACCATALYST
-            try
-            {
-                var pending = await ((QueryResolver)OpenIapClient.Instance)
-                    .GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
-                foreach (var purchase in pending) await OnPurchaseAsync(purchase);
-            }
-            catch (OpenIapException ex) when (ex.Error.Code == ErrorCode.FeatureNotSupported) { }
-            catch (Exception ex)
-            {
-                UpdateResult($"Pending purchase recovery failed: {ErrorUtils.ExtractErrorMessage(ex)}");
-            }
-#endif
+            await RecoverPurchasesAsync();
         }
         catch (Exception ex)
         {
@@ -405,9 +393,36 @@ public partial class PurchaseFlowPage : ContentPage
         }
     }
 
+    private async Task RecoverPurchasesAsync()
+    {
+        try
+        {
+            var query = (QueryResolver)OpenIapClient.Instance;
+#if IOS || MACCATALYST
+            var recovered = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
+#else
+            var recovered = await query.GetAvailablePurchasesAsync(new PurchaseOptions()).WaitAsync(TimeSpan.FromSeconds(15));
+#endif
+            foreach (var purchase in recovered) await OnPurchaseAsync(purchase);
+        }
+        catch (OpenIapException error) when (error.Error.Code == ErrorCode.FeatureNotSupported) { }
+        catch (Exception error)
+        {
+            UpdateResult($"Purchase recovery failed; receipts retained: {error.Message}");
+        }
+    }
+
     private async Task OnPurchaseAsync(Purchase purchase)
     {
         var common = (PurchaseCommon)purchase;
+        if (!Constants.ProductIds.Contains(common.ProductId)) return;
+        _isProcessing = false;
+        if (_verification == VerificationMethod.Ignore)
+        {
+            UpdateResult("Receipt retained. Choose verification to retry this receipt.");
+            RenderProducts();
+            return;
+        }
         if (common.PurchaseState != PurchaseState.Purchased)
         {
             _isProcessing = false;
@@ -420,7 +435,7 @@ public partial class PurchaseFlowPage : ContentPage
         if (!string.IsNullOrEmpty(common.Id) && !_handledTransactionIds.Add(common.Id)) return;
         _lastPurchase = purchase;
         _isProcessing = false;
-        UpdateResult($"Purchase completed successfully (state: {common.PurchaseState.ToJson()}).");
+        UpdateResult($"Receipt received; verification required (state: {common.PurchaseState.ToJson()}).");
         RenderProducts();
 
         var verificationPassed = true;
@@ -433,18 +448,14 @@ public partial class PurchaseFlowPage : ContentPage
                 var mutate = (MutationResolver)OpenIapClient.Instance;
                 if (_verification == VerificationMethod.Local)
                 {
-                    var result = await mutate.VerifyPurchaseAsync(new VerifyPurchaseProps
-                    {
-                        Apple = new VerifyPurchaseAppleOptions { Sku = common.ProductId },
-                        Google = new VerifyPurchaseGoogleOptions
-                        {
-                            Sku = common.ProductId,
-                            PackageName = "dev.hyo.martie",
-                            PurchaseToken = common.PurchaseToken ?? string.Empty,
-                            AccessToken = string.Empty,
-                        },
-                    });
-                    verificationPassed = result.IsValid;
+#if IOS || MACCATALYST
+                    var query = (QueryResolver)OpenIapClient.Instance;
+                    var pending = await query.GetPendingTransactionsIOSAsync().WaitAsync(TimeSpan.FromSeconds(15));
+                    verificationPassed = IapKitSettings.MatchesVerifiedPendingPurchase(common, pending);
+#else
+                    verificationPassed = false;
+                    UpdateResult("Local (Device) verification is unavailable here. Choose Local (IAPKit).");
+#endif
                     Console.WriteLine("[PurchaseFlow] local verification completed");
                 }
                 else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
@@ -473,7 +484,7 @@ public partial class PurchaseFlowPage : ContentPage
                         });
                         if (result.Iapkit is { } ik)
                         {
-                            verificationPassed = ik.IsValid;
+                            verificationPassed = IapKitSettings.AcceptsVerification(ik, common);
                             var emoji = ik.IsValid ? "✅" : "⚠️";
                             verificationAlert = (
                                 $"{emoji} {VerificationLabel(_verification)} Verification",
@@ -528,6 +539,7 @@ public partial class PurchaseFlowPage : ContentPage
     // failure has to reach the UI rather than the console.
     private static async Task<string?> FinishPurchaseTransactionAsync(Purchase purchase, bool isConsumable)
     {
+        if (!isConsumable && purchase is PurchaseAndroid { IsAcknowledgedAndroid: true }) return null;
         try
         {
             var mutate = (MutationResolver)OpenIapClient.Instance;
@@ -575,7 +587,7 @@ public partial class PurchaseFlowPage : ContentPage
         RenderProducts();
     }
 
-    private void OnChangeVerificationClicked(object sender, EventArgs e)
+    private async void OnChangeVerificationClicked(object sender, EventArgs e)
     {
         _verification = _verification switch
         {
@@ -585,6 +597,7 @@ public partial class PurchaseFlowPage : ContentPage
             _ => VerificationMethod.Ignore,
         };
         VerificationButton.Text = VerificationLabel(_verification);
+        if (_verification != VerificationMethod.Ignore) await RecoverPurchasesAsync();
     }
 
     private async void OnCopyResultClicked(object sender, EventArgs e)

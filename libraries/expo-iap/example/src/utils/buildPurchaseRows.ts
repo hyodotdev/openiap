@@ -1,4 +1,4 @@
-import type {Purchase, PurchaseIOS, PurchaseAndroid} from '../../../src/types';
+import type {Purchase, PurchaseIOS, PurchaseAndroid} from 'expo-iap';
 
 export type PurchaseDetailRow = {
   label: string;

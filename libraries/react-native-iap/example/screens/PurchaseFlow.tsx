@@ -14,6 +14,7 @@ import {
   requestPurchase,
   useIAP,
   getAppTransactionIOS,
+  getPendingTransactionsIOS,
   getStorefront,
   ErrorCode,
 } from 'react-native-iap';
@@ -32,7 +33,7 @@ import {
 } from '../src/hooks/useVerificationMethod';
 import {
   createIapkitVerificationPayload,
-  getDirectVerificationError,
+  matchesVerifiedPendingPurchase,
   getIapkitVerificationError,
   getPurchaseCleanupKey,
   rememberCompletedPurchaseKey,
@@ -572,6 +573,7 @@ function PurchaseFlowContainer() {
   const {
     verificationMethod,
     verificationMethodRef,
+    verificationSelection,
     verificationMethodSelectorVisible,
     hideVerificationMethodSelector,
     selectVerificationMethod,
@@ -584,6 +586,7 @@ function PurchaseFlowContainer() {
   >(async () => {});
   const mountedRef = useRef(true);
 
+  const retainedPurchaseRef = useRef<Purchase | null>(null);
   const dispatchPurchaseSuccess = useCallback(
     (purchase: Purchase) => purchaseSuccessHandlerRef.current(purchase),
     [],
@@ -658,6 +661,7 @@ function PurchaseFlowContainer() {
     };
     inFlightPurchaseTasks.set(purchaseCleanupKey, task);
 
+    retainedPurchaseRef.current = purchase;
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -682,32 +686,40 @@ function PurchaseFlowContainer() {
     // - 'iapkit-localhost': IAPKit provider through the local server
     // - 'iapkit': IAPKit provider through the hosted service
     const currentVerificationMethod = verificationMethodRef.current;
+    if (currentVerificationMethod === 'ignore') {
+      setIsProcessing(false);
+      setPurchaseResult(
+        'Receipt retained. Choose verification to retry this receipt.',
+      );
+      releasePurchaseTask('abandoned');
+      return;
+    }
+
     console.log('[PurchaseFlow] About to verify purchase:', {
       verificationMethod: currentVerificationMethod,
       productId,
-      willVerify: currentVerificationMethod !== 'ignore' && !!productId,
+      willVerify: !!productId,
     });
 
-    if (currentVerificationMethod !== 'ignore' && productId) {
+    if (productId) {
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
           console.log('[PurchaseFlow] Verifying with Local (Device)...');
-          // This token is intentionally a placeholder. Production apps must
-          // obtain Google Play API credentials from their backend.
-          const result = await verifyPurchase({
-            apple: {sku: productId},
-            google: {
-              sku: productId,
-              accessToken: 'YOUR_OAUTH_ACCESS_TOKEN',
-              packageName: 'dev.hyo.martie',
-              purchaseToken: purchase.purchaseToken ?? '',
-              isSub: false,
-            },
-          });
-          const verificationError = getDirectVerificationError(result);
-          if (verificationError) {
-            throw new Error(verificationError);
+          if (
+            Platform.OS !== 'ios' ||
+            purchase.store !== 'apple' ||
+            purchase.storeId !== 'apple'
+          ) {
+            throw new Error(
+              'Local (Device) verification is available only for Apple purchases. Choose Local (IAPKit).',
+            );
+          }
+          const pending = await getPendingTransactionsIOS();
+          if (!matchesVerifiedPendingPurchase(purchase, pending)) {
+            throw new Error(
+              'Local verification did not match this pending transaction',
+            );
           }
           console.log('[PurchaseFlow] Local (Device) verification completed');
         } else {
@@ -756,6 +768,9 @@ function PurchaseFlowContainer() {
             productId,
             isConsumablePurchase,
             AMAZON_RVS_SANDBOX === 'true',
+            purchase.store,
+            purchase.storeId,
+            'environmentIOS' in purchase ? purchase.environmentIOS : undefined,
           );
           if (verificationError) {
             throw new Error(verificationError);
@@ -805,13 +820,21 @@ function PurchaseFlowContainer() {
     // ──────────────────────────────────────────────────────────────────────
     // Step 6: FINISH TRANSACTION
     // ──────────────────────────────────────────────────────────────────────
-    // Always finish, or the transaction causes issues on the next app launch.
+    // Finish verified purchases; acknowledged non-consumables are already complete.
     // isConsumable: true lets a consumable be bought again; false otherwise.
     try {
-      await finishTransaction({
-        purchase,
-        isConsumable: isConsumablePurchase,
-      });
+      if (
+        isConsumablePurchase ||
+        !(
+          'isAcknowledgedAndroid' in purchase &&
+          purchase.isAcknowledgedAndroid === true
+        )
+      ) {
+        await finishTransaction({
+          purchase,
+          isConsumable: isConsumablePurchase,
+        });
+      }
       rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
       releasePurchaseTask('finished');
       if (mountedRef.current) {
@@ -840,7 +863,6 @@ function PurchaseFlowContainer() {
     fetchProducts,
     finishTransaction,
     getAvailablePurchases,
-    verifyPurchase,
     verifyPurchaseWithProvider,
   } = useIAP({
     // ────────────────────────────────────────────────────────────────────────
@@ -922,7 +944,7 @@ function PurchaseFlowContainer() {
         });
 
       getAvailablePurchases()
-        .then(() => {
+        .then(async () => {
           console.log('[PurchaseFlow] getAvailablePurchases completed');
         })
         .catch((error) => {
@@ -935,7 +957,61 @@ function PurchaseFlowContainer() {
       console.log('[PurchaseFlow] Not fetching products - not connected');
       setStorefront(null);
     }
-  }, [connected, fetchProducts, fetchStorefront, getAvailablePurchases]);
+  }, [
+    connected,
+    dispatchPurchaseSuccess,
+    fetchProducts,
+    fetchStorefront,
+    getAvailablePurchases,
+  ]);
+
+  useEffect(() => {
+    if (!connected || Platform.OS !== 'ios' || verificationMethod === 'ignore')
+      return;
+    let active = true;
+    void getPendingTransactionsIOS()
+      .then(async (purchases) => {
+        for (const purchase of purchases) {
+          if (!active) return;
+          if (isPurchaseFlowProduct(purchase.productId ?? ''))
+            await dispatchPurchaseSuccess(purchase);
+        }
+      })
+      .catch((error) => {
+        if (active)
+          setPurchaseResult(
+            `Purchase recovery failed; receipts retained: ${String(error)}`,
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    connected,
+    verificationMethod,
+    verificationSelection,
+    dispatchPurchaseSuccess,
+  ]);
+
+  useEffect(() => {
+    if (
+      !connected ||
+      verificationSelection === 0 ||
+      verificationMethod === 'ignore'
+    )
+      return;
+    void getAvailablePurchases().catch((error) => {
+      console.log('[PurchaseFlow] Receipt recovery failed:', error);
+    });
+    if (retainedPurchaseRef.current)
+      void dispatchPurchaseSuccess(retainedPurchaseRef.current);
+  }, [
+    connected,
+    getAvailablePurchases,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   useEffect(() => {
     if (!connected || availablePurchases.length === 0) return;
@@ -960,7 +1036,13 @@ function PurchaseFlowContainer() {
         );
       });
     }
-  }, [availablePurchases, connected, dispatchPurchaseSuccess]);
+  }, [
+    availablePurchases,
+    connected,
+    dispatchPurchaseSuccess,
+    verificationMethod,
+    verificationSelection,
+  ]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Step 3: REQUEST PURCHASE
