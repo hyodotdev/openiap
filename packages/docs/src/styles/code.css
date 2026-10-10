@@ -363,7 +363,7 @@ pre code {
   font-weight: 500;
 }
 
-/* Linkified type names (anchors emitted by `linkifyType` in CodeBlock.tsx).
+/* Linkified type names (anchors emitted by `linkifyType` in lib/codeHighlight.ts).
    Inherit the class-name color, no anchor underline by default, but show one
    on hover to make it discoverable. */
 .code-block a.token.type-ref,

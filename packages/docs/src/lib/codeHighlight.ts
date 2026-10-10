@@ -3,23 +3,26 @@
 
 import { TYPE_LINKS } from './typeLinks.ts';
 
-export type CodeLanguage =
-  | 'graphql'
-  | 'typescript'
-  | 'javascript'
-  | 'swift'
-  | 'kotlin'
-  | 'dart'
-  | 'xml'
-  | 'gdscript'
-  | 'csharp'
-  | 'bash'
-  | 'json'
-  | 'yaml'
-  | 'groovy'
-  | 'toml'
-  | 'text'
-  | 'properties';
+export const HIGHLIGHT_LANGUAGES = [
+  'graphql',
+  'typescript',
+  'javascript',
+  'swift',
+  'kotlin',
+  'dart',
+  'xml',
+  'gdscript',
+  'csharp',
+  'bash',
+  'json',
+  'yaml',
+  'groovy',
+  'toml',
+  'text',
+  'properties',
+] as const;
+
+export type HighlightLanguage = (typeof HIGHLIGHT_LANGUAGES)[number];
 
 export function escapeHtml(value: string): string {
   return value
@@ -37,24 +40,27 @@ interface Part {
 }
 
 // Splits a line into quoted strings and the code between them. With
-// `escapes`, a quote after a backslash does not close the string.
+// `escapes`, a backslash escapes the next character, so `\"` does not close
+// a string but `\\"` does.
 function splitStrings(line: string, quotes: string, escapes: boolean): Part[] {
   const parts: Part[] = [];
   let current = '';
   let quote = '';
+  let escaped = false;
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (!quote && quotes.includes(char)) {
       if (current) parts.push({ type: 'code', value: current });
       quote = char;
       current = char;
-    } else if (quote && char === quote && !(escapes && line[i - 1] === '\\')) {
+    } else if (quote && char === quote && !escaped) {
       parts.push({ type: 'string', value: current + char });
       current = '';
       quote = '';
     } else {
       current += char;
     }
+    escaped = escapes && !escaped && char === '\\';
   }
   if (current) parts.push({ type: quote ? 'string' : 'code', value: current });
   return parts;
@@ -102,12 +108,12 @@ function linkifyTypesInTextSegments(html: string): string {
 }
 
 const NUMBER = /\b(\d+\.?\d*)\b/g;
-const FUNCTION_CALL = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()/g;
+const FUNCTION_CALL = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)(\s*)(?=\()/g;
 
 const wrapNumbers = (html: string): string =>
   html.replace(NUMBER, '<span class="token number">$1</span>');
 const wrapCalls = (html: string): string =>
-  html.replace(FUNCTION_CALL, '<span class="token function">$1</span>');
+  html.replace(FUNCTION_CALL, '<span class="token function">$1</span>$2');
 
 const TYPESCRIPT_KEYWORDS =
   /\b(import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with)\b/g;
@@ -210,21 +216,22 @@ function highlightBash(text: string): string {
         if (part.type === 'string') {
           return token('string', escapeHtml(part.value));
         }
-        let code = escapeHtml(part.value).replace(
-          /(\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*)/g,
-          '<span class="token variable">$1</span>'
-        );
+        let code = escapeHtml(part.value);
         if (isFirstCode) {
           code = code.replace(
-            /^(\s*)(npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild|EXPO_TV=\S+)\b/,
+            /^(\s*)((?:npm|npx|yarn|bun|git|cd|mkdir|cp|rm|flutter|make|pod|eas|adb|curl|export|open|xcodebuild)\b|EXPO_TV=\S+)/,
             '$1<span class="token function">$2</span>'
           );
         }
         isFirstCode = false;
         return code
           .replace(
-            /\s(--?[a-zA-Z][\w-]*)/g,
-            ' <span class="token attr-name">$1</span>'
+            /(\$\{[^}<]+\}|\$[A-Za-z_][A-Za-z0-9_]*)/g,
+            '<span class="token variable">$1</span>'
+          )
+          .replace(
+            /(\s)(--?[a-zA-Z][\w-]*)/g,
+            '$1<span class="token attr-name">$2</span>'
           )
           .replace(
             /(\||&amp;&amp;|&gt;|&lt;)/g,
@@ -254,8 +261,8 @@ function highlightYaml(text: string): string {
         let code = escapeHtml(part.value);
         if (isFirst) {
           code = code.replace(
-            /^(\s*)([A-Za-z_][\w.-]*)\s*([:=])/,
-            '$1<span class="token attr-name">$2</span> $3'
+            /^(\s*)([A-Za-z_][\w.-]*)(\s*)([:=])/,
+            '$1<span class="token attr-name">$2</span>$3$4'
           );
         }
         isFirst = false;
@@ -300,8 +307,8 @@ function highlightProperties(text: string): string {
     if (!line.trim()) return escapeHtml(line);
     if (line.trim().startsWith('#')) return token('comment', escapeHtml(line));
     return escapeHtml(line).replace(
-      /^(\s*)([^=]+?)\s*(=)\s*(.*)/gm,
-      '$1<span class="token attr-name">$2</span> $3 <span class="token string">$4</span>'
+      /^(\s*)([^=]+?)(\s*)(=)(\s*)(.*)/gm,
+      '$1<span class="token attr-name">$2</span>$3$4$5<span class="token string">$6</span>'
     );
   });
 }
@@ -316,86 +323,101 @@ const GRAPHQL_BUILT_IN_TYPES = [
   'Void',
 ];
 
+// A type after a colon: `Int`, `[Product!]!`. A name followed by `(` or `{` is
+// an aliased field, not a type.
+const GRAPHQL_TYPE =
+  /:(\s*)(?![A-Za-z_]\w*\s*[({])(\[*)([A-Za-z_]\w*)([!\]]*)/g;
+const GRAPHQL_FIELD = /^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*)(:)/;
+
+// Splits off a trailing `# comment`, ignoring a `#` inside a string.
+function splitComment(line: string): [string, string] {
+  const parts = splitStrings(line, '"', true);
+  let code = '';
+  for (let i = 0; i < parts.length; i++) {
+    const { type, value } = parts[i];
+    const hash = type === 'code' ? value.indexOf('#') : -1;
+    if (hash >= 0) {
+      const rest = parts.slice(i + 1).map((part) => part.value);
+      return [code + value.slice(0, hash), value.slice(hash) + rest.join('')];
+    }
+    code += value;
+  }
+  return [code, ''];
+}
+
+function highlightGraphqlDefinition(code: string): string {
+  const declaration = code.match(/^(\s*)(type|input|enum)(\s+)(\w+)(.*)$/);
+  if (declaration) {
+    const [, indent, keyword, gap, name, rest] = declaration;
+    return `${indent}${token('keyword', keyword)}${gap}${token('type-name', name)}${escapeHtml(rest)}`;
+  }
+
+  // Enum values (all caps with underscores)
+  if (/^\s*[A-Z_]+\s*$/.test(code)) {
+    return escapeHtml(code).replace(
+      /([A-Z_]+)/g,
+      '<span class="token enum-value">$1</span>'
+    );
+  }
+
+  if (!code.includes(':')) return escapeHtml(code);
+
+  const wrapType = (
+    _match: string,
+    space: string,
+    brackets: string,
+    name: string,
+    suffix: string
+  ): string =>
+    ':' +
+    space +
+    brackets.replace(/\[/g, token('punctuation', '[')) +
+    token(
+      GRAPHQL_BUILT_IN_TYPES.includes(name) ? 'builtin-type' : 'custom-type',
+      name
+    ) +
+    suffix.replace(/[!\]]/g, (mark) =>
+      mark === '!' ? token('required', '!') : token('punctuation', ']')
+    );
+
+  return splitStrings(code, '"', true)
+    .map((part) =>
+      part.type === 'string'
+        ? escapeHtml(part.value)
+        : // Types first: the field pass wraps the first colon.
+          escapeHtml(part.value)
+            .replace(GRAPHQL_TYPE, wrapType)
+            .replace(
+              GRAPHQL_FIELD,
+              '$1<span class="token field">$2</span>$3<span class="token punctuation">$4</span>'
+            )
+    )
+    .join('');
+}
+
 function highlightGraphql(text: string): string {
   let inBlockString = false;
 
   return mapLines(text, (line) => {
     const trimmed = line.trim();
-    const escaped = escapeHtml(line);
-
-    if (!trimmed) {
-      return escaped;
-    }
+    if (!trimmed) return escapeHtml(line);
 
     // Block string delimiters and contents
     if (trimmed.startsWith('"""')) {
-      const result = token('string', escaped);
       const isSingleLineBlock =
         trimmed.length > 3 && trimmed.endsWith('"""') && trimmed !== '"""';
-      if (!isSingleLineBlock) {
-        inBlockString = !inBlockString;
-      }
-      return result;
+      if (!isSingleLineBlock) inBlockString = !inBlockString;
+      return token('string', escapeHtml(line));
     }
+    if (inBlockString) return token('string', escapeHtml(line));
 
-    if (inBlockString) {
-      return token('string', escaped);
-    }
+    if (trimmed.startsWith('#')) return token('comment', escapeHtml(line));
 
-    // Line comments
-    if (trimmed.startsWith('#')) {
-      return token('comment', escaped);
-    }
-
-    // Type/Input/Enum declarations
-    const typeMatch = line.match(/^(\s*)(type|input|enum)\s+(\w+)(.*)$/);
-    if (typeMatch) {
-      const [, leading, keyword, typeName, rest] = typeMatch;
-      const escapedRest = rest ? escapeHtml(rest) : '';
-      return `${escapeHtml(leading)}${token('keyword', escapeHtml(keyword))} ${token('type-name', escapeHtml(typeName))}${escapedRest}`;
-    }
-
-    // Enum values (all caps with underscores)
-    if (/^\s*[A-Z_]+\s*$/.test(line)) {
-      return escaped.replace(
-        /([A-Z_]+)/g,
-        '<span class="token enum-value">$1</span>'
-      );
-    }
-
-    // Field definitions (fieldName: Type)
-    if (line.includes(':')) {
-      const fieldProcessed = escaped.replace(
-        /^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*)(:)/g,
-        '$1<span class="token field">$2</span>$3<span class="token punctuation">$4</span>'
-      );
-
-      return fieldProcessed.replace(
-        /:\s*(\[?)([A-Za-z_][A-Za-z0-9_]*)(\]?)(!?)/g,
-        (
-          _match,
-          bracket1: string,
-          type: string,
-          bracket2: string,
-          exclaim: string
-        ) => {
-          let result = ':<span class="token punctuation"> </span>';
-          if (bracket1) result += '<span class="token punctuation">[</span>';
-
-          if (GRAPHQL_BUILT_IN_TYPES.includes(type)) {
-            result += `<span class="token builtin-type">${escapeHtml(type)}</span>`;
-          } else {
-            result += `<span class="token custom-type">${escapeHtml(type)}</span>`;
-          }
-
-          if (bracket2) result += '<span class="token punctuation">]</span>';
-          if (exclaim) result += '<span class="token required">!</span>';
-          return result;
-        }
-      );
-    }
-
-    return escaped;
+    const [code, comment] = splitComment(line);
+    return (
+      highlightGraphqlDefinition(code) +
+      (comment ? token('comment', escapeHtml(comment)) : '')
+    );
   });
 }
 
@@ -431,7 +453,10 @@ export function highlightXml(source: string): string {
   );
 }
 
-export function highlightCode(text: string, language: CodeLanguage): string {
+export function highlightCode(
+  text: string,
+  language: HighlightLanguage
+): string {
   switch (language) {
     case 'typescript':
     case 'javascript':

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { highlightCode, type CodeLanguage } from '../lib/codeHighlight';
+import { highlightCode, type HighlightLanguage } from '../lib/codeHighlight';
 
 interface CodeBlockProps {
   children: string;
-  language?: CodeLanguage;
+  language?: HighlightLanguage;
 }
 
 function CodeBlock({ children, language = 'graphql' }: CodeBlockProps) {
