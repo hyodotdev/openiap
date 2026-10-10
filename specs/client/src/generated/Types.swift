@@ -2119,14 +2119,9 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     /// Apple or Google receipt is valid, and a payload exists for that product.
     public var clientPayload: IapkitProductClientPayload? = nil
     /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
-    /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
-    /// `Production` on handled Amazon verification results.
-    ///
-    /// Deliberately String, not an enum: the value space belongs to IAPKit and the
-    /// stores behind it, and Apple's App Store Server alone also names `Xcode` and
-    /// `LocalTesting`. SDKs must forward this value opaquely. Never reject a
-    /// verification because the environment is unrecognised — that fails a purchase
-    /// the store already confirmed.
+    /// Store-verified environment returned by IAPKit. Apple and Amazon use
+    /// `Sandbox` or `Production`. SDKs forward this string opaquely, including
+    /// unknown values; apps match their expected environment before fulfillment.
     public var environment: String? = nil
     /// True when the purchase is valid and actionable.
     /// Only entitled, pending-acknowledgment, or ready-to-consume return true.

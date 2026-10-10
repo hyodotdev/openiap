@@ -540,6 +540,11 @@ function Releases() {
             retain receipts until verification succeeds.
           </p>
           <p>
+            IAPKit returns Apple's verified transaction environment so examples
+            can check it alongside the product and purchase state before
+            finishing a receipt.
+          </p>
+          <p>
             See the{' '}
             <Link to="/docs/apis/ios/get-pending-transactions-ios">
               pending transaction guide
