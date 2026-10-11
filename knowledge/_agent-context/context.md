@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-11T17:25:49.087Z
+> Last updated: 2026-10-11T17:55:55.799Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2633,6 +2633,66 @@ Fixed in abc1234. The guard only matched the bare tag, so an element with an
 attribute fell through to the "declares none" branch. Now it matches through
 attributes and throws when the element is present but unreadable.
 ```
+
+## GitHub Labels
+
+Apply relevant labels by default when creating an issue, Discussion or pull
+request, and recheck them when updating it. An unlabeled artifact is unfinished.
+Inspect its content, existing labels and `gh label list` before selecting them.
+
+Choose the smallest useful set: **one to five labels in total**, including
+existing labels. Five is a ceiling, never a target; one or two is often enough.
+Prioritize the main kind of change, then its primary area or store. Add another
+area only for an important independent change, most relevant first. Use
+`cross-platform` for a broad multi-platform change instead of one label per SDK.
+Omit incidental docs, generated types, example or CI labels when they only
+support the main change. Keep relevant existing labels; remove the least useful
+ones if the total exceeds five. Do not pad the set to reach five.
+
+Use the exact existing label names, including emoji. Amazon Appstore, FireOS
+and Amazon IAP work uses `amazon`; unrelated work must not receive that label.
+A Discussion's category is separate from its labels. Choose a PR's labels from
+its final diff rather than copying every label from its linked issue.
+
+| Main area or store                    | Label              |
+| ------------------------------------- | ------------------ |
+| `packages/apple/`                     | `📱 iOS`           |
+| `packages/google/`                    | `🤖 android`       |
+| `packages/docs/`                      | `📖 documentation` |
+| `packages/kit/`                       | `kit`              |
+| `specs/client/`                       | `⬡ protocol`       |
+| `specs/commerce-protocol/`            | `⬡ protocol`       |
+| `libraries/react-native-iap/`         | `react-native-iap` |
+| `libraries/expo-iap/`                 | `expo-iap`         |
+| `libraries/flutter_inapp_purchase/`   | `flutter-iap`      |
+| `libraries/godot-iap/`                | `godot-iap`        |
+| `libraries/kmp-iap/`                  | `kmp-iap`          |
+| `libraries/maui-iap/`                 | `maui-iap`         |
+| `.github/workflows/` or `scripts/`    | `💨 ci`            |
+| `.claude/`, `.codex/`, `AGENTS.md`    | `🕶️ meta`          |
+| `knowledge/`                          | `🕶️ meta`          |
+| `example/`, `Example/`                | `👀 example`       |
+| Amazon Appstore, FireOS or Amazon IAP | `amazon`           |
+| several platforms or libraries        | `cross-platform`   |
+
+| Kind of change  | Label         |
+| --------------- | ------------- |
+| New feature     | `🎯 feature`  |
+| Bug fix         | `🛠 bugfix`   |
+| Breaking change | `⚡️ breaking` |
+| Refactor        | `፦ refactor`  |
+| Tests only      | `🧪 test`     |
+
+Bug reports use `🐛 bug`; a PR fixing one uses `🛠 bugfix`. A question can use
+`❓ question` when that is its main purpose.
+
+For issues and PRs, pass labels during creation or use `gh issue edit` /
+`gh pr edit --add-label`. If the CLI fails with a Projects (classic) error,
+use the issue-label REST API; PRs use that API too. For Discussions, use the
+GraphQL `addLabelsToLabelable` mutation with the Discussion ID and existing
+label IDs. Read the artifact's labels back and verify relevance and the total
+before reporting completion. These steps do not grant authority to create an
+artifact or change an unrelated one.
 
 ## Opening Pull Requests
 

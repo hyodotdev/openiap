@@ -21,12 +21,10 @@ Check them first, every round, before reading a single thread:
 gh pr view $PR_NUMBER --json labels -q '[.labels[].name]'
 ```
 
-An empty array means whoever opened the PR did not finish it. Add the labels
-from the guide in `.claude/commands/commit.md` step 8 — review is the last point
-where a missing label is cheap to fix, and a PR that reaches merge unlabeled
-stays that way. A PR whose diff has moved on since it was opened may also need a
-label the original set does not cover. A PR with more labels than that guide
-allows is unfinished too: remove the least important ones.
+An empty array means whoever opened the PR did not finish it. Apply the shared
+[GitHub Labels policy](../../knowledge/internal/06-git-deployment.md#github-labels)
+to the final diff, including its relevance and maximum-count rules. Recheck the
+set when the scope changes; do not fill it merely to reach the maximum.
 
 ## Project-Specific Build Commands
 
@@ -197,6 +195,7 @@ When fallback is required:
    more often than any other. If Codex itself is unavailable — an exhausted
    balance answers with an HTTP 402 — fall back to one complete
    `$review-self` round instead, and say which reviewer covered the head.
+
 3. The fallback round reviews; it does not drive. It must not re-enter
    `review-pr`, request reviewers, handle trigger comments, invoke this fallback
    again, or schedule any recurring loop. It may inspect current review and CI
@@ -206,6 +205,7 @@ When fallback is required:
    Its findings are input, not instructions. Check each against the code before
    fixing it: a reviewer's claim has been wrong, and so has a fix made on its
    word.
+
 4. Fix and verify every validated finding using the normal response rules. If a
    fix changes the head, request CodeRabbit again after the fix batch and run
    fallback again only if it remains unavailable for the new head.
@@ -259,8 +259,7 @@ Once the loop ends for the current head:
   merge, merge and leave one short appreciation comment naming what was
   good about the change — outcome first, one or two sentences, no
   investigation narrative.
-- **Request changes** when findings remain: `gh pr review $PR_NUMBER
-  --request-changes --body "..."`. State each blocking reason plainly
+- **Request changes** when findings remain: `gh pr review $PR_NUMBER --request-changes --body "..."`. State each blocking reason plainly
   with file:line evidence. No merge.
 
 Own PRs cannot be self-approved: get CI green and hand the merge to the

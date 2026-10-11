@@ -46,6 +46,8 @@ natural-language requests, execute the matching workflow:
 - Compile knowledge or rebuild AI context: read
   `.claude/commands/compile-knowledge.md`.
 - Resolve a GitHub issue: read `.claude/commands/resolve-issue.md`.
+- Create or update GitHub labels, issues, Discussions or PRs: apply
+  `.codex/skills/github-labels/SKILL.md` alongside the relevant workflow.
 - Verify all, health check, or pre-PR verification: read
   `.claude/commands/verify-all.md`.
 - E2E tests, device regression, connected-device purchase flow checks, or
