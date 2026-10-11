@@ -112,28 +112,25 @@ export default function VerificationAmazonPage() {
 
       <Callout kind="warning" title="Amazon subscription lifecycle — beta">
         <p>
-          Canonical subscription state and lifecycle events are in beta. RVS
-          verification and background rechecks update subscription state
-          automatically. RTN is optional: leaving the topic ARN blank disables
-          notifications only, not these RVS updates.
+          RVS verification and rechecks update subscriptions automatically.
+          Leaving the optional RTN topic ARN blank disables notifications only;
+          RVS updates continue.
         </p>
         <p>
           Live SNS delivery and LAT renewal, cancellation, elapsed expiry and
           server entitlement revocation remain unverified. Validate these
-          transitions in your Amazon test environment before relying on
-          lifecycle automation for production access.
+          transitions before production use.
         </p>
         <p>
-          App Tester simulates purchases but does not send RTN. Local
-          cancellation may leave RVS Cloud Sandbox entitled, so it cannot
-          certify the live lifecycle. See{" "}
+          App Tester does not send RTN or certify these transitions. Local
+          cancellation may leave RVS Cloud Sandbox entitled. See{" "}
           <a
             href="https://github.com/hyodotdev/openiap/discussions/522"
             className="text-primary underline"
           >
-            discussion #522
-          </a>{" "}
-          for evidence and acceptance criteria.
+            testing evidence and follow-up criteria
+          </a>
+          .
         </p>
       </Callout>
 

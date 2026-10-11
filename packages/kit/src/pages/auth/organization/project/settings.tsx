@@ -2294,10 +2294,6 @@ export default function ProjectSettings() {
                     )}
                   </div>
 
-                  {/* Amazon Appstore subsection — Fire OS builds use
-                    Amazon's Appstore SDK and IAPKit verifies receipts
-                    server-side through RVS with a project-level shared
-                    secret. */}
                   <div className="pt-4 border-t">
                     <label className="flex items-start gap-3 cursor-pointer select-none mb-4">
                       <input
@@ -2314,7 +2310,7 @@ export default function ProjectSettings() {
                         </span>
                         <span className="text-sm text-muted-foreground block mt-1 break-words">
                           {
-                            "Cloud Sandbox accepts any non-empty shared secret and is not production evidence. Keep this disabled unless this project is actively testing App Tester receipts."
+                            "Enable only for App Tester receipts. Cloud Sandbox does not prove production validity."
                           }
                         </span>
                       </span>
@@ -2333,7 +2329,7 @@ export default function ProjectSettings() {
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
                             <span className="text-sm text-green-700 dark:text-green-400">
-                              {"Shared Secret configured"}
+                              {"Configured"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2380,7 +2376,7 @@ export default function ProjectSettings() {
                       )}
                       <p className="text-sm text-muted-foreground mt-1 break-words">
                         {
-                          "Required for production Amazon Appstore receipt verification. Sandbox uses an IAPKit placeholder only after the explicit project opt-in above."
+                          "Required for production and LAT. App Tester does not use this secret."
                         }
                       </p>
                       {!amazonSharedSecretValid &&
@@ -2412,14 +2408,10 @@ export default function ProjectSettings() {
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm"
                       />
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Add the topic configured in Amazon Developer Console,
-                        then subscribe the store lifecycle URL shown on
-                        Webhooks. IAPKit verifies SNS signatures and refreshes
-                        RVS before updating access. Leave blank to disable
-                        notifications only; RVS verification and rechecks still
-                        update subscription state. The subscription lifecycle is
-                        in beta; live SNS and LAT transitions remain unverified.
-                        App Tester does not send RTN.
+                        Use the topic from Amazon Developer Console and
+                        subscribe the store lifecycle URL from Webhooks. Leave
+                        blank to disable notifications only; RVS verification
+                        and rechecks still update subscription state.
                       </p>
                       <a
                         href="/docs/verification/amazon"
@@ -2429,16 +2421,7 @@ export default function ProjectSettings() {
                       </a>
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <a
-                        href="https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                      >
-                        {"Amazon RVS docs"}
-                        <FileText className="w-3 h-3" />
-                      </a>
+                    <div className="mt-3 flex justify-end">
                       <button
                         type="button"
                         onClick={() => void handleAmazonSubmit()}
