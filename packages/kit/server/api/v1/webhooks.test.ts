@@ -9,6 +9,7 @@ import {
 } from "vitest";
 import { Hono } from "hono";
 import { ConvexError } from "convex/values";
+import { getFunctionName } from "convex/server";
 
 const oidcMocks = vi.hoisted(() => ({ verifyIdToken: vi.fn() }));
 vi.mock("google-auth-library", () => ({
@@ -104,6 +105,62 @@ describe("webhooksRoutes", () => {
     app.route("/webhooks", helpers.webhooksRoutes);
     return app;
   }
+
+  it("forwards SNS text/plain JSON to the Amazon signature boundary", async () => {
+    const action = vi
+      .spyOn(client, "action")
+      .mockResolvedValue({ type: "SubscriptionRenewed", deduped: false });
+    const envelope = {
+      Type: "Notification",
+      TopicArn: "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+      Message: "signed message",
+    };
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_amazon",
+      {
+        method: "POST",
+        headers: { "content-type": "text/plain" },
+        body: JSON.stringify(envelope),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(getFunctionName(action.mock.calls[0][0])).toBe(
+      "webhooks/amazon:ingestAmazonRtn",
+    );
+    expect(action.mock.calls[0][1]).toEqual({
+      apiKey: "openiap-kit_pk_amazon",
+      rawEnvelope: JSON.stringify(envelope),
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      eventType: "SubscriptionRenewed",
+    });
+  });
+
+  it.each([
+    ["AMAZON_RTN_NOT_CONFIGURED", 412],
+    ["AMAZON_RVS_UNAVAILABLE", 503],
+    ["RATE_LIMITED", 429],
+    ["INVALID_SIGNATURE", 400],
+  ] as const)(
+    "maps Amazon %s to %i without acknowledging transient failures",
+    async (code, status) => {
+      vi.spyOn(client, "action").mockRejectedValue(
+        new ConvexError({ code, message: "test error" }),
+      );
+      const response = await createApp().request(
+        "/webhooks/openiap-kit_pk_amazon",
+        {
+          method: "POST",
+          body: JSON.stringify({ Type: "Notification", TopicArn: "topic" }),
+        },
+      );
+      expect(response.status).toBe(status);
+      await expect(response.json()).resolves.toMatchObject({
+        errors: [{ code }],
+      });
+    },
+  );
 
   it("does not expose outbound webhook stream routes", async () => {
     const app = new Hono();
@@ -226,7 +283,7 @@ describe("webhooksRoutes", () => {
           {
             code: "INVALID_INPUT",
             message:
-              "Unrecognized payload. Expected Apple ASN v2 ({signedPayload}) or Google Pub/Sub ({message:{data,messageId}}).",
+              "Unrecognized payload. Expected Apple ASN v2, Google Pub/Sub RTDN or Amazon SNS.",
           },
         ],
       });

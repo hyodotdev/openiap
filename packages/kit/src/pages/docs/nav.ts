@@ -63,7 +63,7 @@ export const DOCS_NAV: DocsNavEntry[] = [
       {
         slug: "verification/amazon",
         title: "Amazon Appstore",
-        summary: "RVS shared secret, App Tester sandbox, and reconciliation.",
+        summary: "RVS, signed SNS lifecycle delivery, and testing limits.",
       },
     ],
   },
@@ -86,7 +86,7 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "webhooks",
     title: "Store webhooks",
-    summary: "Inbound Apple ASN v2 and Google RTDN lifecycle delivery.",
+    summary: "Inbound Apple, Google and Amazon lifecycle delivery.",
   },
   {
     slug: "operations",
@@ -115,7 +115,7 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "release-notes",
     title: "Release notes",
-    summary: "Every release that touched this deployment, newest first.",
+    summary: "Weekly hosted changes, with related updates grouped together.",
   },
 ];
 

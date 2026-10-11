@@ -121,6 +121,16 @@ describe("shapeSubscriptionRow", () => {
 });
 
 describe("shapeSubscriptionV2Row", () => {
+  it("keeps Amazon identity on tokenless v2 reads without adding fields to the v1 shape", () => {
+    const sub = subscriptionDoc({
+      platform: "Android",
+      store: "amazon",
+      purchaseToken: "amazon:private-evidence",
+    });
+    expect(shapeSubscriptionV2Row(sub)).toMatchObject({ store: "amazon" });
+    expect(shapeSubscriptionV2Row(sub)).not.toHaveProperty("purchaseToken");
+    expect(shapeSubscriptionRow(sub)).not.toHaveProperty("store");
+  });
   it("omits both Android and Apple store credentials", () => {
     const row = shapeSubscriptionV2Row(
       subscriptionDoc({

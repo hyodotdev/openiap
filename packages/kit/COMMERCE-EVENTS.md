@@ -17,11 +17,11 @@ require IAPKit, and IAPKit does not require any particular downstream vendor.
 ## Architecture
 
 ```text
-Apple ASN v2 / Google RTDN
+Apple ASN v2 / Google RTDN / Amazon RTN
         │
         ▼
   Store adapter            purchases/{ios,android,horizon,amazon}.ts
-        │                  webhooks/{apple,google}.ts
+        │                  webhooks/{apple,google,amazon}.ts
         ▼
   Validation / normalization   webhooks/shared.ts  →  webhookEvents
         │
@@ -55,6 +55,31 @@ from. `commerceEvents.entitlementActive` denormalizes that answer onto the
 event, and the delivered body carries it as `subscription.active`, so a consumer
 can act without joining back.
 
+## Amazon subscription lifecycle
+
+Amazon RTN uses the existing store lifecycle URL with an SNS-signed envelope.
+The project pins its topic ARN and Android package; the receiver authenticates
+both and refreshes RVS before writing purchase, canonical subscription and
+commerce state in one transaction. Message identity is project/source scoped.
+Each RVS request reserves ordering before contacting the store, so a delayed
+older result cannot overwrite newer verified state. Unknown RTN types still
+refresh RVS; they do not invent a transition.
+
+A valid subscription remains active when auto-renew turns off. `renewalDate`
+is a renewal hint, never an expiry deadline. Verified invalidation or non-null
+`cancelDate` removes access. RTN expiration and renewal labels are emitted only
+with a fresh RVS verdict; the signed notice alone grants nothing. An immediate
+plan replacement also verifies the related receipt before transferring an
+existing binding, with erasure and ownership checks preserved. Store and test
+provenance remain Amazon, even though its native platform is Android. RVS
+provides no authoritative price, so these events carry no revenue amount.
+
+App Tester does not send RTN. Local cancellation is not proof of RVS expiry or
+server revocation. LAT test receipts use the production endpoint and real
+shared secret; verified RVS beta/test flags identify their Sandbox provenance.
+Live lifecycle evidence is tracked separately in
+[discussion #522](https://github.com/hyodotdev/openiap/discussions/522).
+
 ## Account access for Amazon and Horizon
 
 Commerce Protocol `bindPurchase` connects a verified Amazon receipt or Horizon
@@ -85,13 +110,14 @@ before it can mark them invalid, so the bind cap never reclaims them, and only
 returning `productIds`. Rechecks draw on their own per-project bucket (300
 tokens refilling at 5 per second, one token per bound purchase; a bucket holding
 fewer tokens than the read costs answers `RATE_LIMITED` with a retry hint), so
-access reads cannot starve receipt verification, and a recheck whose verdict is
-unchanged writes nothing back. The read rereads ownership after the network
+access reads cannot starve receipt verification. Amazon rechecks also refresh
+canonical subscription state; unchanged Horizon verdicts write nothing back.
+The read rereads ownership after the network
 calls; erasure or an upstream failure cannot turn the last saved verdict into
-fresh access. These are ownership checks, so they add no synthetic subscription
-rows, renewal/expiry dates, or lifecycle events. `subscriptionStatus` continues
-to report Apple/Google subscription records; use `entitlements` to authorize
-products.
+fresh access. Horizon adds no subscription rows or lifecycle dates. Amazon
+subscriptions use the verified RVS fields and never infer expiry from a renewal
+date. `subscriptionStatus` reports Apple, Google and Amazon subscription records;
+use `entitlements` to authorize products.
 
 Account erasure unlinks these purchases from the erased app user id and refuses
 that id while its erasure job is retained (seven days), so the erased user’s own
@@ -275,11 +301,11 @@ behavior everywhere.
 |                            | Apple | Google | Meta/Horizon     | Amazon           |
 | -------------------------- | ----- | ------ | ---------------- | ---------------- |
 | Initial validation         | ✅    | ✅     | ✅               | ✅               |
-| Server notifications       | ✅    | ✅     | ❌               | ❌               |
-| Canonical subscription     | ✅    | ✅     | ❌               | ❌               |
-| Renewal events             | ✅    | ✅     | ❌               | ❌               |
-| Refund / revocation events | ✅    | ✅     | ❌               | ❌               |
-| Expiration                 | ✅    | ✅     | ❌               | ❌               |
+| Server notifications       | ✅    | ✅     | ❌               | ✅               |
+| Canonical subscription     | ✅    | ✅     | ❌               | ✅               |
+| Renewal events             | ✅    | ✅     | ❌               | ✅               |
+| Refund / revocation events | ✅    | ✅     | ❌               | ✅               |
+| Expiration                 | ✅    | ✅     | ❌               | ✅               |
 | Scheduled reconciliation   | ❌    | ❌     | ❌               | ✅               |
 | Entitlements               | ✅    | ✅     | ⚠️ point-in-time | ⚠️ point-in-time |
 | Store-authoritative amount | ✅    | ✅     | ❌               | ❌               |
@@ -292,9 +318,12 @@ record. Entitlement is answerable only at the moment it is asked.
 
 Amazon RVS validates receipts and a five-minute worker processes rows that are
 due on a 48-hour cadence. Backlog and retries can extend that interval. RVS
-reports the current receipt state, not the transitions between reads, so IAPKit
-builds no subscription record from it, but each verification still answers
-point-in-time entitlement.
+reports current receipt state. Verification and rechecks update canonical
+subscriptions; signed RTN supplies lifecycle context after a fresh RVS check.
+An immediate verified replacement moves the purchase binding from the canceled
+receipt to its successor without increasing the account's bound-purchase count.
+These capabilities describe implementation support; live lifecycle evidence
+remains subject to the limits in discussion #522.
 
 Apple and Google have no scheduled reconciliation pass. A notification lost past
 the store's retry window is not self-healing. Receipt verification bootstraps a

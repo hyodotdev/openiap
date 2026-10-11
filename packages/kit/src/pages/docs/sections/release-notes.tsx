@@ -1,31 +1,74 @@
 import { DocsPage } from "../components/DocsPage";
 
-// Release entries — newest first. Treat this as the changelog
-// canonical source: every shipped PR that touched production should
-// land an entry here, dated with the deploy date (not the merge
-// date). Hosted updates have no installable package version; older
-// version labels remain as historical release identifiers.
+// Hosted changes are grouped by deployment week; legacy entries stay dated.
 interface ReleaseEntry {
   id: string;
   version?: string;
-  date: string; // YYYY-MM-DD
+  date: string; // Deploy date, YYYY-MM-DD
+  weekStart?: string; // Monday in Asia/Seoul
+  pullRequests?: number[];
   tagline: string;
   items: Array<{
     kind: "feature" | "fix" | "security" | "ops" | "docs";
+    topic?: string;
     text: string;
   }>;
 }
 
-const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
-  feature:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  fix: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
-  security: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  ops: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
-  docs: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
-};
+const CHANGE_GROUPS = [
+  { title: "Improvements", kinds: ["feature", "docs"] },
+  { title: "Fixes and security", kinds: ["fix", "security"] },
+  { title: "Operations", kinds: ["ops"] },
+] as const;
 
 const RELEASES: ReleaseEntry[] = [
+  {
+    id: "week-2026-10-12",
+    weekStart: "2026-10-12",
+    date: "2026-10-12",
+    tagline: "Amazon subscription state backed by verified store evidence.",
+    items: [
+      {
+        kind: "feature",
+        topic: "Amazon subscriptions",
+        text: "Amazon RTN verifies signed SNS messages and refreshes RVS before updating subscriptions. Configure the topic ARN and use the existing store lifecycle URL.",
+      },
+      {
+        kind: "fix",
+        topic: "Amazon subscriptions",
+        text: "Amazon verification and background rechecks update purchase and subscription state together. Auto-renew off keeps valid access, renewalDate is not expiry, and an earlier in-flight result cannot overwrite a newer verdict.",
+      },
+      {
+        kind: "ops",
+        topic: "Amazon subscriptions",
+        text: "App Tester simulation remains separate from unverified LAT renewal, expiry and server revocation.",
+      },
+      {
+        kind: "docs",
+        topic: "Release history",
+        text: "Updates deployed in the same week share one release entry, with related changes grouped by topic.",
+      },
+    ],
+  },
+  {
+    id: "week-2026-10-05",
+    weekStart: "2026-10-05",
+    date: "2026-10-11",
+    pullRequests: [520],
+    tagline: "Verified Apple environments and clearer Amazon testing limits.",
+    items: [
+      {
+        kind: "fix",
+        topic: "Apple verification",
+        text: "Apple receipt verification returns its verified Sandbox or Production environment, allowing apps to check provenance before finishing a transaction.",
+      },
+      {
+        kind: "docs",
+        topic: "Amazon testing",
+        text: "Amazon testing guidance distinguishes App Tester simulation from Live App Testing. Renewal, timed expiry and server revocation remain unverified; discussion #522 records the follow-up criteria.",
+      },
+    ],
+  },
   {
     id: "hosted-2026-08-27",
     date: "2026-08-27",
@@ -448,24 +491,21 @@ export default function ReleaseNotesPage() {
     <DocsPage
       slug="release-notes"
       title="Release notes"
-      description="Every release that touched this deployment, newest first."
+      description="Weekly hosted changes, newest first."
     >
       <p>
-        Every entry here corresponds to a merged PR that landed on the live{" "}
-        <code>kit.openiap.dev</code> machine. The date is the deploy date, not
-        the PR merge date — in practice they're the same day for IAPKit since CI
-        auto-deploys on push to <code>main</code>.
+        Hosted IAPKit changes are grouped into Monday–Sunday weeks in Korea
+        time. Later changes in the same week update that entry, grouped by
+        topic. Weeks without deployed changes are omitted. Older dated entries
+        remain available for reference.
       </p>
 
-      {/* Sticky-ish version index at the top. Cheap, scales to many
-          releases without pagination — skim down to find the
-          version, click to expand or anchor-jump. */}
       <nav
         aria-label="Release index"
         className="my-8 rounded-lg border border-border bg-card/30 p-4"
       >
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Jump to version
+          Jump to week or release
         </div>
         <ul className="flex flex-wrap gap-2 text-sm">
           {RELEASES.map((release) => (
@@ -475,10 +515,9 @@ export default function ReleaseNotesPage() {
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1 font-mono text-xs hover:border-primary/50 hover:text-primary"
               >
                 <span className="font-semibold">
-                  {release.version ? `v${release.version}` : release.tagline}
-                </span>
-                <span className="text-muted-foreground">
-                  {formatDate(release.date)}
+                  {release.version
+                    ? `v${release.version}`
+                    : formatDate(release.weekStart ?? release.date)}
                 </span>
               </a>
             </li>
@@ -490,19 +529,23 @@ export default function ReleaseNotesPage() {
         {RELEASES.map((release) => (
           <section key={release.id} id={release.id} className="scroll-mt-8">
             <details
-              // Most recent release opens by default; older ones are
-              // collapsed so a long list stays scannable. Users who
-              // want everything expanded can toggle via the summary.
               open={release.id === LATEST_RELEASE_ID}
               className="group rounded-lg border border-border bg-card/30 open:bg-card/50"
             >
-              <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3 border-b border-transparent px-4 py-3 group-open:border-border [&::-webkit-details-marker]:hidden">
-                <div className="flex flex-1 flex-wrap items-baseline gap-3">
+              <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-3 border-b border-transparent px-4 py-3 group-open:border-border [&::-webkit-details-marker]:hidden">
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-3">
                   <span className="font-mono text-lg font-bold">
-                    {release.version ? `v${release.version}` : "Hosted update"}
+                    {release.version
+                      ? `v${release.version}`
+                      : release.weekStart
+                        ? "Week of"
+                        : "Hosted update"}
                   </span>
-                  <time className="text-sm text-muted-foreground">
-                    {formatDate(release.date)}
+                  <time
+                    dateTime={release.weekStart ?? release.date}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {formatDate(release.weekStart ?? release.date)}
                   </time>
                   <span className="text-sm text-muted-foreground">
                     — {release.tagline}
@@ -513,29 +556,56 @@ export default function ReleaseNotesPage() {
                   <span className="hidden group-open:inline">Collapse</span>
                 </span>
               </summary>
-              <ul className="space-y-2 px-4 py-4">
-                {release.items.map((item, index) => (
-                  <li
-                    key={index}
-                    className="flex items-start gap-3 rounded-md border border-border bg-background/50 p-3"
-                  >
-                    <span
-                      className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${KIND_STYLES[item.kind]}`}
-                    >
-                      {item.kind}
-                    </span>
-                    <span className="flex-1 text-sm leading-relaxed text-foreground/90">
-                      {item.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-5 px-4 py-4">
+                {releaseGroups(release).map(({ title, items }) => {
+                  if (!items.length) return null;
+                  return (
+                    <section key={title}>
+                      <h2 className="mb-2 text-sm font-semibold">{title}</h2>
+                      <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-foreground/90">
+                        {items.map((item) => (
+                          <li key={item.text}>{item.text}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+                {release.pullRequests && (
+                  <p className="flex flex-wrap gap-3 text-sm">
+                    {release.pullRequests.map((number) => (
+                      <a
+                        key={number}
+                        href={`https://github.com/hyodotdev/openiap/pull/${number}`}
+                        className="text-primary underline underline-offset-4"
+                      >
+                        PR #{number}
+                      </a>
+                    ))}
+                  </p>
+                )}
+              </div>
             </details>
           </section>
         ))}
       </div>
     </DocsPage>
   );
+}
+
+function releaseGroups(release: ReleaseEntry) {
+  if (release.weekStart) {
+    const topics = [...new Set(release.items.map((item) => item.topic))];
+    return topics.map((topic) => ({
+      title: topic ?? "Other updates",
+      items: release.items.filter((item) => item.topic === topic),
+    }));
+  }
+  return CHANGE_GROUPS.map((group) => ({
+    title: group.title,
+    items: release.items.filter((item) =>
+      group.kinds.some((kind) => kind === item.kind),
+    ),
+  }));
 }
 
 function formatDate(iso: string): string {

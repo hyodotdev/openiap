@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T12:09:30.074Z
+> Last updated: 2026-10-11T16:49:42.132Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2299,11 +2299,33 @@ Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`
 
 ### Release Page Scope
 
-Only package, protocol, CLI, and hosted IAPKit/MCP releases belong on this page.
+Only package, protocol and CLI releases belong on this page. A release train
+that also changes hosted IAPKit behavior links to its weekly history entry
+without copying that entry.
 Showcase updates, community news, website changes, and deployment-process notes
 belong in `packages/docs/src/pages/docs/updates/announcements.tsx` or the guide
 they affect; they must not create standalone release cards. A release card may
 link to a supporting article without duplicating it.
+
+### Hosted IAPKit History
+
+The canonical hosted history is the existing Release Notes page at
+`kit.openiap.dev/docs/release-notes`, authored in
+`packages/kit/src/pages/docs/sections/release-notes.tsx`. Group deployed Kit
+and hosted MCP changes into one Monday–Sunday entry per week in `Asia/Seoul`.
+Use `week-YYYY-MM-DD` with that Monday as `weekStart`; update the same entry
+when more changes land that week. For example, Thursday's deployment extends
+Monday's entry; it does not create a second release for that week. Skip weeks
+without relevant deployed changes.
+Group related items by feature area, such as Amazon subscriptions or Apple
+verification. Later fixes to that area extend its existing topic group. Omit
+empty groups, duplicate details, and invented SaaS package versions.
+Verify deployment evidence and link the relevant PRs. Keep older dated entries
+as historical records. A Kit production-behavior PR updates the current
+deployment-week entry rather than creating a separate card per PR. The
+release-note audit detects Kit changes in the PR workflow; do not schedule
+periodic checks solely for this history. Preserve the published-package
+release-card gate independently.
 
 ### Docs Ship With The Change
 
@@ -2336,14 +2358,17 @@ release-plan change expands the affected packages or behavior.
    `specs/commerce-protocol`, `packages/cli`, the native packages, and framework
    libraries when affected. Client Protocol, Commerce
    Protocol, and CLI releases are independent; a native/framework list alone
-   is incomplete. Include hosted IAPKit/MCP behavior without inventing a
-   versioned package entry.
+   is incomplete. Inventory hosted IAPKit/MCP behavior separately for the
+   deployment week's entry in the hosted history; do not invent a versioned
+   package entry.
 3. Compare that inventory with the train's card in
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
    versioned package needs its expected version, GitHub Release link, and tag
    alias/anchor. Every user-visible change needs a concise behavior or migration
    note; packages that only pick up shared behavior need only a linked release
-   entry. Resolve targets through the Release Package Version
+   entry. Hosted behavior needs a concise note in the Kit weekly entry;
+   a train that also publishes packages links to that entry from its card.
+   Resolve targets through the Release Package Version
    Verification section below and `$generate-doc`.
 4. Fill gaps in the current PR and update the existing unreleased card for the
    same train. Do not defer missing packages or explanations to a separate
@@ -2351,9 +2376,10 @@ release-plan change expands the affected packages or behavior.
    the card before dispatching any added package's workflow.
 5. Run `bun run audit:docs`, `bun run audit:release-state`, and the checks
    required by the touched paths. CI's release-note audit detects an unchanged
-   `releases.tsx`; a touched file or green audit does not prove that every
-   package and behavior is covered. Review that coverage before calling the
-   result clean.
+   `releases.tsx`, and `bun run audit:release-notes` independently detects
+   a missing Kit history update. A touched file or green audit does not prove
+   that every package and behavior is covered. Review that coverage before
+   calling the result clean.
 
 Tests, CI, internal agent rules, and behavior-neutral refactors that need no
 new publication do not require a release card. Record the reason briefly in

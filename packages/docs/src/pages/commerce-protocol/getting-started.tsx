@@ -71,9 +71,10 @@ function CommerceGettingStarted(): React.JSX.Element {
         implementation’s code when you need it.
       </p>
       <p>
-        In IAPKit and the example, Apple and Google subscription changes arrive
-        through store notifications, and Amazon and Horizon ownership is
-        rechecked with the store on each entitlements read. Another provider can
+        IAPKit accepts Apple, Google and Amazon subscription notifications;
+        Amazon notifications refresh RVS before changing access. Amazon and
+        Horizon ownership is also rechecked on each entitlements read. The
+        example simulates these store responses locally. Another provider can
         work differently; its{' '}
         <Link to="/commerce-protocol/capabilities">capabilities</Link> say what
         it supports. Choose your store below to follow the matching path.

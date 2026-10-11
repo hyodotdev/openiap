@@ -1,0 +1,82 @@
+{
+  "now": 1791731945742,
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIIDLTCCAhWgAwIBAgIUMq9nlCoRxIGBiJkGFm370ZPGZEwwDQYJKoZIhvcNAQEL\nBQAwJjEkMCIGA1UEAwwbTG9jYWwgU05TIHNpZ25hdHVyZSBmaXh0dXJlMB4XDTI2\nMTAxMTE1MTkwNVoXDTM2MTAwODE1MTkwNVowJjEkMCIGA1UEAwwbTG9jYWwgU05T\nIHNpZ25hdHVyZSBmaXh0dXJlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC\nAQEAz3ir1mRfOed3gyp+W0bGb4zwG16WSs8+2Pm5jvHc6r2rNzF3WuwhyAENyDWr\nC6uzb/aH6NDIDvTAkfsxVcDiM0z5V7THFukbLr8/+t2s9VNeilVj4h1SMQW5OYML\n5xbjK9CngWltd36iGyyj+SbbSqXoxOoF3B8ZCzA64buHXLkmxAgjaSvLidLVeuot\nJ1bkrzlYgjscuwgIep3TOcCPnwThJUtK7bxw4hN/d5ws9viSVdDmIyZUhwVtF+TT\nA547ooP7GiHgB3G4k9INodjAHWFxvlVR/l27yRdml/iCD/2Ohn91xp22JegWNFq8\nwi5/aBQZQKHHPJn9lGNKcCw56wIDAQABo1MwUTAdBgNVHQ4EFgQU1xdZompapAfl\nQQz5tmrxdPlBAw8wHwYDVR0jBBgwFoAU1xdZompapAflQQz5tmrxdPlBAw8wDwYD\nVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAJamCJ1GD0NqHHZD6K9j4\nKMcod4VEVpYSpUCBWuPb6ariP3hFNEMJfwmY7441p00VRKeQxM35UT3QFH64ssPS\ni+a1+Lyhw+uUz6uB6FamLpy0Z6Rfig9H6x3gC5Z1pJUqvneJ0Gxj7QSYxyyGIyuP\ndV1flnAd1/DkPYgqIbLub3C0+WqNb/+7dVTO0zXxhDivBKy/48AmorA9E61ZMAyI\n1Mjl0rI6MrEdctkm8APsa21y5fLJ8ezPQKTL33l0kd34G7NWZkC62BW6yIIvKvFA\nBjfvsFpk+RDAZRgnqw8bnElAtVXc2e9Jb994GjMzmmXrpU95PUqKV61/jzwHQTA8\nvw==\n-----END CERTIFICATE-----\n",
+  "v1": {
+    "MessageId": "fixture-message-1",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "Notification",
+    "SignatureVersion": "1",
+    "Message": "{\"receiptId\":\"receipt-1\",\"appUserId\":\"amazon-user-1\",\"appPackageName\":\"dev.hyo.martie\",\"notificationType\":\"SUBSCRIPTION_RENEWED\",\"timestamp\":1791731945742,\"betaProductTransaction\":true}",
+    "Subject": "Amazon notification",
+    "Signature": "B4yknake40xd5gIXJgE4wlJYkisyTtUvL/iE6V19BhYsMUTQNyxIf7FXPGpaO3Wfc3EYXEFWiqfhZQk3TfJvawLKkQ6VXhEyzwjmQJK5QK3cy3T2k7F4E8ajcRoBvM65Ff9uKDxmVTCHNybYBwQ1IeTvmbSMkzhqiOshAkWXLBMNAyblfJxi5P2uUSfr+hr2qQgC7cwyyQ80Q59fMH5Q/RQh2Ns0u4PLIN1SVwmPhHfqd6oijb+VhBL7FSK7qAPL72s5laa9LWGUGYqrCGjdOJgz8vZ8RhkYkDBQ3yY2jYHCk5r+druo2zxW8WQ3USrpCyII9pp3Rpmq+kBpbYLU4A=="
+  },
+  "v2": {
+    "MessageId": "fixture-message-1",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "Notification",
+    "SignatureVersion": "2",
+    "Message": "{\"receiptId\":\"receipt-1\",\"appUserId\":\"amazon-user-1\",\"appPackageName\":\"dev.hyo.martie\",\"notificationType\":\"SUBSCRIPTION_RENEWED\",\"timestamp\":1791731945742,\"betaProductTransaction\":true}",
+    "Subject": "Amazon notification",
+    "Signature": "N8iVck/3vKqw2SyHl7opUq3/n12MdK1X9gEpcty/z3Qk4OiivNUzQIQ7ftLXtY5t5WnZMYiXt3Bsq4tC2UGfp0TxVqdgWAXuyh1L31GnkpSlhYgIBIc8M7+1ppzGLM9H0w+zak/QpHXWAmAUfC4ei/ZbcKd50FgXZNMPPfusa/BV67ILlrv28B5XN/yQwkLHs9mqmilZfpGJFGFSYTSWteWi99ZicrgG2vvVftibH98Vwg4FeNQAmdDFnEQxCP51RbQg73rdACBDQzF7gbM1Uw9afwvZtjULf9oECNMjpdLlWh76rUs9w5UIj6NIvCsmf6F9YgZMZ4WtNBO3YHblmA=="
+  },
+  "confirmation": {
+    "MessageId": "fixture-message-1",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "SubscriptionConfirmation",
+    "SignatureVersion": "2",
+    "Message": "Confirm this SNS subscription",
+    "Token": "fixture-token",
+    "SubscribeURL": "https://sns.us-east-1.amazonaws.com/?Action=ConfirmSubscription&TopicArn=arn%3Aaws%3Asns%3Aus-east-1%3A123456789012%3AAmazonIAP&Token=fixture-token",
+    "Signature": "ybv92luWL2hTmOvxseVu2dLOt5D86clh/75a2F87vCeyDuiwf+om6nWiqre6VbOcG3iOA0bEgd59q5euWbIV6vucvLfYKtgn1k/VDjm5FK1YY903qKuVZshz1bv+XuBNSf1Xs6MK3MIUTCNsoQtZF6YRZPHKtszM7IkAGrRe/apoeqjKXNgu/FwLSJq8WyvT/vF317FYPRQOfn9Pt+OyxuFZwx6PAE8Ji1rxByhctFn5jSW02RceuhLtRBYNw5epwuRL7E1od7GPQdtWVe9WKkbg3eiVWT5gRpy3zVfzcqvLZ5uwJHcRnxl+TKNd+7kkfpoTTSlA8fqFmR3LfVJvMg=="
+  },
+  "unknown": {
+    "MessageId": "fixture-unknown",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "Notification",
+    "SignatureVersion": "2",
+    "Message": "{\"receiptId\":\"receipt-1\",\"appUserId\":\"amazon-user-1\",\"appPackageName\":\"dev.hyo.martie\",\"notificationType\":\"FUTURE_EVENT\",\"timestamp\":1791731945742,\"betaProductTransaction\":true}",
+    "Subject": "Amazon notification",
+    "Signature": "xnuP4xKSIHnDx84vxg9wSBJojuqrTBa+l+WLfi5cEOw3wIJCGwpJZfXnkpRILKV38g/+GSMXGHefkqXGu+EmlzXOAKuBLM3HbDJSa+wz0H0gADdwdm9j+hMV0qbNT3o1rO2gWJBdTaIEPAlntSWLVBMcdj8bAjhgFSoiS/ko4EERbyOTQTo3UQdwypKnb8KBzdktYdhpaHM9W87JtQyp5bc9wEQGVnZFFB5CH40fSIjm1APGVX6eyIBlqmvaTwDqAejI1azhZf6LOruXtM09FYu4YWrKOS+uVnvkH0XsCJhMrlQjIvZCs3kKH+0wVkYh49wgLdEpCrbU+7Pspo6V2A=="
+  },
+  "expired": {
+    "MessageId": "fixture-expired",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "Notification",
+    "SignatureVersion": "2",
+    "Message": "{\"receiptId\":\"receipt-1\",\"appUserId\":\"amazon-user-1\",\"appPackageName\":\"dev.hyo.martie\",\"notificationType\":\"SUBSCRIPTION_EXPIRED\",\"timestamp\":1791731945742,\"betaProductTransaction\":true}",
+    "Subject": "Amazon notification",
+    "Signature": "bMROvJxZwgQhB0wih81PmiogCuAxxcHSuGyYuvsGsf1BHnV/9LiH+V3tbFD/+ig4UcsUteq559165wei+oOAdhVU1lOwn+EKxT+H9qKUkNC67kPD2CiPFDLbVuVKfavA4A0YQ58qHSMuXVzLjycge2iQywlwYJv+kF0NFg6bXDifAYZ96vE2wxixtGuFxKvWtduNABKzIlmPfPf+5iKlmGAJgkGGvAvOjaOaiFMGlXlsBYmLvgFr8yPPijhbElWYibtkxRUHakiOvIUObaYBMv8su5aPweLqJ+h7tgDWkVUW9s7mVWpfu7ZTKez0r4etHW5pZxiKIZ1dUCQXKrE1SA=="
+  },
+  "immediate": {
+    "MessageId": "fixture-immediate",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "Notification",
+    "SignatureVersion": "2",
+    "Message": "{\"receiptId\":\"receipt-1\",\"appUserId\":\"amazon-user-1\",\"appPackageName\":\"dev.hyo.martie\",\"notificationType\":\"SUBSCRIPTION_MODIFIED_IMMEDIATE\",\"timestamp\":1791731945742,\"betaProductTransaction\":true,\"relatedReceipts\":{\"cancelledReceiptId\":\"old-receipt\"}}",
+    "Subject": "Amazon notification",
+    "Signature": "VJJdBc0FJZf0jcyAY7zHK5KJPlP99syI8bVai9oRavhqqgT8Z/OPkrP1MkdQ26W4op0bBDV7LgTAf24mxrmmbZiEbJ8eMkP/Qco1TJR8UUhONZ4HhZLAHfBzJxqkY5ZJkF+S7dsXMMTMdYbSi3IcZ3C2728QipZT22I2Q4hjBCYLtQA0CBL1sOcbgTHHWxc01NbeeFF4zJ6C2HGsHt0VOTfsx8cLfe7g1jDB553Y3ykr3crsrW/3TgMZVg4yz3pZshOEQsSB5I19Z5PbDljXN4T22EtrkMm9v1uu4EZ54RyezD+kV8TxP24J2r61cBGBP8Yg7cNNnfPVfDpKmK48WQ=="
+  },
+  "foreignApp": {
+    "MessageId": "fixture-foreignApp",
+    "TopicArn": "arn:aws:sns:us-east-1:123456789012:AmazonIAP",
+    "Timestamp": "2026-10-11T15:19:05.742Z",
+    "SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-fixture.pem",
+    "Type": "Notification",
+    "SignatureVersion": "2",
+    "Message": "{\"receiptId\":\"receipt-1\",\"appUserId\":\"amazon-user-1\",\"appPackageName\":\"dev.other.app\",\"notificationType\":\"SUBSCRIPTION_RENEWED\",\"timestamp\":1791731945742,\"betaProductTransaction\":true}",
+    "Subject": "Amazon notification",
+    "Signature": "yxQjeqrH4x5/EnsMm7CeDkREOARi7KK8cKS2Hu3xKQgUf/50CxZxyfRecGUzp3c3idn20MN1WZlnr7tCTGEkHID3BNGm7Rg6WSOKZ1MPGJ9tPfHN6KPjLvOZekiWCOB7tvqiljFDyOCEFzQSVVHEz2K9228PPjB2RaIGrKmMHn4zN+hn9b7PK33F9HR00APjRLI+wIESPVSE+2BYmE9Iq9/b2D0QEugxH4BczOGy5XmMgEiJmd754H6tSPLIkSW+doMO+BQX1tCtREl9905mfPzZIMRyZ9TKp1IesTpH4OeAXzxl1q4SgBZip2uHuPjH/MY6RZ6qh/BixuePL1lLwg=="
+  }
+}

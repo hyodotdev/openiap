@@ -1,3 +1,5 @@
+import type { Doc } from "../_generated/dataModel";
+import { parseAmazonSnsTopic } from "../webhooks/amazonShared";
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -330,6 +332,7 @@ export const updateProject = mutation({
     horizonAppSecret: v.optional(v.string()),
     amazonSharedSecret: v.optional(v.union(v.string(), v.null())),
     amazonSandboxEnabled: v.optional(v.boolean()),
+    amazonRtnTopicArn: v.optional(v.union(v.string(), v.null())),
     reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -355,7 +358,7 @@ export const updateProject = mutation({
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
-    const updates: any = {
+    const updates: Partial<Doc<"projects">> = {
       updatedAt: Date.now(),
     };
 
@@ -425,6 +428,27 @@ export const updateProject = mutation({
     if (args.amazonSandboxEnabled !== undefined) {
       updates.amazonSandboxEnabled = args.amazonSandboxEnabled;
     }
+    if (args.amazonRtnTopicArn !== undefined) {
+      const arn = args.amazonRtnTopicArn?.trim() || null;
+      if (arn && !parseAmazonSnsTopic(arn))
+        throw createError(
+          ErrorCode.INVALID_INPUT,
+          "Amazon RTN requires a standard SNS topic ARN.",
+        );
+      if (
+        arn &&
+        (!(updates.androidPackageName ?? project.androidPackageName) ||
+          !(updates.amazonSharedSecret !== undefined
+            ? updates.amazonSharedSecret
+            : project.amazonSharedSecret))
+      )
+        throw createError(
+          ErrorCode.INVALID_INPUT,
+          "Configure the Android package and Amazon RVS shared secret before enabling RTN.",
+        );
+      updates.amazonRtnTopicArn = arn;
+    }
+    if (args.amazonSharedSecret === null) updates.amazonRtnTopicArn = null;
 
     // Enabling Horizon needs both credentials, checked against the patched
     // result (args plus the existing row); otherwise verify throws

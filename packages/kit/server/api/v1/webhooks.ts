@@ -43,7 +43,7 @@ export async function readWebhookJsonBody(request: Request): Promise<unknown> {
   );
 }
 
-// Inbound webhook receivers for Apple ASN v2 and Google Pub/Sub RTDN.
+// Inbound receivers authenticate Apple ASN v2, Google RTDN and Amazon SNS.
 //
 // Auth:
 // - Apple ASN can't send an Authorization header, so the project key rides in
@@ -54,17 +54,19 @@ export async function readWebhookJsonBody(request: Request): Promise<unknown> {
 //   and audience; the Convex action repeats that and requires the token email
 //   to match the project's uploaded service account. The path key only
 //   resolves the project; it is not source authentication.
+// - Amazon SNS signatures must match the project's configured topic ARN.
 
 const webhooks = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
 
-// One URL for both stores, so the dashboard shows a single copy box. The body
+// One URL for store notifications, so the dashboard shows a single copy box. The body
 // shape picks the handler:
 //   - Apple ASN v2: `{ "signedPayload": "<JWS>" }`
 //   - Google Pub/Sub push: `{ "message": { "data": "<base64>",
 //     "messageId": "..." }, "subscription": "..." }`
+//   - Amazon SNS: `{ "Type": "Notification", "TopicArn": "...", ... }`
 // Anything else is a 400 INVALID_INPUT, so a misconfigured sender fails loudly.
 const unifiedHandler = async (c: Context) => {
   const apiKey = c.req.param("apiKey");
@@ -104,6 +106,26 @@ const unifiedHandler = async (c: Context) => {
   if (looksLikeGoogle(body)) {
     return handleGoogleNotification(c, apiKey, body as PubSubPushBody);
   }
+  if (
+    body &&
+    typeof body === "object" &&
+    "Type" in body &&
+    "TopicArn" in body
+  ) {
+    try {
+      const result = await client.action(api.webhooks.amazon.ingestAmazonRtn, {
+        apiKey,
+        rawEnvelope: JSON.stringify(body),
+      });
+      return c.json({
+        ok: true,
+        eventType: result.type,
+        deduped: result.deduped,
+      });
+    } catch (error) {
+      return mapWebhookError(c, error, "amazon");
+    }
+  }
 
   return c.json(
     {
@@ -111,7 +133,7 @@ const unifiedHandler = async (c: Context) => {
         {
           code: "INVALID_INPUT",
           message:
-            "Unrecognized payload. Expected Apple ASN v2 ({signedPayload}) or Google Pub/Sub ({message:{data,messageId}}).",
+            "Unrecognized payload. Expected Apple ASN v2, Google Pub/Sub RTDN or Amazon SNS.",
         },
       ],
     },
@@ -119,8 +141,7 @@ const unifiedHandler = async (c: Context) => {
   );
 };
 
-// Public — paste this URL into both App Store Connect and Google
-// Pub/Sub push subscription configuration.
+// Copy the publishable-key URL into the store's notification configuration.
 webhooks.post("/:apiKey", pathApiKeyGuard, publicApiRateLimit, unifiedHandler);
 
 // Platform-specific aliases, kept for existing store-console wiring.
@@ -552,7 +573,7 @@ function sanitizeEmailForLog(email: unknown): string | undefined {
 function mapWebhookError(
   c: Context,
   error: unknown,
-  source: "apple" | "google",
+  source: "apple" | "google" | "amazon",
 ) {
   const convexError = handleConvexError(error);
   if (convexError !== null) {
@@ -574,10 +595,15 @@ function mapWebhookError(
     if (
       convexError.code === "IOS_NOT_CONFIGURED" ||
       convexError.code === "ANDROID_NOT_CONFIGURED" ||
+      convexError.code === "AMAZON_RTN_NOT_CONFIGURED" ||
       convexError.code === "GOOGLE_SERVICE_ACCOUNT_REQUIRED"
     ) {
       return c.json({ errors: [convexError] }, 412);
     }
+    if (convexError.code === "RATE_LIMITED")
+      return c.json({ errors: [convexError] }, 429);
+    if (convexError.code === "AMAZON_RVS_UNAVAILABLE")
+      return c.json({ errors: [convexError] }, 503);
     return c.json({ errors: [convexError] }, 400);
   }
 

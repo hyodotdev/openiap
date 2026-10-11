@@ -90,22 +90,22 @@ export const PROVIDER_CAPABILITIES: Record<
   },
   amazon: {
     supportsInitialValidation: true,
-    supportsServerNotifications: false,
-    supportsSubscriptions: false,
-    supportsRenewalEvents: false,
-    supportsRefundEvents: false,
-    supportsExpiration: false,
+    supportsServerNotifications: true,
+    supportsSubscriptions: true,
+    supportsRenewalEvents: true,
+    supportsRefundEvents: true,
+    supportsExpiration: true,
     supportsReconciliation: true,
     supportsEntitlements: true,
     supportsRevenueAmount: false,
     notes:
-      "RVS validates receipts. Rows become due every 48 hours and a bounded " +
-      "worker checks due work every five minutes, so backlog and retries can " +
-      "extend that interval. RVS reports the current receipt state — " +
-      "renewalDate, autoRenewing, cancelDate, cancelReason, " +
-      "gracePeriodEndDate, freeTrialEndDate — not the transitions between " +
-      "reads, and IAPKit builds no subscription rows or lifecycle events " +
-      "from it. A verification still answers point-in-time entitlement.",
+      "Signed Amazon RTN notifications trigger fresh RVS verification and " +
+      "update canonical subscriptions and commerce events. Rechecks become " +
+      "due every 48 hours; a bounded worker runs every five minutes, so " +
+      "backlog and retries can extend that interval. renewalDate is not expiry, " +
+      "and auto-renew off retains access until RVS removes it. RVS supplies " +
+      "no authoritative charge amount. App Tester does not exercise RTN; " +
+      "live subscription lifecycle certification remains separate.",
   },
 };
 

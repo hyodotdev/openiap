@@ -1,12 +1,23 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { testableFunction } from "../test.setup";
 import {
+  saveAmazonVerdictHandler,
+  applyAmazonRtnVerdictHandler,
   applyAmazonReconciliationVerdict,
   claimAmazonPurchasesForReconciliation,
   rescheduleAmazonPurchaseReconciliation,
+  boundPurchasesForUser,
 } from "./internal";
+import {
+  bindSubscriptionToUserHandler,
+  rebindSubscriptionToUserHandler,
+} from "../subscriptions/internal";
+import { bindUser } from "../subscriptions/mutation";
+import { MAX_BOUND_PURCHASES_PER_USER } from "../subscriptions/limits";
+import { amazonSubscriptionToken } from "../subscriptions/amazon";
 import { HarmonizedPurchaseState } from "./purchaseState";
+import { markReceiptInvalid } from "./mutation";
 import { AMAZON_RECONCILE_LEASE_MS, AMAZON_RECONCILE_RETRY_MS } from "./shared";
 
 type Row = Record<string, unknown> & { _id: string };
@@ -84,6 +95,15 @@ class MemQuery {
   async first(): Promise<Row | null> {
     return this.rows[0] ?? null;
   }
+
+  async unique(): Promise<Row | null> {
+    if (this.rows.length > 1) throw new Error("duplicate rows");
+    return this.rows[0] ?? null;
+  }
+
+  async collect(): Promise<Row[]> {
+    return [...this.rows];
+  }
 }
 
 describe("MemQuery", () => {
@@ -137,7 +157,12 @@ class MemDb {
   }
 
   seed(id: string, table: string, fields: Record<string, unknown>): void {
-    this.rows.set(id, { _id: id, _table: table, ...fields });
+    this.rows.set(id, {
+      _id: id,
+      _creationTime: Date.now(),
+      _table: table,
+      ...fields,
+    });
   }
 }
 
@@ -149,6 +174,504 @@ function amazonRequest(sandbox = false) {
     sandbox,
   };
 }
+
+afterEach(() => vi.useRealTimers());
+
+describe("Amazon canonical lifecycle", () => {
+  function setup() {
+    vi.useFakeTimers({ now: 100_000 });
+    const db = new MemDb();
+    db.seed("organizations_test", "organizations", {});
+    db.seed("projects_test", "projects", {
+      organizationId: "organizations_test",
+    });
+    const ctx = { db, scheduler: { runAfter: vi.fn() } } as never;
+    return { db, ctx };
+  }
+
+  function verdict(
+    sequence: number,
+    receipt: Record<string, unknown> = {},
+    valid = true,
+  ) {
+    return {
+      projectId: "projects_test",
+      applicationId: "dev.hyo.martie",
+      remoteId: "production:user:receipt",
+      requestData: {
+        store: "amazon",
+        userId: "user",
+        receiptId: "receipt",
+        sandbox: false,
+      },
+      state: valid
+        ? HarmonizedPurchaseState.ENTITLED
+        : HarmonizedPurchaseState.CANCELED,
+      environment: "Sandbox",
+      amazonRvsSequence: sequence,
+      remoteResponse: JSON.stringify({
+        receiptId: "receipt",
+        productId: "premium",
+        productType: "SUBSCRIPTION",
+        cancelDate: valid ? null : 99_000,
+        renewalDate: 90_000,
+        autoRenewing: true,
+        ...receipt,
+      }),
+    } as Parameters<typeof saveAmazonVerdictHandler>[1];
+  }
+
+  const rows = (db: MemDb, table: string) =>
+    [...db.rows.values()].filter((row) => row._table === table);
+
+  test("renewalDate is not expiry, auto-renew off keeps access, and a verified cancellation revokes once", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    const sub = rows(db, "subscriptions")[0];
+    expect(sub).toMatchObject({
+      store: "amazon",
+      state: "Active",
+      renewsAt: 90_000,
+    });
+    expect(sub.expiresAt).toBeUndefined();
+    await bindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_test" as never,
+      purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+      userId: "app-user",
+    });
+    await saveAmazonVerdictHandler(ctx, verdict(2, { autoRenewing: false }));
+    expect(rows(db, "subscriptions")[0]).toMatchObject({
+      state: "Active",
+      willRenew: false,
+    });
+    expect(
+      rows(db, "commerceEvents").filter(
+        (row) => row.eventType === "entitlement.revoked",
+      ),
+    ).toHaveLength(0);
+    await saveAmazonVerdictHandler(ctx, verdict(3, {}, false));
+    await saveAmazonVerdictHandler(ctx, verdict(4, {}, false));
+    expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
+    expect(
+      rows(db, "commerceEvents").filter(
+        (row) => row.eventType === "entitlement.revoked",
+      ),
+    ).toHaveLength(1);
+    expect(
+      rows(db, "commerceEvents").every((row) => row.store === "amazon"),
+    ).toBe(true);
+    expect(
+      rows(db, "commerceEvents").every((row) => row.amountMicros === undefined),
+    ).toBe(true);
+  });
+
+  test("a delayed earlier verdict cannot restore a revoked purchase or subscription", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    await saveAmazonVerdictHandler(ctx, verdict(3, {}, false));
+    const before = rows(db, "commerceEvents").length;
+    expect(await saveAmazonVerdictHandler(ctx, verdict(2))).toMatchObject({
+      isValid: false,
+      state: "CANCELED",
+    });
+    expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
+    expect(rows(db, "commerceEvents")).toHaveLength(before);
+  });
+
+  test("grace deadline and fresh RVS recovery produce the correct access delta", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(
+      ctx,
+      verdict(1, { gracePeriodEndDate: 110_000 }),
+    );
+    await bindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_test" as never,
+      purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+      userId: "app-user",
+    });
+    vi.setSystemTime(120_000);
+    await saveAmazonVerdictHandler(ctx, verdict(2, {}, false));
+    expect(
+      rows(db, "commerceEvents").some(
+        (row) => row.eventType === "entitlement.revoked",
+      ),
+    ).toBe(true);
+    await saveAmazonVerdictHandler(ctx, verdict(3));
+    expect(rows(db, "subscriptions")[0]).toMatchObject({
+      state: "Active",
+      expiresAt: undefined,
+    });
+    expect(
+      rows(db, "commerceEvents").filter(
+        (row) => row.eventType === "entitlement.granted",
+      ),
+    ).toHaveLength(2);
+  });
+
+  test("SNS renewal and expiry are idempotent and include Amazon store provenance", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    const notice = {
+      messageId: "sns-renew",
+      notificationType: "SUBSCRIPTION_RENEWED",
+      occurredAt: 100_000,
+      rawSignedPayload: "signed-fixture",
+    };
+    const args = { ...verdict(2), amazonNotice: notice };
+    await expect(applyAmazonRtnVerdictHandler(ctx, args)).resolves.toEqual({
+      type: "SubscriptionRenewed",
+      deduped: false,
+    });
+    await expect(applyAmazonRtnVerdictHandler(ctx, args)).resolves.toEqual({
+      type: "SubscriptionRenewed",
+      deduped: true,
+    });
+    expect(
+      rows(db, "commerceEvents").filter(
+        (row) => row.eventType === "subscription.renewed",
+      ),
+    ).toHaveLength(1);
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(3, {}, false),
+      amazonNotice: {
+        ...notice,
+        messageId: "sns-expire",
+        notificationType: "SUBSCRIPTION_EXPIRED",
+      },
+    });
+    expect(rows(db, "subscriptions")[0].state).toBe("Expired");
+  });
+
+  test("one-time SNS notifications persist a retry receipt without creating a subscription", async () => {
+    const { db, ctx } = setup();
+    const args = {
+      ...verdict(1, { productType: "CONSUMABLE" }),
+      amazonNotice: {
+        messageId: "sns-consumable",
+        notificationType: "CONSUMABLE_PURCHASED",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    };
+    await applyAmazonRtnVerdictHandler(ctx, args);
+    await expect(
+      applyAmazonRtnVerdictHandler(ctx, args),
+    ).resolves.toMatchObject({ deduped: true });
+    expect(rows(db, "subscriptions")).toHaveLength(0);
+    expect(rows(db, "webhookEvents")).toHaveLength(1);
+    expect(rows(db, "webhookEvents")[0].appliedAt).toBe(100_000);
+  });
+
+  test("a superseded SNS verdict retains subscription retry metadata", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(2));
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(1, {}, false),
+      amazonNotice: {
+        messageId: "sns-superseded",
+        notificationType: "SUBSCRIPTION_EXPIRED",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    });
+    expect(rows(db, "subscriptions")[0].state).toBe("Active");
+    const event = rows(db, "webhookEvents").find(
+      (row) => row.sourceNotificationId === "sns-superseded",
+    );
+    expect(event).toMatchObject({
+      type: "ReceiptRechecked",
+      productKind: "subscription",
+      purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+      appliedAt: 100_000,
+    });
+  });
+
+  test("an older SNS notice still refreshes RVS without relabeling current lifecycle state", async () => {
+    const { db, ctx } = setup();
+    const notice = {
+      messageId: "newer",
+      notificationType: "SUBSCRIPTION_RENEWED",
+      occurredAt: 100_000,
+      rawSignedPayload: "signed-fixture",
+    };
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(1),
+      amazonNotice: notice,
+    });
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(2, { autoRenewing: false }),
+      amazonNotice: {
+        ...notice,
+        messageId: "older",
+        notificationType: "SUBSCRIPTION_EXPIRED",
+        occurredAt: 90_000,
+      },
+    });
+    expect(rows(db, "subscriptions")[0]).toMatchObject({
+      state: "Active",
+      willRenew: false,
+      lastAmazonNotificationAt: 100_000,
+    });
+    expect(
+      rows(db, "commerceEvents").some(
+        (row) => row.eventType === "subscription.expired",
+      ),
+    ).toBe(false);
+  });
+
+  test.each(["unbound", "foreign", "erased"] as const)(
+    "an immediate verified replacement respects the new receipt's %s association",
+    async (association) => {
+      const { db, ctx } = setup();
+      await saveAmazonVerdictHandler(ctx, verdict(1));
+      const previous = rows(db, "purchases")[0];
+      await db.patch(previous._id, { appUserId: "previous-owner" });
+      await bindSubscriptionToUserHandler(ctx, {
+        projectId: "projects_test" as never,
+        purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+        userId: "previous-owner",
+      });
+      const replacement = {
+        ...verdict(3, { receiptId: "replacement", productId: "upgraded" }),
+        remoteId: "production:user:replacement",
+        requestData: {
+          store: "amazon" as const,
+          userId: "user",
+          receiptId: "replacement",
+        },
+      };
+      if (association !== "unbound") {
+        await saveAmazonVerdictHandler(ctx, {
+          ...replacement,
+          amazonRvsSequence: 2,
+        });
+        const purchase = rows(db, "purchases").find(
+          (row) => row.remoteId === replacement.remoteId,
+        )!;
+        if (association === "foreign") {
+          await db.patch(purchase._id, { appUserId: "another-owner" });
+          await bindSubscriptionToUserHandler(ctx, {
+            projectId: "projects_test" as never,
+            purchaseToken: amazonSubscriptionToken(replacement.remoteId),
+            userId: "another-owner",
+          });
+        } else {
+          await db.patch(purchase._id, { accountErased: true });
+          const subscription = rows(db, "subscriptions").find(
+            (row) =>
+              row.purchaseToken ===
+              amazonSubscriptionToken(replacement.remoteId),
+          )!;
+          await db.patch(subscription._id, {
+            accountErased: true,
+            userId: undefined,
+          });
+        }
+      }
+      await applyAmazonRtnVerdictHandler(ctx, {
+        ...replacement,
+        relatedReceipt: verdict(3, {}, false),
+        amazonNotice: {
+          messageId: "replacement-notice",
+          notificationType: "SUBSCRIPTION_MODIFIED_IMMEDIATE",
+          occurredAt: 100_000,
+          rawSignedPayload: "signed-fixture",
+        },
+      });
+      const next = rows(db, "subscriptions").find(
+        (row) =>
+          row.purchaseToken === amazonSubscriptionToken(replacement.remoteId),
+      );
+      expect(
+        rows(db, "subscriptions").find(
+          (row) =>
+            row.purchaseToken ===
+            amazonSubscriptionToken("production:user:receipt"),
+        )?.state,
+      ).toBe("Revoked");
+      expect(next?.userId).toBe(
+        association === "unbound"
+          ? "previous-owner"
+          : association === "foreign"
+            ? "another-owner"
+            : undefined,
+      );
+    },
+  );
+
+  test.each(["matching", "newer-invalid", "newer-valid"] as const)(
+    "replacement at the binding cap uses the %s predecessor verdict",
+    async (freshness) => {
+      const { db, ctx } = setup();
+      await saveAmazonVerdictHandler(ctx, verdict(1));
+      await bindSubscriptionToUserHandler(ctx, {
+        projectId: "projects_test" as never,
+        purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+        userId: "owner",
+      });
+      for (let i = 1; i < MAX_BOUND_PURCHASES_PER_USER; i++)
+        db.seed(`other_${i}`, "purchases", {
+          projectId: "projects_test",
+          store: "horizon",
+          remoteId: `proof_${i}`,
+          appUserId: "owner",
+          isValid: true,
+        });
+      if (freshness !== "matching")
+        await saveAmazonVerdictHandler(
+          ctx,
+          verdict(4, {}, freshness === "newer-valid"),
+        );
+      await applyAmazonRtnVerdictHandler(ctx, {
+        ...verdict(3, { receiptId: "replacement", productId: "upgraded" }),
+        remoteId: "production:user:replacement",
+        requestData: {
+          store: "amazon",
+          userId: "user",
+          receiptId: "replacement",
+        },
+        relatedReceipt: verdict(3, {}, false),
+        amazonNotice: {
+          messageId: "cap-replacement",
+          notificationType: "SUBSCRIPTION_MODIFIED_IMMEDIATE",
+          occurredAt: 100_000,
+          rawSignedPayload: "signed-fixture",
+        },
+      });
+      const current = await testableFunction(boundPurchasesForUser)._handler(
+        ctx,
+        { projectId: "projects_test" as never, userId: "owner" },
+      );
+      expect(current).toHaveLength(MAX_BOUND_PURCHASES_PER_USER);
+      expect(
+        current.some((row) => row.remoteId === "production:user:replacement"),
+      ).toBe(freshness !== "newer-valid");
+      expect(
+        current.some((row) => row.remoteId === "production:user:receipt"),
+      ).toBe(freshness === "newer-valid");
+    },
+  );
+
+  test("operator rebind moves both entitlement sources and a later replacement to the new owner", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    const token = amazonSubscriptionToken("production:user:receipt");
+    await bindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_test" as never,
+      purchaseToken: token,
+      userId: "alice",
+    });
+    await expect(
+      rebindSubscriptionToUserHandler(ctx, {
+        projectId: "projects_test" as never,
+        purchaseToken: token,
+        userId: "bob",
+      }),
+    ).resolves.toMatchObject({ notified: true });
+    const read = testableFunction(boundPurchasesForUser)._handler;
+    await expect(
+      read(ctx, { projectId: "projects_test" as never, userId: "alice" }),
+    ).resolves.toEqual([]);
+    await expect(
+      read(ctx, { projectId: "projects_test" as never, userId: "bob" }),
+    ).resolves.toMatchObject([{ productId: "premium" }]);
+    expect(rows(db, "subscriptions")[0].userId).toBe("bob");
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(2, { receiptId: "replacement", productId: "upgraded" }),
+      remoteId: "production:user:replacement",
+      requestData: {
+        store: "amazon",
+        userId: "user",
+        receiptId: "replacement",
+      },
+      relatedReceipt: verdict(2, {}, false),
+      amazonNotice: {
+        messageId: "rebound-replacement",
+        notificationType: "SUBSCRIPTION_MODIFIED_IMMEDIATE",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    });
+    await expect(
+      read(ctx, { projectId: "projects_test" as never, userId: "alice" }),
+    ).resolves.toEqual([]);
+    await expect(
+      read(ctx, { projectId: "projects_test" as never, userId: "bob" }),
+    ).resolves.toMatchObject([{ productId: "upgraded" }]);
+  });
+
+  test("a publishable legacy subscription binder cannot preempt Amazon's server binding", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    db.seed("apiKeys_public", "apiKeys", {
+      key: "publishable",
+      keyType: "publishable",
+      isActive: true,
+      projectId: "projects_test",
+      organizationId: "organizations_test",
+    });
+    for (const userId of ["", " ", "a".repeat(257)]) {
+      for (const remoteId of ["production:user:receipt", "missing"]) {
+        await expect(
+          testableFunction(bindUser)._handler(ctx, {
+            apiKey: "publishable",
+            purchaseToken: amazonSubscriptionToken(remoteId),
+            userId,
+          }),
+        ).rejects.toThrow("userId must be nonblank and at most 256 characters");
+      }
+    }
+    await expect(
+      testableFunction(bindUser)._handler(ctx, {
+        apiKey: "publishable",
+        purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+        userId: "attacker",
+      }),
+    ).resolves.toEqual({ ok: true, bound: false });
+    expect(rows(db, "subscriptions")[0].userId).toBeUndefined();
+    expect(rows(db, "purchases")[0].appUserId).toBeUndefined();
+    await expect(
+      bindSubscriptionToUserHandler(ctx, {
+        projectId: "projects_test" as never,
+        purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+        userId: "owner",
+      }),
+    ).resolves.not.toBeNull();
+    expect(rows(db, "purchases")[0].appUserId).toBe("owner");
+  });
+
+  test("operator invalidation supersedes an already in-flight verification", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    await db.patch("projects_test", { amazonRvsSequence: 2 });
+    const purchase = rows(db, "purchases")[0];
+    await testableFunction(markReceiptInvalid)._handler(ctx, {
+      purchaseId: purchase._id as never,
+    });
+    await expect(
+      saveAmazonVerdictHandler(ctx, verdict(2)),
+    ).resolves.toMatchObject({ isValid: false, state: "INAUTHENTIC" });
+    expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
+  });
+
+  test("reverification cannot relink an erased account", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    const purchase = rows(db, "purchases")[0];
+    const subscription = rows(db, "subscriptions")[0];
+    await db.patch(String(purchase._id), { accountErased: true });
+    await db.patch(String(subscription._id), {
+      accountErased: true,
+      state: "Revoked",
+    });
+    await saveAmazonVerdictHandler(ctx, verdict(2));
+    expect(subscription).toMatchObject({
+      accountErased: true,
+      state: "Revoked",
+    });
+    expect(subscription.userId).toBeUndefined();
+  });
+});
 
 describe("claimAmazonPurchasesForReconciliation", () => {
   test("atomically leases only due active Amazon rows, including legacy rows", async () => {

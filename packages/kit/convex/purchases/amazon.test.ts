@@ -11,6 +11,7 @@ import {
   verifyAmazonReceiptInternalV1,
   waitForAmazonRateSlot,
   type AmazonReceiptData,
+  requestAmazonReceipt,
 } from "./amazon";
 import {
   AmazonReceiptVerificationError,
@@ -19,6 +20,7 @@ import {
 } from "./errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
+  isValidState,
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_RETRY_MS,
 } from "./shared";
@@ -54,7 +56,20 @@ function project(overrides: Record<string, unknown> = {}) {
 
 function actionContext(projectRow = project()) {
   const runQuery = vi.fn().mockResolvedValue(projectRow);
-  const runMutation = vi.fn().mockResolvedValue("purchases_amazon_test");
+  const runMutation = vi.fn().mockImplementation(async (_ref, args) => {
+    if ("amazonRvsSequence" in args) {
+      const receipt = JSON.parse(args.remoteResponse);
+      return {
+        isValid: isValidState(args.state),
+        state: args.state,
+        environment: args.environment,
+        ...(typeof receipt.productId === "string"
+          ? { productId: receipt.productId }
+          : {}),
+      };
+    }
+    return 1;
+  });
   return {
     ctx: { runQuery, runMutation } as never,
     runMutation,
@@ -202,6 +217,28 @@ describe("verifyAmazonReceiptInternalV1", () => {
     vi.unstubAllGlobals();
   });
 
+  test("bounds RVS bodies and disallows redirects carrying the developer credential", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("x".repeat(65537)));
+    await expect(
+      requestAmazonReceipt({
+        sharedSecret: "production-secret",
+        userId: USER_ID,
+        receiptId: RECEIPT_ID,
+        sandbox: false,
+        maxAttempts: 1,
+      }),
+    ).rejects.toThrow("too large");
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        redirect: "error",
+        signal: expect.any(AbortSignal),
+      }),
+    );
+  });
+
   test("rejects sandbox before fetch or persistence unless the project opted in", async () => {
     const { ctx, runMutation } = actionContext(
       project({ amazonSandboxEnabled: false, amazonSharedSecret: null }),
@@ -263,7 +300,6 @@ describe("verifyAmazonReceiptInternalV1", () => {
       expect.objectContaining({
         environment: "Sandbox",
         state: HarmonizedPurchaseState.ENTITLED,
-        isValid: true,
         requestData: expect.objectContaining({
           sandbox: true,
           expectedProductId: PRODUCT_ID,
@@ -307,7 +343,6 @@ describe("verifyAmazonReceiptInternalV1", () => {
     expect(runMutation).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        isValid: true,
         state: HarmonizedPurchaseState.ENTITLED,
       }),
     );
@@ -333,7 +368,6 @@ describe("verifyAmazonReceiptInternalV1", () => {
       expect.anything(),
       expect.objectContaining({
         state,
-        isValid: false,
         environment: "Production",
       }),
     );
@@ -353,13 +387,12 @@ describe("verifyAmazonReceiptInternalV1", () => {
       vi.stubGlobal("fetch", fetchMock);
 
       await expect(runVerify(ctx)).resolves.toMatchObject({
-        isValid: true,
         state: HarmonizedPurchaseState.ENTITLED,
       });
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(savedReceipts(runMutation)).toHaveLength(1);
       expect(savedReceipts(runMutation)[0]).toEqual(
-        expect.objectContaining({ isValid: true }),
+        expect.objectContaining({ state: HarmonizedPurchaseState.ENTITLED }),
       );
     },
   );
@@ -455,16 +488,17 @@ describe("verifyAmazonReceiptInternalV1", () => {
     const fetchMock = vi
       .fn()
       .mockImplementation((_url: string, init: { signal: AbortSignal }) =>
-        Promise.resolve({
-          ok: true,
-          status: 200,
-          text: () =>
-            new Promise<string>((_resolve, reject) => {
-              init.signal.addEventListener("abort", () => {
-                reject(new DOMException("aborted", "AbortError"));
-              });
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                init.signal.addEventListener("abort", () =>
+                  controller.error(new DOMException("aborted", "AbortError")),
+                );
+              },
             }),
-        }),
+          ),
+        ),
       );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -512,14 +546,15 @@ describe("Amazon purchase reconciler", () => {
   }
 
   function reconcileContext(probes: unknown[], mutationResult = true) {
-    const runMutation = vi
-      .fn()
-      .mockResolvedValueOnce(probes)
-      .mockResolvedValue(mutationResult);
+    const runMutation = vi.fn().mockImplementation(async (_ref, args) => {
+      if ("limit" in args) return probes;
+      if ("projectId" in args && Object.keys(args).length === 1) return 1;
+      return mutationResult;
+    });
     return { ctx: { runMutation } as never, runMutation };
   }
 
-  test("refreshes a valid purchase row and keeps Amazon out of subscriptions", async () => {
+  test("refreshes verified metadata through the atomic persistence boundary", async () => {
     const { ctx, runMutation } = reconcileContext([probe()]);
     vi.stubGlobal(
       "fetch",
@@ -530,8 +565,8 @@ describe("Amazon purchase reconciler", () => {
       testableFunction(reconcileAmazonPurchases)._handler(ctx, {}),
     ).resolves.toEqual({ claimed: 1, checked: 1, updated: 1, failures: 0 });
 
-    expect(runMutation).toHaveBeenCalledTimes(2);
-    expect(runMutation.mock.calls[1]?.[1]).toEqual(
+    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(runMutation.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         state: HarmonizedPurchaseState.ENTITLED,
         purchaseId: "purchases_due",
@@ -552,7 +587,7 @@ describe("Amazon purchase reconciler", () => {
     await expect(
       testableFunction(reconcileAmazonPurchases)._handler(canceled.ctx, {}),
     ).resolves.toEqual({ claimed: 1, checked: 1, updated: 1, failures: 0 });
-    expect(canceled.runMutation.mock.calls[1]?.[1]).toEqual(
+    expect(canceled.runMutation.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         state: HarmonizedPurchaseState.CANCELED,
         purchaseId: "purchases_due",
@@ -570,14 +605,16 @@ describe("Amazon purchase reconciler", () => {
       await expect(
         testableFunction(reconcileAmazonPurchases)._handler(failed.ctx, {}),
       ).resolves.toEqual({ claimed: 1, checked: 1, updated: 0, failures: 1 });
-      expect(failed.runMutation.mock.calls[1]?.[1]).toEqual(
+      expect(failed.runMutation.mock.calls.at(-1)?.[1]).toEqual(
         expect.objectContaining({
           purchaseId: "purchases_due",
           claimedLeaseUntil: 10_000,
           retryAt: 20_000 + AMAZON_RECONCILE_RETRY_MS,
         }),
       );
-      expect(failed.runMutation.mock.calls[1]?.[1]).not.toHaveProperty("state");
+      expect(failed.runMutation.mock.calls.at(-1)?.[1]).not.toHaveProperty(
+        "state",
+      );
     }
   });
 
@@ -592,14 +629,14 @@ describe("Amazon purchase reconciler", () => {
     await expect(
       testableFunction(reconcileAmazonPurchases)._handler(ctx, {}),
     ).resolves.toEqual({ claimed: 1, checked: 1, updated: 0, failures: 1 });
-    expect(runMutation.mock.calls[1]?.[1]).toEqual(
+    expect(runMutation.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         purchaseId: "purchases_due",
         claimedLeaseUntil: 10_000,
         retryAt: 25_000 + AMAZON_RECONCILE_INTERVAL_MS,
       }),
     );
-    expect(runMutation.mock.calls[1]?.[1]).not.toHaveProperty("state");
+    expect(runMutation.mock.calls.at(-1)?.[1]).not.toHaveProperty("state");
   });
 
   test.each([
@@ -637,14 +674,14 @@ describe("Amazon purchase reconciler", () => {
         failures: 1,
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(runMutation.mock.calls[1]?.[1]).toEqual(
+      expect(runMutation.mock.calls.at(-1)?.[1]).toEqual(
         expect.objectContaining({
           purchaseId: "purchases_due",
           claimedLeaseUntil: 10_000,
           retryAt: expect.any(Number),
         }),
       );
-      expect(runMutation.mock.calls[1]?.[1]).not.toHaveProperty("state");
+      expect(runMutation.mock.calls.at(-1)?.[1]).not.toHaveProperty("state");
     },
   );
 
@@ -681,7 +718,7 @@ describe("Amazon purchase reconciler", () => {
       testableFunction(reconcileAmazonPurchases)._handler(ctx, {}),
     ).resolves.toEqual({ claimed: 1, checked: 0, updated: 0, failures: 1 });
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(runMutation.mock.calls[1]?.[1]).toEqual(
+    expect(runMutation.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         purchaseId: "purchases_due",
         retryAt: 30_000 + AMAZON_RECONCILE_INTERVAL_MS,
@@ -740,7 +777,7 @@ describe("waitForAmazonRateSlot", () => {
 });
 
 describe("entitlement rechecks", () => {
-  test("skip verification admission and only persist a changed verdict", async () => {
+  test("skip duplicate admission but reserve ordering and persist fresh metadata", async () => {
     const { ctx, runMutation } = actionContext();
     vi.stubGlobal(
       "fetch",
@@ -757,16 +794,19 @@ describe("entitlement rechecks", () => {
     } finally {
       vi.unstubAllGlobals();
     }
-    expect(runMutation).toHaveBeenCalledTimes(1);
-    expect(runMutation.mock.calls[0]?.[1]).toMatchObject({
+    expect(runMutation).toHaveBeenCalledTimes(2);
+    expect(runMutation.mock.calls[0]?.[1]).toEqual({
+      projectId: "projects_amazon_test",
+    });
+    expect(runMutation.mock.calls.at(-1)?.[1]).toMatchObject({
       state: HarmonizedPurchaseState.ENTITLED,
-      persistIfChanged: true,
+      amazonRvsSequence: 1,
     });
   });
 });
 
 describe("entitlement rechecks of a rejected receipt", () => {
-  test("persist the negative verdict with the recheck flag", async () => {
+  test("persist the negative store verdict through the same ordering boundary", async () => {
     const { ctx, runMutation } = actionContext();
     vi.stubGlobal(
       "fetch",
@@ -785,10 +825,10 @@ describe("entitlement rechecks of a rejected receipt", () => {
     } finally {
       vi.unstubAllGlobals();
     }
-    expect(runMutation).toHaveBeenCalledTimes(1);
-    expect(runMutation.mock.calls[0]?.[1]).toMatchObject({
-      isValid: false,
-      persistIfChanged: true,
+    expect(runMutation).toHaveBeenCalledTimes(2);
+    expect(runMutation.mock.calls.at(-1)?.[1]).toMatchObject({
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      amazonRvsSequence: 1,
     });
   });
 });

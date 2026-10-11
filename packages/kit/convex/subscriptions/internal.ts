@@ -9,6 +9,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
+import { bindAmazonPurchaseOwner } from "../purchases/binding";
 import {
   applySubscriptionTransition,
   entitlementActive,
@@ -106,17 +107,19 @@ type BindSubscriptionToUserArgs = {
   userId: string;
 };
 
-interface PersistSubscriptionSnapshotArgs {
+export interface PersistSubscriptionSnapshotArgs {
   projectId: Id<"projects">;
   platform: SubscriptionPlatform;
   purchaseToken: string;
   existing: Doc<"subscriptions"> | null;
+  store?: Doc<"subscriptions">["store"];
   next: NonNullable<CurrentSubscription>;
   now: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
     | "_creationTime"
+    | "store"
     | "type"
     | "occurredAt"
     | "sourceNotificationId"
@@ -882,21 +885,25 @@ export async function recordVerifiedSubscriptionHandler(
   });
 }
 
-async function persistSubscriptionSnapshot(
+export async function persistSubscriptionSnapshot(
   ctx: MutationCtx,
   args: PersistSubscriptionSnapshotArgs,
 ): Promise<Id<"subscriptions">> {
   // Stats deltas must compare the old row against the old catalog entry
   // and the new row against the new one; otherwise product/platform changes
   // subtract the wrong MRR bucket.
-  const afterBillingPeriod = await fetchBillingPeriod(
-    ctx,
-    args.projectId,
-    args.platform,
-    args.next.productId,
-  );
+  const afterBillingPeriod =
+    args.store === "amazon"
+      ? undefined
+      : await fetchBillingPeriod(
+          ctx,
+          args.projectId,
+          args.platform,
+          args.next.productId,
+        );
   const beforeBillingPeriod =
     args.existing &&
+    args.existing.store !== "amazon" &&
     (args.existing.productId !== args.next.productId ||
       args.existing.platform !== args.platform)
       ? await fetchBillingPeriod(
@@ -916,6 +923,7 @@ async function persistSubscriptionSnapshot(
     ...(args.existing?.userId ? { userId: args.existing.userId } : {}),
     productId: args.next.productId,
     platform: args.platform,
+    ...(args.store ? { store: args.store } : {}),
     state: args.next.state,
     expiresAt: args.next.expiresAt,
     renewsAt: args.next.renewsAt,
@@ -932,6 +940,7 @@ async function persistSubscriptionSnapshot(
           lastEventSourceNotificationId: args.lastEvent.sourceNotificationId,
           lastEventSource: {
             type: args.lastEvent.type,
+            store: args.lastEvent.store,
             environment: args.lastEvent.environment,
             productId: args.lastEvent.productId,
             applicationId: args.lastEvent.applicationId,
@@ -972,7 +981,7 @@ async function persistSubscriptionSnapshot(
   return subscriptionId;
 }
 
-function findSubscriptionByToken(
+export function findSubscriptionByToken(
   ctx: Pick<QueryCtx, "db">,
   projectId: Id<"projects">,
   purchaseToken: string,
@@ -1241,6 +1250,7 @@ async function retainedSourceEventFor(
             _id: sub.lastEventId,
             type: sub.lastEventSource.type,
             platform: sub.platform,
+            store: sub.lastEventSource.store ?? sub.store,
             environment: sub.lastEventSource.environment,
             productId: sub.lastEventSource.productId,
             applicationId: sub.lastEventSource.applicationId,
@@ -1291,6 +1301,8 @@ export async function rebindSubscriptionToUserHandler(
     sub.userId !== args.userId &&
     (await isUserErasureRequested(ctx, project, sub.userId))
   )
+    return null;
+  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)))
     return null;
   if (sub.userId === args.userId) {
     return { subscriptionId: sub._id, notified: true };
@@ -1369,8 +1381,7 @@ export async function bindSubscriptionToUserHandler(
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
   if (!sub) return null;
-  if (sub.userId === args.userId) return sub._id;
-  if (sub.userId) {
+  if (sub.userId && sub.userId !== args.userId) {
     // Reported the same as an unknown token. A distinct error would tell any
     // holder of the app-embedded publishable key whether a token exists and
     // whether someone owns it. The operator still sees the collision.
@@ -1380,6 +1391,9 @@ export async function bindSubscriptionToUserHandler(
     );
     return null;
   }
+  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId)))
+    return null;
+  if (sub.userId === args.userId) return sub._id;
   const now = Date.now();
   // Erasure only unlinked the previous owner; this is a new association, and
   // the pending-erasure gate above still refuses a user who is being erased.
@@ -1406,6 +1420,7 @@ export async function bindSubscriptionToUserHandler(
               _id: sub.lastEventId,
               type: sub.lastEventSource.type,
               platform: sub.platform,
+              store: sub.lastEventSource.store ?? sub.store,
               environment: sub.lastEventSource.environment,
               productId: sub.lastEventSource.productId,
               applicationId: sub.lastEventSource.applicationId,

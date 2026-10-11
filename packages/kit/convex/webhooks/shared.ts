@@ -7,6 +7,8 @@
 
 import type { DataProvenance } from "../commerce/contract";
 
+export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Private IAPKit lifecycle literals. These are not part of the OpenIAP
 // native or framework SDK contract.
@@ -32,11 +34,14 @@ export type WebhookEventType =
   | "SubscriptionPriceStepUpConsentChanged"
   | "PurchaseRefunded"
   | "PurchaseConsumptionRequest"
-  | "TestNotification";
+  | "TestNotification"
+  | "ReceiptRechecked";
 
 export type WebhookEventSource =
   | "AppleAppStoreServerNotificationsV2"
-  | "GooglePlayRealTimeDeveloperNotifications";
+  | "GooglePlayRealTimeDeveloperNotifications"
+  | "AmazonRealTimeNotifications"
+  | "AmazonRvsReconciliation";
 
 export type WebhookEventEnvironment = "Production" | "Sandbox" | "Xcode";
 
