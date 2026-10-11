@@ -286,12 +286,6 @@ func _on_connection_changed(connected: bool) -> void:
 
 func _on_loading_changed(loading: bool) -> void:
 	loading_label.visible = loading
-	if loading:
-		status_label.text = "Loading..."
-	elif IapManager.store_connected:
-		status_label.text = "Ready"
-	else:
-		status_label.text = "Not connected"
 
 
 func _on_subscription_entitlements_changed() -> void:

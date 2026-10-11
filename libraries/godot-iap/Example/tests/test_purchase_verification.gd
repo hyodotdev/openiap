@@ -312,6 +312,9 @@ func _test_verification_picker(plugin: Node) -> void:
 	game.store_panel = panel
 	game.status_label = Label.new()
 	panel.add_child(game.status_label)
+	game.loading_label = Label.new()
+	panel.add_child(game.loading_label)
+	manager.loading_changed.connect(game._on_loading_changed)
 	game._setup_verification_picker()
 	var picker: OptionButton = game.verification_picker
 	_check(picker.get_selected_id() == Config.Method.IAPKIT_LOCAL, "Picker starts at the configured method")
@@ -321,11 +324,19 @@ func _test_verification_picker(plugin: Node) -> void:
 	_check(fake.calls.is_empty(), "Opening and dismissing the picker performs no purchase query")
 	picker.item_selected.emit(picker.get_item_index(Config.Method.NONE))
 	_check(manager.verification_method == Config.Method.NONE and fake.calls.is_empty(), "LOCAL to None skips hosted and device verification")
+	await manager._on_purchase_updated(purchase)
+	var retained_status: String = game.status_label.text
 	picker.item_selected.emit(picker.get_item_index(Config.Method.IAPKIT_LOCAL))
 	await process_frame
 	var props: Dictionary = JSON.parse_string(fake.responses.get("last_provider_props", "{}"))
 	_check(props.get("iapkit", {}).get("baseUrl") == Config._base_url, "None to LOCAL routes directly to the configured endpoint")
 	_check(fake.calls.count("getPendingTransactionsIOS") == 1 and fake.calls.count("verifyPurchaseWithProvider") == 1 and not fake.calls.has("finishTransaction"), "Direct LOCAL selection leaves failed verification unfinished")
+	var failed_status: String = game.status_label.text
+	_check(failed_status.begins_with("❌ "), "Failed verification remains visible after subscription reconciliation")
+	manager.loading_changed.emit(true)
+	_check(game.loading_label.visible and game.status_label.text == failed_status, "Loading shows its indicator without hiding the failed receipt result")
+	manager.loading_changed.emit(false)
+	_check(not game.loading_label.visible and game.status_label.text == failed_status, "Loading completion preserves the failed receipt result")
 	fake.calls.clear()
 	verification.iapkit.isValid = true
 	fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"success": true, "resultJson": JSON.stringify(verification)})
@@ -333,6 +344,14 @@ func _test_verification_picker(plugin: Node) -> void:
 	picker.item_selected.emit(picker.get_item_index(Config.Method.IAPKIT_LOCAL))
 	await process_frame
 	_check(fake.calls.count("verifyPurchaseWithProvider") == 1 and fake.calls.count("finishTransaction") == 1, "Selecting the current LOCAL method retries without another mode")
+	_check(game.status_label.text.begins_with("✅ "), "Successful verification remains visible after subscription reconciliation")
+	var scene = load("res://main.tscn").instantiate()
+	var status: Label = scene.get_node("UI/StatusLabel").duplicate()
+	scene.free()
+	panel.add_child(status)
+	status.text = retained_status
+	await process_frame
+	_check(status.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART and status.size.x <= 660 and status.get_line_count() > 1, "The actual scene wraps the receipt result within the portrait viewport")
 	game.free()
 	panel.free()
 	manager.verification_method = previous_method

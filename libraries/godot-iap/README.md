@@ -142,6 +142,7 @@ only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to
 store redelivers it instead of the app granting an unverified entitlement.
 Select the same method again, or use Restore Purchases, to retry unfinished
 receipts. Opening or dismissing the picker leaves the selected method unchanged.
+The status keeps the verification result visible while subscription ownership refreshes.
 
 ## Powered by OpenIAP
 

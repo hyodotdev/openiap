@@ -45,11 +45,12 @@ text = "Premium: OFF"
 [node name="StatusLabel" type="Label" parent="UI"]
 offset_left = 30.0
 offset_top = 210.0
-offset_right = 400.0
-offset_bottom = 250.0
+offset_right = 690.0
+offset_bottom = 340.0
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 theme_override_font_sizes/font_size = 24
 text = "Connecting..."
+autowrap_mode = 3
 
 [node name="LoadingLabel" type="Label" parent="UI"]
 offset_left = 260.0
