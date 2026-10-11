@@ -842,8 +842,8 @@ describe("savePurchaseInternal — persistIfChanged", () => {
   });
 });
 
-describe("savePurchaseInternal — Amazon recheck skip", () => {
-  it("leaves the reconcile deadline untouched when only the store body moved", async () => {
+describe("savePurchaseInternal — Amazon recheck metadata", () => {
+  it("refreshes lifecycle metadata even when the entitlement verdict is unchanged", async () => {
     const db = new MemDb();
     db.seedOrg(ORG_ID);
     db.seedProject(PROJECT_ID, ORG_ID);
@@ -878,8 +878,12 @@ describe("savePurchaseInternal — Amazon recheck skip", () => {
       remoteResponse: JSON.stringify({ ...body, renewalDate: 2 }),
     });
     const [after] = await db.query("purchases").collect();
-    expect(after.nextAmazonReconcileAt).toBe(before.nextAmazonReconcileAt);
-    expect(after.remoteResponse).toBe(JSON.stringify(body));
-    expect(after.updatedAt).toBeUndefined();
+    expect(after.nextAmazonReconcileAt).toEqual(expect.any(Number));
+    expect(after._id).toBe(before._id);
+    expect(after.isValid).toBe(true);
+    expect(after.remoteResponse).toBe(
+      JSON.stringify({ ...body, renewalDate: 2 }),
+    );
+    expect(after.updatedAt).toEqual(expect.any(Number));
   });
 });

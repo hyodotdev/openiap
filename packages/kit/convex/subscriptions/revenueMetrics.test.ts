@@ -851,6 +851,54 @@ describe("runRecompute — round-trip integration", () => {
     });
   });
 
+  it("keeps Amazon lifecycle and active counts out of the Google Play series", async () => {
+    for (const type of [
+      "SubscriptionStarted",
+      "SubscriptionRenewed",
+      "SubscriptionCanceled",
+      "SubscriptionRevoked",
+    ] as const) {
+      await seedEvent(db, {
+        type,
+        store: "amazon",
+        platform: "Android",
+        currency: undefined,
+      });
+    }
+    await seedSub(db, {
+      state: "Active",
+      store: "amazon",
+      platform: "Android",
+      currency: undefined,
+      priceAmountMicros: undefined,
+    });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      store: "google",
+      platform: "Android",
+      priceAmountMicros: 9_990_000,
+    });
+    await seedSub(db, {
+      state: "Active",
+      store: "google",
+      platform: "Android",
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    const rows = await rollupRows(db);
+    expect(rows.every((row) => row.currency === "USD")).toBe(true);
+    expect(rows.find((row) => row.day === TODAY)).toMatchObject({
+      platform: "Android",
+      newSubs: 1,
+      renewals: 0,
+      cancellations: 0,
+      refunds: 0,
+      revenueMicros: 9_990_000,
+      activeSubs: 1,
+    });
+  });
+
   it("Refunded + Revoked both flow into refunds counter", async () => {
     await seedEvent(db, {
       type: "PurchaseRefunded",

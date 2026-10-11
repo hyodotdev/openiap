@@ -118,7 +118,7 @@ Implementation references:
 - IAPKit service source: ${COMMERCE_IMPLEMENTATIONS.kit.url}
 - Step-by-step comparison: https://openiap.dev/commerce-protocol/getting-started${search}
 Read ${COMMERCE_PROTOCOL_LINKS.integrationBrief} for my role; follow ${COMMERCE_PROTOCOL_LINKS.buildBrief} for a commerce backend. Compare each responsibility with IAPKit's corresponding handler and tests. The example uses fictional purchases and all six REST operations, including erasure; IAPKit also shows store integrations and GraphQL. Use the contract as the authority, not either implementation's shortcuts.
-Check the chosen store and product type before implementing. IAPKit's Apple/Google subscription path uses subscription state and lifecycle events. Its Amazon/Horizon ownership path rechecks saved evidence on entitlements reads; use productIds, not subscription expiry or invented events. Authenticate the store account link on the app backend. Keep consumable quantities in a separate durable fulfillment ledger.
+Check the chosen store and product type before implementing. IAPKit's Apple, Google and Amazon subscription paths use verified subscription state and lifecycle events. Amazon subscription lifecycle is in beta; read https://kit.openiap.dev/docs/verification/amazon and validate its live store transitions before production use. Amazon also rechecks saved RVS evidence, while Horizon answers ownership only; use verified productIds and never infer expiry from Amazon renewalDate. Authenticate the store account link on the app backend. Keep consumable quantities in a separate durable fulfillment ledger.
 Inspect this project's instructions and stack. Install ${COMMERCE_PROTOCOL_INSTALL}; use its SPEC.md, generated bindings/schemas, and conformance tools as the contract.
 
 Implement the connection using existing project patterns. Start with a runnable local result. For a provider, complete every selected profile, including account erasure and event delivery; advertise only completed profiles and bindings. Run the applicable conformance and product checks. Fix every failure and rerun; a test that expects a known failure does not complete the implementation. Repeat installation, tests, and startup from a clean source-only copy.
@@ -169,8 +169,9 @@ Keep changes uncommitted for review.`}</CodeBlock>
             <strong>Repeat and restart.</strong> Retry a purchase, then restart
             the backend. Ownership and access remain correct, with no duplicate
             fulfillment. If your provider emits lifecycle events, retry their
-            delivery too. IAPKit currently emits those events for Apple/Google
-            subscriptions.
+            delivery too. IAPKit emits those events for Apple/Google/Amazon
+            subscriptions; its Amazon subscription lifecycle is in{' '}
+            <a href="https://kit.openiap.dev/docs/verification/amazon">beta</a>.
           </li>
           <li>
             <strong>Delete Alice.</strong> Check that her identity is removed

@@ -1,21 +1,23 @@
 import { internalMutation, internalQuery } from "../_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { QueryCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+import schema, { purchaseStoreValidator } from "../schema";
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import { assertProjectWritable } from "../projects/writable";
 import {
   dataProvenanceValidator,
   subscriptionStateValidator,
 } from "../utils/validation";
 
-// Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
-// Keep the units literal (ms) so the cron scheduler call reads naturally.
-export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+export { WEBHOOK_RETENTION_MS } from "./shared";
 
-type WebhookDedupSource = "apple" | "google";
+type WebhookDedupSource = "apple" | "google" | "amazon" | "amazon-rvs";
 type StoredWebhookSource =
   | "AppleAppStoreServerNotificationsV2"
-  | "GooglePlayRealTimeDeveloperNotifications";
+  | "GooglePlayRealTimeDeveloperNotifications"
+  | "AmazonRealTimeNotifications"
+  | "AmazonRvsReconciliation";
 type WebhookEventReader = Pick<QueryCtx["db"], "query">;
 
 interface WebhookEventDedupKey {
@@ -27,12 +29,19 @@ interface WebhookEventDedupKey {
 function storedSourceForDedupSource(
   source: WebhookDedupSource,
 ): StoredWebhookSource {
-  return source === "apple"
-    ? "AppleAppStoreServerNotificationsV2"
-    : "GooglePlayRealTimeDeveloperNotifications";
+  switch (source) {
+    case "apple":
+      return "AppleAppStoreServerNotificationsV2";
+    case "google":
+      return "GooglePlayRealTimeDeveloperNotifications";
+    case "amazon":
+      return "AmazonRealTimeNotifications";
+    case "amazon-rvs":
+      return "AmazonRvsReconciliation";
+  }
 }
 
-async function findWebhookEventByDedupKey(
+export async function findWebhookEventByDedupKey(
   db: WebhookEventReader,
   key: WebhookEventDedupKey,
 ): Promise<Doc<"webhookEvents"> | null> {
@@ -47,6 +56,24 @@ async function findWebhookEventByDedupKey(
     .unique();
 }
 
+export const getAmazonWebhookProject = internalQuery({
+  args: { apiKey: v.string() },
+  returns: schema.doc("projects"),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (
+      !resolved ||
+      resolved.keyType !== "publishable" ||
+      args.apiKey.startsWith("openiap-kit_sk_")
+    )
+      throw new ConvexError({
+        code: "INVALID_API_KEY",
+        message: "Use an active publishable project key for store webhooks",
+      });
+    return resolved.project;
+  },
+});
+
 // Read-only dedup probe for webhooks/google.ts, so a Pub/Sub retry skips the
 // Play API call and its quota. Returns the recorded event id and purchase token
 // for an ingested (projectId, source, sourceNotificationId); the apply mutation
@@ -59,7 +86,12 @@ async function findWebhookEventByDedupKey(
 export const lookupExistingEvent = internalQuery({
   args: {
     projectId: v.id("projects"),
-    source: v.union(v.literal("apple"), v.literal("google")),
+    source: v.union(
+      v.literal("apple"),
+      v.literal("google"),
+      v.literal("amazon"),
+      v.literal("amazon-rvs"),
+    ),
     sourceNotificationId: v.string(),
   },
   returns: v.union(
@@ -114,208 +146,220 @@ export const lookupExistingEvent = internalQuery({
 // `deduped: true`. The only writer of webhookEvents and webhookIdempotencyKeys.
 // It trusts its arguments: apple.ts and google.ts verify the signature and
 // project first.
-export const recordWebhookEvent = internalMutation({
-  args: {
-    projectId: v.id("projects"),
-    source: v.union(v.literal("apple"), v.literal("google")),
-    sourceNotificationId: v.string(),
-    event: v.object({
-      type: v.union(
-        v.literal("SubscriptionStarted"),
-        v.literal("SubscriptionRenewed"),
-        v.literal("SubscriptionExpired"),
-        v.literal("SubscriptionInGracePeriod"),
-        v.literal("SubscriptionInBillingRetry"),
-        v.literal("SubscriptionRecovered"),
-        v.literal("SubscriptionCanceled"),
-        v.literal("SubscriptionUncanceled"),
-        v.literal("SubscriptionRevoked"),
-        v.literal("SubscriptionPriceChange"),
-        v.literal("SubscriptionProductChanged"),
-        v.literal("SubscriptionPaused"),
-        v.literal("SubscriptionResumed"),
-        v.literal("SubscriptionDeferred"),
-        v.literal("SubscriptionPauseScheduleChanged"),
-        v.literal("SubscriptionPendingPurchaseCanceled"),
-        v.literal("SubscriptionPriceStepUpConsentChanged"),
-        v.literal("PurchaseRefunded"),
-        v.literal("PurchaseConsumptionRequest"),
-        v.literal("TestNotification"),
+const recordWebhookEventArgs = v.object({
+  projectId: v.id("projects"),
+  source: v.union(
+    v.literal("apple"),
+    v.literal("google"),
+    v.literal("amazon"),
+    v.literal("amazon-rvs"),
+  ),
+  sourceNotificationId: v.string(),
+  event: v.object({
+    type: v.union(
+      v.literal("SubscriptionStarted"),
+      v.literal("SubscriptionRenewed"),
+      v.literal("SubscriptionExpired"),
+      v.literal("SubscriptionInGracePeriod"),
+      v.literal("SubscriptionInBillingRetry"),
+      v.literal("SubscriptionRecovered"),
+      v.literal("SubscriptionCanceled"),
+      v.literal("SubscriptionUncanceled"),
+      v.literal("SubscriptionRevoked"),
+      v.literal("SubscriptionPriceChange"),
+      v.literal("SubscriptionProductChanged"),
+      v.literal("SubscriptionPaused"),
+      v.literal("SubscriptionResumed"),
+      v.literal("SubscriptionDeferred"),
+      v.literal("SubscriptionPauseScheduleChanged"),
+      v.literal("SubscriptionPendingPurchaseCanceled"),
+      v.literal("SubscriptionPriceStepUpConsentChanged"),
+      v.literal("PurchaseRefunded"),
+      v.literal("PurchaseConsumptionRequest"),
+      v.literal("TestNotification"),
+      v.literal("ReceiptRechecked"),
+    ),
+    sourceFull: v.union(
+      v.literal("AppleAppStoreServerNotificationsV2"),
+      v.literal("GooglePlayRealTimeDeveloperNotifications"),
+      v.literal("AmazonRealTimeNotifications"),
+      v.literal("AmazonRvsReconciliation"),
+    ),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    store: v.optional(purchaseStoreValidator),
+    environment: v.union(
+      v.literal("Production"),
+      v.literal("Sandbox"),
+      v.literal("Xcode"),
+    ),
+    // Optional because TestNotification payloads carry no transaction.
+    // Real lifecycle event types always populate this.
+    purchaseToken: v.optional(v.string()),
+    linkedPurchaseToken: v.optional(v.string()),
+    transactionId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    applicationId: v.optional(v.string()),
+    productKind: v.optional(
+      v.union(v.literal("subscription"), v.literal("one_time")),
+    ),
+    productId: v.optional(v.string()),
+    effectiveImmediately: v.optional(v.boolean()),
+    subscriptionState: v.optional(subscriptionStateValidator),
+    expiresAt: v.optional(v.number()),
+    renewsAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
+    cancellationReason: v.optional(
+      v.union(
+        v.literal("UserCanceled"),
+        v.literal("BillingError"),
+        v.literal("PriceIncreaseDeclined"),
+        v.literal("ProductUnavailable"),
+        v.literal("Refunded"),
+        v.literal("Other"),
       ),
-      sourceFull: v.union(
-        v.literal("AppleAppStoreServerNotificationsV2"),
-        v.literal("GooglePlayRealTimeDeveloperNotifications"),
-      ),
-      platform: v.union(v.literal("IOS"), v.literal("Android")),
-      environment: v.union(
-        v.literal("Production"),
-        v.literal("Sandbox"),
-        v.literal("Xcode"),
-      ),
-      // Optional because TestNotification payloads carry no transaction.
-      // Real lifecycle event types always populate this.
-      purchaseToken: v.optional(v.string()),
-      linkedPurchaseToken: v.optional(v.string()),
-      transactionId: v.optional(v.string()),
-      originalTransactionId: v.optional(v.string()),
-      applicationId: v.optional(v.string()),
-      productKind: v.optional(
-        v.union(v.literal("subscription"), v.literal("one_time")),
-      ),
-      productId: v.optional(v.string()),
-      effectiveImmediately: v.optional(v.boolean()),
-      subscriptionState: v.optional(subscriptionStateValidator),
-      expiresAt: v.optional(v.number()),
-      renewsAt: v.optional(v.number()),
-      willRenew: v.optional(v.boolean()),
-      cancellationReason: v.optional(
-        v.union(
-          v.literal("UserCanceled"),
-          v.literal("BillingError"),
-          v.literal("PriceIncreaseDeclined"),
-          v.literal("ProductUnavailable"),
-          v.literal("Refunded"),
-          v.literal("Other"),
-        ),
-      ),
-      currency: v.optional(v.string()),
-      priceAmountMicros: v.optional(v.number()),
-      amountProvenance: v.optional(dataProvenanceValidator),
-      occurredAt: v.number(),
-      rawSignedPayload: v.optional(v.string()),
-    }),
-  },
-  returns: v.object({
-    eventId: v.id("webhookEvents"),
-    deduped: v.boolean(),
+    ),
+    currency: v.optional(v.string()),
+    priceAmountMicros: v.optional(v.number()),
+    amountProvenance: v.optional(dataProvenanceValidator),
+    occurredAt: v.number(),
+    rawSignedPayload: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
-    await assertProjectWritable(ctx, args.projectId);
+});
 
-    // Retries are normal (Apple retries on 5xx, Pub/Sub is at-least-once) and
-    // must return 200. The webhookEvents index is the dedup record (#241); the
-    // key reads below only drain rows from before phase 2.
-    const storedSource = storedSourceForDedupSource(args.source);
-    if (args.event.sourceFull !== storedSource) {
-      throw new Error(
-        `Webhook source mismatch: ${args.source} cannot store ${args.event.sourceFull}`,
-      );
-    }
-    const existingEvent = await findWebhookEventByDedupKey(ctx.db, {
-      projectId: args.projectId,
-      source: storedSource,
-      sourceNotificationId: args.sourceNotificationId,
-    });
-    if (existingEvent) {
-      return { eventId: existingEvent._id, deduped: true };
-    }
+export async function recordWebhookEventHandler(
+  ctx: MutationCtx,
+  args: Infer<typeof recordWebhookEventArgs>,
+): Promise<{ eventId: Id<"webhookEvents">; deduped: boolean }> {
+  await assertProjectWritable(ctx, args.projectId);
 
-    // Scoped by project: a Pub/Sub messageId is unique only within a topic, so
-    // two projects can share one. Apple's UUID is global, but one key shape
-    // keeps the lookup simple.
-    let existing = await ctx.db
+  // Retries are normal (Apple retries on 5xx, Pub/Sub is at-least-once) and
+  // must return 200. The webhookEvents index is the dedup record (#241); the
+  // key reads below only drain rows from before phase 2.
+  const storedSource = storedSourceForDedupSource(args.source);
+  if (args.event.sourceFull !== storedSource) {
+    throw new Error(
+      `Webhook source mismatch: ${args.source} cannot store ${args.event.sourceFull}`,
+    );
+  }
+  const existingEvent = await findWebhookEventByDedupKey(ctx.db, {
+    projectId: args.projectId,
+    source: storedSource,
+    sourceNotificationId: args.sourceNotificationId,
+  });
+  if (existingEvent) {
+    return { eventId: existingEvent._id, deduped: true };
+  }
+
+  // Scoped by project: a Pub/Sub messageId is unique only within a topic, so
+  // two projects can share one. Apple's UUID is global, but one key shape
+  // keeps the lookup simple.
+  let existing = await ctx.db
+    .query("webhookIdempotencyKeys")
+    .withIndex("by_project_and_source_and_id", (q) =>
+      q
+        .eq("projectId", args.projectId)
+        .eq("source", args.source)
+        .eq("sourceNotificationId", args.sourceNotificationId),
+    )
+    .unique();
+  // Rows from before the projectId rollout have none, so a late retry would
+  // miss them and re-apply a committed transition. Find them on the legacy
+  // index, check the linked event's project, and backfill projectId.
+  if (!existing) {
+    // Not .unique(): projects' legacy rows can share a messageId.
+    const legacyCandidates = await ctx.db
       .query("webhookIdempotencyKeys")
-      .withIndex("by_project_and_source_and_id", (q) =>
+      .withIndex("by_source_and_id", (q) =>
         q
-          .eq("projectId", args.projectId)
           .eq("source", args.source)
           .eq("sourceNotificationId", args.sourceNotificationId),
       )
-      .unique();
-    // Rows from before the projectId rollout have none, so a late retry would
-    // miss them and re-apply a committed transition. Find them on the legacy
-    // index, check the linked event's project, and backfill projectId.
-    if (!existing) {
-      // Not .unique(): projects' legacy rows can share a messageId.
-      const legacyCandidates = await ctx.db
-        .query("webhookIdempotencyKeys")
-        .withIndex("by_source_and_id", (q) =>
-          q
-            .eq("source", args.source)
-            .eq("sourceNotificationId", args.sourceNotificationId),
-        )
-        .collect();
-      // Skip rows already migrated (projectId set) — those would have
-      // been caught by the `by_project_and_source_and_id` index above.
-      const legacyOnly = legacyCandidates.filter((row) => !row.projectId);
-      // Keep the legacy row whose event belongs to this project; a half-written
-      // row (no eventId) is the fallback.
-      const linkedChecks = await Promise.all(
-        legacyOnly.map(async (row) =>
-          row.eventId
-            ? {
-                row,
-                linked: await ctx.db.get(row.eventId),
-              }
-            : { row, linked: null },
-        ),
-      );
-      const projectMatch = linkedChecks.find(
-        (c) => c.linked && c.linked.projectId === args.projectId,
-      );
-      if (projectMatch) {
-        await ctx.db.patch(projectMatch.row._id, {
-          projectId: args.projectId,
-        });
-        existing = { ...projectMatch.row, projectId: args.projectId };
-      } else {
-        const halfWritten = linkedChecks.find(
-          (c) => !c.row.eventId && !c.linked,
-        );
-        if (halfWritten) {
-          // Half-written legacy row (insert succeeded, event insert
-          // crashed): can't tie it to a project, but adopting it lets
-          // the path below patch in our new eventId.
-          existing = halfWritten.row;
-        }
+      .collect();
+    // Skip rows already migrated (projectId set) — those would have
+    // been caught by the `by_project_and_source_and_id` index above.
+    const legacyOnly = legacyCandidates.filter((row) => !row.projectId);
+    // Keep the legacy row whose event belongs to this project; a half-written
+    // row (no eventId) is the fallback.
+    const linkedChecks = await Promise.all(
+      legacyOnly.map(async (row) =>
+        row.eventId
+          ? {
+              row,
+              linked: await ctx.db.get(row.eventId),
+            }
+          : { row, linked: null },
+      ),
+    );
+    const projectMatch = linkedChecks.find(
+      (c) => c.linked && c.linked.projectId === args.projectId,
+    );
+    if (projectMatch) {
+      await ctx.db.patch(projectMatch.row._id, {
+        projectId: args.projectId,
+      });
+      existing = { ...projectMatch.row, projectId: args.projectId };
+    } else {
+      const halfWritten = linkedChecks.find((c) => !c.row.eventId && !c.linked);
+      if (halfWritten) {
+        // Half-written legacy row (insert succeeded, event insert
+        // crashed): can't tie it to a project, but adopting it lets
+        // the path below patch in our new eventId.
+        existing = halfWritten.row;
       }
     }
+  }
 
-    if (existing?.eventId) {
-      return { eventId: existing.eventId, deduped: true };
-    }
+  if (existing?.eventId) {
+    return { eventId: existing.eventId, deduped: true };
+  }
 
-    const now = Date.now();
+  const now = Date.now();
 
-    const eventId: Id<"webhookEvents"> = await ctx.db.insert("webhookEvents", {
-      projectId: args.projectId,
-      type: args.event.type,
-      source: storedSource,
-      platform: args.event.platform,
-      environment: args.event.environment,
-      purchaseToken: args.event.purchaseToken,
-      linkedPurchaseToken: args.event.linkedPurchaseToken,
-      transactionId: args.event.transactionId,
-      originalTransactionId: args.event.originalTransactionId,
-      applicationId: args.event.applicationId,
-      productKind: args.event.productKind,
-      sourceNotificationId: args.sourceNotificationId,
-      productId: args.event.productId,
-      effectiveImmediately: args.event.effectiveImmediately,
-      subscriptionState: args.event.subscriptionState,
-      expiresAt: args.event.expiresAt,
-      renewsAt: args.event.renewsAt,
-      willRenew: args.event.willRenew,
-      cancellationReason: args.event.cancellationReason,
-      currency: args.event.currency,
-      priceAmountMicros: args.event.priceAmountMicros,
-      amountProvenance: args.event.amountProvenance,
-      rawSignedPayload: args.event.rawSignedPayload,
-      occurredAt: args.event.occurredAt,
-      receivedAt: now,
-    });
+  const eventId: Id<"webhookEvents"> = await ctx.db.insert("webhookEvents", {
+    projectId: args.projectId,
+    type: args.event.type,
+    source: storedSource,
+    platform: args.event.platform,
+    store: args.event.store,
+    environment: args.event.environment,
+    purchaseToken: args.event.purchaseToken,
+    linkedPurchaseToken: args.event.linkedPurchaseToken,
+    transactionId: args.event.transactionId,
+    originalTransactionId: args.event.originalTransactionId,
+    applicationId: args.event.applicationId,
+    productKind: args.event.productKind,
+    sourceNotificationId: args.sourceNotificationId,
+    productId: args.event.productId,
+    effectiveImmediately: args.event.effectiveImmediately,
+    subscriptionState: args.event.subscriptionState,
+    expiresAt: args.event.expiresAt,
+    renewsAt: args.event.renewsAt,
+    willRenew: args.event.willRenew,
+    cancellationReason: args.event.cancellationReason,
+    currency: args.event.currency,
+    priceAmountMicros: args.event.priceAmountMicros,
+    amountProvenance: args.event.amountProvenance,
+    rawSignedPayload: args.event.rawSignedPayload,
+    occurredAt: args.event.occurredAt,
+    receivedAt: now,
+  });
 
-    if (existing) {
-      // A half-written key (crash before the event insert): link it to the new
-      // event, or the orphan sweep could delete a row a replay relies on.
-      await ctx.db.patch(existing._id, { eventId });
-    }
-    // No new idempotency row (#241 phase 2): the event row itself dedups
-    // replays. Old rows drain past WEBHOOK_RETENTION_MS before the table is
-    // dropped.
+  if (existing) {
+    // A half-written key (crash before the event insert): link it to the new
+    // event, or the orphan sweep could delete a row a replay relies on.
+    await ctx.db.patch(existing._id, { eventId });
+  }
+  // No new idempotency row (#241 phase 2): the event row itself dedups
+  // replays. Old rows drain past WEBHOOK_RETENTION_MS before the table is
+  // dropped.
 
-    return { eventId, deduped: false };
-  },
+  return { eventId, deduped: false };
+}
+
+export const recordWebhookEvent = internalMutation({
+  args: recordWebhookEventArgs.fields,
+  returns: v.object({ eventId: v.id("webhookEvents"), deduped: v.boolean() }),
+  handler: recordWebhookEventHandler,
 });
 
 // Prune events older than the configured retention window. Run on a

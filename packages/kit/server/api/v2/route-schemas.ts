@@ -24,6 +24,14 @@ export const subscriptionV2Schema = v.object({
   id: v.string(),
   productId: v.string(),
   platform: v.union([v.literal("IOS"), v.literal("Android")]),
+  store: v.optional(
+    v.union([
+      v.literal("apple"),
+      v.literal("google"),
+      v.literal("amazon"),
+      v.literal("horizon"),
+    ]),
+  ),
   state: subscriptionStateSchema,
   expiresAt: v.optional(v.number()),
   renewsAt: v.optional(v.number()),

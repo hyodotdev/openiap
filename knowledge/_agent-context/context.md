@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-09T12:09:30.074Z
+> Last updated: 2026-10-11T17:55:55.799Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1710,6 +1710,29 @@ uploaded to a store listing. Never point an example at that EAS project. With a
 remote app version source, one `eas build` there consumes the product's next
 version code and loads its production environment — both have happened.
 
+### Shared Example Acceptance
+
+Use each framework's checked-in example app, including its normal entry point,
+navigation, and purchase screens. Add a feature to that example before testing
+it on a device so users can run the same check. Native package rows use their
+checked-in sample apps.
+
+The two native package examples and six framework examples must expose the same
+catalog, purchase, subscription, restore, verification, and ownership flows with
+the same meaning and visible results. Add new diagnostic features to those
+existing screens and keep the eight-example acceptance matrix current. A
+platform-only feature must show its supported-platform limit explicitly; it
+must not silently disappear or turn into a separate test app. A Kit-only change
+may reuse existing example flows, but does not count as completing missing
+example parity.
+
+Do not install a standalone API probe or replace an example's entry point with
+a task-only probe. A normal bundle id on a probe does not make it an example.
+Keep automation drivers separate from the app; they must navigate the same
+screens a user sees. Record the source revision, build entry point, and installed
+app identity with device evidence. Leave the normal example installed after
+the run, preserving any store-installed test build that must be restored.
+
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
 > **When:** any change to `packages/google` or `packages/apple` that modifies
@@ -2299,11 +2322,33 @@ Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`
 
 ### Release Page Scope
 
-Only package, protocol, CLI, and hosted IAPKit/MCP releases belong on this page.
+Only package, protocol and CLI releases belong on this page. A release train
+that also changes hosted IAPKit behavior links to its weekly history entry
+without copying that entry.
 Showcase updates, community news, website changes, and deployment-process notes
 belong in `packages/docs/src/pages/docs/updates/announcements.tsx` or the guide
 they affect; they must not create standalone release cards. A release card may
 link to a supporting article without duplicating it.
+
+### Hosted IAPKit History
+
+The canonical hosted history is the existing Release Notes page at
+`kit.openiap.dev/docs/release-notes`, authored in
+`packages/kit/src/pages/docs/sections/release-notes.tsx`. Group deployed Kit
+and hosted MCP changes into one Monday–Sunday entry per week in `Asia/Seoul`.
+Use `week-YYYY-MM-DD` with that Monday as `weekStart`; update the same entry
+when more changes land that week. For example, Thursday's deployment extends
+Monday's entry; it does not create a second release for that week. Skip weeks
+without relevant deployed changes.
+Group related items by feature area, such as Amazon subscriptions or Apple
+verification. Later fixes to that area extend its existing topic group. Omit
+empty groups, duplicate details, and invented SaaS package versions.
+Verify deployment evidence and link the relevant PRs. Keep older dated entries
+as historical records. A Kit production-behavior PR updates the current
+deployment-week entry rather than creating a separate card per PR. The
+release-note audit detects Kit changes in the PR workflow; do not schedule
+periodic checks solely for this history. Preserve the published-package
+release-card gate independently.
 
 ### Docs Ship With The Change
 
@@ -2336,14 +2381,17 @@ release-plan change expands the affected packages or behavior.
    `specs/commerce-protocol`, `packages/cli`, the native packages, and framework
    libraries when affected. Client Protocol, Commerce
    Protocol, and CLI releases are independent; a native/framework list alone
-   is incomplete. Include hosted IAPKit/MCP behavior without inventing a
-   versioned package entry.
+   is incomplete. Inventory hosted IAPKit/MCP behavior separately for the
+   deployment week's entry in the hosted history; do not invent a versioned
+   package entry.
 3. Compare that inventory with the train's card in
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
    versioned package needs its expected version, GitHub Release link, and tag
    alias/anchor. Every user-visible change needs a concise behavior or migration
    note; packages that only pick up shared behavior need only a linked release
-   entry. Resolve targets through the Release Package Version
+   entry. Hosted behavior needs a concise note in the Kit weekly entry;
+   a train that also publishes packages links to that entry from its card.
+   Resolve targets through the Release Package Version
    Verification section below and `$generate-doc`.
 4. Fill gaps in the current PR and update the existing unreleased card for the
    same train. Do not defer missing packages or explanations to a separate
@@ -2351,9 +2399,10 @@ release-plan change expands the affected packages or behavior.
    the card before dispatching any added package's workflow.
 5. Run `bun run audit:docs`, `bun run audit:release-state`, and the checks
    required by the touched paths. CI's release-note audit detects an unchanged
-   `releases.tsx`; a touched file or green audit does not prove that every
-   package and behavior is covered. Review that coverage before calling the
-   result clean.
+   `releases.tsx`, and `bun run audit:release-notes` independently detects
+   a missing Kit history update. A touched file or green audit does not prove
+   that every package and behavior is covered. Review that coverage before
+   calling the result clean.
 
 Tests, CI, internal agent rules, and behavior-neutral refactors that need no
 new publication do not require a release card. Record the reason briefly in
@@ -2584,6 +2633,66 @@ Fixed in abc1234. The guard only matched the bare tag, so an element with an
 attribute fell through to the "declares none" branch. Now it matches through
 attributes and throws when the element is present but unreadable.
 ```
+
+## GitHub Labels
+
+Apply relevant labels by default when creating an issue, Discussion or pull
+request, and recheck them when updating it. An unlabeled artifact is unfinished.
+Inspect its content, existing labels and `gh label list` before selecting them.
+
+Choose the smallest useful set: **one to five labels in total**, including
+existing labels. Five is a ceiling, never a target; one or two is often enough.
+Prioritize the main kind of change, then its primary area or store. Add another
+area only for an important independent change, most relevant first. Use
+`cross-platform` for a broad multi-platform change instead of one label per SDK.
+Omit incidental docs, generated types, example or CI labels when they only
+support the main change. Keep relevant existing labels; remove the least useful
+ones if the total exceeds five. Do not pad the set to reach five.
+
+Use the exact existing label names, including emoji. Amazon Appstore, FireOS
+and Amazon IAP work uses `amazon`; unrelated work must not receive that label.
+A Discussion's category is separate from its labels. Choose a PR's labels from
+its final diff rather than copying every label from its linked issue.
+
+| Main area or store                    | Label              |
+| ------------------------------------- | ------------------ |
+| `packages/apple/`                     | `📱 iOS`           |
+| `packages/google/`                    | `🤖 android`       |
+| `packages/docs/`                      | `📖 documentation` |
+| `packages/kit/`                       | `kit`              |
+| `specs/client/`                       | `⬡ protocol`       |
+| `specs/commerce-protocol/`            | `⬡ protocol`       |
+| `libraries/react-native-iap/`         | `react-native-iap` |
+| `libraries/expo-iap/`                 | `expo-iap`         |
+| `libraries/flutter_inapp_purchase/`   | `flutter-iap`      |
+| `libraries/godot-iap/`                | `godot-iap`        |
+| `libraries/kmp-iap/`                  | `kmp-iap`          |
+| `libraries/maui-iap/`                 | `maui-iap`         |
+| `.github/workflows/` or `scripts/`    | `💨 ci`            |
+| `.claude/`, `.codex/`, `AGENTS.md`    | `🕶️ meta`          |
+| `knowledge/`                          | `🕶️ meta`          |
+| `example/`, `Example/`                | `👀 example`       |
+| Amazon Appstore, FireOS or Amazon IAP | `amazon`           |
+| several platforms or libraries        | `cross-platform`   |
+
+| Kind of change  | Label         |
+| --------------- | ------------- |
+| New feature     | `🎯 feature`  |
+| Bug fix         | `🛠 bugfix`   |
+| Breaking change | `⚡️ breaking` |
+| Refactor        | `፦ refactor`  |
+| Tests only      | `🧪 test`     |
+
+Bug reports use `🐛 bug`; a PR fixing one uses `🛠 bugfix`. A question can use
+`❓ question` when that is its main purpose.
+
+For issues and PRs, pass labels during creation or use `gh issue edit` /
+`gh pr edit --add-label`. If the CLI fails with a Projects (classic) error,
+use the issue-label REST API; PRs use that API too. For Discussions, use the
+GraphQL `addLabelsToLabelable` mutation with the Discussion ID and existing
+label IDs. Read the artifact's labels back and verify relevance and the total
+before reporting completion. These steps do not grant authority to create an
+artifact or change an unrelated one.
 
 ## Opening Pull Requests
 

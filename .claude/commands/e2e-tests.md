@@ -30,6 +30,11 @@ or store-specific behavior changed.
   builds first, then FireOS/Amazon and Vega builds. This catches accidental
   Kepler dependency leakage.
 
+### Example apps are the device test surface
+
+Follow the shared [example acceptance requirements](../../knowledge/internal/04-platform-packages.md#shared-example-acceptance)
+for all native and framework device rows.
+
 ## Full Regression Matrix
 
 When `e2e-tests` is requested without a narrower scope, run every applicable
@@ -55,8 +60,8 @@ Notes:
   SDK's in-process foreground task pipeline, which is what launches the
   Appstore's purchase Activity on the live store (issue #460). When an Amazon
   change touches connection, listener registration, or the purchase request,
-  run one purchase through Live App Testing and confirm the `START u0 ...
-  com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
+  run one purchase through Live App Testing and confirm the
+  `START u0 ... com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
   `ActivityManager` on Fire OS 7, `ActivityTaskManager` on Fire OS 8).
   `adb logcat -s Kiwi` shows the SDK's own log (verified on a debug build):
   `No UI visible to execute task` means the SDK inside the app is holding the

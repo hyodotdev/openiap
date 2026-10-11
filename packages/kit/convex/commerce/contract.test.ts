@@ -195,11 +195,13 @@ describe("provider capabilities", () => {
     expect(horizon.supportsRevenueAmount).toBe(false);
   });
 
-  it("records Amazon as validated-and-reconciled but not subscription-capable", () => {
+  it("records Amazon as RVS-backed lifecycle support without a charge amount", () => {
     const amazon = PROVIDER_CAPABILITIES.amazon;
     expect(amazon.supportsInitialValidation).toBe(true);
     expect(amazon.supportsReconciliation).toBe(true);
-    expect(amazon.supportsSubscriptions).toBe(false);
+    expect(amazon.supportsSubscriptions).toBe(true);
+    expect(amazon.supportsServerNotifications).toBe(true);
+    expect(amazon.supportsRevenueAmount).toBe(false);
     expect(amazon.supportsEntitlements).toBe(true);
     expect(amazon.notes).toContain("48 hours");
     expect(amazon.notes).toContain("every five minutes");
@@ -217,6 +219,10 @@ describe("provider capabilities", () => {
   });
 
   it("lists exactly the stores that emit lifecycle events", () => {
-    expect(storesWithLifecycleEvents().sort()).toEqual(["apple", "google"]);
+    expect(storesWithLifecycleEvents().sort()).toEqual([
+      "amazon",
+      "apple",
+      "google",
+    ]);
   });
 });

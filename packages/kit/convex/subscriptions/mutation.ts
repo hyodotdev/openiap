@@ -5,6 +5,7 @@ import { internal } from "../_generated/api";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import {
   bindSubscriptionToUserHandler,
+  findSubscriptionByToken,
   rebindSubscriptionToUserHandler,
 } from "./internal";
 import { isValidSubscriptionUserId } from "./limits";
@@ -18,10 +19,7 @@ function generateUserErasureHashKey(): string {
   );
 }
 
-// Public mutation called by SDKs after a successful receipt verification:
-// they know who the host-app user is, so they tell kit which userId owns
-// the verified purchaseToken. Idempotent — re-binding the same userId is
-// a no-op.
+// Apple and Google SDKs can link a verified token without moving its owner.
 export const bindUser = mutation({
   args: {
     apiKey: v.string(),
@@ -33,6 +31,19 @@ export const bindUser = mutation({
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
     const project = resolved?.project ?? null;
     if (!project) return { ok: false, bound: false };
+    if (!isValidSubscriptionUserId(args.userId)) {
+      throw new ConvexError(
+        "userId must be nonblank and at most 256 characters",
+      );
+    }
+
+    const sub = await findSubscriptionByToken(
+      ctx,
+      project._id,
+      args.purchaseToken,
+    );
+    // Amazon store identity is linked by the authenticated developer backend.
+    if (sub?.store === "amazon") return { ok: true, bound: false };
 
     const subscriptionId = await bindSubscriptionToUserHandler(ctx, {
       projectId: project._id,

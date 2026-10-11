@@ -261,40 +261,9 @@ An empty array means the `--pr` run is unfinished. Add them with
 `gh label list`: `gh` rejects a label that does not exist, and the emoji labels
 must match byte for byte.
 
-**Label selection guide.** At most five labels, and only the ones that matter
-most: the kind of change first, then the area the diff is mainly about, then
-`cross-platform` when it spans platforms or libraries. Add another area only
-when the diff changes what ships there, most-changed first. Do not label an
-area that only follows the main change (its docs, generated types, example
-apps, CI), and never give a broad diff one label per package.
-
-| Changed path                        | Label              |
-| ----------------------------------- | ------------------ |
-| `packages/apple/`                   | `📱 iOS`           |
-| `packages/google/`                  | `🤖 android`       |
-| `packages/docs/`                    | `📖 documentation` |
-| `packages/kit/`                     | `kit`              |
-| `specs/client/`                     | `⬡ protocol`       |
-| `specs/commerce-protocol/`          | `⬡ protocol`       |
-| `libraries/react-native-iap/`       | `react-native-iap` |
-| `libraries/expo-iap/`               | `expo-iap`         |
-| `libraries/flutter_inapp_purchase/` | `flutter-iap`      |
-| `libraries/godot-iap/`              | `godot-iap`        |
-| `libraries/kmp-iap/`                | `kmp-iap`          |
-| `libraries/maui-iap/`               | `maui-iap`         |
-| `.github/workflows/` or `scripts/`  | `💨 ci`            |
-| `.claude/`, `.codex/`, `AGENTS.md`  | `🕶️ meta`          |
-| `knowledge/`                        | `🕶️ meta`          |
-| `example/`, `Example/`              | `👀 example`       |
-| several platforms or libraries      | `cross-platform`   |
-
-| Kind of change  | Label         |
-| --------------- | ------------- |
-| New feature     | `🎯 feature`  |
-| Bug fix         | `🛠 bugfix`   |
-| Breaking change | `⚡️ breaking` |
-| Refactor        | `፦ refactor`  |
-| Tests only      | `🧪 test`     |
+Select labels with the shared
+[GitHub Labels policy](../../knowledge/internal/06-git-deployment.md#github-labels).
+Choose them from the final diff; verify the returned set before reporting the PR.
 
 ---
 

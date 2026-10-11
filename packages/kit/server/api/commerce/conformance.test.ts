@@ -39,6 +39,11 @@ import {
 import { boundPurchasesForUser as boundPurchasesForUserQuery } from "../../../convex/purchases/internal";
 import { bindVerifiedPurchaseAsServer as bindVerifiedPurchaseAsServerMutation } from "../../../convex/purchases/mutation";
 import { HarmonizedPurchaseState } from "../../../convex/purchases/purchaseState";
+import { isValidState } from "../../../convex/purchases/shared";
+import {
+  reserveAmazonRvsSequenceHandler,
+  type saveAmazonVerdictHandler,
+} from "../../../convex/purchases/internal";
 import { consume as consumeAdmissionMutation } from "../../../convex/purchases/verificationAdmission";
 import { testableFunction } from "../../../convex/test.setup";
 
@@ -429,6 +434,27 @@ function purchaseFunctions() {
         return consumeAdmission(ctx, args);
       case "purchases/internal:saveReceiptInternal":
         return recordVerdict(args);
+      case "purchases/internal:reserveAmazonRvsSequence":
+        return reserveAmazonRvsSequenceHandler(ctx as never, args);
+      case "purchases/internal:saveAmazonVerdict": {
+        const verdict = args as Parameters<typeof saveAmazonVerdictHandler>[1];
+        const isValid = isValidState(verdict.state);
+        recordVerdict({
+          store: "amazon",
+          remoteId: verdict.remoteId,
+          state: verdict.state,
+          isValid,
+        });
+        const receipt = JSON.parse(verdict.remoteResponse) as {
+          productId?: string;
+        };
+        return {
+          isValid,
+          state: verdict.state,
+          environment: verdict.environment,
+          ...(receipt.productId ? { productId: receipt.productId } : {}),
+        };
+      }
       default:
         throw new Error(
           `Unexpected Convex function ${getFunctionName(reference)}`,

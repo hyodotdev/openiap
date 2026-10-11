@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     iosAppStoreKeyId: "ABCDE12345",
     androidPackageName: "com.markhub.markly",
     amazonSandboxEnabled: false,
+    amazonRtnTopicArn: undefined as string | undefined,
   },
   saveFile: vi.fn(),
   toastError: vi.fn(),
@@ -127,6 +128,7 @@ const AUTHORIZATION_LOST_MESSAGE =
 describe("ProjectSettings", () => {
   beforeEach(() => {
     mocks.project.amazonSandboxEnabled = false;
+    mocks.project.amazonRtnTopicArn = undefined;
     mocks.downloadFile.mockReset();
     mocks.fetch.mockReset();
     mocks.generateUploadUrl.mockReset();
@@ -226,11 +228,43 @@ describe("ProjectSettings", () => {
       expect(mocks.otherMutation).toHaveBeenCalledWith({
         projectId: "projects_test",
         amazonSandboxEnabled: true,
+        amazonRtnTopicArn: null,
       });
     });
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
       "Amazon RVS configuration saved.",
     );
+  });
+
+  it("preserves a refetched Amazon topic when saving another setting", async () => {
+    const arn = "arn:aws:sns:us-east-1:123456789012:amazon-rtn";
+    mocks.otherMutation.mockResolvedValueOnce(undefined);
+    const { rerender } = render(<ProjectSettings />);
+    mocks.project.amazonRtnTopicArn = arn;
+    rerender(<ProjectSettings />);
+
+    expect(
+      screen.getByLabelText<HTMLInputElement>(/Amazon RTN topic ARN/).value,
+    ).toBe(arn);
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Save Amazon config",
+      }).disabled,
+    ).toBe(true);
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /Allow Amazon App Tester \/ RVS Cloud Sandbox/,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save Amazon config" }));
+
+    await waitFor(() => {
+      expect(mocks.otherMutation).toHaveBeenCalledWith({
+        projectId: "projects_test",
+        amazonSandboxEnabled: true,
+        amazonRtnTopicArn: arn,
+      });
+    });
   });
 
   it("keeps uploaded-file actions in wrapping cards", () => {

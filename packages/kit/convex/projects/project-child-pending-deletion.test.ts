@@ -4,6 +4,7 @@ const authMocks = vi.hoisted(() => ({ getAuthUserId: vi.fn() }));
 
 vi.mock("@convex-dev/auth/server", () => ({
   getAuthUserId: authMocks.getAuthUserId,
+  authTables: {},
 }));
 
 vi.mock("../purchases/stats", () => ({
@@ -30,6 +31,7 @@ import {
   saveFile as registeredSaveFile,
 } from "../files/mutation";
 import { markReceiptInvalid as registeredMarkReceiptInvalid } from "../purchases/mutation";
+import { updateProject as registeredUpdateProject } from "./mutation";
 import { testableFunction } from "../test.setup";
 
 const createApiKey = testableFunction(registeredCreateApiKey);
@@ -40,6 +42,7 @@ const pruneUploadReservations = testableFunction(
   registeredPruneUploadReservations,
 );
 const saveFile = testableFunction(registeredSaveFile);
+const updateProject = testableFunction(registeredUpdateProject);
 
 const UPLOAD_RESERVATION_ID = "fileUploadReservations_a";
 
@@ -246,6 +249,79 @@ function credentialSaveArgs(storageId: string) {
     purpose: "android_service_account" as const,
   };
 }
+
+describe("Amazon RTN project settings", () => {
+  const arn = "arn:aws:sns:us-east-1:123456789012:amazon-rtn";
+
+  beforeEach(() => {
+    authMocks.getAuthUserId.mockReset();
+    authMocks.getAuthUserId.mockResolvedValue("users_a");
+  });
+
+  it("enables RTN with credentials supplied in the same save", async () => {
+    const ctx = makeCtx({});
+    await updateProject._handler(ctx, {
+      projectId: "projects_a" as never,
+      androidPackageName: "dev.hyo.martie",
+      amazonSharedSecret: "test-rvs-secret",
+      amazonRtnTopicArn: ` ${arn} `,
+    });
+    expect(ctx.db.tables.projects[0]).toMatchObject({
+      androidPackageName: "dev.hyo.martie",
+      amazonSharedSecret: "test-rvs-secret",
+      amazonRtnTopicArn: arn,
+    });
+  });
+
+  it.each(["package", "secret"])(
+    "rejects an RTN topic without its %s before writing",
+    async (missing) => {
+      const ctx = makeCtx({});
+      Object.assign(ctx.db.tables.projects[0], {
+        androidPackageName:
+          missing === "package" ? undefined : "dev.hyo.martie",
+        amazonSharedSecret:
+          missing === "secret" ? undefined : "test-rvs-secret",
+      });
+      await expect(
+        updateProject._handler(ctx as never, {
+          projectId: "projects_a" as never,
+          amazonRtnTopicArn: arn,
+        }),
+      ).rejects.toThrow(
+        "Configure the Android package and Amazon RVS shared secret",
+      );
+      expect(ctx.db.patchCount).toBe(0);
+    },
+  );
+
+  it("removes the topic when its shared secret is cleared", async () => {
+    const ctx = makeCtx({});
+    Object.assign(ctx.db.tables.projects[0], {
+      amazonSharedSecret: "test-rvs-secret",
+      amazonRtnTopicArn: arn,
+    });
+    await updateProject._handler(ctx, {
+      projectId: "projects_a" as never,
+      amazonSharedSecret: null,
+    });
+    expect(ctx.db.tables.projects[0]).toMatchObject({
+      amazonSharedSecret: null,
+      amazonRtnTopicArn: null,
+    });
+  });
+
+  it("rejects an invalid SNS topic without changing the project", async () => {
+    const ctx = makeCtx({});
+    await expect(
+      updateProject._handler(ctx as never, {
+        projectId: "projects_a" as never,
+        amazonRtnTopicArn: "https://attacker.example/notifications",
+      }),
+    ).rejects.toThrow("Amazon RTN requires a standard SNS topic ARN");
+    expect(ctx.db.patchCount).toBe(0);
+  });
+});
 
 describe("pending-deletion project child write guards", () => {
   beforeEach(() => {

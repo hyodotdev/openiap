@@ -209,6 +209,7 @@ try {
   const userId = "interop_alice",
     productId = "premium.monthly";
   let googleState = "SUBSCRIPTION_STATE_ACTIVE";
+  let googleTestPurchase = true;
   mock.module("googleapis", () => ({
     google: {
       auth: { GoogleAuth: class {} },
@@ -228,7 +229,7 @@ try {
                   startTime: new Date(startedAt - 60000).toISOString(),
                   acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
                   latestOrderId: orderId,
-                  testPurchase: {},
+                  ...(googleTestPurchase ? { testPurchase: {} } : {}),
                   lineItems: [
                     {
                       productId,
@@ -262,6 +263,7 @@ try {
   }));
   process.env.GOOGLE_PUBSUB_AUDIENCE = "https://kit.example.com";
   const storeState = { apple: true, amazon: true, horizon: true };
+  const amazonPurchaseDate = Date.now() - 60000;
   const applePayload = {
     transactionId: "90000000000001",
     originalTransactionId: "90000000000001",
@@ -318,13 +320,13 @@ try {
         ),
       );
       if (storeState.amazon === "outage")
-        return Response.json({}, { status: 496 });
+        return Response.json({}, { status: 503 });
       return Response.json({
         receiptId: "local-amazon-receipt",
         productId,
         productType: "SUBSCRIPTION",
-        purchaseDate: Date.now() - 60000,
-        cancelDate: storeState.amazon ? null : Date.now(),
+        purchaseDate: amazonPurchaseDate,
+        cancelDate: storeState.amazon ? null : amazonPurchaseDate + 1000,
         testTransaction: true,
       });
     }
@@ -781,10 +783,29 @@ try {
   });
   let freshConnection;
   if (freshExample) {
+    const drained = await drain("iapkit");
+    check(
+      "Earlier store fixture events reach their original receiver",
+      drained.delivered,
+      drained.attempted,
+    );
+    check(
+      "Fresh paywall starts without earlier pending deliveries",
+      (
+        await admin.query(anyApi.interopFixture.inspect, {
+          projectId: seeded.projectId,
+        })
+      ).deliveries.filter((row) =>
+        ["pending", "delivering"].includes(row.status),
+      ).length,
+      0,
+    );
     token = "fresh-paywall-google-token";
     orderId = "GPA.fresh-fixture-0";
     expiresAt = Date.now() + 60000;
     googleState = "SUBSCRIPTION_STATE_ACTIVE";
+    // The independent paywall assigns its fictional account in production.
+    googleTestPurchase = false;
     const { verifyProvider } = await import(
       join(freshExample, "verify-provider.mjs")
     );

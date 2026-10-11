@@ -12,6 +12,7 @@ import {
   DEFAULT_REPORTING_CURRENCY,
   normalizeReportingCurrencyOrDefault,
 } from "../utils/currency";
+import { purchaseStoreValidator } from "../schema";
 import { subscriptionStateValidator } from "../utils/validation";
 
 const subscriptionFields = {
@@ -42,6 +43,7 @@ const subscriptionV2Shape = v.object({
   id: v.id("subscriptions"),
   productId: v.string(),
   platform: v.union(v.literal("IOS"), v.literal("Android")),
+  store: v.optional(purchaseStoreValidator),
   state: subscriptionStateValidator,
   expiresAt: v.optional(v.number()),
   renewsAt: v.optional(v.number()),
@@ -174,6 +176,7 @@ export function shapeSubscriptionV2Row(
     id: sub._id,
     productId: sub.productId,
     platform: sub.platform,
+    ...(sub.store ? { store: sub.store } : {}),
     state: sub.state,
     expiresAt: sub.expiresAt,
     renewsAt: sub.renewsAt,

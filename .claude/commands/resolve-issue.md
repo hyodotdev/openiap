@@ -62,27 +62,9 @@ Based on the issue content, add appropriate labels:
 gh issue edit $ISSUE_NUMBER --repo hyodotdev/openiap --add-label "<label1>,<label2>"
 ```
 
-**Label selection guide:**
-
-| Condition                             | Label              |
-| ------------------------------------- | ------------------ |
-| Bug report / crash                    | `🐛 bug`           |
-| New feature request                   | `🎯 feature`       |
-| Mentions `packages/apple` or iOS      | `📱 iOS`           |
-| Mentions `packages/google` or Android | `🤖 android`       |
-| Mentions `packages/docs`              | `📖 documentation` |
-| Mentions `specs/client` or `specs/commerce-protocol` | `⬡ protocol` |
-| Mentions `react-native-iap`           | `react-native-iap` |
-| Mentions `expo-iap`                   | `expo-iap`         |
-| Mentions `flutter_inapp_purchase`     | `flutter-iap`      |
-| Mentions `godot-iap`                  | `godot-iap`        |
-| Mentions `kmp-iap`                    | `kmp-iap`          |
-| Affects multiple platforms            | `cross-platform`   |
-| Breaking change                       | `⚡️ breaking`      |
-
-Keep to the cap and priority of the PR label guide in
-`.claude/commands/commit.md` step 8: an issue that names several libraries gets
-`cross-platform`, not one label each.
+Use the shared
+[GitHub Labels policy](../../knowledge/internal/06-git-deployment.md#github-labels)
+for selection and the maximum count. Read the issue's labels back after editing.
 
 ### 3. Analyze and Decide
 
@@ -151,7 +133,8 @@ EOF
 
 #### 4e. Add labels to the PR
 
-Mirror the same labels you applied to the issue onto the PR so the dashboard views stay consistent. Use the same label selection guide from Step 2.
+Select labels for the final PR diff using the shared GitHub Labels policy.
+Keep relevant labels from the issue and verify the resulting set.
 
 > **Note:** `gh pr edit --add-label` may fail with a `Projects (classic)` GraphQL error on this repo. Use the REST API directly instead (works reliably since PRs are issues on GitHub):
 

@@ -389,6 +389,8 @@ async function processEventsPage(
   const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
   for (const event of result.page) {
+    // Android revenue metrics are the Google Play series.
+    if (event.store === "amazon") continue;
     // Legacy events from the removed Horizon reconciler were synthetic guesses
     // rather than store notifications. Keep the schema literal so existing
     // rows remain readable, but never fold those rows into revenue metrics.
@@ -477,6 +479,7 @@ async function processSubsPage(
   const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
   for (const sub of result.page) {
+    if (sub.store === "amazon") continue;
     if (
       sub.productKind !== "subscription" &&
       productTypes.get(productTypeKey(sub.platform, sub.productId)) !==

@@ -4,12 +4,16 @@ import {
   lookupExistingEvent as registeredLookupExistingEvent,
   pruneWebhookEvents as registeredPruneWebhookEvents,
   recordWebhookEvent as registeredRecordWebhookEvent,
+  getAmazonWebhookProject as registeredGetAmazonWebhookProject,
 } from "./internal";
 import { testableFunction } from "../test.setup";
 
 const lookupExistingEvent = testableFunction(registeredLookupExistingEvent);
 const pruneWebhookEvents = testableFunction(registeredPruneWebhookEvents);
 const recordWebhookEvent = testableFunction(registeredRecordWebhookEvent);
+const getAmazonWebhookProject = testableFunction(
+  registeredGetAmazonWebhookProject,
+);
 
 interface TestRow {
   _id: string;
@@ -53,6 +57,10 @@ class TestQuery {
       throw new Error(`Expected at most one row, received ${matches.length}`);
     }
     return matches[0] ?? null;
+  }
+
+  async first(): Promise<TestRow | null> {
+    return this.matchingRows()[0] ?? null;
   }
 
   async collect(): Promise<TestRow[]> {
@@ -147,6 +155,48 @@ function createWritableDb(extra: Record<string, TestRow[]> = {}): TestDb {
     ...extra,
   });
 }
+
+describe("Amazon webhook project authentication", () => {
+  it.each([
+    "active",
+    "secret",
+    "inactive",
+    "project deletion",
+    "organization deletion",
+    "missing",
+  ] as const)(
+    "checks stored key scope and deletion guards: %s",
+    async (scenario) => {
+      const apiKey = "openiap-kit_pk_amazon";
+      const db = createWritableDb({
+        apiKeys:
+          scenario === "missing"
+            ? []
+            : [
+                {
+                  _id: "key_a",
+                  key: apiKey,
+                  keyType: scenario === "secret" ? "secret" : "publishable",
+                  isActive: scenario !== "inactive",
+                  projectId: "project_a",
+                  organizationId: "organization_a",
+                },
+              ],
+      });
+      if (scenario === "project deletion")
+        await db.patch("project_a", { pendingDeletion: true });
+      if (scenario === "organization deletion")
+        await db.patch("organization_a", { pendingDeletion: true });
+      const result = getAmazonWebhookProject._handler({ db }, { apiKey });
+      if (scenario === "active")
+        await expect(result).resolves.toMatchObject({ _id: "project_a" });
+      else
+        await expect(result).rejects.toMatchObject({
+          data: { code: "INVALID_API_KEY" },
+        });
+    },
+  );
+});
 
 function webhookArgs(
   projectId: string,

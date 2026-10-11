@@ -279,7 +279,7 @@
     },
     "amazon": {
       "notificationChannel": "Amazon Real-Time Notifications",
-      "notes": "Amazon publishes this channel — sixteen notification types spanning subscription purchase, renewal, auto-renew changes, grace period, expiry and cancellation — but this version of the specification defines no mapping for it and the reference implementation integrates no receiver. That is a gap in this document and in that backend, not a limitation of the store — the capability descriptor's `implementation` axis is where a backend records its own side. Receipt Verification Service, which some backends poll instead, reports the current receipt state including cancelDate, cancelReason, renewalDate and gracePeriodEndDate, so a poller learns the outcome at its next read but never as an event.",
+      "notes": "Amazon publishes subscription purchase, renewal, auto-renew, grace, expiry and cancellation notifications. This version defines no normative mapping for that channel; the empty table is a specification-documentation gap, not evidence that a backend lacks support. IAPKit authenticates SNS notifications and reads fresh Receipt Verification Service evidence before updating canonical state. Its capability descriptor records that implementation separately. RVS reports the current receipt state, including cancelDate, cancelReason, renewalDate and gracePeriodEndDate; a polling-only implementation learns the outcome at its next read without attributing it to a store notification.",
       "derivableByPolling": ["entitlement.granted", "entitlement.revoked"],
       "mappings": []
     }

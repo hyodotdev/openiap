@@ -245,6 +245,8 @@ const schema = defineSchema({
     // responses are not production evidence.
     amazonSharedSecret: v.optional(v.union(v.string(), v.null())),
     amazonSandboxEnabled: v.optional(v.boolean()),
+    amazonRtnTopicArn: v.optional(v.union(v.string(), v.null())),
+    amazonRvsSequence: v.optional(v.number()),
 
     // Dashboard reporting currency. There is no FX conversion: rows keep their
     // store currency, and totals include only rows already in this one.
@@ -431,6 +433,7 @@ const schema = defineSchema({
     // Next RVS recheck of an active Amazon receipt. A claim moves it forward as
     // a lease, so overlapping five-minute cron ticks skip the row.
     nextAmazonReconcileAt: v.optional(v.number()),
+    lastAmazonRvsSequence: v.optional(v.number()),
     // Extracted on write so the list query doesn't re-parse
     // `remoteResponse` for every page item.
     productId: v.optional(v.string()),
@@ -561,15 +564,19 @@ const schema = defineSchema({
       v.literal("PurchaseRefunded"),
       v.literal("PurchaseConsumptionRequest"),
       v.literal("TestNotification"),
+      v.literal("ReceiptRechecked"),
     ),
     source: v.union(
       v.literal("AppleAppStoreServerNotificationsV2"),
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
+      v.literal("AmazonRealTimeNotifications"),
+      v.literal("AmazonRvsReconciliation"),
       // Legacy source, kept until its synthetic rows age out. Ingestion and
       // analytics never create or count these rows.
       v.literal("MetaHorizonReconciler"),
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
+    store: v.optional(purchaseStoreValidator),
     environment: v.union(
       v.literal("Production"),
       v.literal("Sandbox"),
@@ -638,7 +645,12 @@ const schema = defineSchema({
   // so older rows validate; new inserts always set it.
   webhookIdempotencyKeys: defineTable({
     projectId: v.optional(v.id("projects")),
-    source: v.union(v.literal("apple"), v.literal("google")),
+    source: v.union(
+      v.literal("apple"),
+      v.literal("google"),
+      v.literal("amazon"),
+      v.literal("amazon-rvs"),
+    ),
     sourceNotificationId: v.string(),
     eventId: v.optional(v.id("webhookEvents")),
     firstSeenAt: v.number(),
@@ -672,6 +684,8 @@ const schema = defineSchema({
     productKind: v.optional(v.literal("subscription")),
     productId: v.string(),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
+    store: v.optional(purchaseStoreValidator),
+    lastAmazonNotificationAt: v.optional(v.number()),
     state: subscriptionStateValidator,
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
@@ -699,6 +713,7 @@ const schema = defineSchema({
     lastEventSource: v.optional(
       v.object({
         type: v.optional(v.string()),
+        store: v.optional(purchaseStoreValidator),
         environment: v.union(
           v.literal("Production"),
           v.literal("Sandbox"),

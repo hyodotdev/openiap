@@ -176,8 +176,9 @@ export default function ApiReferencePage() {
         Request starts remain below Amazon&apos;s 10 TPS polling ceiling. A
         non-null <code>cancelDate</code> is authoritative loss of access; a past{" "}
         <code>renewalDate</code> alone is not treated as expiry. These checks
-        refresh purchase snapshots only and do not create Amazon subscription
-        rows.
+        refresh purchase snapshots and canonical Amazon subscription state
+        together. Signed RTN adds lifecycle context after a fresh RVS check; see
+        the <Link to="/docs/verification/amazon">Amazon setup guide</Link>.
       </p>
       <p>
         Apple and Google requests that explicitly send{" "}

@@ -34,10 +34,12 @@ export type KitProductsResponse = SharedKitProductsResponse;
 export type KitMetricsResponse = SharedKitMetricsResponse;
 export type KitMrrCurrencyEntry = SharedKitMrrCurrencyEntry;
 
-export type KitSubscriptionV2 = Omit<
+export interface KitSubscriptionV2 extends Omit<
   KitSubscription,
   "purchaseToken" | "originalTransactionId"
->;
+> {
+  store?: "apple" | "google" | "amazon" | "horizon";
+}
 export type EntitlementsResponseV2 = {
   userId: string;
   productIds: string[];

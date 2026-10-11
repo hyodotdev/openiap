@@ -167,28 +167,28 @@
       },
       "serverNotifications": {
         "provider": true,
-        "implementation": false,
-        "notes": "This implementation integrates no receiver for Amazon Real-Time Notifications."
+        "implementation": true,
+        "notes": "Signed Amazon Real-Time Notifications trigger fresh RVS verification before updating state."
       },
       "subscriptions": {
         "provider": true,
-        "implementation": false,
-        "notes": "This implementation polls Receipt Verification Service rather than consuming the notification channel, so it sees receipt state and not the transitions that produced it."
+        "implementation": true,
+        "notes": "Verified RVS subscription receipts persist a canonical subscription snapshot."
       },
       "renewalEvents": {
         "provider": true,
-        "implementation": false,
-        "notes": "This implementation polls Receipt Verification Service, where a renewal is visible only as renewalDate advancing between two reads."
+        "implementation": true,
+        "notes": "A signed SUBSCRIPTION_RENEWED notification emits a renewal event after fresh RVS verification."
       },
       "refundEvents": {
         "provider": true,
-        "implementation": false,
-        "notes": "This implementation polls Receipt Verification Service, so it sees a cancellation only at its next poll."
+        "implementation": true,
+        "notes": "Fresh RVS invalidation or cancelDate removes access and emits revocation when access changes."
       },
       "expiration": {
         "provider": true,
-        "implementation": false,
-        "notes": "This implementation sees the change only at its next poll."
+        "implementation": true,
+        "notes": "A signed SUBSCRIPTION_EXPIRED notification labels expiration only after fresh RVS confirms access is invalid."
       },
       "reconciliation": {
         "provider": true,

@@ -327,9 +327,7 @@ describe("kit's capabilities agree with the published descriptor", () => {
     );
   });
 
-  // kit knows only the implementation axis. Deriving the provider axis from
-  // kit's boolean is the conflation the two-axis model prevents: it would claim
-  // Amazon publishes no notification channel because kit consumes none.
+  // Implementation support does not define what the store itself offers.
   it.each(Object.keys(PROVIDER_CAPABILITIES))(
     "%s implementation axis matches kit",
     (store) => {
@@ -521,22 +519,21 @@ describe("kit can produce everything the store mapping promises", () => {
     }
   });
 
-  it("records an unconsumed channel as a kit gap, not a store limitation", () => {
-    // Amazon is the live case: the store publishes a channel, kit integrates
-    // no receiver.
+  it("consumes the Amazon channel declared by the store mapping", () => {
     expect(mapping.stores.amazon.notificationChannel).not.toBeNull();
-    expect(PROVIDER_CAPABILITIES.amazon.supportsServerNotifications).toBe(
-      false,
-    );
+    expect(PROVIDER_CAPABILITIES.amazon.supportsServerNotifications).toBe(true);
   });
 
-  it("produces no lifecycle events for a store the mapping leaves empty", () => {
+  it("supports the lifecycle categories explicitly declared by the mapping", () => {
     for (const [store, entry] of Object.entries(mapping.stores)) {
-      if (entry.mappings.length > 0) continue;
       const caps =
         PROVIDER_CAPABILITIES[store as keyof typeof PROVIDER_CAPABILITIES];
-      expect(caps.supportsSubscriptions, `${store}`).toBe(false);
-      expect(caps.supportsRenewalEvents, `${store}`).toBe(false);
+      if (
+        entry.mappings.some(({ event }) => event?.startsWith("subscription."))
+      )
+        expect(caps.supportsSubscriptions, `${store}`).toBe(true);
+      if (entry.mappings.some(({ event }) => event === "subscription.renewed"))
+        expect(caps.supportsRenewalEvents, `${store}`).toBe(true);
     }
   });
 });

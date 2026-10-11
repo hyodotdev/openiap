@@ -82,6 +82,12 @@ Before posting or editing issues, pull requests, reviews, discussions, commits,
 release notes, or GitHub Releases, follow the mandatory language guard in
 [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-language).
 
+### GitHub Labels
+
+Creating or updating an issue, Discussion or PR also applies the shared
+[GitHub Labels policy](knowledge/internal/06-git-deployment.md#github-labels).
+Use `$github-labels` for its workflow; label selection is part of completion.
+
 ### KISS and SSOT
 
 KISS and SSOT are mandatory release criteria. The canonical rules live in
@@ -406,6 +412,7 @@ Cursor-specific files.
 
 | Skill                       | Description                                                     | Usage                                 |
 | --------------------------- | --------------------------------------------------------------- | ------------------------------------- |
+| `$github-labels`            | Apply relevant labels to issues, Discussions and PRs            | `$github-labels`                      |
 | `$review-self`              | Review and improve current work until stable                    | `$review-self` or `$review-self <PR>` |
 | `$loop-review`              | Start from current main, review, PR, and merge                  | `$loop-review`                        |
 | `$ship-release`             | Merge, publish, document, and deploy a release                  | `$ship-release`                       |

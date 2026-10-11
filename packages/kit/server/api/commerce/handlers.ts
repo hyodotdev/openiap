@@ -24,6 +24,7 @@ export interface ProtocolContext {
 type SubscriptionRowV2 = {
   productId: string;
   platform: "IOS" | "Android";
+  store?: string;
   state: string;
   expiresAt?: number;
   renewsAt?: number;
@@ -112,9 +113,6 @@ function requireEvidence<T>(
   return member;
 }
 
-// The subscription rows come from the apple and google webhook lanes only, so
-// the platform axis maps onto the store axis without loss today. A future
-// store lane must extend this mapping before it can serve the snapshot.
 function storeOf(platform: SubscriptionRowV2["platform"]): string {
   return platform === "IOS" ? "apple" : "google";
 }
@@ -132,7 +130,7 @@ function toSnapshot(
     productId: row.productId,
     state: row.state,
     active,
-    store: storeOf(row.platform),
+    store: row.store ?? storeOf(row.platform),
     ...(row.expiresAt === undefined ? {} : { expiresAt: row.expiresAt }),
     ...(row.renewsAt === undefined ? {} : { renewsAt: row.renewsAt }),
     ...(row.willRenew === undefined ? {} : { willRenew: row.willRenew }),

@@ -3,12 +3,12 @@ import { ConvexError } from "convex/values";
 export abstract class ReceiptVerificationError extends ConvexError<string> {
   public readonly errorCode: string;
   public readonly errorMessage: string;
-  public readonly errorDetails?: Record<string, any>;
+  public readonly errorDetails?: Record<string, unknown>;
 
   constructor(
     errorCode: string,
     message: string,
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
   ) {
     const errorData = JSON.stringify({
       error: errorCode,
@@ -95,7 +95,7 @@ export class AmazonReceiptInvalidError extends ReceiptVerificationError {
 }
 
 export class AmazonReceiptVerificationError extends ReceiptVerificationError {
-  constructor(detail: string, details?: Record<string, any>) {
+  constructor(detail: string, details?: Record<string, unknown>) {
     super(
       "AMAZON_RECEIPT_VERIFICATION_ERROR",
       `Amazon RVS verification failed: ${detail}`,
@@ -232,9 +232,8 @@ export class PlayStorePurchaseVerificationFailedError extends ReceiptVerificatio
 export function isPlayStoreTokenNoLongerValidError(
   error: PlayStorePurchaseVerificationFailedError,
 ): boolean {
-  const original = String(
-    error.errorDetails?.originalError ?? "",
-  ).toLowerCase();
+  const detail = error.errorDetails?.originalError;
+  const original = typeof detail === "string" ? detail.toLowerCase() : "";
   const fallback = error.errorMessage.toLowerCase();
   return (
     original.includes("purchase token is no longer valid") ||
@@ -245,9 +244,8 @@ export function isPlayStoreTokenNoLongerValidError(
 export function isPlayStorePackageNameMismatchError(
   error: PlayStorePurchaseVerificationFailedError,
 ): boolean {
-  const original = String(
-    error.errorDetails?.originalError ?? "",
-  ).toLowerCase();
+  const detail = error.errorDetails?.originalError;
+  const original = typeof detail === "string" ? detail.toLowerCase() : "";
   const fallback = error.errorMessage.toLowerCase();
   return (
     original.includes("purchase token does not match the package name") ||

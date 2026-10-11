@@ -7,6 +7,24 @@ import { v, ConvexError, Infer } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import schema from "../schema";
+import { assertProjectWritable } from "../projects/writable";
+import {
+  syncAmazonSubscription,
+  amazonSubscriptionToken,
+} from "../subscriptions/amazon";
+import {
+  bindSubscriptionToUserHandler,
+  findSubscriptionByToken,
+} from "../subscriptions/internal";
+import {
+  findWebhookEventByDedupKey,
+  recordWebhookEventHandler,
+} from "../webhooks/internal";
+import {
+  amazonLifecycleNoticeValidator,
+  type AmazonLifecycleNotice,
+} from "../webhooks/amazonShared";
+import { receiptResponseValidator } from "./shared";
 import {
   isValidSubscriptionUserId,
   MAX_BOUND_PURCHASES_PER_USER,
@@ -59,6 +77,8 @@ export type SavePurchaseArgs = {
   requestIp?: string;
   verificationDurationMs?: number;
   persistIfChanged?: boolean;
+  amazonRvsSequence?: number;
+  amazonNotice?: AmazonLifecycleNotice;
 };
 
 export async function savePurchaseInternal({
@@ -75,6 +95,8 @@ export async function savePurchaseInternal({
   requestIp,
   verificationDurationMs,
   persistIfChanged,
+  amazonRvsSequence,
+  amazonNotice,
 }: SavePurchaseArgs) {
   // Verification can outlive the request that resolved its API key. Recheck
   // deletion here so a late write cannot recreate purchases the project or
@@ -118,11 +140,16 @@ export async function savePurchaseInternal({
       .first();
 
     if (existing) {
-      // A recheck that confirms the stored verdict is a read, not a write: the
-      // raw store body may move (renewal dates), and the reconciler keeps its
-      // own cadence, so only the verdict decides.
+      if (
+        store === "amazon" &&
+        amazonRvsSequence !== undefined &&
+        (existing.lastAmazonRvsSequence ?? 0) >= amazonRvsSequence
+      )
+        return existing._id;
+      // Amazon rechecks also refresh lifecycle metadata, such as auto-renew.
       if (
         persistIfChanged &&
+        store !== "amazon" &&
         existing.state === state &&
         (existing.isValid ?? false) === isValid &&
         (existing.productId ?? null) === productId
@@ -165,8 +192,12 @@ export async function savePurchaseInternal({
           state,
           isValid,
           updatedAt: now,
-          environment,
+          environment:
+            store === "amazon" && !isValid
+              ? (existing.environment ?? environment)
+              : environment,
           nextAmazonReconcileAt,
+          amazonRvsSequence,
           productId,
           orderId,
           verificationDurationMs,
@@ -175,6 +206,12 @@ export async function savePurchaseInternal({
         conflictDelta,
       );
       await maybeEmitFirstReceiptEvent(ctx, projectId, store, result);
+      if (store === "amazon")
+        await syncAmazonSubscription(
+          ctx,
+          (await ctx.db.get(existing._id))!,
+          amazonNotice,
+        );
       return existing._id;
     }
   }
@@ -235,6 +272,9 @@ export async function savePurchaseInternal({
     isValid,
     ...(environment !== undefined ? { environment } : {}),
     ...(nextAmazonReconcileAt !== undefined ? { nextAmazonReconcileAt } : {}),
+    ...(amazonRvsSequence !== undefined
+      ? { lastAmazonRvsSequence: amazonRvsSequence }
+      : {}),
     // Mark as already counted so the `backfillPurchaseStatsFromPurchases`
     // migration skips rows inserted after the counter table went live.
     statsCounted: true,
@@ -254,6 +294,12 @@ export async function savePurchaseInternal({
   );
   await maybeEmitFirstReceiptEvent(ctx, projectId, store, result);
 
+  if (store === "amazon")
+    await syncAmazonSubscription(
+      ctx,
+      (await ctx.db.get(inserted))!,
+      amazonNotice,
+    );
   return inserted;
 }
 
@@ -268,6 +314,7 @@ type PurchasePatchArgs = {
   updatedAt: number;
   environment?: ReceiptEnvironment;
   nextAmazonReconcileAt?: number;
+  amazonRvsSequence?: number;
   productId: string | null;
   orderId: string | null;
   verificationDurationMs?: number;
@@ -356,6 +403,9 @@ async function patchExistingPurchase(
     ...(args.nextAmazonReconcileAt !== undefined
       ? { nextAmazonReconcileAt: args.nextAmazonReconcileAt }
       : {}),
+    ...(args.amazonRvsSequence !== undefined
+      ? { lastAmazonRvsSequence: args.amazonRvsSequence }
+      : {}),
     ...(args.productId !== null ? { productId: args.productId } : {}),
     ...(args.orderId !== null ? { orderId: args.orderId } : {}),
     ...(args.verificationDurationMs !== undefined
@@ -415,6 +465,185 @@ function assertStoreMatchesRequest(
     );
   }
 }
+
+export async function reserveAmazonRvsSequenceHandler(
+  ctx: MutationCtx,
+  args: { projectId: Id<"projects"> },
+): Promise<number> {
+  const project = await assertProjectWritable(ctx, args.projectId);
+  const sequence = (project.amazonRvsSequence ?? 0) + 1;
+  if (!Number.isSafeInteger(sequence))
+    throw new Error("Amazon verification sequence exhausted");
+  await ctx.db.patch(project._id, { amazonRvsSequence: sequence });
+  return sequence;
+}
+
+export const reserveAmazonRvsSequence = internalMutation({
+  args: { projectId: v.id("projects") },
+  returns: v.number(),
+  handler: reserveAmazonRvsSequenceHandler,
+});
+
+const amazonVerdictArgs = v.object({
+  projectId: v.id("projects"),
+  applicationId: v.string(),
+  remoteId: v.string(),
+  requestData: purchaseRequestDataValidator,
+  remoteResponse: v.string(),
+  state: harmonizedPurchaseStateValidator,
+  environment: receiptEnvironmentValidator,
+  amazonRvsSequence: v.number(),
+  amazonNotice: v.optional(amazonLifecycleNoticeValidator),
+  requestIp: v.optional(v.string()),
+  verificationDurationMs: v.optional(v.number()),
+});
+
+export async function saveAmazonVerdictHandler(
+  ctx: MutationCtx,
+  args: Infer<typeof amazonVerdictArgs>,
+) {
+  assertStoreMatchesRequest("amazon", args.requestData);
+  const id = await savePurchaseInternal({
+    ctx,
+    ...args,
+    store: "amazon",
+    isValid: isValidState(args.state),
+  });
+  const row = await ctx.db.get(id);
+  if (!row) throw new Error("Amazon purchase was not persisted");
+  return {
+    isValid: row.isValid === true,
+    state: row.state,
+    environment: row.environment ?? "Production",
+    ...(row.productId ? { productId: row.productId } : {}),
+  };
+}
+
+export const saveAmazonVerdict = internalMutation({
+  args: amazonVerdictArgs.fields,
+  returns: receiptResponseValidator,
+  handler: saveAmazonVerdictHandler,
+});
+
+const amazonRtnVerdictArgs = amazonVerdictArgs.omit("amazonNotice").extend({
+  amazonNotice: amazonLifecycleNoticeValidator,
+  relatedReceipt: v.optional(amazonVerdictArgs.omit("amazonNotice")),
+});
+
+export async function applyAmazonRtnVerdictHandler(
+  ctx: MutationCtx,
+  args: Infer<typeof amazonRtnVerdictArgs>,
+): Promise<{ type: string; deduped: boolean }> {
+  await assertProjectWritable(ctx, args.projectId);
+  const duplicate = await findWebhookEventByDedupKey(ctx.db, {
+    projectId: args.projectId,
+    source: "AmazonRealTimeNotifications",
+    sourceNotificationId: args.amazonNotice.messageId,
+  });
+  if (duplicate) return { type: duplicate.type, deduped: true };
+  const { relatedReceipt, ...verdict } = args;
+  let previousOwner: string | undefined;
+  let previousPurchaseId: Id<"purchases"> | undefined;
+  if (relatedReceipt) {
+    if (
+      relatedReceipt.projectId !== args.projectId ||
+      relatedReceipt.applicationId !== args.applicationId ||
+      relatedReceipt.requestData.store !== "amazon" ||
+      args.requestData.store !== "amazon" ||
+      relatedReceipt.requestData.userId !== args.requestData.userId ||
+      relatedReceipt.remoteId === args.remoteId
+    )
+      throw new Error("Amazon related receipt identity mismatch");
+    await saveAmazonVerdictHandler(ctx, relatedReceipt);
+    const previous = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_remote", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("remoteId", relatedReceipt.remoteId),
+      )
+      .filter((q) => q.eq(q.field("store"), "amazon"))
+      .first();
+    if (
+      previous &&
+      !previous.isValid &&
+      !previous.accountErased &&
+      previous.lastAmazonRvsSequence !== undefined &&
+      previous.lastAmazonRvsSequence >= relatedReceipt.amazonRvsSequence
+    ) {
+      previousOwner = previous.appUserId;
+      previousPurchaseId = previous._id;
+    }
+  }
+  await saveAmazonVerdictHandler(ctx, verdict);
+  const purchase = await ctx.db
+    .query("purchases")
+    .withIndex("by_project_and_remote", (q) =>
+      q.eq("projectId", args.projectId).eq("remoteId", args.remoteId),
+    )
+    .filter((q) => q.eq(q.field("store"), "amazon"))
+    .first();
+  if (!purchase) throw new Error("Amazon RTN purchase was not persisted");
+  if (
+    previousOwner &&
+    purchase.isValid &&
+    !purchase.accountErased &&
+    !purchase.appUserId &&
+    purchase.lastAmazonRvsSequence === args.amazonRvsSequence
+  ) {
+    const bound = await bindSubscriptionToUserHandler(ctx, {
+      projectId: args.projectId,
+      purchaseToken: amazonSubscriptionToken(args.remoteId),
+      userId: previousOwner,
+    });
+    if (bound && previousPurchaseId) {
+      await ctx.db.patch(previousPurchaseId, { appUserId: undefined });
+      await ctx.db.patch(purchase._id, { appUserId: previousOwner });
+    }
+  }
+  let event = await findWebhookEventByDedupKey(ctx.db, {
+    projectId: args.projectId,
+    source: "AmazonRealTimeNotifications",
+    sourceNotificationId: args.amazonNotice.messageId,
+  });
+  // Non-subscription and superseded verdicts still need a durable retry receipt.
+  if (!event) {
+    const token = amazonSubscriptionToken(args.remoteId);
+    const subscription = await findSubscriptionByToken(
+      ctx,
+      args.projectId,
+      token,
+    );
+    const recorded = await recordWebhookEventHandler(ctx, {
+      projectId: args.projectId,
+      source: "amazon",
+      sourceNotificationId: args.amazonNotice.messageId,
+      event: {
+        type: "ReceiptRechecked",
+        sourceFull: "AmazonRealTimeNotifications",
+        platform: "Android",
+        store: "amazon",
+        environment: purchase.environment ?? "Production",
+        productId: purchase.productId,
+        applicationId: args.applicationId,
+        productKind: subscription ? "subscription" : "one_time",
+        ...(subscription ? { purchaseToken: token } : {}),
+        occurredAt: args.amazonNotice.occurredAt,
+        rawSignedPayload: args.amazonNotice.rawSignedPayload,
+      },
+    });
+    event = await ctx.db.get(recorded.eventId);
+    if (event) await ctx.db.patch(event._id, { appliedAt: Date.now() });
+  }
+  if (!event) throw new Error("Amazon RTN event was not persisted");
+  return { type: event.type, deduped: false };
+}
+
+export const applyAmazonRtnVerdict = internalMutation({
+  args: amazonRtnVerdictArgs.fields,
+  returns: v.object({ type: v.string(), deduped: v.boolean() }),
+  handler: applyAmazonRtnVerdictHandler,
+});
 
 // Internal mutation to save purchases from API actions
 export const saveReceiptInternal = internalMutation({
@@ -508,6 +737,7 @@ export const claimAmazonPurchasesForReconciliation = internalMutation({
       await ctx.db.patch(purchase._id, { nextAmazonReconcileAt: leaseUntil });
       claimed.push({
         purchaseId: purchase._id,
+        projectId: purchase.projectId,
         requestData,
         leaseUntil,
         amazonSandboxEnabled: project.amazonSandboxEnabled === true,
@@ -562,6 +792,8 @@ export const applyAmazonReconciliationVerdict = internalMutation({
     purchaseId: v.id("purchases"),
     claimedLeaseUntil: v.number(),
     remoteResponse: v.string(),
+    amazonRvsSequence: v.optional(v.number()),
+    environment: v.optional(receiptEnvironmentValidator),
     state: harmonizedPurchaseStateValidator,
     verificationDurationMs: v.optional(v.number()),
   },
@@ -574,7 +806,9 @@ export const applyAmazonReconciliationVerdict = internalMutation({
       purchase.isValid !== true ||
       purchase.nextAmazonReconcileAt !== args.claimedLeaseUntil ||
       purchase.requestData.store !== "amazon" ||
-      !purchase.remoteId
+      !purchase.remoteId ||
+      (args.amazonRvsSequence !== undefined &&
+        (purchase.lastAmazonRvsSequence ?? 0) >= args.amazonRvsSequence)
     ) {
       return false;
     }
@@ -590,7 +824,10 @@ export const applyAmazonReconciliationVerdict = internalMutation({
       state: args.state,
       isValid: isValidState(args.state),
       environment:
-        purchase.requestData.sandbox === true ? "Sandbox" : "Production",
+        args.environment ??
+        purchase.environment ??
+        (purchase.requestData.sandbox === true ? "Sandbox" : "Production"),
+      amazonRvsSequence: args.amazonRvsSequence,
       verificationDurationMs: args.verificationDurationMs,
     });
     return true;

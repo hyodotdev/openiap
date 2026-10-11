@@ -186,10 +186,15 @@ interface ProjectData {
   // secret after setup.
   hasAmazonSharedSecret?: boolean;
   amazonSandboxEnabled?: boolean;
+  amazonRtnTopicArn?: string | null;
 }
 
 interface OutletContext {
   project: ProjectData;
+}
+
+function errorMessage(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
 }
 
 export default function ProjectSettings() {
@@ -259,6 +264,9 @@ export default function ProjectSettings() {
   const [amazonSandboxEnabled, setAmazonSandboxEnabled] = useState(
     project?.amazonSandboxEnabled === true,
   );
+  const [amazonRtnTopicArn, setAmazonRtnTopicArn] = useState(
+    project?.amazonRtnTopicArn ?? "",
+  );
   const [savingMetadata, setSavingMetadata] = useState(false);
   const [savingReportingCurrency, setSavingReportingCurrency] = useState(false);
   const [savingHorizon, setSavingHorizon] = useState(false);
@@ -298,9 +306,9 @@ export default function ProjectSettings() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       toast.success(`${label} download started`);
-    } catch (error: any) {
+    } catch (error) {
       console.error(`${label} download error:`, error);
-      toast.error(error?.message || `Failed to download ${label}`);
+      toast.error(errorMessage(error) || `Failed to download ${label}`);
     }
   };
   const updateProject = useMutation(api.projects.mutation.updateProject);
@@ -323,6 +331,7 @@ export default function ProjectSettings() {
     project?.hasAmazonSharedSecret,
   );
   const originalAmazonSandboxEnabled = project?.amazonSandboxEnabled === true;
+  const originalAmazonRtnTopicArn = project?.amazonRtnTopicArn ?? "";
 
   useEffect(() => {
     if (!project) {
@@ -345,6 +354,7 @@ export default function ProjectSettings() {
     setAmazonSharedSecret("");
     setIsReplacingAmazonSharedSecret(false);
     setAmazonSandboxEnabled(originalAmazonSandboxEnabled);
+    setAmazonRtnTopicArn(originalAmazonRtnTopicArn);
   }, [
     project,
     originalAndroidPackageName,
@@ -359,6 +369,7 @@ export default function ProjectSettings() {
     hasHorizonAppSecretConfigured,
     hasAmazonSharedSecretConfigured,
     originalAmazonSandboxEnabled,
+    originalAmazonRtnTopicArn,
   ]);
 
   const trimmedAndroidPackageName = androidPackageName.trim();
@@ -564,7 +575,9 @@ export default function ProjectSettings() {
   const amazonSharedSecretValid =
     trimmedAmazonSharedSecret.length === 0 ||
     trimmedAmazonSharedSecret.length <= 2_048;
+  const trimmedAmazonRtnTopicArn = amazonRtnTopicArn.trim();
   const amazonHasChanges =
+    trimmedAmazonRtnTopicArn !== (project?.amazonRtnTopicArn ?? "") ||
     amazonSandboxEnabled !== originalAmazonSandboxEnabled ||
     (amazonSharedSecretNeeded && trimmedAmazonSharedSecret.length > 0);
   const disableSaveAmazon =
@@ -613,9 +626,9 @@ export default function ProjectSettings() {
       await updateProject(payload);
 
       toast.success("Identifiers updated successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Project metadata update error:", error);
-      toast.error(error.message || "Failed to update identifiers");
+      toast.error(errorMessage(error) || "Failed to update identifiers");
     } finally {
       setSavingMetadata(false);
     }
@@ -660,9 +673,11 @@ export default function ProjectSettings() {
       await updateProject(payload);
 
       toast.success("Horizon configuration saved.");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Horizon config update error:", error);
-      toast.error(error.message || "Failed to save Horizon configuration.");
+      toast.error(
+        errorMessage(error) || "Failed to save Horizon configuration.",
+      );
     } finally {
       setSavingHorizon(false);
     }
@@ -679,9 +694,11 @@ export default function ProjectSettings() {
         projectId: Id<"projects">;
         amazonSandboxEnabled: boolean;
         amazonSharedSecret?: string;
+        amazonRtnTopicArn: string | null;
       } = {
         projectId: project._id,
         amazonSandboxEnabled,
+        amazonRtnTopicArn: trimmedAmazonRtnTopicArn || null,
       };
       if (trimmedAmazonSharedSecret.length > 0) {
         payload.amazonSharedSecret = trimmedAmazonSharedSecret;
@@ -691,9 +708,11 @@ export default function ProjectSettings() {
       setAmazonSharedSecret("");
       setIsReplacingAmazonSharedSecret(false);
       toast.success("Amazon RVS configuration saved.");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Amazon RVS config update error:", error);
-      toast.error(error.message || "Failed to save Amazon RVS configuration.");
+      toast.error(
+        errorMessage(error) || "Failed to save Amazon RVS configuration.",
+      );
     } finally {
       setSavingAmazon(false);
     }
@@ -712,12 +731,13 @@ export default function ProjectSettings() {
       });
 
       setAmazonSharedSecret("");
+      setAmazonRtnTopicArn("");
       setIsReplacingAmazonSharedSecret(false);
       toast.success("Amazon RVS configuration removed.");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Amazon RVS config clear error:", error);
       toast.error(
-        error.message || "Failed to remove Amazon RVS configuration.",
+        errorMessage(error) || "Failed to remove Amazon RVS configuration.",
       );
     } finally {
       setSavingAmazon(false);
@@ -739,9 +759,9 @@ export default function ProjectSettings() {
         reportingCurrency: trimmedReportingCurrency,
       });
       toast.success("Reporting currency saved.");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Reporting currency update error:", error);
-      toast.error(error.message || "Failed to save reporting currency.");
+      toast.error(errorMessage(error) || "Failed to save reporting currency.");
     } finally {
       setSavingReportingCurrency(false);
     }
@@ -797,9 +817,11 @@ export default function ProjectSettings() {
 
       setIosFileUploaded(true);
       toast.success("iOS authentication file uploaded successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("iOS file upload error:", error);
-      toast.error(error.message || "Failed to upload iOS authentication file");
+      toast.error(
+        errorMessage(error) || "Failed to upload iOS authentication file",
+      );
     } finally {
       setUploadingIos(false);
     }
@@ -842,9 +864,11 @@ export default function ProjectSettings() {
       ensureFileSaveSucceeded(savedFile);
       setIosAscFileUploaded(true);
       toast.success("App Store Connect API key uploaded successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("iOS ASC file upload error:", error);
-      toast.error(error.message || "Failed to upload App Store Connect key");
+      toast.error(
+        errorMessage(error) || "Failed to upload App Store Connect key",
+      );
     } finally {
       setUploadingIosAsc(false);
     }
@@ -856,9 +880,11 @@ export default function ProjectSettings() {
       await removeFile({ fileId: iosAscFile._id });
       setIosAscFileUploaded(false);
       toast.success("App Store Connect API key deleted successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("iOS ASC file delete error:", error);
-      toast.error(error.message || "Failed to delete App Store Connect key");
+      toast.error(
+        errorMessage(error) || "Failed to delete App Store Connect key",
+      );
     }
   };
 
@@ -913,9 +939,11 @@ export default function ProjectSettings() {
       ensureFileSaveSucceeded(savedFile);
 
       toast.success("App Review screenshot uploaded successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("iOS App Review screenshot upload error:", error);
-      toast.error(error.message || "Failed to upload App Review screenshot");
+      toast.error(
+        errorMessage(error) || "Failed to upload App Review screenshot",
+      );
     } finally {
       setUploadingIosReviewScreenshot(false);
       event.target.value = "";
@@ -927,9 +955,11 @@ export default function ProjectSettings() {
     try {
       await removeFile({ fileId: iosReviewScreenshot._id });
       toast.success("Stored App Review screenshot removed from IAPKit");
-    } catch (error: any) {
+    } catch (error) {
       console.error("iOS App Review screenshot delete error:", error);
-      toast.error(error.message || "Failed to delete App Review screenshot");
+      toast.error(
+        errorMessage(error) || "Failed to delete App Review screenshot",
+      );
     }
   };
 
@@ -995,9 +1025,11 @@ export default function ProjectSettings() {
 
       setAndroidFileUploaded(true);
       toast.success("Android service account uploaded successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Android file upload error:", error);
-      toast.error(error.message || "Failed to upload Android service account");
+      toast.error(
+        errorMessage(error) || "Failed to upload Android service account",
+      );
     } finally {
       setUploadingAndroid(false);
       input.value = "";
@@ -1011,9 +1043,11 @@ export default function ProjectSettings() {
       await removeFile({ fileId: iosFile._id });
       setIosFileUploaded(false);
       toast.success("iOS authentication file deleted successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("iOS file delete error:", error);
-      toast.error(error.message || "Failed to delete iOS authentication file");
+      toast.error(
+        errorMessage(error) || "Failed to delete iOS authentication file",
+      );
     }
   };
 
@@ -1024,9 +1058,11 @@ export default function ProjectSettings() {
       await removeFile({ fileId: androidFile._id });
       setAndroidFileUploaded(false);
       toast.success("Android service account deleted successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Android file delete error:", error);
-      toast.error(error.message || "Failed to delete Android service account");
+      toast.error(
+        errorMessage(error) || "Failed to delete Android service account",
+      );
     }
   };
 
@@ -2258,10 +2294,6 @@ export default function ProjectSettings() {
                     )}
                   </div>
 
-                  {/* Amazon Appstore subsection — Fire OS builds use
-                    Amazon's Appstore SDK and IAPKit verifies receipts
-                    server-side through RVS with a project-level shared
-                    secret. */}
                   <div className="pt-4 border-t">
                     <label className="flex items-start gap-3 cursor-pointer select-none mb-4">
                       <input
@@ -2278,7 +2310,7 @@ export default function ProjectSettings() {
                         </span>
                         <span className="text-sm text-muted-foreground block mt-1 break-words">
                           {
-                            "Cloud Sandbox accepts any non-empty shared secret and is not production evidence. Keep this disabled unless this project is actively testing App Tester receipts."
+                            "Enable only for App Tester receipts. Cloud Sandbox does not prove production validity."
                           }
                         </span>
                       </span>
@@ -2297,7 +2329,7 @@ export default function ProjectSettings() {
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
                             <span className="text-sm text-green-700 dark:text-green-400">
-                              {"Shared Secret configured"}
+                              {"Configured"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2344,7 +2376,7 @@ export default function ProjectSettings() {
                       )}
                       <p className="text-sm text-muted-foreground mt-1 break-words">
                         {
-                          "Required for production Amazon Appstore receipt verification. Sandbox uses an IAPKit placeholder only after the explicit project opt-in above."
+                          "Required for production and LAT. App Tester does not use this secret."
                         }
                       </p>
                       {!amazonSharedSecretValid &&
@@ -2357,16 +2389,39 @@ export default function ProjectSettings() {
                         )}
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <a
-                        href="https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    <div className="mt-4">
+                      <label
+                        htmlFor="amazon-rtn-topic"
+                        className="mb-2 block text-sm font-medium"
                       >
-                        {"Amazon RVS docs"}
-                        <FileText className="w-3 h-3" />
+                        Amazon RTN topic ARN (beta, optional)
+                      </label>
+                      <input
+                        id="amazon-rtn-topic"
+                        value={amazonRtnTopicArn}
+                        onChange={(event) =>
+                          setAmazonRtnTopicArn(event.target.value)
+                        }
+                        placeholder="arn:aws:sns:us-east-1:123456789012:AmazonIAP"
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm"
+                      />
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Use the topic from Amazon Developer Console and
+                        subscribe the store lifecycle URL from Webhooks. Leave
+                        blank to disable notifications only; RVS verification
+                        and rechecks still update subscription state.
+                      </p>
+                      <a
+                        href="/docs/verification/amazon"
+                        className="mt-2 inline-block text-sm text-primary underline"
+                      >
+                        Amazon beta setup and testing limits
                       </a>
+                    </div>
+
+                    <div className="mt-3 flex justify-end">
                       <button
                         type="button"
                         onClick={() => void handleAmazonSubmit()}

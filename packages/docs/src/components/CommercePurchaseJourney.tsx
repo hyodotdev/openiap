@@ -240,7 +240,9 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
         result:
           'Confirmed ownership → Premium. Rejected ownership → no access.',
         reason:
-          'A provider may emit no Amazon or Horizon subscription lifecycle events (IAPKit currently does not). Use entitlements.productIds for access; an empty subscriptions list does not mean that no product is owned. Do not infer renewal, refund, or expiry dates from a verification verdict.',
+          store === 'amazon'
+            ? 'IAPKit provides RVS-backed Amazon subscription state and lifecycle events in beta. Use entitlements.productIds for access. Live SNS and LAT transitions remain unverified; validate them before production use.'
+            : 'IAPKit checks Horizon ownership without subscription lifecycle events. Use entitlements.productIds for access; an empty subscriptions list does not mean that no product is owned. Do not infer renewal, refund, or expiry dates from a verification verdict.',
         term: 'Current ownership',
         definition:
           'A store answer at the time of the check. Your backend owns caching and retry policy. Consumable credits need a separate durable fulfillment ledger; an owned SKU is not a quantity to credit repeatedly.',

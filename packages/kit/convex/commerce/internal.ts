@@ -52,6 +52,7 @@ export type EmitCommerceEventArgs = {
   sourceEvent: Pick<
     Doc<"webhookEvents">,
     | "_id"
+    | "store"
     | "platform"
     | "environment"
     | "productId"
@@ -116,7 +117,7 @@ export async function emitCommerceEvent(
       projectId: args.projectId,
       eventType,
       eventVersion: COMMERCE_EVENT_SCHEMA_VERSION,
-      store: storeForPlatform(source.platform),
+      store: source.store ?? storeForPlatform(source.platform),
       environment: normalizeEnvironment(source.environment),
       ...(args.subscription?.userId
         ? { userId: args.subscription.userId }

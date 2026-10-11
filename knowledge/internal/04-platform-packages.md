@@ -593,6 +593,29 @@ uploaded to a store listing. Never point an example at that EAS project. With a
 remote app version source, one `eas build` there consumes the product's next
 version code and loads its production environment — both have happened.
 
+### Shared Example Acceptance
+
+Use each framework's checked-in example app, including its normal entry point,
+navigation, and purchase screens. Add a feature to that example before testing
+it on a device so users can run the same check. Native package rows use their
+checked-in sample apps.
+
+The two native package examples and six framework examples must expose the same
+catalog, purchase, subscription, restore, verification, and ownership flows with
+the same meaning and visible results. Add new diagnostic features to those
+existing screens and keep the eight-example acceptance matrix current. A
+platform-only feature must show its supported-platform limit explicitly; it
+must not silently disappear or turn into a separate test app. A Kit-only change
+may reuse existing example flows, but does not count as completing missing
+example parity.
+
+Do not install a standalone API probe or replace an example's entry point with
+a task-only probe. A normal bundle id on a probe does not make it an example.
+Keep automation drivers separate from the app; they must navigate the same
+screens a user sees. Record the source revision, build entry point, and installed
+app identity with device evidence. Leave the normal example installed after
+the run, preserving any store-installed test build that must be restored.
+
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
 > **When:** any change to `packages/google` or `packages/apple` that modifies

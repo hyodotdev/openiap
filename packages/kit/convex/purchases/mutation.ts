@@ -1,12 +1,17 @@
 import { internalMutation, mutation } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
-import {
-  isValidSubscriptionUserId,
-  MAX_BOUND_PURCHASES_PER_USER,
-} from "../subscriptions/limits";
+import { isValidSubscriptionUserId } from "../subscriptions/limits";
 import { isUserErasureRequested } from "../subscriptions/erasure";
 
+import {
+  amazonSubscriptionToken,
+  syncAmazonSubscription,
+} from "../subscriptions/amazon";
+import {
+  bindSubscriptionToUserHandler,
+  findSubscriptionByToken,
+} from "../subscriptions/internal";
 import { createError, ErrorCode } from "../utils/errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
@@ -16,6 +21,8 @@ import {
   mergePurchaseStatsDeltas,
 } from "./stats";
 import { getProjectById } from "../projects/helpers";
+import { reserveAmazonRvsSequenceHandler } from "./internal";
+import { makePurchaseBindingRoom } from "./binding";
 
 export const bindVerifiedPurchaseAsServer = mutation({
   args: {
@@ -49,38 +56,16 @@ export const bindVerifiedPurchaseAsServer = mutation({
       return { bound: false };
     // The cap is decided from the caller's own rows before any evidence lookup,
     // so neither the answer nor the log depends on someone else's purchase.
-    const bound = await ctx.db
-      .query("purchases")
-      .withIndex("by_project_and_app_user", (q) =>
-        q.eq("projectId", resolved.project._id).eq("appUserId", args.userId),
-      )
-      .take(MAX_BOUND_PURCHASES_PER_USER);
-    if (bound.length >= MAX_BOUND_PURCHASES_PER_USER) {
-      if (
-        bound.some(
-          (row) => row.store === args.store && row.remoteId === args.remoteId,
-        )
-      )
-        return { bound: true };
-      // Refunded and revoked receipts would otherwise hold the cap for good:
-      // nothing clears `appUserId` and there is no unbind operation. Reclaim
-      // the caller's own dead rows before refusing, so the answer still comes
-      // from their rows alone. A row keeps its binding until the cap is
-      // actually contended, which leaves the entitlements read unchanged.
-      const reclaimed = bound.filter((row) => !(row.isValid ?? false));
-      for (const row of reclaimed)
-        await ctx.db.patch(row._id, { appUserId: undefined });
-      if (reclaimed.length === 0) {
-        // For an integrated store, SPEC §4.4 keeps every non-binding outcome
-        // at bound:false, so the cap is visible to operators only through
-        // this log line.
-        console.warn("[commerce] bindPurchase refused: bound purchase limit", {
-          projectId: resolved.project._id,
-          store: args.store,
-        });
-        return { bound: false };
-      }
-    }
+    if (
+      !(await makePurchaseBindingRoom(
+        ctx,
+        resolved.project._id,
+        args.userId,
+        args.store,
+        args.remoteId,
+      ))
+    )
+      return { bound: false };
     const purchase = await ctx.db
       .query("purchases")
       .withIndex("by_project_and_remote", (q) =>
@@ -89,8 +74,8 @@ export const bindVerifiedPurchaseAsServer = mutation({
       .filter((q) => q.eq(q.field("store"), args.store))
       .unique();
     if (!purchase) return { bound: false };
-    if (purchase.appUserId)
-      return { bound: purchase.appUserId === args.userId };
+    if (purchase.appUserId && purchase.appUserId !== args.userId)
+      return { bound: false };
     // Only a currently entitled purchase binds; an Amazon consumable is
     // fulfilled once by the app's own ledger.
     if (
@@ -98,7 +83,23 @@ export const bindVerifiedPurchaseAsServer = mutation({
       !purchase.isValid ||
       !purchase.productId
     )
-      return { bound: false };
+      return { bound: purchase.appUserId === args.userId };
+    if (args.store === "amazon") {
+      const sub = await findSubscriptionByToken(
+        ctx,
+        purchase.projectId,
+        amazonSubscriptionToken(args.remoteId),
+      );
+      if (
+        sub &&
+        !(await bindSubscriptionToUserHandler(ctx, {
+          projectId: purchase.projectId,
+          purchaseToken: sub.purchaseToken,
+          userId: args.userId,
+        }))
+      )
+        return { bound: false };
+    }
     // Erasure only unlinked the previous owner; this is a new association.
     await ctx.db.patch(purchase._id, {
       appUserId: args.userId,
@@ -133,13 +134,29 @@ export const markReceiptInvalid = internalMutation({
     const hasOrderId =
       typeof purchase.orderId === "string" && purchase.orderId.length > 0;
 
+    const amazonRvsSequence =
+      purchase.store === "amazon"
+        ? await reserveAmazonRvsSequenceHandler(ctx, {
+            projectId: purchase.projectId,
+          })
+        : undefined;
     await ctx.db.patch(args.purchaseId, {
       state: HarmonizedPurchaseState.INAUTHENTIC,
       isValid: false,
       statsCounted: true,
       storeStatsCounted: true,
       updatedAt: Date.now(),
+      ...(amazonRvsSequence !== undefined
+        ? { lastAmazonRvsSequence: amazonRvsSequence }
+        : {}),
     });
+
+    if (purchase.store === "amazon") {
+      const invalid = await ctx.db.get(purchase._id);
+      if (!invalid)
+        throw new Error("Amazon purchase disappeared during invalidation");
+      await syncAmazonSubscription(ctx, invalid);
+    }
 
     // `hasOrderId` is unchanged by this patch, but passing it both as
     // the prev and next value keeps `googleOrders` stable when the

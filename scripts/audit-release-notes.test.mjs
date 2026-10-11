@@ -6,6 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  KIT_RELEASE_NOTES,
+  findUnnotedKitChanges,
   RELEASE_NOTES,
   findUnnotedSourceChanges,
 } from "./audit-release-notes.mjs";
@@ -649,5 +651,31 @@ test("the Expo restore JSDoc names the provider restore first", () => {
   assert.ok(
     !source.includes("the query itself restores them"),
     "stale restore JSDoc is still present",
+  );
+});
+
+test("hosted changes update their own weekly history independently of package cards", () => {
+  const source = "packages/kit/convex/purchases/amazon.ts";
+  assert.deepEqual(findUnnotedKitChanges([source, RELEASE_NOTES]), [source]);
+  assert.deepEqual(findUnnotedKitChanges([source, KIT_RELEASE_NOTES]), []);
+  for (const runtime of [
+    "packages/kit/src/pages/auth/organization/project/settings.tsx",
+    "packages/kit/Dockerfile",
+    "packages/kit/fly.toml",
+    "packages/kit/scripts/deploy-prod.sh",
+    "packages/mcp-server/src/kit-client.ts",
+    "specs/commerce-protocol/examples/provider-capabilities.json",
+    "specs/commerce-protocol/generated/bindings/http-binding.json",
+    "specs/commerce-protocol/src/index.ts",
+  ])
+    assert.deepEqual(findUnnotedKitChanges([runtime]), [runtime]);
+  assert.deepEqual(
+    findUnnotedKitChanges([
+      "packages/kit/convex/purchases/amazon.test.ts",
+      "packages/kit/convex/_generated/api.d.ts",
+      "packages/kit/convex/test.setup.ts",
+      "packages/kit/src/pages/docs/sections/webhooks.tsx",
+    ]),
+    [],
   );
 });

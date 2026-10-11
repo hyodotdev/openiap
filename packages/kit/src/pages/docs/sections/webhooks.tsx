@@ -17,7 +17,7 @@ export default function WebhooksPage() {
         supported server-to-server path is:
       </p>
       <CodeBlock language="text">
-        Apple / Google → IAPKit → your HTTPS backend
+        Apple / Google / Amazon → IAPKit → your HTTPS backend
       </CodeBlock>
 
       <Callout kind="warning" title="No outbound mobile event stream">
@@ -171,6 +171,19 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
           developer notifications and send a test notification.
         </li>
       </ol>
+
+      <h2 className="mt-10 text-2xl font-semibold">Amazon RTN (beta)</h2>
+      <p>
+        Configure the RVS shared secret and SNS topic ARN in project settings,
+        then subscribe this lifecycle URL to the topic with raw delivery off.
+        IAPKit verifies the SNS signature and refreshes RVS before changing
+        subscription or entitlement state. Follow the{" "}
+        <Link to="/docs/verification/amazon" className="text-primary underline">
+          Amazon beta setup guide
+        </Link>{" "}
+        for topic permissions, subscription confirmation and testing limits.
+        Amazon revenue requires separate verified price evidence.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">After delivery</h2>
       <ul className="my-3 list-disc space-y-1 pl-6">

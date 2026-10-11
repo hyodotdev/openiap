@@ -1,7 +1,7 @@
 # Repeat the independent provider check
 
 The [recorded run](./paywall-provider-run.json) passed 19 current-paywall checks
-and 170 existing interoperability checks. It runs IAPKit's HTTP routes, Convex
+and 177 existing interoperability checks. It runs IAPKit's HTTP routes, Convex
 state, Google notification handler and outbound signer. Store responses and
 identity verification are fixtures; no production credentials are used.
 
@@ -15,7 +15,8 @@ The older regression example lives on its review branch, not the repository's
 ```sh
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
-git checkout 7503f279f620649c8b310e7486723c70d3451a66
+git fetch origin refs/pull/523/head
+git checkout 210cc14b82108e0c8c3c38a5b2a40485f9614606
 bun install --frozen-lockfile
 cd ..
 

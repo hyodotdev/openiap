@@ -83,9 +83,12 @@ export default function VerificationAmazonPage() {
   }'`}
       </CodeBlock>
       <p>
-        Omit <code>sandbox</code> for production. <code>userId</code> is capped
-        at 512 characters, <code>receiptId</code> at 4 KiB, and the optional{" "}
-        <code>expectedProductId</code> at 256 characters.
+        Omit <code>sandbox</code> for production and Live App Testing (LAT). LAT
+        uses the real shared secret and production RVS endpoint; verified
+        beta/test evidence still returns <code>Sandbox</code>.{" "}
+        <code>userId</code> is capped at 512 characters, <code>receiptId</code>{" "}
+        at 4 KiB, and the optional <code>expectedProductId</code> at 256
+        characters.
       </p>
       <CodeBlock title="200 OK" language="json">
         {`{
@@ -107,6 +110,30 @@ export default function VerificationAmazonPage() {
         for the shared response and error envelope.
       </p>
 
+      <Callout kind="warning" title="Amazon subscription lifecycle — beta">
+        <p>
+          RVS verification and rechecks update subscriptions automatically.
+          Leaving the optional RTN topic ARN blank disables notifications only;
+          RVS updates continue.
+        </p>
+        <p>
+          Live SNS delivery and LAT renewal, cancellation, elapsed expiry and
+          server entitlement revocation remain unverified. Validate these
+          transitions before production use.
+        </p>
+        <p>
+          App Tester does not send RTN or certify these transitions. Local
+          cancellation may leave RVS Cloud Sandbox entitled. See{" "}
+          <a
+            href="https://github.com/hyodotdev/openiap/discussions/522"
+            className="text-primary underline"
+          >
+            testing evidence and follow-up criteria
+          </a>
+          .
+        </p>
+      </Callout>
+
       <h2 className="mt-10 text-2xl font-semibold">Background rechecks</h2>
       <p>
         A valid Amazon purchase becomes due for another RVS check after 48
@@ -118,10 +145,67 @@ export default function VerificationAmazonPage() {
       <p>
         A non-null Amazon <code>cancelDate</code> removes access. A past{" "}
         <code>renewalDate</code> alone is not treated as expiry. Rechecks update
-        purchase snapshots only; IAPKit does not create Amazon subscription rows
-        or claim webhook-style Amazon lifecycle delivery.
+        purchase snapshots and canonical subscription state together. Turning
+        auto-renew off keeps access while RVS still confirms the receipt. RVS
+        does not provide an authoritative price for revenue attribution.
+      </p>
+      <p>
+        An ended subscription receipt without a reported cancellation reason
+        uses <code>Expired</code>. An explicit cancellation or invalid-receipt
+        verdict initially uses <code>Revoked</code>; neither implies a refund
+        amount. Later invalid rechecks retain the existing terminal state unless
+        a fresh terminal notification changes it. The first recheck of an
+        already-ended receipt records its inactive state without inventing a
+        past lifecycle event. Amazon counts stay separate from the Apple and
+        Google Play revenue charts.
       </p>
 
+      <h2 className="mt-10 text-2xl font-semibold">
+        Subscription notifications (beta)
+      </h2>
+      <ol className="my-3 list-decimal space-y-2 pl-6">
+        <li>
+          Configure Amazon Real-Time Notifications (RTN) for the app in Amazon
+          Developer Console using a standard AWS SNS topic.
+        </li>
+        <li>
+          Save that topic ARN in{" "}
+          <strong>
+            Settings → Android Configuration → Amazon RTN topic ARN
+          </strong>
+          . The Android package must exactly match the app.
+        </li>
+        <li>
+          Subscribe the publishable-key <strong>store lifecycle URL</strong>{" "}
+          from the IAPKit Webhooks tab as an HTTPS endpoint. Keep SNS raw
+          message delivery disabled; IAPKit needs the signed envelope.
+        </li>
+      </ol>
+      <p>
+        IAPKit verifies the SNS signature, topic and app identity, then reads
+        fresh RVS evidence before updating subscription state. Duplicate
+        messages do not repeat events. Transient RVS failures retry without
+        replacing the last verified state. For an immediate plan change, IAPKit
+        also checks the related canceled receipt before transferring an existing
+        account binding; it never takes over a receipt owned by another account.
+      </p>
+      <p>
+        Bind the verified purchase to your authenticated app user through the
+        existing purchase binding API. Apps then use scoped status or
+        entitlement reads. Optional Commerce Protocol events go to your
+        registered backend, never directly to a mobile SDK. See the{" "}
+        <Link to="/docs/webhooks" className="text-primary underline">
+          webhook guide
+        </Link>{" "}
+        and{" "}
+        <a
+          href="https://developer.amazon.com/docs/in-app-purchasing/real-time-notifications.html"
+          className="text-primary underline"
+        >
+          Amazon RTN setup
+        </a>
+        .
+      </p>
       <h2 className="mt-10 text-2xl font-semibold">Amazon error codes</h2>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="min-w-[42rem] w-full text-sm">
