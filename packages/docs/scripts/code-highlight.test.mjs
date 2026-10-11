@@ -1175,6 +1175,16 @@ test('reads strings, holes and heredocs that run past a line', () => {
     ],
     [
       'bash',
+      'echo "" "((" <<EOF\nx\nEOF\nls',
+      'echo ⟦string:""⟧ ⟦string:"(("⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
+    ],
+    [
+      'bash',
+      "echo '' '((' <<EOF\nx\nEOF\nls",
+      "echo ⟦string:''⟧ ⟦string:'(('⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls",
+    ],
+    [
+      'bash',
       'echo "a\\\\" "((" <<EOF\nx\nEOF\nls',
       'echo ⟦string:"a\\\\"⟧ ⟦string:"(("⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
     ],
@@ -1492,6 +1502,14 @@ test('reads a string flat when its hole holds a quote that starts no string', ()
     highlightCode('x = "${/* it\'s */ y}" + 1', 'kotlin'),
     `x = ${t('string', '"${/* it\'s */ y}"')} + ${t('number', '1')}`
   );
+  // A string that closes the brackets it opened is a string.
+  assert.equal(
+    highlightCode(
+      "x = `${t('`one ${x}`')}`; y = `${'{a}`'}` + 1;",
+      'typescript'
+    ),
+    `x = ${t('string', "`${t('`one ${x}`')}`")}; y = ${t('string', "`${'{a}`'}`")} + ${t('number', '1')};`
+  );
 });
 
 test('lets a backslash keep a $ from opening a hole', () => {
@@ -1506,13 +1524,16 @@ test('reads holes like the recursive reading, also when unbalanced', () => {
   // failure is ~i, for the position i where the reading gave up.
   function readStrings(source, { open, nest, close, quotes, multiline }) {
     // `outer` is the quote of the outermost string, and a string in a hole that
-    // has seen the hole's end and then meets it was probably no string.
+    // has seen the hole's end and then meets it was probably no string, unless
+    // it opened the hole's bracket itself.
     const string = (from, quote, outer, inHole) => {
+      let opened = false;
       let sawClose = false;
       for (let i = from; i < source.length; i++) {
         if (source[i] === '\n') return ~i;
         if (inHole) {
-          if (source[i] === close) sawClose = true;
+          if (source[i] === nest) opened = true;
+          else if (source[i] === close && !opened) sawClose = true;
           else if (sawClose && source[i] === outer && source[i] !== quote) {
             return ~i;
           }
@@ -1808,6 +1829,12 @@ test('colors an empty or unclosed form as the token it is', () => {
       'kotlin',
       'f("""""", """a""")',
       '⟦function:f⟧(⟦string:""""""⟧, ⟦string:"""a"""⟧)',
+    ],
+    ['kotlin', 'x = """\ny', 'x = ⟦string:"""⟧\ny'],
+    [
+      'csharp',
+      'f("""a""", """b""")',
+      '⟦function:f⟧(⟦string:"""a"""⟧, ⟦string:"""b"""⟧)',
     ],
     ['dart', "'''", "⟦string:'''⟧"],
     // Dart raw strings, the same ways.
