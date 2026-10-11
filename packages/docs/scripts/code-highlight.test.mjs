@@ -1121,6 +1121,11 @@ test('reads strings, holes and heredocs that run past a line', () => {
     ],
     [
       'bash',
+      'cat <<\tEOF\nx\nEOF\nls',
+      'cat ⟦keyword:<<⟧\t⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
+    ],
+    [
+      'bash',
       'cat <<\\E\nx\nE\nls',
       'cat ⟦keyword:<<⟧⟦string:\\E⟧\n⟦string:x\nE⟧\nls',
     ],
@@ -1493,7 +1498,7 @@ test('ends a string with an open hole at the line', () => {
   );
 });
 
-test('reads a string flat when its hole holds a quote that starts no string', () => {
+test('reads a quote in a hole that starts no string', () => {
   assert.equal(
     highlightCode("s = `${x.replace(/\"/g, '')}`; foo(1);", 'typescript'),
     `s = ${t('string', "`${x.replace(/\"/g, '')}`")}; ${t('function', 'foo')}(${t('number', '1')});`
@@ -1525,9 +1530,29 @@ test('reads a string flat when its hole holds a quote that starts no string', ()
       `v = ${t('string', '`z`')};`,
     ].join('\n')
   );
+  // A template's hole reads comments and regex literals, so a quote or a
+  // backtick in them starts nothing; a slash after a name divides.
   assert.equal(
-    highlightCode('x = "${f(\'${a} }"\')}" + 1', 'dart'),
-    `x = ${t('string', '"${f(\'${a} }"\')}"')} + ${t('number', '1')}`
+    highlightCode(
+      "x = `${a // it's `b`\n}`; y = `${c /* it's `d` */}` + 1;",
+      'typescript'
+    ),
+    `x = ${t('string', "`${a // it's `b`\n}`")}; y = ${t('string', "`${c /* it's `d` */}`")} + ${t('number', '1')};`
+  );
+  assert.equal(
+    highlightCode(
+      "x = `${s.replace(/`/g, '')}` + `${t.replace(/'/g, function (m) { return `${m}`; })}`;",
+      'typescript'
+    ),
+    `x = ${t('string', "`${s.replace(/`/g, '')}`")} + ${t('string', "`${t.replace(/'/g, function (m) { return `${m}`; })}`")};`
+  );
+  assert.equal(
+    highlightCode("x = `${a / 2}` + `${b / 2}'s`;", 'typescript'),
+    `x = ${t('string', '`${a / 2}`')} + ${t('string', "`${b / 2}'s`")};`
+  );
+  assert.equal(
+    highlightCode("s = `${f(/'${/ )}` + 'a}';\nw = `z`;", 'typescript'),
+    `s = ${t('string', "`${f(/'${/ )}`")} + ${t('string', "'a}'")};\nw = ${t('string', '`z`')};`
   );
   for (const template of [
     '`${x.replace(/\'/g, function () { return ""; })}`',
@@ -1555,19 +1580,14 @@ test('reads holes like the recursive reading, also when unbalanced', () => {
   // failure is ~i, for the position i where the reading gave up.
   function readStrings(source, { open, nest, close, quotes, multiline }) {
     // `outer` is the quote of the outermost string, and a string in a hole that
-    // has seen the hole's end and then meets it was probably no string. A `}`
-    // after the string's own opener does not count.
+    // has seen the hole's end and then meets it was probably no string.
     const string = (from, quote, outer, inHole) => {
-      let opened = 0;
       let sawClose = false;
       for (let i = from; i < source.length; i++) {
         if (source[i] === '\n') return ~i;
         if (inHole) {
-          if (source.startsWith(open, i)) opened++;
-          else if (source[i] === close) {
-            if (opened) opened--;
-            else sawClose = true;
-          } else if (sawClose && source[i] === outer && source[i] !== quote) {
+          if (source[i] === close) sawClose = true;
+          else if (sawClose && source[i] === outer && source[i] !== quote) {
             return ~i;
           }
         }
@@ -2709,6 +2729,11 @@ test('reads the forms that need their context', () => {
       'typescript',
       't = /* https://x */ s // c\n / n / 2',
       't = ⟦comment:/* https://x */⟧ s ⟦comment:// c⟧\n / n / ⟦number:2⟧',
+    ],
+    [
+      'typescript',
+      'x = /[a]/g; y = a[1] / 2',
+      'x = ⟦regex:/[a]/g⟧; y = a[⟦number:1⟧] / ⟦number:2⟧',
     ],
     [
       'typescript',

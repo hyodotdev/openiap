@@ -161,6 +161,9 @@ interface Interpolation {
   raw?: string;
   // Quotes whose strings may span lines (bash, a template literal).
   multiline?: string;
+  // Holes hold JavaScript: a comment or regex literal in one is read whole, so
+  // a quote in it starts no string.
+  code?: boolean;
 }
 
 const DOLLAR_BRACE: Interpolation = {
@@ -199,6 +202,7 @@ const TEMPLATE_BRACE: Interpolation = {
   quotes: `"'\``,
   interpolating: '`',
   multiline: '`',
+  code: true,
 };
 
 type Frame =
@@ -208,7 +212,6 @@ type Frame =
       doubled: boolean;
       holes: boolean;
       multiline: boolean;
-      opened?: number;
       sawClose?: boolean;
     }
   | { hole: Hole; depth: number };
@@ -231,6 +234,7 @@ function scanFrames(
     literal = '',
     raw = '',
     multiline = '',
+    code = false,
   }: Interpolation,
   outer: string,
   continuation: boolean
@@ -247,15 +251,10 @@ function scanFrames(
     if ('quote' in frame) {
       // A string in a hole that has seen the hole's end and now meets the
       // outer quote was probably no string: a regex or a comment held a quote.
-      // A `}` that closes the string's own `${` (`'`${x}`'`) does not count.
       const below = frames[frames.length - 2];
-      if (below && 'hole' in below && !literal.includes(frame.quote)) {
-        if (text.startsWith(below.hole.open, i)) {
-          frame.opened = (frame.opened ?? 0) + 1;
-        } else if (char === below.hole.close) {
-          if (frame.opened) frame.opened--;
-          else frame.sawClose = true;
-        } else if (frame.sawClose && char === outer && char !== frame.quote) {
+      if (below && 'hole' in below && !code && !literal.includes(frame.quote)) {
+        if (char === below.hole.close) frame.sawClose = true;
+        else if (frame.sawClose && char === outer && char !== frame.quote) {
           return ~i;
         }
       }
@@ -283,6 +282,8 @@ function scanFrames(
       }
     } else if (char === '\\' && text[i + 1] !== '\n') {
       i++;
+    } else if (code && char === '/') {
+      i = slashEnd(text, i) - 1;
     } else if (quotes.includes(char)) {
       const isRaw =
         raw.includes(text[i - 1] ?? '') && !/[\w$]/.test(text[i - 2] ?? '');
@@ -546,6 +547,16 @@ function regexEnd(text: string, at: number): number {
   const bodyEnd = at + 1 + body[0].length;
   REGEX_FLAGS.lastIndex = bodyEnd;
   return bodyEnd + (REGEX_FLAGS.exec(text)?.[0].length ?? 0);
+}
+// Where the comment or regex literal that starts at the slash at `at` ends;
+// just past the slash for a division.
+function slashEnd(text: string, at: number): number {
+  if (text[at + 1] === '/') return lineEnd(text, at);
+  if (text[at + 1] === '*') {
+    const close = text.indexOf('*/', at + 2);
+    return close < 0 ? text.length : close + 2;
+  }
+  return regexAllowed(text, at) ? Math.max(regexEnd(text, at), at + 1) : at + 1;
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {
