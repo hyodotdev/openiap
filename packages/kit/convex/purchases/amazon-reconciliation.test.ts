@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import Ajv from "ajv/dist/2020.js";
+import {
+  commerceEventSchema,
+  primitivesSchema,
+} from "@hyodotdev/openiap-commerce-protocol";
 
 import { testableFunction } from "../test.setup";
 import {
@@ -16,6 +21,7 @@ import {
 import { bindUser } from "../subscriptions/mutation";
 import { MAX_BOUND_PURCHASES_PER_USER } from "../subscriptions/limits";
 import { amazonSubscriptionToken } from "../subscriptions/amazon";
+import { buildEventPayload } from "../commerce/deliveryState";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { markReceiptInvalid } from "./mutation";
 import { AMAZON_RECONCILE_LEASE_MS, AMAZON_RECONCILE_RETRY_MS } from "./shared";
@@ -224,6 +230,19 @@ describe("Amazon canonical lifecycle", () => {
   const rows = (db: MemDb, table: string) =>
     [...db.rows.values()].filter((row) => row._table === table);
 
+  const ajv = new Ajv({ strict: true, allErrors: true });
+  ajv.addSchema(primitivesSchema, "primitives.schema.json");
+  const validateEvent = ajv.compile(commerceEventSchema);
+
+  function expectValidEvents(db: MemDb): void {
+    for (const row of rows(db, "commerceEvents")) {
+      expect(
+        validateEvent(buildEventPayload(row as never)),
+        JSON.stringify(validateEvent.errors),
+      ).toBe(true);
+    }
+  }
+
   test("renewalDate is not expiry, auto-renew off keeps access, and a verified cancellation revokes once", async () => {
     const { db, ctx } = setup();
     await saveAmazonVerdictHandler(ctx, verdict(1));
@@ -249,8 +268,8 @@ describe("Amazon canonical lifecycle", () => {
         (row) => row.eventType === "entitlement.revoked",
       ),
     ).toHaveLength(0);
-    await saveAmazonVerdictHandler(ctx, verdict(3, {}, false));
-    await saveAmazonVerdictHandler(ctx, verdict(4, {}, false));
+    await saveAmazonVerdictHandler(ctx, verdict(3, { cancelReason: 1 }, false));
+    await saveAmazonVerdictHandler(ctx, verdict(4, { cancelReason: 1 }, false));
     expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
     expect(
       rows(db, "commerceEvents").filter(
@@ -268,7 +287,7 @@ describe("Amazon canonical lifecycle", () => {
   test("a delayed earlier verdict cannot restore a revoked purchase or subscription", async () => {
     const { db, ctx } = setup();
     await saveAmazonVerdictHandler(ctx, verdict(1));
-    await saveAmazonVerdictHandler(ctx, verdict(3, {}, false));
+    await saveAmazonVerdictHandler(ctx, verdict(3, { cancelReason: 2 }, false));
     const before = rows(db, "commerceEvents").length;
     expect(await saveAmazonVerdictHandler(ctx, verdict(2))).toMatchObject({
       isValid: false,
@@ -277,6 +296,212 @@ describe("Amazon canonical lifecycle", () => {
     expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
     expect(rows(db, "commerceEvents")).toHaveLength(before);
   });
+
+  test.each([undefined, null, 0, 99])(
+    "RVS expiry with cancelReason %s emits expiry once before a later RTN",
+    async (cancelReason) => {
+      const { db, ctx } = setup();
+      await saveAmazonVerdictHandler(ctx, verdict(1));
+      await saveAmazonVerdictHandler(ctx, verdict(2, { cancelReason }, false));
+      await saveAmazonVerdictHandler(ctx, verdict(3, { cancelReason }, false));
+      await applyAmazonRtnVerdictHandler(ctx, {
+        ...verdict(4, { cancelReason }, false),
+        amazonNotice: {
+          messageId: "sns-expiry-after-rvs",
+          notificationType: "SUBSCRIPTION_EXPIRED",
+          occurredAt: 100_000,
+          rawSignedPayload: "signed-fixture",
+        },
+      });
+      expect(rows(db, "subscriptions")[0].state).toBe("Expired");
+      expect(
+        rows(db, "commerceEvents").filter(
+          (row) => row.eventType === "subscription.expired",
+        ),
+      ).toHaveLength(1);
+      expect(
+        rows(db, "commerceEvents").some(
+          (row) => row.eventType === "subscription.revoked",
+        ),
+      ).toBe(false);
+    },
+  );
+
+  test.each([undefined, null, 0, 1, 2])(
+    "an ended receipt first observed by RVS with cancelReason %s records no historical transition",
+    async (cancelReason) => {
+      const { db, ctx } = setup();
+      await saveAmazonVerdictHandler(ctx, verdict(1, { cancelReason }, false));
+      expect(rows(db, "subscriptions")[0].state).toBe(
+        cancelReason === 1 || cancelReason === 2 ? "Revoked" : "Expired",
+      );
+      expect(rows(db, "webhookEvents")).toMatchObject([
+        { type: "ReceiptRechecked" },
+      ]);
+      expect(rows(db, "commerceEvents")).toHaveLength(0);
+    },
+  );
+
+  test("an invalid receipt without an RVS body revokes previously active access", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    await saveAmazonVerdictHandler(ctx, {
+      ...verdict(2, {}, false),
+      remoteResponse: "null",
+    });
+    expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
+    expect(rows(db, "commerceEvents")).toMatchObject([
+      { eventType: "subscription.started" },
+      { eventType: "subscription.revoked" },
+    ]);
+  });
+
+  test("an explicit cancellation notice preserves revocation when the reason is unavailable", async () => {
+    const { db, ctx } = setup();
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(1, { cancelReason: 0 }, false),
+      amazonNotice: {
+        messageId: "sns-cancel-first",
+        notificationType: "SUBSCRIPTION_CANCELLED",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    });
+    expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
+    expect(rows(db, "commerceEvents")).toMatchObject([
+      { eventType: "subscription.revoked" },
+    ]);
+  });
+
+  test("an unknown notification does not invent a first-observed historical expiry", async () => {
+    const { db, ctx } = setup();
+    await applyAmazonRtnVerdictHandler(ctx, {
+      ...verdict(1, {}, false),
+      amazonNotice: {
+        messageId: "sns-unknown-first",
+        notificationType: "FUTURE_NOTIFICATION",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    });
+    expect(rows(db, "subscriptions")[0].state).toBe("Expired");
+    expect(rows(db, "webhookEvents")).toMatchObject([
+      { type: "ReceiptRechecked" },
+    ]);
+    expect(rows(db, "commerceEvents")).toHaveLength(0);
+  });
+
+  test.each([
+    ["SUBSCRIPTION_CANCELLED", 0, "Revoked"],
+    ["SUBSCRIPTION_EXPIRED", 1, "Expired"],
+    ["SUBSCRIPTION_EXPIRED", 2, "Expired"],
+  ] as const)(
+    "%s terminal state survives later RVS-only checks with reason %s",
+    async (notificationType, cancelReason, state) => {
+      const { db, ctx } = setup();
+      await saveAmazonVerdictHandler(ctx, verdict(1));
+      await applyAmazonRtnVerdictHandler(ctx, {
+        ...verdict(2, { cancelReason }, false),
+        amazonNotice: {
+          messageId: "sns-terminal",
+          notificationType,
+          occurredAt: 100_000,
+          rawSignedPayload: "signed-fixture",
+        },
+      });
+      const eventType =
+        state === "Expired" ? "subscription.expired" : "subscription.revoked";
+      expect(
+        rows(db, "commerceEvents").filter((row) => row.eventType === eventType),
+      ).toHaveLength(1);
+      expect(
+        rows(db, "commerceEvents").filter(
+          (row) =>
+            row.eventType === "subscription.expired" ||
+            row.eventType === "subscription.revoked",
+        ),
+      ).toHaveLength(1);
+      const before = rows(db, "commerceEvents").length;
+      await saveAmazonVerdictHandler(ctx, verdict(3, { cancelReason }, false));
+      expect(rows(db, "subscriptions")[0].state).toBe(state);
+      expect(rows(db, "commerceEvents")).toHaveLength(before);
+      await saveAmazonVerdictHandler(ctx, verdict(4));
+      expect(rows(db, "subscriptions")[0].state).toBe("Active");
+      expectValidEvents(db);
+    },
+  );
+
+  test("a fresh terminal notice corrects the prior RVS cause without revoking access twice", async () => {
+    const { db, ctx } = setup();
+    await saveAmazonVerdictHandler(ctx, verdict(1));
+    await bindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_test" as never,
+      purchaseToken: amazonSubscriptionToken("production:user:receipt"),
+      userId: "app-user",
+    });
+    await saveAmazonVerdictHandler(ctx, verdict(2, {}, false));
+    const args = {
+      ...verdict(3, { cancelReason: 0 }, false),
+      amazonNotice: {
+        messageId: "sns-corrected-terminal",
+        notificationType: "SUBSCRIPTION_CANCELLED",
+        occurredAt: 100_000,
+        rawSignedPayload: "signed-fixture",
+      },
+    };
+    await applyAmazonRtnVerdictHandler(ctx, args);
+    await applyAmazonRtnVerdictHandler(ctx, args);
+    expect(rows(db, "subscriptions")[0].state).toBe("Revoked");
+    for (const type of [
+      "subscription.expired",
+      "subscription.revoked",
+      "entitlement.revoked",
+    ])
+      expect(
+        rows(db, "commerceEvents").filter((row) => row.eventType === type),
+      ).toHaveLength(1);
+    expectValidEvents(db);
+  });
+
+  test.each(["first", "recovered", "renewal", "extended"] as const)(
+    "%s observation in grace emits a schema-valid snapshot",
+    async (observation) => {
+      const { db, ctx } = setup();
+      if (observation === "recovered") {
+        await saveAmazonVerdictHandler(ctx, verdict(1));
+        await saveAmazonVerdictHandler(ctx, verdict(2, {}, false));
+      }
+      if (observation === "renewal" || observation === "extended")
+        await saveAmazonVerdictHandler(
+          ctx,
+          verdict(1, { gracePeriodEndDate: 110_000 }),
+        );
+      if (observation === "extended") {
+        vi.setSystemTime(120_000);
+        await db.patch(rows(db, "subscriptions")[0]._id, {
+          updatedAt: 120_000,
+        });
+      }
+      await applyAmazonRtnVerdictHandler(ctx, {
+        ...verdict(3, {
+          gracePeriodEndDate: observation === "extended" ? 130_000 : 110_000,
+        }),
+        amazonNotice: {
+          messageId: "sns-grace-observation",
+          notificationType: "SUBSCRIPTION_RENEWED",
+          occurredAt: observation === "extended" ? 120_000 : 100_000,
+          rawSignedPayload: "signed-fixture",
+        },
+      });
+      expect(rows(db, "subscriptions")[0].state).toBe("InGracePeriod");
+      expect(
+        rows(db, "commerceEvents").filter(
+          (row) => row.eventType === "subscription.entered_grace_period",
+        ),
+      ).toHaveLength(observation === "extended" ? 2 : 1);
+      expectValidEvents(db);
+    },
+  );
 
   test("grace deadline and fresh RVS recovery produce the correct access delta", async () => {
     const { db, ctx } = setup();
@@ -470,7 +695,7 @@ describe("Amazon canonical lifecycle", () => {
       }
       await applyAmazonRtnVerdictHandler(ctx, {
         ...replacement,
-        relatedReceipt: verdict(3, {}, false),
+        relatedReceipt: verdict(3, { cancelReason: 1 }, false),
         amazonNotice: {
           messageId: "replacement-notice",
           notificationType: "SUBSCRIPTION_MODIFIED_IMMEDIATE",

@@ -40,10 +40,27 @@ export function amazonSubscriptionSnapshot(
     return null;
   const valid = purchase.isValid === true;
   const graceEnd = receipt?.gracePeriodEndDate;
-  const state = !valid
-    ? notice?.notificationType === "SUBSCRIPTION_EXPIRED"
+  const previouslyActive = existing
+    ? entitlementActive(existing, existing.updatedAt ?? now)
+    : false;
+  const terminalNotice =
+    notice?.notificationType === "SUBSCRIPTION_EXPIRED" ||
+    notice?.notificationType === "SUBSCRIPTION_CANCELLED";
+  const endedState =
+    notice?.notificationType === "SUBSCRIPTION_EXPIRED"
       ? "Expired"
-      : "Revoked"
+      : notice?.notificationType === "SUBSCRIPTION_CANCELLED"
+        ? "Revoked"
+        : existing?.state === "Expired" || existing?.state === "Revoked"
+          ? existing.state
+          : receipt?.productType === "SUBSCRIPTION" &&
+              receipt.cancelDate !== null &&
+              receipt.cancelReason !== 1 &&
+              receipt.cancelReason !== 2
+            ? "Expired"
+            : "Revoked";
+  const state = !valid
+    ? endedState
     : graceEnd != null && graceEnd > now
       ? "InGracePeriod"
       : "Active";
@@ -59,11 +76,25 @@ export function amazonSubscriptionSnapshot(
         ? "Other"
         : undefined,
   };
+  if (
+    valid &&
+    state === "InGracePeriod" &&
+    (!existing || existing.state !== state || !previouslyActive)
+  )
+    return {
+      next,
+      type: "SubscriptionInGracePeriod",
+      transition: "EnteredGracePeriod",
+    };
   if (!existing && valid)
     return { next, type: "SubscriptionStarted", transition: "Started" };
+  if (!existing && !terminalNotice)
+    return { next, type: "ReceiptRechecked", transition: null };
   if (
     !valid &&
-    (!existing || entitlementActive(existing, existing.updatedAt ?? now))
+    (!existing ||
+      previouslyActive ||
+      (terminalNotice && existing.state !== state))
   )
     return {
       next,
@@ -71,21 +102,19 @@ export function amazonSubscriptionSnapshot(
       transition: state === "Expired" ? "Expired" : "Revoked",
     };
   if (!existing) return null;
-  if (valid && !entitlementActive(existing, existing.updatedAt ?? now))
+  if (valid && !previouslyActive)
     return { next, type: "SubscriptionRecovered", transition: "Recovered" };
-  if (valid && state === "InGracePeriod" && existing.state !== state)
-    return {
-      next,
-      type: "SubscriptionInGracePeriod",
-      transition: "EnteredGracePeriod",
-    };
   if (valid && existing.state === "InGracePeriod" && state === "Active")
     return { next, type: "SubscriptionRecovered", transition: "Recovered" };
   if (valid && next.willRenew === false && existing.willRenew !== false)
     return { next, type: "SubscriptionCanceled", transition: "Canceled" };
   if (valid && next.willRenew === true && existing.willRenew === false)
     return { next, type: "SubscriptionUncanceled", transition: "Uncanceled" };
-  if (valid && notice?.notificationType === "SUBSCRIPTION_RENEWED")
+  if (
+    valid &&
+    state === "Active" &&
+    notice?.notificationType === "SUBSCRIPTION_RENEWED"
+  )
     return { next, type: "SubscriptionRenewed", transition: "Renewed" };
   return { next, type: "ReceiptRechecked", transition: null };
 }

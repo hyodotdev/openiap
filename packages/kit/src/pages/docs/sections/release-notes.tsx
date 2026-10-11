@@ -564,8 +564,8 @@ export default function ReleaseNotesPage() {
                     <section key={title}>
                       <h2 className="mb-2 text-sm font-semibold">{title}</h2>
                       <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-foreground/90">
-                        {items.map((item) => (
-                          <li key={item.text}>{item.text}</li>
+                        {items.map((item, index) => (
+                          <li key={index}>{item.text}</li>
                         ))}
                       </ul>
                     </section>

@@ -32,26 +32,8 @@ or store-specific behavior changed.
 
 ### Example apps are the device test surface
 
-Use each framework's checked-in example app, including its normal entry point,
-navigation, and purchase screens. Add a feature to that example before testing
-it on a device so users can run the same check. Native package rows use their
-checked-in sample apps.
-
-The two native package examples and six framework examples must expose the same
-catalog, purchase, subscription, restore, verification, and ownership flows with
-the same meaning and visible results. Add new diagnostic features to those
-existing screens and keep the eight-example acceptance matrix current. A
-platform-only feature must show its supported-platform limit explicitly; it
-must not silently disappear or turn into a separate test app. A Kit-only change
-may reuse existing example flows, but does not count as completing missing
-example parity.
-
-Do not install a standalone API probe or replace an example's entry point with
-a task-only probe. A normal bundle id on a probe does not make it an example.
-Keep automation drivers separate from the app; they must navigate the same
-screens a user sees. Record the source revision, build entry point, and installed
-app identity with device evidence. Leave the normal example installed after
-the run, preserving any store-installed test build that must be restored.
+Follow the shared [example acceptance requirements](../../knowledge/internal/04-platform-packages.md#shared-example-acceptance)
+for all native and framework device rows.
 
 ## Full Regression Matrix
 
@@ -78,8 +60,8 @@ Notes:
   SDK's in-process foreground task pipeline, which is what launches the
   Appstore's purchase Activity on the live store (issue #460). When an Amazon
   change touches connection, listener registration, or the purchase request,
-  run one purchase through Live App Testing and confirm the `START u0 ...
-  com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
+  run one purchase through Live App Testing and confirm the
+  `START u0 ... com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
   `ActivityManager` on Fire OS 7, `ActivityTaskManager` on Fire OS 8).
   `adb logcat -s Kiwi` shows the SDK's own log (verified on a debug build):
   `No UI visible to execute task` means the SDK inside the app is holding the

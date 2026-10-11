@@ -125,6 +125,16 @@ export default function VerificationAmazonPage() {
         auto-renew off keeps access while RVS still confirms the receipt. RVS
         does not provide an authoritative price for revenue attribution.
       </p>
+      <p>
+        An ended subscription receipt without a reported cancellation reason
+        uses <code>Expired</code>. An explicit cancellation or invalid-receipt
+        verdict initially uses <code>Revoked</code>; neither implies a refund
+        amount. Later invalid rechecks retain the existing terminal state unless
+        a fresh terminal notification changes it. The first recheck of an
+        already-ended receipt records its inactive state without inventing a
+        past lifecycle event. Amazon counts stay separate from the Apple and
+        Google Play revenue charts.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
         Subscription notifications
