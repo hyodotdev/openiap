@@ -574,42 +574,27 @@ automatically, including metadata and cards ahead of package publication.
 
 ### openiap-versions.json
 
-**CRITICAL: NEVER manually edit the `google` or `apple` fields in
-`openiap-versions.json`.**
+**All package version upgrades are CI-only.** Feature work must not change
+package version fields, `openiap-versions.json`, or generated version metadata.
+This includes Client Protocol versions in `specs/client/package.json`; there is
+no feature-PR exception.
 
 Version ownership is split:
 
-- Apple releases update `apple` version
-- Google releases update `google` version
-- `clientProtocol` mirrors `specs/client/package.json`; a feature PR or a Client
-  Protocol release sets that manifest and the sync writes the mirror into
-  `openiap-versions.json` and its copies
-- Native releases never move `clientProtocol`, and a Client Protocol release
-  never moves `google` or `apple`
-- The docs site has no version: it deploys whatever `main` holds
+- The Client Protocol release workflow updates `specs/client/package.json` and
+  regenerates the `clientProtocol` mirror and its copies.
+- Apple and Google release workflows update only their own native version.
+- Framework, Commerce Protocol, and CLI release workflows own their package
+  version fields.
+- The docs site has no version: it deploys whatever `main` holds.
 
-Release workflows write stable and prerelease values on `main`. Manual edits
-are not a substitute for selecting the correct workflow lane.
+Record the intended next versions in the release card and select the matching
+GitHub Actions release inputs. Release workflows refresh the lockfile and run
+`./scripts/sync-release-generated.sh` in the same version-bump commit. Use
+`version=current` only to publish or retry a version already established by CI.
+Do not run a local bump as a substitute for a release dispatch.
 
-The manifest is only for the Client Protocol and the native platform packages:
-`clientProtocol`, `google`, and `apple`. Framework library package versions
-(`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
-`kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
-release workflow, not as extra keys in `openiap-versions.json`.
-
-Manual edits to any of the three keys cause version conflicts and deployment
-issues. Use the GitHub Actions release workflows and repository sync automation.
-
-**Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
-
-**Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
-`specs/client/package.json`, run `bun install --lockfile-only --ignore-scripts`
-and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the
-staged files, when the in-tree code needs the new Client Protocol version;
-never hand-edit the `clientProtocol` mirror. Stable version changes happen via:
-
-1. Release workflows (Apple Release, Google Release, and Client Protocol
-   releases with `version=patch`, `minor`, or `major`)
-2. A feature PR setting `specs/client/package.json`, published by a Client
-   Protocol release with `version=current`
-3. CI auto-bump after merge where configured
+`openiap-versions.json` contains only `clientProtocol`, `google`, and `apple`.
+The Client Protocol publishing manifest remains its version SSOT; the mirror
+must match it. Framework library versions stay in their own package metadata.
+Never add framework keys to the native/protocol mirror.

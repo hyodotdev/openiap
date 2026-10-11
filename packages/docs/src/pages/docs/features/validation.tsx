@@ -31,6 +31,13 @@ function Validation() {
         depend on whose backend you use.
       </p>
 
+      <p>
+        For a paid app download, use{' '}
+        <Link to="/docs/apis/verify-app-ownership">verifyAppOwnership</Link>. It
+        provides one app-level result across Apple and Google Play, with a
+        shared backend verification flow. The purchase APIs below verify
+        products bought inside the app.
+      </p>
       <TLDRBox>
         <ul>
           <li>

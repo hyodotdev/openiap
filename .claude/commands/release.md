@@ -24,9 +24,10 @@ Inspect the complete public payload before publishing it.
   where supported. RCs use npm `next` and version suffixes on native registries.
   Select the stable lane to remove the RC suffix from its target version.
 - Keep Client Protocol, native dependencies and generated version metadata in
-  sync. `clientProtocol` mirrors `specs/client/package.json`; never edit the
-  mirror directly. Use `version=current` when the manifest already declares the
-  version being published.
+  sync. All version upgrades are CI-only; follow
+  `knowledge/internal/06-git-deployment.md#version-file-management`.
+  `clientProtocol` mirrors `specs/client/package.json`; never edit either locally.
+  Use `version=current` only for a version already established by CI.
 - Vercel automatically deploys production docs from `main`, including RC
   metadata and release cards ahead of publication. Docs deployment does not
   publish packages.
@@ -68,11 +69,9 @@ bun run audit:release-state
 1. Merge reviewed source and its guides into `main` after CI passes. Keep the
    eventual stable release card with the source change; do not add duplicate RC
    cards to the stable release history.
-2. Prepare Client Protocol RC metadata before native publication when the code
-   requires a new protocol: update `specs/client/package.json`, run
-   `bun install --lockfile-only --ignore-scripts` and
-   `scripts/sync-release-generated.sh`, and commit the synced outputs together.
-   Publish that prepared protocol later with `version=current`.
+2. When native code requires a new protocol version, dispatch its CI release
+   workflow first. CI upgrades the manifest, lockfile and generated mirrors;
+   never prepare version upgrades in a feature PR or local commit.
 3. Dispatch each package workflow with `--ref main` and `prerelease=true` for
    its first RC. Use `version=rc-bump` for later RCs where supported. Apple later
    RCs use `target_version`; every first RC starts at `rc.1`. Historical RC
@@ -113,7 +112,9 @@ gh workflow run release-google.yml --ref main \
   -f version=patch -f prerelease=false
 ```
 
-For a multi-package release train, use this order when affected:
+When native code requires a new Client Protocol version, release that protocol
+through CI first so native artifacts embed the new version. Then use this order
+for the remaining affected packages:
 
 1. `release-apple.yml`
 2. `release-google.yml`

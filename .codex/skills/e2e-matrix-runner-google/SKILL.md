@@ -19,12 +19,12 @@ apply unchanged. This file adds only the narrowed matrix.
 
 ## The matrix (pinned scope — do not renegotiate per run)
 
-| Store        | Frameworks                         | Device      | Depth                        |
-| ------------ | ---------------------------------- | ----------- | ---------------------------- |
-| Google Play  | all six + `packages/google`        | Pixel       | device purchase flow each    |
-| Amazon       | all six + `packages/google`        | Fire tablet | device purchase flow each    |
-| Meta Horizon | all six + `packages/google`        | Quest 3     | build + install + launch + tap-navigate to the purchase gate; purchase only when the checkout UI is visibly test/sandbox |
-| VegaOS       | react-native-iap and expo-iap only | Vega device | build + install + launch; purchase attempt when device input allows |
+| Store        | Frameworks                         | Device      | Depth                                                                                                             |
+| ------------ | ---------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| Google Play  | all six + `packages/google`        | Pixel       | device purchase flow each                                                                                         |
+| Amazon       | all six + `packages/google`        | Fire tablet | device purchase flow each                                                                                         |
+| Meta Horizon | all six + `packages/google`        | Quest 3     | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
+| VegaOS       | react-native-iap and expo-iap only | Vega device | build + install + launch; purchase attempt when device input allows                                               |
 
 That is the 21 Android/Horizon cells plus the 2 VegaOS cells of the full
 matrix. Do not silently drop a cell.

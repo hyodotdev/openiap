@@ -20,7 +20,6 @@ import {useActionSheet} from '@expo/react-native-action-sheet';
 import {
   requestPurchase,
   useIAP,
-  getAppTransactionIOS,
   getPendingTransactionsIOS,
   getStorefront,
   type Product,
@@ -30,6 +29,7 @@ import {
   type ExpoPurchaseError as PurchaseError,
 } from 'expo-iap';
 import Loading from '../src/components/Loading';
+import AppOwnershipCard from '../src/components/AppOwnershipCard';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
@@ -202,40 +202,6 @@ function PurchaseFlow({
     }
   };
 
-  const checkAppTransaction = async () => {
-    try {
-      console.log('Checking app transaction...');
-      const transaction = await getAppTransactionIOS();
-
-      if (transaction) {
-        Alert.alert(
-          'App Transaction',
-          `App Transaction Found:\n\n` +
-            `Original App Version: ${
-              transaction.originalAppVersion || 'N/A'
-            }\n` +
-            `Purchase Date: ${
-              transaction.originalPurchaseDate
-                ? new Date(
-                    transaction.originalPurchaseDate,
-                  ).toLocaleDateString()
-                : 'N/A'
-            }\n` +
-            `Device Verification: ${
-              transaction.deviceVerification || 'N/A'
-            }\n` +
-            `Environment: ${transaction.environment || 'N/A'}`,
-          [{text: 'OK'}],
-        );
-      } else {
-        Alert.alert('App Transaction', 'No app transaction found');
-      }
-    } catch (error) {
-      console.log('Failed to get app transaction:', error);
-      Alert.alert('Error', 'Failed to get app transaction');
-    }
-  };
-
   const handleShowDetails = (product: Product) => {
     setSelectedProduct(product);
     setModalVisible(true);
@@ -285,10 +251,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                ? storefront
-                : storefrontError
-                ? 'Unavailable'
-                : 'Not available'}
+                  ? storefront
+                  : storefrontError
+                    ? 'Unavailable'
+                    : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -323,10 +289,10 @@ function PurchaseFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? 'Local (Device)'
-                : verificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -339,8 +305,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-              ? 'All non-consumable products already purchased'
-              : 'Loading products...'}
+                ? 'All non-consumable products already purchased'
+                : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -358,15 +324,15 @@ function PurchaseFlow({
                   CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                     ? styles.productBadgeConsumable
                     : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? styles.productBadgeNonConsumable
-                    : null,
+                      ? styles.productBadgeNonConsumable
+                      : null,
                 ]}
               >
                 {CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                  ? 'Non-consumable product'
-                  : 'In-app product'}
+                    ? 'Non-consumable product'
+                    : 'In-app product'}
               </Text>
               <View style={styles.productActions}>
                 <TouchableOpacity
@@ -485,17 +451,7 @@ function PurchaseFlow({
           </View>
         ) : null}
 
-        {/* App Transaction Check (iOS) */}
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={styles.appTransactionButton}
-            onPress={checkAppTransaction}
-          >
-            <Text style={styles.appTransactionButtonText}>
-              🔍 Check App Transaction (iOS 16+)
-            </Text>
-          </TouchableOpacity>
-        )}
+        <AppOwnershipCard />
 
         {/* Instructions */}
         <View style={styles.instructions}>
@@ -1637,19 +1593,6 @@ const styles = StyleSheet.create({
   },
   refreshButtonText: {
     color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  appTransactionButton: {
-    backgroundColor: '#FF9800',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  appTransactionButtonText: {
-    color: 'white',
     fontWeight: '600',
     fontSize: 14,
   },

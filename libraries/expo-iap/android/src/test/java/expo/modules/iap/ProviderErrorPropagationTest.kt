@@ -19,6 +19,49 @@ import java.lang.reflect.Proxy
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ProviderErrorPropagationTest {
+    private fun invoke(
+        module: ExpoIapModule,
+        method: String,
+        args: Array<out Any?>,
+        promise: Promise,
+    ) {
+        val function = module.definition().asyncFunctions.getValue(method)
+
+        @Suppress("UNCHECKED_CAST")
+        val body =
+            function.javaClass
+                .getDeclaredField("body")
+                .apply { isAccessible = true }
+                .get(function) as (Array<out Any?>, Promise) -> Unit
+        body(args, promise)
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    @Test
+    fun `malformed ownership options reject before accessing a provider`() {
+        val module = ExpoIapModule()
+        for (params in listOf(mapOf("google" to "bad"), mapOf("google" to emptyMap<String, Any?>()))) {
+            var responses = 0
+            val promise =
+                object : Promise {
+                    override fun resolve(value: Any?) {
+                        fail("Malformed ownership input must reject")
+                    }
+
+                    override fun reject(
+                        code: String?,
+                        message: String?,
+                        cause: Throwable?,
+                    ) {
+                        assertEquals(OpenIapError.DeveloperError.CODE, code)
+                        responses++
+                    }
+                }
+            invoke(module, "verifyAppOwnership", arrayOf(params), promise)
+            assertEquals(1, responses)
+        }
+    }
+
     @Test
     fun `verification preserves provider errors instead of declaring the receipt invalid`() {
         for (error in listOf(OpenIapError.FeatureNotSupported("Use the vendor backend"), OpenIapError.NotPrepared)) {
@@ -66,19 +109,7 @@ class ProviderErrorPropagationTest {
                             responses++
                         }
                     }
-                val function = module.definition().asyncFunctions.getValue(method)
-
-                @Suppress("UNCHECKED_CAST")
-                val body =
-                    function.javaClass
-                        .getDeclaredField("body")
-                        .apply { isAccessible = true }
-                        .get(function) as (
-                        Array<out Any?>,
-                        Promise,
-                    ) -> Unit
-                body(arrayOf(params), promise)
-                shadowOf(Looper.getMainLooper()).idle()
+                invoke(module, method, arrayOf(params), promise)
                 assertEquals(1, responses)
             }
         }
@@ -117,19 +148,7 @@ class ProviderErrorPropagationTest {
                     responses++
                 }
             }
-        val function = module.definition().asyncFunctions.getValue("initConnection")
-
-        @Suppress("UNCHECKED_CAST")
-        val body =
-            function.javaClass
-                .getDeclaredField("body")
-                .apply { isAccessible = true }
-                .get(function) as (
-                Array<out Any?>,
-                Promise,
-            ) -> Unit
-        body(arrayOf(null), promise)
-        shadowOf(Looper.getMainLooper()).idle()
+        invoke(module, "initConnection", arrayOf(null), promise)
         assertEquals(1, responses)
     }
 }

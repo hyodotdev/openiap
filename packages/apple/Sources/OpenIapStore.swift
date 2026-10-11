@@ -556,6 +556,10 @@ public final class OpenIapStore: ObservableObject {
         try await module.getAppTransactionIOS()
     }
 
+    public func verifyAppOwnership(_ options: VerifyAppOwnershipProps? = nil) async throws -> AppOwnershipVerificationResult {
+        try await module.verifyAppOwnership(options)
+    }
+
     public func isEligibleForIntroOfferIOS(groupID: String) async throws -> Bool {
         try await module.isEligibleForIntroOfferIOS(groupID: groupID)
     }

@@ -96,6 +96,10 @@ class FakeAndroidJsonPlugin:
 		last_args = [program]
 		return _respond("createBillingProgramReportingDetailsAndroid", "{}")
 
+	func verifyAppOwnership(options_json: String) -> String:
+		last_args = [options_json]
+		return _respond("verifyAppOwnership", "{}")
+
 	func verifyPurchase(props_json: String) -> String:
 		last_args = [props_json]
 		return _respond("verifyPurchase", JSON.stringify({"isValid": false}))
@@ -115,13 +119,18 @@ class FakeAndroidJsonPlugin:
 class FakeImmediateApplePlugin:
 	extends RefCounted
 	## Canned payloads returned synchronously WITHOUT a requestId, which
-	## exercises _call_apple_async's immediate-payload and error fallbacks.
+	## exercises _call_native_async's immediate-payload and error fallbacks.
 	var responses: Dictionary = {}
 	var last_method := ""
+	var last_args: Array = []
 
 	func _respond(method: String, fallback: String) -> String:
 		last_method = method
 		return responses.get(method, fallback)
+
+	func verifyAppOwnership(options_json: String) -> String:
+		last_args = [options_json]
+		return _respond("verifyAppOwnership", "{}")
 
 	func initConnection() -> String:
 		return _respond("initConnection", JSON.stringify({"success": true}))
@@ -266,6 +275,8 @@ func _run_all_tests() -> void:
 	await test_android_has_active_subscriptions_envelope()
 	test_android_billing_program_envelopes()
 	await test_android_open_redeem_offer_code_envelope()
+	await test_app_ownership_evidence()
+	await test_app_ownership_failure_routing()
 	await test_android_verify_purchase_envelope()
 	await test_provider_verification_errors()
 	await test_apple_concurrent_verification_failures()
@@ -705,7 +716,7 @@ func test_ios_restore_failure_emits_purchase_error() -> void:
 		errors.append(error)
 	GodotIapPlugin.purchase_error.connect(capture_error)
 
-	# The fake returns its payload without a requestId, so `_call_apple_async`
+	# The fake returns its payload without a requestId, so `_call_native_async`
 	# takes the immediate-payload path and `restore_purchases()` runs its real
 	# iOS branch rather than the test re-implementing it.
 	var fake = _install_ios_fake()
@@ -1777,4 +1788,63 @@ func test_apple_failed_connection_signal() -> void:
 	GodotIapPlugin._on_connected(1)
 	_assert_equal(events, [true], "An Apple success signal establishes one connected event")
 	GodotIapPlugin.connected.disconnect(capture)
+	_uninstall_fake()
+
+
+func test_app_ownership_evidence() -> void:
+	for platform in ["Android", "iOS"]:
+		var fake = _install_android_fake() if platform == "Android" else _install_ios_fake()
+		var evidence = {"status": "unknown", "storeId": "play", "reason": "backend-verification-required", "integrityTokenAndroid": "token"} if platform == "Android" else {"status": "licensed", "storeId": "apple", "signedAppTransactionIOS": "signed-jws"}
+		fake.responses["verifyAppOwnership"] = JSON.stringify({"success": true, "ownershipJson": JSON.stringify(evidence)})
+		var result = await GodotIapPlugin.verify_app_ownership({"google": {"cloudProjectNumber": "123", "requestHash": "digest"}})
+		_assert_equal(result.status, Types.AppOwnershipStatus.UNKNOWN if platform == "Android" else Types.AppOwnershipStatus.LICENSED, "Ownership retains the store verdict")
+		if platform == "Android":
+			_assert_equal(result.integrity_token_android, "token", "Play evidence is available to the backend")
+			_assert_equal(JSON.parse_string(fake.last_args[0]).google.requestHash, "digest", "Ownership binds the integrity request")
+		else:
+			_assert_equal(result.signed_app_transaction_ios, "signed-jws", "Apple signed evidence is preserved")
+		var typed_options = Types.VerifyAppOwnershipProps.from_dict({"google": {"cloudProjectNumber": "123", "requestHash": "typed-digest"}})
+		await GodotIapPlugin.verify_app_ownership(typed_options)
+		_assert_equal(JSON.parse_string(fake.last_args[0]).google.requestHash, "typed-digest", "Ownership accepts generated options")
+		await GodotIapPlugin.verify_app_ownership(null)
+		_assert_equal(JSON.parse_string(fake.last_args[0]), {}, "Null ownership options are optional")
+		_uninstall_fake()
+	var unsupported = await GodotIapPlugin.verify_app_ownership()
+	_assert_equal(unsupported.reason, Types.AppOwnershipVerificationReason.UNSUPPORTED, "Missing native ownership capability stays unknown")
+
+
+func _collect_app_ownership(results: Dictionary) -> void:
+	results["ownership"] = await GodotIapPlugin.verify_app_ownership()
+
+
+func test_app_ownership_failure_routing() -> void:
+	var fake = _install_ios_fake()
+	var errors: Array[Dictionary] = []
+	var capture = func(error: Dictionary) -> void: errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture)
+	var results := {}
+	fake.responses["verifyAppOwnership"] = JSON.stringify({"status": "pending", "requestId": "ownership-disconnect"})
+	_collect_app_ownership(results)
+	await process_frame
+	GodotIapPlugin._on_disconnected()
+	await process_frame
+	_assert_true(results.has("ownership"), "Disconnect completes the ownership request")
+	_assert_equal(results.get("ownership"), null, "A disconnected ownership request returns no verdict")
+	_assert_equal(errors.size(), 1, "Disconnect reports one ownership failure")
+	_assert_equal(errors[0].get("code"), "service-disconnected", "Ownership preserves the disconnect error")
+	_assert_equal(errors[0].get("method"), "verifyAppOwnership", "Disconnect stays an ownership diagnostic")
+
+	fake.responses["verifyAppOwnership"] = "0"
+	await GodotIapPlugin.verify_app_ownership()
+	_assert_equal(errors.back().get("code"), "service-error", "A missing request identity reports a service error")
+	_assert_equal(errors.back().get("method"), "verifyAppOwnership", "Dispatch failures stay ownership diagnostics")
+	for platform in ["Android", "iOS"]:
+		GodotIapPlugin._platform = platform
+		fake.responses["verifyAppOwnership"] = JSON.stringify({"success": true, "ownershipJson": "[]"})
+		var malformed = await GodotIapPlugin.verify_app_ownership()
+		_assert_equal(malformed, null, "Malformed evidence returns no ownership verdict")
+		_assert_equal(errors.back().get("code"), "purchase-verification-failed", "Malformed evidence reports its verification error")
+		_assert_equal(errors.back().get("method"), "verifyAppOwnership", "Malformed evidence stays an ownership diagnostic")
+	_assert_equal(errors.size(), 4, "Each ownership failure emits exactly one diagnostic")
+	GodotIapPlugin.purchase_error.disconnect(capture)
 	_uninstall_fake()

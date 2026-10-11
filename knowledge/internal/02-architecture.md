@@ -93,6 +93,22 @@ binding; `official` entries live in this monorepo. Provider conformance suites
 runner covers the client behaviors; a report passes only when every required
 behavior passes with a matching verdict.
 
+## Cross-Platform Capability Contracts
+
+When Apple and Android support the same user task, expose one unsuffixed
+operation and shared result contract in `specs/client`. Native provider adapters
+own the store calls and map their outcomes; framework SDKs forward the generated
+contract so apps use one call and one result-handling flow.
+
+- Share status, failure reasons, and options where their meaning matches. Keep
+  necessary platform evidence in explicit suffixed fields instead of inventing
+  a second public API or duplicating decision logic in each framework.
+- Preserve differences in trust and availability. For example,
+  `verifyAppOwnership` can verify an Apple acquisition locally, while a Play
+  Integrity token remains `unknown` until the developer's backend verifies it.
+- Keep unsupported capabilities and inconclusive results explicit. A common
+  interface must not manufacture a successful verdict for a weaker store check.
+
 ## Directory Ownership Guardrail
 
 Keep each project surface under its canonical owner:

@@ -900,6 +900,26 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
 
+            "verifyAppOwnership" -> {
+                val params = (call.arguments as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value } ?: emptyMap()
+                scope.launch {
+                    try {
+                        val provider = requireOpenIap()
+                        val options = dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(params)
+                        safe.success(JSONObject(provider.verifyAppOwnership(options).toJson()).toString())
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        val fallback = if (e is IllegalArgumentException) {
+                            OpenIapError.DeveloperError(e.message)
+                        } else {
+                            OpenIapError.ServiceUnavailable(e.message)
+                        }
+                        replyBillingError(safe, e, fallback)
+                    }
+                }
+            }
+
             // Verify Purchase (Platform-specific, v8.0.0+)
             "verifyPurchase" -> {
                 val googleOptions = call.argument<Map<String, Any?>>("google")

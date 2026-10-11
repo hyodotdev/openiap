@@ -1486,6 +1486,24 @@ class HybridRnIap : HybridRnIapSpec() {
 
     // Billing error messages handled by OpenIAP
     
+    override fun verifyAppOwnership(optionsJson: String): Promise<String> = Promise.async {
+        try {
+            val options = dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(JSONObject(optionsJson).toPurchaseMap())
+            JSONObject(openIap.verifyAppOwnership(options).toJson()).toString()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: OpenIapError) {
+            throw OpenIapException(toErrorJson(e), e)
+        } catch (e: Exception) {
+            val error = if (e is IllegalArgumentException || e is org.json.JSONException) {
+                OpenIapError.DeveloperError(e.message)
+            } else {
+                OpenIapError.ServiceUnavailable(e.message)
+            }
+            throw OpenIapException(toErrorJson(error), e)
+        }
+    }
+
     // iOS-specific method - not supported on Android
     override fun getAppTransactionIOS(): Promise<Variant_NullType_String> {
         return Promise.async {

@@ -310,6 +310,7 @@ func _test_verification_picker(plugin: Node) -> void:
 	panel.add_child(container)
 	root.add_child(panel)
 	game.store_panel = panel
+	game.store_contents = container
 	game.status_label = Label.new()
 	panel.add_child(game.status_label)
 	game.loading_label = Label.new()
@@ -369,7 +370,45 @@ func _test_verification_picker(plugin: Node) -> void:
 	var connecting_scene = load("res://main.tscn").instantiate()
 	root.add_child(connecting_scene)
 	await process_frame
-	_check(connecting_scene.status_label.text == "Connecting..." and connecting_scene.store_button.disabled and connecting_scene.loading_label.visible, "An unfinished autoload connection keeps the scene loading without enabling purchases")
+	_check(connecting_scene.status_label.text == "Connecting..." and not connecting_scene.store_button.disabled and connecting_scene.loading_label.visible, "An unfinished connection keeps ownership diagnostics accessible")
+	_check(connecting_scene.store_contents.get_node("Buy10BulbsButton").disabled and connecting_scene.store_contents.get_node("RestoreButton").disabled and connecting_scene.verification_picker.disabled, "An unfinished connection keeps purchase and receipt operations disabled")
+	connecting_scene._on_store_button_pressed()
+	_check(connecting_scene.store_panel.visible and not connecting_scene.ownership_check_button.disabled, "The normal Store exposes ownership independently of billing connection")
+	var calls_before: Array[String] = fake.calls.duplicate()
+	connecting_scene.ownership_project_number.text = "123"
+	await connecting_scene._on_check_ownership_pressed()
+	_check(connecting_scene.ownership_result_label.text.begins_with("developer-error:") and fake.calls == calls_before, "Partial Google ownership inputs fail inline without a native request")
+	connecting_scene.ownership_project_number.text = ""
+	fake.responses["verifyAppOwnership"] = JSON.stringify({"success": false, "method": "verifyAppOwnership", "code": "developer-error", "error": "Fixture ownership input error"})
+	await connecting_scene._on_check_ownership_pressed()
+	_check(connecting_scene.ownership_result_label.text.begins_with("developer-error:") and manager.is_loading, "A native ownership failure stays inline and preserves purchase loading")
+	var catalog_events: Array[bool] = []
+	var capture_catalog = func() -> void: catalog_events.append(true)
+	manager.products_loaded.connect(capture_catalog)
+	for platform in ["macOS", "Android"]:
+		plugin._platform = platform
+		for success in [true, false]:
+			var request_id := "ownership-catalog-%s-%s" % [platform, success]
+			fake.responses["verifyAppOwnership"] = JSON.stringify({"status": "pending", "requestId": request_id})
+			_start_ownership_check(connecting_scene)
+			await process_frame
+			var completion := {"method": "verifyAppOwnership", "requestId": request_id, "success": success}
+			if success:
+				completion["ownershipJson"] = JSON.stringify({"status": "unknown", "storeId": "horizon", "reason": "unsupported"})
+			else:
+				completion["code"] = "developer-error"
+				completion["error"] = "Fixture ownership completion error"
+			if platform == "Android":
+				plugin._on_android_products_fetched(JSON.stringify(completion))
+			else:
+				plugin._on_products_fetched(completion)
+			await process_frame
+			_check(not connecting_scene.ownership_checking, "A tagged native signal completes the normal ownership check")
+			_check(manager.is_loading and catalog_events.is_empty(), "Ownership completion preserves an in-flight catalog query")
+			_check(connecting_scene.ownership_result_label.text.begins_with("Status: unknown") if success else connecting_scene.ownership_result_label.text.begins_with("developer-error:"), "Tagged ownership results and errors remain inline")
+	plugin._on_products_fetched({"method": "fetchProducts", "products": []})
+	_check(not manager.is_loading and catalog_events.size() == 1, "Only a catalog completion ends product loading")
+	manager.products_loaded.disconnect(capture_catalog)
 	connecting_scene.queue_free()
 	await process_frame
 	manager.store_connected = previous_connection
@@ -378,6 +417,10 @@ func _test_verification_picker(plugin: Node) -> void:
 	manager._processed_transactions = previous_completed
 	Config._api_key = previous_key
 	Config._base_url = previous_url
+
+
+func _start_ownership_check(scene: Node) -> void:
+	await scene._on_check_ownership_pressed()
 
 
 func _check(condition: bool, message: String) -> void:

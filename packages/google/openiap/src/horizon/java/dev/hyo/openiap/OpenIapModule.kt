@@ -1500,7 +1500,12 @@ class OpenIapModule(
         )
     }
 
+    override val verifyAppOwnership: QueryVerifyAppOwnershipHandler = { _ ->
+        AppOwnershipVerificationResult(reason = AppOwnershipVerificationReason.Unsupported, status = AppOwnershipStatus.Unknown, storeId = StoreIds.Horizon)
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
+        verifyAppOwnership = verifyAppOwnership,
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
         getAvailablePurchases = getAvailablePurchases,

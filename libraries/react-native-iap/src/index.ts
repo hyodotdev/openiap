@@ -921,8 +921,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1121,6 +1120,28 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
   }
 
   return storefront;
+};
+
+/** Verify app acquisition; send Android integrity tokens to your backend. */
+export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
+  options,
+) => {
+  if (!isVegaOS() && Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    return {status: 'unknown', reason: 'unsupported', storeId: 'unknown'};
+  }
+  try {
+    const result = await IAP.instance.verifyAppOwnership(
+      JSON.stringify(options ?? {}),
+    );
+    return JSON.parse(
+      result,
+    ) as import('./types').AppOwnershipVerificationResult;
+  } catch (error) {
+    throw createPurchaseError({
+      ...parseErrorStringToJsonObj(error),
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+    });
+  }
 };
 
 /**

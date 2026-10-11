@@ -4,6 +4,8 @@
     <_OpenIapMauiPropsImported>true</_OpenIapMauiPropsImported>
     <MauiOpenIapCoreVersion>4.0.0</MauiOpenIapCoreVersion>
     <MauiPlayBillingVersion>9.1.0</MauiPlayBillingVersion>
+    <MauiPlayIntegrityVersion>1.6.0</MauiPlayIntegrityVersion>
+    <MauiPlayCoreCommonVersion>2.0.4</MauiPlayCoreCommonVersion>
     <MauiAmazonAppstoreSdkVersion>3.0.9</MauiAmazonAppstoreSdkVersion>
     <MauiHorizonBillingCompatibilityVersion>2.0.0</MauiHorizonBillingCompatibilityVersion>
     <MauiHorizonPlatformKotlinVersion>0.2.2</MauiHorizonPlatformKotlinVersion>

@@ -563,6 +563,24 @@ class ExpoIapModule : Module() {
                 OpenIapFirstPurchaseNotice.claim(context)
             }
 
+            AsyncFunction("verifyAppOwnership") { params: Map<String, Any?>, promise: Promise ->
+                scope.launch {
+                    try {
+                        val options = dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(params)
+                        promise.resolve(openIap.verifyAppOwnership(options).toJson())
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        val code = when (e) {
+                            is OpenIapError -> e.code
+                            is IllegalArgumentException -> OpenIapError.DeveloperError.CODE
+                            else -> OpenIapError.ServiceUnavailable.CODE
+                        }
+                        promise.reject(code, e.message, e)
+                    }
+                }
+            }
+
             AsyncFunction("verifyPurchase") { params: Map<String, Any?>, promise: Promise ->
                 ExpoIapLog.payload(
                     "verifyPurchase",

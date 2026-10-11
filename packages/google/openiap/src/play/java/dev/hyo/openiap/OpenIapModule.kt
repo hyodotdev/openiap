@@ -1,6 +1,8 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import dev.hyo.openiap.utils.verifyAppOwnershipPlay
+import dev.hyo.openiap.utils.collectPlayIntegrityToken
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -2226,7 +2228,14 @@ class OpenIapModule(
         )
     }
 
+    override val verifyAppOwnership: QueryVerifyAppOwnershipHandler = { options ->
+        verifyAppOwnershipPlay(options) { projectNumber, requestHash ->
+            collectPlayIntegrityToken(context, projectNumber, requestHash)
+        }
+    }
+
     override val queryHandlers: QueryHandlers = QueryHandlers(
+        verifyAppOwnership = verifyAppOwnership,
         fetchProducts = fetchProducts,
         getActiveSubscriptions = getActiveSubscriptions,
         getAvailablePurchases = getAvailablePurchases,

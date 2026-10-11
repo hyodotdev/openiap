@@ -21,8 +21,9 @@ scope.
   package).
 - Play, FireOS/Amazon, and Horizon rows: all six frameworks
   (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `kmp-iap`,
-  `maui-iap`, `godot-iap`). Horizon is build-only unless a Quest is attached,
-  and its checkout runs only when the UI is visibly test or sandbox.
+  `maui-iap`, `godot-iap`). With a Quest attached, navigate to checkout and
+  follow the canonical **Horizon Test Accounts and Payments** gate before
+  confirming; without one, report build-only coverage.
 - VegaOS rows: `react-native-iap` and `expo-iap` only.
 - Local (IAPKit) receipt vertical on Android
   (`## Local (IAPKit) Receipt Vertical`).

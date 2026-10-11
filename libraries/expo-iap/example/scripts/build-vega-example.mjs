@@ -182,6 +182,10 @@ const copyDirectoryWithTransform = (
 
 const copyExampleSources = () => {
   copyFile(path.join(exampleRoot, 'App.kepler.tsx'), 'App.tsx');
+  copyFile(
+    path.join(exampleRoot, 'amazon.sdktester.json'),
+    'amazon.sdktester.json',
+  );
   copyDirectoryWithTransform(
     path.join(exampleRoot, 'src'),
     'src',

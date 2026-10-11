@@ -151,10 +151,11 @@ Dependency versions are centralized and synced via `scripts/sync-versions.sh`:
 | Android SDK / kotlinx-coroutines | `packages/google/openiap/build.gradle.kts` | `android/build.gradle.kts` and `addons/godot-iap/android/GodotIap.gdap` via `scripts/write-gdap.sh` |
 | Standalone Android fallbacks     | `android/gradle.properties`                | used only when `packages/google/openiap` is not available                                           |
 
-To update versions:
-
-1. Edit `openiap-versions.json` or the Android SDK/dependency source in `packages/google/openiap/build.gradle.kts`
-2. Run `./scripts/sync-versions.sh`
+Package version upgrades are CI-only; follow the root
+[Version File Management](../../knowledge/internal/06-git-deployment.md#version-file-management)
+guidance. Do not edit version fields or `openiap-versions.json` locally.
+For Android dependency changes, edit their source in
+`packages/google/openiap/build.gradle.kts` and run `./scripts/sync-versions.sh`.
 
 ### Android (openiap-google)
 

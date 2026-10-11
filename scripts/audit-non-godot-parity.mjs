@@ -180,6 +180,7 @@ const operationParityRegistry = {
     "isTransactionVerifiedIOS",
     "latestTransactionIOS",
     "subscriptionStatusIOS",
+    "verifyAppOwnership",
   ],
   Subscription: [
     "developerProvidedBillingAndroid",
@@ -1666,12 +1667,29 @@ function checkE2eExampleIds() {
   );
   for (const expected of [
     "verify reconnect/listener behavior",
-    "run the exposed purchase/restore flow",
-    "visibly marked as test or sandbox",
-    "Otherwise report build-only coverage",
+    "navigate the normal example to checkout",
+    "Apply the payment gate below before",
+    "purchase, verification, and consume coverage",
   ]) {
     if (!horizonStoreFlow.includes(expected)) {
       fail(`Expo Horizon store flow is missing ${JSON.stringify(expected)}`);
+    }
+  }
+  const horizonPaymentGate = extractBetween(
+    manualStoreFlows,
+    "### Horizon Test Accounts and Payments",
+    "## Leave the Normal Example on the Device",
+  );
+  for (const expected of [
+    "same-team Meta Test User",
+    "test release channel and verify membership",
+    "Verify the saved result; never add a real",
+    "verify the active Test User and selected test payment method",
+    "user explicitly authorized that real purchase",
+    "Record purchase, local verification, and consume results separately",
+  ]) {
+    if (!horizonPaymentGate.includes(expected)) {
+      fail(`Horizon payment gate is missing ${JSON.stringify(expected)}`);
     }
   }
   const finalReport = extractBetween(workflow, "## Final Report", null);
@@ -8492,6 +8510,32 @@ function checkFrameworkDependencyHygiene() {
   const mauiStoreProps = read(
     "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
   );
+  for (const [gradleName, propertyName, artifact] of [
+    ["playIntegrityVersion", "MauiPlayIntegrityVersion", "integrity"],
+    ["playCoreCommonVersion", "MauiPlayCoreCommonVersion", "core-common"],
+  ]) {
+    const nativeVersion = googleBuildGradle.match(
+      new RegExp(`val\\s+${gradleName}\\s*=\\s*"([^"]+)"`),
+    )?.[1];
+    const managedVersion = mauiStoreProps.match(
+      new RegExp(`<${propertyName}>([^<]+)</${propertyName}>`),
+    )?.[1];
+    if (!nativeVersion || managedVersion !== nativeVersion) {
+      fail(`MAUI ${propertyName} must match packages/google ${gradleName}`);
+    }
+    expectIncludes(
+      "packages/google/openiap/build.gradle.kts",
+      [`com.google.android.play:${artifact}:$${gradleName}`],
+      `Google ${artifact} dependency must use its canonical version`,
+    );
+    expectIncludes(
+      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+      [
+        `<AndroidMavenLibrary Include="com.google.android.play:${artifact}" Version="$(${propertyName})" Repository="Google" Bind="false" />`,
+      ],
+      `MAUI ${artifact} dependency must use generated metadata`,
+    );
+  }
   const mauiBillingVersion = mauiStoreProps.match(
     /<MauiPlayBillingVersion>([^<]+)<\/MauiPlayBillingVersion>/,
   )?.[1];

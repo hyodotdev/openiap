@@ -243,6 +243,8 @@ export const consumePurchaseAndroid: MutationField<
 
 export const syncIOS: MutationField<'syncIOS'> = async () =>
   unsupported('syncIOS');
+export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async () => ({status: 'unknown', reason: 'unsupported', storeId: 'amazon'});
+
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
 > = async () => null;

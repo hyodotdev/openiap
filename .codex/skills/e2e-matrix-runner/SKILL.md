@@ -20,13 +20,13 @@ Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
 `kmp-iap`, `maui-iap`, `godot-iap`, plus the native `packages/google`
 (Android) and `packages/apple` (iOS) rows.
 
-| Store        | Frameworks                         | Device            | Depth                        |
-| ------------ | ---------------------------------- | ----------------- | ---------------------------- |
-| iOS          | all six + `packages/apple`         | iPhone (physical) | device purchase flow each    |
-| Google Play  | all six + `packages/google`        | Pixel             | device purchase flow each    |
-| Amazon       | all six + `packages/google`        | Fire tablet       | device purchase flow each    |
-| Meta Horizon | all six + `packages/google`        | Quest 3           | build + install + launch + tap-navigate to the purchase gate; purchase only when the checkout UI is visibly test/sandbox |
-| VegaOS       | react-native-iap and expo-iap only | Vega device       | build + install + launch; purchase attempt when device input allows |
+| Store        | Frameworks                         | Device            | Depth                                                                                                             |
+| ------------ | ---------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| iOS          | all six + `packages/apple`         | iPhone (physical) | device purchase flow each                                                                                         |
+| Google Play  | all six + `packages/google`        | Pixel             | device purchase flow each                                                                                         |
+| Amazon       | all six + `packages/google`        | Fire tablet       | device purchase flow each                                                                                         |
+| Meta Horizon | all six + `packages/google`        | Quest 3           | build + install + launch + normal checkout navigation; apply the canonical Horizon payment gate before confirming |
+| VegaOS       | react-native-iap and expo-iap only | Vega device       | build + install + launch; purchase attempt when device input allows                                               |
 
 That is 7 iOS + 21 Android/Horizon + 2 VegaOS cells. Do not silently drop a
 cell.
@@ -36,8 +36,9 @@ cell.
 - Sandbox/test purchases on Play, Amazon, and iOS are pre-approved: tap the
   purchase sheet, type the pinned sandbox password below, and finish the
   transaction without asking.
-- Horizon checkout is real money: take the `Confirm` tap only when its UI is
-  visibly marked test or sandbox. Otherwise report build + launch coverage.
+- Horizon: follow **Horizon Test Accounts and Payments** in
+  `.claude/commands/e2e-tests.md`. Use verified test payments; a real purchase
+  requires explicit user authorization. Report checkout and completion separately.
 - VegaOS: run at least one purchase attempt when device input and tester UI
   are available.
 
@@ -103,25 +104,22 @@ an entry change, or a 500 `Got unexpected undefined`), restart it with
 bundle (RN shows 6 bare nodes until loaded); a transient `null root node`
 from the dump usually clears on retry.
 
-Verified limitation (Quest 3, Horizon OS, scrcpy 3.x): the above applies to
-display 0 only. On a scrcpy virtual display (`--new-display`), touch
-injection is silently ignored — `adb shell input -d N tap`, explicit
-`input touchscreen -d N tap`, and monkey-script `tap(x,y)` all leave the
-frame bit-identical (compare md5 before/after). Key events
-(`input -d N keyevent`) do reach the app. Prefer display 0 + dumps over the
-virtual-display + screenshot path; one md5-compare per OS upgrade is enough,
-do not burn the run re-proving it.
+For canvas-only apps whose accessibility tree has no controls, use the
+virtual-display capture and input procedure in `.claude/commands/e2e-tests.md`.
+Derive taps from the captured frame and verify the resulting UI change. Touch
+support varies by device and app; a past ignored tap does not establish the
+current run's capability. Key events can provide visible focus navigation when
+touch is unavailable.
 
 Consequences: drive each Horizon app as install + launch + navigate + tap to
 the purchase gate. The `com.oculus.store` checkout dialog renders its full
-text into the dump (product, total, payment method, Confirm), so the
-test/sandbox gate stays enforceable without screenshots. A build that linked
+text into the dump (product, total, payment method, Confirm), so the canonical
+payment gate can be checked without screenshots. A build that linked
 Play instead of Horizon fails earlier with Play's own error (RN-IAP:
 `initConnection failed ... responseCode -1`, no Play Store on Horizon OS); its
 store line says `store=play`, so rebuild for the Quest. Report any other store
-error exactly, not as a generic input block. Horizon purchase cells
-are `BLOCKED` by default (real-money Confirm, or no store connection), never
-guessed.
+error exactly, not as a generic input block. Record verified checkout navigation
+even when payment cannot proceed; mark the missing completion step `BLOCKED`.
 
 **iOS.** Build with `xcodebuild -destination "id=$UDID"`, install with
 `xcrun devicectl device install app`, launch with
@@ -220,8 +218,8 @@ asking. This is a shared test account, so no redaction or secrecy handling is
 needed in transcripts, logs, or screenshots.
 
 What stays human-only: the device passcode for _Enable UI Automation_, the
-hardware side-button double-click, a parental-control PIN, and any real-money
-Horizon checkout. If one of those blocks a cell, report it as
+hardware side-button double-click, and a parental-control PIN. Horizon payment
+approval follows the canonical payment gate above. If a human-only step blocks a cell, report it as
 `BLOCKED: needs <which>` and keep going. Never invent or reuse the pinned
 password for any other account.
 

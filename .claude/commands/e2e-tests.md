@@ -91,9 +91,8 @@ Notes:
 - The Horizon purchase dialog is `com.oculus.store/.IAPActivity` on **display 0**,
   so it never appears on the virtual display. Read its buttons with
   `adb shell uiautomator dump /sdcard/ui.xml`, pull and parse the node `bounds`,
-  then `adb shell input -d 0 tap` the centre of `Confirm`. Horizon purchases are
-  real money, so treat that tap as a purchase approval and take it only when the
-  current request authorizes one.
+  then `adb shell input -d 0 tap` the centre of `Confirm`. Apply the
+  [Horizon payment gate](#horizon-test-accounts-and-payments) before confirming.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
 - Every framework must appear in the final report for FireOS and Horizon. Do
   not count the Play build as FireOS or Horizon coverage; each row's store line
@@ -880,7 +879,10 @@ Run it once per store device. Without a device, pin the store instead:
 `bash scripts/verify-store-selection.sh` covers the selection rule itself
 without hardware.
 
-iOS physical-device build and launch smoke:
+iOS physical-device build and launch smoke. Install the .NET iOS workload
+matching the selected Xcode version; do not disable Xcode version validation.
+Use the [official workload releases](https://github.com/dotnet/macios/releases)
+to select a compatible pair.
 
 ```bash
 cd libraries/maui-iap/example/OpenIap.Maui.Example
@@ -888,7 +890,6 @@ cd libraries/maui-iap/example/OpenIap.Maui.Example
 dotnet build \
   -f net10.0-ios \
   -p:RuntimeIdentifier=ios-arm64 \
-  -p:ValidateXcodeVersion=false \
   --nologo
 xcrun devicectl device install app \
   --device "$IOS_UDID" \
@@ -974,8 +975,9 @@ Run these on each connected platform requested:
   attempt when device input and tester UI are available.
 - Horizon: when a runnable device and store prerequisites are available, install
   and launch the store-specific build, verify reconnect/listener behavior, and
-  run the exposed purchase/restore flow. Approve checkout only when its UI is
-  visibly marked as test or sandbox. Otherwise report build-only coverage.
+  navigate the normal example to checkout. Apply the payment gate below before
+  confirming; otherwise cancel and report checkout coverage separately from
+  purchase, verification, and consume coverage.
 - Onside: Expo iOS build-only. Verify the generated Podfile and iOS project
   include the Onside module when `EXPO_IAP_ONSIDE=1`. Run CocoaPods explicitly
   after prebuild, require `OnsideKit` in `Podfile.lock`, require both `onside`
@@ -985,6 +987,29 @@ Run these on each connected platform requested:
 
 If a product catalog or sandbox account is missing, stop that row and report it
 as blocked with the exact missing prerequisite.
+
+### Horizon Test Accounts and Payments
+
+Use a same-team Meta Test User with a preset test payment method for no-charge
+IAP. A developer account or release-channel membership alone does not enable
+test payments. Follow Meta's [Testing Add-ons](https://developers.meta.com/vr/documentation/android-apps/ps-iap-test/)
+and [Test Users](https://developers.meta.com/vr/resources/test-users/) procedures:
+
+1. Reuse a team Test User in **Development → Test users**. Add it to the app's
+   test release channel and verify membership before testing entitlement or IAP.
+2. Open **Manage test credit cards**, select the preset **Always pass** card,
+   save it, and set it as default. Verify the saved result; never add a real
+   payment method to a test account.
+3. Sign in to the Quest as that Test User. Dashboard administrator login does
+   not switch the headset account. Preserve the owner's account and apps; do
+   not factory-reset the device to add a test account.
+4. Before Confirm, verify the active Test User and selected test payment method.
+   A displayed price or missing sandbox badge alone does not establish whether
+   a checkout charges money. If the test setup is unverified, cancel unless the
+   user explicitly authorized that real purchase.
+5. Record purchase, local verification, and consume results separately. Keep
+   payment details and credentials out of evidence; report missing login or
+   payment setup as a concrete prerequisite.
 
 ## Leave the Normal Example on the Device
 

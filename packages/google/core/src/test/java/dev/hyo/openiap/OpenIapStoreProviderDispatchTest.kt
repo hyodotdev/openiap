@@ -29,6 +29,7 @@ class OpenIapStoreProviderDispatchTest {
         }
         val active: QueryGetActiveSubscriptionsHandler = { queries.add(it); emptyList() }
         val hasActive: QueryHasActiveSubscriptionsHandler = { queries.add(it); true }
+        val ownership: QueryVerifyAppOwnershipHandler = { AppOwnershipVerificationResult(status = AppOwnershipStatus.Unknown, storeId = "community_fixture", reason = AppOwnershipVerificationReason.Unsupported) }
         val restore: MutationRestorePurchasesHandler = { restores++; Unit }
         val deepLink: MutationDeepLinkToSubscriptionsHandler = { management.add(it); Unit }
         val provider = Proxy.newProxyInstance(
@@ -36,6 +37,7 @@ class OpenIapStoreProviderDispatchTest {
             arrayOf(OpenIapProtocol::class.java),
         ) { _, method, _ ->
             when (method.name) {
+                "getVerifyAppOwnership" -> ownership
                 "getGetActiveSubscriptions" -> active
                 "getHasActiveSubscriptions" -> hasActive
                 "getRestorePurchases" -> restore
@@ -48,6 +50,7 @@ class OpenIapStoreProviderDispatchTest {
         } as OpenIapProtocol
         val store = OpenIapStore(provider)
 
+        assertEquals("community_fixture", store.verifyAppOwnership().storeId)
         assertTrue(store.getActiveSubscriptions(listOf("subscription")).isEmpty())
         assertTrue(store.hasActiveSubscriptions(null))
         store.restorePurchases()

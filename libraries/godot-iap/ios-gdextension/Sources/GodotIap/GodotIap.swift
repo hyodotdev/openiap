@@ -999,6 +999,29 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     @Callable
+    public func verifyAppOwnership(optionsJson: String) -> String {
+        let requestId = UUID().uuidString
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let options = try JSONDecoder().decode(VerifyAppOwnershipProps.self, from: Data(optionsJson.utf8))
+                let result = try await self.openIap.verifyAppOwnership(options)
+                let json = String(decoding: try JSONEncoder().encode(result), as: UTF8.self)
+                await MainActor.run {
+                    let dict = self.asyncResultDictionary(method: "verifyAppOwnership", requestId: requestId)
+                    dict["ownershipJson"] = Variant(json)
+                    self.productsFetched.emit(dict)
+                }
+            } catch is DecodingError {
+                await self.emitAsyncFailure(method: "verifyAppOwnership", requestId: requestId, message: "Invalid app ownership options", code: ErrorCode.developerError.rawValue)
+            } catch {
+                await self.emitAsyncFailure(method: "verifyAppOwnership", requestId: requestId, message: error.localizedDescription, code: GodotIapHelper.errorCode(error))
+            }
+        }
+        return "{\"status\":\"pending\",\"requestId\":\"\(requestId)\"}"
+    }
+
+    @Callable
     public func getAppTransactionIOS() -> String {
         GodotIapLog.payload("Getting app transaction", payload: nil)
         let requestId = UUID().uuidString

@@ -612,30 +612,33 @@ test("the registry note keeps a major's profile while any entry cites it", () =>
   );
 });
 
-test("the Client Protocol feature-PR rule refreshes the lockfile", () => {
-  for (const file of [
-    "knowledge/internal/04-platform-packages.md",
-    "knowledge/internal/06-git-deployment.md",
-    ".claude/commands/release.md",
-  ]) {
-    const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
-    assert.ok(
-      source.includes("bun install --lockfile-only --ignore-scripts"),
-      `${file} is missing the lockfile refresh`,
-    );
-  }
-  const guide = fs.readFileSync(
-    path.join(repoRoot, "knowledge/internal/04-platform-packages.md"),
+test("package version upgrades are CI-only across agent guidance", () => {
+  const canonical = fs.readFileSync(
+    path.join(repoRoot, "knowledge/internal/06-git-deployment.md"),
     "utf8",
   );
-  assert.ok(
-    guide.includes("refresh `bun.lock` and run"),
-    "the Client Protocol update steps skip the lockfile refresh",
-  );
-  assert.ok(
-    !guide.includes("mirrors it into `openiap-versions.json`"),
-    "stale sync-mirror claim is still present",
-  );
+  assert.ok(canonical.includes("All package version upgrades are CI-only"));
+  assert.ok(canonical.includes("no feature-PR exception"));
+  assert.ok(canonical.includes("specs/client/package.json"));
+  for (const file of [
+    "AGENTS.md",
+    "libraries/godot-iap/AGENTS.md",
+    "libraries/maui-iap/AGENTS.md",
+    "knowledge/internal/04-platform-packages.md",
+    ".claude/commands/release.md",
+    ".claude/commands/audit-code.md",
+    ".codex/skills/generate-doc/SKILL.md",
+    ".codex/skills/ship-release/SKILL.md",
+  ]) {
+    const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
+    assert.ok(source.includes("CI-only"), `${file} must preserve CI ownership`);
+    assert.ok(
+      !/feature PR may|contract change may bump|feature PR setting/.test(
+        source,
+      ),
+      `${file} still permits local version upgrades`,
+    );
+  }
 });
 
 test("the Expo restore JSDoc names the provider restore first", () => {

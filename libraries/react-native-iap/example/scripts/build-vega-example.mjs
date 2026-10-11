@@ -154,6 +154,10 @@ const rewritePackageSourceImports = (source, sourcePath) => {
 
 const copyExampleSources = () => {
   copyFile(path.join(exampleRoot, 'App.kepler.tsx'), 'App.tsx');
+  copyFile(
+    path.join(exampleRoot, 'amazon.sdktester.json'),
+    'amazon.sdktester.json',
+  );
   copyDirectory(path.join(exampleRoot, 'screens'), 'screens');
   copyDirectory(path.join(exampleRoot, 'src'), 'src');
 };

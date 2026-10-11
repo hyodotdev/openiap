@@ -2016,6 +2016,32 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           };
 
+  /// Verify app acquisition; Android evidence requires backend verification.
+  gentype.QueryVerifyAppOwnershipHandler get verifyAppOwnership =>
+      ({gentype.PlayIntegrityParamsAndroid? google}) async {
+        try {
+          final result = await _channel.invokeMethod<dynamic>(
+              'verifyAppOwnership',
+              gentype.VerifyAppOwnershipProps(google: google).toJson());
+          final map = normalizeDynamicMap(
+              result is String ? jsonDecode(result) : result);
+          if (map == null) {
+            throw PurchaseError(
+                code: gentype.ErrorCode.PurchaseVerificationFailed,
+                message: 'Invalid app ownership verification result');
+          }
+          return gentype.AppOwnershipVerificationResult.fromJson(map);
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+              error, 'verify app ownership');
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+              code: gentype.ErrorCode.PurchaseVerificationFailed,
+              message: 'Invalid app ownership verification result: $error');
+        }
+      };
+
   /// Verify a purchase against your own backend (returns isValid + raw store metadata).
   ///
   /// See: https://openiap.dev/docs/features/validation#verify-purchase
@@ -2912,6 +2938,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       };
 
   gentype.QueryHandlers get queryHandlers => gentype.QueryHandlers(
+        verifyAppOwnership: verifyAppOwnership,
         canPresentExternalPurchaseNoticeIOS:
             canPresentExternalPurchaseNoticeIOS,
         currentEntitlementIOS: currentEntitlementIOS,

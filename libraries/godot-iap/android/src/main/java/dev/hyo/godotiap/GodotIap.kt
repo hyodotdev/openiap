@@ -940,6 +940,31 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
+    fun verifyAppOwnership(optionsJson: String): String {
+        val requestId = java.util.UUID.randomUUID().toString()
+        pluginScope.launch {
+            val envelope = JSONObject().put("method", "verifyAppOwnership").put("requestId", requestId)
+            try {
+                if (!isInitialized) throw OpenIapError.NotPrepared
+                val options = VerifyAppOwnershipProps.fromJson(GodotIapHelper.jsonObjectToMap(JSONObject(optionsJson)))
+                val result = openIap.verifyAppOwnership(options)
+                envelope.put("success", true).put("ownershipJson", JSONObject(result.toJson()).toString())
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                val code = when (error) {
+                    is OpenIapError -> error.code
+                    is IllegalArgumentException, is org.json.JSONException -> ErrorCode.DeveloperError.toJson()
+                    else -> ErrorCode.ServiceError.toJson()
+                }
+                envelope.put("success", false).put("code", code).put("error", error.message)
+            }
+            emitSignal("products_fetched", envelope.toString())
+        }
+        return JSONObject().put("status", "pending").put("requestId", requestId).toString()
+    }
+
+    @UsedByGodot
     fun openRedeemOfferCode(): String {
         GodotIapLog.debug("openRedeemOfferCode called")
 

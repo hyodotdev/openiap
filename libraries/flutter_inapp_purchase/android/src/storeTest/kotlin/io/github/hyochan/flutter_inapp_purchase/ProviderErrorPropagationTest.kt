@@ -24,6 +24,54 @@ import java.lang.reflect.Proxy
 @Config(sdk = [35])
 class ProviderErrorPropagationTest {
     @Test
+    fun `malformed ownership options reject without calling the provider`() {
+        var providerCalls = 0
+        val provider =
+            Proxy.newProxyInstance(
+                OpenIapProtocol::class.java.classLoader,
+                arrayOf(OpenIapProtocol::class.java),
+            ) { _, _, _ ->
+                providerCalls++
+                null
+            } as OpenIapProtocol
+        val plugin = AndroidInappPurchasePlugin()
+        for ((name, value) in mapOf("openIap" to provider, "connectionReady" to true, "listenersAttached" to true)) {
+            plugin.javaClass
+                .getDeclaredField(name)
+                .apply { isAccessible = true }
+                .set(plugin, value)
+        }
+        for (params in listOf(mapOf("google" to "bad"), mapOf("google" to emptyMap<String, Any?>()))) {
+            var responses = 0
+            plugin.onMethodCall(
+                MethodCall("verifyAppOwnership", params),
+                object : MethodChannel.Result {
+                    override fun success(result: Any?) {
+                        fail("Malformed ownership input must reject")
+                    }
+
+                    override fun notImplemented() {
+                        fail("Ownership API must exist")
+                    }
+
+                    override fun error(
+                        code: String,
+                        message: String?,
+                        details: Any?,
+                    ) {
+                        assertEquals(OpenIapError.DeveloperError.CODE, code)
+                        responses++
+                    }
+                },
+            )
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(1, responses)
+            assertEquals(0, providerCalls)
+        }
+        plugin.dispose()
+    }
+
+    @Test
     fun `verification exposes native unsupported and connection errors with diagnostics`() {
         for (error in listOf(OpenIapError.FeatureNotSupported("Use the vendor backend"), OpenIapError.NotPrepared)) {
             val verify: MutationVerifyPurchaseHandler = { throw error }

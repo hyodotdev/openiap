@@ -652,6 +652,24 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
+    override suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps?): AppOwnershipVerificationResult =
+        suspendCancellableCoroutine { continuation ->
+            val payload = options?.toJson()?.let { values -> buildMap<Any?, Any?> { putAll(values) } }
+            openIapModule.verifyAppOwnershipWithOptions(payload) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
+                } else {
+                    try {
+                        val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() }
+                            ?: throw IllegalStateException("Invalid app ownership verification result")
+                        continuation.resumeIfActive(AppOwnershipVerificationResult.fromJson(map))
+                    } catch (decodeError: Exception) {
+                        continuation.resumeWithExceptionIfActive(decodeError)
+                    }
+                }
+            }
+        }
+
     /**
      * Fetch the app transaction (iOS 16+).
      *

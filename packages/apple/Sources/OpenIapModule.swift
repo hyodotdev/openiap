@@ -106,6 +106,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try await provider.verifyPurchase(props)
     }
 
+    public func verifyAppOwnership(_ options: VerifyAppOwnershipProps? = nil) async throws -> AppOwnershipVerificationResult {
+        try await provider.verifyAppOwnership(options)
+    }
+
     public func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         try await provider.verifyPurchaseWithProvider(props)
     }

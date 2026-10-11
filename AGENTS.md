@@ -229,12 +229,11 @@ Report unavailable checks as `BLOCKED` (unverified), never as passed.
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
 - `openiap-versions.json` - Tracks only `clientProtocol`, `google`, and `apple`.
-  `clientProtocol` mirrors `specs/client/package.json`, the single source for the
-  Client Protocol version; set the manifest, run `bun install --lockfile-only --ignore-scripts`
-  and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged files. `google` and
-  `apple` are CI-managed native package versions and constrain nothing about the
-  protocol. Release-state, docs, parity, and sync audits reject drift between the
-  mirror and the publishing manifest.
+  All package version upgrades are CI-only, including the Client Protocol
+  manifest and generated mirrors. Feature work must not change version fields.
+  Follow [Version File Management](knowledge/internal/06-git-deployment.md#version-file-management).
+  `specs/client/package.json` remains the Client Protocol version SSOT; release
+  CI regenerates the mirror, lockfile, and derived metadata in one commit.
 
 Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add

@@ -170,9 +170,8 @@ don't propagate transitively through `<ProjectReference>`.
 ### Release workflow
 
 The MAUI release workflow reads `PackageVersion` from `OpenIap.Maui.csproj`.
-Use the `current` workflow input when a PR has already committed the intended
-package version. Use `patch`, `minor`, or `major` only when the workflow should
-calculate and commit the next version on `main`.
+Version upgrades are CI-only; follow
+[Version File Management](../../knowledge/internal/06-git-deployment.md#version-file-management).
 
 ## SDK parity checklist (C# specifics)
 

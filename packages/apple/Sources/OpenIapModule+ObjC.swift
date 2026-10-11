@@ -762,6 +762,18 @@ import StoreKit
         }
     }
 
+    @objc func verifyAppOwnershipWithOptions(_ options: NSDictionary?, completion: @escaping (Any?, Error?) -> Void) {
+        Task {
+            do {
+                let props = try options.map { try OpenIapSerialization.decode(object: $0, as: VerifyAppOwnershipProps.self) }
+                let result = try await verifyAppOwnership(props)
+                completion(OpenIapSerialization.encode(result), nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     // MARK: - UI
 
     @objc func openRedeemOfferCodeWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {

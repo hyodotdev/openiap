@@ -77,6 +77,25 @@ func _run_all_tests() -> void:
 	_test_product_android_round_trip()
 	_test_product_ios_round_trip()
 	_test_purchase_input_round_trip()
+	_test_app_ownership_argument_round_trip()
+
+
+func _test_app_ownership_argument_round_trip() -> void:
+	var options = {"google": {"cloudProjectNumber": "123", "requestHash": "digest"}}
+	var typed_options = Types.VerifyAppOwnershipProps.from_dict(options)
+	for value in [options, typed_options]:
+		var expected = {"options": options}
+		_assert_equal(JSON.parse_string(JSON.stringify(Types.verify_app_ownership_args(value))), expected, "Ownership helpers serialize typed and Dictionary evidence inputs")
+		var args = Types.Query.verifyAppOwnershipField.Args.new()
+		args.options = value
+		_assert_equal(JSON.parse_string(JSON.stringify(args.to_dict())), expected, "Operation metadata uses the same ownership argument serialization")
+	_assert_equal(Types.verify_app_ownership_args(), {}, "Absent ownership options remain optional")
+	_assert_equal(Types.Query.verifyAppOwnershipField.Args.new().to_dict(), {}, "Absent operation options remain optional")
+	var billing_args = Types.Mutation.createBillingProgramReportingDetailsAndroidField.Args.new()
+	billing_args.program = Types.BillingProgramAndroid.EXTERNAL_OFFER
+	_assert_equal(billing_args.to_dict(), {"program": "external-offer"}, "Shared argument serialization omits absent optional enums")
+	billing_args.developer_billing_type = Types.DeveloperBillingTypeAndroid.IN_APP
+	_assert_equal(billing_args.to_dict(), {"program": "external-offer", "developerBillingType": "in-app"}, "Shared argument serialization preserves existing enum wire values")
 
 
 # ============================================

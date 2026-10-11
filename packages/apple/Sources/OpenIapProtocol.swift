@@ -63,6 +63,7 @@ public protocol OpenIapModuleProtocol {
     // Validation
     func getReceiptDataIOS() async throws -> String?
     func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
+    func verifyAppOwnership(_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
     // Store Information
@@ -113,6 +114,10 @@ public protocol OpenIapModuleProtocol {
 }
 
 public extension OpenIapModuleProtocol {
+    func verifyAppOwnership(_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult {
+        throw PurchaseError.make(code: .featureNotSupported, message: "App ownership verification is unavailable for this provider")
+    }
+
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         throw PurchaseError(code: .featureNotSupported, message: "verifyPurchaseWithProvider not supported")
     }

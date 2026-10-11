@@ -841,6 +841,9 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    */
   getPromotedProductIOS(): Promise<NitroProduct | null>;
 
+  /** Verify app acquisition and return store evidence as JSON. */
+  verifyAppOwnership(optionsJson: string): Promise<string>;
+
   /** Open the store's offer-code flow; returns a purchase or null. */
   openRedeemOfferCode(): Promise<NitroPurchase | null>;
 

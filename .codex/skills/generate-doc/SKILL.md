@@ -100,10 +100,10 @@ versions in this order:
 4. Do not bump unaffected packages merely to make a release list symmetrical.
 5. Reuse the explicit maintainer-selected Client Protocol target from the
    coordinated release plan or unreleased card. If no explicit target
-   exists, ask; never infer one. The note reports the `clientProtocol` value
-   actually committed in `openiap-versions.json`, which mirrors
-   `specs/client/package.json` — so a plan naming a target the manifest does not
-   carry is a stop-and-ask, not a value to compute your way out of.
+   exists, ask; never infer one. The card may name that target before CI upgrades
+   the manifest. All package version upgrades and generated version mirrors
+   remain CI-only under
+   `knowledge/internal/06-git-deployment.md#version-file-management`.
 
 Before naming any package's next major, inspect the canonical deprecation and
 migration schedule. The release train must include every public removal already

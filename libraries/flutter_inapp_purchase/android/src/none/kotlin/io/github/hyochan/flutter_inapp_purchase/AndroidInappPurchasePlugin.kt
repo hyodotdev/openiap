@@ -19,6 +19,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "verifyAppOwnership" -> result.success(mapOf("status" to "unknown", "reason" to "unsupported", "storeId" to "unknown"))
             "initConnection", "endConnection", "isReady" -> result.success(false)
             "setPurchaseUpdatedListenerOptions" -> result.success(null)
             else -> result.error(
