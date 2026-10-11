@@ -354,6 +354,26 @@ func _test_verification_picker(plugin: Node) -> void:
 	_check(status.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART and status.size.x <= 660 and status.get_line_count() > 1, "The actual scene wraps the receipt result within the portrait viewport")
 	game.free()
 	panel.free()
+	var previous_connection: bool = manager.store_connected
+	var previous_loading: bool = manager.is_loading
+	manager.store_connected = true
+	manager.is_loading = false
+	var connected_scene = load("res://main.tscn").instantiate()
+	root.add_child(connected_scene)
+	await process_frame
+	_check(connected_scene.status_label.text == "Connected" and not connected_scene.store_button.disabled and not connected_scene.loading_label.visible, "The scene shows an autoload connection completed before its signals were registered")
+	connected_scene.queue_free()
+	await process_frame
+	manager.store_connected = false
+	manager.is_loading = true
+	var connecting_scene = load("res://main.tscn").instantiate()
+	root.add_child(connecting_scene)
+	await process_frame
+	_check(connecting_scene.status_label.text == "Connecting..." and connecting_scene.store_button.disabled and connecting_scene.loading_label.visible, "An unfinished autoload connection keeps the scene loading without enabling purchases")
+	connecting_scene.queue_free()
+	await process_frame
+	manager.store_connected = previous_connection
+	manager.is_loading = previous_loading
 	manager.verification_method = previous_method
 	manager._processed_transactions = previous_completed
 	Config._api_key = previous_key

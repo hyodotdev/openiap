@@ -51,15 +51,15 @@ func _ready() -> void:
 	IapManager.loading_changed.connect(_on_loading_changed)
 
 	IapManager.subscription_entitlements_changed.connect(_on_subscription_entitlements_changed)
-	if IapManager.store_connected:
-		IapManager.reconcile_subscription_entitlements()
-
 	game_over_label.visible = false
 	restart_button.visible = false
 	store_overlay.visible = false
 	store_panel.visible = false
-	loading_label.visible = true
-	status_label.text = "Connecting..."
+	loading_label.visible = IapManager.is_loading
+	status_label.text = "Connecting..." if IapManager.is_loading else "Not connected"
+	store_button.disabled = true
+	if IapManager.store_connected:
+		_on_connection_changed(true)
 
 	update_ui()
 
