@@ -55,7 +55,8 @@ interface Rule {
   when?: (text: string, at: number) => boolean;
 }
 
-const IDENTIFIER_CHAR = /[\w$]/;
+// A letter of a name in any script (`café`, `ñ`), a digit, `_` or `$`.
+const IDENTIFIER_CHAR = /[\p{L}\p{N}_$]/u;
 
 // One left-to-right scan: every character belongs to exactly one token or to
 // the plain text between tokens, and each piece is escaped once.
@@ -286,7 +287,8 @@ function scanFrames(
       i = slashEnd(text, i) - 1;
     } else if (quotes.includes(char)) {
       const isRaw =
-        raw.includes(text[i - 1] ?? '') && !/[\w$]/.test(text[i - 2] ?? '');
+        raw.includes(text[i - 1] ?? '') &&
+        !IDENTIFIER_CHAR.test(text[i - 2] ?? '');
       frames.push({
         quote: char,
         escapes: !literal.includes(char) && !isRaw,
@@ -441,7 +443,11 @@ const EXPRESSION_WORD =
 // The identifier that ends at index `last`, up to 32 characters of it.
 function wordEndingAt(text: string, last: number): string {
   let start = last;
-  while (start > 0 && last - start < 32 && /[\w$]/.test(text[start - 1]))
+  while (
+    start > 0 &&
+    last - start < 32 &&
+    IDENTIFIER_CHAR.test(text[start - 1])
+  )
     start--;
   return text.slice(start, last + 1);
 }
@@ -523,7 +529,7 @@ function regexAllowed(text: string, at: number): boolean {
   const last = lastBeforeBangs(text, at);
   if (last < 0) return last === -1;
   const char = text[last];
-  if (/[\w$]/.test(char)) return expressionAfterWord(text, last);
+  if (IDENTIFIER_CHAR.test(char)) return expressionAfterWord(text, last);
   if (char === '>') return text[last - 1] === '=';
   if (char === '+' || char === '-') return text[last - 1] !== char;
   return '(,=:[&|?{;~*%^'.includes(char);
@@ -540,14 +546,17 @@ function lastBeforeBangs(text: string, at: number): number {
     if (before < 0 || breakBetween(text, before, last)) return -1;
     last = before;
   } while (text[last] === '!');
-  return nameEndsAt(text, last) || /[)\]'"`]/.test(text[last]) ? last : -1;
+  return valueEndsAt(text, last) || text[last] === ')' ? last : -1;
 }
 
-// Whether a name or number that is no keyword (`return`, `of`) ends at `i`.
-function nameEndsAt(text: string, i: number): boolean {
-  return (
-    /[\w$]/.test(text[i]) && !EXPRESSION_WORD.test(keywordEndingAt(text, i))
-  );
+// Whether a value ends at `i`: a name or number that is no keyword (`return`,
+// `of`), `]`, a string, or a number ending in a dot (`1.`).
+function valueEndsAt(text: string, i: number): boolean {
+  const char = text[i];
+  if (IDENTIFIER_CHAR.test(char)) {
+    return !EXPRESSION_WORD.test(keywordEndingAt(text, i));
+  }
+  return /[\]'"`]/.test(char) || (char === '.' && /\d/.test(text[i - 1]));
 }
 
 // Whether a line terminator lies between `from` and `to`. Only the gap is
@@ -563,7 +572,7 @@ function breakBetween(text: string, from: number, to: number): boolean {
 // keyword: in `<Text>Don't</Text>` the apostrophe is text.
 function quoteMayOpen(text: string, at: number): boolean {
   return (
-    !/[\w$]/.test(text[at - 1] ?? '') ||
+    !IDENTIFIER_CHAR.test(text[at - 1] ?? '') ||
     EXPRESSION_WORD.test(keywordEndingAt(text, at - 1))
   );
 }
@@ -606,11 +615,9 @@ function slashEnd(text: string, at: number): number {
 function operandBefore(text: string, at: number): boolean {
   const last = lastCodeIndex(text, at);
   if (last < 0 || breakBetween(text, last, at)) return false;
-  if (nameEndsAt(text, last)) return true;
   // `regexAllowed` took the rest, so a `+` or `-` here ends `++` or `--` and a
   // `!` is a non-null.
-  const char = text[last];
-  return /[\]'"`+!-]/.test(char) || (char === '.' && /\d/.test(text[last - 1]));
+  return valueEndsAt(text, last) || /[+!-]/.test(text[last]);
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {

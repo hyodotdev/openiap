@@ -1562,8 +1562,8 @@ test('reads a quote in a hole that starts no string', () => {
       `x = ${t('string', '`${a1! / 2}`')} + ${t('string', '`${f()! / 3}`')} + ${t('string', '`${a[0]! / 4}`')} + ${t('string', '`${a$! / 5}`')} + ${t('string', '`${b / 6}`')};`,
     ],
     [
-      "x = `${a /'b'.length}` + `${c! /'d'.length}` + `${e[0] /'f'.length}` + `${g$ /'h'.length}` + `${i\t/'j'.length}` + `${\"k\"/'l'.length}` + `${'m'/'n'.length}` + `${o++ /'p'.length}` + `${o-- /'p'.length}` + `${`q`/'r'.length}` + `${s / 2}`;",
-      `x = ${t('string', "`${a /'b'.length}`")} + ${t('string', "`${c! /'d'.length}`")} + ${t('string', "`${e[0] /'f'.length}`")} + ${t('string', "`${g$ /'h'.length}`")} + ${t('string', "`${i\t/'j'.length}`")} + ${t('string', '`${"k"/\'l\'.length}`')} + ${t('string', "`${'m'/'n'.length}`")} + ${t('string', "`${o++ /'p'.length}`")} + ${t('string', "`${o-- /'p'.length}`")} + ${t('string', "`${`q`/'r'.length}`")} + ${t('string', '`${s / 2}`')};`,
+      "x = `${a /'b'.length}` + `${c! /'d'.length}` + `${e[0] /'f'.length}` + `${g$ /'h'.length}` + `${i\t/'j'.length}` + `${\"k\"/'l'.length}` + `${'m'/'n'.length}` + `${o++ /'p'.length}` + `${o-- /'p'.length}` + `${1.! /'q'.length}` + `${café /'r'.length}` + `${`q`/'r'.length}` + `${s / 2}`;",
+      `x = ${t('string', "`${a /'b'.length}`")} + ${t('string', "`${c! /'d'.length}`")} + ${t('string', "`${e[0] /'f'.length}`")} + ${t('string', "`${g$ /'h'.length}`")} + ${t('string', "`${i\t/'j'.length}`")} + ${t('string', '`${"k"/\'l\'.length}`')} + ${t('string', "`${'m'/'n'.length}`")} + ${t('string', "`${o++ /'p'.length}`")} + ${t('string', "`${o-- /'p'.length}`")} + ${t('string', "`${1.! /'q'.length}`")} + ${t('string', "`${café /'r'.length}`")} + ${t('string', "`${`q`/'r'.length}`")} + ${t('string', '`${s / 2}`')};`,
     ],
     [
       "x = `${a /* c */ /'b'.length}` + `${1. /'c'.length}` + `${d!! /'e'.length}` + `${f ! /'g'.length}` + `${h / 2}`;",
@@ -2642,15 +2642,15 @@ test('reads the forms that need their context', () => {
     ],
     [
       'typescript',
-      'x = \'s\'! / 2 / a; y = "t"! / 3 / b; z = `u`! / 4 / c;',
-      'x = ⟦string:\'s\'⟧! / ⟦number:2⟧ / a; y = ⟦string:"t"⟧! / ⟦number:3⟧ / b; z = ⟦string:`u`⟧! / ⟦number:4⟧ / c;',
+      'x = \'s\'! / 2 / a; y = "t"! / 3 / b; z = `u`! / 4 / c; w = 1.! / 5 / d; v = ñ! / 6 / e;',
+      'x = ⟦string:\'s\'⟧! / ⟦number:2⟧ / a; y = ⟦string:"t"⟧! / ⟦number:3⟧ / b; z = ⟦string:`u`⟧! / ⟦number:4⟧ / c; w = ⟦number:1⟧.! / ⟦number:5⟧ / d; v = ñ! / ⟦number:6⟧ / e;',
     ],
     // A `!` that starts a line is a not, also below a long comment, and so is
     // one the look back cannot place.
     [
       'typescript',
-      'x = a\n!/b/.test(c); y = a\r!/d/.test(e); z = a\u2028!/f/.test(g);',
-      'x = a\n!⟦regex:/b/⟧.⟦function:test⟧(c); y = a\r!⟦regex:/d/⟧.⟦function:test⟧(e); z = a\u2028!⟦regex:/f/⟧.⟦function:test⟧(g);',
+      'x = a\n!/b/.test(c); y = a\r!/d/.test(e); z = a\u2028!/f/.test(g); w = a\u2029!/h/.test(i); v = a!\n!/j/.test(k);',
+      'x = a\n!⟦regex:/b/⟧.⟦function:test⟧(c); y = a\r!⟦regex:/d/⟧.⟦function:test⟧(e); z = a\u2028!⟦regex:/f/⟧.⟦function:test⟧(g); w = a\u2029!⟦regex:/h/⟧.⟦function:test⟧(i); v = a!\n!⟦regex:/j/⟧.⟦function:test⟧(k);',
     ],
     [
       'typescript',
