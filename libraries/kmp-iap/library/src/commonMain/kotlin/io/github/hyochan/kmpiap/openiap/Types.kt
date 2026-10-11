@@ -3669,14 +3669,9 @@ public class RequestVerifyPurchaseWithIapkitResult private constructor(
 
     /**
      * Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
-     * Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
-     * `Production` on handled Amazon verification results.
-     *
-     * Deliberately String, not an enum: the value space belongs to IAPKit and the
-     * stores behind it, and Apple's App Store Server alone also names `Xcode` and
-     * `LocalTesting`. SDKs must forward this value opaquely. Never reject a
-     * verification because the environment is unrecognised — that fails a purchase
-     * the store already confirmed.
+     * Store-verified environment returned by IAPKit. Apple and Amazon use
+     * `Sandbox` or `Production`. SDKs forward this string opaquely, including
+     * unknown values; apps match their expected environment before fulfillment.
      */
     var environment: String? = null
         private set

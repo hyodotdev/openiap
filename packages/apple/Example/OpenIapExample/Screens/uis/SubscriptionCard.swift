@@ -293,7 +293,7 @@ struct SubscriptionCard: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(8)
                             }
-                            .disabled(isLoading)
+                            .disabled(isLoading || product == nil)
                         }
                     }
                 } else {
@@ -322,8 +322,14 @@ struct SubscriptionCard: View {
                         .foregroundColor(.white)
                         .cornerRadius(8)
                     }
-                    .disabled(isLoading)
+                    .disabled(isLoading || product == nil)
                 }
+            }
+
+            if !isSubscribed && product == nil {
+                Text("Product unavailable in the current store catalog.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding()

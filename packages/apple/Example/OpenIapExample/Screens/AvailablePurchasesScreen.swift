@@ -71,7 +71,7 @@ struct AvailablePurchasesScreen: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeaderView(
                 title: "Available Purchases",
-                subtitle: "Your active subscriptions and unconsumed items",
+                subtitle: "Receipts are retained. Open Purchase Flow or Subscription Flow to verify and finish them.",
                 icon: "checkmark.seal.fill"
             )
             
@@ -117,11 +117,7 @@ struct AvailablePurchasesScreen: View {
         } else {
             VStack(spacing: 12) {
                 ForEach(uniqueActivePurchases, id: \.transactionId) { purchase in
-                    ActivePurchaseCard(purchase: purchase, onConsume: {
-                        Task {
-                            await finishPurchase(purchase)
-                        }
-                    }, onShowDetails: {
+                    ActivePurchaseCard(purchase: purchase, onShowDetails: {
                         selectedPurchase = purchase
                     })
                 }
@@ -252,26 +248,7 @@ struct AvailablePurchasesScreen: View {
                 }
                 .padding(.horizontal)
                 
-                // Finish Pending Transactions
-                Button(action: {
-                    Task {
-                        await finishUnfinishedTransactions()
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "checkmark.circle")
-                        Text("Finish Pending Transactions")
-                        Spacer()
-                        Text("Complete")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    .padding()
-                    .background(Color.orange.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-                .padding(.horizontal)
+
             }
             
             // Testing Tips
@@ -386,21 +363,6 @@ struct AvailablePurchasesScreen: View {
         }
     }
     
-    // MARK: - Purchase Actions
-    
-    private func finishPurchase(_ purchase: OpenIapPurchase) async {
-        do {
-            try await iapStore.finishTransaction(purchase: purchase)
-            print("✅ [AvailablePurchases] Transaction finished: \(purchase.id)")
-            await loadPurchases()
-        } catch {
-            await MainActor.run {
-                errorMessage = "Failed to finish transaction: \(error.localizedDescription)"
-                showError = true
-            }
-        }
-    }
-    
     // MARK: - Debug Methods
     
     private func clearAllTransactions() async {
@@ -416,21 +378,7 @@ struct AvailablePurchasesScreen: View {
         print("🧪 [AvailablePurchases] Subscription sync requested (reloaded purchases)")
     }
     
-    private func finishUnfinishedTransactions() async {
-        let unfinishedPurchases = iapStore.iosAvailablePurchases.filter { !$0.purchaseState.isAcknowledged }
-        
-        for purchase in unfinishedPurchases {
-            do {
-                try await iapStore.finishTransaction(purchase: purchase)
-                print("✅ [AvailablePurchases] Finished unfinished transaction: \(purchase.transactionId)")
-            } catch {
-                print("❌ [AvailablePurchases] Failed to finish transaction \(purchase.transactionId): \(error)")
-            }
-        }
-        
-        // Reload after finishing transactions
-        await loadPurchases()
-    }
+
 }
 
 // ActivePurchaseCard moved to Screens/uis/ActivePurchaseCard.swift

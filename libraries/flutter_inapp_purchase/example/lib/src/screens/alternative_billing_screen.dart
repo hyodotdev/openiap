@@ -44,8 +44,9 @@ class AlternativeBillingScreen extends StatefulWidget {
 }
 
 class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
-  final TextEditingController _urlController =
-      TextEditingController(text: 'https://openiap.dev');
+  final TextEditingController _urlController = TextEditingController(
+    text: 'https://openiap.dev',
+  );
 
   /// Android billing mode: 'billing-programs' or 'external-payments'
   String _androidBillingMode = 'billing-programs';
@@ -105,32 +106,25 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
   void _setupListeners() {
     _purchaseUpdatedSubscription = FlutterInappPurchase
         .instance.purchaseUpdatedListener
-        .listen((purchase) async {
+        .listen((purchase) {
       debugPrint(
-          '[AlternativeBilling] Purchase successful: ${purchase.productId}');
+        '[AlternativeBilling] Purchase received: ${purchase.productId}',
+      );
 
+      if (!mounted) return;
       setState(() {
         _isProcessing = false;
         _purchaseResult = '''
-Purchase successful
+Receipt received · verification required
 Product: ${purchase.productId}
 Transaction ID: ${purchase.id}
 ''';
       });
 
-      // Demo: finishes without verification; only bulb packs are consumed.
-      try {
-        await FlutterInappPurchase.instance.finishTransaction(
-          purchase: purchase,
-          isConsumable: IapConstants.isConsumable(purchase.productId),
-        );
-      } catch (e) {
-        debugPrint('[AlternativeBilling] Failed to finish transaction: $e');
-      }
-
-      if (mounted) {
-        _showAlert('Success', 'Purchase completed!');
-      }
+      _showAlert(
+        'Receipt retained',
+        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
+      );
     });
 
     _purchaseErrorSubscription =
@@ -147,7 +141,9 @@ Transaction ID: ${purchase.id}
       _userChoiceBillingSubscription = FlutterInappPurchase
           .instance.userChoiceBillingAndroid
           .listen((details) {
-        debugPrint('[AlternativeBilling] User selected alternative billing');
+        debugPrint(
+          '[AlternativeBilling] User selected alternative billing',
+        );
         setState(() {
           _isProcessing = false;
           _purchaseResult = '''
@@ -173,7 +169,8 @@ Important:
   Future<void> _fetchProducts() async {
     try {
       debugPrint(
-          '[AlternativeBilling] Fetching products: ${IapConstants.inAppProductIds}');
+        '[AlternativeBilling] Fetching products: ${IapConstants.inAppProductIds}',
+      );
       final products =
           await FlutterInappPurchase.instance.fetchProducts<Product>(
         skus: IapConstants.inAppProductIds,
@@ -193,7 +190,8 @@ Important:
   }
 
   Future<void> _reconnectWithBillingProgram(
-      BillingProgramAndroid newProgram) async {
+    BillingProgramAndroid newProgram,
+  ) async {
     try {
       setState(() {
         _isReconnecting = true;
@@ -243,10 +241,8 @@ Important:
     });
 
     try {
-      final result =
-          await FlutterInappPurchase.instance.presentExternalPurchaseLinkIOS(
-        url,
-      );
+      final result = await FlutterInappPurchase.instance
+          .presentExternalPurchaseLinkIOS(url);
 
       debugPrint('[iOS] External purchase link result: $result');
 
@@ -266,8 +262,10 @@ URL: $url
 User redirected to external website.
 ''';
         });
-        _showAlert('Redirected',
-            'User was redirected to your external purchase website.');
+        _showAlert(
+          'Redirected',
+          'User was redirected to your external purchase website.',
+        );
       }
     } catch (e) {
       debugPrint('[iOS] Alternative billing error: $e');
@@ -297,8 +295,10 @@ User redirected to external website.
           _purchaseResult =
               'Billing program "${_billingProgram.name}" not available';
         });
-        _showAlert('Not Available',
-            'The billing program "${_billingProgram.name}" is not available');
+        _showAlert(
+          'Not Available',
+          'The billing program "${_billingProgram.name}" is not available',
+        );
         return;
       }
 
@@ -333,8 +333,10 @@ Important:
 - Report token to Google Play within 24h
 ''';
         });
-        _showAlert('Success',
-            'External link launched. Complete purchase on external site.');
+        _showAlert(
+          'Success',
+          'External link launched. Complete purchase on external site.',
+        );
       }
     } catch (e) {
       debugPrint('[Android] Billing Programs error: $e');
@@ -506,7 +508,8 @@ If user selects:
                     _billingProgram = BillingProgramAndroid.ExternalPayments;
                   });
                   _reconnectWithBillingProgram(
-                      BillingProgramAndroid.ExternalPayments);
+                    BillingProgramAndroid.ExternalPayments,
+                  );
                   Navigator.pop(context);
                 },
               ),
@@ -540,10 +543,12 @@ If user selects:
                 isSelected:
                     _billingProgram == BillingProgramAndroid.ExternalOffer,
                 onTap: () {
-                  setState(() =>
-                      _billingProgram = BillingProgramAndroid.ExternalOffer);
+                  setState(
+                    () => _billingProgram = BillingProgramAndroid.ExternalOffer,
+                  );
                   _reconnectWithBillingProgram(
-                      BillingProgramAndroid.ExternalOffer);
+                    BillingProgramAndroid.ExternalOffer,
+                  );
                   Navigator.pop(context);
                 },
               ),
@@ -555,10 +560,13 @@ If user selects:
                 isSelected: _billingProgram ==
                     BillingProgramAndroid.ExternalContentLink,
                 onTap: () {
-                  setState(() => _billingProgram =
-                      BillingProgramAndroid.ExternalContentLink);
+                  setState(
+                    () => _billingProgram =
+                        BillingProgramAndroid.ExternalContentLink,
+                  );
                   _reconnectWithBillingProgram(
-                      BillingProgramAndroid.ExternalContentLink);
+                    BillingProgramAndroid.ExternalContentLink,
+                  );
                   Navigator.pop(context);
                 },
               ),
@@ -570,10 +578,13 @@ If user selects:
                 isSelected:
                     _billingProgram == BillingProgramAndroid.UserChoiceBilling,
                 onTap: () {
-                  setState(() => _billingProgram =
-                      BillingProgramAndroid.UserChoiceBilling);
+                  setState(
+                    () => _billingProgram =
+                        BillingProgramAndroid.UserChoiceBilling,
+                  );
                   _reconnectWithBillingProgram(
-                      BillingProgramAndroid.UserChoiceBilling);
+                    BillingProgramAndroid.UserChoiceBilling,
+                  );
                   Navigator.pop(context);
                 },
               ),
@@ -616,10 +627,7 @@ If user selects:
             const SizedBox(height: 4),
             Text(
               description,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -711,7 +719,9 @@ If user selects:
                               ? 'Buy (User Choice)'
                               : 'Buy (${_billingProgram.name})',
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -781,10 +791,7 @@ If user selects:
             isIOS
                 ? 'iOS 16.0+ required\nValid external URL needed'
                 : 'Requires approval from Google\nMust report tokens within 24 hours',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.deepOrange[700],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.deepOrange[700]),
           ),
         ],
       ),
@@ -892,9 +899,7 @@ If user selects:
           controller: _urlController,
           decoration: InputDecoration(
             hintText: 'https://your-payment-site.com/checkout',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             filled: true,
             fillColor: Colors.white,
           ),
@@ -962,10 +967,7 @@ If user selects:
           children: [
             Text(
               'Select Product (${_products.length})',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             if (_connected)
               TextButton(
@@ -1074,10 +1076,7 @@ If user selects:
             children: [
               const Text(
                 'Purchase Result',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               TextButton(
                 onPressed: () => setState(() => _purchaseResult = ''),

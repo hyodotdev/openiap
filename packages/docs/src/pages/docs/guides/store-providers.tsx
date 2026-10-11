@@ -149,29 +149,29 @@ export default function StoreProviders() {
         </p>
         <ol>
           <li>
-            <strong>Prepare matching public inputs.</strong> Version{' '}
-            {examplePackage.version} is unpublished. Follow the pinned{' '}
-            <a href={source('README.md')}>example README</a> to build the
-            provider against public core and conformance artifacts. Install the
-            exact <code>expo-iap</code> version listed in the{' '}
-            <a href={source('package.json')}>package’s peer dependencies</a>.
-            Historical GitHub Packages versions use the old hyphenated id and
-            fail the current contract. Rebuild providers compiled against the
-            earlier RCs.
+            <strong>Use matching public versions.</strong> This educational
+            package requires <code>expo-iap@6.0.0</code> and public OpenIAP core
+            4.0.0. Keep your existing app, product catalog and screens.
+            Providers built against earlier RC contracts need rebuilding.
           </li>
           <li>
-            <strong>Install the prepared provider tarball.</strong> Preparation
-            writes its path into <code>example/package.json</code>. In another
-            Expo app, install that tarball by its absolute path:
+            <strong>Install from GitHub Packages.</strong> Add the scope to your
+            app’s <code>.npmrc</code> and provide a GitHub token with package
+            read access through <code>NODE_AUTH_TOKEN</code>:
             <CodeBlock
-              language="bash"
+              language="properties"
               children={
-                'bun add --exact /absolute/path/to/openiap-google-amazon-community/.local/community-provider-HASH.tgz'
+                '@hyodotdev:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'
               }
             />
-            Replace <code>HASH</code> with the generated filename. The package
-            contains its provider Maven repository; core comes from Maven
-            Central. No registry token is needed for this local installation.
+            <CodeBlock
+              language="bash"
+              children={`bun add --exact expo-iap@6.0.0 ${examplePackage.name}@${examplePackage.version}`}
+            />
+            The package contains its provider Maven repository; core comes from
+            Maven Central. Do not commit your token. The pinned{' '}
+            <a href={source('README.md')}>README</a> also explains building a
+            local tarball when developing your own provider.
           </li>
           <li>
             <strong>Select one IAP plugin per build.</strong> Keep the{' '}
@@ -200,9 +200,10 @@ export default function StoreProviders() {
                 '{\n  "build": {\n    "play": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "play" }\n    },\n    "amazon-community": {\n      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon_example" }\n    }\n  }\n}'
               }
             />
-            Use local builds until you distribute the unpublished provider
-            tarball to your build workers; absolute paths are not uploaded
-            automatically. Both profiles use the same exact public{' '}
+            Provide <code>NODE_AUTH_TOKEN</code> with package read access to
+            your remote build workers so they can install from GitHub Packages.
+            Local provider tarball paths require separate upload when developing
+            your own provider. Both profiles use the same exact public{' '}
             <code>expo-iap</code> version and public native artifacts. The
             plugin supplies its provider repository and disables local
             native-source mode. Keep the existing application id and catalog,
@@ -229,7 +230,15 @@ export default function StoreProviders() {
             <code>storeId: 'amazon_example'</code>. Configure the backend for
             Amazon receipt verification, grant entitlement only after valid
             verification, then finish. The native package does not install a
-            server verification adapter. Follow the{' '}
+            server verification adapter. Route <code>amazon_example</code>{' '}
+            explicitly to Amazon RVS in your app’s verification helper; an
+            unknown provider must not fall back to Google verification. The{' '}
+            <a href={source('example/src/utils/vegaRuntime.ts')}>
+              example verification helper
+            </a>{' '}
+            checks provider identity, product, environment and state while
+            preserving <code>store: 'unknown'</code>. Other community stores
+            require their own supported backend adapter. Follow the{' '}
             <a href={`${source('README.md')}#verify-before-finishing`}>
               verification flow
             </a>{' '}

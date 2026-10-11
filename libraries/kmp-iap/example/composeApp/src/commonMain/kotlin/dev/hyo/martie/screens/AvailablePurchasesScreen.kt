@@ -22,7 +22,6 @@ import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
-import io.github.hyochan.kmpiap.toPurchaseInput
 import kotlin.time.Instant
 import kotlinx.coroutines.*
 
@@ -38,8 +37,6 @@ fun AvailablePurchasesScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var consumeResult by remember { mutableStateOf<String?>(null) }
-    var consumingPurchaseId by remember { mutableStateOf<String?>(null) }
 
     // Filter active purchases - unique by productId, showing only active items
     fun filterActivePurchases(purchases: List<Purchase>): List<Purchase> {
@@ -51,10 +48,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                         val isPurchased = purchase.purchaseState == PurchaseState.Purchased
                         if (!isPurchased) return@filter false
 
-                        // Determine if it's a subscription
-                        val isSubscription = purchase.productId.contains("premium") ||
-                                           purchase.productId.contains("subscription") ||
-                                           purchase.productId.contains("sub_")
+                        val isSubscription = purchase.productId in SubscriptionProductIds
 
                         if (isSubscription) {
                             // Active subscriptions: check auto-renewing or expiry time
@@ -74,19 +68,12 @@ fun AvailablePurchasesScreen(navController: NavController) {
                         }
                     }
                     is PurchaseAndroid -> {
-                        // Determine if it's a subscription
-                        val isSubscription = purchase.productId.contains("premium") ||
-                                           purchase.productId.contains("subscription") ||
-                                           purchase.productId.contains("sub_")
+                        if (purchase.purchaseState != PurchaseState.Purchased) return@filter false
 
-                        if (isSubscription) {
-                            // Subscriptions: show if purchased state (regardless of acknowledgment)
-                            // Auto-renewing subscriptions should always show
-                            val isPurchased = purchase.purchaseState == PurchaseState.Purchased
-                            return@filter isPurchased && (purchase.autoRenewingAndroid == true || purchase.isAcknowledgedAndroid == true)
+                        if (purchase.productId in SubscriptionProductIds) {
+                            return@filter purchase.autoRenewingAndroid == true || purchase.isAcknowledgedAndroid == true
                         } else {
-                            // Consumables: show only non-acknowledged purchases
-                            return@filter purchase.isAcknowledgedAndroid != true
+                            return@filter purchase.productId !in ConsumableProductIds || purchase.isAcknowledgedAndroid != true
                         }
                     }
                 }
@@ -332,65 +319,9 @@ fun AvailablePurchasesScreen(navController: NavController) {
                     }
                 } else {
                     activePurchases.forEach { purchase ->
-                        val isSubscription = purchase.productId.contains("premium") ||
-                                           purchase.productId.contains("subscription") ||
-                                           purchase.productId.contains("sub_")
+                        val isSubscription = purchase.productId in SubscriptionProductIds
 
-                        // Only show finish button if purchase needs to be finished
-                        val showFinishButton = needsFinishButton(purchase)
-
-                        PurchaseCard(
-                            purchase = purchase,
-                            isSubscription = isSubscription,
-                            isAcknowledged = !showFinishButton,
-                            onAction = {
-                                // Prevent multiple clicks
-                                if (consumingPurchaseId != null) return@PurchaseCard
-
-                                scope.launch {
-                                    consumingPurchaseId = purchase.id
-                                    // Manual tool: finishes without verification to clear a stuck
-                                    // transaction. Consuming the badge would drop its entitlement.
-                                    val isConsumable = purchase.productId in ConsumableProductIds
-                                    try {
-                                        // Debug log
-                                        when (purchase) {
-                                            is PurchaseIOS -> {
-                                                println("🔷 Finishing transaction: id=${purchase.id}, productId=${purchase.productId}, state=${purchase.purchaseState}, isAutoRenewing=${purchase.isAutoRenewing}")
-                                            }
-                                            else -> {
-                                                println("🔷 Finishing transaction: id=${purchase.id}, productId=${purchase.productId}")
-                                            }
-                                        }
-
-                                        kmpIapInstance.finishTransaction(purchase.toPurchaseInput(), isConsumable = isConsumable)
-
-                                        val action = if (isConsumable) "consumed" else "acknowledged"
-                                        consumeResult = "✅ Purchase $action: ${purchase.productId}"
-
-                                        // Wait a bit before refreshing to let the system process
-                                        kotlinx.coroutines.delay(1000)
-
-                                        // Refresh the purchases list
-                                        try {
-                                            val refreshed = kmpIapInstance.getAvailablePurchases()
-                                            availablePurchases = refreshed
-                                            activePurchases = filterActivePurchases(refreshed)
-                                        } catch (e: Exception) {
-                                            println("Failed to refresh purchases: ${e.message}")
-                                        }
-                                    } catch (e: Exception) {
-                                        val action = if (isConsumable) "consume" else "acknowledge"
-                                        println("❌ Failed to finish transaction: ${e.message}")
-                                        consumeResult = "❌ Failed to $action: ${e.message}"
-                                    } finally {
-                                        consumingPurchaseId = null
-                                    }
-                                }
-                            },
-                            isProcessing = consumingPurchaseId == purchase.id,
-                            showAction = showFinishButton  // Only show button if needs finishing
-                        )
+                        PurchaseCard(purchase = purchase, isSubscription = isSubscription)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }  // End of else block for activePurchases
@@ -451,118 +382,36 @@ fun AvailablePurchasesScreen(navController: NavController) {
                     }
                 } else {
                     availablePurchases.sortedByDescending { it.transactionDate }.forEach { purchase ->
-                        val isSubscription = purchase.productId.contains("premium") ||
-                                           purchase.productId.contains("subscription") ||
-                                           purchase.productId.contains("sub_")
+                        val isSubscription = purchase.productId in SubscriptionProductIds
 
-                        val isAcknowledged = when (purchase) {
-                            is PurchaseAndroid -> purchase.isAcknowledgedAndroid == true
-                            is PurchaseIOS -> false // iOS purchases show as Purchased; finished state not tracked via PurchaseState
-                        }
-
-                        PurchaseCard(
-                            purchase = purchase,
-                            isSubscription = isSubscription,
-                            isAcknowledged = isAcknowledged,
-                            onAction = { },
-                            isProcessing = false,
-                            showAction = false  // Don't show action buttons in history
-                        )
+                        PurchaseCard(purchase = purchase, isSubscription = isSubscription)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }
 
-            // Consume Result
-            consumeResult?.let { result ->
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (result.contains("✅")) 
-                            AppColors.Success.copy(alpha = 0.1f) 
-                        else 
-                            AppColors.Error.copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = result,
-                        modifier = Modifier.padding(16.dp),
-                        color = AppColors.OnSurface
-                    )
-                }
-            }
+            Text(
+                text = "Receipts are retained. Open Purchase Flow or Subscription Flow to verify and finish them.",
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = AppColors.Secondary
+            )
         }
     }
 }
 
-// Helper to determine product type
 fun getProductType(productId: String): String {
-    return when {
-        productId.contains("premium") ||
-        productId.contains("subscription") ||
-        productId.contains("sub_") -> "Subscription"
-
-        productId.contains("pro") ||
-        productId.contains("unlock") ||
-        productId.contains("remove") ||
-        productId.contains("certified") ||
-        productId.contains("lifetime") -> "Non-Consumable"
-
-        else -> "Consumable"
-    }
-}
-
-// Check if purchase needs finish button (not acknowledged)
-fun needsFinishButton(purchase: Purchase): Boolean {
-    return when (purchase) {
-        is PurchaseIOS -> {
-            // For iOS: Don't show button for:
-            // 1. Auto-renewing subscriptions (managed by system)
-            // 2. Non-consumable purchases (permanent purchases)
-
-            // Check if it's a subscription
-            val isSubscription = purchase.productId.contains("premium") ||
-                               purchase.productId.contains("subscription") ||
-                               purchase.productId.contains("sub_")
-
-            if (isSubscription && purchase.isAutoRenewing) {
-                // Auto-renewing subscriptions should not be manually finished
-                return false
-            }
-
-            // Check if it's a non-consumable (permanent purchase)
-            // Non-consumables typically have identifiers like "pro", "unlock", "remove_ads", etc.
-            val isNonConsumable = purchase.productId.contains("pro") ||
-                                 purchase.productId.contains("unlock") ||
-                                 purchase.productId.contains("remove") ||
-                                 purchase.productId.contains("certified") ||
-                                 purchase.productId.contains("lifetime")
-
-            if (isNonConsumable) {
-                // Non-consumable purchases are permanent and don't need to be finished
-                return false
-            }
-
-            // Show button only for consumables (e.g., coins, bulbs, etc.)
-            true
-        }
-        is PurchaseAndroid -> {
-            // For Android: show button if not acknowledged
-            purchase.isAcknowledgedAndroid != true
-        }
+    return when (productId) {
+        in SubscriptionProductIds -> "Subscription"
+        in NonConsumableProductIds -> "Non-Consumable"
+        in ConsumableProductIds -> "Consumable"
+        else -> "Unknown"
     }
 }
 
 @Composable
 fun PurchaseCard(
     purchase: Purchase,
-    isSubscription: Boolean,
-    isAcknowledged: Boolean,
-    onAction: () -> Unit,
-    isProcessing: Boolean,
-    showAction: Boolean = true
+    isSubscription: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -624,82 +473,11 @@ fun PurchaseCard(
                     fontWeight = FontWeight.Medium
                 )
                 
-                if (isSubscription && isAcknowledged) {
-                    val statusText = when (purchase) {
-                        is PurchaseAndroid -> "✓ Acknowledged"
-                        is PurchaseIOS -> "✓ Finished"
-                    }
-                    Text(
-                        text = statusText,
-                        fontSize = 12.sp,
-                        color = AppColors.Success,
-                        fontWeight = FontWeight.Medium
-                    )
+                if (isSubscription && purchase is PurchaseAndroid && purchase.isAcknowledgedAndroid == true) {
+                    Text("✓ Acknowledged", fontSize = 12.sp, color = AppColors.Success)
                 }
             }
             
-            // Show button only if showAction is true
-            if (showAction) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Show button based on acknowledgment status
-                if (isSubscription && isAcknowledged) {
-                    // Show disabled state for already acknowledged subscriptions
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = AppColors.Surface
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val statusText = when (purchase) {
-                                is PurchaseAndroid -> "Already Acknowledged"
-                                is PurchaseIOS -> "Already Finished"
-                            }
-                            Text(
-                                text = statusText,
-                                color = AppColors.Secondary
-                            )
-                        }
-                    }
-                } else {
-                    Button(
-                        onClick = onAction,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isProcessing,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSubscription) AppColors.Secondary else AppColors.Primary
-                        )
-                    ) {
-                        if (isProcessing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            val buttonText = when {
-                                isSubscription -> when (purchase) {
-                                    is PurchaseAndroid -> "Acknowledge Subscription"
-                                    is PurchaseIOS -> "Finish Transaction"
-                                }
-                                purchase.productId in ConsumableProductIds -> "Consume Purchase"
-                                else -> when (purchase) {
-                                    is PurchaseAndroid -> "Acknowledge Purchase"
-                                    is PurchaseIOS -> "Finish Transaction"
-                                }
-                            }
-                            Text(buttonText)
-                        }
-                    }
-                }
-            }
         }
     }
 }

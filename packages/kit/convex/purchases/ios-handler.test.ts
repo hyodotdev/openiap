@@ -109,6 +109,7 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
       isValid: true,
       state: "ENTITLED",
       productId: "premium_forever",
+      environment: "Production",
     });
 
     expect(appleMocks.verifierConstructor).toHaveBeenCalledTimes(2);

@@ -4,7 +4,7 @@ export const repository =
 export const examplePackage = {
   name: '@hyodotdev/openiap-provider-amazon-example',
   version: '0.0.2',
-  revision: 'ab0d0f227a09e784b47643ca5d152293baa1a904',
+  revision: '63779d02b597c6c58d0f0fc9fd77d46ab4c8dcbb',
 } as const;
 export const source = (path: string): string =>
   `${repository}/blob/${examplePackage.revision}/${path}`;

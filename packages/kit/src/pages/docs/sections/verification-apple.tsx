@@ -11,14 +11,12 @@ export default function VerificationApplePage() {
       description="Configure StoreKit 2 JWS verification with App Store Server API."
     >
       <p>
-        Apple verification uses a signed JWS transaction produced by StoreKit 2
-        on the device. IAPKit decodes the JWS to read its transaction id, bundle
-        id, and environment, then calls the App Store Server API with your
-        project's <code>.p8</code> key and cryptographically verifies the signed
-        transaction Apple returns against Apple's root CA. The device's copy of
-        the JWS is only a lookup key — the authoritative record is the one Apple
-        signs in its response, which is what catches refunds and revocations
-        issued after the purchase.
+        IAPKit verifies the signature on the device's StoreKit 2 JWS, then calls
+        the App Store Server API with your project's <code>.p8</code> key. It
+        verifies Apple's returned JWS and matches its transaction id, bundle id,
+        and environment to the request. Apple's current transaction is the
+        authoritative record for detecting refunds and revocations after a
+        purchase.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">What you'll need</h2>
@@ -111,6 +109,13 @@ export default function VerificationApplePage() {
       <p>
         The <code>jws</code> field accepts up to 16 KB — Apple's real payloads
         run ~1–2 KB, so the cap is room-to-grow, not a tight bound.
+      </p>
+
+      <p>
+        The response includes the verified <code>productId</code> and{" "}
+        <code>environment</code> from Apple's signed transaction. Before
+        finishing a purchase, match both to the device transaction and require{" "}
+        <code>isValid</code> with the appropriate purchase state.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">How refunds are detected</h2>

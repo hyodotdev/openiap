@@ -85,6 +85,7 @@ jest.mock('../src/index', () => {
     getPurchaseHistory: jest.fn(() => Promise.resolve([])),
     getActiveSubscriptions: mockGetActiveSubscriptions,
     getStorefront: jest.fn(() => Promise.resolve('US')),
+    getPendingTransactionsIOS: jest.fn(() => Promise.resolve([])),
     verifyPurchase: mockVerifyPurchase,
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
     openRedeemOfferCode: jest.fn(() => Promise.resolve(null)),

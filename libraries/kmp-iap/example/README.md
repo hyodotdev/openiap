@@ -46,7 +46,7 @@ key is absent from the plist.
 
 The purchase and subscription screens list verification in this order:
 
-1. **None (Skip)** — skip verification.
+1. **None (Skip)** — retain the receipt without verification or completion.
 2. **Local (Device)** — verify on device (iOS only).
 3. **Local (IAPKit)** — IAPKit routed to `IAPKIT_BASE_URL`.
 4. **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
@@ -55,11 +55,18 @@ With both values configured, the example defaults to **Local (IAPKit)**. With
 only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to
 **None (Skip)**.
 
+The purchase and subscription screens keep received receipts while the screen
+is open. After a verification or completion failure, select the verification
+method again to retry those receipts, even if the store's ownership query
+omits them. Only successful verification permits completion. Leaving the
+screen discards this in-memory list; a later visit depends on the store's
+pending or owned purchases.
+
 ## Features Demonstrated
 
 - **In-App Purchase Flow**: Complete purchase flow for consumable products with receipt validation comments
 - **Subscription Flow**: Subscription management with automatic UI updates upon purchase
-- **Available Purchases**: View and restore previous purchases with consume/acknowledge functionality
+- **Available Purchases**: View and restore purchases; use the purchase or subscription flow to verify and complete them
 - **Offer Code Redemption**: Platform-specific promo code redemption (iOS sheet, Android Play Store)
 - **Shared instance**: Every screen uses the shared `kmpIapInstance`, which works in commonMain
 
@@ -81,18 +88,10 @@ Keep one client per process: on Meta Horizon a second live client kills the proc
 
 ### Purchase Flow with Receipt Validation
 
-```kotlin
-// Listen for purchase updates
-kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
-    // IMPORTANT: Server-side receipt validation
-    // val isValid = validateReceiptOnServer(purchase.purchaseToken)
-
-    // Finish transaction after validation
-    kmpIapInstance.finishTransaction(
-        purchase = purchase,
-        isConsumable = true // true for consumables, false for subscriptions
-    )
-}
-```
+The [purchase flow](composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/PurchaseFlowScreen.kt)
+and [subscription flow](composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/SubscriptionFlowScreen.kt)
+match the verified store, product, environment and purchase state before
+calling `finishTransaction`. Verification failures leave the receipt unfinished
+and available for retry.
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html).

@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OpenIap.Maui/OpenIap.Maui.csproj" />
+    <Compile Include="../../example/OpenIap.Maui.Example/Constants.cs" Link="Example/Constants.cs" />
+    <Compile Include="../../example/OpenIap.Maui.Example/Utils/IapKitSettings.cs" Link="Example/IapKitSettings.cs" />
   </ItemGroup>
 
 </Project>

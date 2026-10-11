@@ -310,9 +310,17 @@ await requestPurchase({
 });
 
 async function onPurchaseUpdated(purchase: Purchase) {
+  if (
+    purchase.store !== 'amazon' ||
+    purchase.storeId !== 'amazon' ||
+    purchase.productId !== product.id ||
+    purchase.purchaseState !== 'purchased'
+  ) return;
+
   const result = await verifyPurchaseWithProvider({
     provider: 'iapkit',
     iapkit: {
+      apiKey: 'YOUR_IAPKIT_PUBLISHABLE_KEY',
       amazon: {
         expectedProductId: purchase.productId,
         receiptId: purchase.purchaseToken ?? purchase.id,
@@ -324,9 +332,11 @@ async function onPurchaseUpdated(purchase: Purchase) {
   const verified = result.iapkit;
   if (
     verified?.isValid === true &&
+    verified.store === purchase.store &&
+    verified.storeId === purchase.storeId &&
     verified.environment === 'Sandbox' &&
-    verified.productId != null &&
-    verified.productId === purchase.productId
+    verified.productId === product.id &&
+    verified.state === 'ready-to-consume'
   ) {
     await finishTransaction({ purchase, isConsumable: true });
     await getAvailablePurchases();
@@ -606,6 +616,45 @@ const EXAMPLE_CONFIG: StoreExampleConfig = {
         </>
       ),
     },
+    {
+      item: 'Amazon Sandbox receipts',
+      expected: (
+        <>
+          Enable <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in
+          the IAPKit project settings, then send <code>sandbox: true</code> for
+          App Tester receipts.
+        </>
+      ),
+    },
+    {
+      item: 'Amazon subscription receipts',
+      expected: (
+        <>
+          Restore can return <code>dev.hyo.martie.premium.base</code> with the
+          catalog term in <code>currentPlanId</code>. Query both terms and the
+          base for ownership; match the exact term for plan display and the base
+          for backend verification. A missing or unrelated term grants no
+          access. Preserve the original purchase for completion.
+        </>
+      ),
+    },
+    {
+      item: 'Amazon App Tester limits',
+      expected: (
+        <>
+          App Tester can{' '}
+          <a href="https://developer.amazon.com/docs/in-app-purchasing/iap-faqs.html">
+            label other terms as monthly
+          </a>
+          ; compare the requested SKU and receipt plan.{' '}
+          <a href="https://developer.amazon.com/docs/in-app-purchasing/rvs-cloud-sandbox.html">
+            RVS Cloud Sandbox
+          </a>{' '}
+          generates a synthetic <code>termSku</code>. Use Live App Testing to
+          certify renewal and access-end behavior.
+        </>
+      ),
+    },
   ],
   frameworkIntro: (
     <>
@@ -618,7 +667,8 @@ const EXAMPLE_CONFIG: StoreExampleConfig = {
     <>
       Use the provider payload for the selected store. The request shape changes
       by language and platform, but the lifecycle remains fetch, request,
-      verify, finish, and refresh.
+      verify, finish, and refresh. The code below verifies an Amazon consumable;
+      keep receipts unfinished when any acceptance check fails.
     </>
   ),
   videos: {

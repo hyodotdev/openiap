@@ -3,7 +3,6 @@ import OpenIAP
 
 struct ActivePurchaseCard: View {
     let purchase: OpenIapPurchase
-    let onConsume: () -> Void
     let onShowDetails: () -> Void
     
     private var isSubscription: Bool {
@@ -54,21 +53,7 @@ struct ActivePurchaseCard: View {
             }
             .buttonStyle(.plain)
             
-            if !isSubscription && !purchase.purchaseState.isAcknowledged {
-                Button(action: onConsume) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 12))
-                        Text("Finish")
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(AppColors.success)
-                    .cornerRadius(8)
-                }
-            }
+
         }
         .padding()
         .background(AppColors.cardBackground)

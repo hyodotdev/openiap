@@ -24,7 +24,7 @@ var difficulty_timer: float = 0.0
 @onready var loading_label: Label = $UI/LoadingLabel
 @onready var status_label: Label = $UI/StatusLabel
 
-var verification_button: Button
+var verification_picker: OptionButton
 
 const VIEWPORT_WIDTH := 720
 const VIEWPORT_HEIGHT := 1280
@@ -50,15 +50,16 @@ func _ready() -> void:
 	IapManager.connection_changed.connect(_on_connection_changed)
 	IapManager.loading_changed.connect(_on_loading_changed)
 
-	# Load saved premium status
-	_load_premium_status()
-
+	IapManager.subscription_entitlements_changed.connect(_on_subscription_entitlements_changed)
 	game_over_label.visible = false
 	restart_button.visible = false
 	store_overlay.visible = false
 	store_panel.visible = false
-	loading_label.visible = true
-	status_label.text = "Connecting..."
+	loading_label.visible = IapManager.is_loading
+	status_label.text = "Connecting..." if IapManager.is_loading else "Not connected"
+	store_button.disabled = true
+	if IapManager.store_connected:
+		_on_connection_changed(true)
 
 	update_ui()
 
@@ -93,32 +94,35 @@ func _setup_store_panel() -> void:
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
 
-	_setup_verification_button()
+	_setup_verification_picker()
 
 
-func _setup_verification_button() -> void:
+func _setup_verification_picker() -> void:
 	var container = store_panel.get_node_or_null("VBoxContainer")
 	if container == null:
 		return
 
-	verification_button = Button.new()
-	verification_button.name = "VerificationButton"
-	verification_button.text = IapManager.verification_label()
-	verification_button.pressed.connect(_on_verification_pressed)
-	container.add_child(verification_button)
-	container.move_child(verification_button, 0)
+	verification_picker = OptionButton.new()
+	verification_picker.name = "VerificationPicker"
+	verification_picker.allow_reselect = true
+	for method in IapManager.IapkitConfig.Method.values():
+		verification_picker.add_item(IapManager.IapkitConfig.method_label(method), method)
+	verification_picker.select(verification_picker.get_item_index(IapManager.verification_method))
+	verification_picker.item_selected.connect(_on_verification_selected)
+	container.add_child(verification_picker)
+	container.move_child(verification_picker, 0)
 
 	IapManager.verification_changed.connect(_on_verification_changed)
 	IapManager.verification_result.connect(_on_verification_result)
 
 
-func _on_verification_pressed() -> void:
-	IapManager.cycle_verification_method()
+func _on_verification_selected(index: int) -> void:
+	await IapManager.set_verification_method(verification_picker.get_item_id(index))
 
 
-func _on_verification_changed(label: String) -> void:
-	if verification_button:
-		verification_button.text = label
+func _on_verification_changed(_label: String) -> void:
+	if verification_picker:
+		verification_picker.select(verification_picker.get_item_index(IapManager.verification_method))
 
 
 func _on_verification_result(message: String, ok: bool) -> void:
@@ -253,12 +257,8 @@ func _on_purchase_completed(product_id: String) -> void:
 			print("[Main] Bulb count: %d" % bulb_count)
 		"dev.hyo.martie.certified":
 			print("[Main] Certified purchased!")
-		"dev.hyo.martie.premium":
-			is_premium = true
-			_save_premium_status()
-		"dev.hyo.martie.premium_year":
-			is_premium_year = true
-			_save_premium_status()
+		"dev.hyo.martie.premium", "dev.hyo.martie.premium_year":
+			IapManager.reconcile_subscription_entitlements()
 	update_ui()
 	_update_store_panel_buttons()
 
@@ -278,6 +278,7 @@ func _on_connection_changed(connected: bool) -> void:
 	if connected:
 		status_label.text = "Connected"
 		store_button.disabled = false
+		IapManager.reconcile_subscription_entitlements()
 	else:
 		status_label.text = "Not connected"
 		store_button.disabled = true
@@ -285,26 +286,18 @@ func _on_connection_changed(connected: bool) -> void:
 
 func _on_loading_changed(loading: bool) -> void:
 	loading_label.visible = loading
-	if loading:
-		status_label.text = "Loading..."
-	elif IapManager.store_connected:
-		status_label.text = "Ready"
-	else:
-		status_label.text = "Not connected"
 
 
-func _save_premium_status() -> void:
-	var config := ConfigFile.new()
-	config.set_value("iap", "premium", is_premium)
-	config.set_value("iap", "premium_year", is_premium_year)
-	config.save("user://iap_data.cfg")
+func _on_subscription_entitlements_changed() -> void:
+	is_premium = IapManager.subscription_entitlements[IapManager.PRODUCT_PREMIUM]
+	is_premium_year = IapManager.subscription_entitlements[IapManager.PRODUCT_PREMIUM_YEAR]
+	update_ui()
+	_update_store_panel_buttons()
 
 
-func _load_premium_status() -> void:
-	var config := ConfigFile.new()
-	if config.load("user://iap_data.cfg") == OK:
-		is_premium = config.get_value("iap", "premium", false)
-		is_premium_year = config.get_value("iap", "premium_year", false)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_RESUMED and IapManager.store_connected:
+		IapManager.reconcile_subscription_entitlements()
 
 
 func update_ui() -> void:
@@ -312,7 +305,7 @@ func update_ui() -> void:
 	bulb_label.text = "Bulbs: %d" % bulb_count
 
 	if is_premium or is_premium_year:
-		var premium_type = "Year" if is_premium_year else "Lifetime"
+		var premium_type = "Yearly" if is_premium_year else "Monthly"
 		premium_label.text = "Premium: %s" % premium_type
 		premium_label.modulate = Color(1, 0.8, 0, 1)
 	else:

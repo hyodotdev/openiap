@@ -70,21 +70,12 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
   void _setupPurchaseListeners() {
     _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
       (purchase) {
-        debugPrint('Purchase successful: ${purchase.productId}');
+        if (!mounted) return;
+        debugPrint('Purchase received: ${purchase.productId}');
         setState(() {
-          _status = 'Purchase successful: ${purchase.productId}';
+          _status =
+              'Receipt retained; verify in Purchase Flow or Subscription Flow: ${purchase.productId}';
           _isProcessing = false;
-        });
-
-        // Builder demo: finishes without verification (Purchase Flow shows the
-        // verified path). The badge does not renew but is not consumable.
-        final bool isConsumable = IapConstants.isConsumable(purchase.productId);
-        _iap
-            .finishTransaction(purchase: purchase, isConsumable: isConsumable)
-            .then((_) {
-          debugPrint('Transaction finished (consumable: $isConsumable)');
-        }).catchError((error) {
-          debugPrint('Failed to finish transaction: $error');
         });
       },
       onError: (error) {
@@ -124,10 +115,14 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
       await _iap.requestPurchaseWithBuilder(
         build: (RequestPurchaseBuilder r) => r
           ..type = ProductType.InApp
-          ..withIOS((RequestPurchaseIosBuilder i) =>
-              i..sku = IapConstants.inAppProductIds[0])
-          ..withAndroid((RequestPurchaseAndroidBuilder a) =>
-              a..skus = [IapConstants.inAppProductIds[0]]),
+          ..withIOS(
+            (RequestPurchaseIosBuilder i) =>
+                i..sku = IapConstants.inAppProductIds[0],
+          )
+          ..withAndroid(
+            (RequestPurchaseAndroidBuilder a) =>
+                a..skus = [IapConstants.inAppProductIds[0]],
+          ),
       );
       setState(() => _status = 'Purchase initiated');
     } catch (e) {
@@ -148,10 +143,14 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
       await _iap.requestPurchaseWithBuilder(
         build: (RequestPurchaseBuilder r) => r
           ..type = ProductType.Subs
-          ..withIOS((RequestPurchaseIosBuilder i) =>
-              i..sku = IapConstants.subscriptionProductIds[0])
-          ..withAndroid((RequestPurchaseAndroidBuilder a) =>
-              a..skus = [IapConstants.subscriptionProductIds[0]]),
+          ..withIOS(
+            (RequestPurchaseIosBuilder i) =>
+                i..sku = IapConstants.subscriptionProductIds[0],
+          )
+          ..withAndroid(
+            (RequestPurchaseAndroidBuilder a) =>
+                a..skus = [IapConstants.subscriptionProductIds[0]],
+          ),
       );
       setState(() => _status = 'Subscription initiated');
     } catch (e) {
@@ -187,26 +186,32 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
           existing != null) {
         // Upgrade/downgrade with replacement mode
         final subBuilder = RequestSubscriptionBuilder()
-          ..withAndroid((RequestSubscriptionAndroidBuilder a) => a
-            ..skus = [IapConstants.subscriptionProductIds[0]]
-            ..subscriptionProductReplacementParams =
-                SubscriptionProductReplacementParamsAndroid(
-              oldProductId: existing!.productId,
-              replacementMode:
-                  SubscriptionReplacementModeAndroid.WithTimeProration,
-            )
-            ..purchaseToken = token);
+          ..withAndroid(
+            (RequestSubscriptionAndroidBuilder a) => a
+              ..skus = [IapConstants.subscriptionProductIds[0]]
+              ..subscriptionProductReplacementParams =
+                  SubscriptionProductReplacementParamsAndroid(
+                oldProductId: existing!.productId,
+                replacementMode:
+                    SubscriptionReplacementModeAndroid.WithTimeProration,
+              )
+              ..purchaseToken = token,
+          );
 
         await _iap.requestPurchase(subBuilder.build());
         setState(() => _status = 'Subscription upgrade initiated');
       } else {
         // Fallback to a new subscription purchase (no replacement)
         final newSub = RequestSubscriptionBuilder()
-          ..withAndroid((RequestSubscriptionAndroidBuilder a) =>
-              a..skus = [IapConstants.subscriptionProductIds[0]]);
+          ..withAndroid(
+            (RequestSubscriptionAndroidBuilder a) =>
+                a..skus = [IapConstants.subscriptionProductIds[0]],
+          );
         await _iap.requestPurchase(newSub.build());
-        setState(() => _status =
-            'No token/proration; purchased yearly as new subscription');
+        setState(
+          () => _status =
+              'No token/proration; purchased yearly as new subscription',
+        );
       }
     } catch (e) {
       setState(() => _status = 'Error: $e');
@@ -232,7 +237,8 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
           setState(() => _status = 'Error: ${result.error}');
         } else if (result.success) {
           setState(
-              () => _status = 'External purchase link opened successfully');
+            () => _status = 'External purchase link opened successfully',
+          );
         } else {
           setState(() => _status = 'User cancelled external purchase');
         }
@@ -241,12 +247,14 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
         await _iap.requestPurchaseWithBuilder(
           build: (RequestPurchaseBuilder r) => r
             ..type = ProductType.InApp
-            ..withAndroid((RequestPurchaseAndroidBuilder a) => a
-              ..skus = [IapConstants.inAppProductIds[0]]
-              ..developerBillingOption =
-                  const DeveloperBillingOptionParamsAndroid(
-                billingProgram: BillingProgramAndroid.ExternalPayments,
-              )),
+            ..withAndroid(
+              (RequestPurchaseAndroidBuilder a) => a
+                ..skus = [IapConstants.inAppProductIds[0]]
+                ..developerBillingOption =
+                    const DeveloperBillingOptionParamsAndroid(
+                  billingProgram: BillingProgramAndroid.ExternalPayments,
+                ),
+            ),
         );
         setState(() => _status = 'Alternative billing purchase initiated');
       } else {
@@ -276,7 +284,8 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
           setState(() => _status = 'Error: ${result.error}');
         } else if (result.success) {
           setState(
-              () => _status = 'External purchase link opened successfully');
+            () => _status = 'External purchase link opened successfully',
+          );
         } else {
           setState(() => _status = 'User cancelled external purchase');
         }
@@ -285,12 +294,14 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
         await _iap.requestPurchaseWithBuilder(
           build: (RequestPurchaseBuilder r) => r
             ..type = ProductType.Subs
-            ..withAndroid((RequestPurchaseAndroidBuilder a) => a
-              ..skus = [IapConstants.subscriptionProductIds[0]]
-              ..developerBillingOption =
-                  const DeveloperBillingOptionParamsAndroid(
-                billingProgram: BillingProgramAndroid.ExternalPayments,
-              )),
+            ..withAndroid(
+              (RequestPurchaseAndroidBuilder a) => a
+                ..skus = [IapConstants.subscriptionProductIds[0]]
+                ..developerBillingOption =
+                    const DeveloperBillingOptionParamsAndroid(
+                  billingProgram: BillingProgramAndroid.ExternalPayments,
+                ),
+            ),
         );
         setState(() => _status = 'Alternative billing subscription initiated');
       } else {
@@ -322,12 +333,16 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    Text('Status',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Status',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 4),
-                    Text(_status,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 12)),
+                    Text(
+                      _status,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     if (_isProcessing) ...[
                       const SizedBox(height: 8),
                       const LinearProgressIndicator(),

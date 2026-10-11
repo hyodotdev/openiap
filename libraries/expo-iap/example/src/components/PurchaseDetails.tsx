@@ -1,6 +1,6 @@
 import React from 'react';
 import {StyleSheet, Text, View, ViewStyle, TextStyle} from 'react-native';
-import type {Purchase} from '../../../src';
+import type {Purchase} from 'expo-iap';
 import {buildPurchaseRows} from '../utils/buildPurchaseRows';
 
 type PurchaseDetailsProps = {

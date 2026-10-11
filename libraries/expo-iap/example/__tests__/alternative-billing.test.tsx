@@ -1,6 +1,6 @@
 import React from 'react';
-import {fireEvent, render} from '@testing-library/react-native';
-import {Platform} from 'react-native';
+import {act, fireEvent, render} from '@testing-library/react-native';
+import {Alert, Platform} from 'react-native';
 import AlternativeBilling from '../app/alternative-billing';
 import * as ExpoIap from '../../src';
 
@@ -11,6 +11,7 @@ describe('AlternativeBilling Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert');
     (ExpoIap.useIAP as jest.Mock).mockReturnValue({
       connected: true,
       products: [
@@ -33,6 +34,35 @@ describe('AlternativeBilling Component', () => {
       configurable: true,
     });
   });
+
+  it.each(['apple', 'community_fixture'] as const)(
+    'retains an unverified %s purchase received during billing selection',
+    async (storeId) => {
+      await render(<AlternativeBilling />);
+      const options = jest.mocked(ExpoIap.useIAP).mock.calls.at(-1)?.[0];
+      expect(options?.onPurchaseSuccess).toBeDefined();
+      await act(async () => {
+        await options?.onPurchaseSuccess?.({
+          id: 'unfinished-consumable',
+          transactionId: 'unfinished-consumable',
+          productId: 'dev.hyo.martie.10bulbs',
+          purchaseToken: 'unverified-receipt',
+          purchaseState: 'purchased',
+          quantity: 1,
+          isAutoRenewing: false,
+          store: storeId === 'apple' ? 'apple' : 'unknown',
+          storeId,
+          transactionDate: 1,
+        });
+      });
+      expect(mockFinishTransaction).not.toHaveBeenCalled();
+      expect(ExpoIap.finishTransaction).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Receipt retained',
+        'Open Purchase Flow or Subscription Flow to verify and complete this receipt.',
+      );
+    },
+  );
 
   it('renders Amazon Vega as unsupported for alternative billing', async () => {
     Object.defineProperty(Platform, 'OS', {

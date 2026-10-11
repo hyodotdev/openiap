@@ -1,4 +1,4 @@
-import {getUserFriendlyErrorMessage} from '../../../src/utils/errorMapping';
+import {getUserFriendlyErrorMessage} from 'expo-iap';
 
 /**
  * Extract error message from various error formats

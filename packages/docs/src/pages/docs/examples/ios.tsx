@@ -74,7 +74,8 @@ export const IOS_CONFIG: StoreExampleConfig = {
       proof: (
         <>
           <code>fetchProducts</code> maps App Store Connect products and
-          subscription products into OpenIAP product types.
+          subscription products into OpenIAP product types. Missing products
+          disable purchase actions; owned subscriptions still offer management.
         </>
       ),
       where: 'Product and subscription rows.',

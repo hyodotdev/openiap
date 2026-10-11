@@ -3,12 +3,8 @@ package dev.hyo.martie
 import android.os.Build
 
 object IapConstants {
-    // App-defined SKU lists
-    val INAPP_SKUS = listOf(
-        "dev.hyo.martie.10bulbs",
-        "dev.hyo.martie.30bulbs",
-        "dev.hyo.martie.certified"  // Non-consumable
-    )
+    val CONSUMABLE_SKUS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bulbs")
+    val INAPP_SKUS = CONSUMABLE_SKUS + "dev.hyo.martie.certified"
 
     // Google Play: Two separate subscription products
     private val SUBS_SKUS_PLAY = listOf(

@@ -71,15 +71,3 @@ static func method_label(method: Method) -> String:
 			return "☁️ IAPKit (Server)"
 		_:
 			return "❌ None (Skip)"
-
-
-static func next_method(method: Method) -> Method:
-	match method:
-		Method.NONE:
-			return Method.LOCAL_DEVICE
-		Method.LOCAL_DEVICE:
-			return Method.IAPKIT_LOCAL
-		Method.IAPKIT_LOCAL:
-			return Method.IAPKIT
-		_:
-			return Method.NONE

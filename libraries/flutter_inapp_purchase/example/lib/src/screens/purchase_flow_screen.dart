@@ -9,7 +9,9 @@ import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
 class PurchaseFlowScreen extends StatefulWidget {
-  const PurchaseFlowScreen({super.key});
+  const PurchaseFlowScreen({super.key, this.iap});
+
+  final FlutterInappPurchase? iap;
 
   @override
   State<PurchaseFlowScreen> createState() => _PurchaseFlowScreenState();
@@ -33,14 +35,17 @@ extension VerificationMethodX on VerificationMethod {
 
 /// Mirrors the other examples: no key skips, a local origin prefers it.
 VerificationMethod defaultVerificationMethod(
-    String apiKey, String localBaseUrl) {
+  String apiKey,
+  String localBaseUrl,
+) {
   if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
   if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
   return VerificationMethod.iapkit;
 }
 
 class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
-  final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
+  late final FlutterInappPurchase _iap =
+      widget.iap ?? FlutterInappPurchase.instance;
 
   // Use product IDs from constants
   final List<String> productIds = IapConstants.inAppProductIds;
@@ -105,25 +110,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
 
       _setupPurchaseListeners();
       await _loadProducts();
-      if (!kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.iOS ||
-              defaultTargetPlatform == TargetPlatform.macOS)) {
-        try {
-          final pending = await _iap.getPendingTransactionsIOS();
-          for (final purchase in pending) {
-            if (!mounted) return;
-            await _handlePurchaseUpdate(purchase);
-          }
-        } catch (error) {
-          if (error is! PurchaseError ||
-              error.code != ErrorCode.FeatureNotSupported) {
-            if (!mounted) return;
-            setState(() {
-              _purchaseResult = 'Pending purchase recovery failed: $error';
-            });
-          }
-        }
-      }
+      await _recoverPurchases();
     } catch (e) {
       debugPrint('Failed to initialize IAP connection: $e');
     } finally {
@@ -147,7 +134,8 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         final txId = purchase.transactionIdFor;
         debugPrint('TransactionId: ${txId ?? 'N/A'}');
         debugPrint(
-            'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
+          'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
+        );
         debugPrint(
           'Purchase data: productId=${purchase.productId}, store=${purchase.store}, state=${purchase.purchaseState}',
         );
@@ -186,11 +174,53 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     debugPrint('Purchase listeners setup complete');
   }
 
+  Future<void> _recoverPurchases() async {
+    if (!_connected || !mounted) return;
+    try {
+      final purchases = !kIsWeb &&
+              (defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.macOS)
+          ? await _iap.getPendingTransactionsIOS()
+          : await _iap.getAvailablePurchases();
+      for (final purchase in purchases) {
+        if (!mounted) return;
+        await _handlePurchaseUpdate(purchase);
+      }
+    } catch (error) {
+      if (error is PurchaseError &&
+          error.code == ErrorCode.FeatureNotSupported) {
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              'Purchase recovery failed; receipts retained: $error';
+        });
+      }
+    }
+  }
+
   Future<void> _handlePurchaseUpdate(Purchase purchase) async {
+    if (!IapConstants.isInAppPurchase(purchase.productId)) return;
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+    if (_verificationMethod == VerificationMethod.ignore) {
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              'Receipt retained. Choose verification to retry this receipt.';
+        });
+      }
+      return;
+    }
     debugPrint('🎯 Purchase update received: ${purchase.productId}');
     debugPrint('  Store: ${purchase.store}');
     debugPrint('  Purchase state: ${purchase.purchaseState}');
-    final transactionId = purchase.transactionIdFor;
+    final transactionId =
+        purchase.id.isNotEmpty ? purchase.id : purchase.transactionIdFor;
     final androidStateValue = purchase.androidPurchaseStateValue;
     final iosTransactionState = purchase.iosTransactionState;
     final acknowledgedAndroid = purchase.androidIsAcknowledged;
@@ -199,7 +229,8 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
     debugPrint('  Is acknowledged Android: $acknowledgedAndroid');
     debugPrint('  Transaction ID: ${transactionId ?? 'N/A'}');
     debugPrint(
-        '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
+      '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
+    );
     debugPrint('  ID: ${purchase.id} (${purchase.id.runtimeType})');
     debugPrint('  IDs array: ${purchase.ids}');
     if (purchase is PurchaseIOS) {
@@ -243,7 +274,8 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 
     debugPrint('✅ Purchase detected as successful: ${purchase.productId}');
     debugPrint(
-        'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
+      'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}',
+    );
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 
@@ -261,7 +293,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
 
       // Format purchase result like KMP-IAP
       _purchaseResult = '''
-✅ Purchase successful (${defaultTargetPlatform.name})
+Receipt received (${defaultTargetPlatform.name}); verification required
 Product: ${purchase.productId}
 ID: ${purchase.id.isNotEmpty ? purchase.id : "N/A"}
 Transaction ID: ${transactionId ?? "N/A"}
@@ -283,13 +315,15 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
       return;
     }
 
-    // Consuming the badge would drop its entitlement on Android, so only
-    // bulb packs are consumed.
+    // Acknowledged consumables still need consumption; the badge does not.
+    final isConsumable = IapConstants.isConsumable(purchase.productId);
     try {
-      await _iap.finishTransaction(
-        purchase: purchase,
-        isConsumable: IapConstants.isConsumable(purchase.productId),
-      );
+      if (isConsumable || purchase.androidIsAcknowledged != true) {
+        await _iap.finishTransaction(
+          purchase: purchase,
+          isConsumable: isConsumable,
+        );
+      }
       debugPrint('Transaction finished successfully');
       if (!mounted) return;
       setState(() {
@@ -341,22 +375,15 @@ Message: ${error.message}
     }
 
     try {
-      final result = await _iap.verifyPurchase(
-        apple: VerifyPurchaseAppleOptions(sku: productId),
-      );
-      if (result is! VerifyPurchaseResultIOS || !mounted) return false;
-      final statusText = result.isValid ? '[Valid]' : '[Invalid]';
+      final pending = await _iap.getPendingTransactionsIOS();
+      final verified =
+          IapConstants.matchesVerifiedPendingPurchase(purchase, pending);
+      if (!mounted) return false;
       setState(() {
-        _purchaseResult = '''
-$_purchaseResult
-
-$statusText Local Verification (iOS)
-Valid: ${result.isValid}
-JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
-          '''
-            .trim();
+        _purchaseResult =
+            '$_purchaseResult\n\nLocal Verification (iOS): $verified';
       });
-      return result.isValid;
+      return verified;
     } catch (error) {
       debugPrint('Local verification failed: $error');
       if (mounted) {
@@ -391,13 +418,20 @@ JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
     try {
       debugPrint('Verifying purchase with IAPKit...');
       final jwsOrToken = purchase.purchaseToken ?? '';
+      final store = IapConstants.verificationStore(purchase);
+      if (store == IapStore.Unknown) {
+        throw UnsupportedError(
+            'No verification adapter for ${purchase.storeId}');
+      }
       debugPrint('Has verification credential: ${jwsOrToken.isNotEmpty}');
 
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
         iapkit: RequestVerifyPurchaseWithIapkitProps(
-          amazon: purchase.store == IapStore.Amazon
+          amazon: store == IapStore.Amazon
               ? RequestVerifyPurchaseWithIapkitAmazonProps(
+                  expectedProductId: IapConstants.verificationProductId(
+                      purchase.productId, store),
                   receiptId: jwsOrToken,
                   sandbox: IapConstants.amazonRvsSandbox,
                   // IAPKit rejects an Amazon receipt without the buyer's id.
@@ -405,16 +439,16 @@ JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
                 )
               : null,
           apiKey: apiKey.isNotEmpty ? apiKey : null,
-          apple: purchase.store == IapStore.Apple
+          apple: store == IapStore.Apple
               ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
               : null,
           baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
-          google: purchase.store == IapStore.Google
+          google: store == IapStore.Google
               ? RequestVerifyPurchaseWithIapkitGoogleProps(
                   purchaseToken: jwsOrToken,
                 )
               : null,
-          horizon: purchase.store == IapStore.Horizon
+          horizon: store == IapStore.Horizon
               ? RequestVerifyPurchaseWithIapkitHorizonProps(
                   sku: purchase.productId,
                 )
@@ -423,7 +457,8 @@ JWS: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 'Missing'}
       );
 
       debugPrint(
-          'IAPKit verification completed: hasIapkit=${result.iapkit != null}');
+        'IAPKit verification completed: hasIapkit=${result.iapkit != null}',
+      );
 
       final iapkitResult = result.iapkit;
       if (iapkitResult != null) {
@@ -444,7 +479,7 @@ Store: ${iapkitResult.store.value}
           });
         }
       }
-      return iapkitResult?.isValid == true;
+      return IapConstants.acceptsVerification(iapkitResult, purchase);
     } catch (e) {
       debugPrint('IAPKit verification failed: $e');
       if (mounted) {
@@ -493,6 +528,7 @@ Store: ${iapkitResult.store.value}
                     _verificationMethod = VerificationMethod.local;
                   });
                   Navigator.pop(context);
+                  unawaited(_recoverPurchases());
                 },
               ),
               ListTile(
@@ -508,6 +544,7 @@ Store: ${iapkitResult.store.value}
                     _verificationMethod = VerificationMethod.iapkitLocalhost;
                   });
                   Navigator.pop(context);
+                  unawaited(_recoverPurchases());
                 },
               ),
               ListTile(
@@ -523,6 +560,7 @@ Store: ${iapkitResult.store.value}
                     _verificationMethod = VerificationMethod.iapkit;
                   });
                   Navigator.pop(context);
+                  unawaited(_recoverPurchases());
                 },
               ),
             ],
@@ -546,7 +584,8 @@ Store: ${iapkitResult.store.value}
       );
 
       debugPrint(
-          '📦 Received ${inAppProducts.length} products from fetchProducts');
+        '📦 Received ${inAppProducts.length} products from fetchProducts',
+      );
 
       // Clear and store original products
       _originalProducts.clear();
@@ -590,13 +629,8 @@ Store: ${iapkitResult.store.value}
 
       // Build platform-specific request and call unified requestPurchase
       final requestProps = RequestPurchaseProps.inApp((
-        apple: RequestPurchaseIosProps(
-          sku: productId,
-          quantity: 1,
-        ),
-        google: RequestPurchaseAndroidProps(
-          skus: [productId],
-        ),
+        apple: RequestPurchaseIosProps(sku: productId, quantity: 1),
+        google: RequestPurchaseAndroidProps(skus: [productId]),
       ));
 
       await _iap.requestPurchase(requestProps);
@@ -840,7 +874,8 @@ Store: ${iapkitResult.store.value}
                                       });
                                       try {
                                         debugPrint(
-                                            'Checking available purchases...');
+                                          'Checking available purchases...',
+                                        );
                                         final purchases =
                                             await _iap.getAvailablePurchases();
                                         if (!mounted) return;
@@ -894,7 +929,8 @@ ${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmp
                                         // Re-initialize connection
                                         await _iap.endConnection();
                                         await Future<void>.delayed(
-                                            const Duration(seconds: 1));
+                                          const Duration(seconds: 1),
+                                        );
                                         await _initConnection();
                                         if (!mounted) return;
                                         setState(() {
@@ -910,8 +946,10 @@ ${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmp
                                         });
                                       }
                                     },
-                              icon: const Icon(Icons.power_settings_new,
-                                  size: 16),
+                              icon: const Icon(
+                                Icons.power_settings_new,
+                                size: 16,
+                              ),
                               label: const Text('Re-init Connection'),
                             ),
                           ],
@@ -1003,68 +1041,70 @@ ${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmp
                     ),
                   )
                 else
-                  ..._products.map((product) => GestureDetector(
-                        onTap: () => ProductDetailModal.show(
-                          context: context,
-                          item: product,
-                          product: _originalProducts[product.id],
+                  ..._products.map(
+                    (product) => GestureDetector(
+                      onTap: () => ProductDetailModal.show(
+                        context: context,
+                        item: product,
+                        product: _originalProducts[product.id],
+                      ),
+                      child: Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey.shade200),
                         ),
-                        child: Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey.shade200),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product.title,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.title,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                product.description,
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    product.displayPrice,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF007AFF),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  product.description,
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      product.displayPrice,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF007AFF),
-                                      ),
+                                  ElevatedButton(
+                                    onPressed: _isProcessing || !_connected
+                                        ? null
+                                        : () => _handlePurchase(product.id),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
                                     ),
-                                    ElevatedButton(
-                                      onPressed: _isProcessing || !_connected
-                                          ? null
-                                          : () => _handlePurchase(product.id),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                      ),
-                                      child: Text(_isProcessing
-                                          ? 'Processing...'
-                                          : 'Buy'),
+                                    child: Text(
+                                      _isProcessing ? 'Processing...' : 'Buy',
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );

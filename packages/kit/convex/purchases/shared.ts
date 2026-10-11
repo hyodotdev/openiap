@@ -232,6 +232,7 @@ export function mapToAppStoreReceiptResponse(
   return {
     isValid: isValidState(state),
     state,
+    environment: receiptData.environment,
     ...(receiptData.productId ? { productId: receiptData.productId } : {}),
   };
 }

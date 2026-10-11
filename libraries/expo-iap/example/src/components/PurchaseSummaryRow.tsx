@@ -6,7 +6,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import type {Purchase} from '../../../src/types';
+import type {Purchase} from 'expo-iap';
 
 const storeLabel = (store?: string | null): string => {
   if (!store) return 'unknown';

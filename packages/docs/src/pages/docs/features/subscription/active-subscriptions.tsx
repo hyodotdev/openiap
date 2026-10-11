@@ -259,17 +259,22 @@ var hasPremium = await ((QueryResolver)Iap.Instance)
                 <p>
                   Amazon Appstore receipts do not expose an Apple-style group
                   ID. OpenIAP normalizes Fire OS subscriptions to the same
-                  Android shape: <code>productId</code> and{' '}
-                  <code>currentPlanId</code> are the subscription SKU, and{' '}
-                  <code>purchaseToken</code> is the Amazon receipt ID.
+                  Android shape: <code>productId</code> retains the receipt SKU,{' '}
+                  <code>currentPlanId</code> identifies the subscription term,
+                  and <code>purchaseToken</code> is the Amazon receipt ID.
                 </p>
                 <p>
                   During a purchase, the Amazon adapter correlates the
-                  requestId-backed purchase response with the requested SKU, so
-                  example and framework code do not need ad-hoc receipt alias
-                  handling. Restore and cold-start entitlement checks should
-                  still use the store receipt data and server/IAPKit
-                  verification instead of app-local SKU alias storage.
+                  requestId-backed response with the requested term SKU. Restore
+                  can return the shared base SKU instead. Match that base and{' '}
+                  <code>currentPlanId</code> against your catalog to select the
+                  app plan; never guess a missing term. Verify and finish the
+                  original purchase without rewriting its store, provider, or
+                  receipt identity. This plan mapping describes store ownership,
+                  not verified access to a paid tier. When an app grants access
+                  from cached verification, bind that proof to the current term
+                  and refresh it when the term changes, even if Amazon retains
+                  the same receipt ID. Completion deduplication is separate.
                 </p>
                 <ul>
                   <li>
