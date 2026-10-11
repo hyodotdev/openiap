@@ -180,11 +180,41 @@ export async function runStoreCoverage({
           false,
         );
         if (store !== "apple") {
-          check(
-            `${store}/${name}: does not invent subscription lifecycle records`,
-            access.subscriptions,
-            [],
-          );
+          if (store === "amazon" && name === "iapkit") {
+            check(
+              "amazon/iapkit: returns the RVS-verified subscription",
+              access.subscriptions.map(
+                ({ productId, store, state, active }) => ({
+                  productId,
+                  store,
+                  state,
+                  active,
+                }),
+              ),
+              [
+                {
+                  productId: "premium.monthly",
+                  store,
+                  state: "Active",
+                  active: true,
+                },
+              ],
+            );
+            check(
+              "amazon/iapkit: does not invent expiry or renewal status",
+              access.subscriptions.map(({ expiresAt, willRenew }) => ({
+                expiresAt,
+                willRenew,
+              })),
+              [{ expiresAt: undefined, willRenew: undefined }],
+            );
+          } else {
+            check(
+              `${store}/${name}: does not invent subscription lifecycle records`,
+              access.subscriptions,
+              [],
+            );
+          }
           const forged = {
             store,
             [store]: { ...input[store], userId: "someone-else" },
@@ -201,9 +231,15 @@ export async function runStoreCoverage({
             503,
           );
           storeState[store] = false;
+          const rejected = await client.call("entitlements", { userId });
           check(
             `${store}/${name}: a negative store recheck removes access`,
-            (await client.call("entitlements", { userId })).productIds,
+            rejected.productIds,
+            [],
+          );
+          check(
+            `${store}/${name}: a negative recheck leaves no entitled subscription`,
+            rejected.subscriptions,
             [],
           );
           storeState[store] = true;
@@ -213,17 +249,43 @@ export async function runStoreCoverage({
             ["premium.monthly"],
           );
           if (name === "iapkit") {
-            const updatedAt = async () =>
-              (await inspect()).purchases.find(
-                (row) => row.appUserId === userId,
-              )?.updatedAt;
-            const before = await updatedAt();
+            const before = await inspect();
             await client.call("entitlements", { userId });
-            check(
-              `${store}/iapkit: an unchanged recheck verdict is not written back`,
-              await updatedAt(),
-              before,
-            );
+            const after = await inspect();
+            if (store === "amazon") {
+              const canonicalState = (snapshot) => ({
+                purchases: snapshot.purchases
+                  .filter((row) => row.appUserId === userId)
+                  .map(({ _id, state, isValid, productId }) => ({
+                    _id,
+                    state,
+                    isValid,
+                    productId,
+                  })),
+                subscriptions: snapshot.subscriptions
+                  .filter((row) => row.userId === userId)
+                  .map(({ _id, state, productId, store }) => ({
+                    _id,
+                    state,
+                    productId,
+                    store,
+                  })),
+                events: snapshot.events.map(({ _id }) => _id),
+              });
+              check(
+                "amazon/iapkit: unchanged rechecks preserve canonical rows and events",
+                canonicalState(after),
+                canonicalState(before),
+              );
+            } else {
+              check(
+                `${store}/iapkit: an unchanged recheck verdict is not written back`,
+                after.purchases.find((row) => row.appUserId === userId)
+                  ?.updatedAt,
+                before.purchases.find((row) => row.appUserId === userId)
+                  ?.updatedAt,
+              );
+            }
           }
         }
         results[store][name] = {

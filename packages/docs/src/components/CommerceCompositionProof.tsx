@@ -131,8 +131,9 @@ export default function CommerceCompositionProof(): React.JSX.Element {
       <p>
         The same verification, ownership, access, and erasure path also runs for
         Apple, Amazon, and Meta Horizon. Amazon and Horizon are checked again on
-        access reads, including rejection and upstream failure; their results
-        contain no invented subscription lifecycle records.
+        access reads, including rejection and upstream failure. IAPKit also
+        returns RVS-verified Amazon subscription state; Horizon access remains a
+        point-in-time verdict.
       </p>
       <div className="commerce-implementation-pair-grid">
         {(['apple', 'google', 'amazon', 'horizon'] as const).map((store) => (
