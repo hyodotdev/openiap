@@ -527,9 +527,11 @@ function quoteMayOpen(text: string, at: number): boolean {
 // A regex literal is one line and its classes may hold a `/`. Its body and
 // closing slash are read from the 300 characters after the opening slash, so a
 // longer one is a division and a failed try costs no more than that. A slash
-// that closes a tag (`</b>`, `<br />`) closes no regex; `/</g` and `/a/>b` still do.
+// that ends a tag closes no regex: `</b>` (after `<`, before a name and `>`),
+// and `<br />` (before `>`, with a `<` earlier in the body). `/</g` and
+// `/a/>b` still close one.
 const REGEX_BODY =
-  /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+(?:(?<!<)\/(?!>)|\/(?![\w.:-]*\s*>)|(?<!<[^>/]*)\/(?=>))/y;
+  /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+(?:(?<!<)\/(?!>)|\/(?![\w.:-]*\s*>)|(?<!<.*)\/)/y;
 const REGEX_FLAGS = /[dgimsuvy]*/y;
 function regexEnd(text: string, at: number): number {
   REGEX_BODY.lastIndex = 0;

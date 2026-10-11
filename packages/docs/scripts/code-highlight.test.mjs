@@ -2468,17 +2468,24 @@ test('reads the forms that need their context', () => {
       'const is = 1; ok = is && x; is ? a : b',
       '⟦keyword:const⟧ is = ⟦number:1⟧; ok = is && x; is ? a : b',
     ],
-    // A regex may close right before `>`, unless a tag is open in its body.
+    // A regex may close right before `>`, unless a `<` came earlier in its
+    // body: that slash ends a tag, whatever its attributes hold.
     [
       'typescript',
       'x=/a/>b; y=/a/>>b; z=/a/>=b; if(/a/>b)w()',
       'x=⟦regex:/a/⟧>b; y=⟦regex:/a/⟧>>b; z=⟦regex:/a/⟧>=b; ⟦keyword:if⟧(⟦regex:/a/⟧>b)⟦function:w⟧()',
     ],
+    ['typescript', 'x = /(a)/>c', 'x = ⟦regex:/(a)/⟧>c'],
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
     [
       'typescript',
-      'x = /<a\\/b/>c; y = /<a>b/>c',
-      'x = ⟦regex:/<a\\/b/⟧>c; y = ⟦regex:/<a>b/⟧>c',
+      '<Text>Path: /settings <Icon onPress={() => go()} /></Text>',
+      '<⟦class-name:Text⟧>⟦class-name:Path⟧: /settings <⟦class-name:Icon⟧ onPress={() => ⟦function:go⟧()} /></⟦class-name:Text⟧>',
+    ],
+    [
+      'typescript',
+      '<p>+/- <a title="x" b={c} /></p>',
+      '<p>+/- <a title=⟦string:"x"⟧ b={c} /></p>',
     ],
     // A slash that ends a self-closing tag or a tag split over lines closes no
     // regex.
