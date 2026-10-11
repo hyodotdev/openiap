@@ -1562,8 +1562,8 @@ test('reads a quote in a hole that starts no string', () => {
       `x = ${t('string', '`${a1! / 2}`')} + ${t('string', '`${f()! / 3}`')} + ${t('string', '`${a[0]! / 4}`')} + ${t('string', '`${a$! / 5}`')} + ${t('string', '`${b / 6}`')};`,
     ],
     [
-      "x = `${a /'b'.length}` + `${c! /'d'.length}` + `${e[0] /'f'.length}` + `${g$ /'h'.length}` + `${i\t/'j'.length}` + `${k / 2}`;",
-      `x = ${t('string', "`${a /'b'.length}`")} + ${t('string', "`${c! /'d'.length}`")} + ${t('string', "`${e[0] /'f'.length}`")} + ${t('string', "`${g$ /'h'.length}`")} + ${t('string', "`${i\t/'j'.length}`")} + ${t('string', '`${k / 2}`')};`,
+      "x = `${a /'b'.length}` + `${c! /'d'.length}` + `${e[0] /'f'.length}` + `${g$ /'h'.length}` + `${i\t/'j'.length}` + `${\"k\"/'l'.length}` + `${'m'/'n'.length}` + `${o++ /'p'.length}` + `${o-- /'p'.length}` + `${`q`/'r'.length}` + `${s / 2}`;",
+      `x = ${t('string', "`${a /'b'.length}`")} + ${t('string', "`${c! /'d'.length}`")} + ${t('string', "`${e[0] /'f'.length}`")} + ${t('string', "`${g$ /'h'.length}`")} + ${t('string', "`${i\t/'j'.length}`")} + ${t('string', '`${"k"/\'l\'.length}`')} + ${t('string', "`${'m'/'n'.length}`")} + ${t('string', "`${o++ /'p'.length}`")} + ${t('string', "`${o-- /'p'.length}`")} + ${t('string', "`${`q`/'r'.length}`")} + ${t('string', '`${s / 2}`')};`,
     ],
     [
       'x = `${a! / 2}` + `${this.#in / 2}` + `${b / 3}`;',

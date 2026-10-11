@@ -571,13 +571,14 @@ function slashEnd(text: string, at: number): number {
     return close < 0 ? text.length : close + 2;
   }
   // A slash before a quote with no operand before it on its line (a name, a
-  // number, `]`, a non-null `!`) is a regex even where the look back is
-  // unsure, or its quote would open a string that runs on.
+  // number, `]`, a string, `++`, a non-null `!`) is a regex even where the
+  // look back is unsure, or its quote would open a string that runs on.
   let before = at - 1;
   while (text[before] === ' ' || text[before] === '\t') before--;
   const regex =
     regexAllowed(text, at) ||
-    (/['"`]/.test(text[at + 1] ?? '') && !/[\w$\]!]/.test(text[before] ?? ''));
+    (/['"`]/.test(text[at + 1] ?? '') &&
+      !/[\w$\]!'"`+-]/.test(text[before] ?? ''));
   return regex ? Math.max(regexEnd(text, at), at + 1) : at + 1;
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
