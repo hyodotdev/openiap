@@ -1506,24 +1506,41 @@ test('reads a string flat when its hole holds a quote that starts no string', ()
   // a quote and a bracket still reads flat.
   assert.equal(
     highlightCode(
-      'x = `${t(\'`one ${x}`\')}`; y = `${"`${a}`"}` + 1;',
+      "x = `${t('`one ${x}`')}`; y = `${\"`${a}`\"}` + `${t('`${a} and ${b}`')}`;",
       'typescript'
     ),
-    `x = ${t('string', "`${t('`one ${x}`')}`")}; y = ${t('string', '`${"`${a}`"}`')} + ${t('number', '1')};`
+    `x = ${t('string', "`${t('`one ${x}`')}`")}; y = ${t('string', '`${"`${a}`"}`')} + ${t('string', "`${t('`${a} and ${b}`')}`")};`
   );
   // Each on its own line: a failed scan reads the rest of its line flat.
   assert.equal(
     highlightCode(
-      "s = `${f(/'[{]/)}` + 'a}';\nw = `${f(/'}${x}/)}` + 'a}';\nu = `${f(/'$}/)}` + 'a}';\nv = `z`;",
+      "s = `${f(/'[{]/)}` + 'a}';\nw = `${f(/'}${x}/)}` + 'a}';\nu = `${f(/'$/)}` + 'a}';\nr = `${f(/'${x}/)}` + 'a}';\nv = `z`;",
       'typescript'
     ),
     [
       `s = ${t('string', "`${f(/'[{]/)}`")} + ${t('string', "'a}'")};`,
       `w = ${t('string', "`${f(/'}${x}/)}`")} + ${t('string', "'a}'")};`,
-      `u = ${t('string', "`${f(/'$}/)}`")} + ${t('string', "'a}'")};`,
+      `u = ${t('string', "`${f(/'$/)}`")} + ${t('string', "'a}'")};`,
+      `r = ${t('string', "`${f(/'${x}/)}`")} + ${t('string', "'a}'")};`,
       `v = ${t('string', '`z`')};`,
     ].join('\n')
   );
+  assert.equal(
+    highlightCode('x = "${f(\'${a} }"\')}" + 1', 'dart'),
+    `x = ${t('string', '"${f(\'${a} }"\')}"')} + ${t('number', '1')}`
+  );
+  for (const template of [
+    '`${x.replace(/\'/g, function () { return ""; })}`',
+    '`${x.replace(/\'/g, "")}${y}`',
+  ]) {
+    assert.equal(
+      highlightCode(
+        `function g() {\n  a = ${template}; // don't\n}\nb = \`c\`;`,
+        'typescript'
+      ),
+      `${t('keyword', 'function')} ${t('function', 'g')}() {\n  a = ${t('string', template)}; ${t('comment', "// don't")}\n}\nb = ${t('string', '`c`')};`
+    );
+  }
 });
 
 test('lets a backslash keep a $ from opening a hole', () => {
@@ -1538,17 +1555,19 @@ test('reads holes like the recursive reading, also when unbalanced', () => {
   // failure is ~i, for the position i where the reading gave up.
   function readStrings(source, { open, nest, close, quotes, multiline }) {
     // `outer` is the quote of the outermost string, and a string in a hole that
-    // has seen the hole's end and then meets it was probably no string, unless
-    // it holds a hole opener itself.
+    // has seen the hole's end and then meets it was probably no string. A `}`
+    // after the string's own opener does not count.
     const string = (from, quote, outer, inHole) => {
-      let opened = false;
+      let opened = 0;
       let sawClose = false;
       for (let i = from; i < source.length; i++) {
         if (source[i] === '\n') return ~i;
         if (inHole) {
-          if (source.startsWith(open, i)) opened = true;
-          else if (source[i] === close && !opened) sawClose = true;
-          else if (sawClose && source[i] === outer && source[i] !== quote) {
+          if (source.startsWith(open, i)) opened++;
+          else if (source[i] === close) {
+            if (opened) opened--;
+            else sawClose = true;
+          } else if (sawClose && source[i] === outer && source[i] !== quote) {
             return ~i;
           }
         }

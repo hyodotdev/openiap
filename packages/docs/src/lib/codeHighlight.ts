@@ -208,7 +208,7 @@ type Frame =
       doubled: boolean;
       holes: boolean;
       multiline: boolean;
-      opened?: boolean;
+      opened?: number;
       sawClose?: boolean;
     }
   | { hole: Hole; depth: number };
@@ -247,12 +247,14 @@ function scanFrames(
     if ('quote' in frame) {
       // A string in a hole that has seen the hole's end and now meets the
       // outer quote was probably no string: a regex or a comment held a quote.
-      // One that holds a hole opener itself (`'`${x}`'`) is a string.
+      // A `}` that closes the string's own `${` (`'`${x}`'`) does not count.
       const below = frames[frames.length - 2];
       if (below && 'hole' in below && !literal.includes(frame.quote)) {
-        if (text.startsWith(below.hole.open, i)) frame.opened = true;
-        else if (char === below.hole.close && !frame.opened) {
-          frame.sawClose = true;
+        if (text.startsWith(below.hole.open, i)) {
+          frame.opened = (frame.opened ?? 0) + 1;
+        } else if (char === below.hole.close) {
+          if (frame.opened) frame.opened--;
+          else frame.sawClose = true;
         } else if (frame.sawClose && char === outer && char !== frame.quote) {
           return ~i;
         }
