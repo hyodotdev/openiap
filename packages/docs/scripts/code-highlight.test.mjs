@@ -1558,6 +1558,14 @@ test('reads a quote in a hole that starts no string', () => {
   // before a quote is a regex; an unclosed or long regex skips one slash.
   for (const [source, html] of [
     [
+      'x = `${a1! / 2}` + `${f()! / 3}` + `${a[0]! / 4}` + `${a$! / 5}` + `${b / 6}`;',
+      `x = ${t('string', '`${a1! / 2}`')} + ${t('string', '`${f()! / 3}`')} + ${t('string', '`${a[0]! / 4}`')} + ${t('string', '`${a$! / 5}`')} + ${t('string', '`${b / 6}`')};`,
+    ],
+    [
+      "x = `${a /'b'.length}` + `${c! /'d'.length}` + `${e[0] /'f'.length}` + `${g$ /'h'.length}` + `${i\t/'j'.length}` + `${k / 2}`;",
+      `x = ${t('string', "`${a /'b'.length}`")} + ${t('string', "`${c! /'d'.length}`")} + ${t('string', "`${e[0] /'f'.length}`")} + ${t('string', "`${g$ /'h'.length}`")} + ${t('string', "`${i\t/'j'.length}`")} + ${t('string', '`${k / 2}`')};`,
+    ],
+    [
       'x = `${a! / 2}` + `${this.#in / 2}` + `${b / 3}`;',
       `x = ${t('string', '`${a! / 2}`')} + ${t('string', '`${this.#in / 2}`')} + ${t('string', '`${b / 3}`')};`,
     ],
@@ -2603,6 +2611,11 @@ test('reads the forms that need their context', () => {
       'typescript',
       'x = a! / 2 / b; y = this.#in / 2 / c; z = (a)! / 2 / b[0]! / 3 / c;',
       'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c; z = (a)! / ⟦number:2⟧ / b[⟦number:0⟧]! / ⟦number:3⟧ / c;',
+    ],
+    [
+      'typescript',
+      '!/a/.test(s) && f(); g = typeof!/b/; function h(s) { return!/c/.test(s); }',
+      '!⟦regex:/a/⟧.⟦function:test⟧(s) && ⟦function:f⟧(); g = ⟦keyword:typeof⟧!⟦regex:/b/⟧; ⟦keyword:function⟧ ⟦function:h⟧(s) { ⟦keyword:return⟧!⟦regex:/c/⟧.⟦function:test⟧(s); }',
     ],
     [
       'typescript',

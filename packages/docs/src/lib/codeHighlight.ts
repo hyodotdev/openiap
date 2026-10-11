@@ -508,6 +508,13 @@ function lastCodeIndex(text: string, at: number): number {
   return stop > 0 ? -2 : -1;
 }
 
+// Whether the word that ends at `last` begins an expression (`return`), so a
+// `/` after it starts a regex literal; after a name it divides.
+function expressionAfterWord(text: string, last: number): boolean {
+  const word = keywordEndingAt(text, last);
+  return EXPRESSION_WORD.test(word) && word !== 'of' && word !== 'from';
+}
+
 // A `/` starts a regex literal at the start of the text, after an operator or
 // bracket that begins an expression, and after a word like `return`. After a
 // name, number, `)`, `]` or `}` it divides, and so after `++` or `--`; `</` and
@@ -516,15 +523,17 @@ function regexAllowed(text: string, at: number): boolean {
   const last = lastCodeIndex(text, at);
   if (last < 0) return last === -1;
   const char = text[last];
-  if (/[\w$]/.test(char)) {
-    const word = keywordEndingAt(text, last);
-    return EXPRESSION_WORD.test(word) && word !== 'of' && word !== 'from';
-  }
+  if (/[\w$]/.test(char)) return expressionAfterWord(text, last);
   if (char === '>') return text[last - 1] === '=';
-  // `a! / 2` divides: a `!` after a name or bracket is TypeScript's non-null.
-  if (char === '!') return !/[\w$)\]]/.test(text[last - 1] ?? '');
+  if (char === '!') {
+    // After a name or bracket a `!` is TypeScript's non-null: `a! / 2`.
+    const before = text[last - 1] ?? '';
+    return /[\w$]/.test(before)
+      ? expressionAfterWord(text, last - 1)
+      : !/[)\]]/.test(before);
+  }
   if (char === '+' || char === '-') return text[last - 1] !== char;
-  return '(,=:[!&|?{;~*%^'.includes(char);
+  return '(,=:[&|?{;~*%^'.includes(char);
 }
 
 // A quote cannot follow a word character straight away unless the word is a
@@ -561,11 +570,15 @@ function slashEnd(text: string, at: number): number {
     const close = text.indexOf('*/', at + 2);
     return close < 0 ? text.length : close + 2;
   }
-  // A slash before a quote is a regex even where the look back is unsure, or
-  // its quote would open a string that runs on.
-  return regexAllowed(text, at) || /['"`]/.test(text[at + 1] ?? '')
-    ? Math.max(regexEnd(text, at), at + 1)
-    : at + 1;
+  // A slash before a quote with no operand before it on its line (a name, a
+  // number, `]`, a non-null `!`) is a regex even where the look back is
+  // unsure, or its quote would open a string that runs on.
+  let before = at - 1;
+  while (text[before] === ' ' || text[before] === '\t') before--;
+  const regex =
+    regexAllowed(text, at) ||
+    (/['"`]/.test(text[at + 1] ?? '') && !/[\w$\]!]/.test(text[before] ?? ''));
+  return regex ? Math.max(regexEnd(text, at), at + 1) : at + 1;
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {
