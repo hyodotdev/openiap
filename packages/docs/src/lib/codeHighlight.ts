@@ -55,8 +55,9 @@ interface Rule {
   when?: (text: string, at: number) => boolean;
 }
 
-// A letter of a name in any script (`café`, `ñ`), a digit, `_` or `$`.
-const IDENTIFIER_CHAR = /[\p{L}\p{N}_$]/u;
+// A character of a name in any script (`café`, `ñ`, combining marks), as
+// JavaScript defines it: ID_Continue, `$`, ZWNJ and ZWJ.
+const IDENTIFIER_CHAR = /[$\u200c\u200d\p{ID_Continue}]/u;
 
 // One left-to-right scan: every character belongs to exactly one token or to
 // the plain text between tokens, and each piece is escaped once.
@@ -784,7 +785,7 @@ const CALL: Rule = {
 // A capitalized word links to its type page when it names one.
 const TYPE: Rule = {
   pattern: /\b[A-Z][\w$]*/y,
-  notAfter: /\$/,
+  notAfter: IDENTIFIER_CHAR,
   render: ([name]) => {
     const href = TYPE_LINKS[name];
     return href

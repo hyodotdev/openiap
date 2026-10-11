@@ -2634,6 +2634,24 @@ test('reads the forms that need their context', () => {
       'a = /(a)/>b; c = /=>/>d; e = /a{2}/>f',
       'a = ⟦regex:/(a)/⟧>b; c = ⟦regex:/=>/⟧>d; e = ⟦regex:/a{2}/⟧>f',
     ],
+    // Names may use any script: a name ending in `do` divides, and a word
+    // glued to `ñ` is no type, call or decorator.
+    [
+      'typescript',
+      'x = ñdo / 2 / a; y = ⅰ! / 2 / b; z = cafe\u0301! / 2 / c;',
+      'x = ñ⟦keyword:do⟧ / ⟦number:2⟧ / a; y = ⅰ! / ⟦number:2⟧ / b; z = cafe\u0301! / ⟦number:2⟧ / c;',
+    ],
+    ['typescript', "<p>café's menu</p>", "<p>café's menu</p>"],
+    [
+      'typescript',
+      'class ñProduct {}; new ñProduct(); ñfoo(1);',
+      '⟦keyword:class⟧ ñProduct {}; ⟦keyword:new⟧ ñProduct(); ñfoo(⟦number:1⟧);',
+    ],
+    [
+      'kotlin',
+      'josé@Ann fun f() {}',
+      'josé@⟦class-name:Ann⟧ ⟦keyword:fun⟧ ⟦function:f⟧() {}',
+    ],
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
     [
       'typescript',
