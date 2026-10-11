@@ -2502,12 +2502,16 @@ test('reads the forms that need their context', () => {
       'x=/a/>b; y=/a/>>b; z=/a/>=b; if(/a/>b)w()',
       'x=⟦regex:/a/⟧>b; y=⟦regex:/a/⟧>>b; z=⟦regex:/a/⟧>=b; ⟦keyword:if⟧(⟦regex:/a/⟧>b)⟦function:w⟧()',
     ],
-    ['typescript', 'x = /(a)/>c', 'x = ⟦regex:/(a)/⟧>c'],
+    [
+      'typescript',
+      'a = /(a)/>b; c = /=>/>d; e = /a{2}/>f',
+      'a = ⟦regex:/(a)/⟧>b; c = ⟦regex:/=>/⟧>d; e = ⟦regex:/a{2}/⟧>f',
+    ],
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
     [
       'typescript',
-      '<Text>Path: /settings <Icon onPress={() => go()} /></Text>',
-      '<⟦class-name:Text⟧>⟦class-name:Path⟧: /settings <⟦class-name:Icon⟧ onPress={() => ⟦function:go⟧()} /></⟦class-name:Text⟧>',
+      '<Text>Path: /settings <Icon size={24} label="C:\\dir" onPress={() => navigation.goBack()} /></Text>',
+      '<⟦class-name:Text⟧>⟦class-name:Path⟧: /settings <⟦class-name:Icon⟧ size={⟦number:24⟧} label=⟦string:"C:\\dir"⟧ onPress={() => navigation.⟦function:goBack⟧()} /></⟦class-name:Text⟧>',
     ],
     [
       'typescript',
