@@ -529,17 +529,25 @@ function regexAllowed(text: string, at: number): boolean {
   return '(,=:[&|?{;~*%^'.includes(char);
 }
 
-// `lastCodeIndex` past a run of `!`: after an operand on its line a `!` is
-// TypeScript's non-null (`a! / 2`) and reads as that operand; anywhere else it
-// is a not (`return!/a/`, a `!` that starts a line), read as the start (-1).
+// `lastCodeIndex` past a run of `!`. After an operand on its line (a name or
+// number, `)`, `]`, a string) a `!` is TypeScript's non-null and reads as that
+// operand (`a! / 2`); anywhere else it is a not, read as the start (-1).
 function lastBeforeBangs(text: string, at: number): number {
   let last = lastCodeIndex(text, at);
-  while (last >= 0 && text[last] === '!') {
+  if (last < 0 || text[last] !== '!') return last;
+  do {
     const before = lastCodeIndex(text, last);
     if (before < 0 || breakBetween(text, before, last)) return -1;
     last = before;
-  }
-  return last;
+  } while (text[last] === '!');
+  return nameEndsAt(text, last) || /[)\]'"`]/.test(text[last]) ? last : -1;
+}
+
+// Whether a name or number that is no keyword (`return`, `of`) ends at `i`.
+function nameEndsAt(text: string, i: number): boolean {
+  return (
+    /[\w$]/.test(text[i]) && !EXPRESSION_WORD.test(keywordEndingAt(text, i))
+  );
 }
 
 // Whether a line terminator lies between `from` and `to`. Only the gap is
@@ -596,14 +604,13 @@ function slashEnd(text: string, at: number): number {
 // name or number (not a keyword such as `return` or `of`), `]`, a string,
 // `++`, or a non-null `!`.
 function operandBefore(text: string, at: number): boolean {
-  const last = lastBeforeBangs(text, at);
+  const last = lastCodeIndex(text, at);
   if (last < 0 || breakBetween(text, last, at)) return false;
+  if (nameEndsAt(text, last)) return true;
+  // `regexAllowed` took the rest, so a `+` or `-` here ends `++` or `--` and a
+  // `!` is a non-null.
   const char = text[last];
-  if (/[\w$]/.test(char)) {
-    return !EXPRESSION_WORD.test(keywordEndingAt(text, last));
-  }
-  // A `+` or `-` here ends `++` or `--`; `regexAllowed` took the rest.
-  return /[\]'"`+-]/.test(char) || (char === '.' && /\d/.test(text[last - 1]));
+  return /[\]'"`+!-]/.test(char) || (char === '.' && /\d/.test(text[last - 1]));
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {

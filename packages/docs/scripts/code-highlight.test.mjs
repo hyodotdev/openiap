@@ -1574,6 +1574,18 @@ test('reads a quote in a hole that starts no string', () => {
       `x = ${t('string', "`${ // c\n/'/.source}`")}; y = ${t('string', "`${[.../'/.exec(s)]}`")}; z = ${t('string', "'}`'")};`,
     ],
     [
+      `x = \`\${${' '.repeat(250)}/'/.source}\`; y = '}\`' / 2;`,
+      `x = ${t('string', `\`\${${' '.repeat(250)}/'/.source}\``)}; y = ${t('string', "'}`'")} / ${t('number', '2')};`,
+    ],
+    [
+      "x = `${(function () { if (a) {} /'/.test(s); return `c`; })()}`; y = '}`' / 2;",
+      `x = ${t('string', "`${(function () { if (a) {} /'/.test(s); return `c`; })()}`")}; y = ${t('string', "'}`'")} / ${t('number', '2')};`,
+    ],
+    [
+      "x = `${a / /'/.source.length}` + `${f()! /'b'.length}`; y = '}`' / 2;",
+      `x = ${t('string', "`${a / /'/.source.length}`")} + ${t('string', "`${f()! /'b'.length}`")}; y = ${t('string', "'}`'")} / ${t('number', '2')};`,
+    ],
+    [
       "x = `${a.default /'b'.length}` + `${e / 2}`;",
       `x = ${t('string', "`${a.default /'b'.length}`")} + ${t('string', '`${e / 2}`')};`,
     ],
@@ -2628,6 +2640,11 @@ test('reads the forms that need their context', () => {
       'x = a! / 2 / b; y = this.#in / 2 / c; z = (a)! / 2 / b[0]! / 3 / c; w = d!! / 2 / e ! / 3 / f;',
       'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c; z = (a)! / ⟦number:2⟧ / b[⟦number:0⟧]! / ⟦number:3⟧ / c; w = d!! / ⟦number:2⟧ / e ! / ⟦number:3⟧ / f;',
     ],
+    [
+      'typescript',
+      'x = \'s\'! / 2 / a; y = "t"! / 3 / b; z = `u`! / 4 / c;',
+      'x = ⟦string:\'s\'⟧! / ⟦number:2⟧ / a; y = ⟦string:"t"⟧! / ⟦number:3⟧ / b; z = ⟦string:`u`⟧! / ⟦number:4⟧ / c;',
+    ],
     // A `!` that starts a line is a not, also below a long comment, and so is
     // one the look back cannot place.
     [
@@ -2644,6 +2661,12 @@ test('reads the forms that need their context', () => {
       'typescript',
       `ok = a &&\n  // ${'x'.repeat(120)}\n  // ${'y'.repeat(120)}\n  !/b/.test(c);`,
       `ok = a &&\n  ⟦comment:// ${'x'.repeat(120)}⟧\n  ⟦comment:// ${'y'.repeat(120)}⟧\n  !⟦regex:/b/⟧.⟦function:test⟧(c);`,
+    ],
+    // A `!` after anything but an operand is a not.
+    [
+      'typescript',
+      'if (a) { b(); } !/c/.test(d); for (x of !/e/.test(f)) {} r = a < !/g/.test(h) >> !/i/.test(j); q = <boolean>!/k/.test(l);',
+      '⟦keyword:if⟧ (a) { ⟦function:b⟧(); } !⟦regex:/c/⟧.⟦function:test⟧(d); ⟦keyword:for⟧ (x ⟦keyword:of⟧ !⟦regex:/e/⟧.⟦function:test⟧(f)) {} r = a < !⟦regex:/g/⟧.⟦function:test⟧(h) >> !⟦regex:/i/⟧.⟦function:test⟧(j); q = <boolean>!⟦regex:/k/⟧.⟦function:test⟧(l);',
     ],
     [
       'typescript',
