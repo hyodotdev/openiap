@@ -1,0 +1,64 @@
+{
+  "$schema": "https://fundingjson.org/schema/v1.1.0.json",
+  "version": "v1.1.0",
+  "entity": {
+    "type": "individual",
+    "role": "maintainer",
+    "name": "Hyo Jang",
+    "email": "hyo@hyo.dev",
+    "description": "I am Hyo Jang (@hyochan), the sole core maintainer working full-time on OpenIAP and its cross-platform in-app purchase libraries. OpenIAP carries forward the react-native-iap community, whose original repository dates to 2017. Active development is in the hyodotdev/openiap monorepo; the original react-native-iap repository is archived as project history. Public sponsorship channels include GitHub Sponsors and OpenCollective. This request supports ongoing maintenance and paid contributor work to share the workload, improve compatibility, and help the existing ecosystem grow sustainably. Hyo Jang is the applicant responsible for this funding plan.",
+    "webpageUrl": {
+      "url": "https://github.com/hyochan"
+    }
+  },
+  "projects": [
+    {
+      "guid": "openiap",
+      "name": "OpenIAP including react-native-iap",
+      "description": "OpenIAP provides open protocols, native implementations, and framework libraries for in-app purchases. Its Client Protocol standardizes purchase APIs and types; its Commerce Protocol standardizes server verification, entitlements, and subscription lifecycle events. The monorepo maintains react-native-iap, expo-iap, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot integrations, alongside Apple and Android packages. In September 2026, npm recorded 589,205 downloads of react-native-iap and 1,036,826 downloads of expo-iap. Download events are not unique users or applications. The legacy react-native-iap repository had 3,223 stars when checked on 12 October 2026; these are historical ecosystem evidence, not OpenIAP monorepo stars. OpenIAP already documents SBOM publication, npm provenance verification, dependency monitoring, and security response. Funding will sustain this existing ecosystem through compatibility updates, issue triage, regression tests, release verification, documentation, and contributor onboarding. Source: https://github.com/hyodotdev/openiap ; download counts: https://api.npmjs.org/downloads/point/2026-09-01:2026-09-30/react-native-iap and https://api.npmjs.org/downloads/point/2026-09-01:2026-09-30/expo-iap .",
+      "webpageUrl": {
+        "url": "https://github.com/hyodotdev/openiap"
+      },
+      "repositoryUrl": {
+        "url": "https://github.com/hyodotdev/openiap"
+      },
+      "licenses": [
+        "spdx:MIT",
+        "spdx:Apache-2.0"
+      ],
+      "tags": [
+        "developer-tools",
+        "mobile",
+        "in-app-purchase",
+        "react-native",
+        "expo",
+        "flutter",
+        "cross-platform",
+        "security"
+      ]
+    }
+  ],
+  "funding": {
+    "channels": [
+      {
+        "guid": "grant-arrangements",
+        "type": "other",
+        "description": "Contact the applicant privately to confirm grant payment arrangements and the required banking and tax documents. No banking details are published in this manifest."
+      }
+    ],
+    "plans": [
+      {
+        "guid": "openiap-maintenance-year",
+        "status": "active",
+        "name": "One year of OpenIAP maintenance and reliability",
+        "description": "USD 100,000 for twelve months from the award: USD 50,000 for the core maintainer working full-time on issue triage, compatibility and releases; USD 35,000 for paid, scoped contributor work on existing SDKs, regression and conformance tests, and maintenance tooling; USD 10,000 for CI, test infrastructure and devices; USD 5,000 for documentation and contributor onboarding. These are planned allocations, not historical expenses or existing contributor contracts. In the first quarter, publish prioritized work items with review and acceptance criteria; during the year, recruit contributors and merge reviewed improvements across the existing OpenIAP ecosystem. Report quarterly on releases, resolved issues, contributor work, tests and spending. Existing sponsorship and other grants will be disclosed to funders; work packages and expenses will be tracked separately so the same work is not funded twice. Any material reallocation will be agreed with the funder. This is a dedicated twelve-month maintenance and contributor program for the existing OpenIAP ecosystem.",
+        "amount": 100000,
+        "currency": "USD",
+        "frequency": "yearly",
+        "channels": [
+          "grant-arrangements"
+        ]
+      }
+    ]
+  }
+}
