@@ -32,6 +32,76 @@ private fun resolveStoreId(store: IapStore, value: Any?): String {
 // MARK: - Enums
 
 /**
+ * App acquisition verdict; unknown means no trustworthy decision is available.
+ */
+public enum class AppOwnershipStatus(val rawValue: String) {
+    Licensed("licensed"),
+    Unlicensed("unlicensed"),
+    Unknown("unknown");
+
+    companion object {
+        private fun fromKnownJson(value: String): AppOwnershipStatus? = when (value) {
+            "licensed" -> AppOwnershipStatus.Licensed
+            "LICENSED" -> AppOwnershipStatus.Licensed
+            "Licensed" -> AppOwnershipStatus.Licensed
+            "unlicensed" -> AppOwnershipStatus.Unlicensed
+            "UNLICENSED" -> AppOwnershipStatus.Unlicensed
+            "Unlicensed" -> AppOwnershipStatus.Unlicensed
+            "unknown" -> AppOwnershipStatus.Unknown
+            "UNKNOWN" -> AppOwnershipStatus.Unknown
+            "Unknown" -> AppOwnershipStatus.Unknown
+            else -> null
+        }
+
+        fun fromJson(value: String): AppOwnershipStatus = fromKnownJson(value) ?: AppOwnershipStatus.Unknown
+
+        fun fromJsonStrict(value: String): AppOwnershipStatus =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown AppOwnershipStatus input value: $value")
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Why the ownership check is inconclusive.
+ */
+public enum class AppOwnershipVerificationReason(val rawValue: String) {
+    BackendVerificationRequired("backend-verification-required"),
+    VerificationFailed("verification-failed"),
+    NetworkError("network-error"),
+    ServiceError("service-error"),
+    Unsupported("unsupported");
+
+    companion object {
+        private fun fromKnownJson(value: String): AppOwnershipVerificationReason? = when (value) {
+            "backend-verification-required" -> AppOwnershipVerificationReason.BackendVerificationRequired
+            "BACKEND_VERIFICATION_REQUIRED" -> AppOwnershipVerificationReason.BackendVerificationRequired
+            "BackendVerificationRequired" -> AppOwnershipVerificationReason.BackendVerificationRequired
+            "verification-failed" -> AppOwnershipVerificationReason.VerificationFailed
+            "VERIFICATION_FAILED" -> AppOwnershipVerificationReason.VerificationFailed
+            "VerificationFailed" -> AppOwnershipVerificationReason.VerificationFailed
+            "network-error" -> AppOwnershipVerificationReason.NetworkError
+            "NETWORK_ERROR" -> AppOwnershipVerificationReason.NetworkError
+            "NetworkError" -> AppOwnershipVerificationReason.NetworkError
+            "service-error" -> AppOwnershipVerificationReason.ServiceError
+            "SERVICE_ERROR" -> AppOwnershipVerificationReason.ServiceError
+            "ServiceError" -> AppOwnershipVerificationReason.ServiceError
+            "unsupported" -> AppOwnershipVerificationReason.Unsupported
+            "UNSUPPORTED" -> AppOwnershipVerificationReason.Unsupported
+            "Unsupported" -> AppOwnershipVerificationReason.Unsupported
+            else -> null
+        }
+
+        fun fromJson(value: String): AppOwnershipVerificationReason = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown AppOwnershipVerificationReason value: $value")
+
+        fun fromJsonStrict(value: String): AppOwnershipVerificationReason =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown AppOwnershipVerificationReason input value: $value")
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
  * Play Billing choice image layout (Android)
  * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
@@ -1732,6 +1802,48 @@ public data class AdvancedCommerceRefundIOS(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "AdvancedCommerceRefundIOS",
         "jsonRepresentation" to jsonRepresentation,
+    )
+}
+
+/**
+ * App acquisition evidence; unknown must never be treated as unlicensed.
+ */
+public data class AppOwnershipVerificationResult(
+    val appTransactionIOS: AppTransaction? = null,
+    /**
+     * Encrypted Play Integrity evidence; collecting it does not grant a license.
+     */
+    val integrityTokenAndroid: String? = null,
+    val reason: AppOwnershipVerificationReason? = null,
+    /**
+     * Signed AppTransaction evidence for Apple backend verification.
+     */
+    val signedAppTransactionIOS: String? = null,
+    val status: AppOwnershipStatus,
+    val storeId: String
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): AppOwnershipVerificationResult {
+            return AppOwnershipVerificationResult(
+                appTransactionIOS = (json["appTransactionIOS"] as? Map<String, Any?>)?.let { AppTransaction.fromJson(it) },
+                integrityTokenAndroid = json["integrityTokenAndroid"] as? String,
+                reason = (json["reason"] as? String)?.let { AppOwnershipVerificationReason.fromJson(it) },
+                signedAppTransactionIOS = json["signedAppTransactionIOS"] as? String,
+                status = (json["status"] as? String)?.let { AppOwnershipStatus.fromJson(it) } ?: AppOwnershipStatus.Unknown,
+                storeId = json["storeId"] as? String ?: "",
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "AppOwnershipVerificationResult",
+        "appTransactionIOS" to appTransactionIOS?.toJson(),
+        "integrityTokenAndroid" to integrityTokenAndroid,
+        "reason" to reason?.toJson(),
+        "signedAppTransactionIOS" to signedAppTransactionIOS,
+        "status" to status.toJson(),
+        "storeId" to storeId,
     )
 }
 
@@ -4792,6 +4904,37 @@ public data class LaunchExternalLinkParamsAndroid(
     )
 }
 
+/**
+ * Standard Play Integrity request bound to a backend challenge.
+ */
+public data class PlayIntegrityParamsAndroid(
+    /**
+     * Google Cloud project number as decimal text, not the project ID.
+     */
+    val cloudProjectNumber: String,
+    /**
+     * Hash of the server challenge and request data; at most 500 UTF-8 bytes.
+     */
+    val requestHash: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): PlayIntegrityParamsAndroid? {
+            val cloudProjectNumber = json["cloudProjectNumber"] as? String
+            val requestHash = json["requestHash"] as? String
+            if (cloudProjectNumber == null || requestHash == null) return null
+            return PlayIntegrityParamsAndroid(
+                cloudProjectNumber = cloudProjectNumber,
+                requestHash = requestHash,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "cloudProjectNumber" to cloudProjectNumber,
+        "requestHash" to requestHash,
+    )
+}
+
 public data class ProductRequest(
     val skus: List<String>,
     val type: ProductQueryType? = ProductQueryType.InApp
@@ -5594,6 +5737,22 @@ public data class SubscriptionProductReplacementParamsAndroid(
     )
 }
 
+public data class VerifyAppOwnershipProps(
+    val google: PlayIntegrityParamsAndroid? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyAppOwnershipProps {
+            return VerifyAppOwnershipProps(
+                google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { PlayIntegrityParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for PlayIntegrityParamsAndroid") },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "google" to google?.toJson(),
+    )
+}
+
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
@@ -6179,6 +6338,13 @@ public interface QueryResolver {
      * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
      */
     suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>
+    /**
+     * Verify app acquisition independently of in-app purchases.
+     * An integrity token requires backend verification; it is not a license verdict.
+     * Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+     * See: https://openiap.dev/docs/apis/verify-app-ownership
+     */
+    suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps? = null): AppOwnershipVerificationResult = throw UnsupportedOperationException("verifyAppOwnership is not supported by this resolver")
 }
 
 /**
@@ -6449,8 +6615,9 @@ public typealias QueryIsEligibleForIntroOfferIOSHandler = suspend (groupID: Stri
 public typealias QueryIsTransactionVerifiedIOSHandler = suspend (sku: String) -> Boolean
 public typealias QueryLatestTransactionIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = suspend (sku: String) -> List<SubscriptionStatusIOS>
+public typealias QueryVerifyAppOwnershipHandler = suspend (options: VerifyAppOwnershipProps?) -> AppOwnershipVerificationResult
 
-public data class QueryHandlers(
+public class QueryHandlers(
     /**
      * Check eligibility for the external purchase notice sheet (iOS 17.4+).
      * Uses ExternalPurchase.canPresent.
@@ -6569,7 +6736,137 @@ public data class QueryHandlers(
      * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
      */
     val subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = null
-)
+) {
+    /**
+     * Verify app acquisition independently of in-app purchases.
+     * An integrity token requires backend verification; it is not a license verdict.
+     * Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+     * See: https://openiap.dev/docs/apis/verify-app-ownership
+     */
+    var verifyAppOwnership: QueryVerifyAppOwnershipHandler? = null
+        private set
+
+    constructor(
+        canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = null,
+        currentEntitlementIOS: QueryCurrentEntitlementIOSHandler? = null,
+        fetchProducts: QueryFetchProductsHandler? = null,
+        getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = null,
+        getAllTransactionsIOS: QueryGetAllTransactionsIOSHandler? = null,
+        getAppTransactionIOS: QueryGetAppTransactionIOSHandler? = null,
+        getAvailablePurchases: QueryGetAvailablePurchasesHandler? = null,
+        getBillingChoiceInfoAndroid: QueryGetBillingChoiceInfoAndroidHandler? = null,
+        getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = null,
+        getPendingTransactionsIOS: QueryGetPendingTransactionsIOSHandler? = null,
+        getPromotedProductIOS: QueryGetPromotedProductIOSHandler? = null,
+        getReceiptDataIOS: QueryGetReceiptDataIOSHandler? = null,
+        getStorefront: QueryGetStorefrontHandler? = null,
+        getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler? = null,
+        hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = null,
+        isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = null,
+        isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = null,
+        isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = null,
+        latestTransactionIOS: QueryLatestTransactionIOSHandler? = null,
+        subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = null,
+        verifyAppOwnership: QueryVerifyAppOwnershipHandler?,
+    ) : this(canPresentExternalPurchaseNoticeIOS, currentEntitlementIOS, fetchProducts, getActiveSubscriptions, getAllTransactionsIOS, getAppTransactionIOS, getAvailablePurchases, getBillingChoiceInfoAndroid, getExternalPurchaseCustomLinkTokenIOS, getPendingTransactionsIOS, getPromotedProductIOS, getReceiptDataIOS, getStorefront, getTransactionJwsIOS, hasActiveSubscriptions, isEligibleForExternalPurchaseCustomLinkIOS, isEligibleForIntroOfferIOS, isTransactionVerifiedIOS, latestTransactionIOS, subscriptionStatusIOS) {
+        this.verifyAppOwnership = verifyAppOwnership
+    }
+
+    operator fun component1(): QueryCanPresentExternalPurchaseNoticeIOSHandler? = canPresentExternalPurchaseNoticeIOS
+    operator fun component2(): QueryCurrentEntitlementIOSHandler? = currentEntitlementIOS
+    operator fun component3(): QueryFetchProductsHandler? = fetchProducts
+    operator fun component4(): QueryGetActiveSubscriptionsHandler? = getActiveSubscriptions
+    operator fun component5(): QueryGetAllTransactionsIOSHandler? = getAllTransactionsIOS
+    operator fun component6(): QueryGetAppTransactionIOSHandler? = getAppTransactionIOS
+    operator fun component7(): QueryGetAvailablePurchasesHandler? = getAvailablePurchases
+    operator fun component8(): QueryGetBillingChoiceInfoAndroidHandler? = getBillingChoiceInfoAndroid
+    operator fun component9(): QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = getExternalPurchaseCustomLinkTokenIOS
+    operator fun component10(): QueryGetPendingTransactionsIOSHandler? = getPendingTransactionsIOS
+    operator fun component11(): QueryGetPromotedProductIOSHandler? = getPromotedProductIOS
+    operator fun component12(): QueryGetReceiptDataIOSHandler? = getReceiptDataIOS
+    operator fun component13(): QueryGetStorefrontHandler? = getStorefront
+    operator fun component14(): QueryGetTransactionJwsIOSHandler? = getTransactionJwsIOS
+    operator fun component15(): QueryHasActiveSubscriptionsHandler? = hasActiveSubscriptions
+    operator fun component16(): QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = isEligibleForExternalPurchaseCustomLinkIOS
+    operator fun component17(): QueryIsEligibleForIntroOfferIOSHandler? = isEligibleForIntroOfferIOS
+    operator fun component18(): QueryIsTransactionVerifiedIOSHandler? = isTransactionVerifiedIOS
+    operator fun component19(): QueryLatestTransactionIOSHandler? = latestTransactionIOS
+    operator fun component20(): QuerySubscriptionStatusIOSHandler? = subscriptionStatusIOS
+
+    fun copy(
+        canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = this.canPresentExternalPurchaseNoticeIOS,
+        currentEntitlementIOS: QueryCurrentEntitlementIOSHandler? = this.currentEntitlementIOS,
+        fetchProducts: QueryFetchProductsHandler? = this.fetchProducts,
+        getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = this.getActiveSubscriptions,
+        getAllTransactionsIOS: QueryGetAllTransactionsIOSHandler? = this.getAllTransactionsIOS,
+        getAppTransactionIOS: QueryGetAppTransactionIOSHandler? = this.getAppTransactionIOS,
+        getAvailablePurchases: QueryGetAvailablePurchasesHandler? = this.getAvailablePurchases,
+        getBillingChoiceInfoAndroid: QueryGetBillingChoiceInfoAndroidHandler? = this.getBillingChoiceInfoAndroid,
+        getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIOSHandler? = this.getExternalPurchaseCustomLinkTokenIOS,
+        getPendingTransactionsIOS: QueryGetPendingTransactionsIOSHandler? = this.getPendingTransactionsIOS,
+        getPromotedProductIOS: QueryGetPromotedProductIOSHandler? = this.getPromotedProductIOS,
+        getReceiptDataIOS: QueryGetReceiptDataIOSHandler? = this.getReceiptDataIOS,
+        getStorefront: QueryGetStorefrontHandler? = this.getStorefront,
+        getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler? = this.getTransactionJwsIOS,
+        hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = this.hasActiveSubscriptions,
+        isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = this.isEligibleForExternalPurchaseCustomLinkIOS,
+        isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = this.isEligibleForIntroOfferIOS,
+        isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = this.isTransactionVerifiedIOS,
+        latestTransactionIOS: QueryLatestTransactionIOSHandler? = this.latestTransactionIOS,
+        subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = this.subscriptionStatusIOS,
+    ): QueryHandlers = QueryHandlers(
+        canPresentExternalPurchaseNoticeIOS = canPresentExternalPurchaseNoticeIOS,
+        currentEntitlementIOS = currentEntitlementIOS,
+        fetchProducts = fetchProducts,
+        getActiveSubscriptions = getActiveSubscriptions,
+        getAllTransactionsIOS = getAllTransactionsIOS,
+        getAppTransactionIOS = getAppTransactionIOS,
+        getAvailablePurchases = getAvailablePurchases,
+        getBillingChoiceInfoAndroid = getBillingChoiceInfoAndroid,
+        getExternalPurchaseCustomLinkTokenIOS = getExternalPurchaseCustomLinkTokenIOS,
+        getPendingTransactionsIOS = getPendingTransactionsIOS,
+        getPromotedProductIOS = getPromotedProductIOS,
+        getReceiptDataIOS = getReceiptDataIOS,
+        getStorefront = getStorefront,
+        getTransactionJwsIOS = getTransactionJwsIOS,
+        hasActiveSubscriptions = hasActiveSubscriptions,
+        isEligibleForExternalPurchaseCustomLinkIOS = isEligibleForExternalPurchaseCustomLinkIOS,
+        isEligibleForIntroOfferIOS = isEligibleForIntroOfferIOS,
+        isTransactionVerifiedIOS = isTransactionVerifiedIOS,
+        latestTransactionIOS = latestTransactionIOS,
+        subscriptionStatusIOS = subscriptionStatusIOS,
+        verifyAppOwnership = this.verifyAppOwnership,
+    )
+
+    override fun equals(other: Any?): Boolean = other is QueryHandlers &&
+        canPresentExternalPurchaseNoticeIOS == other.canPresentExternalPurchaseNoticeIOS && currentEntitlementIOS == other.currentEntitlementIOS && fetchProducts == other.fetchProducts && getActiveSubscriptions == other.getActiveSubscriptions && getAllTransactionsIOS == other.getAllTransactionsIOS && getAppTransactionIOS == other.getAppTransactionIOS && getAvailablePurchases == other.getAvailablePurchases && getBillingChoiceInfoAndroid == other.getBillingChoiceInfoAndroid && getExternalPurchaseCustomLinkTokenIOS == other.getExternalPurchaseCustomLinkTokenIOS && getPendingTransactionsIOS == other.getPendingTransactionsIOS && getPromotedProductIOS == other.getPromotedProductIOS && getReceiptDataIOS == other.getReceiptDataIOS && getStorefront == other.getStorefront && getTransactionJwsIOS == other.getTransactionJwsIOS && hasActiveSubscriptions == other.hasActiveSubscriptions && isEligibleForExternalPurchaseCustomLinkIOS == other.isEligibleForExternalPurchaseCustomLinkIOS && isEligibleForIntroOfferIOS == other.isEligibleForIntroOfferIOS && isTransactionVerifiedIOS == other.isTransactionVerifiedIOS && latestTransactionIOS == other.latestTransactionIOS && subscriptionStatusIOS == other.subscriptionStatusIOS && verifyAppOwnership == other.verifyAppOwnership
+    override fun hashCode(): Int {
+        var result = 1
+        result = 31 * result + (canPresentExternalPurchaseNoticeIOS?.hashCode() ?: 0)
+        result = 31 * result + (currentEntitlementIOS?.hashCode() ?: 0)
+        result = 31 * result + (fetchProducts?.hashCode() ?: 0)
+        result = 31 * result + (getActiveSubscriptions?.hashCode() ?: 0)
+        result = 31 * result + (getAllTransactionsIOS?.hashCode() ?: 0)
+        result = 31 * result + (getAppTransactionIOS?.hashCode() ?: 0)
+        result = 31 * result + (getAvailablePurchases?.hashCode() ?: 0)
+        result = 31 * result + (getBillingChoiceInfoAndroid?.hashCode() ?: 0)
+        result = 31 * result + (getExternalPurchaseCustomLinkTokenIOS?.hashCode() ?: 0)
+        result = 31 * result + (getPendingTransactionsIOS?.hashCode() ?: 0)
+        result = 31 * result + (getPromotedProductIOS?.hashCode() ?: 0)
+        result = 31 * result + (getReceiptDataIOS?.hashCode() ?: 0)
+        result = 31 * result + (getStorefront?.hashCode() ?: 0)
+        result = 31 * result + (getTransactionJwsIOS?.hashCode() ?: 0)
+        result = 31 * result + (hasActiveSubscriptions?.hashCode() ?: 0)
+        result = 31 * result + (isEligibleForExternalPurchaseCustomLinkIOS?.hashCode() ?: 0)
+        result = 31 * result + (isEligibleForIntroOfferIOS?.hashCode() ?: 0)
+        result = 31 * result + (isTransactionVerifiedIOS?.hashCode() ?: 0)
+        result = 31 * result + (latestTransactionIOS?.hashCode() ?: 0)
+        result = 31 * result + (subscriptionStatusIOS?.hashCode() ?: 0)
+        result = 31 * result + (verifyAppOwnership?.hashCode() ?: 0)
+        return result
+    }
+    override fun toString(): String = "QueryHandlers(canPresentExternalPurchaseNoticeIOS=$canPresentExternalPurchaseNoticeIOS, currentEntitlementIOS=$currentEntitlementIOS, fetchProducts=$fetchProducts, getActiveSubscriptions=$getActiveSubscriptions, getAllTransactionsIOS=$getAllTransactionsIOS, getAppTransactionIOS=$getAppTransactionIOS, getAvailablePurchases=$getAvailablePurchases, getBillingChoiceInfoAndroid=$getBillingChoiceInfoAndroid, getExternalPurchaseCustomLinkTokenIOS=$getExternalPurchaseCustomLinkTokenIOS, getPendingTransactionsIOS=$getPendingTransactionsIOS, getPromotedProductIOS=$getPromotedProductIOS, getReceiptDataIOS=$getReceiptDataIOS, getStorefront=$getStorefront, getTransactionJwsIOS=$getTransactionJwsIOS, hasActiveSubscriptions=$hasActiveSubscriptions, isEligibleForExternalPurchaseCustomLinkIOS=$isEligibleForExternalPurchaseCustomLinkIOS, isEligibleForIntroOfferIOS=$isEligibleForIntroOfferIOS, isTransactionVerifiedIOS=$isTransactionVerifiedIOS, latestTransactionIOS=$latestTransactionIOS, subscriptionStatusIOS=$subscriptionStatusIOS, verifyAppOwnership=$verifyAppOwnership)"
+}
 
 // MARK: - Subscription Helpers
 

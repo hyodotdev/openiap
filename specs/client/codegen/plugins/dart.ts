@@ -8,6 +8,7 @@
 import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
+import { ADDITIONAL_OPERATION_FIELDS } from '../core/operation-compatibility.js';
 import type {
   IRSchema,
   IREnum,
@@ -632,9 +633,12 @@ export class DartPlugin extends CodegenPlugin {
     for (const field of sortedFields) {
       this.generateDocComment(this.operationFieldDescription(field), '  ');
       const returnType = this.getOperationReturnType(field);
+      const defaultBody = ADDITIONAL_OPERATION_FIELDS[irOperation.name]?.includes(field.name)
+        ? ` => Future.error(UnsupportedError('${field.name} is not supported by this resolver'))`
+        : '';
 
       if (field.args.length === 0) {
-        this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}();`);
+        this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}()${defaultBody};`);
         continue;
       }
 
@@ -662,7 +666,7 @@ export class DartPlugin extends CodegenPlugin {
             this.emit(`    ${prefix}${argType} ${this.escapeKeyword(arg.name)},`);
           }
 
-          this.emit('  });');
+          this.emit(`  })${defaultBody};`);
           continue;
         }
       }
@@ -672,9 +676,9 @@ export class DartPlugin extends CodegenPlugin {
         const argType = this.getPropertyType(arg.type);
         const argName = this.escapeKeyword(arg.name);
         if (arg.type.nullable) {
-          this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}([${argType} ${argName}]);`);
+          this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}([${argType} ${argName}])${defaultBody};`);
         } else {
-          this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}(${argType} ${argName});`);
+          this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}(${argType} ${argName})${defaultBody};`);
         }
         continue;
       }
@@ -685,7 +689,7 @@ export class DartPlugin extends CodegenPlugin {
         const prefix = arg.type.nullable ? '' : 'required ';
         this.emit(`    ${prefix}${argType} ${this.escapeKeyword(arg.name)},`);
       }
-      this.emit('  });');
+      this.emit(`  })${defaultBody};`);
     }
 
     this.emit('}');

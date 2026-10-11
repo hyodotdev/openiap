@@ -113,6 +113,24 @@ export interface AndroidSubscriptionOfferInput {
   sku: string;
 }
 
+/** App acquisition verdict; unknown means no trustworthy decision is available. */
+export type AppOwnershipStatus = 'licensed' | 'unlicensed' | 'unknown';
+
+/** Why the ownership check is inconclusive. */
+export type AppOwnershipVerificationReason = 'backend-verification-required' | 'verification-failed' | 'network-error' | 'service-error' | 'unsupported';
+
+/** App acquisition evidence; unknown must never be treated as unlicensed. */
+export interface AppOwnershipVerificationResult {
+  appTransactionIOS?: (AppTransaction | null);
+  /** Encrypted Play Integrity evidence; collecting it does not grant a license. */
+  integrityTokenAndroid?: (string | null);
+  reason?: (AppOwnershipVerificationReason | null);
+  /** Signed AppTransaction evidence for Apple backend verification. */
+  signedAppTransactionIOS?: (string | null);
+  status: AppOwnershipStatus;
+  storeId: string;
+}
+
 export interface AppTransaction {
   appId: number;
   appTransactionId?: (string | null);
@@ -969,6 +987,14 @@ export interface PendingPurchaseUpdateAndroid {
   purchaseToken: string;
 }
 
+/** Standard Play Integrity request bound to a backend challenge. */
+export interface PlayIntegrityParamsAndroid {
+  /** Google Cloud project number as decimal text, not the project ID. */
+  cloudProjectNumber: string;
+  /** Hash of the server challenge and request data; at most 500 UTF-8 bytes. */
+  requestHash: string;
+}
+
 /**
  * Pre-order details for one-time purchase products (Android)
  * Available in Google Play Billing Library 8.1.0+
@@ -1507,6 +1533,13 @@ export interface Query {
    * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
    */
   subscriptionStatusIOS: Promise<SubscriptionStatusIOS[]>;
+  /**
+   * Verify app acquisition independently of in-app purchases.
+   * An integrity token requires backend verification; it is not a license verdict.
+   * Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+   * See: https://openiap.dev/docs/apis/verify-app-ownership
+   */
+  verifyAppOwnership: Promise<AppOwnershipVerificationResult>;
 }
 
 export type QueryCurrentEntitlementIosArgs = string;
@@ -1532,6 +1565,8 @@ export type QueryIsTransactionVerifiedIosArgs = string;
 export type QueryLatestTransactionIosArgs = string;
 
 export type QuerySubscriptionStatusIosArgs = string;
+
+export type QueryVerifyAppOwnershipArgs = (VerifyAppOwnershipProps | null) | undefined;
 
 export interface RefundResultIOS {
   message?: (string | null);
@@ -2150,6 +2185,10 @@ export interface ValidTimeWindowAndroid {
   startTimeMillis: string;
 }
 
+export interface VerifyAppOwnershipProps {
+  google?: (PlayIntegrityParamsAndroid | null);
+}
+
 /**
  * Apple App Store verification parameters.
  * Used for server-side receipt validation via App Store Server API.
@@ -2369,6 +2408,7 @@ export type QueryArgsMap = {
   isTransactionVerifiedIOS: QueryIsTransactionVerifiedIosArgs;
   latestTransactionIOS: QueryLatestTransactionIosArgs;
   subscriptionStatusIOS: QuerySubscriptionStatusIosArgs;
+  verifyAppOwnership: QueryVerifyAppOwnershipArgs;
 };
 
 export type QueryField<K extends keyof Query> =

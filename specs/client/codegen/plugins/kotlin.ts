@@ -7,6 +7,7 @@
 import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
+import { ADDITIONAL_OPERATION_FIELDS } from '../core/operation-compatibility.js';
 import type {
   IRSchema,
   IREnum,
@@ -1158,7 +1159,10 @@ export class KotlinPlugin extends CodegenPlugin {
       });
       const params = args.length > 0 ? args.join(', ') : '';
       const paramSegment = `(${params})`;
-      this.emit(`    suspend fun ${this.escapeKeyword(field.name)}${paramSegment}: ${returnType}`);
+      const defaultBody = ADDITIONAL_OPERATION_FIELDS[irOperation.name]?.includes(field.name)
+        ? ` = throw UnsupportedOperationException("${field.name} is not supported by this resolver")`
+        : '';
+      this.emit(`    suspend fun ${this.escapeKeyword(field.name)}${paramSegment}: ${returnType}${defaultBody}`);
     }
 
     this.emit('}');
@@ -1192,15 +1196,18 @@ export class KotlinPlugin extends CodegenPlugin {
       }
     }
 
-    // Generate handlers data class
+    // Preserve legacy constructor and copy signatures when adding handlers.
     const helperClass = `${irOperation.name}Handlers`;
+    const additionalNames = ADDITIONAL_OPERATION_FIELDS[irOperation.name] ?? [];
+    const primaryFields = sortedFields.filter(field => !additionalNames.includes(field.name));
+    const additionalFields = sortedFields.filter(field => additionalNames.includes(field.name));
     this.emit('');
-    this.emit(`public data class ${helperClass}(`);
+    this.emit(`public ${additionalFields.length ? 'class' : 'data class'} ${helperClass}(`);
 
-    sortedFields.forEach((field, index) => {
+    primaryFields.forEach((field, index) => {
       const aliasName = `${irOperation.name}${capitalize(field.name)}Handler`;
       const propertyName = this.escapeKeyword(field.name);
-      const suffix = index === sortedFields.length - 1 ? '' : ',';
+      const suffix = index === primaryFields.length - 1 ? '' : ',';
       this.generateDocComment(this.operationFieldDescription(field), '    ');
       this.generateDeprecationAnnotation(
         this.operationFieldDescription(field),
@@ -1210,7 +1217,53 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit(`    val ${propertyName}: ${aliasName}? = null${suffix}`);
     });
 
-    this.emit(')');
+    if (additionalFields.length === 0) {
+      this.emit(')');
+    } else {
+      this.emit(') {');
+      for (const field of additionalFields) {
+        this.generateDocComment(this.operationFieldDescription(field), '    ');
+        this.emit(`    var ${field.name}: ${irOperation.name}${capitalize(field.name)}Handler? = null`);
+        this.emit('        private set');
+      }
+      this.emit('');
+      this.emit('    constructor(');
+      primaryFields.forEach(field => {
+        this.emit(`        ${this.escapeKeyword(field.name)}: ${irOperation.name}${capitalize(field.name)}Handler? = null,`);
+      });
+      additionalFields.forEach((field, index) => {
+        const defaultValue = index === 0 ? '' : ' = null';
+        this.emit(`        ${field.name}: ${irOperation.name}${capitalize(field.name)}Handler?${defaultValue},`);
+      });
+      this.emit(`    ) : this(${primaryFields.map(field => this.escapeKeyword(field.name)).join(', ')}) {`);
+      for (const field of additionalFields) {
+        this.emit(`        this.${field.name} = ${field.name}`);
+      }
+      this.emit('    }');
+      this.emit('');
+      primaryFields.forEach((field, index) => {
+        this.emit(`    operator fun component${index + 1}(): ${irOperation.name}${capitalize(field.name)}Handler? = ${this.escapeKeyword(field.name)}`);
+      });
+      this.emit('');
+      this.emit('    fun copy(');
+      for (const field of primaryFields) {
+        this.emit(`        ${this.escapeKeyword(field.name)}: ${irOperation.name}${capitalize(field.name)}Handler? = this.${this.escapeKeyword(field.name)},`);
+      }
+      this.emit(`    ): ${helperClass} = ${helperClass}(`);
+      for (const field of primaryFields) this.emit(`        ${this.escapeKeyword(field.name)} = ${this.escapeKeyword(field.name)},`);
+      for (const field of additionalFields) this.emit(`        ${field.name} = this.${field.name},`);
+      this.emit('    )');
+      this.emit('');
+      this.emit(`    override fun equals(other: Any?): Boolean = other is ${helperClass} &&`);
+      this.emit(`        ${sortedFields.map(field => `${this.escapeKeyword(field.name)} == other.${this.escapeKeyword(field.name)}`).join(' && ')}`);
+      this.emit('    override fun hashCode(): Int {');
+      this.emit('        var result = 1');
+      for (const field of sortedFields) this.emit(`        result = 31 * result + (${this.escapeKeyword(field.name)}?.hashCode() ?: 0)`);
+      this.emit('        return result');
+      this.emit('    }');
+      this.emit(`    override fun toString(): String = "${helperClass}(${sortedFields.map(field => `${field.name}=$${this.escapeKeyword(field.name)}`).join(', ')})"`);
+      this.emit('}');
+    }
     this.emit('');
   }
 

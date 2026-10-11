@@ -1054,3 +1054,11 @@ type BillingResultAndroid {
   """
   subResponseCode: SubResponseCodeAndroid
 }
+
+"""Standard Play Integrity request bound to a backend challenge."""
+input PlayIntegrityParamsAndroid {
+  """Google Cloud project number as decimal text, not the project ID."""
+  cloudProjectNumber: String!
+  """Hash of the server challenge and request data; at most 500 UTF-8 bytes."""
+  requestHash: String!
+}

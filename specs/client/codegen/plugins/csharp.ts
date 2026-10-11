@@ -22,6 +22,7 @@
 import { renderStoreIds, renderStoreIdentityResolver, hasStoreIdentity } from '../core/store-ids.js';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
+import { ADDITIONAL_OPERATION_FIELDS } from '../core/operation-compatibility.js';
 import type {
   IRSchema,
   IREnum,
@@ -957,7 +958,10 @@ export class CSharpPlugin extends CodegenPlugin {
       });
       const params = args.join(', ');
       const methodName = this.fieldNameCase(field.name);
-      this.emit(`    Task<${returnType}> ${methodName}Async(${params});`);
+      const defaultBody = ADDITIONAL_OPERATION_FIELDS[irOperation.name]?.includes(field.name)
+        ? ` => Task.FromException<${returnType}>(new NotSupportedException("${field.name} is not supported by this resolver"))`
+        : '';
+      this.emit(`    Task<${returnType}> ${methodName}Async(${params})${defaultBody};`);
       if (index < sortedFields.length - 1) this.emit('');
     });
 

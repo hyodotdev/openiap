@@ -734,7 +734,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\tif ${fieldName} != null:`);
       this.emit(`\t\t\tvar arr = []`);
       this.emit(`\t\t\tfor item in ${fieldName}:`);
-      this.emit(`\t\t\t\tif item != null and item.has_method("to_dict"):`);
+      this.emit(`\t\t\t\tif item is Object and item.has_method("to_dict"):`);
       this.emit(`\t\t\t\t\tarr.append(item.to_dict())`);
       this.emit(`\t\t\t\telse:`);
       this.emit(`\t\t\t\t\tarr.append(item)`);
@@ -742,7 +742,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit(`\t\telse:`);
       this.emit(`\t\t\tdict["${graphqlName}"] = null`);
     } else if (this.isObjectOrInput(type)) {
-      this.emit(`\t\tif ${fieldName} != null and ${fieldName}.has_method("to_dict"):`);
+      this.emit(`\t\tif ${fieldName} is Object and ${fieldName}.has_method("to_dict"):`);
       this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}.to_dict()`);
       this.emit(`\t\telse:`);
       this.emit(`\t\t\tdict["${graphqlName}"] = ${fieldName}`);
@@ -1083,13 +1083,13 @@ export class GDScriptPlugin extends CodegenPlugin {
     } else if (this.isObjectOrInput(type) && type.kind === 'list') {
       this.emit(`\t\t\tvar arr = []`);
       this.emit(`\t\t\tfor item in ${fieldName}:`);
-      this.emit(`\t\t\t\tif item.has_method("to_dict"):`);
+      this.emit(`\t\t\t\tif item is Object and item.has_method("to_dict"):`);
       this.emit(`\t\t\t\t\tarr.append(item.to_dict())`);
       this.emit(`\t\t\t\telse:`);
       this.emit(`\t\t\t\t\tarr.append(item)`);
       this.emit(`\t\t\tdict["${graphqlName}"] = arr`);
     } else if (this.isObjectOrInput(type)) {
-      this.emit(`\t\t\tif ${fieldName}.has_method("to_dict"):`);
+      this.emit(`\t\t\tif ${fieldName} is Object and ${fieldName}.has_method("to_dict"):`);
       this.emit(`\t\t\t\tdict["${graphqlName}"] = ${fieldName}.to_dict()`);
       this.emit(`\t\t\telse:`);
       this.emit(`\t\t\t\tdict["${graphqlName}"] = ${fieldName}`);
@@ -1161,27 +1161,8 @@ export class GDScriptPlugin extends CodegenPlugin {
           this.emit(`\t\t\t\treturn obj`);
           this.emit('');
           this.emit(`\t\t\tfunc to_dict() -> Dictionary:`);
-          this.emit(`\t\t\t\tvar dict = {}`);
-          for (const arg of field.args) {
-            const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
-            if (arg.type.kind === 'enum') {
-              const enumConstName = toConstantCase(arg.type.name!) + '_VALUES';
-              const indent = arg.type.nullable ? '\t\t\t\t\t' : '\t\t\t\t';
-              if (arg.type.nullable) {
-                this.emit(`\t\t\t\tif ${argSnakeName} != null:`);
-              }
-              this.emit(`${indent}if ${enumConstName}.has(${argSnakeName}):`);
-              this.emit(`${indent}\tdict["${arg.name}"] = ${enumConstName}[${argSnakeName}]`);
-              this.emit(`${indent}else:`);
-              this.emit(`${indent}\tdict["${arg.name}"] = ${argSnakeName}`);
-            } else if (arg.type.nullable) {
-              this.emit(`\t\t\t\tif ${argSnakeName} != null:`);
-              this.emit(`\t\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
-            } else {
-              this.emit(`\t\t\t\tdict["${arg.name}"] = ${argSnakeName}`);
-            }
-          }
-          this.emit(`\t\t\t\treturn dict`);
+          const argNames = field.args.map((arg) => this.escapeKeyword(toSnakeCase(arg.name))).join(', ');
+          this.emit(`\t\t\t\treturn ${SELF_ALIAS}.${toSnakeCase(field.name)}_args(${argNames})`);
         } else {
           this.emit(`\t\tclass Args:`);
           this.emit(`\t\t\tpass`);
@@ -1229,7 +1210,7 @@ export class GDScriptPlugin extends CodegenPlugin {
             this.emit(`\tif ${argSnakeName} != null:`);
             this.emit(`\t\tvar arr = []`);
             this.emit(`\t\tfor item in ${argSnakeName}:`);
-            this.emit(`\t\t\tif item != null and item.has_method("to_dict"):`);
+            this.emit(`\t\t\tif item is Object and item.has_method("to_dict"):`);
             this.emit(`\t\t\t\tarr.append(item.to_dict())`);
             this.emit(`\t\t\telse:`);
             this.emit(`\t\t\t\tarr.append(item)`);
@@ -1237,7 +1218,7 @@ export class GDScriptPlugin extends CodegenPlugin {
           } else if (isObjOrInput) {
             // Handle single object/input
             this.emit(`\tif ${argSnakeName} != null:`);
-            this.emit(`\t\tif ${argSnakeName}.has_method("to_dict"):`);
+            this.emit(`\t\tif ${argSnakeName} is Object and ${argSnakeName}.has_method("to_dict"):`);
             this.emit(`\t\t\targs["${arg.name}"] = ${argSnakeName}.to_dict()`);
             this.emit(`\t\telse:`);
             this.emit(`\t\t\targs["${arg.name}"] = ${argSnakeName}`);
