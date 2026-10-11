@@ -1554,6 +1554,32 @@ test('reads a quote in a hole that starts no string', () => {
     highlightCode("s = `${f(/'${/ )}` + 'a}';\nw = `z`;", 'typescript'),
     `s = ${t('string', "`${f(/'${/ )}`")} + ${t('string', "'a}'")};\nw = ${t('string', '`z`')};`
   );
+  // A slash in a hole after a non-null `!` or a private name divides; one
+  // before a quote is a regex; an unclosed or long regex skips one slash.
+  for (const [source, html] of [
+    [
+      'x = `${a! / 2}` + `${this.#in / 2}` + `${b / 3}`;',
+      `x = ${t('string', '`${a! / 2}`')} + ${t('string', '`${this.#in / 2}`')} + ${t('string', '`${b / 3}`')};`,
+    ],
+    [
+      "x = `${(function () { if (a) /'/.test(b); return 'c'; })()}`; y = '}}`';",
+      `x = ${t('string', "`${(function () { if (a) /'/.test(b); return 'c'; })()}`")}; y = ${t('string', "'}}`'")};`,
+    ],
+    [
+      'x = `${a /* c */}` + `${b / 2}`; y = `${a /*/ 2 */ + 1}` + `${b / 3}`;',
+      `x = ${t('string', '`${a /* c */}`')} + ${t('string', '`${b / 2}`')}; y = ${t('string', '`${a /*/ 2 */ + 1}`')} + ${t('string', '`${b / 3}`')};`,
+    ],
+    [
+      'x = `${(function () { return /`/; })()}` + `${b / 2}`; y = `${f(/ `/)}` + 1;',
+      `x = ${t('string', '`${(function () { return /`/; })()}`')} + ${t('string', '`${b / 2}`')}; y = ${t('string', '`${f(/ `/)}`')} + ${t('number', '1')};`,
+    ],
+    [
+      `x = \`\${/${'a'.repeat(301)}/}\` + \`\${b / 2}\`;`,
+      `x = ${t('string', `\`\${/${'a'.repeat(301)}/}\``)} + ${t('string', '`${b / 2}`')};`,
+    ],
+  ]) {
+    assert.equal(highlightCode(source, 'typescript'), html, source);
+  }
   for (const template of [
     '`${x.replace(/\'/g, function () { return ""; })}`',
     '`${x.replace(/\'/g, "")}${y}`',
@@ -2561,6 +2587,11 @@ test('reads the forms that need their context', () => {
       'a = ⟦regex:/(a)/⟧>b; c = ⟦regex:/=>/⟧>d; e = ⟦regex:/a{2}/⟧>f',
     ],
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
+    [
+      'typescript',
+      'x = a! / 2 / b; y = this.#in / 2 / c;',
+      'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c;',
+    ],
     [
       'typescript',
       '<Text>Path: /settings <Icon size={24} label="C:\\dir" onPress={() => navigation.goBack()} /></Text>',

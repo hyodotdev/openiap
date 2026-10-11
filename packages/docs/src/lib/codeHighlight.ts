@@ -451,7 +451,10 @@ function wordEndingAt(text: string, last: number): string {
 function keywordEndingAt(text: string, last: number): string {
   const word = wordEndingAt(text, last);
   const before = last - word.length;
-  return text[before] === '.' && text[before - 1] !== '.' ? '' : word;
+  return (text[before] === '.' && text[before - 1] !== '.') ||
+    text[before] === '#'
+    ? ''
+    : word;
 }
 
 // Where the `//` comment on a line starts, looking from `from` to `to` and
@@ -518,6 +521,8 @@ function regexAllowed(text: string, at: number): boolean {
     return EXPRESSION_WORD.test(word) && word !== 'of' && word !== 'from';
   }
   if (char === '>') return text[last - 1] === '=';
+  // `a! / 2` divides: a `!` after a name or bracket is TypeScript's non-null.
+  if (char === '!') return !/[\w$)\]]/.test(text[last - 1] ?? '');
   if (char === '+' || char === '-') return text[last - 1] !== char;
   return '(,=:[!&|?{;~*%^'.includes(char);
 }
@@ -556,7 +561,11 @@ function slashEnd(text: string, at: number): number {
     const close = text.indexOf('*/', at + 2);
     return close < 0 ? text.length : close + 2;
   }
-  return regexAllowed(text, at) ? Math.max(regexEnd(text, at), at + 1) : at + 1;
+  // A slash before a quote is a regex even where the look back is unsure, or
+  // its quote would open a string that runs on.
+  return regexAllowed(text, at) || /['"`]/.test(text[at + 1] ?? '')
+    ? Math.max(regexEnd(text, at), at + 1)
+    : at + 1;
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {
