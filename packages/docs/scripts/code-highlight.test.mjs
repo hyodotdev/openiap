@@ -1566,6 +1566,18 @@ test('reads a quote in a hole that starts no string', () => {
       `x = ${t('string', "`${a /'b'.length}`")} + ${t('string', "`${c! /'d'.length}`")} + ${t('string', "`${e[0] /'f'.length}`")} + ${t('string', "`${g$ /'h'.length}`")} + ${t('string', "`${i\t/'j'.length}`")} + ${t('string', '`${"k"/\'l\'.length}`')} + ${t('string', "`${'m'/'n'.length}`")} + ${t('string', "`${o++ /'p'.length}`")} + ${t('string', "`${o-- /'p'.length}`")} + ${t('string', "`${`q`/'r'.length}`")} + ${t('string', '`${s / 2}`')};`,
     ],
     [
+      "x = `${a /* c */ /'b'.length}` + `${1. /'c'.length}` + `${d!! /'e'.length}` + `${f ! /'g'.length}` + `${h / 2}`;",
+      `x = ${t('string', "`${a /* c */ /'b'.length}`")} + ${t('string', "`${1. /'c'.length}`")} + ${t('string', "`${d!! /'e'.length}`")} + ${t('string', "`${f ! /'g'.length}`")} + ${t('string', '`${h / 2}`')};`,
+    ],
+    [
+      "x = `${ // c\n/'/.source}`; y = `${[.../'/.exec(s)]}`; z = '}`';",
+      `x = ${t('string', "`${ // c\n/'/.source}`")}; y = ${t('string', "`${[.../'/.exec(s)]}`")}; z = ${t('string', "'}`'")};`,
+    ],
+    [
+      "x = `${(function () { for (const c of /'/.exec(s) ?? []) return 'c'; })()}`; y = '}}`';",
+      `x = ${t('string', "`${(function () { for (const c of /'/.exec(s) ?? []) return 'c'; })()}`")}; y = ${t('string', "'}}`'")};`,
+    ],
+    [
       'x = `${a! / 2}` + `${this.#in / 2}` + `${b / 3}`;',
       `x = ${t('string', '`${a! / 2}`')} + ${t('string', '`${this.#in / 2}`')} + ${t('string', '`${b / 3}`')};`,
     ],
@@ -2609,8 +2621,25 @@ test('reads the forms that need their context', () => {
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
     [
       'typescript',
-      'x = a! / 2 / b; y = this.#in / 2 / c; z = (a)! / 2 / b[0]! / 3 / c;',
-      'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c; z = (a)! / ⟦number:2⟧ / b[⟦number:0⟧]! / ⟦number:3⟧ / c;',
+      'x = a! / 2 / b; y = this.#in / 2 / c; z = (a)! / 2 / b[0]! / 3 / c; w = d!! / 2 / e ! / 3 / f;',
+      'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c; z = (a)! / ⟦number:2⟧ / b[⟦number:0⟧]! / ⟦number:3⟧ / c; w = d!! / ⟦number:2⟧ / e ! / ⟦number:3⟧ / f;',
+    ],
+    // A `!` that starts a line is a not, also below a long comment, and so is
+    // one the look back cannot place.
+    [
+      'typescript',
+      'x = a\n!/b/.test(c);',
+      'x = a\n!⟦regex:/b/⟧.⟦function:test⟧(c);',
+    ],
+    [
+      'typescript',
+      `y = a && ${' '.repeat(250)}!/d/.test(e);`,
+      `y = a && ${' '.repeat(250)}!⟦regex:/d/⟧.⟦function:test⟧(e);`,
+    ],
+    [
+      'typescript',
+      `ok = a &&\n  // ${'x'.repeat(120)}\n  // ${'y'.repeat(120)}\n  !/b/.test(c);`,
+      `ok = a &&\n  ⟦comment:// ${'x'.repeat(120)}⟧\n  ⟦comment:// ${'y'.repeat(120)}⟧\n  !⟦regex:/b/⟧.⟦function:test⟧(c);`,
     ],
     [
       'typescript',
@@ -3217,6 +3246,11 @@ test('stays fast on long runs of openers that never close', () => {
     ['/**/ /a/ '.repeat(20000), ['typescript']],
     ['// c\n'.repeat(30000) + '/a/', ['typescript']],
     ['a/b/'.repeat(30000), ['typescript', 'groovy']],
+    ['!'.repeat(100000) + '/a/', ['typescript', 'groovy']],
+    ['a' + '!'.repeat(100000) + ' / 2', ['typescript']],
+    ['`${' + '!'.repeat(100000) + "/'b'/}`", ['typescript']],
+    ['`${/'.repeat(40000), ['typescript']],
+    ['`${/*'.repeat(40000) + '*/', ['typescript']],
     [('x' + ' '.repeat(190) + '/a/').repeat(500), ['typescript']],
     ['/*\n'.repeat(60000), ['typescript', 'csharp', 'kotlin', 'swift', 'dart']],
     ['/*\n'.repeat(40000) + '*/\n'.repeat(20000), ['kotlin', 'swift', 'dart']],

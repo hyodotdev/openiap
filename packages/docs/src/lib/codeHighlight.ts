@@ -520,20 +520,28 @@ function expressionAfterWord(text: string, last: number): boolean {
 // name, number, `)`, `]` or `}` it divides, and so after `++` or `--`; `</` and
 // `/>` close a tag.
 function regexAllowed(text: string, at: number): boolean {
-  const last = lastCodeIndex(text, at);
+  const last = lastBeforeBangs(text, at);
   if (last < 0) return last === -1;
   const char = text[last];
   if (/[\w$]/.test(char)) return expressionAfterWord(text, last);
   if (char === '>') return text[last - 1] === '=';
-  if (char === '!') {
-    // After a name or bracket a `!` is TypeScript's non-null: `a! / 2`.
-    const before = text[last - 1] ?? '';
-    return /[\w$]/.test(before)
-      ? expressionAfterWord(text, last - 1)
-      : !/[)\]]/.test(before);
-  }
   if (char === '+' || char === '-') return text[last - 1] !== char;
   return '(,=:[&|?{;~*%^'.includes(char);
+}
+
+// `lastCodeIndex` past a run of `!`: after an operand on its line a `!` is
+// TypeScript's non-null (`a! / 2`) and reads as that operand; anywhere else it
+// is a not (`return!/a/`, a `!` that starts a line), read as the start (-1).
+function lastBeforeBangs(text: string, at: number): number {
+  let last = lastCodeIndex(text, at);
+  while (last >= 0 && text[last] === '!') {
+    const before = lastCodeIndex(text, last);
+    if (before < 0) return -1;
+    // Only the gap is scanned, so a run of `!` stays linear.
+    for (let i = before + 1; i < last; i++) if (text[i] === '\n') return -1;
+    last = before;
+  }
+  return last;
 }
 
 // A quote cannot follow a word character straight away unless the word is a
@@ -570,16 +578,25 @@ function slashEnd(text: string, at: number): number {
     const close = text.indexOf('*/', at + 2);
     return close < 0 ? text.length : close + 2;
   }
-  // A slash before a quote with no operand before it on its line (a name, a
-  // number, `]`, a string, `++`, a non-null `!`) is a regex even where the
+  // A slash before a quote with no operand before it is a regex even where the
   // look back is unsure, or its quote would open a string that runs on.
-  let before = at - 1;
-  while (text[before] === ' ' || text[before] === '\t') before--;
   const regex =
     regexAllowed(text, at) ||
-    (/['"`]/.test(text[at + 1] ?? '') &&
-      !/[\w$\]!'"`+-]/.test(text[before] ?? ''));
+    (/['"`]/.test(text[at + 1] ?? '') && !operandBefore(text, at));
   return regex ? Math.max(regexEnd(text, at), at + 1) : at + 1;
+}
+// Whether an operand ends before the slash at `at` on the slash's own line: a
+// name or number (not a keyword such as `return` or `of`), `]`, a string,
+// `++`, or a non-null `!`.
+function operandBefore(text: string, at: number): boolean {
+  const last = lastBeforeBangs(text, at);
+  if (last < 0 || text.lastIndexOf('\n', at - 1) > last) return false;
+  const char = text[last];
+  if (/[\w$]/.test(char)) {
+    return !EXPRESSION_WORD.test(keywordEndingAt(text, last));
+  }
+  // A `+` or `-` here ends `++` or `--`; `regexAllowed` took the rest.
+  return /[\]'"`+-]/.test(char) || (char === '.' && /\d/.test(text[last - 1]));
 }
 // Comments come first in every rule list, so `//` and `/*` never get here.
 const REGEX_LITERAL: Rule = {
