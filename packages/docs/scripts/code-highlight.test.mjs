@@ -1147,6 +1147,38 @@ test('reads strings, holes and heredocs that run past a line', () => {
       'cat <<"1"\nx\n1\nls',
       'cat ⟦keyword:<<⟧⟦string:"1"⟧\n⟦string:x\n1⟧\nls',
     ],
+    [
+      'bash',
+      'echo $(( (a) << 2 ))\n2\nls',
+      'echo $(( (a) ⟦keyword:<⟧⟦keyword:<⟧ 2 ))\n2\nls',
+    ],
+    // Earlier lines do not count, and a `))` first leaves nothing open.
+    [
+      'bash',
+      '(( a\ncat <<E\nx\nE\nls',
+      '(( a\ncat ⟦keyword:<<⟧⟦string:E⟧\n⟦string:x\nE⟧\nls',
+    ],
+    [
+      'bash',
+      'x)) $(( 1 << 2 ))\n2\nls',
+      'x)) $(( 1 ⟦keyword:<⟧⟦keyword:<⟧ 2 ))\n2\nls',
+    ],
+    // Quoted `((` is text, and a nested `$((a))` closes itself.
+    [
+      'bash',
+      'echo "((" <<EOF\nx\nEOF\nls',
+      'echo ⟦string:"(("⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
+    ],
+    [
+      'bash',
+      "echo '((' <<EOF\nx\nEOF\nls",
+      "echo ⟦string:'(('⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls",
+    ],
+    [
+      'bash',
+      'echo $(( $((a)) << 2 ))\n2\nls',
+      'echo $(( $((a)) ⟦keyword:<⟧⟦keyword:<⟧ 2 ))\n2\nls',
+    ],
     // `<<` inside `((` shifts; after the arithmetic it opens a heredoc.
     [
       'bash',
@@ -2337,7 +2369,8 @@ test('reads the forms that need their context', () => {
     ],
     ['typescript', 'x = /unclosed', 'x = /unclosed'],
     ['typescript', 'x = /[/', 'x = /[/'],
-    // A regex literal fits in 300 characters after its slash, flags included.
+    // A regex body and its closing slash fit in 300 characters after the opening
+    // slash; its flags do not count.
     [
       'typescript',
       'x = /' + 'a'.repeat(298) + '/g',
@@ -2346,7 +2379,7 @@ test('reads the forms that need their context', () => {
     [
       'typescript',
       'x = /' + 'a'.repeat(299) + '/g',
-      'x = ⟦regex:/' + 'a'.repeat(299) + '/⟧g',
+      'x = ⟦regex:/' + 'a'.repeat(299) + '/g⟧',
     ],
     [
       'typescript',
@@ -2373,6 +2406,52 @@ test('reads the forms that need their context', () => {
     ],
     ['typescript', '<b>/ 2 /</b>', '<b>/ ⟦number:2⟧ /</b>'],
     ['typescript', 'x = /a/dgimsuvy', 'x = ⟦regex:/a/dgimsuvy⟧'],
+    // A slash that closes a tag is no regex end, `/</g` is one, and an empty
+    // class is a class.
+    [
+      'typescript',
+      '<Text>+/- 5</Text>',
+      '<⟦class-name:Text⟧>+/- ⟦number:5⟧</⟦class-name:Text⟧>',
+    ],
+    ['typescript', '<p>100% / 50%</p>', '<p>⟦number:100⟧% / ⟦number:50⟧%</p>'],
+    [
+      'typescript',
+      "x = s.replace(/</g, 'x'); a = /x</.test(y)",
+      "x = s.⟦function:replace⟧(⟦regex:/</g⟧, ⟦string:'x'⟧); a = ⟦regex:/x</⟧.⟦function:test⟧(y)",
+    ],
+    ['typescript', 'x = /[]/.test(s)', 'x = ⟦regex:/[]/⟧.⟦function:test⟧(s)'],
+    [
+      'typescript',
+      '<A.B>+/- 5</A.B><my-tag>+/- 6</my-tag>',
+      '<⟦class-name:A⟧.⟦class-name:B⟧>+/- ⟦number:5⟧</⟦class-name:A⟧.⟦class-name:B⟧><my-tag>+/- ⟦number:6⟧</my-tag>',
+    ],
+    ['typescript', 'x is\tFoo', 'x ⟦keyword:is⟧\t⟦class-name:Foo⟧'],
+    [
+      'typescript',
+      '<>+/- 5</><a:b>+/- 6</a:b><b>+/- 7</b >',
+      '<>+/- ⟦number:5⟧</><a:b>+/- ⟦number:6⟧</a:b><b>+/- ⟦number:7⟧</b >',
+    ],
+    [
+      'typescript',
+      'x = /a/g>1; f(/a/g)',
+      'x = ⟦regex:/a/g⟧>⟦number:1⟧; ⟦function:f⟧(⟦regex:/a/g⟧)',
+    ],
+    // TypeScript `is` is a keyword before a type, a name elsewhere.
+    [
+      'typescript',
+      'function g(x): x is Foo { return x }',
+      '⟦keyword:function⟧ ⟦function:g⟧(x): x ⟦keyword:is⟧ ⟦class-name:Foo⟧ { ⟦keyword:return⟧ x }',
+    ],
+    [
+      'typescript',
+      'function h(x): asserts x is Foo {}',
+      '⟦keyword:function⟧ ⟦function:h⟧(x): ⟦keyword:asserts⟧ x ⟦keyword:is⟧ ⟦class-name:Foo⟧ {}',
+    ],
+    [
+      'javascript',
+      'f = (node, is, seen) => is(bare)',
+      'f = (node, is, seen) => ⟦function:is⟧(bare)',
+    ],
     // After `+ - * % ^` a slash starts a regex; after `++` or `--` it divides.
     [
       'typescript',
@@ -2396,7 +2475,54 @@ test('reads the forms that need their context', () => {
       'x =' + ' '.repeat(200) + '/a/.test(b)',
       'x =' + ' '.repeat(200) + '/a/.⟦function:test⟧(b)',
     ],
-    // A comment counts as blank before a slash, a trailing one on code does not.
+    // A comment counts as blank before a slash, a trailing one too, and a `//`
+    // in a string is no comment.
+    [
+      'typescript',
+      'const re = // note\n /abc/',
+      '⟦keyword:const⟧ re = ⟦comment:// note⟧\n ⟦regex:/abc/⟧',
+    ],
+    [
+      'typescript',
+      "x = 1; // it's\n/re/.test(y)",
+      "x = ⟦number:1⟧; ⟦comment:// it's⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)",
+    ],
+    [
+      'typescript',
+      `a = "it's"; b = // c\n/re/.test(y)`,
+      `a = ⟦string:"it's"⟧; b = ⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)`,
+    ],
+    [
+      'typescript',
+      'a = "x\\"y"; b = // c\n/re/.test(y)',
+      'a = ⟦string:"x\\"y"⟧; b = ⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    [
+      'typescript',
+      'x = /a\\//; y = // c\n/re/.test(y)',
+      'x = ⟦regex:/a\\//⟧; y = ⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    [
+      'typescript',
+      'x = `a // b`; y = // c\n/re/.test(y)',
+      'x = ⟦string:`a // b`⟧; y = ⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    [
+      'typescript',
+      "a = 'x'; b = // c\n/re/.test(y)",
+      "a = ⟦string:'x'⟧; b = ⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)",
+    ],
+    [
+      'typescript',
+      'x =// c\n/re/.test(y)',
+      'x =⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    ['typescript', 'f(/</g)', '⟦function:f⟧(⟦regex:/</g⟧)'],
+    [
+      'typescript',
+      'x = "http://a" // c\n/re/.test(y)',
+      'x = ⟦string:"http://a"⟧ ⟦comment:// c⟧\n/re/.⟦function:test⟧(y)',
+    ],
     [
       'typescript',
       '// c\n/re/.test(y)',
@@ -2436,6 +2562,24 @@ test('reads the forms that need their context', () => {
       'typescript',
       'x = /* c */ 2 *a / 3 / 4',
       'x = ⟦comment:/* c */⟧ ⟦number:2⟧ *a / ⟦number:3⟧ / ⟦number:4⟧',
+    ],
+    // The `//` of a string line is no comment line, whether the line is the
+    // slash's own or is cut by the 200 characters; a `/*` inside a comment is
+    // text.
+    [
+      'typescript',
+      'f(`\n//`, /re/)',
+      '⟦function:f⟧(⟦string:`\n//`⟧, ⟦regex:/re/⟧)',
+    ],
+    [
+      'typescript',
+      "f(g, '//" + 'x'.repeat(193) + "', (\n/re/)",
+      "⟦function:f⟧(g, ⟦string:'//" + 'x'.repeat(193) + "'⟧, (\n⟦regex:/re/⟧)",
+    ],
+    [
+      'typescript',
+      'x = /* a /*/ /re/.test(y)',
+      'x = ⟦comment:/* a /*/⟧ ⟦regex:/re/⟧.⟦function:test⟧(y)',
     ],
     // A block comment is skipped when the code before it is within 200
     // characters; a `*/` that ends a regex, or a line starting with `/`, is no
@@ -2501,7 +2645,11 @@ test('reads the forms that need their context', () => {
     ],
     // The member dot also holds at the start of a text, and `...` still spreads.
     ['typescript', '.get(1)', '.⟦function:get⟧(⟦number:1⟧)'],
-    ['typescript', '..get(1)', '..⟦function:get⟧(⟦number:1⟧)'],
+    [
+      'kotlin',
+      'a = 0..it; b = 0..this.size',
+      'a = ⟦number:0⟧..⟦keyword:it⟧; b = ⟦number:0⟧..⟦keyword:this⟧.size',
+    ],
     ['typescript', '...new Set(a)', '...⟦keyword:new⟧ ⟦function:Set⟧(a)'],
     ['swift', '.default; .self', '.default; .⟦keyword:self⟧'],
     // A word after a member dot is a name, and `of` and `from` may be names:
@@ -2607,12 +2755,16 @@ test('reads a slash by the code before it, past blanks and comments', () => {
       ['a', false],
       [')', false],
     ]) {
-      const source = `x ${code}${gap}/q/g`;
-      assert.equal(
-        highlightCode(source, 'typescript').includes(t('regex', '/q/g')),
-        regex,
-        JSON.stringify(source)
-      );
+      for (const source of [
+        `x ${code}${gap}/q/g`,
+        `x ${code} // c\n${gap}/q/g`,
+      ]) {
+        assert.equal(
+          highlightCode(source, 'typescript').includes(t('regex', '/q/g')),
+          regex,
+          JSON.stringify(source)
+        );
+      }
     }
   }
 });
@@ -2633,12 +2785,12 @@ const KEYWORDS = {
   typescript: words(
     'break case catch class const continue debugger default delete do else enum export extends false finally for function if import in instanceof new null return super switch this throw true try typeof var void while with yield ' +
       'let static implements interface private protected public async await of from as get set undefined ' +
-      'type declare namespace module abstract readonly constructor keyof infer satisfies override asserts is'
+      'type declare namespace module abstract readonly constructor keyof infer satisfies override asserts'
   ),
   swift: words(
     'associatedtype class deinit enum extension fileprivate func import init inout internal let open operator private precedencegroup protocol public rethrows static struct subscript typealias var ' +
       'break case catch continue default defer do else fallthrough for guard if in repeat return throw switch where while ' +
-      'as await false is nil self super throws true try async willSet didSet some'
+      'as await false is nil self super throws true try async willSet didSet some any'
   ),
   kotlin: words(
     'as break class continue do else false for fun if in interface is null object package return super this throw true try typealias val var when while ' +
@@ -2652,7 +2804,7 @@ const KEYWORDS = {
   ),
   csharp: words(
     'abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof stackalloc static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using virtual void volatile while ' +
-      'async await var yield when nameof with record required init get set partial dynamic where not'
+      'async await var yield when nameof with record required init get set partial dynamic where not and or'
   ),
   gdscript: words(
     'if elif else for while match break continue pass return class class_name extends is in as self signal func static const enum var breakpoint preload assert await yield void and or not true false null super PI TAU INF NAN'
