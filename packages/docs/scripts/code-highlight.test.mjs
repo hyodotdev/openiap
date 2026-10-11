@@ -1163,6 +1163,16 @@ test('reads strings, holes and heredocs that run past a line', () => {
       'x)) $(( 1 << 2 ))\n2\nls',
       'x)) $(( 1 ⟦keyword:<⟧⟦keyword:<⟧ 2 ))\n2\nls',
     ],
+    [
+      'bash',
+      'echo "a\\"((b" <<EOF\nx\nEOF\nls',
+      'echo ⟦string:"a\\"((b"⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
+    ],
+    [
+      'bash',
+      'echo "a" "((" <<EOF\nx\nEOF\nls',
+      'echo ⟦string:"a"⟧ ⟦string:"(("⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
+    ],
     // Quoted `((` is text, and a nested `$((a))` closes itself.
     [
       'bash',
@@ -2426,6 +2436,48 @@ test('reads the forms that need their context', () => {
       '<⟦class-name:A⟧.⟦class-name:B⟧>+/- ⟦number:5⟧</⟦class-name:A⟧.⟦class-name:B⟧><my-tag>+/- ⟦number:6⟧</my-tag>',
     ],
     ['typescript', 'x is\tFoo', 'x ⟦keyword:is⟧\t⟦class-name:Foo⟧'],
+    ['typescript', 'x is\n  Foo', 'x ⟦keyword:is⟧\n  ⟦class-name:Foo⟧'],
+    [
+      'typescript',
+      "x is [A, B]; y is $T; z is (A | B); w is 'a'",
+      "x ⟦keyword:is⟧ [⟦class-name:A⟧, ⟦class-name:B⟧]; y ⟦keyword:is⟧ $T; z ⟦keyword:is⟧ (⟦class-name:A⟧ | ⟦class-name:B⟧); w ⟦keyword:is⟧ ⟦string:'a'⟧",
+    ],
+    ['typescript', 'ok = is\n  && x', 'ok = is\n  && x'],
+    [
+      'typescript',
+      'x is string[]; y is { a: 1 }; z is "a"',
+      'x ⟦keyword:is⟧ string[]; y ⟦keyword:is⟧ { a: ⟦number:1⟧ }; z ⟦keyword:is⟧ ⟦string:"a"⟧',
+    ],
+    [
+      'typescript',
+      'const is = 1; ok = is && x; is ? a : b',
+      '⟦keyword:const⟧ is = ⟦number:1⟧; ok = is && x; is ? a : b',
+    ],
+    // A slash that ends a self-closing tag or a tag split over lines closes no
+    // regex.
+    [
+      'typescript',
+      '<Text>+/- 5<Br /></Text><p>50% / 2 <br/></p><b>+/- 5</b\n>',
+      '<⟦class-name:Text⟧>+/- ⟦number:5⟧<⟦class-name:Br⟧ /></⟦class-name:Text⟧><p>⟦number:50⟧% / ⟦number:2⟧ <br/></p><b>+/- ⟦number:5⟧</b\n>',
+    ],
+    // A `..` range takes an expression in Kotlin, C# and Groovy.
+    [
+      'groovy',
+      'x = (0..this.size())',
+      'x = (⟦number:0⟧..⟦keyword:this⟧.⟦function:size⟧())',
+    ],
+    [
+      'csharp',
+      'var r = 0..this.Length',
+      '⟦keyword:var⟧ r = ⟦number:0⟧..⟦keyword:this⟧.⟦class-name:Length⟧',
+    ],
+    // A Dart cascade names a member; a spread still takes an expression.
+    [
+      'dart',
+      'dialog..show()..hide(); req..get = 1..on = 3',
+      'dialog..⟦function:show⟧()..⟦function:hide⟧(); req..get = ⟦number:1⟧..on = ⟦number:3⟧',
+    ],
+    ['dart', 'x = [...this.items]', 'x = [...⟦keyword:this⟧.items]'],
     [
       'typescript',
       '<>+/- 5</><a:b>+/- 6</a:b><b>+/- 7</b >',
@@ -2518,6 +2570,38 @@ test('reads the forms that need their context', () => {
       'x =⟦comment:// c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
     ],
     ['typescript', 'f(/</g)', '⟦function:f⟧(⟦regex:/</g⟧)'],
+    [
+      'typescript',
+      'y = /**/ z // c\n/ n / 2',
+      'y = ⟦comment:/**/⟧ z ⟦comment:// c⟧\n/ n / ⟦number:2⟧',
+    ],
+    [
+      'typescript',
+      'a = b /* c *// d\n/ n / 2',
+      'a = b ⟦comment:/* c */⟧/ d\n/ n / ⟦number:2⟧',
+    ],
+    [
+      'typescript',
+      'x = /* c *///c\n/re/.test(y)',
+      'x = ⟦comment:/* c */⟧⟦comment://c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    [
+      'typescript',
+      'x = /* ab\n/re/.test(y)',
+      'x = ⟦comment:/* ab⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    // A `//` inside a block comment on the line is text, and an open block
+    // comment hides the rest of its line.
+    [
+      'typescript',
+      't = /* https://x */ s // c\n / n / 2',
+      't = ⟦comment:/* https://x */⟧ s ⟦comment:// c⟧\n / n / ⟦number:2⟧',
+    ],
+    [
+      'typescript',
+      'x = /* a\n/re/.test(y)',
+      'x = ⟦comment:/* a⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
     [
       'typescript',
       'x = "http://a" // c\n/re/.test(y)',
@@ -2932,6 +3016,7 @@ test('stays fast on long runs of openers that never close', () => {
     ],
     // Each slash looks back over blanks and comments, up to 200 characters.
     ['/a*/ '.repeat(30000), ['typescript']],
+    ['x /*\n/a/\n'.repeat(30000), ['typescript', 'groovy']],
     ['*/ \n/a/('.repeat(30000), ['typescript']],
     ['=*/ \n/(;'.repeat(30000), ['groovy']],
     ['*/ /a/ '.repeat(20000), ['typescript', 'javascript', 'groovy']],

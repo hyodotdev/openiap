@@ -448,7 +448,8 @@ function keywordEndingAt(text: string, last: number): string {
 }
 
 // Where the `//` comment on a line starts, looking from `from` to `to` and
-// leaving out strings; -1 when there is none.
+// leaving out strings and `/* */` comments; -1 when there is none. A block
+// comment that stays open to `to` counts as one.
 function lineComment(text: string, from: number, to: number): number {
   let quote = '';
   for (let i = from; i <= to; i++) {
@@ -458,6 +459,12 @@ function lineComment(text: string, from: number, to: number): number {
       if (char === quote) quote = '';
     } else if (char === '"' || char === "'" || char === '`') quote = char;
     else if (char === '/' && text[i + 1] === '/') return i;
+    else if (char === '/' && text[i + 1] === '*') {
+      let close = i + 2;
+      while (close < to && !text.startsWith('*/', close)) close++;
+      if (close >= to) return i;
+      i = close + 1;
+    }
   }
   return -1;
 }
@@ -520,9 +527,9 @@ function quoteMayOpen(text: string, at: number): boolean {
 // A regex literal is one line and its classes may hold a `/`. Its body and
 // closing slash are read from the 300 characters after the opening slash, so a
 // longer one is a division and a failed try costs no more than that. A slash
-// that closes a tag (`</b>`) closes no regex; `/</g` still does.
+// that closes a tag (`</b>`, `<br />`) closes no regex; `/</g` still does.
 const REGEX_BODY =
-  /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+(?:(?<!<)\/|\/(?![\w.:-]*\s*>))/y;
+  /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+(?:(?<!<)\/(?!>)|\/(?![\w.:-]*\s*>))/y;
 const REGEX_FLAGS = /[dgimsuvy]*/y;
 function regexEnd(text: string, at: number): number {
   REGEX_BODY.lastIndex = 0;
@@ -661,11 +668,12 @@ const SWIFT_RAW_STRING: Rule = {
 };
 
 // A name after a member dot is no keyword (`x.catch`, `a?.get`), but `...new`
-// spreads and `0..it` is a range. `afterDot` lists the words that stay keywords
-// there (Swift `.self`).
-const keyword = (words: string, afterDot = ''): Rule => ({
+// spreads and a `..` range (`0..it`) takes an expression. In Dart `..` is a
+// cascade that takes a member, so `range` is false there. `afterDot` lists the
+// words that stay keywords after a dot (Swift `.self`).
+const keyword = (words: string, afterDot = '', range = true): Rule => ({
   pattern: new RegExp(
-    String.raw`(?:(?<=\.\.)|(?<!\.))\b(?:${words})\b` +
+    String.raw`(?:(?<=\.\.${range ? '' : String.raw`\.`})|(?<!\.))\b(?:${words})\b` +
       (afterDot ? String.raw`|\b(?:${afterDot})\b` : ''),
     'y'
   ),
@@ -733,7 +741,7 @@ const TYPESCRIPT_RULES: Rule[] = [
   CONTINUING_DOUBLE_QUOTED,
   TYPESCRIPT_SINGLE_QUOTED,
   keyword(
-    'import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts|is(?=[ \t])'
+    String.raw`import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts|is(?=\s+[\w$"'[{(])`
   ),
   NUMBER,
   CALL,
@@ -802,7 +810,11 @@ const nativeRules = (language: keyof typeof NATIVE_KEYWORDS): Rule[] => [
   NATIVE_TRIPLE[language],
   ...NATIVE_QUOTES[language],
   language === 'csharp' ? VERBATIM_IDENTIFIER : DECORATOR,
-  keyword(NATIVE_KEYWORDS[language], language === 'swift' ? 'self|init' : ''),
+  keyword(
+    NATIVE_KEYWORDS[language],
+    language === 'swift' ? 'self|init' : '',
+    language !== 'dart'
+  ),
   NUMBER,
   CALL,
   TYPE,
@@ -881,7 +893,7 @@ function inArithmetic(text: string, at: number): boolean {
   const before = text.slice(Math.max(0, at - 200), at);
   const line = before
     .slice(before.lastIndexOf('\n') + 1)
-    .replace(/"[^"]*"|'[^']*'/g, '');
+    .replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '');
   let open = 0;
   for (const [pair] of line.matchAll(/\(\(|\)\)/g)) {
     open = Math.max(0, open + (pair === '((' ? 1 : -1));
