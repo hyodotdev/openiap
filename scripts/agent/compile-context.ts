@@ -1172,11 +1172,12 @@ https://openiap.dev/commerce-example/run.json.
 The IAPKit replacement check keeps the same app backend and receiver while
 switching between the example and IAPKit for Apple, Google, Amazon and Horizon.
 Apple/Google subscription checks cover cancellation, expiry and signed events.
-Amazon/Horizon checks cover store-user binding, current ownership rechecks,
-rejection, outage and recovery; read entitlements.productIds rather than
-inventing subscription records or lifecycle events. All four cover account
-erasure. Store identity must be authenticated by the app backend. Consumable
-quantities need a separate durable fulfillment ledger.
+Amazon/Horizon checks cover store-user binding, ownership rechecks, rejection,
+outage and recovery. Amazon also returns RVS-backed subscription state and
+lifecycle events in beta; Horizon remains an ownership check. Live Amazon SNS
+and LAT transitions remain unverified. Read entitlements.productIds for access;
+all four stores cover account erasure. The app backend authenticates store
+identity. Consumable quantities need a separate durable fulfillment ledger.
 Actual IAPKit handlers and local Convex storage run with fixture store
 responses; Apple cryptographic verification and Google OIDC are substituted.
 This does not prove device checkout or real store authentication. Read the

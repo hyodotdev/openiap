@@ -27,7 +27,7 @@
     "report": {
       "events": [
         {
-          "eventId": "7de4a9d6-a1ea-4923-8058-84ebe83e0403",
+          "eventId": "da3332ab-a1c0-49b7-ad17-66608020a304",
           "eventType": "subscription.started",
           "store": "apple",
           "customer": "alice-apple",
@@ -42,7 +42,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "c976b2c5-a8d7-467c-845a-7827d861ec10",
+          "eventId": "6d44a754-8089-4bfc-a8e3-3c6412595003",
           "eventType": "entitlement.granted",
           "store": "apple",
           "customer": "alice-apple",
@@ -53,7 +53,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "0553a3fb-9ef3-421d-ac65-ed93899feb88",
+          "eventId": "0f35eecf-9fc9-4f24-86bb-86bbc4c31e9e",
           "eventType": "subscription.renewed",
           "store": "apple",
           "customer": "alice-apple",
@@ -68,7 +68,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "9cb1f85f-a94c-42b2-a991-6b54aacebfcc",
+          "eventId": "1eeb4deb-a63c-438e-a584-c46bf9959b95",
           "eventType": "subscription.canceled",
           "store": "apple",
           "customer": "alice-apple",
@@ -79,7 +79,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "38e232f5-c749-466d-847c-be9a725b4dda",
+          "eventId": "bd2dcf4e-3d3a-47a5-b087-03c7dbf0aa29",
           "eventType": "subscription.started",
           "store": "google",
           "customer": "alice-google",
@@ -90,7 +90,7 @@
           "treatment": "amount unknown"
         },
         {
-          "eventId": "fe71660f-c427-4064-97fb-e3522e5d2b99",
+          "eventId": "37075122-89e9-41b1-b556-445163949d42",
           "eventType": "entitlement.granted",
           "store": "google",
           "customer": "alice-google",
@@ -112,7 +112,7 @@
       "unknownAmounts": 1,
       "reconciliation": 0
     },
-    "receiver": "http://127.0.0.1:61009/webhooks/commerce"
+    "receiver": "http://127.0.0.1:51192/webhooks/commerce"
   },
   "browserSourceCommit": "abdbcef40fc710540853aa46e0b374711b6047ba",
   "browser": {
@@ -254,12 +254,12 @@
   },
   "harness": {
     "checks": 8,
-    "recordedAt": "2026-10-09T15:16:51.942Z"
+    "recordedAt": "2026-10-11T21:18:02.490Z"
   },
   "providerVerification": {
     "checks": 19,
-    "regressionChecks": 170,
-    "recordedAt": "2026-10-09T15:15:46.883Z",
+    "regressionChecks": 177,
+    "recordedAt": "2026-10-11T21:32:00.832Z",
     "state": {
       "stores": [
         {
@@ -272,7 +272,7 @@
       "report": {
         "events": [
           {
-            "eventId": "k1716a7n31kmwnqfqpnbsxamnx8fz4ng",
+            "eventId": "k17c8st1t0amqms6d60rbt1brx8g25h7",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -287,7 +287,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k178x7f4c2jnkb7zrk30w7z2en8fypw6",
+            "eventId": "k17bdm60bmacmkkvcn0q3sa8p18g2xm5",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -298,7 +298,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "k1787pwcfqvj7htv754gjyyjs98fyymv",
+            "eventId": "k17fcvb68qk2t0emezc4mx22gd8g205z",
             "eventType": "subscription.renewed",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -313,7 +313,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k170f262aw9p8qw9tnbsf7sqq98fz3tv",
+            "eventId": "k17efw57f430k3ty35xrcts5kn8g2wn2",
             "eventType": "subscription.canceled",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -335,7 +335,7 @@
         "unknownAmounts": 0,
         "reconciliation": 0
       },
-      "receiver": "http://127.0.0.1:60708/webhooks/commerce"
+      "receiver": "http://127.0.0.1:52150/webhooks/commerce"
     }
   }
 }
