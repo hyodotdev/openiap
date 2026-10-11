@@ -1562,8 +1562,20 @@ test('reads a quote in a hole that starts no string', () => {
       `x = ${t('string', '`${a! / 2}`')} + ${t('string', '`${this.#in / 2}`')} + ${t('string', '`${b / 3}`')};`,
     ],
     [
+      'x = `${(function () { if (a) /`/.test(b); return 1; })()}` + `${c / 2}`;',
+      `x = ${t('string', '`${(function () { if (a) /`/.test(b); return 1; })()}`')} + ${t('string', '`${c / 2}`')};`,
+    ],
+    [
+      'x = `${(function () { if (a) /"/.test(b); return "c"; })()}`; y = "}}`";',
+      `x = ${t('string', '`${(function () { if (a) /"/.test(b); return "c"; })()}`')}; y = ${t('string', '"}}`"')};`,
+    ],
+    [
       "x = `${(function () { if (a) /'/.test(b); return 'c'; })()}`; y = '}}`';",
       `x = ${t('string', "`${(function () { if (a) /'/.test(b); return 'c'; })()}`")}; y = ${t('string', "'}}`'")};`,
+    ],
+    [
+      'x = `${a /**/ + 1}` + `${b /* c */}`;',
+      `x = ${t('string', '`${a /**/ + 1}`')} + ${t('string', '`${b /* c */}`')};`,
     ],
     [
       'x = `${a /* c */}` + `${b / 2}`; y = `${a /*/ 2 */ + 1}` + `${b / 3}`;',
@@ -2589,8 +2601,8 @@ test('reads the forms that need their context', () => {
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
     [
       'typescript',
-      'x = a! / 2 / b; y = this.#in / 2 / c;',
-      'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c;',
+      'x = a! / 2 / b; y = this.#in / 2 / c; z = (a)! / 2 / b[0]! / 3 / c;',
+      'x = a! / ⟦number:2⟧ / b; y = ⟦keyword:this⟧.#⟦keyword:in⟧ / ⟦number:2⟧ / c; z = (a)! / ⟦number:2⟧ / b[⟦number:0⟧]! / ⟦number:3⟧ / c;',
     ],
     [
       'typescript',
