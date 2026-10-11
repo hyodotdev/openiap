@@ -99,13 +99,16 @@ export const PROVIDER_CAPABILITIES: Record<
     supportsEntitlements: true,
     supportsRevenueAmount: false,
     notes:
-      "Signed Amazon RTN notifications trigger fresh RVS verification and " +
+      "Amazon subscription lifecycle is in beta. Signed RTN notifications " +
+      "trigger fresh RVS verification and " +
       "update canonical subscriptions and commerce events. Rechecks become " +
       "due every 48 hours; a bounded worker runs every five minutes, so " +
       "backlog and retries can extend that interval. renewalDate is not expiry, " +
       "and auto-renew off retains access until RVS removes it. RVS supplies " +
-      "no authoritative charge amount. App Tester does not exercise RTN; " +
-      "live subscription lifecycle certification remains separate.",
+      "no authoritative charge amount. Live SNS delivery and LAT renewal, " +
+      "cancellation, elapsed expiry and server entitlement revocation remain " +
+      "unverified; App Tester does not certify them. See " +
+      "https://kit.openiap.dev/docs/verification/amazon for beta limits.",
   },
 };
 

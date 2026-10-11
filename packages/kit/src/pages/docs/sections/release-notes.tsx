@@ -27,12 +27,12 @@ const RELEASES: ReleaseEntry[] = [
     weekStart: "2026-10-12",
     date: "2026-10-12",
     pullRequests: [523],
-    tagline: "Amazon subscription state backed by verified store evidence.",
+    tagline: "Amazon subscription lifecycle beta, backed by RVS evidence.",
     items: [
       {
         kind: "feature",
         topic: "Amazon subscriptions",
-        text: "Amazon RTN verifies signed SNS messages and refreshes RVS before updating subscriptions. Configure the topic ARN and use the existing store lifecycle URL.",
+        text: "Amazon subscription lifecycle is in beta. RTN verifies signed SNS messages and refreshes RVS before updating subscriptions. Configure the optional topic ARN and use the existing store lifecycle URL.",
       },
       {
         kind: "fix",
@@ -42,7 +42,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "ops",
         topic: "Amazon subscriptions",
-        text: "App Tester simulation remains separate from unverified LAT renewal, expiry and server revocation.",
+        text: "Live SNS delivery and LAT renewal, cancellation, elapsed expiry and server entitlement revocation remain unverified. Validate these transitions before relying on the beta for production access; App Tester simulation does not certify them.",
       },
       {
         kind: "docs",

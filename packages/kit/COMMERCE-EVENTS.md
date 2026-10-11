@@ -55,7 +55,15 @@ from. `commerceEvents.entitlementActive` denormalizes that answer onto the
 event, and the delivered body carries it as `subscription.active`, so a consumer
 can act without joining back.
 
-## Amazon subscription lifecycle
+## Amazon subscription lifecycle (beta)
+
+Canonical Amazon subscriptions and lifecycle events are in beta. RVS verification
+and background rechecks update subscription state automatically; leaving the
+optional RTN topic ARN blank disables notifications only. Live SNS delivery and
+LAT renewal, cancellation, elapsed expiry and server entitlement revocation remain
+unverified. Validate these transitions before relying on the beta for production
+access. The [Amazon guide](https://kit.openiap.dev/docs/verification/amazon)
+records setup and testing limits.
 
 Amazon RTN uses the existing store lifecycle URL with an SNS-signed envelope.
 The project pins its topic ARN and Android package; the receiver authenticates

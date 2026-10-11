@@ -110,6 +110,33 @@ export default function VerificationAmazonPage() {
         for the shared response and error envelope.
       </p>
 
+      <Callout kind="warning" title="Amazon subscription lifecycle — beta">
+        <p>
+          Canonical subscription state and lifecycle events are in beta. RVS
+          verification and background rechecks update subscription state
+          automatically. RTN is optional: leaving the topic ARN blank disables
+          notifications only, not these RVS updates.
+        </p>
+        <p>
+          Live SNS delivery and LAT renewal, cancellation, elapsed expiry and
+          server entitlement revocation remain unverified. Validate these
+          transitions in your Amazon test environment before relying on
+          lifecycle automation for production access.
+        </p>
+        <p>
+          App Tester simulates purchases but does not send RTN. Local
+          cancellation may leave RVS Cloud Sandbox entitled, so it cannot
+          certify the live lifecycle. See{" "}
+          <a
+            href="https://github.com/hyodotdev/openiap/discussions/522"
+            className="text-primary underline"
+          >
+            discussion #522
+          </a>{" "}
+          for evidence and acceptance criteria.
+        </p>
+      </Callout>
+
       <h2 className="mt-10 text-2xl font-semibold">Background rechecks</h2>
       <p>
         A valid Amazon purchase becomes due for another RVS check after 48
@@ -137,7 +164,7 @@ export default function VerificationAmazonPage() {
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
-        Subscription notifications
+        Subscription notifications (beta)
       </h2>
       <ol className="my-3 list-decimal space-y-2 pl-6">
         <li>
@@ -182,25 +209,6 @@ export default function VerificationAmazonPage() {
         </a>
         .
       </p>
-      <Callout
-        kind="warning"
-        title="App Tester is not LAT lifecycle certification"
-      >
-        <p>
-          App Tester simulates local purchases and does not send RTN. A local
-          cancellation may leave RVS Cloud Sandbox entitled. It cannot prove
-          actual renewal, timed expiry or server revocation. Those rows remain
-          unverified until a LAT or store-backed run observes them;{" "}
-          <a
-            href="https://github.com/hyodotdev/openiap/discussions/522"
-            className="text-primary underline"
-          >
-            discussion #522
-          </a>{" "}
-          tracks the evidence and acceptance criteria.
-        </p>
-      </Callout>
-
       <h2 className="mt-10 text-2xl font-semibold">Amazon error codes</h2>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="min-w-[42rem] w-full text-sm">

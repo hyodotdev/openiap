@@ -327,9 +327,7 @@ describe("kit's capabilities agree with the published descriptor", () => {
     );
   });
 
-  // kit knows only the implementation axis. Deriving the provider axis from
-  // kit's boolean is the conflation the two-axis model prevents: it would claim
-  // Amazon publishes no notification channel because kit consumes none.
+  // Implementation support does not define what the store itself offers.
   it.each(Object.keys(PROVIDER_CAPABILITIES))(
     "%s implementation axis matches kit",
     (store) => {

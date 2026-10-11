@@ -172,14 +172,14 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         </li>
       </ol>
 
-      <h2 className="mt-10 text-2xl font-semibold">Amazon RTN</h2>
+      <h2 className="mt-10 text-2xl font-semibold">Amazon RTN (beta)</h2>
       <p>
         Configure the RVS shared secret and SNS topic ARN in project settings,
         then subscribe this lifecycle URL to the topic with raw delivery off.
         IAPKit verifies the SNS signature and refreshes RVS before changing
         subscription or entitlement state. Follow the{" "}
         <Link to="/docs/verification/amazon" className="text-primary underline">
-          Amazon setup guide
+          Amazon beta setup guide
         </Link>{" "}
         for topic permissions, subscription confirmation and testing limits.
         Amazon revenue requires separate verified price evidence.

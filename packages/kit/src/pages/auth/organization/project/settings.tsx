@@ -2398,7 +2398,7 @@ export default function ProjectSettings() {
                         htmlFor="amazon-rtn-topic"
                         className="mb-2 block text-sm font-medium"
                       >
-                        Amazon RTN topic ARN (optional)
+                        Amazon RTN topic ARN (beta, optional)
                       </label>
                       <input
                         id="amazon-rtn-topic"
@@ -2416,13 +2416,16 @@ export default function ProjectSettings() {
                         then subscribe the store lifecycle URL shown on
                         Webhooks. IAPKit verifies SNS signatures and refreshes
                         RVS before updating access. Leave blank to disable
-                        notifications. App Tester does not send RTN.
+                        notifications only; RVS verification and rechecks still
+                        update subscription state. The subscription lifecycle is
+                        in beta; live SNS and LAT transitions remain unverified.
+                        App Tester does not send RTN.
                       </p>
                       <a
                         href="/docs/verification/amazon"
                         className="mt-2 inline-block text-sm text-primary underline"
                       >
-                        Amazon setup and testing limits
+                        Amazon beta setup and testing limits
                       </a>
                     </div>
 

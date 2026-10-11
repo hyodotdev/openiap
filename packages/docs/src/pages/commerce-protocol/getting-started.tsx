@@ -72,10 +72,13 @@ function CommerceGettingStarted(): React.JSX.Element {
       </p>
       <p>
         IAPKit accepts Apple, Google and Amazon subscription notifications;
-        Amazon notifications refresh RVS before changing access. Amazon and
-        Horizon ownership is also rechecked on each entitlements read. The
-        example simulates these store responses locally. Another provider can
-        work differently; its{' '}
+        Amazon notifications refresh RVS before changing access. Its Amazon
+        subscription lifecycle is in{' '}
+        <a href="https://kit.openiap.dev/docs/verification/amazon">beta</a>;
+        validate the documented live store transitions before production use.
+        Amazon and Horizon ownership is also rechecked on each entitlements
+        read. The example simulates these store responses locally. Another
+        provider can work differently; its{' '}
         <Link to="/commerce-protocol/capabilities">capabilities</Link> say what
         it supports. Choose your store below to follow the matching path.
       </p>
