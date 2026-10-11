@@ -2638,19 +2638,23 @@ test('reads the forms that need their context', () => {
     // glued to `ñ` is no type, call or decorator.
     [
       'typescript',
-      'x = ñdo / 2 / a; y = ⅰ! / 2 / b; z = cafe\u0301! / 2 / c;',
-      'x = ñ⟦keyword:do⟧ / ⟦number:2⟧ / a; y = ⅰ! / ⟦number:2⟧ / b; z = cafe\u0301! / ⟦number:2⟧ / c;',
+      'x = ñdo / 2 / a; y = ⅰ! / 2 / b; z = cafe\u0301! / 2 / c; w = cafe\u0301do / 2 / d; v = a·do / 2 / e;',
+      'x = ñ⟦keyword:do⟧ / ⟦number:2⟧ / a; y = ⅰ! / ⟦number:2⟧ / b; z = cafe\u0301! / ⟦number:2⟧ / c; w = cafe\u0301⟦keyword:do⟧ / ⟦number:2⟧ / d; v = a·⟦keyword:do⟧ / ⟦number:2⟧ / e;',
     ],
-    ['typescript', "<p>café's menu</p>", "<p>café's menu</p>"],
     [
       'typescript',
-      'class ñProduct {}; new ñProduct(); ñfoo(1);',
-      '⟦keyword:class⟧ ñProduct {}; ⟦keyword:new⟧ ñProduct(); ñfoo(⟦number:1⟧);',
+      "<p>café's menu</p><p>cafe\u0301's menu</p>",
+      "<p>café's menu</p><p>cafe\u0301's menu</p>",
+    ],
+    [
+      'typescript',
+      'class ñProduct {}; new ñProduct(); ñfoo(1); new e\u0301Product(); cafe\u0301foo(1); a·foo(1);',
+      '⟦keyword:class⟧ ñProduct {}; ⟦keyword:new⟧ ñProduct(); ñfoo(⟦number:1⟧); ⟦keyword:new⟧ e\u0301Product(); cafe\u0301foo(⟦number:1⟧); a·foo(⟦number:1⟧);',
     ],
     [
       'kotlin',
-      'josé@Ann fun f() {}',
-      'josé@⟦class-name:Ann⟧ ⟦keyword:fun⟧ ⟦function:f⟧() {}',
+      'josé@Ann jose\u0301@Bnn fun f() {}',
+      'josé@⟦class-name:Ann⟧ jose\u0301@⟦class-name:Bnn⟧ ⟦keyword:fun⟧ ⟦function:f⟧() {}',
     ],
     ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
     [
