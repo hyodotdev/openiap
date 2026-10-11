@@ -1502,13 +1502,27 @@ test('reads a string flat when its hole holds a quote that starts no string', ()
     highlightCode('x = "${/* it\'s */ y}" + 1', 'kotlin'),
     `x = ${t('string', '"${/* it\'s */ y}"')} + ${t('number', '1')}`
   );
-  // A string that closes the brackets it opened is a string.
+  // A string that holds template text is a string, while a regex that holds
+  // a quote and a bracket still reads flat.
   assert.equal(
     highlightCode(
-      "x = `${t('`one ${x}`')}`; y = `${'{a}`'}` + 1;",
+      'x = `${t(\'`one ${x}`\')}`; y = `${"`${a}`"}` + 1;',
       'typescript'
     ),
-    `x = ${t('string', "`${t('`one ${x}`')}`")}; y = ${t('string', "`${'{a}`'}`")} + ${t('number', '1')};`
+    `x = ${t('string', "`${t('`one ${x}`')}`")}; y = ${t('string', '`${"`${a}`"}`')} + ${t('number', '1')};`
+  );
+  // Each on its own line: a failed scan reads the rest of its line flat.
+  assert.equal(
+    highlightCode(
+      "s = `${f(/'[{]/)}` + 'a}';\nw = `${f(/'}${x}/)}` + 'a}';\nu = `${f(/'$}/)}` + 'a}';\nv = `z`;",
+      'typescript'
+    ),
+    [
+      `s = ${t('string', "`${f(/'[{]/)}`")} + ${t('string', "'a}'")};`,
+      `w = ${t('string', "`${f(/'}${x}/)}`")} + ${t('string', "'a}'")};`,
+      `u = ${t('string', "`${f(/'$}/)}`")} + ${t('string', "'a}'")};`,
+      `v = ${t('string', '`z`')};`,
+    ].join('\n')
   );
 });
 
@@ -1525,14 +1539,14 @@ test('reads holes like the recursive reading, also when unbalanced', () => {
   function readStrings(source, { open, nest, close, quotes, multiline }) {
     // `outer` is the quote of the outermost string, and a string in a hole that
     // has seen the hole's end and then meets it was probably no string, unless
-    // it opened the hole's bracket itself.
+    // it holds a hole opener itself.
     const string = (from, quote, outer, inHole) => {
       let opened = false;
       let sawClose = false;
       for (let i = from; i < source.length; i++) {
         if (source[i] === '\n') return ~i;
         if (inHole) {
-          if (source[i] === nest) opened = true;
+          if (source.startsWith(open, i)) opened = true;
           else if (source[i] === close && !opened) sawClose = true;
           else if (sawClose && source[i] === outer && source[i] !== quote) {
             return ~i;
