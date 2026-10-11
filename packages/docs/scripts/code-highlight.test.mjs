@@ -1173,6 +1173,16 @@ test('reads strings, holes and heredocs that run past a line', () => {
       'echo "a" "((" <<EOF\nx\nEOF\nls',
       'echo ⟦string:"a"⟧ ⟦string:"(("⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
     ],
+    [
+      'bash',
+      'echo "a\\\\" "((" <<EOF\nx\nEOF\nls',
+      'echo ⟦string:"a\\\\"⟧ ⟦string:"(("⟧ ⟦keyword:<<⟧⟦string:EOF⟧\n⟦string:x\nEOF⟧\nls',
+    ],
+    [
+      'bash',
+      'echo "a" (( "b" <<EOF\nx\nEOF\nls',
+      'echo ⟦string:"a"⟧ (( ⟦string:"b"⟧ ⟦keyword:<⟧⟦keyword:<⟧EOF\nx\nEOF\nls',
+    ],
     // Quoted `((` is text, and a nested `$((a))` closes itself.
     [
       'bash',
@@ -2439,6 +2449,11 @@ test('reads the forms that need their context', () => {
     ['typescript', 'x is\n  Foo', 'x ⟦keyword:is⟧\n  ⟦class-name:Foo⟧'],
     [
       'typescript',
+      'function f(s: string): s is `on${string}` {}',
+      '⟦keyword:function⟧ ⟦function:f⟧(s: string): s ⟦keyword:is⟧ ⟦string:`on${string}`⟧ {}',
+    ],
+    [
+      'typescript',
       "x is [A, B]; y is $T; z is (A | B); w is 'a'",
       "x ⟦keyword:is⟧ [⟦class-name:A⟧, ⟦class-name:B⟧]; y ⟦keyword:is⟧ $T; z ⟦keyword:is⟧ (⟦class-name:A⟧ | ⟦class-name:B⟧); w ⟦keyword:is⟧ ⟦string:'a'⟧",
     ],
@@ -2452,6 +2467,18 @@ test('reads the forms that need their context', () => {
       'typescript',
       'const is = 1; ok = is && x; is ? a : b',
       '⟦keyword:const⟧ is = ⟦number:1⟧; ok = is && x; is ? a : b',
+    ],
+    // A regex may close right before `>`, unless a tag is open in its body.
+    [
+      'typescript',
+      'x=/a/>b; y=/a/>>b; z=/a/>=b; if(/a/>b)w()',
+      'x=⟦regex:/a/⟧>b; y=⟦regex:/a/⟧>>b; z=⟦regex:/a/⟧>=b; ⟦keyword:if⟧(⟦regex:/a/⟧>b)⟦function:w⟧()',
+    ],
+    ['typescript', 'x = /a<b/>c', 'x = /a<b/>c'],
+    [
+      'typescript',
+      'x = /<a\\/b/>c; y = /<a>b/>c',
+      'x = ⟦regex:/<a\\/b/⟧>c; y = ⟦regex:/<a>b/⟧>c',
     ],
     // A slash that ends a self-closing tag or a tag split over lines closes no
     // regex.
@@ -2584,6 +2611,21 @@ test('reads the forms that need their context', () => {
       'typescript',
       'x = /* c *///c\n/re/.test(y)',
       'x = ⟦comment:/* c */⟧⟦comment://c⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
+    ],
+    [
+      'typescript',
+      'const a = /** see https://x */ b\n/ n / 2',
+      '⟦keyword:const⟧ a = ⟦comment:/** see https://x */⟧ b\n/ n / ⟦number:2⟧',
+    ],
+    [
+      'typescript',
+      'files = glob("src/*.ts", // all\n  /re/)',
+      'files = ⟦function:glob⟧(⟦string:"src/*.ts"⟧, ⟦comment:// all⟧\n  ⟦regex:/re/⟧)',
+    ],
+    [
+      'typescript',
+      'x =/* ab\n/re/.test(y)',
+      'x =⟦comment:/* ab⟧\n⟦regex:/re/⟧.⟦function:test⟧(y)',
     ],
     [
       'typescript',

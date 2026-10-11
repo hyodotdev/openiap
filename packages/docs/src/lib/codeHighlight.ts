@@ -527,9 +527,9 @@ function quoteMayOpen(text: string, at: number): boolean {
 // A regex literal is one line and its classes may hold a `/`. Its body and
 // closing slash are read from the 300 characters after the opening slash, so a
 // longer one is a division and a failed try costs no more than that. A slash
-// that closes a tag (`</b>`, `<br />`) closes no regex; `/</g` still does.
+// that closes a tag (`</b>`, `<br />`) closes no regex; `/</g` and `/a/>b` still do.
 const REGEX_BODY =
-  /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+(?:(?<!<)\/(?!>)|\/(?![\w.:-]*\s*>))/y;
+  /(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+(?:(?<!<)\/(?!>)|\/(?![\w.:-]*\s*>)|(?<!<[^>/]*)\/(?=>))/y;
 const REGEX_FLAGS = /[dgimsuvy]*/y;
 function regexEnd(text: string, at: number): number {
   REGEX_BODY.lastIndex = 0;
@@ -741,7 +741,7 @@ const TYPESCRIPT_RULES: Rule[] = [
   CONTINUING_DOUBLE_QUOTED,
   TYPESCRIPT_SINGLE_QUOTED,
   keyword(
-    String.raw`import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts|is(?=\s+[\w$"'[{(])`
+    String.raw`import|export|from|as|default|const|let|var|function|async|await|class|extends|implements|interface|type|enum|if|else|for|while|do|switch|case|break|continue|return|try|catch|finally|throw|new|typeof|instanceof|void|null|undefined|true|false|this|super|static|public|private|protected|readonly|abstract|namespace|module|require|declare|constructor|get|set|of|in|yield|delete|debugger|with|keyof|infer|satisfies|override|asserts|is(?=\s+[\w$"'\`[{(])`
   ),
   NUMBER,
   CALL,
