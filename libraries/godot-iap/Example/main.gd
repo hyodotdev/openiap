@@ -24,7 +24,7 @@ var difficulty_timer: float = 0.0
 @onready var loading_label: Label = $UI/LoadingLabel
 @onready var status_label: Label = $UI/StatusLabel
 
-var verification_button: Button
+var verification_picker: OptionButton
 
 const VIEWPORT_WIDTH := 720
 const VIEWPORT_HEIGHT := 1280
@@ -94,32 +94,35 @@ func _setup_store_panel() -> void:
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
 
-	_setup_verification_button()
+	_setup_verification_picker()
 
 
-func _setup_verification_button() -> void:
+func _setup_verification_picker() -> void:
 	var container = store_panel.get_node_or_null("VBoxContainer")
 	if container == null:
 		return
 
-	verification_button = Button.new()
-	verification_button.name = "VerificationButton"
-	verification_button.text = IapManager.verification_label()
-	verification_button.pressed.connect(_on_verification_pressed)
-	container.add_child(verification_button)
-	container.move_child(verification_button, 0)
+	verification_picker = OptionButton.new()
+	verification_picker.name = "VerificationPicker"
+	verification_picker.allow_reselect = true
+	for method in IapManager.IapkitConfig.Method.values():
+		verification_picker.add_item(IapManager.IapkitConfig.method_label(method), method)
+	verification_picker.select(verification_picker.get_item_index(IapManager.verification_method))
+	verification_picker.item_selected.connect(_on_verification_selected)
+	container.add_child(verification_picker)
+	container.move_child(verification_picker, 0)
 
 	IapManager.verification_changed.connect(_on_verification_changed)
 	IapManager.verification_result.connect(_on_verification_result)
 
 
-func _on_verification_pressed() -> void:
-	IapManager.cycle_verification_method()
+func _on_verification_selected(index: int) -> void:
+	await IapManager.set_verification_method(verification_picker.get_item_id(index))
 
 
-func _on_verification_changed(label: String) -> void:
-	if verification_button:
-		verification_button.text = label
+func _on_verification_changed(_label: String) -> void:
+	if verification_picker:
+		verification_picker.select(verification_picker.get_item_index(IapManager.verification_method))
 
 
 func _on_verification_result(message: String, ok: bool) -> void:

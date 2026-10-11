@@ -129,7 +129,7 @@ error and falls back to Play, rather than failing the export as the Gradle and
 MAUI builds do; the export UI only offers valid values, so this is reachable by
 hand-editing the preset.
 
-The store panel's top button cycles verification in this order:
+Choose a verification method from the store panel's picker:
 
 1. **None (Skip)** — skip verification.
 2. **Local (Device)** — trust the store's own purchase state.
@@ -140,6 +140,8 @@ With both values configured, the example defaults to **Local (IAPKit)**. With
 only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to
 **None (Skip)**. A purchase that fails verification is left unfinished, so the
 store redelivers it instead of the app granting an unverified entitlement.
+Select the same method again, or use Restore Purchases, to retry unfinished
+receipts. Opening or dismissing the picker leaves the selected method unchanged.
 
 ## Powered by OpenIAP
 

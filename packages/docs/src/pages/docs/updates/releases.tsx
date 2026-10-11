@@ -553,8 +553,8 @@ function Releases() {
             the screen remains open.
           </p>
           <p>
-            MAUI examples let you choose the verification method directly and
-            select it again to retry unfinished purchases.
+            Godot and MAUI examples let you choose the verification method
+            directly and select it again to retry unfinished purchases.
           </p>
           <p>
             See the{' '}

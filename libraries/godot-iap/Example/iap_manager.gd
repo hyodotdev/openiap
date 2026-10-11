@@ -279,16 +279,12 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		purchase_completed.emit(product_id)
 
 
-func cycle_verification_method() -> void:
-	verification_method = IapkitConfig.next_method(verification_method)
+func set_verification_method(method: IapkitConfig.Method) -> void:
+	verification_method = method
 	verification_changed.emit(IapkitConfig.method_label(verification_method))
 	if verification_method != IapkitConfig.Method.NONE:
 		await _clear_pending_purchases()
 		await reconcile_subscription_entitlements()
-
-
-func verification_label() -> String:
-	return IapkitConfig.method_label(verification_method)
 
 
 func _verify_purchase(purchase: Dictionary, product_id: String, pending_only: bool = true) -> bool:

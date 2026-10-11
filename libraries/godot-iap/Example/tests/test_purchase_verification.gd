@@ -18,6 +18,16 @@ class CatalogFilteredAndroidPlugin:
 		return JSON.stringify(result)
 
 
+class RecordingApplePlugin:
+	extends EnvelopeTests.FakeImmediateApplePlugin
+
+	var calls: Array[String] = []
+
+	func _respond(method: String, fallback: String) -> String:
+		calls.append(method)
+		return super._respond(method, fallback)
+
+
 func _init() -> void:
 	_run.call_deferred()
 
@@ -261,9 +271,74 @@ func _run() -> void:
 	Config._api_key = previous_key
 
 	manager.free()
+	await _test_verification_picker(plugin)
 	plugin._native_plugin = previous_plugin
 	plugin._platform = previous_platform
 	quit(1 if _failed else 0)
+
+
+func _test_verification_picker(plugin: Node) -> void:
+	var fake := RecordingApplePlugin.new()
+	plugin._native_plugin = fake
+	plugin._platform = "macOS"
+	var manager: Node = root.get_node("IapManager")
+	var previous_method = manager.verification_method
+	var previous_completed: Dictionary = manager._processed_transactions.duplicate()
+	var previous_key := Config._api_key
+	var previous_url := Config._base_url
+	Config._api_key = "openiap-kit_pk_fixture"
+	Config._base_url = "http://127.0.0.1:1234"
+	manager.verification_method = Config.Method.IAPKIT_LOCAL
+	var purchase := {
+		"id": "picker-retry", "transactionId": "picker-retry",
+		"productId": manager.PRODUCT_10_BULBS, "purchaseToken": "fixture-jws",
+		"purchaseState": "purchased", "transactionDate": 1, "quantity": 1,
+		"isAutoRenewing": false, "store": "apple", "storeId": "apple",
+		"environmentIOS": "Sandbox",
+	}
+	fake.responses["getPendingTransactionsIOS"] = JSON.stringify({"success": true, "transactionsJson": JSON.stringify([purchase])})
+	fake.responses["getActiveSubscriptions"] = JSON.stringify({"success": true, "subscriptionsJson": "[]"})
+	var verification := {"provider": "iapkit", "iapkit": {
+		"isValid": false, "productId": manager.PRODUCT_10_BULBS, "store": "apple",
+		"storeId": "apple", "state": "ready-to-consume", "environment": "Sandbox",
+	}}
+	fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"success": true, "resultJson": JSON.stringify(verification)})
+	var game = load("res://main.gd").new()
+	var panel := Panel.new()
+	var container := VBoxContainer.new()
+	container.name = "VBoxContainer"
+	panel.add_child(container)
+	root.add_child(panel)
+	game.store_panel = panel
+	game.status_label = Label.new()
+	panel.add_child(game.status_label)
+	game._setup_verification_picker()
+	var picker: OptionButton = game.verification_picker
+	_check(picker.get_selected_id() == Config.Method.IAPKIT_LOCAL, "Picker starts at the configured method")
+	picker.get_popup().popup()
+	await process_frame
+	picker.get_popup().hide()
+	_check(fake.calls.is_empty(), "Opening and dismissing the picker performs no purchase query")
+	picker.item_selected.emit(picker.get_item_index(Config.Method.NONE))
+	_check(manager.verification_method == Config.Method.NONE and fake.calls.is_empty(), "LOCAL to None skips hosted and device verification")
+	picker.item_selected.emit(picker.get_item_index(Config.Method.IAPKIT_LOCAL))
+	await process_frame
+	var props: Dictionary = JSON.parse_string(fake.responses.get("last_provider_props", "{}"))
+	_check(props.get("iapkit", {}).get("baseUrl") == Config._base_url, "None to LOCAL routes directly to the configured endpoint")
+	_check(fake.calls.count("getPendingTransactionsIOS") == 1 and fake.calls.count("verifyPurchaseWithProvider") == 1 and not fake.calls.has("finishTransaction"), "Direct LOCAL selection leaves failed verification unfinished")
+	fake.calls.clear()
+	verification.iapkit.isValid = true
+	fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({"success": true, "resultJson": JSON.stringify(verification)})
+	_check(picker.allow_reselect, "The picker permits selecting its current method")
+	picker.item_selected.emit(picker.get_item_index(Config.Method.IAPKIT_LOCAL))
+	await process_frame
+	_check(fake.calls.count("verifyPurchaseWithProvider") == 1 and fake.calls.count("finishTransaction") == 1, "Selecting the current LOCAL method retries without another mode")
+	game.free()
+	panel.free()
+	manager.verification_method = previous_method
+	manager._processed_transactions = previous_completed
+	Config._api_key = previous_key
+	Config._base_url = previous_url
 
 
 func _check(condition: bool, message: String) -> void:
