@@ -1574,6 +1574,10 @@ test('reads a quote in a hole that starts no string', () => {
       `x = ${t('string', "`${ // c\n/'/.source}`")}; y = ${t('string', "`${[.../'/.exec(s)]}`")}; z = ${t('string', "'}`'")};`,
     ],
     [
+      "x = `${a.default /'b'.length}` + `${e / 2}`;",
+      `x = ${t('string', "`${a.default /'b'.length}`")} + ${t('string', '`${e / 2}`')};`,
+    ],
+    [
       "x = `${(function () { for (const c of /'/.exec(s) ?? []) return 'c'; })()}`; y = '}}`';",
       `x = ${t('string', "`${(function () { for (const c of /'/.exec(s) ?? []) return 'c'; })()}`")}; y = ${t('string', "'}}`'")};`,
     ],
@@ -2628,8 +2632,8 @@ test('reads the forms that need their context', () => {
     // one the look back cannot place.
     [
       'typescript',
-      'x = a\n!/b/.test(c);',
-      'x = a\n!⟦regex:/b/⟧.⟦function:test⟧(c);',
+      'x = a\n!/b/.test(c); y = a\r!/d/.test(e); z = a\u2028!/f/.test(g);',
+      'x = a\n!⟦regex:/b/⟧.⟦function:test⟧(c); y = a\r!⟦regex:/d/⟧.⟦function:test⟧(e); z = a\u2028!⟦regex:/f/⟧.⟦function:test⟧(g);',
     ],
     [
       'typescript',
@@ -3250,6 +3254,7 @@ test('stays fast on long runs of openers that never close', () => {
     ['a' + '!'.repeat(100000) + ' / 2', ['typescript']],
     ['`${' + '!'.repeat(100000) + "/'b'/}`", ['typescript']],
     ['`${/'.repeat(40000), ['typescript']],
+    ["`${a /'b'}`".repeat(20000), ['typescript']],
     ['`${/*'.repeat(40000) + '*/', ['typescript']],
     [('x' + ' '.repeat(190) + '/a/').repeat(500), ['typescript']],
     ['/*\n'.repeat(60000), ['typescript', 'csharp', 'kotlin', 'swift', 'dart']],

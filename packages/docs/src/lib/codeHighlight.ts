@@ -536,12 +536,19 @@ function lastBeforeBangs(text: string, at: number): number {
   let last = lastCodeIndex(text, at);
   while (last >= 0 && text[last] === '!') {
     const before = lastCodeIndex(text, last);
-    if (before < 0) return -1;
-    // Only the gap is scanned, so a run of `!` stays linear.
-    for (let i = before + 1; i < last; i++) if (text[i] === '\n') return -1;
+    if (before < 0 || breakBetween(text, before, last)) return -1;
     last = before;
   }
   return last;
+}
+
+// Whether a line terminator lies between `from` and `to`. Only the gap is
+// scanned, so a long run of `!` stays linear.
+function breakBetween(text: string, from: number, to: number): boolean {
+  for (let i = from + 1; i < to; i++) {
+    if ('\n\r\u2028\u2029'.includes(text[i])) return true;
+  }
+  return false;
 }
 
 // A quote cannot follow a word character straight away unless the word is a
@@ -590,7 +597,7 @@ function slashEnd(text: string, at: number): number {
 // `++`, or a non-null `!`.
 function operandBefore(text: string, at: number): boolean {
   const last = lastBeforeBangs(text, at);
-  if (last < 0 || text.lastIndexOf('\n', at - 1) > last) return false;
+  if (last < 0 || breakBetween(text, last, at)) return false;
   const char = text[last];
   if (/[\w$]/.test(char)) {
     return !EXPRESSION_WORD.test(keywordEndingAt(text, last));
