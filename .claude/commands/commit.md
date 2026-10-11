@@ -261,8 +261,12 @@ An empty array means the `--pr` run is unfinished. Add them with
 `gh label list`: `gh` rejects a label that does not exist, and the emoji labels
 must match byte for byte.
 
-**Label selection guide.** One label for every area the diff touches, plus one
-for the kind of change:
+**Label selection guide.** At most five labels, and only the ones that matter
+most: the kind of change first, then the area the diff is mainly about, then
+`cross-platform` when it spans platforms or libraries. Add another area only
+when the diff changes what ships there, most-changed first. Do not label an
+area that only follows the main change (its docs, generated types, example
+apps, CI), and never give a broad diff one label per package.
 
 | Changed path                        | Label              |
 | ----------------------------------- | ------------------ |
@@ -281,7 +285,8 @@ for the kind of change:
 | `.github/workflows/` or `scripts/`  | `💨 ci`            |
 | `.claude/`, `.codex/`, `AGENTS.md`  | `🕶️ meta`          |
 | `knowledge/`                        | `🕶️ meta`          |
-| several platforms at once           | `cross-platform`   |
+| `example/`, `Example/`              | `👀 example`       |
+| several platforms or libraries      | `cross-platform`   |
 
 | Kind of change  | Label         |
 | --------------- | ------------- |

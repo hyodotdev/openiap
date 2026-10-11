@@ -25,7 +25,8 @@ An empty array means whoever opened the PR did not finish it. Add the labels
 from the guide in `.claude/commands/commit.md` step 8 — review is the last point
 where a missing label is cheap to fix, and a PR that reaches merge unlabeled
 stays that way. A PR whose diff has moved on since it was opened may also need a
-label the original set does not cover.
+label the original set does not cover. A PR with more labels than that guide
+allows is unfinished too: remove the least important ones.
 
 ## Project-Specific Build Commands
 

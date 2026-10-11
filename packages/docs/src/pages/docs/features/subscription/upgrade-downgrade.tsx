@@ -1176,14 +1176,14 @@ func update_ui() -> void:
 
     # Upgrade in progress
     if pending != "" and pending != subscription.product_id:
-        $Label.text = "Upgrading to %s...\nCurrent: %s" % [pending, subscription.product_id]
+        $Label.text = "Upgrading to %s...\\nCurrent: %s" % [pending, subscription.product_id]
         return
 
     # Downgrade scheduled
     if renewal_info:
         var auto_renew_pref = renewal_info.auto_renew_preference
         if auto_renew_pref != subscription.product_id and renewal_info.will_auto_renew:
-            $Label.text = "Current: %s\nWill change to %s on %s" % [
+            $Label.text = "Current: %s\\nWill change to %s on %s" % [
                 subscription.product_id,
                 auto_renew_pref,
                 format_date(subscription.expiration_date_ios)
@@ -1192,7 +1192,7 @@ func update_ui() -> void:
 
     # Normal active subscription
     var renewal_date = renewal_info.renewal_date if renewal_info else 0
-    $Label.text = "Active: %s\nRenews: %s" % [
+    $Label.text = "Active: %s\\nRenews: %s" % [
         subscription.product_id,
         format_date(renewal_date)
     ]
