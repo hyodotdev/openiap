@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import DataTable from '../../../components/DataTable';
 import build from '../../../../public/commerce-example/paywall-build.json';
+import iapkitRun from '../../../../public/commerce-composition/iapkit-run.json';
 
 interface Props {
   role: 'experience' | 'commerce' | 'data';
@@ -60,6 +61,7 @@ const OUTCOMES: Outcome[] = [
 
 export default function CommerceConnectionExample({ role }: Props) {
   const source = `${build.repository}/blob/${build.sourceCommit}`;
+  const iapkitSource = `https://github.com/hyodotdev/openiap/blob/${iapkitRun.sources.openiap.baseRevision}/packages/kit/convex/commerce`;
   const knownAmount = build.state.report.totals.find(
     (item) => item.variant === 'A'
   );
@@ -253,11 +255,8 @@ PORT=5198 npm start`}</CodeBlock>
         </p>
         <p>
           Inspect IAPKit’s{' '}
-          <a href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/convex/commerce/deliveryState.ts">
-            event builder
-          </a>{' '}
-          and{' '}
-          <a href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/convex/commerce/spec.conformance.test.ts">
+          <a href={`${iapkitSource}/deliveryState.ts`}>event builder</a> and{' '}
+          <a href={`${iapkitSource}/spec.conformance.test.ts`}>
             contract checks
           </a>
           . The separate provider run above exercises its local implementation

@@ -204,13 +204,10 @@ export default function CommerceCompositionProof(): React.JSX.Element {
       <details className="commerce-run-details">
         <summary>Run the same replacement check</summary>
         <p>
-          Install dependencies in both checkouts with Bun 1.3.13 and Node.js 24
-          available. From the OpenIAP repository:
+          <a href="/commerce-example/paywall-provider-reproduction.md">
+            Install the three pinned checkouts and rerun this check.
+          </a>
         </p>
-        <CodeBlock language="bash">{`bun install --frozen-lockfile
-(cd ../openiap-commerce-protocol-example && npm ci --ignore-scripts)
-bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs \\
-  ../openiap-commerce-protocol-example`}</CodeBlock>
         <p>
           The command creates an isolated local Convex deployment, seeds
           fictional data, and exits nonzero on a failed assertion. It needs an
