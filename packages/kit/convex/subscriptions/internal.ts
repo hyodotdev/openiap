@@ -877,10 +877,17 @@ export async function recordVerifiedSubscriptionHandler(
   if (existing?.lastEventId) return existing._id;
   // An Apple JWS describes one transaction. Order by purchase date, not
   // expiry: an immediate upgrade (yearly to monthly) is newer yet ends sooner.
+  // A row stored before purchase dates were kept falls back to never rolling
+  // its expiry back.
   if (
-    args.verifiedPurchaseDate !== undefined &&
-    existing?.verifiedPurchaseDate !== undefined &&
-    args.verifiedPurchaseDate < existing.verifiedPurchaseDate
+    existing &&
+    (existing.verifiedPurchaseDate !== undefined
+      ? args.verifiedPurchaseDate !== undefined &&
+        args.verifiedPurchaseDate < existing.verifiedPurchaseDate
+      : args.platform === "IOS" &&
+        existing.expiresAt !== undefined &&
+        snapshot.expiresAt !== undefined &&
+        snapshot.expiresAt < existing.expiresAt)
   ) {
     return existing._id;
   }

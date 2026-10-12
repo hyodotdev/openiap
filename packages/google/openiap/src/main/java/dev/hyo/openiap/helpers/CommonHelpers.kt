@@ -261,7 +261,10 @@ suspend fun <T : Any> collectAllProductQueryResults(
     )
 }
 
-/** A store that reports why it refused to consume or acknowledge a purchase token. */
+/**
+ * A store that reports why it refused to consume or acknowledge a purchase token. Optional for
+ * providers; public because store modules build against openiap-core as a separate module.
+ */
 interface PurchaseTokenSettler {
     /** Consumes ([isConsumable]) or acknowledges [purchaseToken]; a refusal throws the store's mapped [OpenIapError]. */
     suspend fun settlePurchaseToken(purchaseToken: String, isConsumable: Boolean)

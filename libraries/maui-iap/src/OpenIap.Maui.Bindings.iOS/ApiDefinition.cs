@@ -2,8 +2,8 @@
 // OpenIAP.xcframework Objective-C surface declared in
 // `packages/apple/Sources/OpenIapModule+ObjC.swift`.
 //
-// Binds only the selectors `OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs` calls;
-// add a stub here together with the resolver code that uses it.
+// The binding ships in the NuGet package, so a stub stays until a major
+// release even after `OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs` stops calling it.
 
 #nullable enable
 
@@ -43,13 +43,35 @@ interface OpenIapModule
 
     // -- Purchase ----------------------------------------------------------
 
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("requestPurchaseWithSku:quantity:type:completion:")]
+    [Async]
+    void RequestPurchase(string sku, nint quantity, [NullAllowed] string type, Action<NSObject?, NSError?> completion);
+
     [Export("requestPurchaseWithPayload:completion:")]
     [Async]
     void RequestPurchaseWithPayload(NSDictionary payload, Action<NSObject?, NSError?> completion);
 
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("requestSubscriptionWithSku:offer:compactJWS:promotionalOfferJWS:winBackOfferId:billingPlanType:completion:")]
+    [Async]
+    void RequestSubscriptionExtended(
+        string sku,
+        [NullAllowed] NSDictionary offer,
+        [NullAllowed] string compactJWS,
+        [NullAllowed] NSDictionary promotionalOfferJWS,
+        [NullAllowed] string winBackOfferId,
+        [NullAllowed] string billingPlanType,
+        Action<NSObject?, NSError?> completion);
+
     [Export("restorePurchasesWithCompletion:")]
     [Async]
     void RestorePurchases(Action<NSError?> completion);
+
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("getAvailablePurchasesWithCompletion:")]
+    [Async]
+    void GetAvailablePurchases(Action<NSArray?, NSError?> completion);
 
     [Export("getAvailablePurchasesWithOptions:completion:")]
     [Async]
@@ -66,6 +88,11 @@ interface OpenIapModule
     [Export("deepLinkToSubscriptionsWithCompletion:")]
     [Async]
     void DeepLinkToSubscriptions(Action<NSError?> completion);
+
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("finishTransactionWithPurchaseId:productId:isConsumable:completion:")]
+    [Async]
+    void FinishTransaction(string purchaseId, string productId, bool isConsumable, Action<NSError?> completion);
 
     [Export("finishTransactionWithPurchaseJSON:isConsumable:completion:")]
     [Async]
@@ -93,6 +120,15 @@ interface OpenIapModule
     [Async]
     void VerifyPurchase(string sku, Action<NSDictionary?, NSError?> completion);
 
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("verifyPurchaseWithProviderObjCWithProvider:apiKey:jws:completion:")]
+    [Async]
+    void VerifyPurchaseWithProvider(
+        string provider,
+        [NullAllowed] string apiKey,
+        [NullAllowed] string jws,
+        Action<NSDictionary?, NSError?> completion);
+
     [Export("verifyPurchaseWithProviderObjCWithPayload:completion:")]
     [Async]
     void VerifyPurchaseWithProviderPayload(
@@ -105,9 +141,19 @@ interface OpenIapModule
     [Async]
     void GetStorefront(Action<string?, NSError?> completion);
 
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("getActiveSubscriptionsWithCompletion:")]
+    [Async]
+    void GetActiveSubscriptions(Action<NSArray?, NSError?> completion);
+
     [Export("getActiveSubscriptionsWithSubscriptionIds:completion:")]
     [Async]
     void GetActiveSubscriptions([NullAllowed] string[] subscriptionIds, Action<NSArray?, NSError?> completion);
+
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("hasActiveSubscriptionsWithCompletion:")]
+    [Async]
+    void HasActiveSubscriptions(Action<bool, NSError?> completion);
 
     [Export("hasActiveSubscriptionsWithSubscriptionIds:completion:")]
     [Async]
@@ -212,4 +258,8 @@ interface OpenIapModule
 
     [Export("removeListener:")]
     void RemoveListener(NSObject subscription);
+
+    [Obsolete("Unused by OpenIap.Maui; it will be removed in the next major release.")]
+    [Export("removeAllListenersObjC")]
+    void RemoveAllListeners();
 }

@@ -106,7 +106,7 @@ This keeps the Xamarin.Android binding free of Kotlin-specific surface
 The existing Objective-C bridge in `packages/apple` already provides the
 JSON-shaped facade (NSDictionary in/out). The iOS binding's
 [`ApiDefinition.cs`](src/OpenIap.Maui.Bindings.iOS/ApiDefinition.cs)
-binds the selectors the resolver calls; the resolver in
+binds that header; the resolver in
 [`Platforms/iOS/OpenIapIOS.cs`](src/OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs)
 converts NSDictionary → JsonNode → typed `OpenIap` records via
 `System.Text.Json`.

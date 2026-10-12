@@ -663,14 +663,20 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
             }
             "finishTransaction" -> {
                 val purchase = call.argument<Map<String, Any?>>("purchase")
+                if (purchase == null) {
+                    safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchase")
+                    return
+                }
                 val isConsumable = call.argument<Boolean>("isConsumable") ?: false
                 scope.launch {
-                    try {
-                        val payload = purchase ?: throw OpenIapError.DeveloperError("Missing purchase")
-                        requireOpenIap().finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(payload), isConsumable)
-                        safe.success(null)
-                    } catch (e: Exception) {
-                        replyBillingError(safe, e)
+                    // Reconnect after a dropped service, as the other store reads do.
+                    withBillingReady(safe, autoInit = true) {
+                        try {
+                            requireOpenIap().finishTransaction(dev.hyo.openiap.PurchaseAndroid.fromJson(purchase), isConsumable)
+                            safe.success(null)
+                        } catch (e: Exception) {
+                            replyBillingError(safe, e)
+                        }
                     }
                 }
             }
@@ -1073,7 +1079,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
 
     /**
      * Caller holds [lifecycle]; joins the shared provider, creating it once per process.
-     * Each call re-claims this engine's Activity, since another engine may have cleared it.
+     * Locked paths re-claim this engine's Activity, since another engine may have cleared it.
      */
     private fun providerLocked(): OpenIapProtocol {
         val provider = openIap ?: run {

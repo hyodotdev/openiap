@@ -391,6 +391,39 @@ describe('hooks/useIAP (renderer)', () => {
     expect(mockRequestPurchase).toHaveBeenCalledWith({sku: 'product1'});
   });
 
+  it('restores listeners before requestPurchase after a failed connection', async () => {
+    jest
+      .spyOn(IAP, 'initConnection')
+      .mockRejectedValueOnce(new Error('store unavailable'));
+    jest.spyOn(IAP, 'requestPurchase').mockResolvedValue(null);
+    const onPurchaseSuccess = jest.fn();
+    let api: ReturnType<typeof useIAP> | undefined;
+    const Harness = () => {
+      api = useIAP({onPurchaseSuccess, onError: jest.fn()});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    expect(IAP.purchaseUpdatedListener).not.toHaveBeenCalled();
+
+    // The app recovers through the module-level API, not the hook's reconnect.
+    await act(async () => {
+      await api!.requestPurchase({
+        request: {apple: {sku: 'premium'}},
+        type: 'in-app',
+      });
+    });
+    expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await capturedPurchaseListener({id: 't1', productId: 'premium'});
+    });
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+  });
+
   it('exposes openRedeemOfferCode as the root cross-platform API', async () => {
     let api: any;
     const Harness = () => {

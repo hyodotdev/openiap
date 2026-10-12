@@ -244,9 +244,7 @@ class OpenIapModule(
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
     // Deduplicate callbacks across reconnects for this module's lifetime.
     private val handledUserChoiceTokens = mutableSetOf<String>()
-    // Dedupes callback and recovery deliveries; each launched request starts a fresh window.
-    @Volatile
-    private var purchaseDeliveryClaims = PurchaseDeliveryClaims()
+    private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
     private val purchaseFlowTimeoutToken = Any()
 
     private fun resetConnectionStateLocked() {
@@ -398,7 +396,6 @@ class OpenIapModule(
                     requestedProductType = requestedProductType,
                     tokensBeforeLaunch = tokensBeforeLaunch,
                 )
-                purchaseDeliveryClaims = PurchaseDeliveryClaims()
                 null
             }
         }
@@ -1917,6 +1914,7 @@ class OpenIapModule(
                                         val delivered = deliverPurchasesIfActive(
                                             recovered,
                                             recoveryOwner,
+                                            redeliver = true,
                                         )
                                         if (pending != null) {
                                             pending.callback(Result.success(recovered))
@@ -2372,13 +2370,17 @@ class OpenIapModule(
         }
     }
 
-    /** Delivers each purchase state once, and only while its originating connection is active. */
+    /**
+     * Delivers purchases only while their originating connection is active, each purchase state
+     * once. Already-owned recovery passes [redeliver]: the user asked again for what they own.
+     */
     private fun deliverPurchasesIfActive(
         purchases: List<Purchase>,
         owner: ActiveStoreListenerOwner<BillingClient>,
+        redeliver: Boolean = false,
     ): Boolean = owner.deliver {
         notifySuspendedSubscriptions(purchases, owner)
-        for (purchase in purchases.filter(purchaseDeliveryClaims::claim)) {
+        for (purchase in purchases.filter { purchaseDeliveryClaims.claim(it) || redeliver }) {
             for (listener in purchaseUpdateListeners) {
                 runCatching { listener.onPurchaseUpdated(purchase) }
             }
@@ -2445,7 +2447,8 @@ class OpenIapModule(
             )
             OpenIapLog.debug("Recovered ${recovered.size} owned purchase(s) after $reason", TAG)
             val delivered = if (pending != null || deliverIfRequestCompletedElsewhere) {
-                deliverPurchasesIfActive(recovered, owner)
+                // Without a launch snapshot this recovers ownership, which is re-delivered.
+                deliverPurchasesIfActive(recovered, owner, redeliver = tokensBeforeLaunch == null)
             } else {
                 false
             }

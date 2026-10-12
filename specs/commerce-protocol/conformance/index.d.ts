@@ -1,4 +1,4 @@
-/** The bindings the runner judges; any other name is rejected up front. */
+/** The bindings the runner judges; runConformance rejects any other `binding`. */
 export type ConformanceBinding = "rest" | "graphql";
 
 export interface ResultOutcome {
@@ -65,7 +65,7 @@ export type ConformanceOutcome =
   | RestErrorOutcome;
 
 export interface ConformanceAdapter {
-  binding: ConformanceBinding;
+  binding: string;
   /**
    * The configured credential VALUES. REQUIRED — the runner records an
    * adapter-contract failure without them, because the SPEC.md §8
@@ -97,7 +97,7 @@ export interface AdapterFetch {
 
 export interface ConformanceCaseResult {
   id: string;
-  binding: ConformanceBinding;
+  binding: string;
   ok: boolean;
   failures: string[];
 }

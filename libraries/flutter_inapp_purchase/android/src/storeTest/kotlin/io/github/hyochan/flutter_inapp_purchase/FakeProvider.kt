@@ -9,6 +9,7 @@ import android.os.Looper
 import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
 import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
+import dev.hyo.openiap.MutationFinishTransactionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRestorePurchasesHandler
 import dev.hyo.openiap.OpenIapProtocol
@@ -43,6 +44,7 @@ class FakeProviderFactory : OpenIapProviderFactory {
             enterLifecycle()
             if (!connected) live++
             connected = true
+            serviceDropped = false
             true
         }
         val end: MutationEndConnectionHandler = {
@@ -53,6 +55,7 @@ class FakeProviderFactory : OpenIapProviderFactory {
             true
         }
         val restore: MutationRestorePurchasesHandler = {}
+        val finish: MutationFinishTransactionHandler = { _, _ -> finishedWhileConnected = connected && !serviceDropped }
         val acknowledge: MutationAcknowledgePurchaseAndroidHandler = { storeAccepts }
         val consume: MutationConsumePurchaseAndroidHandler = { storeAccepts }
         return Proxy.newProxyInstance(OpenIapProtocol::class.java.classLoader, arrayOf(OpenIapProtocol::class.java)) { _, method, args ->
@@ -62,6 +65,7 @@ class FakeProviderFactory : OpenIapProviderFactory {
                 "getInitConnection" -> init
                 "getEndConnection" -> end
                 "getRestorePurchases" -> restore
+                "getFinishTransaction" -> finish
                 "getAcknowledgePurchaseAndroid" -> acknowledge
                 "getConsumePurchaseAndroid" -> consume
                 "setActivity" -> null.also { activity = args[0] as Activity? }
@@ -82,11 +86,19 @@ class FakeProviderFactory : OpenIapProviderFactory {
         var active = 0
         var maxActive = 0
         var storeAccepts = true
+        var finishedWhileConnected: Boolean? = null
+        var serviceDropped = false
         var activity: Activity? = null
         val connectionListeners = mutableListOf<OpenIapConnectionStateListener>()
 
         /** Method name to the value the proxy returns, e.g. "getVerifyPurchase" to a handler. */
         val handlers = mutableMapOf<String, Any?>()
+
+        /** The store drops the billing service and tells every listener. */
+        fun dropService() {
+            serviceDropped = true
+            connectionListeners.toList().forEach { it.onBillingServiceDisconnected() }
+        }
 
         private suspend fun enterLifecycle() {
             active++
@@ -104,6 +116,8 @@ class FakeProviderFactory : OpenIapProviderFactory {
             active = 0
             maxActive = 0
             storeAccepts = true
+            finishedWhileConnected = null
+            serviceDropped = false
             activity = null
             connectionListeners.clear()
             handlers.clear()

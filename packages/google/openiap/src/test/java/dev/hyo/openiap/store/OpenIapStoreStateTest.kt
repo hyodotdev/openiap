@@ -12,6 +12,10 @@ import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -107,6 +111,22 @@ class OpenIapStoreStateTest {
 
         assertEquals(1, module.finishTransactionCalls.get())
         assertEquals("every caller sees the store's failure", WORKERS, failures.get())
+    }
+
+    @Test
+    fun `a cancelled finish does not cancel a concurrent finish of the same token`() = runBlocking {
+        module.finishDelayMillis = 200
+        val first = launch(Dispatchers.Default) { store.finishTransaction(purchase("shared-token"), false) }
+        delay(50)
+        val second = async(Dispatchers.Default) {
+            runCatching { store.finishTransaction(purchase("shared-token"), false) }
+        }
+        delay(50)
+        first.cancelAndJoin()
+
+        assertTrue("the waiter must finish on its own: ${second.await()}", second.await().isSuccess)
+        assertEquals("the waiter retries after the cancelled attempt", 2, module.finishTransactionCalls.get())
+        assertEquals("a cancellation is not a store error", null, store.status.value.lastError)
     }
 
     @Test

@@ -130,6 +130,37 @@ describe("web MCP handler session routing", () => {
     expect(evicted.status).toBe(404);
   });
 
+  it("caps one key's concurrent initializes so they cannot evict other tenants", async () => {
+    const handler = createHandler("self42");
+    const tenants: Array<{ session: string; auth: Record<string, string> }> =
+      [];
+    // 15 tenants hold 16 sessions each, 240 of the 256 slots.
+    for (let tenant = 0; tenant < 15; tenant += 1) {
+      for (let index = 0; index < 16; index += 1) {
+        const auth = { authorization: `Bearer ${SECRET_KEY}_${tenant}` };
+        const response = await handler(initializeRequest(undefined, auth));
+        if (index === 0) {
+          tenants.push({
+            session: response.headers.get("mcp-session-id") ?? "",
+            auth,
+          });
+        }
+        await response.text();
+      }
+    }
+
+    const burst = await Promise.all(
+      Array.from({ length: 100 }, () => handler(initializeRequest())),
+    );
+    await Promise.all(burst.map((response) => response.text()));
+
+    for (const { session, auth } of tenants) {
+      const followUp = await handler(toolsListRequest(session, auth));
+      expect(followUp.status).toBe(200);
+      await followUp.text();
+    }
+  });
+
   it("caps one key's sessions so it cannot evict other tenants", async () => {
     const handler = createHandler("self42");
     const victim = { authorization: `Bearer ${SECRET_KEY}_victim` };

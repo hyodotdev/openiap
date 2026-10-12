@@ -517,6 +517,48 @@ void main() {
       expect(await iap.purchasePromoted.first, 'com.example.promoted');
     });
 
+    test('every instance receives native events', () async {
+      final first = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final second = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final received = Future.wait([
+        first.purchaseUpdatedListener.first,
+        second.purchaseUpdatedListener.first,
+      ]);
+
+      await send(
+        'purchase-updated',
+        jsonEncode(_androidPurchaseJson('shared')),
+      );
+
+      expect((await received).map((p) => p.productId), ['premium', 'premium']);
+    });
+
+    test('a dropped connection resets every instance', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        return true;
+      });
+      final first = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final second = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await first.initConnection();
+      await second.initConnection();
+
+      await send('connection-updated', jsonEncode({'connected': false}));
+      await first.initConnection();
+      await second.initConnection();
+      expect(calls.where((m) => m == 'initConnection'), hasLength(4));
+    });
+
     test('an unused instance does not take events from the one in use',
         () async {
       final inUse = FlutterInappPurchase.private(

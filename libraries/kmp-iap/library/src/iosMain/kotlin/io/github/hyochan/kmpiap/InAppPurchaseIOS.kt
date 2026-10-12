@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import platform.Foundation.*
 import cocoapods.openiap.*
+import platform.StoreKit.SKPaymentQueue
 import platform.darwin.NSObject
 
 internal fun errorCodeFromRawValue(
@@ -186,8 +187,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override fun getStore(): Store = if (openIapModule.storeId == "apple") Store.APP_STORE else Store.UNKNOWN
 
+    // openiap-apple connects on restricted devices too, so ask StoreKit; AppStore.canMakePayments has no ObjC bridge.
+    @Suppress("DEPRECATION")
     override suspend fun canMakePayments(): Boolean =
-        withContext(Dispatchers.Main) { isConnected }
+        withContext(Dispatchers.Main) { isConnected && SKPaymentQueue.canMakePayments() }
 
     // -------------------------------------------------------------------------
     // MutationResolver Implementation

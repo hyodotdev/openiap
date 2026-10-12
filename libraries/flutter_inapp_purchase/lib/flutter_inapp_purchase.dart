@@ -63,35 +63,34 @@ class _PurchaseUpdatedDedupeHistoryIOS {
 class FlutterInappPurchase with RequestPurchaseBuilderApi {
   static FlutterInappPurchase? _instance;
 
-  /// The shared instance. Instances share one MethodChannel, whose events
-  /// reach only the instance that listened last, so apps use this one.
+  /// The shared instance that apps use.
   static FlutterInappPurchase get instance =>
-      _instance ??= FlutterInappPurchase._(const LocalPlatform());
+      _instance ??= FlutterInappPurchase();
 
-  /// Returns [instance]. A [platform] creates a separate instance for tests.
-  factory FlutterInappPurchase({Platform? platform}) =>
-      platform == null ? instance : FlutterInappPurchase._(platform);
+  /// Prefer [instance]. Every instance receives the same native events.
+  FlutterInappPurchase({Platform? platform})
+      : _pf = platform ?? const LocalPlatform();
 
   @visibleForTesting
-  FlutterInappPurchase.private(Platform platform) : this._(platform);
-
-  FlutterInappPurchase._(this._pf);
+  FlutterInappPurchase.private(Platform platform) : _pf = platform;
 
   bool _listensToNative = false;
 
-  /// Native events reach the instance that last set the channel handler, so an
-  /// instance claims it when first used, not when constructed.
+  /// One MethodChannel handler serves every instance, so an instance installs
+  /// it on first use rather than when constructed.
   void _listenToNative() {
     if (_listensToNative) return;
-    _listensToNative = true;
     _channel.setMethodCallHandler(_handleMethodCall);
+    _listensToNative = true;
   }
 
-  late final StreamController<String?> _purchasePromotedController =
+  // Event streams are shared, so every instance sees native events no matter
+  // which one installed the channel handler.
+  static final StreamController<String?> _purchasePromotedController =
       StreamController<String?>.broadcast(
     onListen: _replayPendingPromotedProductIOS,
   );
-  String? _pendingPromotedProductIOS;
+  static String? _pendingPromotedProductIOS;
 
   Stream<String?> get purchasePromoted {
     _listenToNative();
@@ -116,18 +115,18 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   late final FirstPurchaseNotice _firstPurchaseNotice =
       FirstPurchaseNotice(_platform, _channel);
 
-  // Purchase event streams
-  final StreamController<gentype.Purchase> _purchaseUpdatedListener =
+  static final StreamController<gentype.Purchase> _purchaseUpdatedListener =
       StreamController<gentype.Purchase>.broadcast();
-  final StreamController<PurchaseError> _purchaseErrorListener =
+  static final StreamController<PurchaseError> _purchaseErrorListener =
       StreamController<PurchaseError>.broadcast();
-  final StreamController<gentype.UserChoiceBillingDetails>
+  static final StreamController<gentype.UserChoiceBillingDetails>
       _userChoiceBillingAndroidListener =
       StreamController<gentype.UserChoiceBillingDetails>.broadcast();
-  final StreamController<gentype.DeveloperProvidedBillingDetailsAndroid>
+  static final StreamController<gentype.DeveloperProvidedBillingDetailsAndroid>
       _developerProvidedBillingAndroidListener = StreamController<
           gentype.DeveloperProvidedBillingDetailsAndroid>.broadcast();
-  final StreamController<gentype.Purchase> _subscriptionBillingIssueListener =
+  static final StreamController<gentype.Purchase>
+      _subscriptionBillingIssueListener =
       StreamController<gentype.Purchase>.broadcast();
   final _purchaseUpdatedDedupeHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
   int _purchaseUpdatedDedupeGenerationIOS = 0;
@@ -314,7 +313,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     return _subscriptionBillingIssueListener.stream;
   }
 
-  bool _isInitialized = false;
+  // A dropped billing service disconnects every instance: each remembers the
+  // drop count it connected at.
+  static int _connectionDrops = 0;
+  int? _connectedAtDrop;
+  bool get _isInitialized => _connectedAtDrop == _connectionDrops;
+  set _isInitialized(bool connected) =>
+      _connectedAtDrop = connected ? _connectionDrops : null;
   bool _isIapUnavailable = false;
   Future<void> _purchaseListenerConfiguration = Future<void>.value();
 
@@ -336,7 +341,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     return current;
   }
 
-  void _replayPendingPromotedProductIOS() {
+  static void _replayPendingPromotedProductIOS() {
     final productId = _pendingPromotedProductIOS;
     _pendingPromotedProductIOS = null;
     if (productId != null) _purchasePromotedController.add(productId);
@@ -371,7 +376,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         // A dropped billing service needs initConnection again.
         final state = jsonDecode(call.arguments as String);
         if (state is Map && state['connected'] == false) {
-          _isInitialized = false;
+          _connectionDrops++;
         }
         break;
       case 'iap-promoted-product':

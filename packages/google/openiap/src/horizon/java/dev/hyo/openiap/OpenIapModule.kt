@@ -258,9 +258,7 @@ class OpenIapModule(
         val operationFailures: List<() -> Unit>,
     )
     private var currentActivityRef: WeakReference<Activity>? = null
-    // Dedupes polling, callback, and recovery deliveries; each launched request starts a fresh window.
-    @Volatile
-    private var purchaseDeliveryClaims = PurchaseDeliveryClaims()
+    private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
 
     private data class PendingPurchaseSnapshot(
         val client: BillingClient,
@@ -321,7 +319,6 @@ class OpenIapModule(
                     requestedType = requestedType,
                     tokensBeforeLaunch = tokensBeforeLaunch,
                 )
-                purchaseDeliveryClaims = PurchaseDeliveryClaims()
                 null
             }
         }
@@ -398,12 +395,16 @@ class OpenIapModule(
         return if (basePlanId == null) purchase else purchase.copy(currentPlanId = basePlanId)
     }
 
-    /** Resolves the request with [purchases] and delivers each purchase to listeners once. */
+    /**
+     * Resolves the request with [purchases] and delivers each purchase state to listeners once.
+     * Already-owned recovery passes [redeliver]: the user asked again for what they own.
+     */
     private fun completePurchaseRequest(
         client: BillingClient,
         callback: (Result<List<Purchase>>) -> Unit,
         purchases: List<Purchase>,
         selectedBasePlanIds: Map<String, String>,
+        redeliver: Boolean = false,
     ): Boolean {
         val correlated = purchases.map { purchase ->
             (purchase as? PurchaseAndroid)?.let { correlateSelectedBasePlan(it, selectedBasePlanIds) }
@@ -411,7 +412,7 @@ class OpenIapModule(
         }
         if (!consumePurchaseCallback(callback, Result.success(correlated), client)) return false
         correlated.forEach { purchase ->
-            if (!purchaseDeliveryClaims.claim(purchase)) return@forEach
+            if (!purchaseDeliveryClaims.claim(purchase) && !redeliver) return@forEach
             for (listener in purchaseUpdateListeners) {
                 runCatching { listener.onPurchaseUpdated(purchase) }
             }
@@ -451,7 +452,7 @@ class OpenIapModule(
             if (owned.isEmpty()) {
                 finishPurchaseCallback(client, callback, error)
             } else {
-                completePurchaseRequest(client, callback, owned, selectedBasePlanIds)
+                completePurchaseRequest(client, callback, owned, selectedBasePlanIds, redeliver = true)
             }
         }
     }

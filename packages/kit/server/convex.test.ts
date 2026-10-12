@@ -131,9 +131,15 @@ describe("handleConvexError", () => {
       expect(error?.message).not.toMatch(/TOKEN123|googleapis|internal\.|OCC/);
     }
     expect(outage?.retryAfterSec).toBe(5);
-    // Unclassified failures (a pending-deletion write, a TypeError) are not
-    // known to be temporary, so they stay permanent.
-    expect(internal).not.toHaveProperty("retryAfterSec");
+    // A Convex system failure (here, write conflicts retried out) is temporary.
+    expect(internal?.retryAfterSec).toBe(5);
+    // An application ConvexError (project being deleted) and a bug stay
+    // permanent.
+    expect(
+      handleConvexError(
+        new PlayStoreVerificationError(new ConvexError("Project not found")),
+      ),
+    ).not.toHaveProperty("retryAfterSec");
     expect(
       handleConvexError(new PlayStoreVerificationError(new TypeError("x"))),
     ).not.toHaveProperty("retryAfterSec");

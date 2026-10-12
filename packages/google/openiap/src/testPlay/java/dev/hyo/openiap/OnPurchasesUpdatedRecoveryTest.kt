@@ -837,6 +837,27 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `late callback of a previous request after a new request starts is not re-delivered`() {
+        val purchase = billingPurchase("product-id", "delivered-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(purchase),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(purchase))
+
+        val outcome = startPurchase(module, client)
+        pumpMainLooperUntil { outcome.get() != null }
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(purchase))
+
+        assertEquals(listOf("delivered-token"), updates.map { it.purchaseToken })
+    }
+
+    @Test
     fun `a resolved purchase leaves no flow timeout scheduled`() {
         val client = RecordingBillingClient(
             productDetails = listOf(inAppProductDetails("product-id")),

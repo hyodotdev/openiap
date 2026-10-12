@@ -61,7 +61,10 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.findActivity
 import dev.hyo.openiap.utils.OwnerScopedValueBinding
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -127,7 +130,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val _status = MutableStateFlow(IapStatus())
     val status: StateFlow<IapStatus> = _status.asStateFlow()
 
-    // One finish per purchase token: concurrent callers share the attempt; a failure allows a retry.
+    // Finish attempt per purchase token; see finishOncePerToken.
     private val finishesByToken =
         java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Unit>>()
 
@@ -458,17 +461,38 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
      */
     val finishTransaction: MutationFinishTransactionHandler = { purchaseInput, isConsumable ->
-        val token = purchaseInput.purchaseToken
-        val attempt = CompletableDeferred<Unit>()
-        val inFlightOrDone = token?.let { finishesByToken.putIfAbsent(it, attempt) }
-        if (inFlightOrDone != null) {
-            inFlightOrDone.await()
-        } else {
+        finishOncePerToken(purchaseInput, isConsumable)
+    }
+
+    /**
+     * Finishes each purchase token once: concurrent callers share one attempt and its failure,
+     * and a failure allows a retry. A cancelled attempt is no result, so its waiters run their own.
+     */
+    private suspend fun finishOncePerToken(purchase: PurchaseInput, isConsumable: Boolean?) {
+        val token = purchase.purchaseToken
+        while (true) {
+            val attempt = CompletableDeferred<Unit>()
+            val shared = token?.let { finishesByToken.putIfAbsent(it, attempt) }
+            if (shared != null) {
+                try {
+                    shared.await()
+                    return
+                } catch (e: CancellationException) {
+                    if (!shared.isCancelled) throw e
+                    currentCoroutineContext().ensureActive()
+                    continue
+                }
+            }
             try {
-                module.finishTransaction(purchaseInput, isConsumable)
+                module.finishTransaction(purchase, isConsumable)
                 attempt.complete(Unit)
+                return
+            } catch (e: CancellationException) {
+                token?.let { finishesByToken.remove(it, attempt) }
+                attempt.cancel()
+                throw e
             } catch (e: Exception) {
-                if (token != null) finishesByToken.remove(token, attempt)
+                token?.let { finishesByToken.remove(it, attempt) }
                 attempt.completeExceptionally(e)
                 setError(e.message)
                 throw e

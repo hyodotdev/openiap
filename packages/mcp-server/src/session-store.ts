@@ -36,6 +36,7 @@ export class BoundedSessionStore<T> {
   private readonly entries = new Map<string, SessionEntry<T>>();
   private readonly now: () => number;
   private pendingReservations = 0;
+  private readonly pendingByOwner = new Map<string, number>();
   private reservationGeneration = 0;
   private closed = false;
 
@@ -69,10 +70,13 @@ export class BoundedSessionStore<T> {
 
     const now = this.now();
     this.pruneExpired(now);
-    // A key over its share loses its own oldest session, so one key holder
-    // cannot push other tenants out.
+    // A key over its share, in-flight reservations included, loses its own
+    // oldest session, or is refused while all its slots are in flight, so one
+    // key holder cannot push other tenants out.
     const owned = owner ? this.sessionIdsOf(owner) : [];
-    if (owned.length >= (this.options.maxPerOwner ?? Infinity)) {
+    const ownerPending = owner ? (this.pendingByOwner.get(owner) ?? 0) : 0;
+    if (owned.length + ownerPending >= (this.options.maxPerOwner ?? Infinity)) {
+      if (owned.length === 0) return null;
       this.evict(owned[0]);
     }
     // When full, evict the least recently used session rather than refuse: its
@@ -85,6 +89,7 @@ export class BoundedSessionStore<T> {
     }
 
     this.pendingReservations += 1;
+    if (owner) this.pendingByOwner.set(owner, ownerPending + 1);
     const generation = this.reservationGeneration;
     let pending = true;
     const release = (): void => {
@@ -92,6 +97,11 @@ export class BoundedSessionStore<T> {
       pending = false;
       if (generation === this.reservationGeneration) {
         this.pendingReservations -= 1;
+        if (owner) {
+          const remaining = (this.pendingByOwner.get(owner) ?? 1) - 1;
+          if (remaining > 0) this.pendingByOwner.set(owner, remaining);
+          else this.pendingByOwner.delete(owner);
+        }
       }
     };
 
@@ -149,6 +159,7 @@ export class BoundedSessionStore<T> {
     this.closed = true;
     this.reservationGeneration += 1;
     this.pendingReservations = 0;
+    this.pendingByOwner.clear();
     const values = Array.from(this.entries.values(), (entry) => entry.value);
     this.entries.clear();
     await Promise.all(values.map((value) => this.dispose(value)));

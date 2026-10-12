@@ -2643,6 +2643,35 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
+  it("never rolls back the expiry of an iOS row stored without a purchase date", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      productId: "pro_monthly",
+    };
+    // A row written before deploy carries no verifiedPurchaseDate.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 20 * day,
+    });
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: now - 10 * day,
+      verifiedPurchaseDate: now - 40 * day,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", expiresAt: now + 20 * day },
+    ]);
+  });
+
   it("applies an immediate iOS upgrade that ends sooner than the plan it replaced", async () => {
     const db = new MemDb();
     const day = 86_400_000;

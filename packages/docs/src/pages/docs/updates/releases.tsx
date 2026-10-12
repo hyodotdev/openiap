@@ -605,11 +605,18 @@ function Releases() {
               <code>true</code>.
             </li>
             <li>
-              Swift encodes union results flat with <code>__typename</code>,
-              like the other languages, so Expo iOS <code>verifyPurchase</code>{' '}
-              returns <code>isValid</code> and KMP and MAUI decode iOS{' '}
-              <code>latestTransaction</code>. Swift still decodes the wrapped
-              JSON that 4.0.1 wrote.
+              Swift encodes union results flat with <code>__typename</code>, as
+              Kotlin, Dart, and C# read them.
+            </li>
+            <li>
+              Expo iOS <code>verifyPurchase</code> returns <code>isValid</code>,
+              and KMP and MAUI iOS <code>verifyPurchase</code> no longer fail
+              when <code>latestTransaction</code> is present.
+            </li>
+            <li>
+              JSON stored by earlier releases still decodes, and Godot iOS{' '}
+              <code>verify_purchase().latest_transaction</code> is now a flat
+              dictionary.
             </li>
             <li>
               openiap-apple and openiap-google{' '}
@@ -638,9 +645,9 @@ function Releases() {
                   apply schema defaults to omitted fields.
                 </li>
                 <li>
-                  Swift, Dart, and GDScript enum decoders accept the kebab-case,
-                  SCREAMING_SNAKE, and PascalCase spellings Kotlin already
-                  accepts.
+                  Swift and GDScript enum decoders accept SCREAMING_SNAKE and
+                  PascalCase spellings, and Dart adds PascalCase, as Kotlin
+                  already does.
                 </li>
                 <li>
                   C# inputs apply schema defaults to an explicit JSON{' '}
@@ -665,12 +672,19 @@ function Releases() {
                 <li>
                   The conformance runner runs unknown-evidence{' '}
                   <code>bindPurchase</code> vectors for every store and rejects
-                  unknown binding names.
+                  a binding other than <code>rest</code> or <code>graphql</code>
+                  .
                 </li>
                 <li>
                   It checks every string in an error, GraphQL{' '}
                   <code>extensions</code> included, for leaked evidence or
                   credentials, as the specification now states.
+                </li>
+                <li>
+                  For adapter authors, <code>GraphqlErrorOutcome</code> errors
+                  carry <code>extensions</code>, and REST result data is no
+                  longer null-stripped; compare it through{' '}
+                  <code>normalizeResultData</code>.
                 </li>
                 <li>
                   Events-only providers can pass the GraphQL executor probe.
@@ -715,11 +729,17 @@ function Releases() {
                   has none.
                 </li>
                 <li>
-                  StoreKit purchase and lookup errors map to specific codes such
-                  as <code>sku-offer-mismatch</code> and{' '}
-                  <code>item-unavailable</code>, and the refund and
-                  subscription-management sheets reject with a{' '}
-                  <code>PurchaseError</code> instead of a raw error.
+                  StoreKit purchase and lookup errors, promotional-offer
+                  failures included, map to specific codes such as{' '}
+                  <code>sku-offer-mismatch</code> and{' '}
+                  <code>item-unavailable</code> instead of{' '}
+                  <code>purchase-error</code>.
+                </li>
+                <li>
+                  The refund and subscription-management sheets reject with a{' '}
+                  <code>PurchaseError</code>, and{' '}
+                  <code>getPromotedProductIOS</code> reports a network failure
+                  as <code>network-error</code>.
                 </li>
                 <li>
                   <code>verifyPurchase</code> reads the on-device transaction,
@@ -728,15 +748,20 @@ function Releases() {
                   <code>sku-not-found</code>.
                 </li>
                 <li>
-                  Verification-failure events keep reaching listeners after a
-                  lazy connection, refund and subscription sheets open on the
-                  active window scene, and logging stays off unless enabled.
+                  Verification-failure events are no longer lost after{' '}
+                  <code>requestPurchase</code> opens the connection, and the
+                  refund and subscription sheets open on the active window
+                  scene.
                 </li>
                 <li>
-                  Deprecates the unused{' '}
-                  <code>SKPaymentTransactionObserver</code> conformance and{' '}
-                  <code>IapStatus</code> operation fields for removal in the
-                  next major release.
+                  Logging stays off unless enabled, including for purchase
+                  decoding.
+                </li>
+                <li>
+                  Deprecates the two unused{' '}
+                  <code>SKPaymentTransactionObserver</code> methods on{' '}
+                  <code>OpenIapModule</code> and the <code>IapStatus</code>{' '}
+                  operation fields for removal in the next major release.
                 </li>
               </ul>
             </li>
@@ -744,29 +769,36 @@ function Releases() {
               <strong>openiap-google 4.0.2</strong>
               <ul>
                 <li>
-                  Play and Horizon resolve <code>requestPurchase</code> only
-                  with a requested product whose token was not owned before
-                  launch, so a wrong device clock no longer stalls purchases.
+                  Play and Horizon match a purchase to{' '}
+                  <code>requestPurchase</code> by its token instead of its
+                  purchase time, so a wrong device clock no longer stalls
+                  purchases.
+                </li>
+                <li>
+                  An already-owned rejection resolves with the owned purchase,
+                  now on Horizon too, and Horizon maps other launch errors to
+                  specific codes.
                 </li>
                 <li>
                   Stale pending or unconsumed purchases no longer resolve a new
-                  request; if the ownership read before launch fails, the
-                  request reports the store error to <code>purchaseError</code>{' '}
-                  listeners and returns no purchase without opening the sheet.
+                  request.
+                </li>
+                <li>
+                  If the ownership read before launch fails, the request reports
+                  the store error to <code>purchaseError</code> listeners and
+                  returns no purchase.
                 </li>
                 <li>
                   A launched Play purchase with no result is recovered by an
-                  ownership query after 15 minutes or fails with{' '}
-                  <Link to="/docs/errors">service-timeout</Link>.
+                  ownership query after 15 minutes, or reports{' '}
+                  <Link to="/docs/errors">service-timeout</Link> to{' '}
+                  <code>purchaseError</code> listeners and returns no purchase.
                 </li>
                 <li>
                   Play and Horizon deliver each purchase state to{' '}
-                  <code>purchaseUpdated</code> once per request, however many
-                  paths report it.
-                </li>
-                <li>
-                  Horizon maps launch errors to specific codes and resolves an
-                  already-owned product with the owned purchase.
+                  <code>purchaseUpdated</code> once per module, however many
+                  paths report it; already-owned recovery delivers the owned
+                  purchase again.
                 </li>
                 <li>
                   Amazon delivers a success that arrives after its cancel
@@ -777,7 +809,7 @@ function Releases() {
                   Amazon <code>fetchProducts</code> without <code>type</code>{' '}
                   returns in-app products, as on the other stores, and{' '}
                   <code>finishTransaction</code> reports a failed fulfillment as{' '}
-                  <code>purchase-error</code> instead of a raw exception.
+                  <code>purchase-error</code>.
                 </li>
                 <li>
                   <code>OpenIapStore</code> refreshes products it already holds,
@@ -807,13 +839,15 @@ function Releases() {
           <ul>
             <li>
               React Native and Expo share one error-code mapping, so Play
-              response codes map the same way in both.
+              response codes and legacy cancel spellings such as{' '}
+              <code>USER_CANCELED</code> and <code>CANCELLED</code> map to the
+              same codes in both.
             </li>
             <li>
-              <code>isRecoverableError</code> adds <code>service-timeout</code>{' '}
-              and drops <code>billing-unavailable</code> in both; React Native
-              also drops <code>duplicate-purchase</code>, and Expo adds{' '}
-              <code>connection-closed</code> and <code>sync-error</code>.
+              <code>getUserFriendlyErrorMessage</code> reads &quot;Purchase
+              verification already finished&quot; in React Native and
+              &quot;Purchase cancelled&quot; in Expo, which also gains messages
+              for three more codes.
             </li>
             <li>
               <strong>react-native-iap 17.0.2</strong>
@@ -821,11 +855,17 @@ function Releases() {
                 <li>
                   <code>subscriptionStatusIOS</code> returns <code>state</code>{' '}
                   names such as <code>subscribed</code> instead of{' '}
-                  <code>&quot;1&quot;</code> or <code>&quot;0&quot;</code>.
+                  <code>&quot;0&quot;</code>.
                 </li>
                 <li>
                   Listeners stay registered after <code>endConnection</code> and
                   reattach on the next <code>initConnection</code>.
+                </li>
+                <li>
+                  <code>getActiveSubscriptions</code> before connecting rejects
+                  with a <code>PurchaseError</code>, and Android finish,
+                  acknowledge, and consume errors carry the store&apos;s debug
+                  message.
                 </li>
               </ul>
             </li>
@@ -840,21 +880,32 @@ function Releases() {
                 <li>
                   <code>onPurchaseSuccess</code> runs once per{' '}
                   <code>purchaseUpdated</code> event, before the subscription
-                  refresh; <code>requestPurchase</code> results no longer call
-                  it, and the 30-second duplicate filter is gone.
+                  refresh and without being awaited; its errors are logged.
+                </li>
+                <li>
+                  <code>requestPurchase</code> results no longer call{' '}
+                  <code>onPurchaseSuccess</code>, and the 30-second duplicate
+                  filter is gone.
                 </li>
                 <li>
                   Billing choice callbacks work when set after mount or after{' '}
                   <code>reconnect</code>.
                 </li>
                 <li>
-                  iOS rejections carry OpenIAP error codes instead of{' '}
-                  <code>ERR_UNEXPECTED</code>, and{' '}
-                  <code>purchaseErrorListener</code> delivers canonical codes.
+                  Every iOS call and the calls listed in the integration notes
+                  reject with a <code>PurchaseError</code> carrying an OpenIAP
+                  code.
                 </li>
                 <li>
-                  <code>deepLinkToSubscriptionsIOS</code> opens the native
-                  subscription sheet and throws on Android.
+                  <code>purchaseErrorListener</code> delivers canonical codes,
+                  and <code>unknown</code> for a billing event that cannot reach
+                  JavaScript.
+                </li>
+                <li>
+                  On iOS, <code>deepLinkToSubscriptions</code> and{' '}
+                  <code>deepLinkToSubscriptionsIOS</code> open the native
+                  subscription sheet; <code>deepLinkToSubscriptionsIOS</code>{' '}
+                  throws on Android.
                 </li>
               </ul>
             </li>
@@ -862,18 +913,20 @@ function Releases() {
               <strong>flutter_inapp_purchase 11.0.2</strong>
               <ul>
                 <li>
-                  <code>FlutterInappPurchase()</code> returns the shared
-                  instance, so a second instance no longer captures purchase
-                  events.
+                  Instances share the purchase event streams, so a second{' '}
+                  <code>FlutterInappPurchase()</code> no longer takes events
+                  away from the first.
                 </li>
                 <li>
-                  Android <code>finishTransaction</code> caches a token as
-                  acknowledged only after the store confirms, so a refused token
-                  is retried.
+                  Android <code>finishTransaction</code> reconnects a dropped
+                  billing service and caches a token as acknowledged only after
+                  the store confirms.
                 </li>
                 <li>
-                  A promoted iOS product tapped before launch waits until you
-                  listen to <code>purchasePromoted</code>.
+                  iOS and macOS attach purchase listeners at{' '}
+                  <code>initConnection</code>, and a promoted product tapped
+                  before then waits until you listen to{' '}
+                  <code>purchasePromoted</code>.
                 </li>
                 <li>
                   Android engines in one process share a billing client; an
@@ -882,8 +935,11 @@ function Releases() {
                 </li>
                 <li>
                   A dropped billing connection lets the next{' '}
-                  <code>initConnection</code> reconnect, and macOS adds{' '}
-                  <code>beginRefundRequestIOS</code>.
+                  <code>initConnection</code> reconnect.
+                </li>
+                <li>
+                  macOS <code>beginRefundRequestIOS</code> opens Apple&apos;s
+                  Report a Problem page and returns <code>null</code>.
                 </li>
               </ul>
             </li>
@@ -904,13 +960,20 @@ function Releases() {
                 <li>
                   A failed notice sheet returns <code>DISMISSED</code> and a
                   failed billing information dialog returns response code 6,
-                  both with <code>purchase_error</code>, instead of looking
-                  successful.
+                  both with <code>purchase_error</code> (
+                  <code>feature-not-supported</code> on the wrong platform),
+                  instead of looking successful.
                 </li>
                 <li>
-                  Calls before initialization report <code>not-prepared</code>,
-                  and a dropped Android billing connection ends the session so
-                  the next <code>init_connection</code> reconnects.
+                  Android failures always carry a code, including{' '}
+                  <code>not-prepared</code> before initialization, and the
+                  missing-activity and developer-error cases now emit{' '}
+                  <code>purchase_error</code>.
+                </li>
+                <li>
+                  A dropped Android billing connection ends the session and
+                  emits <code>disconnected</code>, so the next{' '}
+                  <code>init_connection</code> reconnects.
                 </li>
                 <li>
                   Removes the unused Android singleton methods{' '}
@@ -930,9 +993,9 @@ function Releases() {
                   reported as cancelled.
                 </li>
                 <li>
-                  <code>getActiveSubscriptions(emptyList())</code> returns every
-                  active subscription with its <code>currentPlanId</code>{' '}
-                  instead of none.
+                  <code>getActiveSubscriptions(emptyList())</code> and{' '}
+                  <code>hasActiveSubscriptions(emptyList())</code> cover every
+                  active subscription instead of none.
                 </li>
                 <li>
                   Play query failures and refused tokens throw without firing{' '}
@@ -946,13 +1009,13 @@ function Releases() {
                 </li>
                 <li>
                   On Horizon and Amazon, acknowledge and consume throw on a
-                  refused token instead of returning <code>false</code>.
+                  refused token instead of returning <code>false</code>, and{' '}
+                  <code>initConnection</code> reconnects after the store drops
+                  the service.
                 </li>
                 <li>
                   Android event flows buffer up to 64 events, so bursts such as
-                  a Horizon restore keep every purchase, and{' '}
-                  <code>initConnection</code> reconnects after the store drops
-                  the service.
+                  a Horizon restore keep every purchase.
                 </li>
                 <li>
                   Adds the{' '}
@@ -984,13 +1047,20 @@ function Releases() {
                 </li>
                 <li>
                   <code>OpenIapClient.Instance</code> is created thread-safely,
-                  and <code>OverrideInstance</code>, meant for test and DI
-                  fakes, disposes the replaced instance and its store
-                  connection.
+                  and <code>Dispose</code> completes the event observables.
+                </li>
+                <li>
+                  <code>OverrideInstance</code>, meant for test and DI fakes,
+                  now also disposes a replaced Android instance, which ends its
+                  store connection; iOS disposal keeps the connection.
                 </li>
                 <li>
                   The Android bridge reports malformed input as{' '}
                   <code>developer-error</code> instead of <code>unknown</code>.
+                </li>
+                <li>
+                  Unused iOS binding stubs are marked obsolete for removal in
+                  the next major release.
                 </li>
               </ul>
             </li>
@@ -998,6 +1068,14 @@ function Releases() {
           <h5>Integration notes</h5>
           <ul>
             <li>Rebuild the native app after upgrading.</li>
+            <li>
+              On restricted iOS devices <code>initConnection</code> no longer
+              returns <code>false</code> or emits <code>iap-not-available</code>
+              . If you hid purchase UI based on it, handle{' '}
+              <code>iap-not-available</code> from <code>requestPurchase</code>{' '}
+              or check <code>AppStore.canMakePayments</code> (KMP:{' '}
+              <code>canMakePayments()</code>).
+            </li>
             <li>
               Update code that compares iOS <code>state</code>,{' '}
               <code>priceIncreaseStatus</code>, or offer types with the old text
@@ -1014,14 +1092,51 @@ function Releases() {
               <code>type</code>.
             </li>
             <li>
-              In Expo, call <code>deepLinkToSubscriptions</code> on Android
-              instead of <code>deepLinkToSubscriptionsIOS</code>.
+              Expo:
+              <ul>
+                <li>
+                  Read <code>error.code</code> from rejections of{' '}
+                  <code>initConnection</code>, <code>endConnection</code>,{' '}
+                  <code>getAvailablePurchases</code>,{' '}
+                  <code>getActiveSubscriptions</code>,{' '}
+                  <code>hasActiveSubscriptions</code>,{' '}
+                  <code>finishTransaction</code>, <code>verifyPurchase</code>,{' '}
+                  <code>verifyPurchaseWithProvider</code>, and the Android
+                  acknowledge and consume calls.
+                </li>
+                <li>
+                  Call <code>deepLinkToSubscriptions</code> on Android instead
+                  of <code>deepLinkToSubscriptionsIOS</code>.
+                </li>
+              </ul>
             </li>
             <li>
-              In KMP, catch the exception where Horizon or Amazon code checked a{' '}
-              <code>false</code> acknowledge or consume result, and expect{' '}
-              <code>deepLinkToSubscriptions()</code> to open a page on Play and
-              Amazon and to throw on Horizon.
+              KMP on Android:
+              <ul>
+                <li>
+                  Catch the exception where Horizon or Amazon code checked a{' '}
+                  <code>false</code> acknowledge or consume result.
+                </li>
+                <li>
+                  Catch <code>feature-not-supported</code> from{' '}
+                  <code>deepLinkToSubscriptions()</code> on Horizon.
+                </li>
+                <li>
+                  Play calls before <code>initConnection</code> throw{' '}
+                  <code>not-prepared</code>, and billing choice getters throw{' '}
+                  <code>developer-error</code> after the service drops until{' '}
+                  <code>initConnection</code> runs again.
+                </li>
+                <li>
+                  On Play, <code>PurchaseError.responseCode</code> is set only
+                  for product-query errors, and <code>finishTransaction</code>{' '}
+                  without a token throws <code>purchase-error</code>.
+                </li>
+                <li>
+                  <code>currentPlanId</code> is filled in only for a
+                  subscription with a single base plan.
+                </li>
+              </ul>
             </li>
           </ul>
           <p>
@@ -1031,9 +1146,9 @@ function Releases() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              this PR
-            </a>{' '}
-            for the review findings behind each fix.
+              the pull request
+            </a>
+            .
           </p>
           <div
             style={{

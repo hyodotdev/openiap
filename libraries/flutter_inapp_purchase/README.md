@@ -72,7 +72,7 @@ deprecation warning until the next major release.
 ```dart
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// One shared instance per app; FlutterInappPurchase() returns it too.
+// The shared instance; any other instance receives the same events.
 final iap = FlutterInappPurchase.instance;
 
 // Initialize connection

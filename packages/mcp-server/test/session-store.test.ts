@@ -63,6 +63,27 @@ describe("BoundedSessionStore", () => {
     );
   });
 
+  it("counts a key's in-flight reservations against its share", () => {
+    const store = new BoundedSessionStore<string>({
+      maxSize: 4,
+      maxPerOwner: 2,
+      idleTtlMs: 1_000,
+      dispose: vi.fn(),
+    });
+    const victim = store.reserve("victim");
+    victim?.commit("victim-session", "victim-transport");
+
+    const first = store.reserve("attacker");
+    const second = store.reserve("attacker");
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(store.reserve("attacker")).toBeNull();
+
+    second?.release();
+    expect(store.reserve("attacker")).not.toBeNull();
+    expect(store.get("victim-session")).toBe("victim-transport");
+  });
+
   it("counts pending reservations and releases unused capacity", () => {
     const store = new BoundedSessionStore<string>({
       maxSize: 1,

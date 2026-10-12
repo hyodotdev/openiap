@@ -152,6 +152,24 @@ class HorizonPurchaseFlowTest {
         assertEquals(listOf("purchase-token", "purchase-token"), updates.map { it.purchaseToken })
     }
 
+    @Test
+    fun `late callback of a previous request after a new request starts is not re-delivered`() {
+        val client = FlowBillingClient(
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+            owned = listOf(horizonPurchase(purchaseTime = 1L)),
+        )
+        val module = module(client)
+        val updates = CopyOnWriteArrayList<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        val update = billingResult(BillingClient.BillingResponseCode.OK)
+        module.onPurchasesUpdated(client, 0L, update, listOf(horizonPurchase(purchaseTime = 1L)))
+
+        requestPurchase(module)
+        module.onPurchasesUpdated(client, 0L, update, listOf(horizonPurchase(purchaseTime = 1L)))
+
+        assertEquals(listOf("purchase-token"), updates.map { it.purchaseToken })
+    }
+
     private fun requestPurchase(module: OpenIapModule): List<Purchase> {
         module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
         val props = RequestPurchaseProps(
@@ -238,7 +256,7 @@ class HorizonPurchaseFlowTest {
     )
 
     private class FlowBillingClient(
-        private val launchResponseCode: Int = BillingResponseCode.OK,
+        var launchResponseCode: Int = BillingResponseCode.OK,
         private val owned: List<HorizonPurchase> = emptyList(),
     ) : RecordingBillingClient() {
         override fun queryProductDetailsAsync(

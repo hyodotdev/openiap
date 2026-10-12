@@ -122,6 +122,19 @@ class SharedProviderTest {
         dispose(engine)
     }
 
+    @Test fun `finishTransaction reconnects a dropped billing service`() {
+        val engine = fakeEngine()
+        assertEquals("Billing client ready", engine.call("initConnection"))
+        FakeProviderFactory.dropService()
+        settle()
+
+        val purchase = mapOf("id" to "order", "productId" to "premium", "purchaseToken" to "opaque", "store" to "google", "storeId" to "play")
+        assertEquals(null, engine.call("finishTransaction", mapOf("purchase" to purchase, "isConsumable" to false)))
+        assertEquals(true, FakeProviderFactory.finishedWhileConnected)
+        assertEquals(true, engine.call("isReady"))
+        dispose(engine)
+    }
+
     @Test fun `a dropped billing service requires initConnection again`() {
         val sent = mutableListOf<MethodCall>()
         val engine = fakeEngine(sent)

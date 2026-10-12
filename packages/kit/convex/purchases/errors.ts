@@ -272,8 +272,15 @@ export function isPlayStorePackageNameMismatchError(
   );
 }
 
-// Only curated messages reach `/v1`. Only a known store outage is temporary;
-// anything unclassified stays a permanent failure.
+// A Convex call that fails without application data (write conflicts retried
+// out, overload, timeout) surfaces as an exact Error: no verdict, so temporary.
+// Application failures on this path are ConvexErrors; a TypeError is a bug.
+function isConvexSystemError(error: unknown): boolean {
+  return error instanceof Error && error.constructor === Error;
+}
+
+// Only curated messages reach `/v1`. Store outages and Convex system failures
+// are temporary; anything else stays permanent.
 export class PlayStoreVerificationError extends ReceiptVerificationError {
   constructor(originalError: unknown) {
     const inner =
@@ -291,7 +298,7 @@ export class PlayStoreVerificationError extends ReceiptVerificationError {
       },
       inner
         ? inner.retryAfterSec
-        : isStoreOutage(originalError)
+        : isStoreOutage(originalError) || isConvexSystemError(originalError)
           ? STORE_OUTAGE_RETRY_AFTER_SEC
           : undefined,
     );
