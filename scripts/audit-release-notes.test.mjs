@@ -682,3 +682,35 @@ test("hosted changes update their own weekly history independently of package ca
     [],
   );
 });
+
+test("Godot documents the SDK-dependent behavior shipped in its Apple frameworks", () => {
+  const releases = fs.readFileSync(path.join(repoRoot, RELEASE_NOTES), "utf8");
+  const start = releases.indexOf("id: 'app-ownership-2026-10-12'");
+  const end = releases.indexOf("id: '", start + 1);
+  assert.notEqual(start, -1, "the app ownership release card is missing");
+  const card = releases.slice(start, end === -1 ? undefined : end);
+  assert.match(card, /to="\/docs\/apis\/open-redeem-offer-code"/);
+  assert.match(card, /to="\/docs\/types\/ios\/subscription-status-ios"/);
+
+  const setup = fs.readFileSync(
+    path.join(repoRoot, "packages/docs/src/pages/docs/setup/godot.tsx"),
+    "utf8",
+  );
+  const toolchainStart = setup.indexOf('<h3 id="xcode-version"');
+  const toolchainEnd = setup.indexOf(
+    '<h3 id="macos-gatekeeper"',
+    toolchainStart,
+  );
+  assert.ok(toolchainStart !== -1 && toolchainEnd > toolchainStart);
+  const page = normalize(stripTags(setup.slice(toolchainStart, toolchainEnd)));
+  assert.match(setup, /to="\/docs\/apis\/verify-app-ownership"/);
+  assert.match(
+    page,
+    /earlier Xcode return unknown with backend-verification-required and signed evidence/,
+  );
+  assert.match(
+    page,
+    /Older runtimes use the non-result system sheet; earlier Xcode builds also use that path/,
+  );
+  assert.match(page, /make ios; it builds and installs the matched pair/);
+});

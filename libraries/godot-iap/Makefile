@@ -22,6 +22,8 @@ ADDON_DIR := $(PROJECT_ROOT)/addons/godot-iap
 BIN_DIR := $(ADDON_DIR)/bin
 IOS_EXPORT_DIR := $(EXAMPLE_DIR)/ios
 APPLE_FRAMEWORK_INSTALLER := $(PROJECT_ROOT)/scripts/install_apple_framework.sh
+# SwiftPM's clang link needs -isysroot to record the selected SDK version.
+APPLE_LINK_SDK_FLAGS := $$(inherited) -Xclang-linker -isysroot -Xclang-linker $$(SDKROOT)
 GODOT_LIB_FETCHER := $(abspath $(PROJECT_ROOT)/../../scripts/fetch-godot-lib.sh)
 GRADLE_WRAPPER_SHA256 := d3b261c2820e9e3d8d639ed084900f11f4a86050a8f83342ade7b6bc9b0d2bdd
 
@@ -123,6 +125,7 @@ ios-build:
 		CLANG_ENABLE_CODE_COVERAGE=NO \
 		ENABLE_CODE_COVERAGE=NO \
 		SWIFT_ENABLE_CODE_COVERAGE=NO \
+		OTHER_LDFLAGS='$(APPLE_LINK_SDK_FLAGS)' \
 		-derivedDataPath .build-xcode \
 		clean build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
@@ -151,6 +154,7 @@ macos-build:
 		CLANG_ENABLE_CODE_COVERAGE=NO \
 		ENABLE_CODE_COVERAGE=NO \
 		SWIFT_ENABLE_CODE_COVERAGE=NO \
+		OTHER_LDFLAGS='$(APPLE_LINK_SDK_FLAGS)' \
 		-derivedDataPath .build-xcode-macos \
 		build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"

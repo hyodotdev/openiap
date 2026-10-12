@@ -187,28 +187,6 @@ test("React Native Ruby dependencies are locked and installed frozen", () => {
   );
 });
 
-test("Godot release preserves its download helper across tag checkout", () => {
-  const workflow = readWorkflow("release-godot.yml");
-  const stageHelper = workflow.indexOf(
-    "- name: Stage Godot dependency download helper",
-  );
-  const checkoutTag = workflow.indexOf(
-    "- name: Checkout release tag (current version)",
-  );
-  const download = workflow.indexOf("- name: Download godot-lib.aar");
-
-  assert.ok(stageHelper < checkoutTag);
-  assert.ok(checkoutTag < download);
-  assert.match(
-    workflow.slice(stageHelper, checkoutTag),
-    /cp "\$GITHUB_WORKSPACE\/scripts\/fetch-godot-lib\.sh"/u,
-  );
-  assert.match(
-    workflow.slice(download),
-    /bash "\$RUNNER_TEMP\/fetch-godot-lib\.sh"/u,
-  );
-});
-
 test("Godot verifies the exact SwiftGodot commit before building it", () => {
   const makefile = readFileSync(
     resolve(repoRoot, "libraries/godot-iap/Makefile"),
@@ -263,7 +241,10 @@ test("release version commits use package@version subjects", () => {
       .map((line) => line.trim())
       .filter((line) => line.startsWith('git commit -m "chore(release):'));
     assert.ok(
-      versionCommits.includes(expectedCommit),
+      versionCommits.some(
+        (line) =>
+          line === expectedCommit || line === `${expectedCommit} --allow-empty`,
+      ),
       `${filename} must use the canonical release commit subject`,
     );
     assert.equal(versionCommits.length, 1, filename);
@@ -978,7 +959,6 @@ test("framework release workflows refuse stale dispatch heads", () => {
       [
         "release-expo.yml",
         "release-flutter.yml",
-        "release-godot.yml",
         "release-react-native.yml",
       ].includes(filename)
     ) {
@@ -1233,6 +1213,233 @@ test("framework release workflows refuse stale dispatch heads", () => {
     mauiWorkflow,
     /if: steps\.check_nuget\.outputs\.exists == 'false'/,
   );
+});
+
+test("Godot builds version-bound native payloads only for a new tag", () => {
+  const workflow = readWorkflow("release-godot.yml");
+  const deploy = workflow.slice(workflow.indexOf("\n  deploy:\n"));
+  assert.match(deploy, /runs-on: xcode-27/u);
+
+  const steps = [
+    "Sync generated release metadata",
+    "Sync OpenIAP versions",
+    "Build Android AAR",
+    "Build iOS and macOS frameworks",
+    "Verify rebuilt iOS framework toolchain",
+    "Refresh prebuilt binary digests",
+    "Verify selected prebuilt binary digests",
+    "Prepare addon directory",
+    "Verify release zip",
+    "Commit version update and tag",
+    "Create Release",
+  ].map((name) => extractNamedStep(deploy, name));
+
+  for (let index = 1; index < steps.length; index += 1) {
+    assert.ok(steps[index - 1].endIndex <= steps[index].startIndex);
+  }
+  for (const name of [
+    "Setup Bun",
+    "Sync generated release metadata",
+    "Sync OpenIAP versions",
+    "Build Android AAR",
+    "Build iOS and macOS frameworks",
+    "Verify rebuilt iOS framework toolchain",
+    "Refresh prebuilt binary digests",
+    "Commit version update and tag",
+  ]) {
+    assert.match(
+      extractNamedStep(deploy, name).source,
+      /if: \$\{\{ steps\.check_tag\.outputs\.exists != 'true' \}\}/u,
+      `${name} must leave existing tagged payloads untouched`,
+    );
+  }
+  assert.match(steps[0].source, /scripts\/sync-release-generated\.sh/u);
+  assert.match(steps[2].source, /run: make android GODOT_VERSION=4\.3/u);
+  assert.match(steps[3].source, /run: make ios macos GODOT_VERSION=4\.3/u);
+  assert.match(steps[4].source, /verify-ios-toolchain\.sh/u);
+  assert.match(steps[5].source, /audit-godot-binary-digests\.mjs --write/u);
+  assert.doesNotMatch(steps[6].source, /--write/u);
+  assert.match(
+    steps[7].source,
+    /cp addons\/godot-iap\/android\/GodotIap\.release\.aar/u,
+  );
+  assert.match(
+    steps[7].source,
+    /cp addons\/godot-iap\/android\/GodotIap\.debug\.aar/u,
+  );
+  assert.doesNotMatch(steps[7].source, /android\/build\/outputs/u);
+  assert.doesNotMatch(deploy, /- name: Create tag \(current version\)/u);
+});
+
+test("Godot missing-tag recovery atomically tags its actual artifact commit", (context) => {
+  isolateGitEnvironment(context);
+  const workflow = readWorkflow("release-godot.yml");
+  const block = extractRunBlockContaining(
+    workflow,
+    'git commit -m "chore(release): godot-iap@$VERSION"',
+  );
+  const shell = block
+    .split("\n")
+    .slice(1)
+    .map((line) => line.slice(10))
+    .join("\n");
+  for (const scenario of [
+    "fresh-artifacts",
+    "unchanged-artifacts",
+    "advanced-main",
+    "rejected-main-push",
+  ]) {
+    const root = mkdtempSync(resolve(tmpdir(), "openiap-godot-release-"));
+    const workspace = resolve(root, "workspace");
+    const remote = resolve(root, "origin.git");
+    const godot = resolve(workspace, "libraries/godot-iap");
+    const version = "1.2.0";
+    const tag = `godot-iap-${version}`;
+    const payloads = [
+      "addons/godot-iap/android/GodotIap.debug.aar",
+      "addons/godot-iap/android/GodotIap.release.aar",
+      "addons/godot-iap/bin/ios/GodotIap.framework/GodotIap",
+      "addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime",
+      "addons/godot-iap/bin/macos/GodotIap.framework/GodotIap",
+      "addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime",
+      "addons/godot-iap/bin/godot_iap.gdextension",
+      "prebuilt-binaries.sha256",
+    ];
+    const git = (...args) =>
+      execFileSync("git", args, {
+        cwd: workspace,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim();
+    try {
+      mkdirSync(godot, { recursive: true });
+      mkdirSync(resolve(workspace, "scripts"));
+      mkdirSync(resolve(root, "mock-bin"));
+      writeFileSync(
+        resolve(root, "mock-bin/gh"),
+        '#!/bin/sh\n[ "$*" = "auth setup-git" ]\n',
+        { mode: 0o755 },
+      );
+      writeFileSync(
+        resolve(workspace, "scripts/assert-release-head.mjs"),
+        readFileSync(resolve(repoRoot, "scripts/assert-release-head.mjs")),
+      );
+      for (const file of payloads) {
+        mkdirSync(dirname(resolve(godot, file)), { recursive: true });
+        writeFileSync(resolve(godot, file), "dispatch payload\n");
+      }
+      writeFileSync(
+        resolve(godot, "addons/godot-iap/plugin.cfg"),
+        `version="${version}"\n`,
+      );
+      git("init", "-b", "main");
+      git("config", "user.name", "Release Test");
+      git("config", "user.email", "release-test@example.invalid");
+      git("config", "commit.gpgSign", "false");
+      git("config", "tag.gpgSign", "false");
+      git("config", "core.hooksPath", resolve(root, "mock-hooks"));
+      git("add", ".");
+      git("commit", "-m", "Reviewed dispatch source");
+      const dispatch = git("rev-parse", "HEAD");
+      git("init", "--bare", remote);
+      git("remote", "add", "origin", remote);
+      git("push", "origin", "HEAD:refs/heads/main");
+      let expectedRemoteHead = dispatch;
+      if (scenario === "rejected-main-push") {
+        git(
+          "--git-dir",
+          remote,
+          "config",
+          "core.hooksPath",
+          resolve(remote, "hooks"),
+        );
+        writeFileSync(
+          resolve(remote, "hooks/update"),
+          '#!/bin/sh\n[ "$1" != "refs/heads/main" ]\n',
+          { mode: 0o755 },
+        );
+      }
+      if (scenario === "advanced-main") {
+        writeFileSync(resolve(workspace, "reviewed-next.txt"), "new main\n");
+        git("add", "reviewed-next.txt");
+        git("commit", "-m", "Main advanced");
+        expectedRemoteHead = git("rev-parse", "HEAD");
+        git("push", "origin", "HEAD:refs/heads/main");
+        git("reset", "--hard", dispatch);
+      }
+      if (scenario !== "unchanged-artifacts") {
+        for (const file of payloads) {
+          writeFileSync(
+            resolve(godot, file),
+            "rebuilt for synchronized metadata\n",
+          );
+        }
+        writeFileSync(
+          resolve(workspace, "generated-version.txt"),
+          "CI metadata\n",
+        );
+        git("add", "generated-version.txt");
+      }
+      const result = spawnSync("bash", ["-euo", "pipefail", "-c", shell], {
+        cwd: godot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GITHUB_WORKSPACE: workspace,
+          GITHUB_SHA: dispatch,
+          RELEASE_BRANCH: "main",
+          VERSION: version,
+          PATH: `${resolve(root, "mock-bin")}:${process.env.PATH}`,
+        },
+      });
+      const remoteHead = git("ls-remote", "origin", "refs/heads/main").split(
+        /\s/u,
+      )[0];
+      if (["advanced-main", "rejected-main-push"].includes(scenario)) {
+        assert.notEqual(result.status, 0);
+        assert.match(
+          result.stderr,
+          scenario === "advanced-main"
+            ? /Release branch advanced after dispatch/u
+            : /hook declined|atomic push failed/u,
+        );
+        assert.equal(remoteHead, expectedRemoteHead);
+        assert.equal(git("ls-remote", "origin", `refs/tags/${tag}`), "");
+      } else {
+        assert.equal(result.status, 0, `${scenario}: ${result.stderr}`);
+        const artifactCommit = git("rev-parse", `${tag}^{commit}`);
+        assert.notEqual(artifactCommit, dispatch, scenario);
+        assert.equal(remoteHead, artifactCommit, scenario);
+        assert.equal(
+          git("ls-remote", "origin", `refs/tags/${tag}^{}`).split(/\s/u)[0],
+          artifactCommit,
+          scenario,
+        );
+        assert.equal(git("rev-parse", `${artifactCommit}^`), dispatch);
+        assert.equal(
+          git("log", "-1", "--format=%s"),
+          `chore(release): godot-iap@${version}`,
+        );
+        for (const file of payloads) {
+          assert.equal(
+            git("show", `${tag}:libraries/godot-iap/${file}`),
+            scenario === "fresh-artifacts"
+              ? "rebuilt for synchronized metadata"
+              : "dispatch payload",
+            file,
+          );
+        }
+        if (scenario === "fresh-artifacts") {
+          assert.equal(
+            git("show", `${tag}:generated-version.txt`),
+            "CI metadata",
+          );
+        }
+      }
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  }
 });
 
 test("Flutter publication is triggered by the immutable tag push", () => {

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
@@ -170,25 +171,26 @@ make android
         </p>
 
         <h3 id="xcode-version" className="anchor-heading">
-          iOS Framework Toolchain (Offer Codes)
+          Apple Framework Toolchain
           <a href="#xcode-version" className="anchor-link">
             #
           </a>
         </h3>
         <p>
-          The pre-built iOS framework locks in Apple API availability at compile
-          time. One feature depends on this:{' '}
-          <a href="/docs/features/offer-code-redemption">
-            offer code redemption
-          </a>{' '}
-          only returns a verified result when the framework was built with Xcode
-          27 or later <em>and</em> runs on iOS 27, Mac Catalyst 27, or visionOS
-          27 or later. Older runtimes still use the non-result system-sheet path
-          even when the framework was built with Xcode 27. A framework built
-          with Xcode 26 also uses that older path, including on Apple 27
-          devices. The published godot-iap 3.0.0 framework is built with Xcode
-          27. If you build from source and use offer codes, build with Xcode 27
-          or later; the runtime requirement remains separate.
+          godot-iap 4.0.1 ships iOS frameworks built with Xcode 27. This enables
+          local revocation checks in{' '}
+          <Link to="/docs/apis/verify-app-ownership">verify_app_ownership</Link>
+          . Source builds using an earlier Xcode return unknown with
+          backend-verification-required and signed evidence for your server.
+        </p>
+        <p>
+          <Link to="/docs/features/offer-code-redemption">
+            Offer-code redemption
+          </Link>{' '}
+          returns a verified purchase on iOS 27 or later. Older runtimes use the
+          non-result system sheet; earlier Xcode builds also use that path on
+          iOS 27. For custom device frameworks, use Xcode 27 and{' '}
+          <code>make ios</code>; it builds and installs the matched pair.
         </p>
 
         <h3 id="macos-gatekeeper" className="anchor-heading">

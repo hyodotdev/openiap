@@ -1,6 +1,6 @@
 # SHA-256 of the prebuilt frameworks committed under addons/godot-iap/bin/
 # and the Android archives committed under addons/godot-iap/android/.
-# CI builds the frameworks with Xcode 26.6 (job `apple-frameworks` in ci-godot-iap.yml)
+# CI builds the frameworks in job `apple-frameworks` in ci-godot-iap.yml
 # and uploads them as an artifact; the maintainer commits that artifact.
 # `bun run audit:godot-binaries` verifies the committed files against this
 # manifest — the release runs it as a deploy gate
@@ -13,7 +13,7 @@
 #   node scripts/audit-godot-binary-digests.mjs --write
 fe3c1d3cc09c3799354deea6493e4cdd342cb2321b81f7ddbac467487a3cc88b  addons/godot-iap/android/GodotIap.debug.aar
 25a744fa8f1e6d1708c13808b8e1b2f33d601460168f38fbb75f429a7ef404d2  addons/godot-iap/android/GodotIap.release.aar
-0de0a1927510a54d282eddf739c3d63539984fc4f19eddb5e80b217ba955616d  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
-c53d9fcdb794eed7689cb24a7caa7361c1b57c7db946e0e26e11d74d34edb621  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
-06cfb19711fc8ce61de33a197b347dbb6a36f4a75b2cdd343dc5825b5f03f68c  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
-6d4e43d5a4a2b705ae7217b4b551ff674041944d0ec7cd29ec7372f3bb40ca19  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime
+0283d80dc8851b2af02f4621018f3d09799bf967e82f32d10554b6c43f167c62  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+3b8517c19e42897bb852510d5e24ca7c83412e1419637c721b78eaa28e63a87c  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
+bb4f8628a96d4ba3c7cc5854070e8eb51fec88197542c5688db54cc7e4f5031d  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
+b2d56270f009e49ed5f63ed15178950952dcb43b90b8a545cd16f99767820abb  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime

@@ -216,11 +216,11 @@ cd android
 ### iOS
 
 ```bash
-cd ios-gdextension
-swift build -c release
+# Build and install the matched device framework pair:
+make ios
 
-# For device:
-xcodebuild -scheme GodotIap -destination 'generic/platform=iOS' -configuration Release
+# Test the host bridge:
+cd ios-gdextension && swift test
 ```
 
 ### Running Example

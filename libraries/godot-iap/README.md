@@ -56,14 +56,12 @@ cancellation from a store failure.
 > SwiftGodot iOS 17 minimum; a lower export preset does not back-deploy them and
 > can terminate the app before startup.
 
-Native Apple API availability is fixed when the pre-built
-`GodotIap.framework` is compiled. Release artifacts use the current
-App Store-accepted stable Xcode toolchain; CI rejects frameworks carrying an
-Xcode 27 SDK or beta-linker signature. Until Apple accepts Xcode 27 for App
-Store submissions, the Xcode 27-only verified offer-code result is unavailable
-in release builds and the bridge returns the legacy `null` result. Custom
-builds intended for App Store distribution must follow the same stable-toolchain
-policy.
+Native Apple API availability is fixed when `GodotIap.framework` is compiled.
+Release artifacts use Xcode 27, which Apple now accepts for
+[App Store submissions](https://developer.apple.com/news/?id=k1mtkt1k).
+CI verifies the exact SDK and stable linker versions and rejects coverage
+instrumentation. Build custom device frameworks with `make ios` so both
+frameworks use the same toolchain and record its actual SDK.
 
 Release zips are intended for iOS export and Android. If you use a release or
 custom build that includes `addons/godot-iap/bin/macos`, and Godot says

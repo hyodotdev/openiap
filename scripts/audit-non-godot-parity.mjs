@@ -5718,7 +5718,7 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-godot.yml",
       "godot",
-      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
+      'git tag -a "$RELEASE_TAG" HEAD',
     ],
   ]) {
     expectIncludes(
@@ -5734,12 +5734,23 @@ function checkFrameworkDependencyHygiene() {
         "assert-release-head.mjs",
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
-        'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
-        'git commit --allow-empty -m "chore: recover release ref"',
+        ...(packageId === "godot"
+          ? [
+              "if: ${{ steps.check_tag.outputs.exists != 'true' }}",
+              'git commit -m "chore(release): godot-iap@$VERSION" --allow-empty',
+              "Sync generated release metadata",
+              "Build iOS and macOS frameworks",
+              "Refresh prebuilt binary digests",
+              "git push --atomic origin",
+            ]
+          : [
+              'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
+              'git commit --allow-empty -m "chore: recover release ref"',
+            ]),
         '"HEAD:refs/heads/$RELEASE_BRANCH"',
         '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       ],
-      `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
+      `${frameworkReleaseWorkflow} must tag only verified release source`,
     );
     expectNotIncludes(
       frameworkReleaseWorkflow,
@@ -6620,8 +6631,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/godot-iap/scripts/verify-ios-toolchain.sh",
     [
-      'EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-26.5}"',
-      'EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-1267.0}"',
+      'EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-27.0}"',
+      'EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-27037.1}"',
       "xcrun vtool -show-build",
       '$1 == "sdk" {',
       "sdk_failed = 1",
@@ -6631,7 +6642,7 @@ function checkFrameworkDependencyHygiene() {
       '$1 == "version" && expect_ld_version',
       "$2 != expected",
       "__LLVM_COV|__llvm_prf_",
-      "Rebuild with Xcode 26.6 / iPhoneOS SDK $EXPECTED_SDK_VERSION before release.",
+      "Rebuild with iPhoneOS SDK $EXPECTED_SDK_VERSION and linker $EXPECTED_LD_VERSION before release.",
     ],
     "Godot tracked iOS frameworks must require exact stable toolchain provenance",
   );
@@ -6643,6 +6654,8 @@ function checkFrameworkDependencyHygiene() {
       "CLANG_ENABLE_CODE_COVERAGE=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "SWIFT_ENABLE_CODE_COVERAGE=NO",
+      "APPLE_LINK_SDK_FLAGS := $$(inherited) -Xclang-linker -isysroot -Xclang-linker $$(SDKROOT)",
+      "OTHER_LDFLAGS='$(APPLE_LINK_SDK_FLAGS)'",
       "scripts/fetch-godot-lib.sh",
       '"$(GODOT_VERSION)-stable"',
       "describe --tags --exact-match",

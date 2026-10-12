@@ -61,6 +61,34 @@ void main() {
                 code: 'developer-error', message: 'Invalid project'));
     final iap =
         FlutterInappPurchase.private(FakePlatform(operatingSystem: 'android'));
-    await expectLater(iap.verifyAppOwnership(), throwsA(isA<PurchaseError>()));
+    await expectLater(
+        iap.verifyAppOwnership(),
+        throwsA(isA<PurchaseError>()
+            .having(
+                (error) => error.code, 'code', types.ErrorCode.DeveloperError)
+            .having((error) => error.message, 'message',
+                contains('Invalid project'))));
   });
+
+  for (final payload in [
+    null,
+    42,
+    'not-json',
+    {'status': 'licensed'}
+  ]) {
+    test('malformed native ownership evidence cannot grant access: $payload',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async => payload);
+      final iap =
+          FlutterInappPurchase.private(FakePlatform(operatingSystem: 'ios'));
+      await expectLater(
+          iap.verifyAppOwnership(),
+          throwsA(isA<PurchaseError>()
+              .having((error) => error.code, 'code',
+                  types.ErrorCode.PurchaseVerificationFailed)
+              .having((error) => error.message, 'message',
+                  contains('Invalid app ownership verification result'))));
+    });
+  }
 }

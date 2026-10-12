@@ -602,11 +602,22 @@ function Releases() {
               <strong>godot-iap 4.0.1</strong>
               <ul>
                 <li>
+                  Ships Xcode 27 frameworks with verified iOS 27{' '}
+                  <Link to="/docs/apis/open-redeem-offer-code">
+                    offer-code purchase results
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/docs/types/ios/subscription-status-ios">
+                    StoreKit subscription metadata
+                  </Link>
+                  .
+                </li>
+                <li>
                   Returns verified unfinished Apple transactions on macOS
                   through{' '}
                   <Link to="/docs/apis/ios/get-pending-transactions-ios">
                     get_pending_transactions_ios
-                  </Link>
+                  </Link>{' '}
                   and preserves configured autoloads during import.
                 </li>
                 <li>
@@ -646,6 +657,14 @@ function Releases() {
           </p>
           <p>
             See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/524"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #524
+            </a>{' '}
+            for app ownership and{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/520"
               target="_blank"

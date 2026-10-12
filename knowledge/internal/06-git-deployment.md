@@ -355,9 +355,11 @@ the tag; a matching tag name alone is not reviewed-branch provenance.
 
 When `current` must create a missing tag for a version that is not yet published,
 the workflow creates an empty provenance-recovery commit and atomically pushes
-that real branch update with a tag targeting the verified dispatch SHA. A no-op
-branch refspec is not a compare-and-swap guard because Git omits up-to-date refs
-from the push transaction.
+that real branch update with a tag targeting the verified dispatch SHA. Godot
+instead synchronizes metadata, rebuilds its committed native payloads, and tags
+the CI artifact commit; both paths require the release-head guard and atomic
+push. Existing tags remain immutable. A no-op branch refspec is not a
+compare-and-swap guard because Git omits up-to-date refs from the push transaction.
 
 For npm trusted publishing, the release workflow's branch-ref phase creates and
 pushes the immutable tag, then dispatches the same trusted-publisher workflow on
