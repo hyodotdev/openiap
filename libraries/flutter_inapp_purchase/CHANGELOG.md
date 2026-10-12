@@ -1,5 +1,13 @@
 # Changelog
 
+## 11.0.1 (2026-10-12)
+
+- feat: add app ownership verification (#524)
+- fix(examples): retain and recover receipts (#520)
+- docs: align provider guidance with verified stable releases
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.0.1
+
+
 ## 11.0.0 (2026-10-09)
 
 - feat: support community providers and release Client Protocol 1.0.0 (#513)
