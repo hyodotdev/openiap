@@ -16,6 +16,7 @@ import com.amazon.device.iap.model.PurchaseResponse
 import com.amazon.device.iap.model.PurchaseUpdatesResponse
 import com.amazon.device.iap.model.UserData
 import com.amazon.device.iap.model.UserDataResponse
+import dev.hyo.openiap.helpers.PurchaseTokenSettler
 import dev.hyo.openiap.helpers.isSubscriptionReplacementTargetCountValid
 import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.onPurchaseError
@@ -515,7 +516,7 @@ internal fun amazonPurchaseError(
 
 class OpenIapModule(
     private val context: Context,
-) : OpenIapProtocol, PurchasingListener {
+) : OpenIapProtocol, PurchasingListener, PurchaseTokenSettler {
 
     private class AmazonPurchaseRequestFailure(
         val requestId: String,
@@ -867,6 +868,10 @@ class OpenIapModule(
         }
         notifyFulfilled(receiptId)
     }
+
+    // Amazon has one fulfillment call for both kinds, and no refusal code to map.
+    override suspend fun settlePurchaseToken(purchaseToken: String, isConsumable: Boolean) =
+        notifyFulfilled(purchaseToken)
 
     override val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler = { purchaseToken ->
         acknowledgePurchase(purchaseToken)

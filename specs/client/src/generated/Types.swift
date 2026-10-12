@@ -33,6 +33,22 @@ private enum UnionTypenameKey: String, CodingKey {
     case typename = "__typename"
 }
 
+/// Reads the wrapped `{"purchaseIos":{"_0":{...}}}` union JSON older releases wrote; remove in the next major.
+private struct LegacyUnionKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+    init(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+}
+
+private extension KeyedDecodingContainer where Key == LegacyUnionKey {
+    func payload<Value: Decodable>(_ type: Value.Type, forCase name: String) throws -> Value? {
+        let key = LegacyUnionKey(stringValue: name)
+        guard contains(key) else { return nil }
+        return try nestedContainer(keyedBy: LegacyUnionKey.self, forKey: key).decode(type, forKey: LegacyUnionKey(stringValue: "_0"))
+    }
+}
+
 /// Input enums reject unrecognized values; only output decoding falls back to `.unknown`.
 private struct StrictInputEnum<Value: RawRepresentable>: Decodable where Value.RawValue == String {
     let value: Value
@@ -4133,14 +4149,21 @@ public enum Product: Codable, ProductCommon {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: UnionTypenameKey.self)
-        let typename = try container.decode(String.self, forKey: .typename)
+        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? ""
         switch typename {
         case "ProductAndroid":
             self = .productAndroid(try ProductAndroid(from: decoder))
         case "ProductIOS":
             self = .productIos(try ProductIOS(from: decoder))
         default:
-            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for Product: \(typename)")
+            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)
+            if let value = try legacy.payload(ProductAndroid.self, forCase: "productAndroid") {
+                self = .productAndroid(value)
+            } else if let value = try legacy.payload(ProductIOS.self, forCase: "productIos") {
+                self = .productIos(value)
+            } else {
+                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for Product: \(typename)")
+            }
         }
     }
 
@@ -4254,14 +4277,21 @@ public enum ProductOrSubscription: Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: UnionTypenameKey.self)
-        let typename = try container.decode(String.self, forKey: .typename)
+        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? ""
         switch typename {
         case "ProductAndroid", "ProductIOS":
             self = .product(try Product(from: decoder))
         case "ProductSubscriptionAndroid", "ProductSubscriptionIOS":
             self = .productSubscription(try ProductSubscription(from: decoder))
         default:
-            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ProductOrSubscription: \(typename)")
+            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)
+            if let value = try legacy.payload(Product.self, forCase: "product") {
+                self = .product(value)
+            } else if let value = try legacy.payload(ProductSubscription.self, forCase: "productSubscription") {
+                self = .productSubscription(value)
+            } else {
+                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ProductOrSubscription: \(typename)")
+            }
         }
     }
 
@@ -4281,14 +4311,21 @@ public enum ProductSubscription: Codable, ProductCommon {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: UnionTypenameKey.self)
-        let typename = try container.decode(String.self, forKey: .typename)
+        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? ""
         switch typename {
         case "ProductSubscriptionAndroid":
             self = .productSubscriptionAndroid(try ProductSubscriptionAndroid(from: decoder))
         case "ProductSubscriptionIOS":
             self = .productSubscriptionIos(try ProductSubscriptionIOS(from: decoder))
         default:
-            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ProductSubscription: \(typename)")
+            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)
+            if let value = try legacy.payload(ProductSubscriptionAndroid.self, forCase: "productSubscriptionAndroid") {
+                self = .productSubscriptionAndroid(value)
+            } else if let value = try legacy.payload(ProductSubscriptionIOS.self, forCase: "productSubscriptionIos") {
+                self = .productSubscriptionIos(value)
+            } else {
+                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ProductSubscription: \(typename)")
+            }
         }
     }
 
@@ -4402,14 +4439,21 @@ public enum Purchase: Codable, PurchaseCommon {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: UnionTypenameKey.self)
-        let typename = try container.decode(String.self, forKey: .typename)
+        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? ""
         switch typename {
         case "PurchaseAndroid":
             self = .purchaseAndroid(try PurchaseAndroid(from: decoder))
         case "PurchaseIOS":
             self = .purchaseIos(try PurchaseIOS(from: decoder))
         default:
-            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for Purchase: \(typename)")
+            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)
+            if let value = try legacy.payload(PurchaseAndroid.self, forCase: "purchaseAndroid") {
+                self = .purchaseAndroid(value)
+            } else if let value = try legacy.payload(PurchaseIOS.self, forCase: "purchaseIos") {
+                self = .purchaseIos(value)
+            } else {
+                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for Purchase: \(typename)")
+            }
         }
     }
 
@@ -4542,7 +4586,7 @@ public enum VerifyPurchaseResult: Codable, VerifyPurchaseResultCommon {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: UnionTypenameKey.self)
-        let typename = try container.decode(String.self, forKey: .typename)
+        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? ""
         switch typename {
         case "VerifyPurchaseResultAndroid":
             self = .verifyPurchaseResultAndroid(try VerifyPurchaseResultAndroid(from: decoder))
@@ -4551,7 +4595,16 @@ public enum VerifyPurchaseResult: Codable, VerifyPurchaseResultCommon {
         case "VerifyPurchaseResultHorizon":
             self = .verifyPurchaseResultHorizon(try VerifyPurchaseResultHorizon(from: decoder))
         default:
-            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for VerifyPurchaseResult: \(typename)")
+            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)
+            if let value = try legacy.payload(VerifyPurchaseResultAndroid.self, forCase: "verifyPurchaseResultAndroid") {
+                self = .verifyPurchaseResultAndroid(value)
+            } else if let value = try legacy.payload(VerifyPurchaseResultIOS.self, forCase: "verifyPurchaseResultIos") {
+                self = .verifyPurchaseResultIos(value)
+            } else if let value = try legacy.payload(VerifyPurchaseResultHorizon.self, forCase: "verifyPurchaseResultHorizon") {
+                self = .verifyPurchaseResultHorizon(value)
+            } else {
+                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for VerifyPurchaseResult: \(typename)")
+            }
         }
     }
 

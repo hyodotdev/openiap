@@ -410,8 +410,8 @@ release-plan change expands the affected packages or behavior.
    package entry.
 3. Compare that inventory with the train's card in
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
-   versioned package needs its expected version, GitHub Release link, and tag
-   alias/anchor. Every user-visible change needs a concise behavior or migration
+   versioned package needs its expected version, GitHub Release link, and
+   hidden tag anchor. Every user-visible change needs a concise behavior or migration
    note; packages that only pick up shared behavior need only a linked release
    entry. Hosted behavior needs a concise note in the Kit weekly entry;
    a train that also publishes packages links to that entry from its card.
@@ -490,10 +490,6 @@ from issue #206 without duplicating release history across package-local files:
 
 ### Card Format
 
-Release notes live in:
-
-`packages/docs/src/pages/docs/updates/releases.tsx`
-
 Follow the existing card pattern:
 
 - Add the newest note near the top of `allNotes`.
@@ -501,26 +497,23 @@ Follow the existing card pattern:
 - Use `new Date('YYYY-MM-DD')`.
 - Use `AnchorLink` for the heading.
 - Keep package links in a `Package Releases` list.
-- Name the expected version once per package behavior group and in the linked
-  `Package Releases` list.
-- Link issues and PRs when they exist.
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
-- Register the card's package tags as aliases and render their hidden anchors:
+- Render a hidden anchor per package tag, first thing inside the card's
+  `<div>`:
 
   ```tsx
-  aliases: MY_RELEASES.map((release) => release.tag),
-  // and, first thing inside the card's <div>:
   {MY_RELEASES.map((release) => (
     <span key={release.tag} id={release.tag} aria-hidden="true" />
   ))}
   ```
 
   Release workflows link a version's own anchor
-  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and resolves a
-  hash only against a note's `id` or `aliases`, so a card without them leaves
-  those links on page one — a dead link that still looks alive. `bun run
-audit:docs` fails when a card lists `Package Releases` without them.
+  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and opens the
+  page whose card declares the hash as an element id, so a card without these
+  spans leaves those links on page one — a dead link that still looks alive.
+  Keep a span for each retired card id too. `bun run audit:docs` fails when a
+  card lists `Package Releases` without them.
 
 Card section layout (mandatory for multi-package cards):
 
@@ -539,12 +532,6 @@ Card section layout (mandatory for multi-package cards):
 - `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
   `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
   framework SDK bullets. Omit the section when it would be empty.
-- A package whose only change is selecting a shared native dependency,
-  regenerating types, or republishing the same behavior belongs only in
-  `Package Releases`. Do not manufacture one boilerplate bullet per wrapper.
-- One bullet may name multiple packages when the same user-visible behavior and
-  caveats apply to all of them. Keep distinct changes in separate nested
-  bullets within their package group.
 - The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
   August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
   reference implementations of this layout.

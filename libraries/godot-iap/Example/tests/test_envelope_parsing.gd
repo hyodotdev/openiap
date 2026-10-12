@@ -360,6 +360,14 @@ func test_failed_notice_and_dialog_never_read_as_success() -> void:
 	_assert_equal(errors.size(), 1, "A shown billing dialog emits no error")
 	_uninstall_fake()
 
+	errors.clear()
+	notice = await GodotIapPlugin.present_external_purchase_notice_sheet_ios()
+	dialog = GodotIapPlugin.show_billing_program_information_dialog_android(params)
+	_assert_equal(notice.result, Types.ExternalPurchaseNoticeAction.DISMISSED, "Without a native plugin the notice reads as DISMISSED")
+	_assert_true(dialog.response_code != 0, "Without a native plugin the dialog does not report OK")
+	_assert_equal(errors.size(), 2, "Without a native plugin both calls emit purchase_error")
+	_assert_equal(errors[0].get("code"), "feature-not-supported", "A desktop run reports feature-not-supported")
+
 	GodotIapPlugin.purchase_error.disconnect(capture_error)
 
 
@@ -1316,6 +1324,16 @@ func test_android_verify_purchase_envelope() -> void:
 
 	var sent_props = JSON.parse_string(fake.last_args[0])
 	_assert_equal(sent_props.get("google", {}).get("purchaseToken"), "token-v", "Verification props should reach the native plugin")
+
+	fake.responses["verifyPurchase"] = JSON.stringify({
+		"success": true,
+		"__typename": "VerifyPurchaseResultHorizon",
+		"isValid": true,
+		"grantTime": 1700000000,
+	})
+	var horizon = await GodotIapPlugin.verify_purchase({"horizon": {"sku": "gems", "userId": "42", "accessToken": "token"}})
+	_assert_true(horizon is Types.VerifyPurchaseResultHorizon, "Horizon results should map to VerifyPurchaseResultHorizon")
+	_assert_equal(horizon.grant_time, 1700000000, "Horizon fields should survive the envelope")
 
 	fake.responses["verifyPurchase"] = JSON.stringify({"isValid": false})
 	var invalid = await GodotIapPlugin.verify_purchase({"google": {"purchaseToken": "token-x"}})

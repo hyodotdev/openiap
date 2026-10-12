@@ -95,6 +95,21 @@ class OpenIapStoreStateTest {
     }
 
     @Test
+    fun `concurrent finishes of one token share the in-flight failure`() {
+        module.finishDelayMillis = 100
+        module.finishError = IllegalStateException("store unavailable")
+        val failures = java.util.concurrent.atomic.AtomicInteger(0)
+
+        hammer(iterations = 1) { _, _ ->
+            runCatching { store.finishTransaction(purchase("shared-token"), false) }
+                .onFailure { failures.incrementAndGet() }
+        }
+
+        assertEquals(1, module.finishTransactionCalls.get())
+        assertEquals("every caller sees the store's failure", WORKERS, failures.get())
+    }
+
+    @Test
     fun `a failed finish can be retried`() = runBlocking {
         module.finishError = IllegalStateException("store unavailable")
         runCatching { store.finishTransaction(purchase("retry-token"), false) }

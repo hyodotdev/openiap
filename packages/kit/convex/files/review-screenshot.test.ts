@@ -1222,29 +1222,32 @@ describe("Apple .p8 keys", () => {
     expect(admin.storage.delete).toHaveBeenCalledWith("storage_old_key");
   });
 
-  it("reads this project's newest key, else the organization's, never another project's", async () => {
+  it("reads this project's key, then the organization's, then a sibling's, never another organization's", async () => {
     const key = (_id: string, organizationId: string, projectId?: string) => ({
       _id,
       organizationId,
       ...(projectId ? { projectId } : {}),
       purpose: "apple_p8_key",
     });
+    const files = [
+      key("a_old", "organizations_a", "projects_a"),
+      key("org_old", "organizations_a"),
+      key("other_org", "organizations_b"),
+      key("org_new", "organizations_a"),
+      key("a_new", "organizations_a", "projects_a"),
+      key("sibling_old", "organizations_e", "projects_e1"),
+      key("sibling_new", "organizations_e", "projects_e2"),
+      key("foreign_org_newest", "organizations_f", "projects_f1"),
+    ];
     const db = new TestDb(
       {
         projects: [
           { _id: "projects_a", organizationId: "organizations_a" },
           { _id: "projects_c", organizationId: "organizations_a" },
+          { _id: "projects_e3", organizationId: "organizations_e" },
           { _id: "projects_d", organizationId: "organizations_d" },
         ],
-        files: [
-          key("a_old", "organizations_a", "projects_a"),
-          key("org_old", "organizations_a"),
-          key("other_org", "organizations_b"),
-          key("org_new", "organizations_a"),
-          key("a_new", "organizations_a", "projects_a"),
-          // Newest in the organization, but it belongs to another project.
-          key("b_key", "organizations_a", "projects_b"),
-        ],
+        files,
       },
       {},
     );
@@ -1257,8 +1260,13 @@ describe("Apple .p8 keys", () => {
     await expect(lookup("projects_a")).resolves.toMatchObject({
       _id: "a_new",
     });
+    // An organization-level key wins over a newer sibling project's key.
+    files.push(key("a_sibling_newest", "organizations_a", "projects_b"));
     await expect(lookup("projects_c")).resolves.toMatchObject({
       _id: "org_new",
+    });
+    await expect(lookup("projects_e3")).resolves.toMatchObject({
+      _id: "sibling_new",
     });
     await expect(lookup("projects_d")).resolves.toBeNull();
   });

@@ -35,6 +35,25 @@ class GodotIapConnectionLifecycleTest {
     }
 
     @Test
+    fun `a late teardown for a dropped connection leaves a newer one alone`() {
+        val lifecycle = GodotIapConnectionLifecycle()
+        assertTrue(lifecycle.init(defaultConfig, {}) { true }.success)
+        val dropped = lifecycle.generation
+        // The app reconnects before the dropped connection's teardown runs.
+        assertTrue(lifecycle.end(disconnect = { true }, cleanupListeners = {}).didEnd)
+        assertTrue(lifecycle.init(defaultConfig, {}) { true }.success)
+
+        var disconnects = 0
+        val late = lifecycle.end(disconnect = { disconnects++; true }, cleanupListeners = {}, onlyGeneration = dropped)
+        assertFalse(late.didEnd)
+        assertEquals(0, disconnects)
+        assertTrue(lifecycle.isConnected)
+
+        assertTrue(lifecycle.end(disconnect = { true }, cleanupListeners = {}, onlyGeneration = lifecycle.generation).didEnd)
+        assertFalse(lifecycle.isConnected)
+    }
+
+    @Test
     fun `end waits for in-flight init and leaves lifecycle disconnected`() {
         val lifecycle = GodotIapConnectionLifecycle()
         val initEntered = CountDownLatch(1)

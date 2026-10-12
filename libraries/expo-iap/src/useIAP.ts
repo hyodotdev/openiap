@@ -496,32 +496,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * Initiate a purchase or subscription flow. The result arrives through
-   * `purchaseUpdatedListener` / `purchaseErrorListener`, not the return value.
-   *
-   * @param props `RequestPurchaseProps`, discriminated by `type`:
-   *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
-   *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
-   * @returns Promise that resolves when the request is dispatched; the actual purchase
-   *   outcome lands in the hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
-   * @throws Synchronous rejection from the store (e.g. `ErrorCode.NotPrepared`, validation failure).
-   *
-   * @example
-   * ```ts
-   * await requestPurchase({
-   *   request: {
-   *     apple: { sku: 'com.app.premium' },
-   *     google: { skus: ['com.app.premium'] },
-   *   },
-   *   type: 'in-app',
-   * });
-   * ```
-   *
-   * @see {@link https://openiap.dev/docs/apis/request-purchase}
-   */
-  const requestPurchase = requestPurchaseInternal;
-
-  /**
    * Restore non-consumable and active subscription purchases.
    *
    * @see {@link https://openiap.dev/docs/apis/restore-purchases}
@@ -668,6 +642,41 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       );
     }
   }, [handlePurchaseUpdate]);
+
+  /**
+   * Initiate a purchase or subscription flow. The result arrives through
+   * `purchaseUpdatedListener` / `purchaseErrorListener`, not the return value.
+   *
+   * @param props `RequestPurchaseProps`, discriminated by `type`:
+   *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
+   *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
+   * @returns Promise that resolves when the request is dispatched; the actual purchase
+   *   outcome lands in the hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
+   * @throws Synchronous rejection from the store (e.g. `ErrorCode.NotPrepared`, validation failure).
+   *
+   * @example
+   * ```ts
+   * await requestPurchase({
+   *   request: {
+   *     apple: { sku: 'com.app.premium' },
+   *     google: { skus: ['com.app.premium'] },
+   *   },
+   *   type: 'in-app',
+   * });
+   * ```
+   *
+   * @see {@link https://openiap.dev/docs/apis/request-purchase}
+   */
+  const requestPurchase = useCallback(
+    (requestObj: MutationRequestPurchaseArgs) => {
+      // A failed hook init removes the purchase listener; restore it before buying.
+      if (isMountedRef.current) {
+        registerListeners();
+      }
+      return requestPurchaseInternal(requestObj);
+    },
+    [registerListeners],
+  );
 
   // Purchase-error listening stays on so later retries still report errors.
   const removePurchaseListeners = useCallback(() => {

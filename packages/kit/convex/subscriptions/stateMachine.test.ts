@@ -539,6 +539,15 @@ describe("entitlementActive", () => {
     ).toBe(true);
   });
 
+  it("keeps an Active iOS row a store event governs entitled without an expiry", () => {
+    expect(
+      entitlementActive(
+        { state: "Active", platform: "IOS", lastEventId: "webhookEvents_1" },
+        1_000,
+      ),
+    ).toBe(true);
+  });
+
   it("keeps an iOS grace period without a deadline entitled, as the spec requires", () => {
     expect(
       entitlementActive({ state: "InGracePeriod", platform: "IOS" }, 1_000),

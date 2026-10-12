@@ -19,7 +19,6 @@ const noteCardStyle = {
 
 interface Note {
   id: string;
-  aliases?: readonly string[];
   date: Date;
   element: React.ReactNode;
 }
@@ -571,7 +570,6 @@ function Releases() {
   const allNotes: Note[] = [
     {
       id: 'purchase-accuracy-2026-10-13',
-      aliases: PURCHASE_ACCURACY_RELEASES.map((release) => release.tag),
       date: new Date('2026-10-13'),
       element: (
         <div key="purchase-accuracy-2026-10-13" style={noteCardStyle}>
@@ -591,31 +589,38 @@ function Releases() {
           <h5>Common changes</h5>
           <ul>
             <li>
-              Android <code>finishTransaction</code> rejects with{' '}
-              <code>service-error</code> when the store refuses to acknowledge
-              or consume a purchase, instead of reporting it finished.
+              A refused Android acknowledge or consume no longer reads as
+              finished: React Native, Expo, and Flutter{' '}
+              <code>finishTransaction</code> reject with the store&apos;s error
+              code.
             </li>
             <li>
               Direct{' '}
               <Link to="/docs/apis/android/acknowledge-purchase-android#returns">
                 acknowledgePurchaseAndroid
               </Link>{' '}
-              and <code>consumePurchaseAndroid</code> calls no longer return{' '}
-              <code>true</code> for a refused token; each framework rejects or
-              returns <code>false</code>.
+              and <code>consumePurchaseAndroid</code> calls reject with the
+              store&apos;s error code in React Native, Expo, and KMP, and return{' '}
+              <code>false</code> in Flutter and Godot instead of{' '}
+              <code>true</code>.
             </li>
             <li>
               Swift encodes union results flat with <code>__typename</code>,
               like the other languages, so Expo iOS <code>verifyPurchase</code>{' '}
               returns <code>isValid</code> and KMP and MAUI decode iOS{' '}
-              <code>latestTransaction</code>.
+              <code>latestTransaction</code>. Swift still decodes the wrapped
+              JSON that 4.0.1 wrote.
             </li>
             <li>
+              openiap-apple and openiap-google{' '}
               <Link to="/docs/apis/get-storefront">getStorefront</Link> failures
-              reject without also firing <code>purchaseError</code> listeners.
+              reject without firing <code>purchaseError</code> listeners, except
+              when the call&apos;s automatic iOS connection fails with{' '}
+              <code>init-connection</code>.
             </li>
             <li>
-              Hosted IAPKit and MCP fixes deployed this week are in the{' '}
+              Hosted IAPKit and MCP fixes deployed the week of October 12, 2026
+              are in the{' '}
               <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
                 hosted history
               </a>
@@ -642,9 +647,10 @@ function Releases() {
                   <code>null</code>, as they do to an omitted field.
                 </li>
                 <li>
-                  Dart deprecates{' '}
-                  <code>PurchaseAndroid.isAlternativeBilling</code>, which
-                  native code never sets, for removal in the next major release.
+                  Dart deprecates <code>isAlternativeBilling</code> on{' '}
+                  <code>PurchaseAndroid</code> and <code>PurchaseIOS</code>,
+                  which native code never sets, for removal in the next major
+                  release.
                 </li>
               </ul>
             </li>
@@ -652,16 +658,19 @@ function Releases() {
               <strong>Commerce Protocol 0.3.2</strong>
               <ul>
                 <li>
+                  The REST binding leaves an omitted result member out of the
+                  JSON body; the runner checks results as served, so a provider
+                  that sends <code>&quot;subscription&quot;: null</code> fails.
+                </li>
+                <li>
                   The conformance runner runs unknown-evidence{' '}
-                  <code>bindPurchase</code> vectors for every store and
-                  validates REST results as served, <code>null</code> members
-                  included.
+                  <code>bindPurchase</code> vectors for every store and rejects
+                  unknown binding names.
                 </li>
                 <li>
                   It checks every string in an error, GraphQL{' '}
                   <code>extensions</code> included, for leaked evidence or
-                  credentials, as the specification now states, and rejects
-                  unknown binding names.
+                  credentials, as the specification now states.
                 </li>
                 <li>
                   Events-only providers can pass the GraphQL executor probe.
@@ -708,13 +717,15 @@ function Releases() {
                 <li>
                   StoreKit purchase and lookup errors map to specific codes such
                   as <code>sku-offer-mismatch</code> and{' '}
-                  <code>item-unavailable</code> instead of{' '}
-                  <code>purchase-error</code> or a raw error.
+                  <code>item-unavailable</code>, and the refund and
+                  subscription-management sheets reject with a{' '}
+                  <code>PurchaseError</code> instead of a raw error.
                 </li>
                 <li>
                   <code>verifyPurchase</code> reads the on-device transaction,
                   so a network failure no longer returns{' '}
-                  <code>isValid: false</code>.
+                  <code>isValid: false</code> and an unknown SKU no longer fires{' '}
+                  <code>sku-not-found</code>.
                 </li>
                 <li>
                   Verification-failure events keep reaching listeners after a
@@ -739,8 +750,9 @@ function Releases() {
                 </li>
                 <li>
                   Stale pending or unconsumed purchases no longer resolve a new
-                  request, and a failed pre-launch ownership read fails the
-                  request with the store error.
+                  request; if the ownership read before launch fails, the
+                  request reports the store error to <code>purchaseError</code>{' '}
+                  listeners and returns no purchase without opening the sheet.
                 </li>
                 <li>
                   A launched Play purchase with no result is recovered by an
@@ -749,7 +761,8 @@ function Releases() {
                 </li>
                 <li>
                   Play and Horizon deliver each purchase state to{' '}
-                  <code>purchaseUpdated</code> once.
+                  <code>purchaseUpdated</code> once per request, however many
+                  paths report it.
                 </li>
                 <li>
                   Horizon maps launch errors to specific codes and resolves an
@@ -762,7 +775,9 @@ function Releases() {
                 </li>
                 <li>
                   Amazon <code>fetchProducts</code> without <code>type</code>{' '}
-                  returns in-app products, as on the other stores.
+                  returns in-app products, as on the other stores, and{' '}
+                  <code>finishTransaction</code> reports a failed fulfillment as{' '}
+                  <code>purchase-error</code> instead of a raw exception.
                 </li>
                 <li>
                   <code>OpenIapStore</code> refreshes products it already holds,
@@ -770,9 +785,19 @@ function Releases() {
                 </li>
                 <li>
                   <code>openiap-core</code> adds{' '}
-                  <code>finishPurchaseToken</code>, which throws{' '}
-                  <code>service-error</code> for a refused token, and deprecates
-                  unused helpers and <code>IapStatus</code> operation fields for
+                  <code>finishPurchaseToken</code>, which throws the
+                  store&apos;s error for a refused token, or{' '}
+                  <code>service-error</code> when a provider reports only{' '}
+                  <code>false</code>.
+                </li>
+                <li>
+                  <code>openiap-core</code> also adds public helpers (
+                  <code>PurchaseTokenSettler</code>,{' '}
+                  <code>PurchaseDeliveryClaims</code>,{' '}
+                  <code>claimPendingPurchaseIfOwned</code>,{' '}
+                  <code>collectAllProductQueryResults</code>,{' '}
+                  <code>PLAY_REDEEM_OFFER_CODE_URL</code>) and deprecates unused
+                  helpers and <code>IapStatus</code> operation fields for
                   removal in the next major release.
                 </li>
               </ul>
@@ -781,10 +806,14 @@ function Releases() {
           <h5>Framework libraries</h5>
           <ul>
             <li>
-              React Native and Expo share one error-code mapping: Play response
-              codes map the same way, and <code>isRecoverableError</code> now
-              includes <code>service-timeout</code> and excludes{' '}
-              <code>billing-unavailable</code>.
+              React Native and Expo share one error-code mapping, so Play
+              response codes map the same way in both.
+            </li>
+            <li>
+              <code>isRecoverableError</code> adds <code>service-timeout</code>{' '}
+              and drops <code>billing-unavailable</code> in both; React Native
+              also drops <code>duplicate-purchase</code>, and Expo adds{' '}
+              <code>connection-closed</code> and <code>sync-error</code>.
             </li>
             <li>
               <strong>react-native-iap 17.0.2</strong>
@@ -906,13 +935,18 @@ function Releases() {
                   instead of none.
                 </li>
                 <li>
-                  Play query failures throw without also firing{' '}
+                  Play query failures and refused tokens throw without firing{' '}
                   <code>purchaseErrorListener</code>.
                 </li>
                 <li>
-                  On Horizon and Amazon, <code>deepLinkToSubscriptions()</code>{' '}
-                  without options opens the subscription page, and acknowledge
-                  and consume throw on a refused token.
+                  <code>deepLinkToSubscriptions()</code> without options opens
+                  the Play subscriptions page and the Amazon app page, and
+                  throws <code>feature-not-supported</code> on Horizon, instead
+                  of doing nothing.
+                </li>
+                <li>
+                  On Horizon and Amazon, acknowledge and consume throw on a
+                  refused token instead of returning <code>false</code>.
                 </li>
                 <li>
                   Android event flows buffer up to 64 events, so bursts such as
@@ -925,14 +959,13 @@ function Releases() {
                   <Link to="/docs/events/android/developer-provided-billing-listener-android">
                     developerProvidedBillingListenerAndroid
                   </Link>{' '}
-                  and <code>userChoiceBillingListenerAndroid</code> flows; on
-                  Play the one-shot getters throw unless{' '}
-                  <code>initConnection</code> enabled the matching program.
+                  and <code>userChoiceBillingListenerAndroid</code> flows.
                 </li>
                 <li>
                   iOS <code>getAvailablePurchases</code> honors{' '}
                   <code>PurchaseOptions</code>, and a missing iOS SKU throws{' '}
-                  <code>empty-sku-list</code>.
+                  <code>empty-sku-list</code> and fires{' '}
+                  <code>purchaseErrorListener</code>.
                 </li>
                 <li>
                   iOS APIs that need iOS 16, 17.4, or 18.1 return an empty or
@@ -985,12 +1018,23 @@ function Releases() {
               instead of <code>deepLinkToSubscriptionsIOS</code>.
             </li>
             <li>
-              In KMP, collect the new listener flows before{' '}
-              <code>initConnection</code> instead of calling the billing choice
-              getters early.
+              In KMP, catch the exception where Horizon or Amazon code checked a{' '}
+              <code>false</code> acknowledge or consume result, and expect{' '}
+              <code>deepLinkToSubscriptions()</code> to open a page on Play and
+              Amazon and to throw on Horizon.
             </li>
           </ul>
-          <p>See this PR for the review findings behind each fix.</p>
+          <p>
+            See{' '}
+            <a
+              href="PR_LINK_PLACEHOLDER"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              this PR
+            </a>{' '}
+            for the review findings behind each fix.
+          </p>
           <div
             style={{
               borderTop: '1px solid var(--border-color)',
@@ -1018,9 +1062,6 @@ function Releases() {
     },
     {
       id: 'app-ownership-2026-10-12',
-      aliases: APP_OWNERSHIP_RELEASES.map((release) => release.tag).concat(
-        'godot-verified-recovery-2026-10-10'
-      ),
       date: new Date('2026-10-12'),
       element: (
         <div key="app-ownership-2026-10-12" style={noteCardStyle}>
@@ -1044,9 +1085,13 @@ function Releases() {
           </p>
           <ul>
             <li>
-              Martie examples retain receipts until verification succeeds, retry
-              them when you reselect the verification method, and show
-              unavailable subscription products.
+              Martie examples retain receipts until verification succeeds and
+              retry them when you reselect the verification method or a purchase
+              query omits them.
+            </li>
+            <li>
+              The examples keep results visible while loading, wrap long
+              messages, and show unavailable subscription products.
             </li>
             <li>
               IAPKit returns Apple's verified transaction environment for
@@ -1164,7 +1209,6 @@ function Releases() {
     },
     {
       id: 'user-choice-retry-2026-10-07',
-      aliases: USER_CHOICE_RETRY_RELEASES.map((release) => release.tag),
       date: new Date('2026-10-07'),
       element: (
         <div key="user-choice-retry-2026-10-07" style={noteCardStyle}>
@@ -1237,9 +1281,6 @@ function Releases() {
     },
     {
       id: 'community-store-providers-2026-10-02',
-      aliases: COMMUNITY_PROVIDER_RELEASES.map((release) => release.tag).concat(
-        GODOT_RESTORE_EXPORT_NOTE_ID
-      ),
       date: new Date('2026-10-09'),
       element: (
         <div key="community-store-providers-2026-10-02" style={noteCardStyle}>
@@ -1586,7 +1627,6 @@ function Releases() {
     },
     {
       id: 'amazon-subscription-offers-2026-09-30',
-      aliases: AMAZON_OFFER_FIX_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-30'),
       element: (
         <div key="amazon-subscription-offers-2026-09-30" style={noteCardStyle}>
@@ -1873,7 +1913,6 @@ function Releases() {
     },
     {
       id: 'minified-release-builds-2026-09-26',
-      aliases: MINIFIED_RELEASE_BUILD_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-26'),
       element: (
         <div key="minified-release-builds-2026-09-26" style={noteCardStyle}>
@@ -1979,7 +2018,6 @@ function Releases() {
     },
     {
       id: 'build-time-store-resolution-2026-09-26',
-      aliases: BUILD_TIME_STORE_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-26'),
       element: (
         <div key="build-time-store-resolution-2026-09-26" style={noteCardStyle}>
@@ -2142,7 +2180,6 @@ function Releases() {
     },
     {
       id: 'framework-build-play-offers-2026-09-20',
-      aliases: FRAMEWORK_PLAY_FIX_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-20'),
       element: (
         <div key="framework-build-play-offers-2026-09-20" style={noteCardStyle}>
@@ -2231,7 +2268,6 @@ function Releases() {
     },
     {
       id: 'godot-embed-report-2026-09-18',
-      aliases: GODOT_EMBED_REPORT_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-18'),
       element: (
         <div key="godot-embed-report-2026-09-18" style={noteCardStyle}>
@@ -2332,7 +2368,6 @@ function Releases() {
     },
     {
       id: 'amazon-purchase-dialog-2026-09-15',
-      aliases: AMAZON_DIALOG_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-15'),
       element: (
         <div key="amazon-purchase-dialog-2026-09-15" style={noteCardStyle}>
@@ -2470,7 +2505,6 @@ function Releases() {
     },
     {
       id: 'godot-runtime-embed-2026-09-17',
-      aliases: GODOT_RUNTIME_EMBED_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-17'),
       element: (
         <div key="godot-runtime-embed-2026-09-17" style={noteCardStyle}>
@@ -2697,7 +2731,6 @@ function Releases() {
     },
     {
       id: 'openiap-cli-and-protocols-2026-09-11',
-      aliases: OPENIAP_TOOLING_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-11'),
       element: (
         <div key="openiap-cli-and-protocols-2026-09-11" style={noteCardStyle}>
@@ -5060,7 +5093,6 @@ function Releases() {
     // August 2, 2026 - Apple framework compatibility patches
     {
       id: 'apple-framework-compatibility-patches-2026-08-02',
-      aliases: frameworkIosPatchAliases,
       date: new Date('2026-08-02'),
       element: (
         <div
@@ -5462,7 +5494,6 @@ function Releases() {
     // July 29, 2026 - OpenIAP major API cleanup
     {
       id: 'openiap-major-api-cleanup-2026-07-29',
-      aliases: majorApiRemovalAliases,
       date: new Date('2026-07-29'),
       element: (
         <div key="openiap-major-api-cleanup-2026-07-29" style={noteCardStyle}>
@@ -5744,7 +5775,6 @@ function Releases() {
     // July 25, 2026 - IAPKit security and SDK patch train
     {
       id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',
-      aliases: iapkitSecurityTrainAliases,
       date: new Date('2026-07-25'),
       element: (
         <div
@@ -13336,7 +13366,6 @@ result.error                  // optional error`}</CodeBlock>
     // Spec 1.3.11 / Google 1.3.21 / Apple 1.3.9 - Dec 28, 2025
     {
       id: 'spec-1-3-11-google-1-3-21-apple-1-3-9',
-      aliases: ['spec-1-3-11-google-1-3-20-apple-1-3-9'],
       date: new Date('2025-12-28'),
       element: (
         <div key="spec-1-3-11-google-1-3-21-apple-1-3-9" style={noteCardStyle}>

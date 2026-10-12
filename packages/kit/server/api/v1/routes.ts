@@ -552,8 +552,10 @@ const verifyPurchaseHandler = async (
         c.header("Retry-After", String(convexError.retryAfterSec ?? 1));
         return c.json({ errors: [convexError] }, 429);
       }
-      // The store could not answer: no verdict, so not a permanent 400.
+      // The store could not answer: no verdict, so not a permanent 400, and
+      // the replay guard refunds the attempt as it does for SERVICE_BUSY.
       if (convexError.retryAfterSec !== undefined) {
+        c.set("verifyCapacityRejected", true);
         c.header("Retry-After", String(Math.max(1, convexError.retryAfterSec)));
         return c.json({ errors: [convexError] }, 503);
       }

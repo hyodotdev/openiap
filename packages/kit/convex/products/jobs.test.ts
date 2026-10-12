@@ -79,9 +79,12 @@ describe("queued jobs never hold the platform slot forever", () => {
               filters.push((row) => row[field] === value);
               return q;
             },
+            // Convex sorts a missing field before every number.
             lt: (field: string, value: number) => {
               filters.push(
-                (row) => typeof row[field] === "number" && row[field] < value,
+                (row) =>
+                  row[field] === undefined ||
+                  (typeof row[field] === "number" && row[field] < value),
               );
               return q;
             },
@@ -119,6 +122,26 @@ describe("queued jobs never hold the platform slot forever", () => {
     expect(rows.get("project_a")?.activeSyncJobIds).toEqual({
       IOS: undefined,
     });
+  });
+
+  it("gives a job queued before deadlines existed the default deadline", async () => {
+    const fresh = makeCtx({ status: "queued", createdAt: Date.now() });
+    await expect(
+      reapStaleProductSyncJobs._handler(fresh.ctx, {}),
+    ).resolves.toEqual({ reaped: 0 });
+    expect(fresh.rows.get("job_a")).toMatchObject({ status: "queued" });
+
+    const old = makeCtx({
+      status: "queued",
+      createdAt:
+        Date.now() -
+        PRODUCT_SYNC_JOB_DEADLINE_MS -
+        PRODUCT_SYNC_REAPER_GRACE_MS -
+        1,
+    });
+    await expect(
+      reapStaleProductSyncJobs._handler(old.ctx, {}),
+    ).resolves.toEqual({ reaped: 1 });
   });
 
   it("gives a newly queued job a deadline", async () => {

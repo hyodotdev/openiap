@@ -184,8 +184,10 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
   },
 });
 
-// The newest key of this project, else the newest organization-level key (no
-// projectId). Never another project's key.
+// One App Store Connect key serves the whole team, so a project may rely on a
+// key uploaded elsewhere in its organization. Newest first: this project's,
+// then an organization-level key (no projectId), then a sibling project's.
+// Never another organization's.
 export const getAppleP8KeyFile = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -202,16 +204,20 @@ export const getAppleP8KeyFile = internalQuery({
     if (projectKey) return projectKey;
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
-    return await ctx.db
-      .query("files")
-      .withIndex("by_org_and_purpose", (q) =>
-        q
-          .eq("organizationId", project.organizationId)
-          .eq("purpose", args.purpose),
-      )
-      .order("desc")
-      .filter((q) => q.eq(q.field("projectId"), undefined))
-      .first();
+    const organizationKeys = () =>
+      ctx.db
+        .query("files")
+        .withIndex("by_org_and_purpose", (q) =>
+          q
+            .eq("organizationId", project.organizationId)
+            .eq("purpose", args.purpose),
+        )
+        .order("desc");
+    return (
+      (await organizationKeys()
+        .filter((q) => q.eq(q.field("projectId"), undefined))
+        .first()) ?? (await organizationKeys().first())
+    );
   },
 });
 

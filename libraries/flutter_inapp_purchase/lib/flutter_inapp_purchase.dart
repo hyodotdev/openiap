@@ -64,7 +64,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   static FlutterInappPurchase? _instance;
 
   /// The shared instance. Instances share one MethodChannel, whose events
-  /// reach only the instance created last, so apps use this one.
+  /// reach only the instance that listened last, so apps use this one.
   static FlutterInappPurchase get instance =>
       _instance ??= FlutterInappPurchase._(const LocalPlatform());
 
@@ -75,7 +75,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   @visibleForTesting
   FlutterInappPurchase.private(Platform platform) : this._(platform);
 
-  FlutterInappPurchase._(this._pf) {
+  FlutterInappPurchase._(this._pf);
+
+  bool _listensToNative = false;
+
+  /// Native events reach the instance that last set the channel handler, so an
+  /// instance claims it when first used, not when constructed.
+  void _listenToNative() {
+    if (_listensToNative) return;
+    _listensToNative = true;
     _channel.setMethodCallHandler(_handleMethodCall);
   }
 
@@ -85,7 +93,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   );
   String? _pendingPromotedProductIOS;
 
-  Stream<String?> get purchasePromoted => _purchasePromotedController.stream;
+  Stream<String?> get purchasePromoted {
+    _listenToNative();
+    return _purchasePromotedController.stream;
+  }
 
   final Map<String, bool> _acknowledgedAndroidPurchaseTokens = <String, bool>{};
 
@@ -123,9 +134,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   int _nonDedupingPurchaseUpdatedListenerCountIOS = 0;
 
   /// Purchase updated event stream
-  Stream<gentype.Purchase> get purchaseUpdatedListener => isIOS
-      ? _purchaseUpdatedListenerStreamIOS(dedupeTransactionIOS: true)
-      : _purchaseUpdatedListener.stream;
+  Stream<gentype.Purchase> get purchaseUpdatedListener {
+    _listenToNative();
+    return isIOS
+        ? _purchaseUpdatedListenerStreamIOS(dedupeTransactionIOS: true)
+        : _purchaseUpdatedListener.stream;
+  }
 
   /// Purchase updated event stream with listener options.
   ///
@@ -231,12 +245,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Future<void> _setPurchaseUpdatedListenerOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) =>
-      _configurePurchaseListener(
-        () => _channel.invokeMethod<void>(
+      _configurePurchaseListener(() {
+        _listenToNative();
+        return _channel.invokeMethod<void>(
           'setPurchaseUpdatedListenerOptions',
           options?.toJson(),
-        ),
-      );
+        );
+      });
 
   Future<void> _setDedupingPurchaseUpdatedListenerOptionsIOS(
     gentype.PurchaseUpdatedListenerOptions? options,
@@ -269,18 +284,24 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   }
 
   /// Purchase error event stream
-  Stream<PurchaseError> get purchaseErrorListener =>
-      _purchaseErrorListener.stream;
+  Stream<PurchaseError> get purchaseErrorListener {
+    _listenToNative();
+    return _purchaseErrorListener.stream;
+  }
 
   /// User choice billing Android event stream
-  Stream<gentype.UserChoiceBillingDetails> get userChoiceBillingAndroid =>
-      _userChoiceBillingAndroidListener.stream;
+  Stream<gentype.UserChoiceBillingDetails> get userChoiceBillingAndroid {
+    _listenToNative();
+    return _userChoiceBillingAndroidListener.stream;
+  }
 
   /// Developer provided billing Android event stream (8.3.0+).
   /// Fires for External Payments and Google-rendered Billing Choice selections.
   Stream<gentype.DeveloperProvidedBillingDetailsAndroid>
-      get developerProvidedBillingAndroid =>
-          _developerProvidedBillingAndroidListener.stream;
+      get developerProvidedBillingAndroid {
+    _listenToNative();
+    return _developerProvidedBillingAndroidListener.stream;
+  }
 
   /// Subscription billing-issue event stream (cross-platform).
   ///
@@ -288,8 +309,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// problem: StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst
   /// 16.4+, visionOS 1.0+) or Play `Purchase.isSuspended` (Billing 8.1+).
   /// Not emitted on Meta Horizon (its Billing 7.0 compat lacks the signal).
-  Stream<gentype.Purchase> get subscriptionBillingIssueListener =>
-      _subscriptionBillingIssueListener.stream;
+  Stream<gentype.Purchase> get subscriptionBillingIssueListener {
+    _listenToNative();
+    return _subscriptionBillingIssueListener.stream;
+  }
 
   bool _isInitialized = false;
   bool _isIapUnavailable = false;
@@ -460,6 +483,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
+          _listenToNative();
           // Let pending listener-option changes reach native first.
           await _purchaseListenerConfiguration;
 

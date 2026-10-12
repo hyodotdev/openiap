@@ -47,7 +47,6 @@ const linkIconStyle = {
 
 interface Announcement {
   id: string;
-  aliases?: readonly string[];
   date: Date;
   hidden?: boolean;
   element: React.ReactNode;
@@ -344,7 +343,6 @@ function Announcements() {
     // 2026-08-19: Amazon Fire OS / Vega OS
     {
       id: '2026-08-19-amazon-fireos-vega',
-      aliases: ['2026-06-09-amazon-fireos-vega'],
       date: new Date('2026-08-19'),
       element: (
         <div key="2026-08-19-amazon-fireos-vega" style={cardStyle}>

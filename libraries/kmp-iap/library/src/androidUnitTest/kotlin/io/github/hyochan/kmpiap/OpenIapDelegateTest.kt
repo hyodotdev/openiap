@@ -121,6 +121,27 @@ class OpenIapDelegateTest {
     }
 
     @Test
+    fun `a Play request ignores failures reported for other products`() = runBlocking {
+        val errorListeners = CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
+        val request: MutationRequestPurchaseHandler = {
+            errorListeners.forEach { it.onPurchaseError(OpenIapError.SkuNotFound("other-product")) }
+            dev.hyo.openiap.RequestPurchaseResultPurchases(emptyList())
+        }
+        val module = fakeModule { method, args ->
+            when (method) {
+                "addPurchaseErrorListener" -> errorListeners.add(args!![0] as OpenIapPurchaseErrorListener)
+                "removePurchaseErrorListener" -> errorListeners.remove(args!![0])
+                "getRequestPurchase" -> request
+                else -> error("Unexpected call: $method")
+            }
+        }
+
+        val result = delegateFor(Store.PLAY_STORE, module).requestPurchase(purchaseRequest())
+
+        assertEquals(emptyList(), (result as RequestPurchaseResultPurchases).value)
+    }
+
+    @Test
     // The delegate drops the old 60 s UserCancelled timeout; openiap-google owns flow timeouts.
     fun `the delegate adds no purchase timeout of its own`() = runTest {
         val request: MutationRequestPurchaseHandler = {

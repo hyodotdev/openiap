@@ -237,6 +237,15 @@ function attachNativeListenerOrDefer(label: string, attach: () => void): void {
   }
 }
 
+// JS listeners outlive endConnection, so registering the same function again is a no-op.
+function addJsListener<T>(listeners: Set<T>, listener: T, label: string): void {
+  if (listeners.has(listener)) {
+    RnIapConsole.debug(`[${label}] listener already registered; ignored`);
+    return;
+  }
+  listeners.add(listener);
+}
+
 const purchaseUpdateJsListeners = new Set<(purchase: Purchase) => void>();
 const purchaseUpdateDuplicateJsListeners = new Set<
   (purchase: Purchase) => void
@@ -431,7 +440,7 @@ export const purchaseUpdatedListener = (
     ? purchaseUpdateDuplicateJsListeners
     : purchaseUpdateJsListeners;
 
-  listeners.add(listener);
+  addJsListener(listeners, listener, 'purchaseUpdatedListener');
   try {
     tryAttachPurchaseUpdateNative(receiveDuplicateTransactionUpdatesIOS);
   } catch (error) {
@@ -484,7 +493,7 @@ export const purchaseUpdatedListener = (
 export const purchaseErrorListener = (
   listener: (error: PurchaseError) => void,
 ): EventSubscription => {
-  purchaseErrorJsListeners.add(listener);
+  addJsListener(purchaseErrorJsListeners, listener, 'purchaseErrorListener');
   try {
     tryAttachPurchaseErrorNative();
   } catch (error) {
@@ -539,7 +548,11 @@ export const promotedProductListenerIOS = (
     return {remove: () => {}};
   }
 
-  promotedProductJsListeners.add(listener);
+  addJsListener(
+    promotedProductJsListeners,
+    listener,
+    'promotedProductListenerIOS',
+  );
   try {
     tryAttachPromotedProductNative();
   } catch (error) {
@@ -622,7 +635,11 @@ export const userChoiceBillingListenerAndroid = (
     return {remove: () => {}};
   }
 
-  userChoiceBillingJsListeners.add(listener);
+  addJsListener(
+    userChoiceBillingJsListeners,
+    listener,
+    'userChoiceBillingListenerAndroid',
+  );
   try {
     tryAttachUserChoiceBillingNative();
   } catch (error) {
@@ -725,7 +742,11 @@ export const developerProvidedBillingListenerAndroid = (
     return {remove: () => {}};
   }
 
-  developerProvidedBillingJsListeners.add(listener);
+  addJsListener(
+    developerProvidedBillingJsListeners,
+    listener,
+    'developerProvidedBillingListenerAndroid',
+  );
   try {
     tryAttachDeveloperProvidedBillingNative();
   } catch (error) {
@@ -812,7 +833,11 @@ function tryAttachSubscriptionBillingIssueNative(): void {
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
 ): EventSubscription => {
-  subscriptionBillingIssueJsListeners.add(listener);
+  addJsListener(
+    subscriptionBillingIssueJsListeners,
+    listener,
+    'subscriptionBillingIssueListener',
+  );
   // Retry attachment every call so a listener registered before initConnection()
   // doesn't stay permanently inert once Nitro is ready.
   try {

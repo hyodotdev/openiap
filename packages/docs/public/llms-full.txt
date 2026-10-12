@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-10-12T16:22:07.726Z
+> Generated: 2026-10-12T19:03:26.362Z
 
 ## Reading instructions for coding assistants
 
@@ -3000,6 +3000,9 @@ offline bundle.
   `Content-Type: application/json`.
 - Success is exactly the operation's `successStatus`. Every failure returns
   the status §8 assigns to its code, with a `ProtocolErrorResponse` body.
+- A result member the provider omits (§4) is absent from the JSON body; it
+  MUST NOT be sent as `null`. Unlike GraphQL (§7), REST can tell the two
+  apart, and the result schemas reject a `null` member.
 - A request whose method and path under `/commerce/v1` match no operation
   fails with `NOT_FOUND`.
 - An unrecognised input member is ignored (§4), and a caller MUST ignore

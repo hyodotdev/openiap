@@ -684,6 +684,9 @@ const schema = defineSchema({
     priceAmountMicros: v.optional(v.number()),
     startedAt: v.number(),
     updatedAt: v.number(),
+    // Apple purchaseDate of the transaction a verify last applied; orders
+    // verifies for rows no store event governs yet.
+    verifiedPurchaseDate: v.optional(v.number()),
     lastEventId: v.optional(v.id("webhookEvents")),
     lastEventOccurredAt: v.optional(v.number()),
     lastEventCreationTime: v.optional(v.number()),

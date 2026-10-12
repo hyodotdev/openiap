@@ -99,6 +99,7 @@ type RecordVerifiedSubscriptionArgs = {
   currency?: string;
   priceAmountMicros?: number;
   revocationReasonIOS?: number;
+  verifiedPurchaseDate?: number;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -115,6 +116,7 @@ export interface PersistSubscriptionSnapshotArgs {
   store?: Doc<"subscriptions">["store"];
   next: NonNullable<CurrentSubscription>;
   now: number;
+  verifiedPurchaseDate?: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
@@ -599,10 +601,7 @@ export async function applySubscriptionEventHandler(
     now,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
-  const active = entitlementActive(
-    { ...transition.next, platform: storedEvent.platform },
-    now,
-  );
+  const active = entitlementActive(transition.next, now);
   const commerceTransition = linkedStartedOnActivePredecessor
     ? effectiveTransition
     : firstStoreEventAfterVerification
@@ -833,6 +832,7 @@ export const recordVerifiedSubscription = internalMutation({
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     revocationReasonIOS: v.optional(v.number()),
+    verifiedPurchaseDate: v.optional(v.number()),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
@@ -875,13 +875,12 @@ export async function recordVerifiedSubscriptionHandler(
   // transaction; without comparable ordering metadata that snapshot must not
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
-  // An Apple JWS describes one transaction, so verifying an older renewal
-  // must not move the row back to that period's expiry and state.
+  // An Apple JWS describes one transaction. Order by purchase date, not
+  // expiry: an immediate upgrade (yearly to monthly) is newer yet ends sooner.
   if (
-    args.platform === "IOS" &&
-    existing?.expiresAt !== undefined &&
-    snapshot.expiresAt !== undefined &&
-    snapshot.expiresAt < existing.expiresAt
+    args.verifiedPurchaseDate !== undefined &&
+    existing?.verifiedPurchaseDate !== undefined &&
+    args.verifiedPurchaseDate < existing.verifiedPurchaseDate
   ) {
     return existing._id;
   }
@@ -895,6 +894,7 @@ export async function recordVerifiedSubscriptionHandler(
     existing,
     next,
     now,
+    verifiedPurchaseDate: args.verifiedPurchaseDate,
   });
 }
 
@@ -945,6 +945,9 @@ export async function persistSubscriptionSnapshot(
     currency: args.next.currency,
     priceAmountMicros: args.next.priceAmountMicros,
     updatedAt: args.now,
+    ...(args.verifiedPurchaseDate !== undefined
+      ? { verifiedPurchaseDate: args.verifiedPurchaseDate }
+      : {}),
     ...(args.lastEvent
       ? {
           lastEventId: args.lastEvent._id,

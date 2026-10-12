@@ -20,6 +20,7 @@ import {
   createMcpSessionStore,
   MCP_SESSION_CAPACITY_MESSAGE,
   MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS,
+  sessionOwner,
   type BoundedSessionStore,
 } from "./session-store.js";
 
@@ -210,7 +211,7 @@ async function handlePost(
     return jsonRpcError(403, -32003, INVALID_API_KEY_MESSAGE);
   }
 
-  const reservation = transports.reserve();
+  const reservation = transports.reserve(sessionOwner(authInfo.token));
   if (!reservation) {
     return jsonRpcError(503, -32000, MCP_SESSION_CAPACITY_MESSAGE, {
       "retry-after": String(MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS),

@@ -106,11 +106,8 @@ public enum OpenIapSerialization {
             throw PurchaseError.make(code: .developerError, message: "Purchase must be a dictionary")
         }
 
-        // Unions used to encode wrapped as {"purchaseIos": {"_0": {...}}}; keep accepting that shape.
-        for (caseKey, typename) in [("purchaseIos", "PurchaseIOS"), ("purchaseAndroid", "PurchaseAndroid")] {
-            if let member = (dict[caseKey] as? [String: Any])?["_0"] as? [String: Any] {
-                return try decode(object: member.merging(["__typename": typename]) { _, new in new }, as: PurchaseInput.self)
-            }
+        if dict["purchaseIos"] != nil || dict["purchaseAndroid"] != nil {
+            return try decode(object: dict, as: PurchaseInput.self)
         }
 
         do {

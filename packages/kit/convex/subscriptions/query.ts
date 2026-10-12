@@ -7,7 +7,7 @@ import {
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
 import { monthlyMicrosForSub } from "./monthlyMicros";
-import { entitlementActive } from "./stateMachine";
+import { entitlementActive, isMisrecordedApplePass } from "./stateMachine";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
 import {
   DEFAULT_REPORTING_CURRENCY,
@@ -108,8 +108,9 @@ export function shapeSubscriptionEvaluationSnapshot(
 } {
   const fallback = selectMostRecentlyUpdatedSubscription(rows);
   return {
+    // The snapshot omits lastEventId, so the legacy-pass guard runs here.
     candidates: rows
-      .filter(isEntitledState)
+      .filter((row) => isEntitledState(row) && !isMisrecordedApplePass(row))
       .map(shapeSubscriptionEvaluationRow),
     fallback: fallback ? shapeSubscriptionEvaluationRow(fallback) : null,
   };

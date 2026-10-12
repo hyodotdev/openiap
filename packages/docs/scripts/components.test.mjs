@@ -245,3 +245,77 @@ test('search signatures match the client schema', async () => {
     assert.deepEqual({ parameters, returns }, operations.get(title), title);
   }
 });
+
+test('keeps Tab among the drawer elements a keyboard can reach', async () => {
+  const { handleDrawerKey } = await vite.ssrLoadModule('/src/lib/focusTrap.ts');
+  let focused = null;
+  const element = (name, tabIndex = 0, rendered = true) => ({
+    name,
+    tabIndex,
+    getClientRects: () => ({ length: rendered ? 1 : 0 }),
+    closest: () => null,
+    focus() {
+      focused = this;
+    },
+  });
+  const close = element('close');
+  const collapsedLink = element('collapsed link', -1);
+  const summary = element('summary');
+  const hiddenLink = element('hidden link', 0, false);
+  const lastLink = element('last link');
+  // Unreachable elements sit at both ends, so wrapping only works if they are skipped.
+  const items = [hiddenLink, close, summary, lastLink, collapsedLink];
+  let selector = '';
+  const drawer = {
+    querySelectorAll: (query) => ((selector = query), items),
+    contains: (node) => items.includes(node),
+  };
+  const outside = { closest: () => null };
+  const inSearchDialog = {
+    closest: (query) => (query === 'dialog[open]' ? {} : null),
+  };
+  const press = (
+    key,
+    active,
+    { shiftKey = false, defaultPrevented = false } = {}
+  ) => {
+    focused = null;
+    const event = {
+      key,
+      shiftKey,
+      defaultPrevented,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+    };
+    let closed = false;
+    handleDrawerKey(event, drawer, active, () => (closed = true));
+    return { prevented: event.defaultPrevented && !defaultPrevented, closed };
+  };
+
+  // Wraps at both ends, skipping collapsed and unrendered links.
+  assert.deepEqual(press('Tab', lastLink), { prevented: true, closed: false });
+  assert.equal(focused, close);
+  assert.equal(press('Tab', close, { shiftKey: true }).prevented, true);
+  assert.equal(focused, lastLink);
+  assert.match(selector, /summary/);
+  assert.match(selector, /\[tabindex\]/);
+  // Inside the drawer, the browser moves focus.
+  assert.equal(press('Tab', summary).prevented, false);
+  assert.equal(focused, null);
+  // Focus that escaped the drawer comes back.
+  assert.equal(press('Tab', outside).prevented, true);
+  assert.equal(focused, close);
+  assert.equal(press('Escape', lastLink).closed, true);
+  // The search modal over the drawer, or a handler that already acted, owns the key.
+  assert.deepEqual(press('Tab', inSearchDialog), {
+    prevented: false,
+    closed: false,
+  });
+  assert.equal(press('Escape', inSearchDialog).closed, false);
+  assert.deepEqual(press('Tab', lastLink, { defaultPrevented: true }), {
+    prevented: false,
+    closed: false,
+  });
+  assert.equal(focused, null);
+});

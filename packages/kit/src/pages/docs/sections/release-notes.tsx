@@ -27,7 +27,8 @@ const RELEASES: ReleaseEntry[] = [
     weekStart: "2026-10-12",
     date: "2026-10-12",
     pullRequests: [523],
-    tagline: "Amazon subscription lifecycle beta.",
+    tagline:
+      "Amazon subscription lifecycle beta and a security hardening pass.",
     items: [
       {
         kind: "feature",
@@ -77,7 +78,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Dashboard",
-        text: "A .p8 upload must be a P-256 private key. Verification uses the project's newest key, else the organization's, and never another project's. Cancelling a queued product sync frees the platform at once, and a sync that never starts expires.",
+        text: "A .p8 upload must be a P-256 private key. Verification uses the newest key of the project, then of its organization, never another organization's. Cancelling a queued product sync frees the platform at once, and a sync that never starts expires.",
       },
       {
         kind: "security",
@@ -87,7 +88,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         topic: "MCP",
-        text: "The hosted endpoint confirms the secret key before opening a session, always calls IAPKit itself, refuses redirects and bounds request and response sizes. A full session table closes its least recently used session instead of refusing new ones.",
+        text: "The hosted endpoint confirms the secret key before opening a session, always calls IAPKit itself, refuses redirects and bounds request and response sizes. One key holds at most 16 sessions, and a full table closes its least recently used session instead of refusing new ones.",
       },
       {
         kind: "security",
@@ -103,11 +104,6 @@ const RELEASES: ReleaseEntry[] = [
         kind: "ops",
         topic: "Commerce Protocol",
         text: "IAPKit passes the stricter conformance run: unknown store evidence is never bound for any store, and error extensions carry no evidence or internals.",
-      },
-      {
-        kind: "ops",
-        topic: "Webhooks",
-        text: "Webhook events are the only dedup record; the retired idempotency-key table is removed (#241).",
       },
     ],
   },

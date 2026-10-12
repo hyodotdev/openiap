@@ -95,6 +95,20 @@ class SharedProviderTest {
         dispose(background, foreground)
     }
 
+    @Test fun `an engine still in front re-claims the Activity on its next call`() {
+        val (front, other) = listOf(fakeEngine(), fakeEngine())
+        listOf(front, other).forEach { it.call("restorePurchases") }
+        val frontActivity = Robolectric.buildActivity(Activity::class.java).get()
+        front.setActivity(frontActivity)
+        other.setActivity(Robolectric.buildActivity(Activity::class.java).get())
+        other.setActivity(null)
+        assertEquals(null, FakeProviderFactory.activity)
+
+        assertEquals("Billing client ready", front.call("initConnection"))
+        assertSame(frontActivity, FakeProviderFactory.activity)
+        dispose(front, other)
+    }
+
     @Test fun `acknowledge and consume reject a store refusal`() {
         val engine = fakeEngine()
         val token = mapOf("purchaseToken" to "opaque")

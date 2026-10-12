@@ -733,6 +733,32 @@ describe('Public API (src/index.ts)', () => {
       expect(currentListener).toHaveBeenCalledTimes(1);
     });
 
+    it('delivers once to a handler re-registered on every connection', async () => {
+      const handler = jest.fn();
+      for (let cycle = 0; cycle < 3; cycle += 1) {
+        await IAP.initConnection();
+        IAP.purchaseUpdatedListener(handler);
+        await IAP.endConnection();
+      }
+      jest.clearAllMocks();
+      await IAP.initConnection();
+      IAP.purchaseUpdatedListener(handler);
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0]({
+        id: 't3',
+        transactionId: 't3',
+        productId: 'p3',
+        transactionDate: Date.now(),
+        store: 'apple',
+        storeId: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps native listener state when native endConnection fails', async () => {
       // Native keeps its listeners when teardown fails; reattaching would deliver twice.
       await IAP.initConnection();

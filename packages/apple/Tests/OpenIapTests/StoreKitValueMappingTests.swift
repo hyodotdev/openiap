@@ -50,3 +50,23 @@ final class StoreKitValueMappingTests: XCTestCase {
         XCTAssertEqual(StoreKitTypesBridge.purchaseOfferTypeStringIOS(from: .init(rawValue: 99)), "unknown")
     }
 }
+
+final class SubscriptionStatusCacheTests: XCTestCase {
+    private struct TransientFailure: Error {}
+
+    func testFailedLookupIsRetriedAndSuccessIsCached() async {
+        final class Calls { var count = 0 }
+        let calls = Calls()
+        let cache = StoreKitTypesBridge.SubscriptionStatusCache { _ in
+            calls.count += 1
+            if calls.count == 1 { throw TransientFailure() }
+            return []
+        }
+
+        _ = await cache.statuses(for: "group")
+        _ = await cache.statuses(for: "group")
+        _ = await cache.statuses(for: "group")
+
+        XCTAssertEqual(calls.count, 2, "a failure is retried; a success is loaded once")
+    }
+}

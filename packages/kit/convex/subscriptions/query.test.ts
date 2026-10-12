@@ -388,6 +388,7 @@ describe("shapeSubscriptionEvaluationSnapshot", () => {
       subscriptionDoc({
         _id: "subscriptions_active" as Id<"subscriptions">,
         state: "Active",
+        expiresAt: 10,
         updatedAt: 3,
         purchaseToken: "active-token",
       }),
@@ -408,5 +409,25 @@ describe("shapeSubscriptionEvaluationSnapshot", () => {
     expect(snapshot.candidates[0]?.purchaseToken).toBe("active-token");
     expect(snapshot.fallback?.purchaseToken).toBe("latest-token");
     expect(JSON.stringify(snapshot)).not.toContain("historical-token");
+  });
+
+  it("drops a legacy non-renewing pass but keeps a store-governed row", () => {
+    const snapshot = shapeSubscriptionEvaluationSnapshot([
+      subscriptionDoc({
+        _id: "subscriptions_pass" as Id<"subscriptions">,
+        state: "Active",
+        expiresAt: undefined,
+      }),
+      subscriptionDoc({
+        _id: "subscriptions_recovered" as Id<"subscriptions">,
+        state: "Active",
+        expiresAt: undefined,
+        lastEventId: "webhookEvents_1" as Id<"webhookEvents">,
+      }),
+    ]);
+
+    expect(snapshot.candidates.map((row) => row.id)).toEqual([
+      "subscriptions_recovered",
+    ]);
   });
 });

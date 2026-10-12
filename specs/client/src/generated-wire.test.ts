@@ -233,9 +233,14 @@ const languages: Array<[string, RoundTrip, boolean]> = [
 const available = languages.filter(([, , present]) => present);
 
 describe("generated wire contract across languages", () => {
-  it.runIf(Boolean(process.env.CI))("runs at least one language toolchain in CI", () => {
-    expect(available.map(([name]) => name)).not.toEqual([]);
-  });
+  it.runIf(Boolean(process.env.CI))(
+    "runs every language toolchain in CI",
+    () => {
+      expect(available.map(([name]) => name)).toEqual(
+        languages.map(([name]) => name),
+      );
+    },
+  );
 
   for (const [name, roundTrip, present] of languages) {
     it.skipIf(!present)(

@@ -278,6 +278,7 @@ describe("recordAppStoreVerifiedSubscription", () => {
         productId: "dev.hyo.martie.premium",
         type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
         environment: "Sandbox",
+        purchaseDate: 1_767_225_600_000,
         expiresDate: 1_769_904_000_000,
         currency: "USD",
         price: 9990,
@@ -286,6 +287,7 @@ describe("recordAppStoreVerifiedSubscription", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
+      verifiedPurchaseDate: 1_767_225_600_000,
       projectId: "projects_1",
       platform: "IOS",
       purchaseToken: "original-transaction-1",

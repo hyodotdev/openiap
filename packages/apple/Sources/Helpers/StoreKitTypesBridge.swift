@@ -127,19 +127,25 @@ enum StoreKitTypesBridge {
     /// Memoizes `SubscriptionInfo.status(for:)` per subscription group, so one read
     /// over many transactions makes one StoreKit call per group.
     final class SubscriptionStatusCache {
-        private var statusesByGroup: [String: [StoreKit.Product.SubscriptionInfo.Status]] = [:]
+        typealias Status = StoreKit.Product.SubscriptionInfo.Status
+        private let load: (String) async throws -> [Status]
+        private var statusesByGroup: [String: [Status]] = [:]
 
-        func statuses(for groupId: String) async -> [StoreKit.Product.SubscriptionInfo.Status] {
+        init(load: @escaping (String) async throws -> [Status] = StoreKit.Product.SubscriptionInfo.status(for:)) {
+            self.load = load
+        }
+
+        func statuses(for groupId: String) async -> [Status] {
             if let cached = statusesByGroup[groupId] { return cached }
-            let statuses: [StoreKit.Product.SubscriptionInfo.Status]
             do {
-                statuses = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
+                let statuses = try await load(groupId)
+                statusesByGroup[groupId] = statuses
+                return statuses
             } catch {
+                // Not cached: one transient failure must not blank the group for the rest of the read.
                 OpenIapLog.debug("⚠️ Failed to fetch renewalInfo: \(error.localizedDescription)")
-                statuses = []
+                return []
             }
-            statusesByGroup[groupId] = statuses
-            return statuses
         }
     }
 

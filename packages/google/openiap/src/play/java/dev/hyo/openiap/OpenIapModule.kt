@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -75,6 +76,7 @@ import dev.hyo.openiap.helpers.isPurchaseForPendingRequest
 import dev.hyo.openiap.helpers.claimPendingPurchaseIfOwned
 import dev.hyo.openiap.helpers.collectAllProductQueryResults
 import dev.hyo.openiap.helpers.PurchaseDeliveryClaims
+import dev.hyo.openiap.helpers.PurchaseTokenSettler
 import dev.hyo.openiap.helpers.isSubscriptionReplacementTargetCountValid
 import dev.hyo.openiap.helpers.isConnectionAttemptCurrent
 import dev.hyo.openiap.helpers.connectionClientToClose
@@ -156,7 +158,7 @@ internal enum class BillingClientMode {
  */
 class OpenIapModule(
     private val context: Context,
-) : OpenIapProtocol, PurchasesUpdatedListener {
+) : OpenIapProtocol, PurchasesUpdatedListener, PurchaseTokenSettler {
 
     companion object {
         private const val TAG = "OpenIapModule"
@@ -242,7 +244,10 @@ class OpenIapModule(
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
     // Deduplicate callbacks across reconnects for this module's lifetime.
     private val handledUserChoiceTokens = mutableSetOf<String>()
-    private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
+    // Dedupes callback and recovery deliveries; each launched request starts a fresh window.
+    @Volatile
+    private var purchaseDeliveryClaims = PurchaseDeliveryClaims()
+    private val purchaseFlowTimeoutToken = Any()
 
     private fun resetConnectionStateLocked() {
         productManager.clear()
@@ -282,6 +287,7 @@ class OpenIapModule(
 
     private fun clearPurchaseStateLocked() {
         pendingPurchase = null
+        mainHandler.removeCallbacksAndMessages(purchaseFlowTimeoutToken)
     }
 
     private fun claimPurchaseCallback(
@@ -392,6 +398,7 @@ class OpenIapModule(
                     requestedProductType = requestedProductType,
                     tokensBeforeLaunch = tokensBeforeLaunch,
                 )
+                purchaseDeliveryClaims = PurchaseDeliveryClaims()
                 null
             }
         }
@@ -1629,8 +1636,13 @@ class OpenIapModule(
 
             val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
             // Only a purchase token Play does not already report can complete this request.
-            val tokensBeforeLaunch = queryPurchases(client, activeOperations, desiredType, includeSuspended = true)
-                .mapNotNullTo(mutableSetOf()) { it.purchaseToken }
+            val tokensBeforeLaunch = try {
+                queryPurchases(client, activeOperations, desiredType, includeSuspended = true)
+                    .mapNotNullTo(mutableSetOf()) { it.purchaseToken }
+            } catch (error: OpenIapError) {
+                errorEventGate.publishOnce(error)
+                return@withContext emptyList()
+            }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
@@ -1963,9 +1975,11 @@ class OpenIapModule(
                         } else {
                             // A launched request holds the only purchase slot. If Play never
                             // reports a result, recover a new owned purchase or free the slot.
-                            mainHandler.postDelayed({
-                                expirePurchaseFlow(client, callback)
-                            }, PURCHASE_FLOW_TIMEOUT_MILLIS)
+                            mainHandler.postAtTime(
+                                Runnable { expirePurchaseFlow(client, callback) },
+                                purchaseFlowTimeoutToken,
+                                SystemClock.uptimeMillis() + PURCHASE_FLOW_TIMEOUT_MILLIS,
+                            )
                         }
                     }
                 }
@@ -2062,72 +2076,49 @@ class OpenIapModule(
     }
 
     override val finishTransaction: MutationFinishTransactionHandler = { purchase, isConsumable ->
-        withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            if (!client.isReady) throw OpenIapError.NotPrepared
-            val token = purchase.purchaseToken.orEmpty()
-            if (token.isBlank()) {
-                throw OpenIapError.PurchaseFailed("Missing purchase token on purchase")
-            }
-
-            val result = if (isConsumable == true) {
-                val params = ConsumeParams.newBuilder().setPurchaseToken(token).build()
-                activeOperations.await(client) { operation ->
-                    client.consumeAsync(params) { outcome, _ ->
-                        operation.succeed(outcome)
-                    }
-                }
-            } else {
-                val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(token).build()
-                activeOperations.await(client) { operation ->
-                    client.acknowledgePurchase(params) { outcome ->
-                        operation.succeed(outcome)
-                    }
-                }
-            }
-
-            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                throw OpenIapError.fromBillingResponseCode(
-                    result.responseCode,
-                    result.debugMessage,
-                )
-            }
+        if (billingClient?.isReady != true) throw OpenIapError.NotPrepared
+        val token = purchase.purchaseToken.orEmpty()
+        if (token.isBlank()) {
+            throw OpenIapError.PurchaseFailed("Missing purchase token on purchase")
         }
+        settlePurchaseToken(token, isConsumable == true)
     }
 
     override val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler = { purchaseToken ->
-        withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
-            activeOperations.await(client) { operation ->
-                client.acknowledgePurchase(params) { result ->
-                    if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                        OpenIapLog.warn("Failed to acknowledge purchase: ${result.debugMessage}", TAG)
-                        operation.succeed(false)
-                    } else {
-                        operation.succeed(true)
-                    }
-                }
+        consumeOrAcknowledge(purchaseToken, isConsumable = false).isOk("acknowledge")
+    }
+
+    override val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler = { purchaseToken ->
+        consumeOrAcknowledge(purchaseToken, isConsumable = true).isOk("consume")
+    }
+
+    override suspend fun settlePurchaseToken(purchaseToken: String, isConsumable: Boolean) {
+        val result = consumeOrAcknowledge(purchaseToken, isConsumable)
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            throw OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
+        }
+    }
+
+    private suspend fun consumeOrAcknowledge(
+        purchaseToken: String,
+        isConsumable: Boolean,
+    ): BillingResult = withContext(Dispatchers.IO) {
+        val client = billingClient ?: throw OpenIapError.NotPrepared
+        activeOperations.await(client) { operation ->
+            if (isConsumable) {
+                val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
+                client.consumeAsync(params) { result, _ -> operation.succeed(result) }
+            } else {
+                val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
+                client.acknowledgePurchase(params) { result -> operation.succeed(result) }
             }
         }
     }
 
-    override val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler = { purchaseToken ->
-        withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
-            activeOperations.await(client) { operation ->
-                client.consumeAsync(params) { result, _ ->
-                    if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                        OpenIapLog.warn("Failed to consume purchase: ${result.debugMessage}", TAG)
-                        operation.succeed(false)
-                    } else {
-                        operation.succeed(true)
-                    }
-                }
-            }
+    private fun BillingResult.isOk(operation: String): Boolean =
+        (responseCode == BillingClient.BillingResponseCode.OK).also { ok ->
+            if (!ok) OpenIapLog.warn("Failed to $operation purchase: $debugMessage", TAG)
         }
-    }
 
     override val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler = { options ->
         val pkg = options?.packageNameAndroid ?: context.packageName

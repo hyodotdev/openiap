@@ -84,7 +84,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     // A dropped billing service ends the bridge connection, so initConnection connects again.
     private val connectionStateListener = OpenIapConnectionStateListener {
-        pluginScope.launch(Dispatchers.IO) { endConnection() }
+        val dropped = connectionLifecycle.generation
+        pluginScope.launch(Dispatchers.IO) { endConnection(onlyGeneration = dropped) }
     }
 
     override fun getPluginName(): String = "GodotIap"
@@ -191,7 +192,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
-    fun endConnection(): Boolean {
+    fun endConnection(): Boolean = endConnection(onlyGeneration = null)
+
+    private fun endConnection(onlyGeneration: Long?): Boolean {
         GodotIapLog.debug("endConnection called")
 
         val result = try {
@@ -204,6 +207,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     }
                 },
                 cleanupListeners = { detachListeners(openIap, store) },
+                onlyGeneration = onlyGeneration,
             )
         } catch (error: Exception) {
             GodotIapLog.failure("endConnection", error)

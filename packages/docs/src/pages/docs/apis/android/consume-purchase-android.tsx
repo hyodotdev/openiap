@@ -95,7 +95,7 @@ val consumePurchaseAndroid: suspend (purchaseToken: String) -> Boolean`}</CodeBl
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
         purchase has been consumed. When the store refuses the token, React
-        Native, Expo, and KMP reject with <code>service-error</code>; Kotlin,
+        Native, Expo, and KMP reject with the store&apos;s error code; Kotlin,
         Flutter, Godot, and MAUI return <code>false</code>. In Kotlin,{' '}
         <code>finishPurchaseToken(token, isConsumable = true)</code> throws
         instead.

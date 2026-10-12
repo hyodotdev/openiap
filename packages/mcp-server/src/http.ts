@@ -31,6 +31,7 @@ import {
   createMcpSessionStore,
   MCP_SESSION_CAPACITY_MESSAGE,
   MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS,
+  sessionOwner,
   type BoundedSessionStore,
 } from "./session-store.js";
 
@@ -293,7 +294,9 @@ async function handleMcpPost(
     return;
   }
 
-  const reservation = transports.reserve();
+  const reservation = transports.reserve(
+    req.auth && sessionOwner(req.auth.token),
+  );
   if (!reservation) {
     res.setHeader(
       "Retry-After",

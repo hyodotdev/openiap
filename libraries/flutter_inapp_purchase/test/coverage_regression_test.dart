@@ -504,13 +504,33 @@ void main() {
 
     test('replays a promoted product that arrived before any listener',
         () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => true);
       final iap = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'ios'),
       );
+      // Native attaches its promoted-product listener in initConnection.
+      await iap.initConnection();
 
       await send('iap-promoted-product', 'com.example.promoted');
 
       expect(await iap.purchasePromoted.first, 'com.example.promoted');
+    });
+
+    test('an unused instance does not take events from the one in use',
+        () async {
+      final inUse = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final purchase = inUse.purchaseUpdatedListener.first;
+      FlutterInappPurchase.private(FakePlatform(operatingSystem: 'android'));
+
+      await send(
+        'purchase-updated',
+        jsonEncode(_androidPurchaseJson('in-use')),
+      );
+
+      expect((await purchase).productId, 'premium');
     });
 
     test('a dropped connection makes initConnection reconnect', () async {

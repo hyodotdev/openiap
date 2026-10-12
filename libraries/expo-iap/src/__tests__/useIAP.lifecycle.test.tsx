@@ -247,6 +247,37 @@ describe('useIAP lifecycle', () => {
     expect(onUserChoiceBillingAndroid).toHaveBeenCalledWith(details);
   });
 
+  it('restores the purchase listener before requestPurchase after a failed connection', async () => {
+    jest
+      .mocked(ExpoIapModule.initConnection)
+      .mockRejectedValueOnce(new Error('store unavailable'));
+    jest.mocked(ExpoIapModule.requestPurchase).mockResolvedValue(purchase());
+    const onPurchaseSuccess = jest.fn();
+    let hook: Hook | undefined;
+    await mount(
+      <Harness
+        options={{onPurchaseSuccess, onError: jest.fn()}}
+        onHook={(h) => (hook = h)}
+      />,
+    );
+    expect(purchaseListenerRemovals[0]).toHaveBeenCalledTimes(1);
+
+    // The app recovers through the module-level API, not the hook's reconnect.
+    await IAP.initConnection();
+    await React.act(async () => {
+      await hook!.requestPurchase({
+        request: {apple: {sku: 'premium_monthly'}},
+        type: 'subs',
+      });
+    });
+    expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(2);
+
+    await React.act(async () => {
+      await purchaseHandler!(purchase());
+    });
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+  });
+
   it('restores the purchase listener on reconnect after a failed connection', async () => {
     jest
       .mocked(ExpoIapModule.initConnection)

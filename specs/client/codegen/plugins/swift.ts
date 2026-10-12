@@ -37,6 +37,22 @@ private enum UnionTypenameKey: String, CodingKey {
     case typename = "__typename"
 }
 
+/// Reads the wrapped \`{"purchaseIos":{"_0":{...}}}\` union JSON older releases wrote; remove in the next major.
+private struct LegacyUnionKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+    init(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+}
+
+private extension KeyedDecodingContainer where Key == LegacyUnionKey {
+    func payload<Value: Decodable>(_ type: Value.Type, forCase name: String) throws -> Value? {
+        let key = LegacyUnionKey(stringValue: name)
+        guard contains(key) else { return nil }
+        return try nestedContainer(keyedBy: LegacyUnionKey.self, forKey: key).decode(type, forKey: LegacyUnionKey(stringValue: "_0"))
+    }
+}
+
 /// Input enums reject unrecognized values; only output decoding falls back to \`.unknown\`.
 private struct StrictInputEnum<Value: RawRepresentable>: Decodable where Value.RawValue == String {
     let value: Value
@@ -687,7 +703,7 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit("");
     this.emit("    public init(from decoder: Decoder) throws {");
     this.emit("        let container = try decoder.container(keyedBy: UnionTypenameKey.self)");
-    this.emit("        let typename = try container.decode(String.self, forKey: .typename)");
+    this.emit("        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? \"\"");
     this.emit("        switch typename {");
     for (const member of irUnion.members) {
       const caseName = this.enumCaseName(member.name);
@@ -695,10 +711,22 @@ export class SwiftPlugin extends CodegenPlugin {
       this.emit(`        case ${labels.join(", ")}:`);
       this.emit(`            self = .${caseName}(try ${member.name}(from: decoder))`);
     }
+    // Anything else may be the legacy wrapped shape (see LegacyUnionKey).
     this.emit("        default:");
+    this.emit("            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)");
+    irUnion.members.forEach((member, index) => {
+      const caseName = this.enumCaseName(member.name);
+      const keyword = index === 0 ? "if" : "} else if";
+      this.emit(
+        `            ${keyword} let value = try legacy.payload(${member.name}.self, forCase: "${this.enumValueCase(member.name)}") {`,
+      );
+      this.emit(`                self = .${caseName}(value)`);
+    });
+    this.emit("            } else {");
     this.emit(
-      `            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ${irUnion.name}: \\(typename)")`,
+      `                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ${irUnion.name}: \\(typename)")`,
     );
+    this.emit("            }");
     this.emit("        }");
     this.emit("    }");
     this.emit("");

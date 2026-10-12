@@ -100,23 +100,56 @@ describe("web MCP handler session routing", () => {
     const handler = createHandler("self42");
     const sessionIds: string[] = [];
 
+    // 16 tenants at their per-key share fill the 256 slots.
     for (let index = 0; index < 256; index += 1) {
-      const response = await handler(initializeRequest());
+      const tenant = { authorization: `Bearer ${SECRET_KEY}_${index % 16}` };
+      const response = await handler(initializeRequest(undefined, tenant));
       expect(response.status).toBe(200);
       sessionIds.push(response.headers.get("mcp-session-id") ?? "");
       await response.text();
     }
-    const touched = await handler(toolsListRequest(sessionIds[0]));
+    const firstTenant = { authorization: `Bearer ${SECRET_KEY}_0` };
+    const touched = await handler(toolsListRequest(sessionIds[0], firstTenant));
     await touched.text();
 
-    const admitted = await handler(initializeRequest());
+    const admitted = await handler(
+      initializeRequest(undefined, { authorization: `Bearer ${SECRET_KEY}_x` }),
+    );
     expect(admitted.status).toBe(200);
     await admitted.text();
 
-    const stillServed = await handler(toolsListRequest(sessionIds[0]));
+    const stillServed = await handler(
+      toolsListRequest(sessionIds[0], firstTenant),
+    );
     expect(stillServed.status).toBe(200);
-    const evicted = await handler(toolsListRequest(sessionIds[1]));
+    const evicted = await handler(
+      toolsListRequest(sessionIds[1], {
+        authorization: `Bearer ${SECRET_KEY}_1`,
+      }),
+    );
     expect(evicted.status).toBe(404);
+  });
+
+  it("caps one key's sessions so it cannot evict other tenants", async () => {
+    const handler = createHandler("self42");
+    const victim = { authorization: `Bearer ${SECRET_KEY}_victim` };
+    const victimInit = await handler(initializeRequest(undefined, victim));
+    const victimSession = victimInit.headers.get("mcp-session-id") ?? "";
+    await victimInit.text();
+
+    const attackerSessions: string[] = [];
+    for (let index = 0; index < 300; index += 1) {
+      const response = await handler(initializeRequest());
+      attackerSessions.push(response.headers.get("mcp-session-id") ?? "");
+      await response.text();
+    }
+
+    const victimFollowUp = await handler(
+      toolsListRequest(victimSession, victim),
+    );
+    expect(victimFollowUp.status).toBe(200);
+    const attackerOldest = await handler(toolsListRequest(attackerSessions[0]));
+    expect(attackerOldest.status).toBe(404);
   });
 
   it("replays a foreign machine's session via fly-replay", async () => {

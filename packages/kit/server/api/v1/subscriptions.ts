@@ -532,6 +532,18 @@ function conditionalSubscriptionSnapshot(
   return c.json(args.result);
 }
 
+// Convex already dropped legacy non-renewing rows from the candidates; that
+// guard needs lastEventId, which the snapshot omits.
+function isEntitledAt(
+  subscription: SubscriptionSnapshotRow,
+  now: number,
+): boolean {
+  return entitlementActive(
+    { state: subscription.state, expiresAt: subscription.expiresAt },
+    now,
+  );
+}
+
 function evaluateSubscriptionStatus(
   snapshot: SubscriptionEvaluationSnapshot,
   now: number,
@@ -540,7 +552,7 @@ function evaluateSubscriptionStatus(
   subscription: PublicSubscriptionSnapshotRow | null;
 } {
   const activeSubscriptions = snapshot.candidates.filter((subscription) =>
-    entitlementActive(subscription, now),
+    isEntitledAt(subscription, now),
   );
   const selected = selectMostRecentlyUpdatedSnapshot(activeSubscriptions);
   return {
@@ -559,7 +571,7 @@ function evaluateEntitlements(
   subscriptions: PublicSubscriptionSnapshotRow[];
 } {
   const active = subscriptions.filter((subscription) =>
-    entitlementActive(subscription, now),
+    isEntitledAt(subscription, now),
   );
   return {
     userId,

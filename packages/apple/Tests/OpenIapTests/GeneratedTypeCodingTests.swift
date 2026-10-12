@@ -73,12 +73,43 @@ final class GeneratedTypeCodingTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(Purchase.self, from: try json(unknown)))
     }
 
-    func testLegacyWrappedPurchaseInputStillDecodes() throws {
+    func testLegacyWrappedUnionJSONStillDecodesAndReencodesFlat() throws {
+        // Shape synthesized Codable wrote before flat unions; cached copies must keep decoding.
         var member = purchasePayload
         member.removeValue(forKey: "__typename")
-        let purchase = try OpenIapSerialization.purchaseInput(from: ["purchaseIos": ["_0": member]])
-        guard case let .purchaseIos(ios) = purchase else { return XCTFail("Expected iOS purchase") }
-        XCTAssertEqual(ios.id, "txn")
+        let wrappedPurchase: [String: Any] = ["purchaseIos": ["_0": member]]
+        let wrappedResult: [String: Any] = [
+            "verifyPurchaseResultIos": ["_0": [
+                "isValid": true, "jwsRepresentation": "jws", "receiptData": "r", "latestTransaction": wrappedPurchase,
+            ]],
+            // OpenIapSerialization.encode used to tag the wrapper with the Swift union name.
+            "__typename": "VerifyPurchaseResult",
+        ]
+
+        let result = try JSONDecoder().decode(VerifyPurchaseResult.self, from: try json(wrappedResult))
+        guard case let .verifyPurchaseResultIos(ios) = result, case let .purchaseIos(latest)? = ios.latestTransaction else {
+            return XCTFail("Expected the wrapped iOS result and transaction")
+        }
+        XCTAssertEqual(latest.id, "txn")
+        let encoded = try dictionary(result)
+        XCTAssertEqual(encoded["__typename"] as? String, "VerifyPurchaseResultIOS")
+        XCTAssertEqual((encoded["latestTransaction"] as? [String: Any])?["__typename"] as? String, "PurchaseIOS")
+
+        guard case .purchaseIos = try OpenIapSerialization.purchaseInput(from: wrappedPurchase) else {
+            return XCTFail("Expected iOS purchase input")
+        }
+
+        let product: [String: Any] = [
+            "id": "sku", "title": "T", "description": "d", "displayPrice": "$1", "currency": "USD",
+            "platform": "ios", "type": "in-app", "displayNameIOS": "T", "isFamilyShareableIOS": false,
+            "jsonRepresentationIOS": "{}", "typeIOS": "consumable",
+        ]
+        let nested = try JSONDecoder().decode(
+            ProductOrSubscription.self,
+            from: try json(["product": ["_0": ["productIos": ["_0": product]]]])
+        )
+        guard case .product(.productIos) = nested else { return XCTFail("Expected the nested wrapped product") }
+        XCTAssertEqual(try dictionary(nested)["__typename"] as? String, "ProductIOS")
     }
 
     func testOutputEnumsFallBackToUnknownAndAcceptLegacySpellings() throws {

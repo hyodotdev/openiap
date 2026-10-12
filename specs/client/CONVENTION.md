@@ -88,7 +88,7 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
   availability line, and the `See:` link.
 - Do not restate the docs page's per-platform behavior matrix here. Link to it.
   Full rule and examples:
-  [`knowledge/internal/03-coding-style.md`](../../../knowledge/internal/03-coding-style.md#doc-comments-are-not-the-docs-site).
+  [`knowledge/internal/03-coding-style.md`](../../knowledge/internal/03-coding-style.md#doc-comments-are-not-the-docs-site).
 - Existing operation descriptions in `api.graphql` run two lines at the median.
   A description several times that length is a signal that it belongs on the
   docs page instead.
@@ -256,7 +256,7 @@ dispatches on the leaf name. GDScript has no union classes: a union-typed field
 holds the dictionary it received as a `Variant`, so it keeps whatever
 `__typename` the native bridge sent but never adds or checks one.
 `src/generated-wire.test.ts` round-trips one payload through every installed
-Swift, Dart, and .NET toolchain, and requires at least one in CI.
+Swift, Dart, and .NET toolchain, and requires all three in CI.
 
 ### Scripts
 

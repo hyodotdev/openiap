@@ -1071,15 +1071,21 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
 
     private suspend fun requireOpenIap(): OpenIapProtocol = openIap ?: lifecycle.withLock { providerLocked() }
 
-    /** Caller holds [lifecycle]; joins the shared provider, creating it once per process. */
-    private fun providerLocked(): OpenIapProtocol = openIap ?: run {
-        val ctx = context ?: throw OpenIapError.NotPrepared
-        val provider = sharedProvider ?: OpenIapProvider.create(ctx)
-        sharedProvider = provider
-        providerUsers++
-        openIap = provider
+    /**
+     * Caller holds [lifecycle]; joins the shared provider, creating it once per process.
+     * Each call re-claims this engine's Activity, since another engine may have cleared it.
+     */
+    private fun providerLocked(): OpenIapProtocol {
+        val provider = openIap ?: run {
+            val ctx = context ?: throw OpenIapError.NotPrepared
+            (sharedProvider ?: OpenIapProvider.create(ctx)).also {
+                sharedProvider = it
+                providerUsers++
+                openIap = it
+            }
+        }
         activity?.let { shareActivity(this, provider, it) }
-        provider
+        return provider
     }
 
     /** Caller holds [lifecycle]. */

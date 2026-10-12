@@ -1456,20 +1456,22 @@ ${responseRows}
 });
 
 describe("release note version anchors", () => {
-  const card = (id: string, extra = "") => `    {
+  const card = (id: string, anchors = "") => `    {
       id: '${id}',
-${extra}      date: new Date('2026-09-17'),
+      date: new Date('2026-09-17'),
       element: (
         <div key="${id}">
-          <h5>Package Releases</h5>
+${anchors}          <h5>Package Releases</h5>
         </div>
       ),
     },
 `;
-  const aliasLine =
-    "      aliases: MY_RELEASES.map((release) => release.tag),\n";
+  const tagSpans = `          {MY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+`;
 
-  test("flags a card that lists releases without registering its tags", () => {
+  test("flags a card that lists releases without a span per tag", () => {
     const drifts = auditReleaseNoteVersionAnchors(
       "releases.tsx",
       card("new-card-2026-09-17"),
@@ -1480,11 +1482,11 @@ ${extra}      date: new Date('2026-09-17'),
     expect(drifts[0].line).toBeGreaterThan(0);
   });
 
-  test("accepts a card that derives its aliases from the release list", () => {
+  test("accepts a card that renders a hidden span per release tag", () => {
     expect(
       auditReleaseNoteVersionAnchors(
         "releases.tsx",
-        card("new-card-2026-09-17", aliasLine),
+        card("new-card-2026-09-17", tagSpans),
         new Set(),
       ),
     ).toEqual([]);

@@ -1417,7 +1417,8 @@ func get_storefront() -> String:
 
 ## Verify a purchase locally.
 ## @param props: Types.VerifyPurchaseProps - verification properties
-## @return Types.VerifyPurchaseResultIOS or Types.VerifyPurchaseResultAndroid, or null on failure
+## @return Types.VerifyPurchaseResultIOS, Types.VerifyPurchaseResultAndroid, or
+## Types.VerifyPurchaseResultHorizon, or null on failure
 ##
 ## See: https://openiap.dev/docs/features/validation#verify-purchase
 func verify_purchase(props) -> Variant:
@@ -1436,6 +1437,9 @@ func verify_purchase(props) -> Variant:
 	var result = _verify_purchase_raw(props_dict)
 	if result.get("success", false) or result.get("isValid", false):
 		if _platform == "Android":
+			# The provider names its result type; a Horizon result has its own fields.
+			if result.get("__typename") == "VerifyPurchaseResultHorizon":
+				return Types.VerifyPurchaseResultHorizon.from_dict(result)
 			return Types.VerifyPurchaseResultAndroid.from_dict(result)
 	if result.has("code") and not result.get("success", false):
 		_purchase_failure(result.code, result.get("error", "Verification failed"), result)
@@ -1721,6 +1725,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 	failed.result = Types.ExternalPurchaseNoticeAction.DISMISSED
 	if not (_native_plugin and _platform == "iOS"):
 		failed.error = "External purchase notice requires the iOS native plugin"
+		_purchase_failure("not-prepared" if _platform == "iOS" else "feature-not-supported", failed.error)
 		return failed
 	var payload = await _call_native_async(
 		"presentExternalPurchaseNoticeSheetIOS", [], _apple_async_ui_timeout_seconds
@@ -2153,6 +2158,7 @@ func show_billing_program_information_dialog_android(params) -> Variant:
 	failed.response_code = 6
 	if not (_native_plugin and _platform == "Android"):
 		failed.debug_message = "The billing information dialog requires the Android native plugin"
+		_purchase_failure("not-prepared" if _platform == "Android" else "feature-not-supported", failed.debug_message)
 		return failed
 	var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
 	var result = JSON.parse_string(result_json)

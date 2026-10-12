@@ -603,6 +603,12 @@ export const reapStaleProductSyncJobs = internalMutation({
         )
         .take(PRODUCT_SYNC_REAPER_BATCH);
       for (const job of stale) {
+        // Jobs queued before deadlines existed sort first in this range; give
+        // them the default deadline from creation.
+        const deadline =
+          job.expectedDeadline ?? job.createdAt + PRODUCT_SYNC_JOB_DEADLINE_MS;
+        if (deadline >= cutoff) continue;
+        reaped += 1;
         await ctx.db.patch(job._id, {
           status: "failed",
           completedAt: now,
@@ -614,7 +620,6 @@ export const reapStaleProductSyncJobs = internalMutation({
         });
         await releaseSyncLock(ctx, job);
       }
-      reaped += stale.length;
     }
     return { reaped };
   },

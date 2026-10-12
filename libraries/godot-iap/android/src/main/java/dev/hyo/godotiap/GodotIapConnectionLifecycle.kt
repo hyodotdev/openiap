@@ -25,6 +25,11 @@ internal class GodotIapConnectionLifecycle {
     private var state = State.Disconnected
     private var activeConfig: Map<String, Any?>? = null
 
+    /** Counts successful connections, so a late teardown can tell it targets an older one. */
+    @Volatile
+    var generation = 0L
+        private set
+
     val isConnected: Boolean
         get() = state == State.Connected
 
@@ -55,6 +60,7 @@ internal class GodotIapConnectionLifecycle {
             if (connected) {
                 activeConfig = config.toMap()
                 state = State.Connected
+                generation++
             } else {
                 activeConfig = null
                 state = State.Disconnected
@@ -67,11 +73,13 @@ internal class GodotIapConnectionLifecycle {
         }
     }
 
+    /** With [onlyGeneration], ends only that connection and leaves a newer one alone. */
     fun end(
         disconnect: () -> Boolean,
         cleanupListeners: () -> Unit,
+        onlyGeneration: Long? = null,
     ): EndResult = synchronized(lock) {
-        if (state == State.Disconnected) {
+        if (state == State.Disconnected || (onlyGeneration != null && onlyGeneration != generation)) {
             return@synchronized EndResult(success = true, didEnd = false)
         }
         if (state != State.Connected) {

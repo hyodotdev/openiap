@@ -379,8 +379,8 @@ export function replayGuardMiddleware(
         await next();
       } finally {
         if (c.get("verifyCapacityRejected") === true) {
-          // SERVICE_BUSY returns before the store is called; charging it would
-          // turn honest backoff retries into DUPLICATE_PAYLOAD.
+          // SERVICE_BUSY and a store outage carry no verdict; charging them
+          // would turn honest backoff retries into DUPLICATE_PAYLOAD.
           refundCapacityRejectedAttempt(bucketKey);
         } else {
           // In `finally` so a handler exception can't skip marking a stable

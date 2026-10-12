@@ -60,8 +60,8 @@ Before adding a release card, inspect the newest entries and package tags.
   published yet, update that card in place with the new user-visible changes.
   Do not add another card for the same train.
 - Consolidate overlapping unreleased cards when they describe the same package
-  versions. Preserve their old IDs in the note's pagination-aware alias list
-  and render matching hidden anchors so old deep links select the right page.
+  versions. Keep a hidden anchor span for each old ID so old deep links open
+  the right page.
 - If an unreleased hosted IAPKit card already exists and companion SDK packages
   belong to the same release train, expand that card into the single
   consolidated release entry and advance its date and title. Do not create a
@@ -121,7 +121,7 @@ whether work belongs to the existing train.
 
 Follow the card format in
 [`knowledge/internal/05-docs-patterns.md#card-format`](../../../knowledge/internal/05-docs-patterns.md#card-format):
-id, date, heading, package-tag aliases, section order, and the
+id, date, heading, hidden package-tag anchors, section order, and the
 `Package Releases` block.
 
 ## Reader-First Writing Standard

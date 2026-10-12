@@ -412,13 +412,6 @@ describe("subscriptionsRoutes", () => {
           updatedAt: 2,
         }),
         subscriptionRow({
-          // A non-renewing pass recorded as a subscription before the fix.
-          id: "ios-without-expiry",
-          productId: "pass_1m",
-          state: "Active",
-          updatedAt: 2,
-        }),
-        subscriptionRow({
           id: "expired-by-time",
           productId: "legacy",
           state: "Active",

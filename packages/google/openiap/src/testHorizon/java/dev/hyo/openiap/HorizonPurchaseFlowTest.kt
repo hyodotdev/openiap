@@ -129,6 +129,29 @@ class HorizonPurchaseFlowTest {
         assertTrue("recovery must not publish an error: $errors", errors.isEmpty())
     }
 
+    @Test
+    fun `delivered once, then already-owned recovery re-delivers`() {
+        val client = FlowBillingClient(
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+            owned = listOf(horizonPurchase(purchaseTime = 1L)),
+        )
+        val module = module(client)
+        val updates = CopyOnWriteArrayList<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.onPurchasesUpdated(
+            client,
+            0L,
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(horizonPurchase(purchaseTime = 1L)),
+        )
+
+        // The app failed to validate it and the user taps buy again.
+        val purchases = requestPurchase(module)
+
+        assertEquals(listOf("purchase-token"), purchases.map { it.purchaseToken })
+        assertEquals(listOf("purchase-token", "purchase-token"), updates.map { it.purchaseToken })
+    }
+
     private fun requestPurchase(module: OpenIapModule): List<Purchase> {
         module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
         val props = RequestPurchaseProps(

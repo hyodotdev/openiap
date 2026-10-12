@@ -101,7 +101,7 @@ describe("handleConvexError", () => {
     });
   });
 
-  it("never returns Play upstream or Convex internals, and marks outages temporary", () => {
+  it("never returns Play upstream or Convex internals, and marks only outages temporary", () => {
     const socketHangUp = Object.assign(
       new Error(
         "request to https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.acme/purchases/products/x/tokens/TOKEN123 failed, reason: socket hang up",
@@ -131,7 +131,12 @@ describe("handleConvexError", () => {
       expect(error?.message).not.toMatch(/TOKEN123|googleapis|internal\.|OCC/);
     }
     expect(outage?.retryAfterSec).toBe(5);
-    expect(internal?.retryAfterSec).toBe(5);
+    // Unclassified failures (a pending-deletion write, a TypeError) are not
+    // known to be temporary, so they stay permanent.
+    expect(internal).not.toHaveProperty("retryAfterSec");
+    expect(
+      handleConvexError(new PlayStoreVerificationError(new TypeError("x"))),
+    ).not.toHaveProperty("retryAfterSec");
     expect(rejected).not.toHaveProperty("retryAfterSec");
     expect(rejected?.message).toContain("HTTP 400");
   });

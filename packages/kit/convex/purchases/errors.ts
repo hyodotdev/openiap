@@ -272,8 +272,8 @@ export function isPlayStorePackageNameMismatchError(
   );
 }
 
-// Only curated messages reach `/v1`; anything unclassified (an OCC retry, a
-// Convex internal error) is reported as temporary.
+// Only curated messages reach `/v1`. Only a known store outage is temporary;
+// anything unclassified stays a permanent failure.
 export class PlayStoreVerificationError extends ReceiptVerificationError {
   constructor(originalError: unknown) {
     const inner =
@@ -289,7 +289,11 @@ export class PlayStoreVerificationError extends ReceiptVerificationError {
             ? originalError.message
             : String(originalError),
       },
-      inner ? inner.retryAfterSec : STORE_OUTAGE_RETRY_AFTER_SEC,
+      inner
+        ? inner.retryAfterSec
+        : isStoreOutage(originalError)
+          ? STORE_OUTAGE_RETRY_AFTER_SEC
+          : undefined,
     );
   }
 }

@@ -1,9 +1,13 @@
+import { createHash } from "node:crypto";
+
 interface SessionEntry<T> {
   value: T;
   lastAccessedAt: number;
+  owner?: string;
 }
 
 const MAX_MCP_SESSIONS = 256;
+const MAX_MCP_SESSIONS_PER_KEY = 16;
 const MCP_SESSION_IDLE_TTL_MS = 15 * 60 * 1000;
 export const MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS = 5;
 export const MCP_SESSION_CAPACITY_MESSAGE =
@@ -15,6 +19,8 @@ interface ClosableSession {
 
 export interface BoundedSessionStoreOptions<T> {
   maxSize: number;
+  /** Sessions one owner (API key) may hold; its oldest goes first. */
+  maxPerOwner?: number;
   idleTtlMs: number;
   dispose: (value: T) => void | Promise<void>;
   now?: () => number;
@@ -54,18 +60,24 @@ export class BoundedSessionStore<T> {
     if (!entry) return undefined;
 
     this.entries.delete(sessionId);
-    this.entries.set(sessionId, { value: entry.value, lastAccessedAt: now });
+    this.entries.set(sessionId, { ...entry, lastAccessedAt: now });
     return entry.value;
   }
 
-  reserve(): SessionReservation<T> | null {
+  reserve(owner?: string): SessionReservation<T> | null {
     if (this.closed) return null;
 
     const now = this.now();
     this.pruneExpired(now);
-    // Evict the least recently used session rather than refuse: its client
-    // gets a 404 and re-initializes, while refusing would let one caller hold
-    // every slot. Only a store full of in-flight reservations refuses.
+    // A key over its share loses its own oldest session, so one key holder
+    // cannot push other tenants out.
+    const owned = owner ? this.sessionIdsOf(owner) : [];
+    if (owned.length >= (this.options.maxPerOwner ?? Infinity)) {
+      this.evict(owned[0]);
+    }
+    // When full, evict the least recently used session rather than refuse: its
+    // client gets a 404 and re-initializes. Only a store full of in-flight
+    // reservations refuses.
     if (this.entries.size + this.pendingReservations >= this.options.maxSize) {
       const oldestSessionId = this.entries.keys().next().value;
       if (oldestSessionId === undefined) return null;
@@ -102,6 +114,7 @@ export class BoundedSessionStore<T> {
         this.entries.set(sessionId, {
           value,
           lastAccessedAt: this.now(),
+          owner,
         });
       },
       release,
@@ -123,6 +136,13 @@ export class BoundedSessionStore<T> {
       }
       this.evict(oldestSessionId);
     }
+  }
+
+  // Least recently used first, the Map's order.
+  private sessionIdsOf(owner: string): string[] {
+    return Array.from(this.entries)
+      .filter(([, entry]) => entry.owner === owner)
+      .map(([sessionId]) => sessionId);
   }
 
   async closeAll(): Promise<void> {
@@ -150,11 +170,17 @@ export class BoundedSessionStore<T> {
   }
 }
 
+/** Groups sessions by key without keeping the raw key in the store. */
+export function sessionOwner(apiKey: string): string {
+  return createHash("sha256").update(apiKey).digest("hex");
+}
+
 export function createMcpSessionStore<T extends ClosableSession>(
   logger: Pick<Console, "error">,
 ): BoundedSessionStore<T> {
   return new BoundedSessionStore<T>({
     maxSize: MAX_MCP_SESSIONS,
+    maxPerOwner: MAX_MCP_SESSIONS_PER_KEY,
     idleTtlMs: MCP_SESSION_IDLE_TTL_MS,
     dispose: (transport) => transport.close(),
     onDisposeError: (error) =>

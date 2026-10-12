@@ -418,15 +418,18 @@ interface EntitlementFields {
   state: string;
   expiresAt?: number | null;
   platform?: "IOS" | "Android";
+  lastEventId?: string;
 }
 
 // Legacy-data integrity guard, not a spec rule: non-renewing passes were once
-// stored as Active iOS subscriptions with no expiry. Apple sends expiresDate on
-// every auto-renewable Active transaction; a grace period without a deadline
-// legitimately has none and stays entitled.
+// verified into Active iOS subscriptions with no expiry. Grace without a
+// deadline and any row a store event governs (lastEventId) stay as they are.
 export function isMisrecordedApplePass(sub: EntitlementFields): boolean {
   return (
-    sub.platform === "IOS" && sub.state === "Active" && sub.expiresAt == null
+    sub.platform === "IOS" &&
+    sub.state === "Active" &&
+    sub.expiresAt == null &&
+    sub.lastEventId === undefined
   );
 }
 

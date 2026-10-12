@@ -4448,6 +4448,10 @@ public final class dev/hyo/openiap/helpers/PurchaseDeliveryClaims {
 	public final fun claim (Ldev/hyo/openiap/Purchase;)Z
 }
 
+public abstract interface class dev/hyo/openiap/helpers/PurchaseTokenSettler {
+	public abstract fun settlePurchaseToken (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public abstract interface class dev/hyo/openiap/listener/OpenIapConnectionStateListener {
 	public abstract fun onBillingServiceDisconnected ()V
 }

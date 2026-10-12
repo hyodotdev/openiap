@@ -61,6 +61,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.findActivity
 import dev.hyo.openiap.utils.OwnerScopedValueBinding
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -126,9 +127,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val _status = MutableStateFlow(IapStatus())
     val status: StateFlow<IapStatus> = _status.asStateFlow()
 
-    // Prevent duplicate finishing/consuming of the same purchase token
-    private val processedPurchaseTokens: MutableSet<String> =
-        java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
+    // One finish per purchase token: concurrent callers share the attempt; a failure allows a retry.
+    private val finishesByToken =
+        java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Unit>>()
 
     // SKU of the request whose outcome the next purchase event reports.
     private val pendingRequestProductId = java.util.concurrent.atomic.AtomicReference<String?>(null)
@@ -240,7 +241,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     fun clear() {
         detachPurchaseListeners()
         activityBindings.clear()
-        processedPurchaseTokens.clear()
+        finishesByToken.clear()
         pendingRequestProductId.set(null)
         storeScope.cancel()
     }
@@ -458,12 +459,17 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      */
     val finishTransaction: MutationFinishTransactionHandler = { purchaseInput, isConsumable ->
         val token = purchaseInput.purchaseToken
-        // Claim the token first so a concurrent finish of the same purchase is skipped.
-        if (token == null || processedPurchaseTokens.add(token)) {
+        val attempt = CompletableDeferred<Unit>()
+        val inFlightOrDone = token?.let { finishesByToken.putIfAbsent(it, attempt) }
+        if (inFlightOrDone != null) {
+            inFlightOrDone.await()
+        } else {
             try {
                 module.finishTransaction(purchaseInput, isConsumable)
+                attempt.complete(Unit)
             } catch (e: Exception) {
-                if (token != null) processedPurchaseTokens.remove(token)
+                if (token != null) finishesByToken.remove(token, attempt)
+                attempt.completeExceptionally(e)
                 setError(e.message)
                 throw e
             }

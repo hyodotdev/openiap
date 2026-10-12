@@ -9,7 +9,7 @@ import org.junit.Test
 
 class FinishPurchaseTokenTest {
     @Test
-    fun `a store refusal throws service-error`() = runBlocking {
+    fun `a Boolean-only protocol refusal throws service-error`() = runBlocking {
         val module = FakeOpenIapProtocol().apply { storeAcceptsFinish = false }
 
         for (isConsumable in listOf(true, false)) {

@@ -228,8 +228,13 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         if (!playPurchaseInFlight.compareAndSet(false, true)) {
             failWith(PurchaseError(code = ErrorCode.DeveloperError, message = "Another purchase is already in progress"))
         }
+        val requestedSkus = params.androidSkus()
         val failure = AtomicReference<AndroidOpenIapError?>()
-        val captureFailure = OpenIapPurchaseErrorListener { failure.compareAndSet(null, it) }
+        // The module tags request failures with the requested SKU, or none when it cannot pick one.
+        val captureFailure = OpenIapPurchaseErrorListener { error ->
+            val productId = error.toKmpPurchaseError().productId
+            if (productId == null || productId in requestedSkus) failure.compareAndSet(null, error)
+        }
         openModule.addPurchaseErrorListener(captureFailure)
         try {
             val result = openModule.requestPurchase(params.toOpenIap())
@@ -634,6 +639,11 @@ private fun dev.hyo.openiap.RequestPurchaseResult?.isEmpty(): Boolean = when (th
     is dev.hyo.openiap.RequestPurchaseResultPurchase -> value == null
     is dev.hyo.openiap.RequestPurchaseResultPurchases -> value.isNullOrEmpty()
 }
+
+private fun RequestPurchaseProps.androidSkus(): List<String> = when (val request = request) {
+    is RequestPurchaseProps.Request.Purchase -> request.value.google?.skus
+    is RequestPurchaseProps.Request.Subscription -> request.value.google?.skus
+}.orEmpty()
 
 private fun InitConnectionConfig.toOpenIap(): dev.hyo.openiap.InitConnectionConfig =
     dev.hyo.openiap.InitConnectionConfig.fromJson(toJson())

@@ -261,12 +261,19 @@ suspend fun <T : Any> collectAllProductQueryResults(
     )
 }
 
+/** A store that reports why it refused to consume or acknowledge a purchase token. */
+interface PurchaseTokenSettler {
+    /** Consumes ([isConsumable]) or acknowledges [purchaseToken]; a refusal throws the store's mapped [OpenIapError]. */
+    suspend fun settlePurchaseToken(purchaseToken: String, isConsumable: Boolean)
+}
+
 /**
- * Consumes ([isConsumable]) or acknowledges [purchaseToken] and throws
- * [OpenIapError.BillingError] (`service-error`) when the store refuses, which
- * `consumePurchaseAndroid` and `acknowledgePurchaseAndroid` report as `false`.
+ * Consumes ([isConsumable]) or acknowledges [purchaseToken] and throws when the store refuses:
+ * the store's mapped [OpenIapError] for a [PurchaseTokenSettler], otherwise
+ * [OpenIapError.BillingError] (`service-error`), since the Boolean handlers only report `false`.
  */
 suspend fun OpenIapProtocol.finishPurchaseToken(purchaseToken: String, isConsumable: Boolean) {
+    if (this is PurchaseTokenSettler) return settlePurchaseToken(purchaseToken, isConsumable)
     val finished = if (isConsumable) {
         consumePurchaseAndroid(purchaseToken)
     } else {

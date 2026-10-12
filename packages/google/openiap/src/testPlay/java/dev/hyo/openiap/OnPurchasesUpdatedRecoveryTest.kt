@@ -3,6 +3,7 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.AcknowledgePurchaseResponseListener
@@ -38,10 +39,12 @@ import com.android.billingclient.api.PurchasesResponseListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
+import dev.hyo.openiap.helpers.finishPurchaseToken
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import java.lang.reflect.Field
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -57,6 +60,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowLooper
 
 /**
@@ -793,46 +797,120 @@ class OnPurchasesUpdatedRecoveryTest {
         assertNull(pendingPurchaseField().get(module))
     }
 
+    @Test
+    fun `a refused consume surfaces Play's mapped error through finishPurchaseToken`() {
+        val client = RecordingBillingClient(
+            consumeResponseCode = BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
+        )
+        val module = module()
+        setBillingClient(module, client)
+
+        val thrown = runCatching {
+            runBlocking { (module as OpenIapProtocol).finishPurchaseToken("token", isConsumable = true) }
+        }.exceptionOrNull()
+
+        assertTrue("$thrown", thrown is OpenIapError.ItemNotOwned)
+        assertEquals("refused", (thrown as OpenIapError).debugMessage)
+        assertEquals(false, runBlocking { module.consumePurchaseAndroid("token") })
+    }
+
+    @Test
+    fun `delivered once, then already-owned recovery re-delivers`() {
+        val owned = billingPurchase("product-id", "owned-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(owned),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(owned))
+
+        // The app failed to validate it and the user taps buy again.
+        val outcome = startPurchase(module, client)
+        pumpMainLooperUntil { outcome.get() != null }
+
+        assertEquals(listOf("owned-token"), purchasesOf(outcome).map { it.purchaseToken })
+        assertEquals(listOf("owned-token", "owned-token"), updates.map { it.purchaseToken })
+    }
+
+    @Test
+    fun `a resolved purchase leaves no flow timeout scheduled`() {
+        val client = RecordingBillingClient(
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+
+        val outcome = startPurchase(module, client)
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "new-token")),
+        )
+        pumpMainLooperUntil { outcome.get() != null }
+
+        assertEquals(listOf("new-token"), purchasesOf(outcome).map { it.purchaseToken })
+        assertEquals(Duration.ZERO, shadowOf(Looper.getMainLooper()).nextScheduledTaskTime)
+    }
+
     /** Launches a purchase Play never answers and runs the main looper past the flow timeout. */
     private fun requestPurchaseUntilFlowTimeout(
         module: OpenIapModule,
         client: RecordingBillingClient,
         afterLaunch: () -> Unit = {},
     ): List<Purchase> {
-        setBillingClient(module, client)
-        module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
-        val props = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Purchase(
-                RequestPurchasePropsByPlatforms(
-                    google = RequestPurchaseAndroidProps(skus = listOf("product-id")),
-                ),
-            ),
-            type = ProductQueryType.InApp,
-        )
-        val outcome = AtomicReference<Result<RequestPurchaseResult?>>()
-        val worker = thread(isDaemon = true) {
-            outcome.set(runCatching { runBlocking { module.requestPurchase(props) } })
-        }
-
-        var attempts = 0
-        while (client.launchCalls.get() == 0 && attempts++ < 500) {
-            ShadowLooper.idleMainLooper()
-            Thread.sleep(10)
-        }
-        assertEquals("the purchase flow must launch", 1, client.launchCalls.get())
+        val outcome = startPurchase(module, client)
         afterLaunch()
         ShadowLooper.idleMainLooper(14, TimeUnit.MINUTES)
         assertNull("the request waits for Play inside the window", outcome.get())
 
         ShadowLooper.idleMainLooper(1, TimeUnit.MINUTES)
-        worker.join(5_000)
+        pumpMainLooperUntil { outcome.get() != null }
+        return purchasesOf(outcome)
+    }
 
-        val result = checkNotNull(outcome.get()) { "the launched request never completed" }
+    /** Starts requestPurchase on a worker and runs main-looper work until Play launches it. */
+    private fun startPurchase(
+        module: OpenIapModule,
+        client: RecordingBillingClient,
+    ): AtomicReference<Result<RequestPurchaseResult?>> {
+        setBillingClient(module, client)
+        module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
+        val outcome = AtomicReference<Result<RequestPurchaseResult?>>()
+        thread(isDaemon = true) {
+            outcome.set(runCatching { runBlocking { module.requestPurchase(purchaseProps()) } })
+        }
+        pumpMainLooperUntil { client.launchCalls.get() > 0 }
+        assertEquals("the purchase flow must launch", 1, client.launchCalls.get())
+        return outcome
+    }
+
+    private fun pumpMainLooperUntil(condition: () -> Boolean) {
+        var attempts = 0
+        while (!condition() && attempts++ < 500) {
+            ShadowLooper.idleMainLooper()
+            Thread.sleep(10)
+        }
+    }
+
+    private fun purchasesOf(outcome: AtomicReference<Result<RequestPurchaseResult?>>): List<Purchase> {
+        val result = checkNotNull(outcome.get()) { "the request never completed" }
         return (result.getOrThrow() as RequestPurchaseResultPurchases).value.orEmpty()
     }
 
+    private fun purchaseProps() = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(skus = listOf("product-id")),
+            ),
+        ),
+        type = ProductQueryType.InApp,
+    )
+
     @Test
-    fun `connection replacement during callback install publishes one terminal error`() {
+    fun `a connection replaced before launch resolves empty with one terminal error`() {
         val module = module()
         val invalidated = AtomicBoolean(false)
         val client = RecordingBillingClient(
@@ -846,23 +924,14 @@ class OnPurchasesUpdatedRecoveryTest {
         module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
         val errors = mutableListOf<OpenIapError>()
         module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
-        val props = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Purchase(
-                RequestPurchasePropsByPlatforms(
-                    google = RequestPurchaseAndroidProps(skus = listOf("product-id")),
-                ),
-            ),
-            type = ProductQueryType.InApp,
-        )
 
-        val thrown = runCatching {
-            runBlocking { module.requestPurchase(props) }
-        }.exceptionOrNull()
+        val result = runBlocking { module.requestPurchase(purchaseProps()) }
 
         assertTrue("readiness hook must replace the client", invalidated.get())
-        assertTrue("install race must reject with ServiceDisconnected: $thrown", thrown is OpenIapError.ServiceDisconnected)
-        assertEquals("the install path and outer catch must share one event gate", 1, errors.size)
+        assertEquals(emptyList<Purchase>(), (result as RequestPurchaseResultPurchases).value)
+        assertEquals("the ownership read and outer catch share one event gate", 1, errors.size)
         assertTrue(errors.single() is OpenIapError.ServiceDisconnected)
+        assertEquals("nothing launches without the ownership read", 0, client.launchCalls.get())
     }
 
     @Test
@@ -1271,6 +1340,7 @@ class OnPurchasesUpdatedRecoveryTest {
         private val onReadyCheck: (() -> Unit)? = null,
         private val productDetails: List<ProductDetails> = emptyList(),
         private val launchResponseCode: Int = BillingResponseCode.FEATURE_NOT_SUPPORTED,
+        private val consumeResponseCode: Int? = null,
     ) : BillingClient() {
         val queryPurchasesCalls = AtomicInteger(0)
         val launchCalls = AtomicInteger(0)
@@ -1351,7 +1421,13 @@ class OnPurchasesUpdatedRecoveryTest {
         override fun consumeAsync(
             params: ConsumeParams,
             listener: ConsumeResponseListener
-        ) = unsupportedUnit()
+        ) {
+            val code = consumeResponseCode ?: return
+            listener.onConsumeResponse(
+                BillingResult.newBuilder().setResponseCode(code).setDebugMessage("refused").build(),
+                params.purchaseToken,
+            )
+        }
 
         override fun createAlternativeBillingOnlyReportingDetailsAsync(
             listener: AlternativeBillingOnlyReportingDetailsListener

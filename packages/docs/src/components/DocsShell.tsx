@@ -12,6 +12,7 @@ import CodeBlock from './CodeBlock';
 import { DOCS_SIDEBAR } from '../lib/config';
 import { readPreference, savePreference } from '../lib/storage';
 import { useDetailsTransition } from '../hooks/useDetailsTransition';
+import { handleDrawerKey } from '../lib/focusTrap';
 
 function clampSidebarWidth(width: number): number {
   return Math.min(
@@ -86,25 +87,10 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
 
     sidebarWasOpen.current = true;
     sidebarCloseRef.current?.focus();
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') setIsSidebarOpen(false);
-      if (event.key !== 'Tab') return;
-      // Keep Tab inside the open drawer.
-      const focusable = sidebarRef.current?.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled])'
+    const handleKeyDown = (event: globalThis.KeyboardEvent) =>
+      handleDrawerKey(event, sidebarRef.current, document.activeElement, () =>
+        setIsSidebarOpen(false)
       );
-      if (!focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-      if (event.shiftKey ? active === first : active === last) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (!sidebarRef.current?.contains(active)) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isSidebarOpen]);
