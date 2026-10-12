@@ -55,7 +55,8 @@ node --test scripts/release-branch-policy.test.mjs
 4. Fetch the target branch and tags, confirm a clean worktree, and inspect
    active release runs.
 5. Run the focused package checks and the relevant monorepo audits.
-6. Confirm required repository secrets exist without printing secret values.
+6. Confirm the release secrets exist without printing their values:
+   `gh secret list --env release` (`--env kit-production` for the kit deploy).
 
 ```bash
 git fetch origin main --tags

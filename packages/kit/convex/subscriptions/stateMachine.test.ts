@@ -520,19 +520,13 @@ describe("applySubscriptionTransition", () => {
 describe("entitlementActive", () => {
   it("returns true for Active subs whose period has not yet expired", () => {
     expect(
-      entitlementActive(
-        { state: "Active", productId: "p", expiresAt: 2_000 },
-        1_000,
-      ),
+      entitlementActive({ state: "Active", expiresAt: 2_000 }, 1_000),
     ).toBe(true);
   });
 
   it("returns false once the period has lapsed", () => {
     expect(
-      entitlementActive(
-        { state: "Active", productId: "p", expiresAt: 1_000 },
-        2_000,
-      ),
+      entitlementActive({ state: "Active", expiresAt: 1_000 }, 2_000),
     ).toBe(false);
   });
 
@@ -540,9 +534,34 @@ describe("entitlementActive", () => {
     expect(
       entitlementActive({
         state: "InGracePeriod",
-        productId: "p",
         expiresAt: 2_000_000_000_000,
       }),
+    ).toBe(true);
+  });
+
+  it("keeps an iOS grace period without a deadline entitled, as the spec requires", () => {
+    expect(
+      entitlementActive({ state: "InGracePeriod", platform: "IOS" }, 1_000),
+    ).toBe(true);
+  });
+
+  it("never entitles an Active iOS row without an expiry (a non-renewing pass)", () => {
+    expect(entitlementActive({ state: "Active", platform: "IOS" }, 1_000)).toBe(
+      false,
+    );
+    expect(
+      entitlementActive({ state: "Active", platform: "IOS", expiresAt: null }),
+    ).toBe(false);
+    expect(
+      entitlementActive(
+        { state: "Active", platform: "IOS", expiresAt: 2_000 },
+        1_000,
+      ),
+    ).toBe(true);
+    // Store-agnostic callers (the SPEC conformance adapter) keep the spec rule.
+    expect(entitlementActive({ state: "Active" }, 1_000)).toBe(true);
+    expect(
+      entitlementActive({ state: "Active", platform: "Android" }, 1_000),
     ).toBe(true);
   });
 
@@ -554,13 +573,9 @@ describe("entitlementActive", () => {
       "Refunded",
       "Paused",
     ] as const) {
-      expect(
-        entitlementActive({
-          state,
-          productId: "p",
-          expiresAt: 2_000_000_000_000,
-        }),
-      ).toBe(false);
+      expect(entitlementActive({ state, expiresAt: 2_000_000_000_000 })).toBe(
+        false,
+      );
     }
   });
 });

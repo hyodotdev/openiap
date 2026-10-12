@@ -61,6 +61,7 @@ private const val AMAZON_PURCHASE_CANCEL_FALLBACK_MS = 2_000L
 private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
 private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
 private const val AMAZON_EARLY_RESPONSE_CACHE_MAX = 128
+private const val AMAZON_FALLBACK_CANCELLED_PURCHASES_MAX = 32
 
 internal fun withResolvedAmazonUserId(
     options: RequestVerifyPurchaseWithIapkitProps,
@@ -527,6 +528,13 @@ class OpenIapModule(
     private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
     private var pendingPurchaseRequestId: String? = null
     private var purchaseCancelFallback: Runnable? = null
+    // Requested SKU of each purchase the cancel fallback failed; a late success still reaches listeners.
+    private val fallbackCancelledPurchaseSkus: MutableMap<String, String> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, String>() {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>) =
+                size > AMAZON_FALLBACK_CANCELLED_PURCHASES_MAX
+        }
+    )
     private var purchaseLifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
 
     private val productDataRequests = ConcurrentHashMap<String, CompletableDeferred<ProductDataResponse>>()
@@ -576,7 +584,6 @@ class OpenIapModule(
 
     override fun setActivity(activity: Activity?) {
         currentActivityRef = activity?.let { WeakReference(it) }
-        if (activity != null) schedulePurchaseCancelFallback()
     }
 
     override val initConnection: MutationInitConnectionHandler = {
@@ -616,6 +623,7 @@ class OpenIapModule(
                 earlyPurchaseUpdatesResponses.clear()
                 earlyUserDataResponses.clear()
                 clearPurchaseRequestTracking()
+                fallbackCancelledPurchaseSkus.clear()
                 cachedAmazonUserData = null
             }
             timedOutRequestIds.addAll(abortedRequestIds)
@@ -655,7 +663,7 @@ class OpenIapModule(
 
     override val fetchProducts: QueryFetchProductsHandler = { params ->
         withContext(Dispatchers.IO) {
-            val queryType = params.type ?: ProductQueryType.All
+            val queryType = params.type ?: ProductQueryType.InApp
             if (params.skus.isEmpty()) {
                 throw OpenIapError.EmptySkuList
             }
@@ -816,38 +824,16 @@ class OpenIapModule(
                 purchaseSkuByRequestId.remove(response.requestId.toString())
                 purchaseErrorsPublishedAtEnd.remove(response.requestId.toString())
                 when (response.requestStatus) {
-                    PurchaseResponse.RequestStatus.SUCCESSFUL -> {
-                        val receipt = response.receipt ?: run {
-                            emitPurchaseErrorAndThrow(
-                                OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
-                                    .withProductId(sku)
-                            )
-                        }
-                        if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
-                            OpenIapLog.warn(
-                                "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
-                                    "Using the requested SKU for the OpenIAP purchase productId; " +
-                                    "align the Amazon catalog and App Tester data for restore and server verification.",
-                                TAG
-                            )
-                        }
-                        // This response is correlated by Amazon requestId, so the
-                        // local request SKU is safe even when callbacks arrive out
-                        // of order.
-                        cacheReceiptProduct(receipt, receipt.productTypeOrNull())
-                        if (requestLifecycle.isGenerationCurrent(purchaseGeneration)) {
-                            response.userData?.let { rememberAmazonUserData(it) }
-                        }
-                        val purchase = receipt.toPurchase(
-                            productTypeOverride = receipt.productTypeOrNull(),
-                            productIdOverride = sku,
-                            userData = response.userData
+                    PurchaseResponse.RequestStatus.SUCCESSFUL -> listOf(
+                        deliverSuccessfulPurchase(
+                            response = response,
+                            sku = sku,
+                            rememberUserData = requestLifecycle.isGenerationCurrent(purchaseGeneration),
+                        ) ?: emitPurchaseErrorAndThrow(
+                            OpenIapError.PurchaseFailed("Amazon purchase response did not include a receipt")
+                                .withProductId(sku)
                         )
-                        for (listener in purchaseUpdateListeners) {
-                            runCatching { listener.onPurchaseUpdated(purchase) }
-                        }
-                        listOf(purchase)
-                    }
+                    )
                     else -> emitPurchaseErrorAndThrow(
                         checkNotNull(amazonPurchaseError(response.requestStatus.name, sku))
                     )
@@ -875,14 +861,11 @@ class OpenIapModule(
     }
 
     override val finishTransaction: MutationFinishTransactionHandler = { purchase, _ ->
-        withContext(Dispatchers.IO) {
-            ensureRegistered()
-            val receiptId = purchase.purchaseToken ?: purchase.id
-            if (receiptId.isBlank()) {
-                throw OpenIapError.PurchaseFailed("Missing Amazon receiptId")
-            }
-            PurchasingService.notifyFulfillment(receiptId, FulfillmentResult.FULFILLED)
+        val receiptId = purchase.purchaseToken ?: purchase.id
+        if (receiptId.isBlank()) {
+            throw OpenIapError.PurchaseFailed("Missing Amazon receiptId")
         }
+        notifyFulfilled(receiptId)
     }
 
     override val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler = { purchaseToken ->
@@ -1045,10 +1028,7 @@ class OpenIapModule(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            val mapped = error as? OpenIapError
-                ?: OpenIapError.ServiceUnavailable(error.message)
-            emitPurchaseError(mapped)
-            throw mapped
+            throw error as? OpenIapError ?: OpenIapError.ServiceUnavailable(error.message)
         }
     }
 
@@ -1161,13 +1141,47 @@ class OpenIapModule(
     }
 
     override fun onPurchaseResponse(purchaseResponse: PurchaseResponse) {
-        clearPurchaseRequestTracking(purchaseResponse.requestId.toString())
-        completeOrCache(
-            purchaseRequests,
-            earlyPurchaseResponses,
-            purchaseResponse.requestId.toString(),
-            purchaseResponse
+        val requestId = purchaseResponse.requestId.toString()
+        clearPurchaseRequestTracking(requestId)
+        val cancelledSku = fallbackCancelledPurchaseSkus.remove(requestId)
+        if (cancelledSku == null) {
+            completeOrCache(purchaseRequests, earlyPurchaseResponses, requestId, purchaseResponse)
+        } else if (purchaseResponse.requestStatus == PurchaseResponse.RequestStatus.SUCCESSFUL) {
+            OpenIapLog.warn("Amazon purchase $requestId succeeded after its cancel fallback", TAG)
+            deliverSuccessfulPurchase(purchaseResponse, cancelledSku, rememberUserData = true)
+        }
+    }
+
+    /**
+     * Maps a successful purchase response and notifies listeners; null when it has no receipt.
+     * The response is correlated by Amazon request ID, so the requested [sku] is safe even when
+     * callbacks arrive out of order.
+     */
+    private fun deliverSuccessfulPurchase(
+        response: PurchaseResponse,
+        sku: String,
+        rememberUserData: Boolean,
+    ): PurchaseAndroid? {
+        val receipt = response.receipt ?: return null
+        if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
+            OpenIapLog.warn(
+                "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
+                    "Using the requested SKU for the OpenIAP purchase productId; " +
+                    "align the Amazon catalog and App Tester data for restore and server verification.",
+                TAG
+            )
+        }
+        cacheReceiptProduct(receipt, receipt.productTypeOrNull())
+        if (rememberUserData) response.userData?.let { rememberAmazonUserData(it) }
+        val purchase = receipt.toPurchase(
+            productTypeOverride = receipt.productTypeOrNull(),
+            productIdOverride = sku,
+            userData = response.userData
         )
+        for (listener in purchaseUpdateListeners) {
+            runCatching { listener.onPurchaseUpdated(purchase) }
+        }
+        return purchase
     }
 
     private fun trackPurchaseRequest(requestId: String) {
@@ -1199,11 +1213,11 @@ class OpenIapModule(
         purchaseCancelFallback?.let(mainHandler::removeCallbacks)
         val fallback = Runnable {
             val pending = purchaseRequests[requestId] ?: return@Runnable
-            if (!pending.isCompleted) {
-                pending.completeExceptionally(
-                    OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
-                )
-            }
+            purchaseSkuByRequestId[requestId]?.let { fallbackCancelledPurchaseSkus[requestId] = it }
+            val cancelled = pending.completeExceptionally(
+                OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
+            )
+            if (!cancelled) fallbackCancelledPurchaseSkus.remove(requestId)
         }
         purchaseCancelFallback = fallback
         mainHandler.postDelayed(fallback, AMAZON_PURCHASE_CANCEL_FALLBACK_MS)
@@ -1665,14 +1679,21 @@ class OpenIapModule(
     private suspend fun fulfillPurchase(
         purchaseToken: String,
         operation: String
-    ): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
+    ): Boolean = try {
+        notifyFulfilled(purchaseToken)
+        true
+    } catch (error: OpenIapError) {
+        OpenIapLog.warn("Amazon $operation failed: ${error.message}", TAG)
+        false
+    }
+
+    /** Amazon's only finish call; failures surface as [OpenIapError] like the other stores. */
+    private suspend fun notifyFulfilled(receiptId: String) = withContext(Dispatchers.IO) {
+        try {
             ensureRegistered()
-            PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
-            true
-        }.getOrElse {
-            OpenIapLog.warn("Amazon $operation failed: ${it.message}", TAG)
-            false
+            PurchasingService.notifyFulfillment(receiptId, FulfillmentResult.FULFILLED)
+        } catch (error: RuntimeException) {
+            throw error.toOpenIapError("Amazon fulfillment failed")
         }
     }
 

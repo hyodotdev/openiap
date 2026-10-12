@@ -49,7 +49,7 @@ APPLE_VERSION="$(read_openiap_version apple)"
 
 # Regenerate the wrapper Xcode project (xcodegen) so source-file changes are picked up.
 if ! command -v xcodegen >/dev/null 2>&1; then
-  echo "error: xcodegen not installed (run scripts/install-xcodegen.sh <version>)"
+  echo "error: xcodegen not installed (run scripts/install-xcodegen.sh)"
   exit 1
 fi
 

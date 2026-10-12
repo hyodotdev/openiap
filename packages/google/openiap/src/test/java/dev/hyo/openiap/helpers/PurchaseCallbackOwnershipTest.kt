@@ -1,4 +1,4 @@
-package dev.hyo.openiap
+package dev.hyo.openiap.helpers
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

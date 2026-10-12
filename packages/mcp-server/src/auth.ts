@@ -1,3 +1,6 @@
+export const MISSING_API_KEY_MESSAGE =
+  "Send Authorization: Bearer <IAPKit secret admin key> (openiap-kit_sk_...).";
+
 export const INSUFFICIENT_API_KEY_SCOPE_MESSAGE =
   "This operation requires an IAPKit secret admin key (openiap-kit_sk_...). Publishable and legacy keys cannot access MCP administrative operations.";
 

@@ -11,7 +11,11 @@ import {
   deleteStorageIfUnreferenced,
   isStorageReferenced,
 } from "./storage";
-import { validateFileUpload } from "./validation";
+import {
+  appleP8PurposeValidator,
+  validateFileUpload,
+  type AppleP8Purpose,
+} from "./validation";
 
 export const FILE_UPLOAD_RESERVATION_TTL_MS = 15 * 60 * 1000;
 // Convex upload URLs last one hour and an upload POST can take two minutes;
@@ -117,6 +121,121 @@ async function deleteUnclaimedUpload(
   await deleteStorageIfUnreferenced(ctx, storageId);
 }
 
+function isAppleP8Purpose(purpose: string): purpose is AppleP8Purpose {
+  return purpose === "apple_p8_key" || purpose === "apple_p8_asc_api_key";
+}
+
+type CredentialSaveDenial =
+  | "TARGET_PENDING_DELETION"
+  | "AUTHORIZATION_LOST"
+  | "INSUFFICIENT_PERMISSIONS";
+
+// Every stored file is a project credential or private asset: admins only.
+async function checkCredentialSaveAccess(
+  ctx: MutationCtx,
+  target: {
+    organizationId: Id<"organizations">;
+    projectId?: Id<"projects">;
+    userId: Id<"users"> | null;
+  },
+): Promise<{ userId: Id<"users"> } | { denial: CredentialSaveDenial }> {
+  const organization = await ctx.db.get(target.organizationId);
+  if (!organization || organization.pendingDeletion) {
+    return { denial: "TARGET_PENDING_DELETION" };
+  }
+  if (target.projectId) {
+    const project = await ctx.db.get(target.projectId);
+    if (
+      !project ||
+      project.organizationId !== target.organizationId ||
+      project.pendingDeletion === true
+    ) {
+      return { denial: "TARGET_PENDING_DELETION" };
+    }
+  }
+  const userId = target.userId;
+  if (!userId) return { denial: "AUTHORIZATION_LOST" };
+  const membership = await ctx.db
+    .query("organizationMembers")
+    .withIndex("by_org_and_user", (q) =>
+      q.eq("organizationId", target.organizationId).eq("userId", userId),
+    )
+    .first();
+  if (!membership) return { denial: "AUTHORIZATION_LOST" };
+  if (membership.role === "member") {
+    return { denial: "INSUFFICIENT_PERMISSIONS" };
+  }
+  return { userId };
+}
+
+export type AppleP8SaveResult =
+  | {
+      success: true;
+      _id: Id<"files">;
+      fileName: string;
+      fileType: string;
+      fileSize: number;
+      purpose: AppleP8Purpose;
+      createdAt: number;
+    }
+  | { success: false; code: "INVALID_FILE"; message: string }
+  | { success: false; code: CredentialSaveDenial };
+
+// Called by `saveAppleP8Key` after it parsed the key. One key per project
+// slot, so verification and the dashboard always agree on which is active.
+export const insertAppleP8Key = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    projectId: v.id("projects"),
+    purpose: appleP8PurposeValidator,
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args): Promise<AppleP8SaveResult> => {
+    const access = await checkCredentialSaveAccess(ctx, {
+      organizationId: args.organizationId,
+      projectId: args.projectId,
+      userId: await getAuthUserId(ctx),
+    });
+    if ("denial" in access) return { success: false, code: access.denial };
+    const priorFiles = await ctx.db
+      .query("files")
+      .withIndex("by_project_and_purpose", (q) =>
+        q.eq("projectId", args.projectId).eq("purpose", args.purpose),
+      )
+      .collect();
+    const now = Date.now();
+    const fileId = await ctx.db.insert("files", {
+      organizationId: args.organizationId,
+      projectId: args.projectId,
+      uploadedBy: access.userId,
+      storageId: args.storageId,
+      fileName: args.fileName,
+      fileType: args.fileType,
+      fileSize: args.fileSize,
+      purpose: args.purpose,
+      isInternal: true,
+      accessCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    for (const priorFile of priorFiles) {
+      await deleteFileAndStorageIfUnreferenced(ctx, priorFile);
+    }
+    return {
+      success: true,
+      _id: fileId,
+      fileName: args.fileName,
+      fileType: args.fileType,
+      fileSize: args.fileSize,
+      purpose: args.purpose,
+      createdAt: now,
+    };
+  },
+});
+
 export const saveFile = mutation({
   args: {
     organizationId: v.id("organizations"),
@@ -177,66 +296,28 @@ export const saveFile = mutation({
       };
     }
 
-    // Read the target rows directly: the reservation already authorizes this
-    // target, even after account deletion removed the session and membership.
-    const organization = await ctx.db.get(args.organizationId);
-
-    let projectUnavailable = false;
-    if (args.projectId) {
-      const project = await ctx.db.get(args.projectId);
-      projectUnavailable =
-        !project ||
-        project.organizationId !== args.organizationId ||
-        project.pendingDeletion === true;
-    }
-
-    if (!organization || organization.pendingDeletion || projectUnavailable) {
-      await deleteUnclaimedUpload(ctx, args.storageId);
-      await ctx.db.delete(reservation._id);
-      // Return, not throw: a throw would roll back the blob deletion.
-      return {
-        success: false as const,
-        code: "TARGET_PENDING_DELETION" as const,
-      };
-    }
-
-    if (!userId) {
+    // .p8 keys are parsed before storage by `saveAppleP8Key`; this path cannot
+    // read the blob, so it never registers one.
+    if (isAppleP8Purpose(args.purpose)) {
       await deleteUnclaimedUpload(ctx, args.storageId);
       await ctx.db.delete(reservation._id);
       return {
         success: false as const,
-        code: "AUTHORIZATION_LOST" as const,
+        code: "INVALID_FILE" as const,
+        message: "Upload .p8 keys through saveAppleP8Key.",
       };
     }
 
-    // Saving needs a current membership. If it was lost after the upload
-    // POST, the capability permits cleanup only.
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("organizationId", args.organizationId).eq("userId", userId),
-      )
-      .first();
-
-    if (!membership) {
+    // Without access the reservation still authorizes reclaiming the blob.
+    const access = await checkCredentialSaveAccess(ctx, {
+      organizationId: args.organizationId,
+      projectId: args.projectId,
+      userId,
+    });
+    if ("denial" in access) {
       await deleteUnclaimedUpload(ctx, args.storageId);
       await ctx.db.delete(reservation._id);
-      return {
-        success: false as const,
-        code: "AUTHORIZATION_LOST" as const,
-      };
-    }
-
-    const isPrivateProjectSlot =
-      args.purpose === "apple_iap_review_screenshot" ||
-      args.purpose === "android_service_account";
-    if (isPrivateProjectSlot && membership.role === "member") {
-      await deleteUnclaimedUpload(ctx, args.storageId);
-      await ctx.db.delete(reservation._id);
-      return {
-        success: false as const,
-        code: "INSUFFICIENT_PERMISSIONS" as const,
-      };
+      return { success: false as const, code: access.denial };
     }
 
     // One application reference per blob (see `isStorageReferenced`).
@@ -358,7 +439,7 @@ export const saveFile = mutation({
     const fileId = await ctx.db.insert("files", {
       organizationId: args.organizationId,
       projectId: args.projectId,
-      uploadedBy: userId,
+      uploadedBy: access.userId,
       storageId: args.storageId,
       fileName: args.fileName,
       fileType: args.fileType,
@@ -366,7 +447,7 @@ export const saveFile = mutation({
       purpose: args.purpose,
       description: args.description,
       metadata: args.metadata,
-      isInternal: isPrivateProjectSlot ? true : (args.isInternal ?? true),
+      isInternal: true,
       accessCount: 0,
       createdAt: now,
       updatedAt: now,
@@ -691,61 +772,6 @@ export const remove = mutation({
     } else {
       await deleteFileAndStorageIfUnreferenced(ctx, file);
     }
-
-    return { success: true };
-  },
-});
-
-export const updateMetadata = mutation({
-  args: {
-    fileId: v.id("files"),
-    description: v.optional(v.string()),
-    metadata: v.optional(v.any()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const file = await ctx.db.get(args.fileId);
-    if (!file) {
-      throw new ConvexError("File not found");
-    }
-
-    const organization = await getOrganizationById(ctx, file.organizationId);
-    const project = file.projectId
-      ? await getProjectById(ctx, file.projectId)
-      : null;
-    if (!organization || (file.projectId && !project)) {
-      throw new ConvexError("File not found");
-    }
-
-    // Verify user has access to organization
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("organizationId", file.organizationId).eq("userId", userId),
-      )
-      .first();
-
-    if (!membership) {
-      throw new ConvexError("Not a member of this organization");
-    }
-
-    const updates: any = {
-      updatedAt: Date.now(),
-    };
-
-    if (args.description !== undefined) {
-      updates.description = args.description;
-    }
-
-    if (args.metadata !== undefined) {
-      updates.metadata = args.metadata;
-    }
-
-    await ctx.db.patch(args.fileId, updates);
 
     return { success: true };
   },

@@ -23,6 +23,8 @@ import {
   extractExternalUrls,
   LOCKSTEP_EXEMPT,
   findActionFamilyDrift,
+  findDependabotActionGaps,
+  findUngatedSecretJobs,
   findUnpinnedDockerBases,
   findWorkflowDependencyFindings,
   findWorkflowRunInterpolations,
@@ -1583,4 +1585,95 @@ test("a family can be exempted from lockstep by name", () => {
       `LOCKSTEP_EXEMPT entry ${family} has no reason`,
     );
   }
+});
+
+test("a job reading a stored secret must name an environment", () => {
+  const workflow = (job) =>
+    ["on: workflow_dispatch", "jobs:", "  publish:", ...job, ""].join("\n");
+  const ungated = workflow([
+    "    runs-on: ubuntu-latest",
+    "    steps:",
+    "      - run: publish",
+    "        env:",
+    "          TOKEN: ${{ secrets.NUGET_API_KEY }}",
+    "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}",
+  ]);
+  assert.deepEqual(findUngatedSecretJobs(ungated, "release.yml"), [
+    "release.yml: job publish reads NUGET_API_KEY without an environment",
+  ]);
+  assert.deepEqual(
+    findUngatedSecretJobs(
+      ungated.replace("    runs-on:", "    environment: release\n    runs-on:"),
+      "release.yml",
+    ),
+    [],
+  );
+  // The bracket form reads the same secret.
+  assert.equal(
+    findUngatedSecretJobs(
+      ungated.replace("secrets.NUGET_API_KEY", "secrets['NUGET_API_KEY']"),
+      "release.yml",
+    ).length,
+    1,
+  );
+  // GITHUB_TOKEN is minted per run, so it needs no gate.
+  assert.deepEqual(
+    findUngatedSecretJobs(
+      ungated.replace(/^ {10}TOKEN: .*\n/mu, ""),
+      "release.yml",
+    ),
+    [],
+  );
+  assert.deepEqual(
+    findUngatedSecretJobs(
+      "on: push\nenv:\n  KEY: ${{ secrets.KEY }}\njobs: {}\n",
+      "ci.yml",
+    ),
+    ["ci.yml: workflow env reads KEY; move it to the job that needs it"],
+  );
+});
+
+test("Dependabot must update every composite action with its workflows", () => {
+  const config = (entry) =>
+    [
+      "version: 2",
+      "updates:",
+      '  - package-ecosystem: "github-actions"',
+      ...entry,
+      "    schedule:",
+      '      interval: "weekly"',
+      "",
+    ].join("\n");
+  const actions = [".github/actions/coverage-report"];
+  assert.deepEqual(
+    findDependabotActionGaps(config(['    directory: "/"']), actions),
+    [
+      ".github/dependabot.yml: no github-actions entry covers /.github/actions/coverage-report",
+    ],
+  );
+  const both = [
+    "    directories:",
+    '      - "/"',
+    '      - "/.github/actions/*"',
+  ];
+  assert.deepEqual(findDependabotActionGaps(config(both), actions), [
+    ".github/dependabot.yml: a github-actions entry with several directories needs a group with group-by: dependency-name",
+  ]);
+  assert.deepEqual(
+    findDependabotActionGaps(
+      config([
+        ...both,
+        "    groups:",
+        "      shared:",
+        "        group-by: dependency-name",
+      ]),
+      actions,
+    ),
+    [],
+  );
+  // `*` stays inside one path segment.
+  assert.equal(
+    findDependabotActionGaps(config(both), [".github/actions/a/b"]).length,
+    2,
+  );
 });

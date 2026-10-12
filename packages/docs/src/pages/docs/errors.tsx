@@ -316,9 +316,15 @@ public sealed record PurchaseError
                 <code>ServiceTimeout</code>
               </td>
               <td>
-                Request reached the billing service timeout (Google Play 8.x+)
+                Request reached the billing service timeout (Google Play 8.x+),
+                or a launched Android purchase reported no result: Google Play
+                after 15 minutes and an owned-purchase check, Meta Horizon after
+                about 5 minutes
               </td>
-              <td>Retry the call after a short delay</td>
+              <td>
+                Retry the call after a short delay; before retrying a purchase,
+                call <code>getAvailablePurchases</code> in case it completed
+              </td>
             </tr>
             <tr>
               <td>

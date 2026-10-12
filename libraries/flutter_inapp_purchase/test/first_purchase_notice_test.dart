@@ -32,8 +32,6 @@ void main() {
     calls.clear();
     logs.clear();
     responses = <String, Object?>{
-      'acknowledgePurchaseAndroid': '{"responseCode":0}',
-      'consumePurchaseAndroid': '{"responseCode":0}',
       'finishTransaction': null,
       'claimFirstPurchaseNotice': true,
     };
@@ -119,30 +117,22 @@ void main() {
     expect(notices(), isEmpty);
   });
 
-  test('stays silent when the consume fails', () async {
-    responses['consumePurchaseAndroid'] =
-        PlatformException(code: 'service-error');
+  for (final consumable in <bool>[true, false]) {
+    test('stays silent when the Android finish fails (consumable: $consumable)',
+        () async {
+      responses['finishTransaction'] = PlatformException(code: 'service-error');
 
-    await expectLater(
-      app('android')
-          .finishTransaction(purchase: _android(), isConsumable: true),
-      throwsA(isA<PlatformException>()),
-    );
-    await settle();
+      await expectLater(
+        app('android')
+            .finishTransaction(purchase: _android(), isConsumable: consumable),
+        throwsA(isA<PlatformException>()),
+      );
+      await settle();
 
-    expect(claims(), 0);
-    expect(notices(), isEmpty);
-  });
-
-  test('stays silent when the acknowledgement is not confirmed', () async {
-    responses['acknowledgePurchaseAndroid'] = null;
-
-    await app('android').finishTransaction(purchase: _android());
-    await settle();
-
-    expect(claims(), 0);
-    expect(notices(), isEmpty);
-  });
+      expect(claims(), 0);
+      expect(notices(), isEmpty);
+    });
+  }
 
   test('stays silent for a pending purchase', () async {
     const pending = types.PurchaseState.Pending;

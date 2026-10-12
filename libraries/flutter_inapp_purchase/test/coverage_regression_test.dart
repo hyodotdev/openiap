@@ -296,8 +296,9 @@ void main() {
         FakePlatform(operatingSystem: 'android'),
       );
 
-      expect(await iap.acknowledgePurchaseAndroid('opaque'), isTrue);
-      expect(await iap.consumePurchaseAndroid('opaque'), isTrue);
+      // No confirmation from native is not a success.
+      expect(await iap.acknowledgePurchaseAndroid('opaque'), isFalse);
+      expect(await iap.consumePurchaseAndroid('opaque'), isFalse);
       expect(
         (await iap.isBillingProgramAvailableAndroid(
           types.BillingProgramAndroid.ExternalOffer,
@@ -316,37 +317,88 @@ void main() {
   });
 
   group('transaction completion coverage', () {
-    test('handles Android consume, acknowledge, cache, and response variants',
+    test('Android acknowledge and consume report only a confirmed success',
         () async {
-      final responses = <String, dynamic>{
-        'consume': <String, dynamic>{'responseCode': 0},
-        'bool': true,
-        'json': '{"responseCode":"0"}',
+      final responses = <String, Object?>{
+        'confirmed': '{"responseCode":0}',
         'map': <Object?, Object?>{'responseCode': 0},
-        'failure': null,
+        'bool': true,
+        'rejected': '{"responseCode":6}',
+        'malformed': '{',
+        'false': false,
       };
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        final token = (call.arguments as Map)['purchaseToken'] as String;
-        return responses[token];
+        return responses[(call.arguments as Map)['purchaseToken']];
       });
       final iap = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'android'),
       );
 
+      for (final entry in responses.entries) {
+        final confirmed = <String>{'confirmed', 'map', 'bool'}.contains(
+          entry.key,
+        );
+        expect(
+          await iap.acknowledgePurchaseAndroid(entry.key),
+          confirmed,
+          reason: entry.key,
+        );
+        expect(
+          await iap.consumePurchaseAndroid(entry.key),
+          confirmed,
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('Android finish goes through native finishTransaction', () async {
+      final calls = <MethodCall>[];
+      var reject = true;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'finishTransaction' && reject) {
+          throw PlatformException(code: 'service-error');
+        }
+        return null;
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      List<Object?> finishes() => calls
+          .where((call) => call.method == 'finishTransaction')
+          .map((call) => (call.arguments as Map)['isConsumable'])
+          .toList();
+
       await expectLater(
         iap.finishTransaction(purchase: _androidPurchase(null)),
         throwsA(isA<PurchaseError>()),
       );
+      expect(finishes(), isEmpty);
+
+      // A rejected acknowledgement throws and is retried on the next finish.
+      await expectLater(
+        iap.finishTransaction(purchase: _androidPurchase('ack')),
+        throwsA(isA<PlatformException>()),
+      );
+      reject = false;
+      await iap.finishTransaction(purchase: _androidPurchase('ack'));
+      // A confirmed acknowledgement is not sent again.
+      await iap.finishTransaction(purchase: _androidPurchase('ack'));
+      expect(finishes(), <Object?>[false, false]);
+
       await iap.finishTransaction(
         purchase: _androidPurchase('consume'),
         isConsumable: true,
       );
-      await iap.finishTransaction(purchase: _androidPurchase('bool'));
-      await iap.finishTransaction(purchase: _androidPurchase('bool'));
-      await iap.finishTransaction(purchase: _androidPurchase('json'));
-      await iap.finishTransaction(purchase: _androidPurchase('map'));
-      await iap.finishTransaction(purchase: _androidPurchase('failure'));
+      expect(finishes(), <Object?>[false, false, true]);
+      final payload = (calls.last.arguments as Map)['purchase'] as Map;
+      expect(payload['purchaseToken'], 'consume');
+      expect(
+        calls.where((call) => call.method.endsWith('PurchaseAndroid')),
+        isEmpty,
+      );
     });
 
     test('Android finish logs never include the purchase token', () async {
@@ -365,10 +417,9 @@ void main() {
         purchase: _androidPurchase(token),
         isConsumable: true,
       );
-      // A null acknowledge response also logs the retry line.
       await iap.finishTransaction(purchase: _androidPurchase(token));
 
-      expect(logs.where((log) => log.contains('premium')), hasLength(3));
+      expect(logs.where((log) => log.contains('premium')), hasLength(2));
       expect(logs.where((log) => log.contains(token)), isEmpty);
     });
 
@@ -435,6 +486,51 @@ void main() {
 
       expect((await userChoice).products, <String>['premium']);
       expect((await billingIssue).productId, 'premium');
+    });
+
+    test('receives native events before initConnection', () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final purchase = iap.purchaseUpdatedListener.first;
+
+      await send(
+        'purchase-updated',
+        jsonEncode(_androidPurchaseJson('early')),
+      );
+
+      expect((await purchase).productId, 'premium');
+    });
+
+    test('replays a promoted product that arrived before any listener',
+        () async {
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await send('iap-promoted-product', 'com.example.promoted');
+
+      expect(await iap.purchasePromoted.first, 'com.example.promoted');
+    });
+
+    test('a dropped connection makes initConnection reconnect', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        return true;
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await iap.initConnection();
+      await iap.initConnection();
+      expect(calls.where((m) => m == 'initConnection'), hasLength(1));
+
+      await send('connection-updated', jsonEncode({'connected': false}));
+      await iap.initConnection();
+      expect(calls.where((m) => m == 'initConnection'), hasLength(2));
     });
 
     test('isolates malformed native events and rejects unknown methods',

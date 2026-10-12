@@ -6,7 +6,11 @@ on:
     paths:
       - "libraries/kmp-iap/**"
       - "packages/google/**"
+      - "packages/conformance/android/**"
+      - "packages/apple/Sources/**"
+      - "packages/apple/openiap.podspec"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
       - "!**/*.md"
@@ -15,7 +19,11 @@ on:
     paths:
       - "libraries/kmp-iap/**"
       - "packages/google/**"
+      - "packages/conformance/android/**"
+      - "packages/apple/Sources/**"
+      - "packages/apple/openiap.podspec"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
       - "!**/*.md"

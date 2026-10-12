@@ -253,6 +253,8 @@ export const enqueueProductSync = mutation({
       dryRun: args.dryRun ?? false,
       status: "queued",
       progress: { phase: "queued" },
+      // A worker that never starts must not hold the slot; the reaper fails it.
+      expectedDeadline: now + PRODUCT_SYNC_JOB_DEADLINE_MS,
       ...(userId ? { createdBy: userId } : {}),
       createdAt: now,
     });
@@ -358,7 +360,19 @@ export const cancelProductSync = mutation({
   },
   handler: async (ctx, args) => {
     const { job } = await resolveJobForMutationArgs(ctx, args);
-    if (job.status !== "queued" && job.status !== "running") {
+    if (job.status === "queued") {
+      // No worker holds it yet, so end it here; a late worker sees "failed".
+      await ctx.db.patch(job._id, {
+        status: "failed",
+        cancelRequested: true,
+        completedAt: Date.now(),
+        error: "Cancelled by operator",
+        progress: { phase: "failed" },
+      });
+      await releaseSyncLock(ctx, job);
+      return { ok: true as const };
+    }
+    if (job.status !== "running") {
       return { ok: false, reason: "not active" as const };
     }
     await ctx.db.patch(job._id, { cancelRequested: true });
@@ -518,16 +532,7 @@ export const markJobSucceeded = internalMutation({
           : {}),
       },
     });
-    // Release the project's lock only if it still points at this job.
-    const project = await getWritableProject(ctx, job.projectId);
-    if (project?.activeSyncJobIds?.[job.platform] === args.jobId) {
-      await ctx.db.patch(project._id, {
-        activeSyncJobIds: {
-          ...project.activeSyncJobIds,
-          [job.platform]: undefined,
-        },
-      });
-    }
+    await releaseSyncLock(ctx, job);
   },
 });
 
@@ -562,50 +567,56 @@ export const markJobFailed = internalMutation({
         ...(truncated ? { failuresTruncated: true } : {}),
       },
     });
-    // Release the lock, as in `markJobSucceeded`.
-    const project = await getWritableProject(ctx, job.projectId);
-    if (project?.activeSyncJobIds?.[job.platform] === args.jobId) {
-      await ctx.db.patch(project._id, {
-        activeSyncJobIds: {
-          ...project.activeSyncJobIds,
-          [job.platform]: undefined,
-        },
-      });
-    }
+    await releaseSyncLock(ctx, job);
   },
 });
 
-// Cron: fail `running` jobs past `expectedDeadline + grace`. Otherwise a
-// crashed action holds the project's active-job slot forever.
+// Frees the project's slot only if it still points at this job.
+async function releaseSyncLock(
+  ctx: MutationCtx,
+  job: Doc<"productSyncJobs">,
+): Promise<void> {
+  const project = await ctx.db.get(job.projectId);
+  if (project?.activeSyncJobIds?.[job.platform] === job._id) {
+    await ctx.db.patch(project._id, {
+      activeSyncJobIds: {
+        ...project.activeSyncJobIds,
+        [job.platform]: undefined,
+      },
+    });
+  }
+}
+
+// Cron: fail jobs past `expectedDeadline + grace`, whether the worker died
+// mid-run or never started. Otherwise the job holds the project's slot forever.
 export const reapStaleProductSyncJobs = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const cutoff = Date.now() - PRODUCT_SYNC_REAPER_GRACE_MS;
-    const stale = await ctx.db
-      .query("productSyncJobs")
-      .withIndex("by_status_and_deadline", (q) =>
-        q.eq("status", "running").lt("expectedDeadline", cutoff),
-      )
-      .take(PRODUCT_SYNC_REAPER_BATCH);
-    for (const job of stale) {
-      await ctx.db.patch(job._id, {
-        status: "failed",
-        completedAt: Date.now(),
-        error: "Worker timed out — sync exceeded the 9-minute ceiling",
-        progress: { phase: "reaped" },
-      });
-      // Release the dead worker's lock.
-      const project = await ctx.db.get(job.projectId);
-      if (project && project.activeSyncJobIds?.[job.platform] === job._id) {
-        await ctx.db.patch(project._id, {
-          activeSyncJobIds: {
-            ...project.activeSyncJobIds,
-            [job.platform]: undefined,
-          },
+    const now = Date.now();
+    const cutoff = now - PRODUCT_SYNC_REAPER_GRACE_MS;
+    let reaped = 0;
+    for (const status of ["queued", "running"] as const) {
+      const stale = await ctx.db
+        .query("productSyncJobs")
+        .withIndex("by_status_and_deadline", (q) =>
+          q.eq("status", status).lt("expectedDeadline", cutoff),
+        )
+        .take(PRODUCT_SYNC_REAPER_BATCH);
+      for (const job of stale) {
+        await ctx.db.patch(job._id, {
+          status: "failed",
+          completedAt: now,
+          error:
+            status === "queued"
+              ? "Worker never started before the sync deadline"
+              : "Worker timed out — sync exceeded the 9-minute ceiling",
+          progress: { phase: "reaped" },
         });
+        await releaseSyncLock(ctx, job);
       }
+      reaped += stale.length;
     }
-    return { reaped: stale.length };
+    return { reaped };
   },
 });
 

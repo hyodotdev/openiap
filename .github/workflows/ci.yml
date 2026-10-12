@@ -48,6 +48,12 @@ jobs:
       - name: Validate package version metadata
         run: node scripts/release-branch-policy.mjs audit
 
+      # HEAD^1 is the PR base (or the previous main commit on push).
+      - name: Audit plugin manifests
+        run: >-
+          node --test scripts/audit-plugin-manifests.test.mjs &&
+          node scripts/audit-plugin-manifests.mjs HEAD^1
+
       - name: Require a release note for published source changes
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
         env:
@@ -81,6 +87,7 @@ jobs:
           scripts/npm-publish-authorization.test.mjs
           scripts/verify-npm-release-provenance.test.mjs
           scripts/generate-sbom.test.mjs
+          scripts/generate-third-party-notices.test.mjs
           scripts/xml-document.test.mjs
 
       - name: Audit the release sync script
@@ -161,9 +168,11 @@ jobs:
         working-directory: libraries/react-native-iap
         run: corepack yarn install --immutable --mode=skip-build
 
-      - name: Verify Ruby lock
-        working-directory: libraries/react-native-iap/example
-        run: BUNDLE_FROZEN=true bundle install
+      - name: Verify Ruby locks
+        run: |
+          for directory in libraries/react-native-iap/example packages/apple; do
+            (cd "$directory" && BUNDLE_FROZEN=true bundle install)
+          done
 
       - name: Test dependency and workflow guards
         run: >-
@@ -172,6 +181,12 @@ jobs:
 
       - name: Audit workflow security
         run: node scripts/audit-security.mjs workflows
+
+      # shellcheck is off: existing run blocks still carry its findings.
+      - name: Lint workflows with actionlint v1.7.12
+        run: |
+          scripts/install-security-tool.sh actionlint "$RUNNER_TEMP/actionlint"
+          "$RUNNER_TEMP/actionlint" -shellcheck= -pyflakes=
 
       - name: Install OSV-Scanner v2.5.0
         run: |
@@ -190,6 +205,7 @@ jobs:
             --lockfile=libraries/expo-iap/example/vega/bun.lock \
             --lockfile=libraries/react-native-iap/example/vega/bun.lock \
             --lockfile=libraries/react-native-iap/example/Gemfile.lock \
+            --lockfile=packages/apple/Gemfile.lock \
             --lockfile=libraries/react-native-iap/yarn.lock \
             --lockfile=scripts/agent/bun.lock
 
@@ -249,6 +265,8 @@ jobs:
               - '!**/*.md'
             docs:
               - 'packages/docs/**'
+              # Docs import the showcase schema and handler from the MCP server.
+              - 'packages/mcp-server/**'
               - 'specs/client/src/generated/**'
               - 'specs/client/generated-sync-manifest.mjs'
               # The docs link to the canonical contract and audit its derived
@@ -260,6 +278,7 @@ jobs:
             web:
               - 'packages/docs/**'
               - 'packages/kit/**'
+              - 'packages/mcp-server/**'
               # The kit server embeds the generated protocol artifacts at build
               # time, so a spec change must rebuild and probe the binary.
               - 'specs/commerce-protocol/**'
@@ -548,6 +567,18 @@ jobs:
         working-directory: specs/client
         run: bun run generate
 
+      # The generated-wire test compiles Dart and C# output alongside Swift.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: "3.44.9"
+          cache: true
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: "10.0.x"
+
       - name: Run tests
         working-directory: specs/client
         run: bun run test
@@ -756,6 +787,12 @@ jobs:
       - name: Check static discovery guards
         working-directory: packages/docs
         run: bun run test:discoverability
+
+      - name: Test showcase API and metrics
+        working-directory: packages/docs
+        run: |
+          bun run test:showcase
+          bun run showcase:metrics:test
 
       - name: Lint
         working-directory: packages/docs

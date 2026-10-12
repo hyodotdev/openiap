@@ -51,7 +51,11 @@ fun addDeveloperProvidedBillingListener(
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val developerProvidedBillingListenerAndroid: Flow<DeveloperProvidedBillingDetailsAndroid>
+
+// Next selection only. On Play it throws unless initConnection enabled
+// ExternalPayments or BillingChoice.
+suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Stream<DeveloperProvidedBillingDetailsAndroid> get developerProvidedBillingAndroid;
@@ -152,19 +156,20 @@ openIapStore.addDeveloperProvidedBillingListener { details ->
 
 val kmpIAP = KmpIAP()
 
-// Start this before requestPurchase; it suspends until the next selection.
+// Collect before initConnection so no selection is missed.
 lifecycleScope.launch {
-    val details = kmpIAP.developerProvidedBillingAndroid()
-    val paymentResult = processPaymentWithYourGateway(
-        products = details.products,
-        linkUri = details.linkUri
-    )
+    kmpIAP.developerProvidedBillingListenerAndroid.collect { details ->
+        val paymentResult = processPaymentWithYourGateway(
+            products = details.products,
+            linkUri = details.linkUri
+        )
 
-    if (paymentResult.success) {
-        details.externalTransactionToken?.let { token ->
-            reportExternalTransactionToGoogle(token)
+        if (paymentResult.success) {
+            details.externalTransactionToken?.let { token ->
+                reportExternalTransactionToGoogle(token)
+            }
+            grantUserAccess()
         }
-        grantUserAccess()
     }
 }`}</CodeBlock>
           ),

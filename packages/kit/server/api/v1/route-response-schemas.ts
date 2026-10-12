@@ -6,6 +6,8 @@ export const apiErrorResponseSchema = v.object({
       code: v.string(),
       message: v.string(),
       path: v.optional(v.string()),
+      // Present on 429 and on a 503 store outage; mirrors `Retry-After`.
+      retryAfterSec: v.optional(v.number()),
     }),
   ),
 });

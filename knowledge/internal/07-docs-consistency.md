@@ -274,10 +274,13 @@ an invalid parser look green.
 
 ### R13 — Major removals leave one canonical contract
 
-The coordinated major train removes the OpenIAP-owned compatibility surface
-from OpenIAP 3.0, `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
+Each coordinated major train removes the OpenIAP-owned compatibility surface
+scheduled for it: OpenIAP 3.0, `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
 `flutter_inapp_purchase` 10.0.0, `godot-iap` 3.0.0, `kmp-iap` 3.0.0, and
-`OpenIap.Maui` 2.0.0.
+`OpenIap.Maui` 2.0.0; then Client Protocol 1.0.0 with `openiap-apple` and
+`openiap-google` 4.0.0, `react-native-iap` 17.0.0, `expo-iap` 6.0.0,
+`flutter_inapp_purchase` 11.0.0, `godot-iap` 4.0.0, `kmp-iap` 4.0.0, and
+`OpenIap.Maui` 3.0.0.
 
 - The GraphQL schema and generated Swift, Kotlin, TypeScript, Dart, GDScript,
   and C# declarations contain no member from the completed removal catalog.
@@ -316,9 +319,8 @@ is not user-authored legacy input.
 Every store-specific `VerifyPurchaseResult` documentation table must list all
 required fields from the generated TypeScript `VerifyPurchaseResultCommon`
 interface. The audit derives this field set from the generated type instead of
-maintaining a second list. While Horizon's `success` compatibility property
-exists, its table must also mark that property as a deprecated alias for
-`isValid`.
+maintaining a second list. Horizon tables must omit `success`; Client Protocol
+1.0.0 removed that alias in favor of `isValid`.
 
 ### R15 — Subscription query failures stay observable
 
@@ -366,7 +368,7 @@ parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
 - published release entries and docs-local version metadata
 - focused recurring phantom shapes from active fenced code examples
 - canonical offer semantics, generated enum snippets, and search entries
-- shared purchase-verification fields and the Horizon compatibility alias
+- shared purchase-verification fields and the removed Horizon `success` alias
 - subscription-query rejection semantics and the Godot compatibility fallback
 
 Field mentions are cross-referenced against generated TypeScript shapes.

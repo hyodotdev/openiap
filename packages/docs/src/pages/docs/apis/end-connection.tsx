@@ -47,7 +47,9 @@ function EndConnection() {
       <p>
         <strong>React Native / Expo:</strong> if native teardown throws, the
         promise rejects without clearing the current connection or listener
-        state, so the app can retry. If teardown resolves <code>false</code>,
+        state, so the app can retry. React Native keeps registered listeners
+        after teardown and reattaches them on the next{' '}
+        <code>initConnection</code>. In Expo, a <code>false</code> result means
         the bridge has already cleared its connection state and listeners;
         reconnect and register fresh listeners before the next store call.
       </p>
@@ -140,10 +142,11 @@ function ManualStoreConnection() {
 }
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
-// Expo calls endConnection() when the component unmounts. React Native removes
-// the hook's listeners but keeps the native connection open across screens;
-// call the module-level endConnection() at an app-level teardown boundary such
-// as sign-out when the connection should actually close.
+// Expo calls endConnection() when the last mounted hook unmounts. React Native
+// removes the hook's listeners but keeps the native connection open across
+// screens; call the module-level endConnection() at an app-level teardown
+// boundary such as sign-out when the connection should actually close.
+// Mounted hooks keep their listeners; they reattach on the next initConnection.
 
 function PurchaseScreen() {
   const { connected } = useIAP();

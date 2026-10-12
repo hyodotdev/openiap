@@ -191,6 +191,12 @@ enum GodotIapHelper {
         return try encodeRequired(value)
     }
 
+    /// JSON text for a Foundation payload, or nil when it cannot be serialized.
+    static func jsonString(_ object: Any) -> String? {
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     static func purchasesRequired(_ purchases: [Purchase]) throws -> [[String: Any]] {
         try purchases.map { purchase in
             let encoded = OpenIapSerialization.purchase(purchase)

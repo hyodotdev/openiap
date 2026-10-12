@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MANAGE_PRODUCT_DISABLE_MESSAGE } from "../src/mcp";
 import { createIapKitWebMcpHandler } from "../src/web";
 
 // Regression suite for GitHub issue #287: the hosted /mcp endpoint kept
@@ -11,6 +12,8 @@ import { createIapKitWebMcpHandler } from "../src/web";
 // transparently re-initialize.
 
 const silentLogger = { error: () => undefined, info: () => undefined };
+const SECRET_KEY = "openiap-kit_sk_hosted";
+const BEARER = { authorization: `Bearer ${SECRET_KEY}` };
 
 function createHandler(machineId?: string) {
   return createIapKitWebMcpHandler({ logger: silentLogger, machineId });
@@ -57,6 +60,7 @@ function mcpRequest(
     headers: {
       accept: "application/json, text/event-stream",
       "content-type": "application/json",
+      ...BEARER,
       ...(sessionId ? { "mcp-session-id": sessionId } : {}),
       ...headers,
     },
@@ -92,28 +96,27 @@ describe("web MCP handler session routing", () => {
     expect(list.status).toBe(200);
   });
 
-  it("rejects new sessions at capacity without evicting active sessions", async () => {
+  it("evicts the least recently used session at capacity instead of locking out", async () => {
     const handler = createHandler("self42");
-    let firstSessionId = "";
+    const sessionIds: string[] = [];
 
     for (let index = 0; index < 256; index += 1) {
       const response = await handler(initializeRequest());
       expect(response.status).toBe(200);
-      firstSessionId ||= response.headers.get("mcp-session-id") ?? "";
+      sessionIds.push(response.headers.get("mcp-session-id") ?? "");
       await response.text();
     }
+    const touched = await handler(toolsListRequest(sessionIds[0]));
+    await touched.text();
 
-    const denied = await handler(
-      initializeRequest(undefined, { origin: "https://chatgpt.com" }),
-    );
-    expect(denied.status).toBe(503);
-    expect(denied.headers.get("retry-after")).toBe("5");
-    expect(denied.headers.get("access-control-allow-origin")).toBe(
-      "https://chatgpt.com",
-    );
+    const admitted = await handler(initializeRequest());
+    expect(admitted.status).toBe(200);
+    await admitted.text();
 
-    const followUp = await handler(toolsListRequest(firstSessionId));
-    expect(followUp.status).toBe(200);
+    const stillServed = await handler(toolsListRequest(sessionIds[0]));
+    expect(stillServed.status).toBe(200);
+    const evicted = await handler(toolsListRequest(sessionIds[1]));
+    expect(evicted.status).toBe(404);
   });
 
   it("replays a foreign machine's session via fly-replay", async () => {
@@ -175,6 +178,7 @@ describe("web MCP handler session routing", () => {
           method,
           headers: {
             accept: "application/json, text/event-stream",
+            ...BEARER,
             "mcp-session-id": "other77.7e33e2b1-9a45-4c8e-b1de-000000000000",
           },
         }),
@@ -207,10 +211,133 @@ describe("web MCP handler session routing", () => {
     const response = await handler(
       new Request("http://localhost/mcp", {
         method: "DELETE",
-        headers: { accept: "application/json, text/event-stream" },
+        headers: { accept: "application/json, text/event-stream", ...BEARER },
       }),
     );
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("hosted MCP from kit's network position", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function openSession(
+    handler: (request: Request) => Promise<Response>,
+  ): Promise<string> {
+    const response = await handler(initializeRequest());
+    expect(response.status).toBe(200);
+    await response.text();
+    return response.headers.get("mcp-session-id") ?? "";
+  }
+
+  function callTool(sessionId: string, name: string, args: object): Request {
+    return mcpRequest(
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name, arguments: args },
+      },
+      sessionId,
+    );
+  }
+
+  it("requires a bearer before anything else", async () => {
+    const handler = createHandler("self42");
+    const response = await handler(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe("Bearer");
+  });
+
+  it("creates no session for a key the kit does not recognize", async () => {
+    const authenticate = vi.fn(async () => false);
+    const handler = createIapKitWebMcpHandler({
+      logger: silentLogger,
+      authenticate,
+    });
+
+    const response = await handler(initializeRequest());
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("mcp-session-id")).toBeNull();
+    expect(authenticate).toHaveBeenCalledWith(SECRET_KEY);
+  });
+
+  it("ignores a per-call baseUrl and never follows redirects", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      Response.json({ products: [], hasMore: false }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const handler = createIapKitWebMcpHandler({
+      logger: silentLogger,
+      kitBaseUrl: "http://127.0.0.1:3000",
+    });
+    const sessionId = await openSession(handler);
+
+    const response = await handler(
+      callTool(sessionId, "iapkit_list_products", {
+        baseUrl: "http://169.254.169.254/latest/meta-data",
+      }),
+    );
+    await response.text();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("http://127.0.0.1:3000/v1/products");
+    expect(init?.redirect).toBe("error");
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("refuses manage_product disable instead of queueing a store deletion", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const handler = createHandler(undefined);
+    const sessionId = await openSession(handler);
+
+    const response = await handler(
+      callTool(sessionId, "iapkit_manage_product", {
+        productId: "premium",
+        platform: "IOS",
+        action: "disable",
+      }),
+    );
+
+    expect(await response.text()).toContain(
+      MANAGE_PRODUCT_DISABLE_MESSAGE.slice(0, 40),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("caps a chunked body while it streams", async () => {
+    const handler = createHandler(undefined);
+    const chunk = new Uint8Array(256 * 1024).fill(0x20);
+    let sent = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += 1;
+        if (sent > 64) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+
+    const response = await handler(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...BEARER },
+        body,
+        duplex: "half",
+      } as RequestInit),
+    );
+
+    expect(response.status).toBe(413);
+    expect(sent).toBeLessThan(64);
   });
 });

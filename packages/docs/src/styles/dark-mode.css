@@ -26,6 +26,12 @@
   --sidebar-section-text: #666;
 }
 
+/* The page canvas sits a shade darker than --bg-primary. */
+:root.dark,
+:root.dark body {
+  background-color: #09090b;
+}
+
 /* Dark mode specific overrides */
 :root.dark .navigation {
   background: var(--bg-primary);

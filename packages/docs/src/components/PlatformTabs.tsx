@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import StaticExamples from './StaticExamples';
 import { useStaticExamples } from '../hooks/useStaticExamples';
+import { declaresId } from '../lib/elementIds';
 
 type Platform = 'ios' | 'android' | 'amazon' | 'horizon';
 
@@ -22,49 +24,42 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 
 const PLATFORM_ORDER: Platform[] = ['ios', 'android', 'horizon', 'amazon'];
 
-function platformFromHash(availablePlatforms: Platform[]): Platform | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const hash = window.location.hash.toLowerCase();
-  return availablePlatforms.find((platform) => hash.includes(platform)) ?? null;
+// The tab that holds the linked anchor, else the platform the hash names.
+function platformForHash(
+  hash: string,
+  children: PlatformTabsProps['children'],
+  availablePlatforms: Platform[]
+): Platform | null {
+  const id = hash.slice(1);
+  if (!id) return null;
+  return (
+    availablePlatforms.find((platform) => declaresId(children[platform], id)) ??
+    availablePlatforms.find((platform) =>
+      id.toLowerCase().includes(platform)
+    ) ??
+    null
+  );
 }
 
 function PlatformTabs({ children }: PlatformTabsProps) {
   const isStatic = useStaticExamples();
-  // children is a new object each render; key the list on which platforms exist.
-  const platformKey = PLATFORM_ORDER.filter(
+  const availablePlatforms = PLATFORM_ORDER.filter(
     (platform) => children[platform] !== undefined
-  ).join(' ');
-  const availablePlatforms = useMemo(
-    () =>
-      PLATFORM_ORDER.filter((platform) =>
-        platformKey.split(' ').includes(platform)
-      ),
-    [platformKey]
   );
-
+  const location = useLocation();
+  const hashPlatform = platformForHash(
+    location.hash,
+    children,
+    availablePlatforms
+  );
   const [activeTab, setActiveTab] = useState<Platform>(
-    () => availablePlatforms[0] ?? 'ios'
+    () => hashPlatform ?? availablePlatforms[0] ?? 'ios'
   );
 
+  // Every navigation re-applies the hash, including same-page router links.
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const handleHashChange = () => {
-      const next = platformFromHash(availablePlatforms);
-      if (next) {
-        setActiveTab(next);
-      }
-    };
-
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [availablePlatforms]);
+    if (hashPlatform) setActiveTab(hashPlatform);
+  }, [location.key, hashPlatform]);
 
   const examples = availablePlatforms
     .filter((platform) => isStatic || platform !== activeTab)
@@ -79,11 +74,13 @@ function PlatformTabs({ children }: PlatformTabsProps) {
 
   return (
     <div className="platform-tabs">
-      <div className="platform-tabs-header">
+      <div className="platform-tabs-header" role="group" aria-label="Platform">
         {availablePlatforms.map((platform) => (
           <button
             key={platform}
+            type="button"
             className={`platform-tab ${activeTab === platform ? 'active' : ''}`}
+            aria-pressed={activeTab === platform}
             onClick={() => setActiveTab(platform)}
           >
             {PLATFORM_LABELS[platform]}

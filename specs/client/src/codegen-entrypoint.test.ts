@@ -15,7 +15,8 @@ describe('code generator entrypoint', () => {
     expect(
       () =>
         new CodeGenerator({
-          languages: ['kotln' as never],
+          // @ts-expect-error The constructor must reject languages outside the typed list at runtime.
+          languages: ['kotln'],
         }),
     ).toThrow('Unsupported codegen language: kotln');
   });

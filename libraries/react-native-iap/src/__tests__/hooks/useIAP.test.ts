@@ -1339,8 +1339,9 @@ describe('hooks/useIAP (renderer)', () => {
         expect(await secondReconnect!).toBe(true);
       });
       expect(api.connected).toBe(true);
-      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
-      expect(IAP.purchaseErrorListener).toHaveBeenCalledTimes(1);
+      // The mounted hook's listeners stay registered; reconnect adds none.
+      expect(IAP.purchaseUpdatedListener).not.toHaveBeenCalled();
+      expect(IAP.purchaseErrorListener).not.toHaveBeenCalled();
 
       await act(async () => {
         resolveFirst?.(true);
@@ -1348,11 +1349,11 @@ describe('hooks/useIAP (renderer)', () => {
       });
 
       expect(api.connected).toBe(true);
-      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
-      expect(IAP.purchaseErrorListener).toHaveBeenCalledTimes(1);
+      expect(IAP.purchaseUpdatedListener).not.toHaveBeenCalled();
+      expect(IAP.purchaseErrorListener).not.toHaveBeenCalled();
     });
 
-    it('reconnect re-registers listeners after successful reconnection', async () => {
+    it('keeps purchase listeners across endConnection and reconnect', async () => {
       let api: any;
       const onPurchaseSuccess = jest.fn();
       const Harness = () => {
@@ -1377,7 +1378,7 @@ describe('hooks/useIAP (renderer)', () => {
       });
 
       expect(api.connected).toBe(true);
-      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(IAP.purchaseUpdatedListener).not.toHaveBeenCalled();
 
       const purchase = {
         id: 'after-reconnect',

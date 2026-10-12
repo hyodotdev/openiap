@@ -28,6 +28,25 @@ private func resolveStoreId(_ store: IapStore, _ value: String?) -> String? {
     return id
 }
 
+/// Union JSON is flat and names its member type in `__typename`.
+private enum UnionTypenameKey: String, CodingKey {
+    case typename = "__typename"
+}
+
+/// Input enums reject unrecognized values; only output decoding falls back to `.unknown`.
+private struct StrictInputEnum<Value: RawRepresentable>: Decodable where Value.RawValue == String {
+    let value: Value
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        guard let value = Value(rawValue: rawValue) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown \(Value.self) input value: \(rawValue)")
+        }
+        self.value = value
+    }
+}
+
 // MARK: - Enums
 
 /// App acquisition verdict; unknown means no trustworthy decision is available.
@@ -35,6 +54,24 @@ public enum AppOwnershipStatus: String, Codable, CaseIterable {
     case licensed = "licensed"
     case unlicensed = "unlicensed"
     case unknown = "unknown"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "licensed", "LICENSED", "Licensed":
+            self = .licensed
+        case "unlicensed", "UNLICENSED", "Unlicensed":
+            self = .unlicensed
+        case "unknown", "UNKNOWN", "Unknown":
+            self = .unknown
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 /// Why the ownership check is inconclusive.
@@ -44,6 +81,23 @@ public enum AppOwnershipVerificationReason: String, Codable, CaseIterable {
     case networkError = "network-error"
     case serviceError = "service-error"
     case unsupported = "unsupported"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "backend-verification-required", "BACKEND_VERIFICATION_REQUIRED", "BackendVerificationRequired":
+            self = .backendVerificationRequired
+        case "verification-failed", "VERIFICATION_FAILED", "VerificationFailed":
+            self = .verificationFailed
+        case "network-error", "NETWORK_ERROR", "NetworkError":
+            self = .networkError
+        case "service-error", "SERVICE_ERROR", "ServiceError":
+            self = .serviceError
+        case "unsupported", "UNSUPPORTED", "Unsupported":
+            self = .unsupported
+        default:
+            return nil
+        }
+    }
 }
 
 /// Play Billing choice image layout (Android)
@@ -55,6 +109,19 @@ public enum BillingChoiceImageLayoutAndroid: String, Codable, CaseIterable {
     case rectangularThreeByOne = "rectangular-three-by-one"
     /// Rectangular image with a 2:2 aspect ratio.
     case rectangularTwoByTwo = "rectangular-two-by-two"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "rectangular-four-by-one", "RECTANGULAR_FOUR_BY_ONE":
+            self = .rectangularFourByOne
+        case "rectangular-three-by-one", "RECTANGULAR_THREE_BY_ONE":
+            self = .rectangularThreeByOne
+        case "rectangular-two-by-two", "RECTANGULAR_TWO_BY_TWO":
+            self = .rectangularTwoByTwo
+        default:
+            return nil
+        }
+    }
 }
 
 /// Choice screen renderer for Billing Choice availability (Android)
@@ -66,6 +133,19 @@ public enum BillingChoiceScreenTypeAndroid: String, Codable, CaseIterable {
     case developerRendered = "developer-rendered"
     /// Choice screen is rendered by Google Play.
     case googleRendered = "google-rendered"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unspecified", "UNSPECIFIED":
+            self = .unspecified
+        case "developer-rendered", "DEVELOPER_RENDERED":
+            self = .developerRendered
+        case "google-rendered", "GOOGLE_RENDERED":
+            self = .googleRendered
+        default:
+            return nil
+        }
+    }
 }
 
 /// Billing program types for Google Play Billing Programs (Android)
@@ -97,6 +177,25 @@ public enum BillingProgramAndroid: String, Codable, CaseIterable {
     /// Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
     /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     case billingChoice = "billing-choice"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unspecified", "UNSPECIFIED":
+            self = .unspecified
+        case "user-choice-billing", "USER_CHOICE_BILLING":
+            self = .userChoiceBilling
+        case "external-content-link", "EXTERNAL_CONTENT_LINK":
+            self = .externalContentLink
+        case "external-offer", "EXTERNAL_OFFER":
+            self = .externalOffer
+        case "external-payments", "EXTERNAL_PAYMENTS":
+            self = .externalPayments
+        case "billing-choice", "BILLING_CHOICE":
+            self = .billingChoice
+        default:
+            return nil
+        }
+    }
 }
 
 /// Launch mode for developer billing option (Android)
@@ -111,6 +210,19 @@ public enum DeveloperBillingLaunchModeAndroid: String, Codable, CaseIterable {
     /// The caller app will launch the link after Play returns control.
     /// Use this when you want to handle launching the external payment URL yourself.
     case callerWillLaunchLink = "caller-will-launch-link"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unspecified", "UNSPECIFIED":
+            self = .unspecified
+        case "launch-in-external-browser-or-app", "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP":
+            self = .launchInExternalBrowserOrApp
+        case "caller-will-launch-link", "CALLER_WILL_LAUNCH_LINK":
+            self = .callerWillLaunchLink
+        default:
+            return nil
+        }
+    }
 }
 
 /// Developer-provided billing destination type for Billing Program reporting details (Android)
@@ -122,6 +234,19 @@ public enum DeveloperBillingTypeAndroid: String, Codable, CaseIterable {
     case inApp = "in-app"
     /// Developer-provided billing via external link or embedded web browsing.
     case externalLink = "external-link"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "developer-billing-type-unspecified", "DEVELOPER_BILLING_TYPE_UNSPECIFIED":
+            self = .developerBillingTypeUnspecified
+        case "in-app", "IN_APP":
+            self = .inApp
+        case "external-link", "EXTERNAL_LINK":
+            self = .externalLink
+        default:
+            return nil
+        }
+    }
 }
 
 /// Discount offer type enumeration.
@@ -133,6 +258,19 @@ public enum DiscountOfferType: String, Codable, CaseIterable {
     case promotional = "promotional"
     /// One-time product discount (Android only, Google Play Billing 8.0+)
     case oneTime = "one-time"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "introductory", "INTRODUCTORY", "Introductory":
+            self = .introductory
+        case "promotional", "PROMOTIONAL", "Promotional":
+            self = .promotional
+        case "one-time", "ONE_TIME", "OneTime":
+            self = .oneTime
+        default:
+            return nil
+        }
+    }
 }
 
 public enum ErrorCode: String, Codable, CaseIterable {
@@ -173,86 +311,88 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case emptySkuList = "empty-sku-list"
     case duplicatePurchase = "duplicate-purchase"
 
-    /// Custom initializer to handle both kebab-case and camelCase error codes
-    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase
     public init?(rawValue: String) {
-        // Try direct match first (kebab-case)
         switch rawValue {
-        case "unknown", "Unknown":
+        case "unknown", "UNKNOWN", "Unknown":
             self = .unknown
-        case "user-cancelled", "UserCancelled":
+        case "user-cancelled", "USER_CANCELLED", "UserCancelled":
             self = .userCancelled
-        case "user-error", "UserError":
+        case "user-error", "USER_ERROR", "UserError":
             self = .userError
-        case "item-unavailable", "ItemUnavailable":
+        case "item-unavailable", "ITEM_UNAVAILABLE", "ItemUnavailable":
             self = .itemUnavailable
-        case "remote-error", "RemoteError":
+        case "remote-error", "REMOTE_ERROR", "RemoteError":
             self = .remoteError
-        case "network-error", "NetworkError":
+        case "network-error", "NETWORK_ERROR", "NetworkError":
             self = .networkError
-        case "service-error", "ServiceError":
+        case "service-error", "SERVICE_ERROR", "ServiceError":
             self = .serviceError
-        case "purchase-verification-failed", "PurchaseVerificationFailed":
+        case "purchase-verification-failed", "PURCHASE_VERIFICATION_FAILED", "PurchaseVerificationFailed":
             self = .purchaseVerificationFailed
-        case "purchase-verification-finished", "PurchaseVerificationFinished":
+        case "purchase-verification-finished", "PURCHASE_VERIFICATION_FINISHED", "PurchaseVerificationFinished":
             self = .purchaseVerificationFinished
-        case "purchase-verification-finish-failed", "PurchaseVerificationFinishFailed":
+        case "purchase-verification-finish-failed", "PURCHASE_VERIFICATION_FINISH_FAILED", "PurchaseVerificationFinishFailed":
             self = .purchaseVerificationFinishFailed
-        case "not-prepared", "NotPrepared":
+        case "not-prepared", "NOT_PREPARED", "NotPrepared":
             self = .notPrepared
-        case "not-ended", "NotEnded":
+        case "not-ended", "NOT_ENDED", "NotEnded":
             self = .notEnded
-        case "already-owned", "AlreadyOwned":
+        case "already-owned", "ALREADY_OWNED", "AlreadyOwned":
             self = .alreadyOwned
-        case "developer-error", "DeveloperError":
+        case "developer-error", "DEVELOPER_ERROR", "DeveloperError":
             self = .developerError
-        case "billing-response-json-parse-error", "BillingResponseJsonParseError":
+        case "billing-response-json-parse-error", "BILLING_RESPONSE_JSON_PARSE_ERROR", "BillingResponseJsonParseError":
             self = .billingResponseJsonParseError
-        case "deferred-payment", "DeferredPayment":
+        case "deferred-payment", "DEFERRED_PAYMENT", "DeferredPayment":
             self = .deferredPayment
-        case "interrupted", "Interrupted":
+        case "interrupted", "INTERRUPTED", "Interrupted":
             self = .interrupted
-        case "iap-not-available", "IapNotAvailable":
+        case "iap-not-available", "IAP_NOT_AVAILABLE", "IapNotAvailable":
             self = .iapNotAvailable
-        case "purchase-error", "PurchaseError":
+        case "purchase-error", "PURCHASE_ERROR", "PurchaseError":
             self = .purchaseError
-        case "sync-error", "SyncError":
+        case "sync-error", "SYNC_ERROR", "SyncError":
             self = .syncError
-        case "transaction-validation-failed", "TransactionValidationFailed":
+        case "transaction-validation-failed", "TRANSACTION_VALIDATION_FAILED", "TransactionValidationFailed":
             self = .transactionValidationFailed
-        case "activity-unavailable", "ActivityUnavailable":
+        case "activity-unavailable", "ACTIVITY_UNAVAILABLE", "ActivityUnavailable":
             self = .activityUnavailable
-        case "already-prepared", "AlreadyPrepared":
+        case "already-prepared", "ALREADY_PREPARED", "AlreadyPrepared":
             self = .alreadyPrepared
-        case "pending", "Pending":
+        case "pending", "PENDING", "Pending":
             self = .pending
-        case "connection-closed", "ConnectionClosed":
+        case "connection-closed", "CONNECTION_CLOSED", "ConnectionClosed":
             self = .connectionClosed
-        case "init-connection", "InitConnection":
+        case "init-connection", "INIT_CONNECTION", "InitConnection":
             self = .initConnection
-        case "service-disconnected", "ServiceDisconnected":
+        case "service-disconnected", "SERVICE_DISCONNECTED", "ServiceDisconnected":
             self = .serviceDisconnected
-        case "service-timeout", "ServiceTimeout":
+        case "service-timeout", "SERVICE_TIMEOUT", "ServiceTimeout":
             self = .serviceTimeout
-        case "query-product", "QueryProduct":
+        case "query-product", "QUERY_PRODUCT", "QueryProduct":
             self = .queryProduct
-        case "sku-not-found", "SkuNotFound":
+        case "sku-not-found", "SKU_NOT_FOUND", "SkuNotFound":
             self = .skuNotFound
-        case "sku-offer-mismatch", "SkuOfferMismatch":
+        case "sku-offer-mismatch", "SKU_OFFER_MISMATCH", "SkuOfferMismatch":
             self = .skuOfferMismatch
-        case "item-not-owned", "ItemNotOwned":
+        case "item-not-owned", "ITEM_NOT_OWNED", "ItemNotOwned":
             self = .itemNotOwned
-        case "billing-unavailable", "BillingUnavailable":
+        case "billing-unavailable", "BILLING_UNAVAILABLE", "BillingUnavailable":
             self = .billingUnavailable
-        case "feature-not-supported", "FeatureNotSupported":
+        case "feature-not-supported", "FEATURE_NOT_SUPPORTED", "FeatureNotSupported":
             self = .featureNotSupported
-        case "empty-sku-list", "EmptySkuList":
+        case "empty-sku-list", "EMPTY_SKU_LIST", "EmptySkuList":
             self = .emptySkuList
-        case "duplicate-purchase", "DuplicatePurchase":
+        case "duplicate-purchase", "DUPLICATE_PURCHASE", "DuplicatePurchase":
             self = .duplicatePurchase
         default:
             return nil
         }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
     }
 }
 
@@ -267,6 +407,19 @@ public enum ExternalLinkLaunchModeAndroid: String, Codable, CaseIterable {
     case launchInExternalBrowserOrApp = "launch-in-external-browser-or-app"
     /// Play will not launch the URL. The app handles launching the URL after Play returns control.
     case callerWillLaunchLink = "caller-will-launch-link"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unspecified", "UNSPECIFIED":
+            self = .unspecified
+        case "launch-in-external-browser-or-app", "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP":
+            self = .launchInExternalBrowserOrApp
+        case "caller-will-launch-link", "CALLER_WILL_LAUNCH_LINK":
+            self = .callerWillLaunchLink
+        default:
+            return nil
+        }
+    }
 }
 
 /// Link type for external link flow (Android)
@@ -279,6 +432,19 @@ public enum ExternalLinkTypeAndroid: String, Codable, CaseIterable {
     case linkToDigitalContentOffer = "link-to-digital-content-offer"
     /// The link will direct users to download an app
     case linkToAppDownload = "link-to-app-download"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unspecified", "UNSPECIFIED":
+            self = .unspecified
+        case "link-to-digital-content-offer", "LINK_TO_DIGITAL_CONTENT_OFFER":
+            self = .linkToDigitalContentOffer
+        case "link-to-app-download", "LINK_TO_APP_DOWNLOAD":
+            self = .linkToAppDownload
+        default:
+            return nil
+        }
+    }
 }
 
 /// Notice types for ExternalPurchaseCustomLink (iOS 18.1+).
@@ -288,6 +454,15 @@ public enum ExternalPurchaseCustomLinkNoticeTypeIOS: String, Codable, CaseIterab
     /// Notice type indicating external purchases will be displayed in a browser
     /// or destination of the app's choice.
     case browser = "browser"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "browser", "BROWSER", "Browser":
+            self = .browser
+        default:
+            return nil
+        }
+    }
 }
 
 /// Token types for ExternalPurchaseCustomLink (iOS 18.1+).
@@ -300,6 +475,17 @@ public enum ExternalPurchaseCustomLinkTokenTypeIOS: String, Codable, CaseIterabl
     /// Token for ongoing services tracking.
     /// Use this for existing customers making additional purchases.
     case services = "services"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "acquisition", "ACQUISITION", "Acquisition":
+            self = .acquisition
+        case "services", "SERVICES", "Services":
+            self = .services
+        default:
+            return nil
+        }
+    }
 }
 
 /// User actions on external purchase notice sheet (iOS 17.4+)
@@ -308,6 +494,17 @@ public enum ExternalPurchaseNoticeAction: String, Codable, CaseIterable {
     case `continue` = "continue"
     /// User dismissed the notice sheet
     case dismissed = "dismissed"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "continue", "CONTINUE", "Continue":
+            self = .`continue`
+        case "dismissed", "DISMISSED", "Dismissed":
+            self = .dismissed
+        default:
+            return nil
+        }
+    }
 }
 
 public enum IapEvent: String, Codable, CaseIterable {
@@ -326,6 +523,25 @@ public enum IapEvent: String, Codable, CaseIterable {
     /// Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon
     /// flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
     case subscriptionBillingIssue = "subscription-billing-issue"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "purchase-updated", "PURCHASE_UPDATED", "PurchaseUpdated":
+            self = .purchaseUpdated
+        case "purchase-error", "PURCHASE_ERROR", "PurchaseError":
+            self = .purchaseError
+        case "promoted-product-ios", "PROMOTED_PRODUCT_IOS", "PromotedProductIOS":
+            self = .promotedProductIos
+        case "user-choice-billing-android", "USER_CHOICE_BILLING_ANDROID", "UserChoiceBillingAndroid":
+            self = .userChoiceBillingAndroid
+        case "developer-provided-billing-android", "DEVELOPER_PROVIDED_BILLING_ANDROID", "DeveloperProvidedBillingAndroid":
+            self = .developerProvidedBillingAndroid
+        case "subscription-billing-issue", "SUBSCRIPTION_BILLING_ISSUE", "SubscriptionBillingIssue":
+            self = .subscriptionBillingIssue
+        default:
+            return nil
+        }
+    }
 }
 
 /// Serialization format of a public IAPKit product client payload.
@@ -333,6 +549,19 @@ public enum IapkitClientPayloadFormat: String, Codable, CaseIterable {
     case toml = "toml"
     case json = "json"
     case text = "text"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "toml", "TOML", "Toml":
+            self = .toml
+        case "json", "JSON", "Json":
+            self = .json
+        case "text", "TEXT", "Text":
+            self = .text
+        default:
+            return nil
+        }
+    }
 }
 
 /// Unified purchase states from IAPKit verification response.
@@ -355,11 +584,52 @@ public enum IapkitPurchaseState: String, Codable, CaseIterable {
     case unknown = "unknown"
     /// Purchase receipt is not authentic (fraudulent or tampered).
     case inauthentic = "inauthentic"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "entitled", "ENTITLED":
+            self = .entitled
+        case "pending-acknowledgment", "PENDING_ACKNOWLEDGMENT":
+            self = .pendingAcknowledgment
+        case "pending", "PENDING":
+            self = .pending
+        case "canceled", "CANCELED":
+            self = .canceled
+        case "expired", "EXPIRED":
+            self = .expired
+        case "ready-to-consume", "READY_TO_CONSUME":
+            self = .readyToConsume
+        case "consumed", "CONSUMED":
+            self = .consumed
+        case "unknown", "UNKNOWN":
+            self = .unknown
+        case "inauthentic", "INAUTHENTIC":
+            self = .inauthentic
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 public enum IapPlatform: String, Codable, CaseIterable {
     case ios = "ios"
     case android = "android"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "ios", "IOS":
+            self = .ios
+        case "android", "ANDROID", "Android":
+            self = .android
+        default:
+            return nil
+        }
+    }
 }
 
 /// Frozen legacy store discriminator. Use storeId for extensible store identity.
@@ -369,6 +639,28 @@ public enum IapStore: String, Codable, CaseIterable {
     case google = "google"
     case horizon = "horizon"
     case amazon = "amazon"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unknown", "UNKNOWN", "Unknown":
+            self = .unknown
+        case "apple", "APPLE", "Apple":
+            self = .apple
+        case "google", "GOOGLE", "Google":
+            self = .google
+        case "horizon", "HORIZON", "Horizon":
+            self = .horizon
+        case "amazon", "AMAZON", "Amazon":
+            self = .amazon
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 /// High-level in-app message category (Android)
@@ -379,6 +671,22 @@ public enum InAppMessageCategoryAndroid: String, Codable, CaseIterable {
     case unknownInAppMessageCategoryId = "unknown-in-app-message-category-id"
     /// Transactional billing messages, such as payment issues or pending price-change confirmations.
     case transactional = "transactional"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unknown-in-app-message-category-id", "UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID":
+            self = .unknownInAppMessageCategoryId
+        case "transactional", "TRANSACTIONAL":
+            self = .transactional
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknownInAppMessageCategoryId`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknownInAppMessageCategoryId
+    }
 }
 
 /// Response code from Play billing in-app messages (Android)
@@ -389,6 +697,17 @@ public enum InAppMessageResponseCodeAndroid: String, Codable, CaseIterable {
     case noActionNeeded = "no-action-needed"
     /// Subscription status changed and the purchase token should be checked.
     case subscriptionStatusUpdated = "subscription-status-updated"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "no-action-needed", "NO_ACTION_NEEDED":
+            self = .noActionNeeded
+        case "subscription-status-updated", "SUBSCRIPTION_STATUS_UPDATED":
+            self = .subscriptionStatusUpdated
+        default:
+            return nil
+        }
+    }
 }
 
 /// Payment mode for subscription offers.
@@ -402,6 +721,26 @@ public enum PaymentMode: String, Codable, CaseIterable {
     case payUpFront = "pay-up-front"
     /// Unknown or unspecified payment mode
     case unknown = "unknown"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "free-trial", "FREE_TRIAL", "FreeTrial":
+            self = .freeTrial
+        case "pay-as-you-go", "PAY_AS_YOU_GO", "PayAsYouGo":
+            self = .payAsYouGo
+        case "pay-up-front", "PAY_UP_FRONT", "PayUpFront":
+            self = .payUpFront
+        case "unknown", "UNKNOWN", "Unknown":
+            self = .unknown
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 public enum PaymentModeIOS: String, Codable, CaseIterable {
@@ -409,12 +748,40 @@ public enum PaymentModeIOS: String, Codable, CaseIterable {
     case freeTrial = "free-trial"
     case payAsYouGo = "pay-as-you-go"
     case payUpFront = "pay-up-front"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "empty", "EMPTY", "Empty":
+            self = .empty
+        case "free-trial", "FREE_TRIAL", "FreeTrial":
+            self = .freeTrial
+        case "pay-as-you-go", "PAY_AS_YOU_GO", "PayAsYouGo":
+            self = .payAsYouGo
+        case "pay-up-front", "PAY_UP_FRONT", "PayUpFront":
+            self = .payUpFront
+        default:
+            return nil
+        }
+    }
 }
 
 public enum ProductQueryType: String, Codable, CaseIterable {
     case inApp = "in-app"
     case subs = "subs"
     case all = "all"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "in-app", "IN_APP", "InApp":
+            self = .inApp
+        case "subs", "SUBS", "Subs":
+            self = .subs
+        case "all", "ALL", "All":
+            self = .all
+        default:
+            return nil
+        }
+    }
 }
 
 /// Status code for individual products returned from queryProductDetailsAsync (Android)
@@ -430,11 +797,42 @@ public enum ProductStatusAndroid: String, Codable, CaseIterable {
     case noOffersAvailable = "no-offers-available"
     /// Unknown error occurred while fetching the product
     case unknown = "unknown"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "ok", "OK":
+            self = .ok
+        case "not-found", "NOT_FOUND":
+            self = .notFound
+        case "no-offers-available", "NO_OFFERS_AVAILABLE":
+            self = .noOffersAvailable
+        case "unknown", "UNKNOWN":
+            self = .unknown
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 public enum ProductType: String, Codable, CaseIterable {
     case inApp = "in-app"
     case subs = "subs"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "in-app", "IN_APP", "InApp":
+            self = .inApp
+        case "subs", "SUBS", "Subs":
+            self = .subs
+        default:
+            return nil
+        }
+    }
 }
 
 public enum ProductTypeIOS: String, Codable, CaseIterable {
@@ -446,16 +844,62 @@ public enum ProductTypeIOS: String, Codable, CaseIterable {
     case subscriptionBundle = "subscription-bundle"
     /// A group of subscriptions that are available only as one suite (Apple 27+ beta).
     case subscriptionSuite = "subscription-suite"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "consumable", "CONSUMABLE", "Consumable":
+            self = .consumable
+        case "non-consumable", "NON_CONSUMABLE", "NonConsumable":
+            self = .nonConsumable
+        case "auto-renewable-subscription", "AUTO_RENEWABLE_SUBSCRIPTION", "AutoRenewableSubscription":
+            self = .autoRenewableSubscription
+        case "non-renewing-subscription", "NON_RENEWING_SUBSCRIPTION", "NonRenewingSubscription":
+            self = .nonRenewingSubscription
+        case "subscription-bundle", "SUBSCRIPTION_BUNDLE", "SubscriptionBundle":
+            self = .subscriptionBundle
+        case "subscription-suite", "SUBSCRIPTION_SUITE", "SubscriptionSuite":
+            self = .subscriptionSuite
+        default:
+            return nil
+        }
+    }
 }
 
 public enum PurchaseState: String, Codable, CaseIterable {
     case pending = "pending"
     case purchased = "purchased"
     case unknown = "unknown"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "pending", "PENDING", "Pending":
+            self = .pending
+        case "purchased", "PURCHASED", "Purchased":
+            self = .purchased
+        case "unknown", "UNKNOWN", "Unknown":
+            self = .unknown
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 public enum PurchaseVerificationProvider: String, Codable, CaseIterable {
     case iapkit = "iapkit"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "iapkit", "IAPKIT", "Iapkit":
+            self = .iapkit
+        default:
+            return nil
+        }
+    }
 }
 
 /// Sub-response codes for more granular purchase error information (Android)
@@ -467,6 +911,19 @@ public enum SubResponseCodeAndroid: String, Codable, CaseIterable {
     case paymentDeclinedDueToInsufficientFunds = "payment-declined-due-to-insufficient-funds"
     /// User doesn't meet subscription offer eligibility requirements
     case userIneligible = "user-ineligible"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "no-applicable-sub-response-code", "NO_APPLICABLE_SUB_RESPONSE_CODE":
+            self = .noApplicableSubResponseCode
+        case "payment-declined-due-to-insufficient-funds", "PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS":
+            self = .paymentDeclinedDueToInsufficientFunds
+        case "user-ineligible", "USER_INELIGIBLE":
+            self = .userIneligible
+        default:
+            return nil
+        }
+    }
 }
 
 public enum SubscriptionBillingPlanTypeIOS: String, Codable, CaseIterable {
@@ -476,6 +933,24 @@ public enum SubscriptionBillingPlanTypeIOS: String, Codable, CaseIterable {
     case monthly = "monthly"
     /// Up-front billing for the full subscription period.
     case upFront = "up-front"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unknown", "UNKNOWN", "Unknown":
+            self = .unknown
+        case "monthly", "MONTHLY", "Monthly":
+            self = .monthly
+        case "up-front", "UP_FRONT", "UpFront":
+            self = .upFront
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 public enum SubscriptionOfferTypeIOS: String, Codable, CaseIterable {
@@ -484,6 +959,19 @@ public enum SubscriptionOfferTypeIOS: String, Codable, CaseIterable {
     /// Win-back offer type (iOS 18+)
     /// Used to re-engage churned subscribers with a discount or free trial.
     case winBack = "win-back"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "introductory", "INTRODUCTORY", "Introductory":
+            self = .introductory
+        case "promotional", "PROMOTIONAL", "Promotional":
+            self = .promotional
+        case "win-back", "WIN_BACK", "WinBack":
+            self = .winBack
+        default:
+            return nil
+        }
+    }
 }
 
 public enum SubscriptionPeriodIOS: String, Codable, CaseIterable {
@@ -492,6 +980,23 @@ public enum SubscriptionPeriodIOS: String, Codable, CaseIterable {
     case month = "month"
     case year = "year"
     case empty = "empty"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "day", "DAY", "Day":
+            self = .day
+        case "week", "WEEK", "Week":
+            self = .week
+        case "month", "MONTH", "Month":
+            self = .month
+        case "year", "YEAR", "Year":
+            self = .year
+        case "empty", "EMPTY", "Empty":
+            self = .empty
+        default:
+            return nil
+        }
+    }
 }
 
 /// Subscription period unit for cross-platform use.
@@ -501,6 +1006,28 @@ public enum SubscriptionPeriodUnit: String, Codable, CaseIterable {
     case month = "month"
     case year = "year"
     case unknown = "unknown"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "day", "DAY", "Day":
+            self = .day
+        case "week", "WEEK", "Week":
+            self = .week
+        case "month", "MONTH", "Month":
+            self = .month
+        case "year", "YEAR", "Year":
+            self = .year
+        case "unknown", "UNKNOWN", "Unknown":
+            self = .unknown
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknown`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+    }
 }
 
 /// Replacement mode for subscription changes (Android)
@@ -521,6 +1048,32 @@ public enum SubscriptionReplacementModeAndroid: String, Codable, CaseIterable {
     case deferred = "deferred"
     /// Keep the existing payment schedule unchanged for the item (8.1.0+)
     case keepExisting = "keep-existing"
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "unknown-replacement-mode", "UNKNOWN_REPLACEMENT_MODE":
+            self = .unknownReplacementMode
+        case "with-time-proration", "WITH_TIME_PRORATION":
+            self = .withTimeProration
+        case "charge-prorated-price", "CHARGE_PRORATED_PRICE":
+            self = .chargeProratedPrice
+        case "charge-full-price", "CHARGE_FULL_PRICE":
+            self = .chargeFullPrice
+        case "without-proration", "WITHOUT_PRORATION":
+            self = .withoutProration
+        case "deferred", "DEFERRED":
+            self = .deferred
+        case "keep-existing", "KEEP_EXISTING":
+            self = .keepExisting
+        default:
+            return nil
+        }
+    }
+
+    /// Unrecognized wire values decode as `.unknownReplacementMode`.
+    public init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknownReplacementMode
+    }
 }
 
 // MARK: - Interfaces
@@ -2670,6 +3223,14 @@ public struct BillingProgramInformationDialogParamsAndroid: Codable {
     }
 }
 
+extension BillingProgramInformationDialogParamsAndroid {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.billingProgram = try container.decodeIfPresent(BillingProgramAndroid.self, forKey: .billingProgram) ?? .billingChoice
+        self.externalTransactionToken = try container.decode(String.self, forKey: .externalTransactionToken)
+    }
+}
+
 public struct DeepLinkOptions: Codable {
     /// Android package name to target (required on Android)
     public var packageNameAndroid: String?
@@ -2793,6 +3354,15 @@ public struct GetBillingChoiceInfoParamsAndroid: Codable {
     }
 }
 
+extension GetBillingChoiceInfoParamsAndroid {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.billingProgram = try container.decodeIfPresent(BillingProgramAndroid.self, forKey: .billingProgram) ?? .billingChoice
+        self.playBillingChoiceImageLayout = try container.decodeIfPresent(BillingChoiceImageLayoutAndroid.self, forKey: .playBillingChoiceImageLayout) ?? .rectangularFourByOne
+        self.userLocale = try container.decodeIfPresent(String.self, forKey: .userLocale)
+    }
+}
+
 /// Parameters for showing Play billing in-app messages (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
@@ -2804,6 +3374,13 @@ public struct InAppMessageParamsAndroid: Codable {
         categories: [InAppMessageCategoryAndroid]? = [.transactional]
     ) {
         self.categories = categories
+    }
+}
+
+extension InAppMessageParamsAndroid {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.categories = try container.decodeIfPresent([StrictInputEnum<InAppMessageCategoryAndroid>].self, forKey: .categories)?.map(\.value) ?? [.transactional]
     }
 }
 
@@ -2833,6 +3410,14 @@ public struct InitConnectionConfig: Codable {
     ) {
         self.billingChoiceScreenTypeAndroid = billingChoiceScreenTypeAndroid
         self.enableBillingProgramAndroid = enableBillingProgramAndroid
+    }
+}
+
+extension InitConnectionConfig {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.billingChoiceScreenTypeAndroid = try container.decodeIfPresent(BillingChoiceScreenTypeAndroid.self, forKey: .billingChoiceScreenTypeAndroid) ?? .googleRendered
+        self.enableBillingProgramAndroid = try container.decodeIfPresent(BillingProgramAndroid.self, forKey: .enableBillingProgramAndroid)
     }
 }
 
@@ -2895,6 +3480,14 @@ public struct ProductRequest: Codable {
     ) {
         self.skus = skus
         self.type = type
+    }
+}
+
+extension ProductRequest {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.skus = try container.decode([String].self, forKey: .skus)
+        self.type = try container.decodeIfPresent(ProductQueryType.self, forKey: .type) ?? .inApp
     }
 }
 
@@ -3228,6 +3821,22 @@ public struct RequestSubscriptionIosProps: Codable {
     }
 }
 
+extension RequestSubscriptionIosProps {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.advancedCommerceData = try container.decodeIfPresent(String.self, forKey: .advancedCommerceData)
+        self.andDangerouslyFinishTransactionAutomatically = try container.decodeIfPresent(Bool.self, forKey: .andDangerouslyFinishTransactionAutomatically)
+        self.appAccountToken = try container.decodeIfPresent(String.self, forKey: .appAccountToken)
+        self.billingPlanType = try container.decodeIfPresent(StrictInputEnum<SubscriptionBillingPlanTypeIOS>.self, forKey: .billingPlanType)?.value
+        self.compactJWS = try container.decodeIfPresent(String.self, forKey: .compactJWS)
+        self.promotionalOfferJWS = try container.decodeIfPresent(PromotionalOfferJWSInputIOS.self, forKey: .promotionalOfferJWS)
+        self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
+        self.sku = try container.decode(String.self, forKey: .sku)
+        self.winBackOffer = try container.decodeIfPresent(WinBackOfferInputIOS.self, forKey: .winBackOffer)
+        self.withOffer = try container.decodeIfPresent(DiscountOfferInputIOS.self, forKey: .withOffer)
+    }
+}
+
 /// Platform-specific subscription request parameters.
 ///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
@@ -3375,6 +3984,14 @@ public struct SubscriptionProductReplacementParamsAndroid: Codable {
     }
 }
 
+extension SubscriptionProductReplacementParamsAndroid {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.oldProductId = try container.decode(String.self, forKey: .oldProductId)
+        self.replacementMode = try container.decode(StrictInputEnum<SubscriptionReplacementModeAndroid>.self, forKey: .replacementMode).value
+    }
+}
+
 public struct VerifyAppOwnershipProps: Codable {
     public var google: PlayIntegrityParamsAndroid?
 
@@ -3514,6 +4131,32 @@ public enum Product: Codable, ProductCommon {
     case productAndroid(ProductAndroid)
     case productIos(ProductIOS)
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: UnionTypenameKey.self)
+        let typename = try container.decode(String.self, forKey: .typename)
+        switch typename {
+        case "ProductAndroid":
+            self = .productAndroid(try ProductAndroid(from: decoder))
+        case "ProductIOS":
+            self = .productIos(try ProductIOS(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for Product: \(typename)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .productAndroid(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("ProductAndroid", forKey: .typename)
+        case let .productIos(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("ProductIOS", forKey: .typename)
+        }
+    }
+
     public var currency: String {
         switch self {
         case let .productAndroid(value):
@@ -3608,11 +4251,59 @@ public enum Product: Codable, ProductCommon {
 public enum ProductOrSubscription: Codable {
     case product(Product)
     case productSubscription(ProductSubscription)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: UnionTypenameKey.self)
+        let typename = try container.decode(String.self, forKey: .typename)
+        switch typename {
+        case "ProductAndroid", "ProductIOS":
+            self = .product(try Product(from: decoder))
+        case "ProductSubscriptionAndroid", "ProductSubscriptionIOS":
+            self = .productSubscription(try ProductSubscription(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ProductOrSubscription: \(typename)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .product(value):
+            try value.encode(to: encoder)
+        case let .productSubscription(value):
+            try value.encode(to: encoder)
+        }
+    }
 }
 
 public enum ProductSubscription: Codable, ProductCommon {
     case productSubscriptionAndroid(ProductSubscriptionAndroid)
     case productSubscriptionIos(ProductSubscriptionIOS)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: UnionTypenameKey.self)
+        let typename = try container.decode(String.self, forKey: .typename)
+        switch typename {
+        case "ProductSubscriptionAndroid":
+            self = .productSubscriptionAndroid(try ProductSubscriptionAndroid(from: decoder))
+        case "ProductSubscriptionIOS":
+            self = .productSubscriptionIos(try ProductSubscriptionIOS(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ProductSubscription: \(typename)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .productSubscriptionAndroid(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("ProductSubscriptionAndroid", forKey: .typename)
+        case let .productSubscriptionIos(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("ProductSubscriptionIOS", forKey: .typename)
+        }
+    }
 
     public var currency: String {
         switch self {
@@ -3708,6 +4399,32 @@ public enum ProductSubscription: Codable, ProductCommon {
 public enum Purchase: Codable, PurchaseCommon {
     case purchaseAndroid(PurchaseAndroid)
     case purchaseIos(PurchaseIOS)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: UnionTypenameKey.self)
+        let typename = try container.decode(String.self, forKey: .typename)
+        switch typename {
+        case "PurchaseAndroid":
+            self = .purchaseAndroid(try PurchaseAndroid(from: decoder))
+        case "PurchaseIOS":
+            self = .purchaseIos(try PurchaseIOS(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for Purchase: \(typename)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .purchaseAndroid(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("PurchaseAndroid", forKey: .typename)
+        case let .purchaseIos(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("PurchaseIOS", forKey: .typename)
+        }
+    }
 
     /// The current plan identifier. This is:
     /// - On Android: the basePlanId (e.g., "premium", "premium-year")
@@ -3822,6 +4539,38 @@ public enum VerifyPurchaseResult: Codable, VerifyPurchaseResultCommon {
     case verifyPurchaseResultAndroid(VerifyPurchaseResultAndroid)
     case verifyPurchaseResultIos(VerifyPurchaseResultIOS)
     case verifyPurchaseResultHorizon(VerifyPurchaseResultHorizon)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: UnionTypenameKey.self)
+        let typename = try container.decode(String.self, forKey: .typename)
+        switch typename {
+        case "VerifyPurchaseResultAndroid":
+            self = .verifyPurchaseResultAndroid(try VerifyPurchaseResultAndroid(from: decoder))
+        case "VerifyPurchaseResultIOS":
+            self = .verifyPurchaseResultIos(try VerifyPurchaseResultIOS(from: decoder))
+        case "VerifyPurchaseResultHorizon":
+            self = .verifyPurchaseResultHorizon(try VerifyPurchaseResultHorizon(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for VerifyPurchaseResult: \(typename)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .verifyPurchaseResultAndroid(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("VerifyPurchaseResultAndroid", forKey: .typename)
+        case let .verifyPurchaseResultIos(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("VerifyPurchaseResultIOS", forKey: .typename)
+        case let .verifyPurchaseResultHorizon(value):
+            try value.encode(to: encoder)
+            var container = encoder.container(keyedBy: UnionTypenameKey.self)
+            try container.encode("VerifyPurchaseResultHorizon", forKey: .typename)
+        }
+    }
 
     /// Whether the purchase is valid, without inspecting the concrete result variant.
     public var isValid: Bool {

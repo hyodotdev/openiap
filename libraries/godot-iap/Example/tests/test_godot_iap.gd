@@ -274,6 +274,8 @@ func _init() -> void:
 
 func _run_suite() -> void:
 	GodotIapPlugin = GodotIapWrapper.new()
+	# Mock mode: skip native init so tests inject their own fakes.
+	GodotIapPlugin._is_initialized = true
 	root.add_child(GodotIapPlugin)
 	await process_frame
 	print("\n========================================")
@@ -299,8 +301,8 @@ func _run_all_tests() -> void:
 
 	# Initialization guard tests
 	test_ready_guard_prevents_double_init()
+	test_later_wrappers_share_the_native_plugin()
 	await test_init_connection_idempotent()
-	test_no_duplicate_signal_connections()
 
 	# Product tests
 	await test_fetch_products_mock()
@@ -358,18 +360,36 @@ func _run_all_tests() -> void:
 # ============================================
 
 func test_ready_guard_prevents_double_init() -> void:
-	# Static _is_initialized should be true after first _ready() call
-	_assert_true(GodotIapWrapper._is_initialized, "static _is_initialized should be true after _ready()")
+	var wrapper: Node = GodotIapWrapper.new()
+	_assert_false(wrapper._is_initialized, "A new wrapper starts uninitialized")
+	root.add_child(wrapper)
+	_assert_true(wrapper._is_initialized, "_ready() initializes the wrapper")
 
-	# Count connected signals before second _ready() call
-	var connected_before = GodotIapPlugin.purchase_updated.get_connections().size()
-	GodotIapPlugin._ready()
-	var connected_after = GodotIapPlugin.purchase_updated.get_connections().size()
+	var native = wrapper._native_plugin
+	var count_native_connections = func() -> int:
+		if native == null or not native.has_signal("purchase_updated"):
+			return 0
+		return native.get_signal_connection_list("purchase_updated").size()
+	var connected_before: int = count_native_connections.call()
+	wrapper._ready()
+	_assert_equal(count_native_connections.call(), connected_before, "A second _ready() must not connect the native signals again")
+	if native != null and native.has_signal("purchase_updated"):
+		_assert_true(connected_before >= 1, "The wrapper is connected to the native purchase signal")
+	wrapper.free()
 
-	# Guard should prevent _init_native_plugin() from running again,
-	# so signal connection count must not increase
-	_assert_equal(connected_before, connected_after, "_ready() called twice should not add duplicate signal connections")
-	_assert_true(GodotIapWrapper._is_initialized, "static _is_initialized should still be true after second _ready()")
+
+func test_later_wrappers_share_the_native_plugin() -> void:
+	# The project autoload has already initialized; a later node must still connect.
+	var wrapper: Node = GodotIapWrapper.new()
+	root.add_child(wrapper)
+	_assert_equal(wrapper._platform, OS.get_name(), "A wrapper added after the autoload still initializes")
+	_assert_true(wrapper._native_plugin == GodotIapWrapper._shared_native_plugin, "A later wrapper reuses the shared native plugin")
+	var autoload = root.get_node_or_null("GodotIapPlugin")
+	if autoload != null:
+		_assert_true(wrapper._native_plugin == autoload._native_plugin, "A later wrapper and the autoload share one native plugin")
+	if ClassDB.class_exists("GodotIap") and OS.get_name() == "macOS":
+		_assert_true(wrapper._native_plugin != null, "The macOS GDExtension is loaded for a later wrapper")
+	wrapper.free()
 
 
 func test_init_connection_idempotent() -> void:
@@ -479,17 +499,6 @@ func test_init_connection_without_init_error_getter_keeps_generic_text() -> void
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 	GodotIapPlugin._is_connected = false
-
-
-func test_no_duplicate_signal_connections() -> void:
-	# After multiple _ready() calls, signals should not have duplicate connections
-	var purchase_updated_count = GodotIapPlugin.purchase_updated.get_connections().size()
-	var purchase_error_count = GodotIapPlugin.purchase_error.get_connections().size()
-
-	# In mock mode (no native plugin), there should be 0 native signal connections
-	# The key assertion: counts should be <= 1 (no duplicates)
-	_assert_true(purchase_updated_count <= 1, "purchase_updated should have at most 1 connection (got %d)" % purchase_updated_count)
-	_assert_true(purchase_error_count <= 1, "purchase_error should have at most 1 connection (got %d)" % purchase_error_count)
 
 
 # ============================================
@@ -1378,8 +1387,9 @@ func test_no_plugin_ios_zero_values() -> void:
 	_assert_equal((await GodotIapPlugin.subscription_status_ios("sku")).size(), 0, "subscription_status_ios should return an empty array without a native plugin")
 
 	var notice_result = await GodotIapPlugin.present_external_purchase_notice_sheet_ios()
-	_assert_true(notice_result is Types.ExternalPurchaseNoticeResultIOS, "present_external_purchase_notice_sheet_ios should return a typed default without a native plugin")
-	_assert_equal(notice_result.error, null, "The default notice result should carry no error")
+	_assert_true(notice_result is Types.ExternalPurchaseNoticeResultIOS, "present_external_purchase_notice_sheet_ios should return a typed result without a native plugin")
+	_assert_equal(notice_result.result, Types.ExternalPurchaseNoticeAction.DISMISSED, "Without a native plugin the notice must not read as CONTINUE")
+	_assert_true(notice_result.error is String, "Without a native plugin the notice result explains why")
 
 	var link_result = await GodotIapPlugin.present_external_purchase_link_ios("https://example.com")
 	_assert_true(link_result is Types.ExternalPurchaseLinkResultIOS, "present_external_purchase_link_ios should return a typed default without a native plugin")
@@ -1414,8 +1424,8 @@ func test_no_plugin_android_zero_values() -> void:
 	var dialog_params = Types.BillingProgramInformationDialogParamsAndroid.new()
 	dialog_params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
 	var dialog_result = GodotIapPlugin.show_billing_program_information_dialog_android(dialog_params)
-	_assert_true(dialog_result is Types.BillingResultAndroid, "show_billing_program_information_dialog_android should return a typed default without a native plugin")
-	_assert_equal(dialog_result.response_code, 0, "The default billing dialog result should use response code 0")
+	_assert_true(dialog_result is Types.BillingResultAndroid, "show_billing_program_information_dialog_android should return a typed result without a native plugin")
+	_assert_true(dialog_result.response_code != 0, "Without a native plugin the billing dialog must not report response code 0 (OK)")
 
 	var message_result = GodotIapPlugin.show_in_app_messages_android()
 	_assert_true(message_result is Types.InAppMessageResultAndroid, "show_in_app_messages_android should return a typed default without a native plugin")

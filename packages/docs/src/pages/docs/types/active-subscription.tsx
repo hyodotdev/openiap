@@ -188,7 +188,7 @@ function ActiveSubscription() {
                         <code>environmentIOS</code>
                       </td>
                       <td>
-                        <code>("Sandbox" | "Production")?</code>
+                        <code>("Production" | "Sandbox" | "Xcode")?</code>
                       </td>
                       <td>StoreKit environment</td>
                     </tr>

@@ -302,10 +302,11 @@ const verifyPurchaseRouteDescription = describeRoute({
     },
     503: {
       description:
-        "Shared verification capacity is temporarily full (`SERVICE_BUSY`). " +
-        "Retry after the seconds in `Retry-After` with jittered backoff. " +
-        "Sustained high-volume applications should contact OpenIAP before " +
-        "launch or self-host for dedicated capacity.",
+        "Shared verification capacity is temporarily full (`SERVICE_BUSY`), " +
+        "or the store did not answer (its usual store error code, with " +
+        "`retryAfterSec`). Retry after the seconds in `Retry-After` with " +
+        "jittered backoff. Sustained high-volume applications should " +
+        "contact OpenIAP before launch or self-host for dedicated capacity.",
       headers: {
         "X-Correlation-Id": commonResponseHeaders["X-Correlation-Id"],
         "X-RateLimit-Limit": commonResponseHeaders["X-RateLimit-Limit"],
@@ -550,6 +551,11 @@ const verifyPurchaseHandler = async (
       if (convexError.code === "RATE_LIMITED") {
         c.header("Retry-After", String(convexError.retryAfterSec ?? 1));
         return c.json({ errors: [convexError] }, 429);
+      }
+      // The store could not answer: no verdict, so not a permanent 400.
+      if (convexError.retryAfterSec !== undefined) {
+        c.header("Retry-After", String(Math.max(1, convexError.retryAfterSec)));
+        return c.json({ errors: [convexError] }, 503);
       }
       return c.json({ errors: [convexError] }, 400);
     }

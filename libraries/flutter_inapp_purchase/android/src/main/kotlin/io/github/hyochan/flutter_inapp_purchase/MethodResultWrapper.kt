@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 // MethodChannel.Result wrapper that responds on the platform thread.
 class MethodResultWrapper internal constructor(
     private val safeResult: MethodChannel.Result,
-    private val safeChannel: MethodChannel
 ) : MethodChannel.Result {
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val exhausted = AtomicBoolean(false)
@@ -28,9 +27,5 @@ class MethodResultWrapper internal constructor(
         if (exhausted.compareAndSet(false, true)) {
             handler.post { safeResult.notImplemented() }
         }
-    }
-
-    fun invokeMethod(method: String, arguments: Any?) {
-        handler.post { safeChannel.invokeMethod(method, arguments, null) }
     }
 }

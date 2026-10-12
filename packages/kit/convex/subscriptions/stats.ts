@@ -8,6 +8,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
+import { isMisrecordedApplePass } from "./stateMachine";
 import { getWritableProject } from "../projects/writable";
 
 // Other states carry no MRR; metricsSummary counts the recent ones in its
@@ -33,7 +34,7 @@ export function statsContributionFor(
   billingPeriod: string | undefined,
   now: number = Date.now(),
 ): StatsContribution | null {
-  if (!isCountedState(sub.state)) return null;
+  if (!isCountedState(sub.state) || isMisrecordedApplePass(sub)) return null;
   // Active subs whose `expiresAt` has passed but webhook hasn't yet
   // marked them Expired don't contribute (matches the read-path
   // `isActive` semantics).

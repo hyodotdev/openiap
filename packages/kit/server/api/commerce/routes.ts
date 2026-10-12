@@ -129,16 +129,13 @@ const app = new Hono<{ Variables: CommerceVariables }>();
 
 // Unauthenticated requests (capabilities, credential-less GraphQL) still ride
 // the bounded source-IP and process buckets.
-app.use(
-  "*",
-  sourceRateLimitMiddleware({ respond: respondRateLimited }) as never,
-);
+app.use("*", sourceRateLimitMiddleware({ respond: respondRateLimited }));
 
 const keyedRateLimit = multiAxisRateLimitMiddleware({
   respond: respondRateLimited,
 });
 const keyedRateLimitIfAuthed = async (c: CommerceContext, next: Next) =>
-  c.var.apiKey ? keyedRateLimit(c as never, next) : next();
+  c.var.apiKey ? keyedRateLimit(c, next) : next();
 
 function commerceAuth(auth: string) {
   return async (c: CommerceContext, next: Next) => {

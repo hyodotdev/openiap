@@ -3,6 +3,7 @@
 // JsonOptions.Default the library uses for every module payload.
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Xunit;
 
@@ -170,13 +171,27 @@ public class RecordJsonTests
     }
 
     [Fact]
-    public void Product_Union_RequiresDiscriminatorFirst()
+    public void DefaultedInputs_MapExplicitNullToTheSchemaDefault()
     {
-        // STJ metadata handling: __typename must be the first property (the
-        // native modules emit it first; AllowOutOfOrderMetadataProperties is
-        // deliberately not enabled in JsonOptions.Default).
-        const string json = """{"id":"x","__typename":"ProductIOS"}""";
-        Assert.Throws<NotSupportedException>(() => JsonSerializer.Deserialize<Product>(json, Options));
+        // The private [JsonInclude] wire property must stay visible to JsonOptions.Default.
+        const string json = """{"billingProgram":null,"externalTransactionToken":"token"}""";
+        var parsed = JsonSerializer.Deserialize<BillingProgramInformationDialogParamsAndroid>(json, Options)!;
+        Assert.Equal(BillingProgramAndroid.BillingChoice, parsed.BillingProgram);
+
+        var written = JsonSerializer.Serialize(parsed with { BillingProgram = BillingProgramAndroid.ExternalOffer }, Options);
+        Assert.Contains("\"billingProgram\":\"external-offer\"", written, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Union_AcceptsDiscriminatorInAnyPosition()
+    {
+        // Swift's JSONEncoder does not promise key order.
+        var json = JsonNode.Parse(ProductIosJson)!.AsObject();
+        json.Remove("__typename");
+        json["__typename"] = "ProductIOS";
+
+        var ios = Assert.IsType<ProductIOS>(JsonSerializer.Deserialize<Product>(json.ToJsonString(), Options));
+        Assert.Equal("premium.monthly", ios.Id);
     }
 
     [Fact]

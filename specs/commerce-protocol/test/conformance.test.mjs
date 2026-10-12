@@ -10,6 +10,7 @@ import { createHmac } from "node:crypto";
 import {
   createGraphqlAdapter,
   createRestAdapter,
+  httpBindingManifest,
   normalizeResultData,
   operationVectors,
   runConformance,
@@ -3812,5 +3813,224 @@ describe("the portable conformance runner", () => {
     );
     expect(authCase.ok).toBe(false);
     expect(authCase.failures.join(" ")).toContain("must be 200");
+  });
+});
+
+describe("the runner judges what a binding could otherwise hide", () => {
+  // Rewrites the JSON body of every response the predicate selects.
+  const rewriting = (provider, select, rewrite) => async (url, options) => {
+    const response = await provider.fetch(url, options);
+    if (!select(String(url), options, response)) return response;
+    return response2(rewrite(await response.json(), options), response);
+  };
+  const failedIds = (report) =>
+    report.results
+      .filter((result) => !result.ok)
+      .map((result) => `${result.binding} ${result.id}`)
+      .sort();
+
+  it("has a not-bound vector for every store bindPurchase accepts evidence for", () => {
+    const stores = new Set(
+      operationVectors.cases
+        .filter((vector) => vector.id.startsWith("bindPurchase.success."))
+        .map((vector) => vector.requiresStore),
+    );
+    const notBound = operationVectors.cases.filter((vector) =>
+      vector.id.startsWith("bindPurchase.unknown-evidence.not-bound"),
+    );
+    expect(new Set(notBound.map((vector) => vector.requiresStore))).toEqual(
+      stores,
+    );
+    for (const vector of notBound) {
+      expect(vector.expect.resultSubset).toEqual({ bound: false });
+    }
+  });
+
+  it.each([
+    [["apple"], ["apple"]],
+    [
+      ["apple", "amazon"],
+      ["amazon", "apple"],
+    ],
+  ])(
+    "fails a provider declaring %j that binds any evidence",
+    async (stores, expectedStores) => {
+      const provider = createMockProvider();
+      const bindAnything = rewriting(
+        provider,
+        (url, _options, response) =>
+          response.status === 200 &&
+          (url.endsWith("/purchases/bind") ||
+            url.endsWith("/capabilities") ||
+            url.endsWith("/graphql")),
+        (body) => {
+          const descriptor = body.data?.providerCapabilities ?? body;
+          if (descriptor.stores) {
+            descriptor.stores = Object.fromEntries(
+              stores.map((store) => [store, descriptor.stores.apple]),
+            );
+          }
+          if (body.data?.bindPurchase) body.data.bindPurchase.bound = true;
+          return "bound" in body ? { bound: true } : body;
+        },
+      );
+      const report = await runConformance({
+        adapters: adaptersFor({ ...provider, fetch: bindAnything }),
+        Ajv,
+        credentials: provider.credentials,
+      });
+      expect(failedIds(report)).toEqual(
+        ["graphql", "rest"].flatMap((binding) =>
+          expectedStores.map(
+            (store) =>
+              `${binding} bindPurchase.unknown-evidence.not-bound.${store}`,
+          ),
+        ),
+      );
+    },
+  );
+
+  it("fails a REST null placeholder that GraphQL normalization would erase", async () => {
+    const provider = createMockProvider();
+    const placeholders = rewriting(
+      provider,
+      (url, _options, response) =>
+        response.status === 200 && url.includes("/subscriptions/status"),
+      (body) => ({ ...body, subscription: body.subscription ?? null }),
+    );
+    const report = await runConformance({
+      adapters: adaptersFor({ ...provider, fetch: placeholders }),
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(failedIds(report)).toEqual([
+      "rest subscriptionStatus.unknown-user.inactive",
+    ]);
+    const failure = report.results.find(
+      (result) =>
+        result.binding === "rest" &&
+        result.id === "subscriptionStatus.unknown-user.inactive",
+    );
+    expect(failure.failures.join(" ")).toContain("does not validate");
+    expect(failure.failures.join(" ")).toContain(
+      "result.subscription must be absent",
+    );
+  });
+
+  it("fails a GraphQL error whose extensions echo the credential or the evidence", async () => {
+    const provider = createMockProvider();
+    const leaky = rewriting(
+      provider,
+      (url) => url.endsWith("/graphql"),
+      (body, options) => {
+        if (!Array.isArray(body.errors)) return body;
+        const debug = {
+          authorization: options.headers.Authorization ?? null,
+          variables: JSON.parse(options.body).variables,
+        };
+        return {
+          ...body,
+          errors: body.errors.map((error) => ({
+            ...error,
+            extensions: { ...error.extensions, debug },
+          })),
+        };
+      },
+    );
+    const report = await runConformance({
+      adapters: [
+        createGraphqlAdapter({
+          url: GRAPHQL_URL,
+          fetch: leaky,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    for (const id of [
+      "verifyPurchase.auth.unknown-credential",
+      "bindPurchase.auth.verification-role-refused",
+      "graphql.executor-probe",
+    ]) {
+      const result = report.results.find((r) => r.id === id);
+      expect(result.ok, id).toBe(false);
+      expect(result.failures.join(" "), id).toContain("echoes submitted");
+    }
+  });
+
+  it("rejects an adapter whose binding the manifest does not define", async () => {
+    const provider = createMockProvider();
+    const [rest] = adaptersFor(provider);
+    await expect(
+      runConformance({
+        adapters: [{ ...rest, binding: "grpc" }],
+        Ajv,
+        credentials: provider.credentials,
+      }),
+    ).rejects.toThrow(/binding "grpc"/u);
+  });
+
+  it("validates REST errors against the envelope the manifest names, and fails when it is missing", async () => {
+    const provider = createMockProvider();
+    const run = () =>
+      runConformance({
+        adapters: [adaptersFor(provider)[0]],
+        Ajv,
+        credentials: provider.credentials,
+      });
+    const original = httpBindingManifest.errorResponse;
+    httpBindingManifest.errorResponse = "#/$defs/RenamedErrorEnvelope";
+    let renamed;
+    try {
+      renamed = await run();
+    } finally {
+      httpBindingManifest.errorResponse = original;
+    }
+    const authCase = renamed.results.find(
+      (r) => r.id === "subscriptionStatus.auth.missing-credential",
+    );
+    expect(authCase.ok).toBe(false);
+    expect(authCase.failures.join(" ")).toContain(
+      "no bundle definition for the REST error envelope",
+    );
+    expect((await run()).ok).toBe(true);
+  });
+
+  it("probes an events-only provider's GraphQL executor through providerCapabilities", async () => {
+    const provider = createMockProvider({ profiles: [], declareEvents: true });
+    const run = (fetch) =>
+      runConformance({
+        adapters: adaptersFor({ ...provider, fetch }),
+        Ajv,
+        eventsAdapter: referenceEventsAdapter,
+        credentials: provider.credentials,
+      });
+    const report = await run(provider.fetch);
+    expect(failedIds(report)).toEqual([]);
+    expect(
+      report.results.find((r) => r.id === "graphql.executor-probe")?.ok,
+    ).toBe(true);
+
+    // The probe still runs: a dispatcher keyed on operationName fails it.
+    const dispatcher = async (url, options) => {
+      if (!String(url).endsWith("/graphql"))
+        return provider.fetch(url, options);
+      const { operationName } = JSON.parse(options.body);
+      if (operationName !== "ProviderCapabilities") {
+        return provider.fetch(url, options);
+      }
+      return response2(
+        { data: { providerCapabilities: provider.capabilities } },
+        { status: 200 },
+      );
+    };
+    const probe = (await run(dispatcher)).results.find(
+      (r) => r.id === "graphql.executor-probe",
+    );
+    expect(probe.ok).toBe(false);
+    expect(probe.failures.join(" ")).toContain(
+      "syntactically invalid query was executed",
+    );
   });
 });

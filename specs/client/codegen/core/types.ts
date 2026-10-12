@@ -6,6 +6,8 @@
  */
 
 import type { CustomInputKind } from '../../custom-input-contracts.js';
+import type { extractSchemaDeprecations } from '../../schema-deprecations.mjs';
+import type { extractSchemaMarkers } from '../../schema-markers.mjs';
 
 // ============================================================================
 // Type System
@@ -208,57 +210,8 @@ export interface IRSchema {
 }
 
 // ============================================================================
-// Schema Markers (from SDL comments)
+// SDL metadata (owned by the shared .mjs extractors)
 // ============================================================================
 
-export interface SchemaMarkers {
-  /** Types marked with # => Union */
-  unionWrappers: Set<string>;
-  /** Fields marked with # Future */
-  futureFields: Set<string>;
-  /** Invalid or duplicate marker ownership detected by the shared parser */
-  issues: SchemaMarkerIssue[];
-}
-
-interface SchemaMarkerIssue {
-  kind: 'future' | 'union';
-  reason: 'duplicate-marker' | 'invalid-placement' | 'invalid-owner' | 'invalid-target' | 'no-effect';
-  sourceId: string;
-  markerLine: number;
-  targetLine: number | null;
-  target?: string;
-  previous?: {
-    sourceId: string;
-    markerLine: number;
-  };
-}
-
-interface SchemaDeprecationEntry {
-  kind: string;
-  name: string;
-  parentKind?: string;
-  parentName?: string;
-  ownerPath: string;
-  reason: string;
-  sourceId: string;
-  line?: number;
-}
-
-interface SchemaDeprecationIssue {
-  file: string;
-  line?: number;
-  message: string;
-  rule: string;
-}
-
-export interface SchemaDeprecations {
-  entries: SchemaDeprecationEntry[];
-  issues: SchemaDeprecationIssue[];
-  operationArguments: Array<{
-    rootName: string;
-    fieldName: string;
-    argumentName: string;
-    reason: string;
-  }>;
-  typeReasons: Map<string, string>;
-}
+export type SchemaMarkers = ReturnType<typeof extractSchemaMarkers>;
+export type SchemaDeprecations = ReturnType<typeof extractSchemaDeprecations>;

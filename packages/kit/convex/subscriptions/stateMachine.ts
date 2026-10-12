@@ -65,7 +65,7 @@ export type SubscriptionTransitionKind = NonNullable<
   SubscriptionTransition["transition"]
 >;
 
-const ENTITLED_STATES: ReadonlySet<SubscriptionState> = new Set([
+const ENTITLED_STATES: ReadonlySet<string> = new Set<SubscriptionState>([
   "Active",
   "InGracePeriod",
 ]);
@@ -414,14 +414,31 @@ export function applySubscriptionTransition(
   }
 }
 
-// Entitled when the state grants access and the period has not expired, the
-// same `statusAllows && notYetExpired` rule as onesub's `/onesub/status`
-// (packages/server/src/routes/status.ts).
+interface EntitlementFields {
+  state: string;
+  expiresAt?: number | null;
+  platform?: "IOS" | "Android";
+}
+
+// Legacy-data integrity guard, not a spec rule: non-renewing passes were once
+// stored as Active iOS subscriptions with no expiry. Apple sends expiresDate on
+// every auto-renewable Active transaction; a grace period without a deadline
+// legitimately has none and stays entitled.
+export function isMisrecordedApplePass(sub: EntitlementFields): boolean {
+  return (
+    sub.platform === "IOS" && sub.state === "Active" && sub.expiresAt == null
+  );
+}
+
+// The one entitlement predicate (SPEC.md 2.3): the state grants access and the
+// period has not expired; the boundary is exclusive. Every read path and the
+// Fly `/v1` evaluation use it, plus the guard above for rows with a platform.
 export function entitlementActive(
-  sub: NonNullable<CurrentSubscription>,
+  sub: EntitlementFields,
   now: number = Date.now(),
 ): boolean {
   if (!ENTITLED_STATES.has(sub.state)) return false;
+  if (isMisrecordedApplePass(sub)) return false;
   if (sub.expiresAt != null && sub.expiresAt <= now) return false;
   return true;
 }

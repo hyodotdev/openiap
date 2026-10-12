@@ -30,42 +30,6 @@ const PLATFORM_BEHAVIOR_ROWS: PlatformBehaviorRow[] = [
   },
 ];
 
-interface OwnershipResultRow {
-  field: string;
-  meaning: string;
-}
-
-const OWNERSHIP_RESULT_ROWS: OwnershipResultRow[] = [
-  {
-    field: 'status',
-    meaning:
-      'licensed, unlicensed, or unknown. Unknown is an inconclusive check, never a denial of ownership.',
-  },
-  {
-    field: 'storeId',
-    meaning: 'Store producing the result, such as apple or play.',
-  },
-  {
-    field: 'reason',
-    meaning:
-      'For unknown: backend-verification-required, verification-failed, network-error, service-error, or unsupported.',
-  },
-  {
-    field: 'appTransactionIOS',
-    meaning: 'Verified AppTransaction metadata on Apple platforms.',
-  },
-  {
-    field: 'signedAppTransactionIOS',
-    meaning:
-      'Signed app transaction JWS for backend verification. This is separate from an in-app purchase JWS.',
-  },
-  {
-    field: 'integrityTokenAndroid',
-    meaning:
-      'Encrypted Play Integrity token. Send it to your backend without decoding or trusting it in the app.',
-  },
-];
-
 export default function VerifyAppOwnership() {
   useScrollToHash();
   return (
@@ -166,39 +130,17 @@ export default function VerifyAppOwnership() {
         Parameters
       </AnchorLink>
       <p>
-        The optional VerifyAppOwnershipProps contains <code>google</code>,
-        required for Google Play and ignored on Apple platforms.
+        The optional{' '}
+        <Link to="/docs/types/app-ownership-verification#verify-app-ownership-props">
+          <code>VerifyAppOwnershipProps</code>
+        </Link>{' '}
+        contains <code>google</code> (
+        <Link to="/docs/types/app-ownership-verification#play-integrity-params-android">
+          <code>PlayIntegrityParamsAndroid</code>
+        </Link>
+        ), required for Google Play and ignored on Apple platforms. It carries
+        the Cloud project number and a backend request hash.
       </p>
-      <table>
-        <thead>
-          <tr>
-            <th>PlayIntegrityParamsAndroid field</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <code>cloudProjectNumber</code>
-            </td>
-            <td>
-              Positive decimal string identifying the app&apos;s Google Cloud
-              project. Use the project number, not the project ID or a secret
-              key.
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>requestHash</code>
-            </td>
-            <td>
-              Nonempty digest of a backend challenge and the request being
-              protected. At most 500 UTF-8 bytes. Hash sensitive inputs; do not
-              include them as plaintext.
-            </td>
-          </tr>
-        </tbody>
-      </table>
       <p>
         Each call prepares a token provider and requests one token. Avoid
         polling: Google limits preparations per app instance and applies project
@@ -209,15 +151,14 @@ export default function VerifyAppOwnership() {
       <AnchorLink id="returns" level="h2">
         Returns
       </AnchorLink>
-      <p>AppOwnershipVerificationResult preserves the store evidence:</p>
-      <DataTable
-        rows={OWNERSHIP_RESULT_ROWS}
-        rowKey={(row) => row.field}
-        columns={[
-          { header: 'Field', cell: (row) => <code>{row.field}</code> },
-          { header: 'Meaning', cell: (row) => row.meaning },
-        ]}
-      />
+      <p>
+        <Link to="/docs/types/app-ownership-verification#app-ownership-verification-result">
+          <code>AppOwnershipVerificationResult</code>
+        </Link>{' '}
+        — the <code>status</code> (licensed, unlicensed, or unknown), the{' '}
+        <code>storeId</code>, a <code>reason</code> when unknown, and the store
+        evidence to send to your backend.
+      </p>
       <p>
         Invalid Google parameters reject with developer-error. Cancellation
         propagates. Service outages and throttling return unknown with

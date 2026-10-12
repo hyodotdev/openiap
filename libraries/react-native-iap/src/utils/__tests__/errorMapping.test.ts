@@ -201,21 +201,29 @@ describe('errorMapping', () => {
   });
 
   describe('isRecoverableError', () => {
-    it('should identify recoverable errors', () => {
-      expect(isRecoverableError({code: ErrorCode.NetworkError})).toBe(true);
-      expect(isRecoverableError({code: ErrorCode.RemoteError})).toBe(true);
-      expect(isRecoverableError({code: ErrorCode.ServiceError})).toBe(true);
-      expect(isRecoverableError({code: ErrorCode.Interrupted})).toBe(true);
-      expect(isRecoverableError({code: ErrorCode.ServiceDisconnected})).toBe(
-        true,
+    it('matches the documented retry and reconnect codes', () => {
+      const recoverable = Object.values(ErrorCode).filter((code) =>
+        isRecoverableError({code}),
       );
+      expect(recoverable.sort()).toEqual(
+        [
+          ErrorCode.NetworkError,
+          ErrorCode.RemoteError,
+          ErrorCode.ServiceError,
+          ErrorCode.ServiceDisconnected,
+          ErrorCode.ServiceTimeout,
+          ErrorCode.ConnectionClosed,
+          ErrorCode.InitConnection,
+          ErrorCode.SyncError,
+          ErrorCode.Interrupted,
+          ErrorCode.QueryProduct,
+        ].sort(),
+      );
+      // Docs: check billing availability; deduplicate duplicates instead of retrying.
       expect(isRecoverableError({code: ErrorCode.BillingUnavailable})).toBe(
-        true,
+        false,
       );
-      expect(isRecoverableError({code: ErrorCode.QueryProduct})).toBe(true);
-      expect(isRecoverableError({code: ErrorCode.InitConnection})).toBe(true);
-      expect(isRecoverableError({code: DUPLICATE_PURCHASE_CODE})).toBe(true);
-      expect(isRecoverableError({code: ErrorCode.UserCancelled})).toBe(false);
+      expect(isRecoverableError({code: DUPLICATE_PURCHASE_CODE})).toBe(false);
     });
   });
 

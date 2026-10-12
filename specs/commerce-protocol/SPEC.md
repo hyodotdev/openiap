@@ -635,7 +635,8 @@ meaning MUST NOT. REST wraps a failure as
 `{ "error": { "code", "message" } }` with the mapped status; GraphQL carries
 the code in `errors[*].extensions.code` (§7). A message is human-readable
 and MUST NOT contain credentials, store evidence, signed payloads, stack
-traces, or implementation source paths.
+traces, or implementation source paths. The same holds for every other member
+of an error, GraphQL `extensions` included.
 
 | Code                  | HTTP | Meaning                                                                      |
 | --------------------- | ---- | ---------------------------------------------------------------------------- |

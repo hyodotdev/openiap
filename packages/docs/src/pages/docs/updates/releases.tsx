@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useMemo } from 'react';
 import SEO from '../../../components/SEO';
-import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import Pagination from '../../../components/Pagination';
@@ -34,6 +33,36 @@ interface ReleaseMetadata {
 interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
+
+const PURCHASE_ACCURACY_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.0.2',
+    tag: 'openiap-client-protocol-1.0.2',
+  },
+  {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.3.2',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.3.2',
+  },
+  { name: '@hyodotdev/openiap', version: '0.2.1', tag: 'openiap-0.2.1' },
+  { name: 'openiap-apple', version: '4.0.2', tag: '4.0.2' },
+  { name: 'openiap-google', version: '4.0.2', tag: 'google-4.0.2' },
+  {
+    name: 'react-native-iap',
+    version: '17.0.2',
+    tag: 'react-native-iap-17.0.2',
+  },
+  { name: 'expo-iap', version: '6.0.2', tag: 'expo-iap-6.0.2' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.2',
+    tag: 'flutter-iap-11.0.2',
+  },
+  { name: 'godot-iap', version: '4.0.2', tag: 'godot-iap-4.0.2' },
+  { name: 'kmp-iap', version: '4.0.2', tag: 'kmp-iap-4.0.2' },
+  { name: 'OpenIap.Maui', version: '3.0.2', tag: 'maui-iap-3.0.2' },
+];
 
 const APP_OWNERSHIP_RELEASES: readonly ReleaseMetadata[] = [
   {
@@ -541,6 +570,453 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'purchase-accuracy-2026-10-13',
+      aliases: PURCHASE_ACCURACY_RELEASES.map((release) => release.tag),
+      date: new Date('2026-10-13'),
+      element: (
+        <div key="purchase-accuracy-2026-10-13" style={noteCardStyle}>
+          {PURCHASE_ACCURACY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="purchase-accuracy-2026-10-13" level="h4">
+            October 13, 2026 - Purchase result and error accuracy
+          </AnchorLink>
+          <p>
+            Fixes purchase results that apps could misread, such as a refused
+            Android acknowledgement reported as success and iOS subscription
+            states returned as Swift debug text. Several values and error paths
+            now match the documented contract, so check the integration notes
+            before upgrading.
+          </p>
+          <h5>Common changes</h5>
+          <ul>
+            <li>
+              Android <code>finishTransaction</code> rejects with{' '}
+              <code>service-error</code> when the store refuses to acknowledge
+              or consume a purchase, instead of reporting it finished.
+            </li>
+            <li>
+              Direct{' '}
+              <Link to="/docs/apis/android/acknowledge-purchase-android#returns">
+                acknowledgePurchaseAndroid
+              </Link>{' '}
+              and <code>consumePurchaseAndroid</code> calls no longer return{' '}
+              <code>true</code> for a refused token; each framework rejects or
+              returns <code>false</code>.
+            </li>
+            <li>
+              Swift encodes union results flat with <code>__typename</code>,
+              like the other languages, so Expo iOS <code>verifyPurchase</code>{' '}
+              returns <code>isValid</code> and KMP and MAUI decode iOS{' '}
+              <code>latestTransaction</code>.
+            </li>
+            <li>
+              <Link to="/docs/apis/get-storefront">getStorefront</Link> failures
+              reject without also firing <code>purchaseError</code> listeners.
+            </li>
+            <li>
+              Hosted IAPKit and MCP fixes deployed this week are in the{' '}
+              <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
+                hosted history
+              </a>
+              .
+            </li>
+          </ul>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.0.2</strong>
+              <ul>
+                <li>
+                  Swift output enums with an <code>unknown</code> case decode
+                  unrecognized values as <code>unknown</code>, and Swift inputs
+                  apply schema defaults to omitted fields.
+                </li>
+                <li>
+                  Swift, Dart, and GDScript enum decoders accept the kebab-case,
+                  SCREAMING_SNAKE, and PascalCase spellings Kotlin already
+                  accepts.
+                </li>
+                <li>
+                  C# inputs apply schema defaults to an explicit JSON{' '}
+                  <code>null</code>, as they do to an omitted field.
+                </li>
+                <li>
+                  Dart deprecates{' '}
+                  <code>PurchaseAndroid.isAlternativeBilling</code>, which
+                  native code never sets, for removal in the next major release.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Commerce Protocol 0.3.2</strong>
+              <ul>
+                <li>
+                  The conformance runner runs unknown-evidence{' '}
+                  <code>bindPurchase</code> vectors for every store and
+                  validates REST results as served, <code>null</code> members
+                  included.
+                </li>
+                <li>
+                  It checks every string in an error, GraphQL{' '}
+                  <code>extensions</code> included, for leaked evidence or
+                  credentials, as the specification now states, and rejects
+                  unknown binding names.
+                </li>
+                <li>
+                  Events-only providers can pass the GraphQL executor probe.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>CLI 0.2.1</strong> makes <code>openiap doctor</code>{' '}
+              report a snapshot <code>openiapProvider</code> version as an
+              error, matching Gradle&apos;s refusal.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.2</strong>
+              <ul>
+                <li>
+                  <Link to="/docs/apis/init-connection">initConnection</Link>{' '}
+                  succeeds when Screen Time or MDM blocks purchases; reads and
+                  restore work, and <code>requestPurchase</code> rejects with{' '}
+                  <code>iap-not-available</code>.
+                </li>
+                <li>
+                  <Link to="/docs/types/ios/subscription-status-ios">
+                    subscriptionStatusIOS
+                  </Link>{' '}
+                  returns <code>state</code> names such as{' '}
+                  <code>subscribed</code> or <code>unknown</code> and the full
+                  verified renewal info, instead of text like{' '}
+                  <code>RenewalState(rawValue: 1)</code>.
+                </li>
+                <li>
+                  <code>priceIncreaseStatus</code> returns <code>AGREED</code>,{' '}
+                  <code>PENDING</code>, or <code>null</code>;{' '}
+                  <Link to="/docs/types/ios/renewal-info-ios">
+                    renewalOfferType
+                  </Link>{' '}
+                  and <code>offerIOS.type</code> return their documented names,
+                  including introductory, offer-code, and unknown offers.
+                </li>
+                <li>
+                  A transaction&apos;s <code>renewalInfoIOS</code> describes
+                  only its own product, so a transaction replaced by an upgrade
+                  has none.
+                </li>
+                <li>
+                  StoreKit purchase and lookup errors map to specific codes such
+                  as <code>sku-offer-mismatch</code> and{' '}
+                  <code>item-unavailable</code> instead of{' '}
+                  <code>purchase-error</code> or a raw error.
+                </li>
+                <li>
+                  <code>verifyPurchase</code> reads the on-device transaction,
+                  so a network failure no longer returns{' '}
+                  <code>isValid: false</code>.
+                </li>
+                <li>
+                  Verification-failure events keep reaching listeners after a
+                  lazy connection, refund and subscription sheets open on the
+                  active window scene, and logging stays off unless enabled.
+                </li>
+                <li>
+                  Deprecates the unused{' '}
+                  <code>SKPaymentTransactionObserver</code> conformance and{' '}
+                  <code>IapStatus</code> operation fields for removal in the
+                  next major release.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>openiap-google 4.0.2</strong>
+              <ul>
+                <li>
+                  Play and Horizon resolve <code>requestPurchase</code> only
+                  with a requested product whose token was not owned before
+                  launch, so a wrong device clock no longer stalls purchases.
+                </li>
+                <li>
+                  Stale pending or unconsumed purchases no longer resolve a new
+                  request, and a failed pre-launch ownership read fails the
+                  request with the store error.
+                </li>
+                <li>
+                  A launched Play purchase with no result is recovered by an
+                  ownership query after 15 minutes or fails with{' '}
+                  <Link to="/docs/errors">service-timeout</Link>.
+                </li>
+                <li>
+                  Play and Horizon deliver each purchase state to{' '}
+                  <code>purchaseUpdated</code> once.
+                </li>
+                <li>
+                  Horizon maps launch errors to specific codes and resolves an
+                  already-owned product with the owned purchase.
+                </li>
+                <li>
+                  Amazon delivers a success that arrives after its cancel
+                  fallback through <code>purchaseUpdated</code>, and arms that
+                  fallback only when the app resumes.
+                </li>
+                <li>
+                  Amazon <code>fetchProducts</code> without <code>type</code>{' '}
+                  returns in-app products, as on the other stores.
+                </li>
+                <li>
+                  <code>OpenIapStore</code> refreshes products it already holds,
+                  so prices and offers stay current.
+                </li>
+                <li>
+                  <code>openiap-core</code> adds{' '}
+                  <code>finishPurchaseToken</code>, which throws{' '}
+                  <code>service-error</code> for a refused token, and deprecates
+                  unused helpers and <code>IapStatus</code> operation fields for
+                  removal in the next major release.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5>Framework libraries</h5>
+          <ul>
+            <li>
+              React Native and Expo share one error-code mapping: Play response
+              codes map the same way, and <code>isRecoverableError</code> now
+              includes <code>service-timeout</code> and excludes{' '}
+              <code>billing-unavailable</code>.
+            </li>
+            <li>
+              <strong>react-native-iap 17.0.2</strong>
+              <ul>
+                <li>
+                  <code>subscriptionStatusIOS</code> returns <code>state</code>{' '}
+                  names such as <code>subscribed</code> instead of{' '}
+                  <code>&quot;1&quot;</code> or <code>&quot;0&quot;</code>.
+                </li>
+                <li>
+                  Listeners stay registered after <code>endConnection</code> and
+                  reattach on the next <code>initConnection</code>.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>expo-iap 6.0.2</strong>
+              <ul>
+                <li>
+                  <code>useIAP</code> hooks share one connection, which ends
+                  when the last mounted hook unmounts instead of when any one
+                  does.
+                </li>
+                <li>
+                  <code>onPurchaseSuccess</code> runs once per{' '}
+                  <code>purchaseUpdated</code> event, before the subscription
+                  refresh; <code>requestPurchase</code> results no longer call
+                  it, and the 30-second duplicate filter is gone.
+                </li>
+                <li>
+                  Billing choice callbacks work when set after mount or after{' '}
+                  <code>reconnect</code>.
+                </li>
+                <li>
+                  iOS rejections carry OpenIAP error codes instead of{' '}
+                  <code>ERR_UNEXPECTED</code>, and{' '}
+                  <code>purchaseErrorListener</code> delivers canonical codes.
+                </li>
+                <li>
+                  <code>deepLinkToSubscriptionsIOS</code> opens the native
+                  subscription sheet and throws on Android.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 11.0.2</strong>
+              <ul>
+                <li>
+                  <code>FlutterInappPurchase()</code> returns the shared
+                  instance, so a second instance no longer captures purchase
+                  events.
+                </li>
+                <li>
+                  Android <code>finishTransaction</code> caches a token as
+                  acknowledged only after the store confirms, so a refused token
+                  is retried.
+                </li>
+                <li>
+                  A promoted iOS product tapped before launch waits until you
+                  listen to <code>purchasePromoted</code>.
+                </li>
+                <li>
+                  Android engines in one process share a billing client; an
+                  engine that joins later uses the existing connection&apos;s
+                  billing program.
+                </li>
+                <li>
+                  A dropped billing connection lets the next{' '}
+                  <code>initConnection</code> reconnect, and macOS adds{' '}
+                  <code>beginRefundRequestIOS</code>.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>godot-iap 4.0.2</strong>
+              <ul>
+                <li>
+                  Wrapper nodes beside the <code>GodotIapPlugin</code> autoload
+                  now initialize; connect purchase signals on{' '}
+                  <Link to="/docs/setup/godot#scene-setup">one wrapper</Link>,
+                  because each re-emits every store event.
+                </li>
+                <li>
+                  Android <code>has_active_subscriptions()</code> and{' '}
+                  <code>get_active_subscriptions()</code> work without product
+                  IDs, and <code>verify_purchase</code> works on Meta Horizon.
+                </li>
+                <li>
+                  A failed notice sheet returns <code>DISMISSED</code> and a
+                  failed billing information dialog returns response code 6,
+                  both with <code>purchase_error</code>, instead of looking
+                  successful.
+                </li>
+                <li>
+                  Calls before initialization report <code>not-prepared</code>,
+                  and a dropped Android billing connection ends the session so
+                  the next <code>init_connection</code> reconnects.
+                </li>
+                <li>
+                  Removes the unused Android singleton methods{' '}
+                  <code>getAvailablePurchases</code>,{' '}
+                  <code>getAvailablePurchasesWithOptions</code>, and{' '}
+                  <code>getActiveSubscriptions</code>; the GDScript API is
+                  unchanged.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>kmp-iap 4.0.2</strong> runs Play builds on openiap-google,
+              like Horizon and Amazon builds, with the same public API:
+              <ul>
+                <li>
+                  A purchase sheet open longer than 60 seconds is no longer
+                  reported as cancelled.
+                </li>
+                <li>
+                  <code>getActiveSubscriptions(emptyList())</code> returns every
+                  active subscription with its <code>currentPlanId</code>{' '}
+                  instead of none.
+                </li>
+                <li>
+                  Play query failures throw without also firing{' '}
+                  <code>purchaseErrorListener</code>.
+                </li>
+                <li>
+                  On Horizon and Amazon, <code>deepLinkToSubscriptions()</code>{' '}
+                  without options opens the subscription page, and acknowledge
+                  and consume throw on a refused token.
+                </li>
+                <li>
+                  Android event flows buffer up to 64 events, so bursts such as
+                  a Horizon restore keep every purchase, and{' '}
+                  <code>initConnection</code> reconnects after the store drops
+                  the service.
+                </li>
+                <li>
+                  Adds the{' '}
+                  <Link to="/docs/events/android/developer-provided-billing-listener-android">
+                    developerProvidedBillingListenerAndroid
+                  </Link>{' '}
+                  and <code>userChoiceBillingListenerAndroid</code> flows; on
+                  Play the one-shot getters throw unless{' '}
+                  <code>initConnection</code> enabled the matching program.
+                </li>
+                <li>
+                  iOS <code>getAvailablePurchases</code> honors{' '}
+                  <code>PurchaseOptions</code>, and a missing iOS SKU throws{' '}
+                  <code>empty-sku-list</code>.
+                </li>
+                <li>
+                  iOS APIs that need iOS 16, 17.4, or 18.1 return an empty or
+                  error result on older versions instead of crashing.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>OpenIap.Maui 3.0.2</strong>
+              <ul>
+                <li>
+                  Without a store target, <code>OpenIapClient.Instance</code>{' '}
+                  implements the resolver interfaces and each operation throws{' '}
+                  <code>FeatureNotSupported</code> instead of an{' '}
+                  <code>InvalidCastException</code>.
+                </li>
+                <li>
+                  <code>OpenIapClient.Instance</code> is created thread-safely,
+                  and <code>OverrideInstance</code>, meant for test and DI
+                  fakes, disposes the replaced instance and its store
+                  connection.
+                </li>
+                <li>
+                  The Android bridge reports malformed input as{' '}
+                  <code>developer-error</code> instead of <code>unknown</code>.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
+          <ul>
+            <li>Rebuild the native app after upgrading.</li>
+            <li>
+              Update code that compares iOS <code>state</code>,{' '}
+              <code>priceIncreaseStatus</code>, or offer types with the old text
+              to use the documented values.
+            </li>
+            <li>
+              When Android <code>finishTransaction</code> rejects, keep the
+              purchase unfinished and retry; Google refunds a purchase not
+              acknowledged within three days.
+            </li>
+            <li>
+              Amazon apps that call <code>fetchProducts</code> without{' '}
+              <code>type</code> and expect subscriptions must pass a{' '}
+              <code>type</code>.
+            </li>
+            <li>
+              In Expo, call <code>deepLinkToSubscriptions</code> on Android
+              instead of <code>deepLinkToSubscriptionsIOS</code>.
+            </li>
+            <li>
+              In KMP, collect the new listener flows before{' '}
+              <code>initConnection</code> instead of calling the billing choice
+              getters early.
+            </li>
+          </ul>
+          <p>See this PR for the review findings behind each fix.</p>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {PURCHASE_ACCURACY_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'app-ownership-2026-10-12',
       aliases: APP_OWNERSHIP_RELEASES.map((release) => release.tag).concat(
         'godot-verified-recovery-2026-10-10'
@@ -568,8 +1044,9 @@ function Releases() {
           </p>
           <ul>
             <li>
-              Martie examples retain receipts until verification succeeds and
-              show unavailable subscription products.
+              Martie examples retain receipts until verification succeeds, retry
+              them when you reselect the verification method, and show
+              unavailable subscription products.
             </li>
             <li>
               IAPKit returns Apple's verified transaction environment for
@@ -620,21 +1097,7 @@ function Releases() {
                   </Link>{' '}
                   and preserves configured autoloads during import.
                 </li>
-                <li>
-                  Retries unfinished purchases when you reselect the
-                  verification method, keeps results visible during refreshes,
-                  and wraps long messages.
-                </li>
               </ul>
-            </li>
-            <li>
-              <strong>kmp-iap 4.0.1</strong> retries received receipts when
-              purchase queries omit them and keeps results visible while
-              products load.
-            </li>
-            <li>
-              <strong>maui-iap 3.0.1</strong> retries unfinished purchases when
-              you reselect the verification method.
             </li>
             <li>
               <strong>react-native-iap 17.0.1</strong> and{' '}
@@ -650,9 +1113,9 @@ function Releases() {
             an offline grace policy.
           </p>
           <p>
-            <strong>Breaking change:</strong> Custom Dart classes using{' '}
-            <code>implements QueryResolver</code> must add{' '}
-            <code>verifyAppOwnership</code>; classes extending it inherit an
+            <strong>Breaking change in flutter_inapp_purchase 11.0.1:</strong>{' '}
+            Custom Dart classes using <code>implements QueryResolver</code> must
+            add <code>verifyAppOwnership</code>; classes extending it inherit an
             unsupported default.
           </p>
           <p>
@@ -931,8 +1394,11 @@ function Releases() {
               event and preserve the purchase token across ownership reads.
             </li>
             <li>
-              <strong>IAPKit</strong> rejects invalid refresh-token and OAuth
-              verifier IDs and redacts sensitive OAuth debug logs.
+              Hosted IAPKit changes deployed with this train are in the{' '}
+              <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-05">
+                hosted history
+              </a>
+              .
             </li>
           </ul>
           <h5>Protocols and native packages</h5>
@@ -12867,12 +13333,14 @@ result.error                  // optional error`}</CodeBlock>
         </div>
       ),
     },
-    // Spec 1.3.11 / Google 1.3.20 / Apple 1.3.9 - Dec 28, 2025
+    // Spec 1.3.11 / Google 1.3.21 / Apple 1.3.9 - Dec 28, 2025
     {
-      id: 'spec-1-3-11-google-1-3-20-apple-1-3-9',
+      id: 'spec-1-3-11-google-1-3-21-apple-1-3-9',
+      aliases: ['spec-1-3-11-google-1-3-20-apple-1-3-9'],
       date: new Date('2025-12-28'),
       element: (
         <div key="spec-1-3-11-google-1-3-21-apple-1-3-9" style={noteCardStyle}>
+          <span id="spec-1-3-11-google-1-3-20-apple-1-3-9" aria-hidden="true" />
           <AnchorLink id="spec-1-3-11-google-1-3-21-apple-1-3-9" level="h4">
             📅 openiap-spec v1.3.11 / openiap-google v1.3.21 / openiap-apple
             v1.3.9 - PurchaseState Cleanup
@@ -13882,19 +14350,6 @@ result.error                  // optional error`}</CodeBlock>
 
   const itemsPerPage = 5;
 
-  // Calculate initial page based on URL hash
-  const initialPage = useMemo(() => {
-    const hashId = getHashId();
-    if (!hashId) return 1;
-
-    const noteIndex = sortedNotes.findIndex(
-      (note) => note.id === hashId || note.aliases?.includes(hashId)
-    );
-    if (noteIndex === -1) return 1;
-
-    return Math.floor(noteIndex / itemsPerPage) + 1;
-  }, [sortedNotes]);
-
   return (
     <div className="doc-page">
       <SEO
@@ -13906,7 +14361,7 @@ result.error                  // optional error`}</CodeBlock>
       <h1>Releases</h1>
       <p>Release notes for OpenIAP packages and framework libraries.</p>
 
-      <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
+      <Pagination itemsPerPage={itemsPerPage}>
         {sortedNotes.map((note) => (
           <section key={note.id} className="release-note">
             {note.element}

@@ -3,15 +3,12 @@ package io.github.hyochan.kmpiap
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ApplicationInfo
-import com.android.billingclient.api.BillingClient.BillingResponseCode
 import dev.hyo.openiap.MutationFinishTransactionHandler
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapProtocol
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import kotlinx.coroutines.test.runTest
-import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
@@ -186,38 +183,26 @@ class FirstPurchaseNoticeTest {
     }
 
     @Test
-    fun `Play logs after a successful finish`() = runTest {
-        val iap = playModule(BillingResponseCode.OK)
+    fun `delegated stores log after a successful finish`() = runTest {
+        for (store in listOf(Store.PLAY_STORE, Store.HORIZON)) {
+            logs.clear()
+            val iap = delegateModule(store) { _, _ -> }
 
-        iap.finishTransaction(purchase(), isConsumable = false)
+            iap.finishTransaction(purchase(), isConsumable = false)
 
-        assertEquals(listOf(FIRST_PURCHASE_NOTICE), logs)
+            assertEquals(listOf(FIRST_PURCHASE_NOTICE), logs, "$store")
+        }
     }
 
     @Test
-    fun `Play stays silent when the finish fails`() = runTest {
-        val iap = playModule(BillingResponseCode.ERROR)
+    fun `delegated stores stay silent and keep the finish error when the finish fails`() = runTest {
+        for (store in listOf(Store.PLAY_STORE, Store.HORIZON)) {
+            val iap = delegateModule(store) { _, _ -> throw OpenIapError.PurchaseFailed("store rejected the finish") }
 
-        assertFailsWith<PurchaseException> { iap.finishTransaction(purchase(), isConsumable = false) }
-        assertEquals(0, claims)
-    }
-
-    @Test
-    fun `Horizon and Amazon log after a successful finish`() = runTest {
-        val iap = delegateModule { _, _ -> }
-
-        iap.finishTransaction(purchase(), isConsumable = false)
-
-        assertEquals(listOf(FIRST_PURCHASE_NOTICE), logs)
-    }
-
-    @Test
-    fun `Horizon and Amazon stay silent and keep the finish error when the finish fails`() = runTest {
-        val iap = delegateModule { _, _ -> throw OpenIapError.PurchaseFailed("store rejected the finish") }
-
-        val failure = assertFailsWith<PurchaseException> { iap.finishTransaction(purchase(), isConsumable = false) }
-        assertEquals(ErrorCode.PurchaseError, failure.error.code)
-        assertEquals(0, claims)
+            val failure = assertFailsWith<PurchaseException> { iap.finishTransaction(purchase(), isConsumable = false) }
+            assertEquals(ErrorCode.PurchaseError, failure.error.code)
+            assertEquals(0, claims, "$store")
+        }
     }
 
     private fun purchase(state: PurchaseState = PurchaseState.Purchased) =
@@ -233,32 +218,14 @@ class FirstPurchaseNoticeTest {
             transactionDate = 0.0,
         )
 
-    private fun playModule(acknowledgeResponseCode: Int) =
-        InAppPurchaseAndroid(firstPurchaseNotice = notice()).apply {
-            setField("billingClient", LifecycleBillingClient(acknowledgeResponseCode = acknowledgeResponseCode))
-            setField("isConnected", true)
-            setField("context", appContext)
-        }
-
-    private fun delegateModule(finish: MutationFinishTransactionHandler) =
-        OpenIapDelegateInAppPurchaseAndroid(
-            storeName = "horizon",
-            store = Store.HORIZON,
-            versionPlatform = "Android Horizon",
-            firstPurchaseNotice = notice(),
-        ).apply {
-            val storeModule = Proxy.newProxyInstance(
-                OpenIapProtocol::class.java.classLoader,
-                arrayOf(OpenIapProtocol::class.java),
-            ) { _, method, _ ->
-                check(method.name == "getFinishTransaction") { "Unexpected call: ${method.name}" }
+    private fun delegateModule(store: Store, finish: MutationFinishTransactionHandler) =
+        delegateFor(
+            store,
+            fakeModule { method, _ ->
+                check(method == "getFinishTransaction") { "Unexpected call: $method" }
                 finish
-            }
-            setField("module", storeModule)
-            setField("context", appContext)
-        }
-
-    private fun Any.setField(name: String, value: Any?) {
-        javaClass.getDeclaredField(name).apply { isAccessible = true }.set(this, value)
-    }
+            },
+            context = appContext,
+            firstPurchaseNotice = notice(),
+        )
 }

@@ -9,6 +9,7 @@ import {
   mapToAppStoreReceiptResponse,
 } from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
+import type { Id } from "../_generated/dataModel";
 
 describe("App Store mappings (real data)", () => {
   it("treats non-consumable purchase as entitled", () => {
@@ -312,6 +313,34 @@ describe("recordAppStoreVerifiedSubscription", () => {
         currency: "USD",
         price: 9990,
       },
+    });
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it("keeps non-renewing passes as purchases, never expiry-less subscription rows", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+    const yearAgo = Date.now() - 365 * 86_400_000;
+    const transactionData = {
+      transactionId: "pass-1",
+      originalTransactionId: "pass-1",
+      bundleId: "dev.hyo.martie",
+      productId: "dev.hyo.martie.pass_1m",
+      type: AppStoreProductType.NON_RENEWING_SUBSCRIPTION,
+      transactionReason: "PURCHASE",
+      purchaseDate: yearAgo,
+      environment: "Production" as const,
+    };
+
+    // The /v1 verdict is unchanged; only the subscription ledger skips it.
+    expect(mapToAppStoreReceiptResponse(transactionData).state).toBe(
+      HarmonizedPurchaseState.ENTITLED,
+    );
+    await recordAppStoreVerifiedSubscription(ctx, {
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "pass-1",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      transactionData,
     });
 
     expect(calls).toHaveLength(0);

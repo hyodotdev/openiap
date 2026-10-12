@@ -13,6 +13,7 @@ var GodotIapPlugin: Node = null
 func _ready() -> void:
 	# Create GodotIapPlugin instance for testing (mock mode)
 	GodotIapPlugin = GodotIapScript.new()
+	GodotIapPlugin._is_initialized = true
 	add_child(GodotIapPlugin)
 	print("\n")
 	print("########################################")

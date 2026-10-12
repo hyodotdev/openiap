@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BEHAVIORS } from "../src/spec/behaviors.mjs";
+import { BEHAVIORS, behaviorById } from "../src/spec/behaviors.mjs";
+import { ReferenceImplementation } from "../src/fake-store/reference-implementation.mjs";
 import { NOT_IMPLEMENTED, runConformance } from "../src/runner/runner.mjs";
 import { formatReport, toJsonReport } from "../src/runner/report.mjs";
 import { createReferenceAdapter } from "../src/adapters/reference-adapter.mjs";
@@ -236,6 +237,37 @@ describe("conformance runner", () => {
     ).rejects.toThrow(/adapter\.store must be one of/);
   });
 });
+describe("reference adapter checks", () => {
+  const outcomeOf = async (adapter, id) =>
+    (await runConformance(adapter, { behaviors: [behaviorById(id)] }))
+      .results[0].outcome;
+
+  it("fails declared capabilities that contradict the matrix", async () => {
+    const id = "capabilities.declared-capabilities-match-the-matrix";
+    expect(
+      await outcomeOf(createReferenceAdapter({ store: "Amazon" }), id),
+    ).toBe("pass");
+    const adapter = createReferenceAdapter({ store: "Amazon" });
+    adapter.declaredCapabilities = { subscriptionBillingIssue: "required" };
+    expect(await outcomeOf(adapter, id)).toBe("fail");
+  });
+
+  it("fails hasActiveSubscriptions that counts a pending subscription", async () => {
+    const id = "subscriptions.has-active-agrees-with-get-active";
+    expect(await outcomeOf(createReferenceAdapter(), id)).toBe("pass");
+    const original = ReferenceImplementation.prototype.hasActiveSubscriptions;
+    ReferenceImplementation.prototype.hasActiveSubscriptions =
+      async function () {
+        return (await this.getActiveSubscriptions()).length > 0;
+      };
+    try {
+      expect(await outcomeOf(createReferenceAdapter(), id)).toBe("fail");
+    } finally {
+      ReferenceImplementation.prototype.hasActiveSubscriptions = original;
+    }
+  });
+});
+
 describe("conformance report", () => {
   it("renders a human-readable partial verdict naming both versions", async () => {
     const report = await runConformance(createReferenceAdapter(), {

@@ -129,12 +129,58 @@ describe("generated LLM references", () => {
     expect(fullReference).toContain("type: ProductQueryType.InApp");
     expect(fullReference).toContain("iap.purchaseUpdatedListener.listen");
     expect(fullReference).toContain(
-      ".finishTransaction(purchase: purchase, isConsumable: true)",
+      ".finishTransaction(purchase: purchase, isConsumable: false)",
     );
     expect(fullReference).toContain(
       "await GodotIapPlugin.fetch_products(request)",
     );
     expect(fullReference).toContain("val products = iap.fetchProducts {");
+  });
+
+  test("finishes the non-consumable premium sample only after verify and grant", () => {
+    const minimalUsage = fullReference
+      .split("## Minimal Usage by Framework")[1]
+      ?.split("\n---\n")[0];
+    expect(minimalUsage).toBeDefined();
+    const consumableFlags = [
+      ...(minimalUsage ?? "").matchAll(/isConsumable(?::| =) (\w+)/g),
+    ].map((match) => match[1]);
+    expect(consumableFlags).toEqual(["false", "false", "false", "false"]);
+    for (const step of [
+      /verifyOnServer\(purchase\)[\s\S]*grantPremium\(purchase\)[\s\S]*finishTransaction\(\{ purchase, isConsumable: false \}\)/,
+      /await verifyOnServer\(purchase\)[\s\S]*await grantPremium\(purchase\)[\s\S]*finishTransaction\(purchase: purchase, isConsumable: false\)/,
+      /verifyOnServer\(purchase\)[\s\S]*grantPremium\(purchase\)[\s\S]*finishTransaction\(purchase = purchase, isConsumable = false\)/,
+      /VerifyOnServerAsync\(purchase\)[\s\S]*GrantPremiumAsync\(purchase\)[\s\S]*isConsumable: false/,
+    ]) {
+      expect(minimalUsage).toMatch(step);
+    }
+  });
+
+  test("names current APIs and the full purchase identity", () => {
+    expect(quickReference).not.toContain("getStorefrontIOS");
+    expect(quickReference).toContain("getPromotedProductIOS");
+    expect(quickReference).toContain("const evidence = await verifyAppOwnership(");
+    const purchaseCommon = quickReference.match(
+      /interface PurchaseCommon \{([\s\S]*?)\n\}/,
+    )?.[1];
+    expect(purchaseCommon).toContain("store: IapStore;");
+    expect(purchaseCommon).toContain("storeId: string;");
+    for (const reference of [quickReference, fullReference]) {
+      expect(reference).toContain("`react-native-iap` 17.0.0");
+      expect(reference).toContain(
+        "https://openiap.dev/docs/updates/migration#client-protocol-1-removals",
+      );
+    }
+  });
+
+  test("states the fixture-evidence limit once", () => {
+    for (const reference of [quickReference, fullReference]) {
+      expect(
+        reference.match(/Every recorded run in this reference uses fixture/g),
+      ).toHaveLength(1);
+      expect(reference).not.toContain("simulated store");
+      expect(reference).not.toContain("fixture store responses");
+    }
   });
 
   test("keeps hook store calls in lifecycle and user-event boundaries", () => {

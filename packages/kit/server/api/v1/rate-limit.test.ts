@@ -433,6 +433,24 @@ describe("multiAxisRateLimitMiddleware", () => {
     expect(globalDenied.headers.get("x-ratelimit-scope")).toBe("global");
   });
 
+  test("a flooding IP cannot drain the shared key bucket", async () => {
+    const { app } = buildMultiAxisApp({
+      keyCapacity: 5,
+      ipCapacity: 2,
+      globalCapacity: 100,
+    });
+    const request = (ip: string) =>
+      app.request("/public", {
+        headers: { authorization: "Bearer shared-pk", "x-test-ip": ip },
+      });
+
+    for (let index = 0; index < 20; index += 1) await request("attacker");
+    const victim = await request("victim");
+
+    expect(victim.status).toBe(200);
+    expect(victim.headers.get("x-ratelimit-remaining")).toBe("2");
+  });
+
   test("bounds random-key churn with LRU eviction", async () => {
     const { app, keyStore } = buildMultiAxisApp({
       keyCapacity: 1,

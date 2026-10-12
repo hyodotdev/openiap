@@ -283,6 +283,7 @@ export default function ProjectSettings() {
   const validateGoogleServiceAccountUpload = useAction(
     api.files.action.validateGoogleServiceAccountUpload,
   );
+  const saveAppleP8Key = useAction(api.files.action.saveAppleP8Key);
 
   // Download a previously-uploaded credential file. Useful when an
   // admin needs the original .p8 / service-account JSON back —
@@ -781,37 +782,13 @@ export default function ProjectSettings() {
 
     setUploadingIos(true);
     try {
-      // Step 1: Generate upload URL
-      const { uploadUrl, uploadReservationId } = await generateUploadUrl({
+      const savedFile = await saveAppleP8Key({
         organizationId: project.organizationId,
         projectId: project._id,
-      });
-
-      // Step 2: Upload file to Convex storage
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-
-      if (!result.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { storageId } = await result.json();
-
-      // Step 3: Save file record to database
-      const savedFile = await saveFile({
-        organizationId: project.organizationId,
-        projectId: project._id,
-        uploadReservationId,
-        storageId,
-        fileName: file.name,
-        fileType: file.type || "application/octet-stream",
-        fileSize: file.size,
         purpose: "apple_p8_key",
-        description: `Apple .p8 key for ${project.name}`,
-        isInternal: true,
+        fileName: file.name,
+        fileType: file.type,
+        content: await file.text(),
       });
       ensureFileSaveSucceeded(savedFile);
 
@@ -838,28 +815,13 @@ export default function ProjectSettings() {
     }
     setUploadingIosAsc(true);
     try {
-      const { uploadUrl, uploadReservationId } = await generateUploadUrl({
+      const savedFile = await saveAppleP8Key({
         organizationId: project.organizationId,
         projectId: project._id,
-      });
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-      if (!result.ok) throw new Error("Upload failed");
-      const { storageId } = await result.json();
-      const savedFile = await saveFile({
-        organizationId: project.organizationId,
-        projectId: project._id,
-        uploadReservationId,
-        storageId,
-        fileName: file.name,
-        fileType: file.type || "application/octet-stream",
-        fileSize: file.size,
         purpose: "apple_p8_asc_api_key",
-        description: `App Store Connect API key for ${project.name}`,
-        isInternal: true,
+        fileName: file.name,
+        fileType: file.type,
+        content: await file.text(),
       });
       ensureFileSaveSucceeded(savedFile);
       setIosAscFileUploaded(true);

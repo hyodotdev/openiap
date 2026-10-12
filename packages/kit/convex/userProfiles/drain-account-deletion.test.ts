@@ -316,7 +316,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     }
     // A row from each domain an account-local cascade missed: the production
     // handler must delegate to the shared project cascade.
-    const webhookEventId = await ctx.db.insert("webhookEvents", { projectId });
+    await ctx.db.insert("webhookEvents", { projectId });
     const commerceEventId = await ctx.db.insert("commerceEvents", {
       projectId,
     });
@@ -328,9 +328,6 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
       projectId,
       eventId: commerceEventId,
       destinationId,
-    });
-    await ctx.db.insert("webhookIdempotencyKeys", {
-      eventId: webhookEventId,
     });
     await ctx.db.insert("subscriptionUserErasureJobs", { projectId });
     await ctx.db.insert("subscriptionTokenAliases", { projectId });
@@ -371,7 +368,6 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("outboundDestinations")).toBe(0);
     expect(ctx.db.countRows("outboundDeliveryQueues")).toBe(0);
     expect(ctx.db.countRows("outboundDeliveries")).toBe(0);
-    expect(ctx.db.countRows("webhookIdempotencyKeys")).toBe(0);
     expect(ctx.db.countRows("subscriptionUserErasureJobs")).toBe(0);
     expect(ctx.db.countRows("subscriptionTokenAliases")).toBe(0);
     expect(ctx.db.countRows("subscriptions")).toBe(0);

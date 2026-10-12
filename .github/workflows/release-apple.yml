@@ -29,7 +29,6 @@ concurrency:
 
 env:
   XCODE_VERSION: 26.6
-  COCOAPODS_VERSION: 1.15.2
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -86,10 +85,13 @@ jobs:
 
   release:
     needs: [validate-ios]
+    environment: release
     permissions:
       actions: write
       contents: write
     runs-on: macos-26
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/packages/apple/Gemfile
 
     steps:
       - name: Checkout
@@ -211,11 +213,12 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
         with:
-          ruby-version: "3.0"
-          bundler-cache: false
+          ruby-version: "3.3"
+          working-directory: packages/apple
 
       - name: Install CocoaPods
-        run: gem install cocoapods -v "$COCOAPODS_VERSION"
+        working-directory: packages/apple
+        run: BUNDLE_FROZEN=true bundle install
 
       - name: Check CocoaPods publication state
         id: check_cocoapods
@@ -223,7 +226,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           RELEASE_TAG_EXISTS: ${{ steps.check_tag.outputs.exists }}
         run: |
-          if ! POD_INFO=$(pod trunk info openiap); then
+          if ! POD_INFO=$(bundle exec pod trunk info openiap); then
             echo "::error::Unable to query CocoaPods Trunk for openiap publication state"
             exit 1
           fi
@@ -273,7 +276,7 @@ jobs:
         run: |
           rm -f openiap.podspec
           cp packages/apple/openiap.podspec .
-          pod lib lint openiap.podspec --allow-warnings
+          bundle exec pod lib lint openiap.podspec --allow-warnings
 
       - name: Assert verified release head is unchanged
         if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
@@ -329,7 +332,7 @@ jobs:
           CI: true
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if pod trunk push openiap.podspec --allow-warnings --skip-tests --verbose; then
+          if bundle exec pod trunk push openiap.podspec --allow-warnings --skip-tests --verbose; then
             echo "✅ Published to CocoaPods"
             exit 0
           fi
@@ -337,7 +340,7 @@ jobs:
           # after it went live, and failing here left it without a release.
           for _ in 1 2 3 4 5 6; do
             sleep 20
-            if pod trunk info openiap | awk -v version="$VERSION" \
+            if bundle exec pod trunk info openiap | awk -v version="$VERSION" \
               '$1 == "-" && $2 == version { found=1 } END { exit !found }'; then
               echo "::warning::pod trunk push reported an error, but openiap $VERSION is on CocoaPods; continuing"
               exit 0

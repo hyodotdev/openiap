@@ -7,9 +7,61 @@ import {
   VERIFICATION_ADMISSION_CAPACITY,
 } from "./verificationAdmission";
 import { getVerificationProjectByApiKey } from "./shared";
+import type { Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
 
 afterEach(() => vi.useRealTimers());
+
+const PROJECT_ID = "projects_1" as Id<"projects">;
+
+type BucketRow = {
+  _id?: string;
+  projectId?: string;
+  bucket: string;
+  tokens: number;
+  refilledAt: number;
+};
+
+function admissionCtx(seed: BucketRow[]) {
+  const buckets: BucketRow[] = seed.map((row, index) => ({
+    _id: `bucket_${index}`,
+    projectId: PROJECT_ID,
+    ...row,
+  }));
+  const db = {
+    get: vi.fn(async (id: string) => (id === PROJECT_ID ? { _id: id } : null)),
+    query: () => ({
+      withIndex: (
+        _name: string,
+        build: (q: { eq: (f: string, v: string) => unknown }) => unknown,
+      ) => {
+        const match: Record<string, string> = {};
+        const q = {
+          eq: (field: string, value: string) => {
+            match[field] = value;
+            return q;
+          },
+        };
+        build(q);
+        return {
+          unique: async () =>
+            buckets.find(
+              (row) =>
+                row.projectId === match.projectId &&
+                row.bucket === match.bucket,
+            ) ?? null,
+        };
+      },
+    }),
+    insert: vi.fn(async (_table: string, value: BucketRow) => {
+      buckets.push({ _id: `bucket_${buckets.length}`, ...value });
+    }),
+    patch: vi.fn(async (id: string, value: Partial<BucketRow>) => {
+      Object.assign(buckets.find((row) => row._id === id) ?? {}, value);
+    }),
+  };
+  return { ctx: { db }, buckets };
+}
 
 describe("verification admission", () => {
   it("starts with a full bucket and consumes one token", () => {
@@ -75,20 +127,12 @@ describe("verification admission", () => {
 
   it("rejects before a store call when the persistent bucket is empty", async () => {
     vi.useFakeTimers({ now: 1_000 });
-    const ctx = {
-      db: {
-        get: vi.fn().mockResolvedValue({
-          verificationAdmissionTokens: 0,
-          verificationAdmissionRefilledAt: 1_000,
-        }),
-        patch: vi.fn(),
-      },
-    };
+    const { ctx } = admissionCtx([
+      { bucket: "verification", tokens: 0, refilledAt: 1_000 },
+    ]);
 
     await expect(
-      testableFunction(consume)._handler(ctx as never, {
-        projectId: "projects_1" as never,
-      }),
+      testableFunction(consume)._handler(ctx, { projectId: PROJECT_ID }),
     ).rejects.toMatchObject({
       data: {
         code: "RATE_LIMITED",
@@ -122,44 +166,53 @@ describe("entitlement recheck admission", () => {
 
   it("draws on its own bucket and leaves verification admission untouched", async () => {
     vi.useFakeTimers({ now: 5_000 });
-    const patch = vi.fn();
-    const ctx = {
-      db: {
-        get: vi.fn().mockResolvedValue({
-          verificationAdmissionTokens: 0,
-          verificationAdmissionRefilledAt: 5_000,
-          entitlementRecheckTokens: 30,
-          entitlementRecheckRefilledAt: 5_000,
-        }),
-        patch,
-      },
-    };
+    const { ctx, buckets } = admissionCtx([
+      { bucket: "verification", tokens: 0, refilledAt: 5_000 },
+      { bucket: "entitlementRecheck", tokens: 30, refilledAt: 5_000 },
+    ]);
     await testableFunction(consume)._handler(ctx, {
-      projectId: "projects_1" as never,
+      projectId: PROJECT_ID,
       bucket: "entitlementRecheck",
       cost: 20,
     });
-    expect(patch).toHaveBeenCalledWith("projects_1", {
-      entitlementRecheckTokens: 10,
-      entitlementRecheckRefilledAt: 5_000,
-    });
+    expect(buckets).toEqual([
+      expect.objectContaining({ bucket: "verification", tokens: 0 }),
+      expect.objectContaining({ bucket: "entitlementRecheck", tokens: 10 }),
+    ]);
+    expect(ctx.db.patch).not.toHaveBeenCalledWith(
+      PROJECT_ID,
+      expect.anything(),
+    );
+  });
+
+  it("creates a project's bucket on first use without writing the project", async () => {
+    vi.useFakeTimers({ now: 5_000 });
+    const { ctx, buckets } = admissionCtx([]);
+
+    await testableFunction(consume)._handler(ctx, { projectId: PROJECT_ID });
+
+    expect(buckets).toEqual([
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        bucket: "verification",
+        tokens: 599,
+        refilledAt: 5_000,
+      }),
+    ]);
+    expect(ctx.db.patch).not.toHaveBeenCalledWith(
+      PROJECT_ID,
+      expect.anything(),
+    );
   });
 
   it("rejects a read whose bound purchases exceed the remaining budget", async () => {
     vi.useFakeTimers({ now: 5_000 });
-    const patch = vi.fn();
-    const ctx = {
-      db: {
-        get: vi.fn().mockResolvedValue({
-          entitlementRecheckTokens: 0,
-          entitlementRecheckRefilledAt: 5_000,
-        }),
-        patch,
-      },
-    };
+    const { ctx, buckets } = admissionCtx([
+      { bucket: "entitlementRecheck", tokens: 0, refilledAt: 5_000 },
+    ]);
     await expect(
-      testableFunction(consume)._handler(ctx as never, {
-        projectId: "projects_1" as never,
+      testableFunction(consume)._handler(ctx, {
+        projectId: PROJECT_ID,
         bucket: "entitlementRecheck",
         cost: 20,
       }),
@@ -170,34 +223,38 @@ describe("entitlement recheck admission", () => {
         retryAfterSec: 4,
       },
     });
-    expect(patch).not.toHaveBeenCalled();
+    expect(buckets[0]?.tokens).toBe(0);
+    expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 
   it("fills a new recheck bucket to its own capacity", async () => {
     vi.useFakeTimers({ now: 5_000 });
-    const patch = vi.fn();
-    const ctx = { db: { get: vi.fn().mockResolvedValue({}), patch } };
+    const { ctx, buckets } = admissionCtx([]);
     await testableFunction(consume)._handler(ctx, {
-      projectId: "projects_1" as never,
+      projectId: PROJECT_ID,
       bucket: "entitlementRecheck",
       cost: 20,
     });
-    expect(patch).toHaveBeenCalledWith("projects_1", {
-      entitlementRecheckTokens: ENTITLEMENT_RECHECK_CAPACITY - 20,
-      entitlementRecheckRefilledAt: 5_000,
-    });
+    expect(buckets).toEqual([
+      expect.objectContaining({
+        bucket: "entitlementRecheck",
+        tokens: ENTITLEMENT_RECHECK_CAPACITY - 20,
+        refilledAt: 5_000,
+      }),
+    ]);
   });
 
   it("rejects an admission cost outside the bucket", async () => {
-    const ctx = { db: { get: vi.fn().mockResolvedValue({}), patch: vi.fn() } };
+    const { ctx } = admissionCtx([]);
     for (const cost of [0, 1.5, ENTITLEMENT_RECHECK_CAPACITY + 1])
       await expect(
-        testableFunction(consume)._handler(ctx as never, {
-          projectId: "projects_1" as never,
+        testableFunction(consume)._handler(ctx, {
+          projectId: PROJECT_ID,
           bucket: "entitlementRecheck",
           cost,
         }),
       ).rejects.toThrow("outside the bucket capacity");
     expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 });

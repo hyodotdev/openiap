@@ -19,36 +19,29 @@
 }
 
 /* Search Modal */
-.search-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 9998;
-}
-
-.search-modal-container {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 10vh;
-  z-index: 9999;
-  pointer-events: none;
-}
-
 .search-modal {
   width: 90%;
   max-width: 700px;
   max-height: 70vh;
+  margin: 10vh auto auto;
+  padding: 0;
+  border: none;
   background: var(--bg-primary);
+  color: var(--text-primary);
   border-radius: 1rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* Only while open: a display value would otherwise show the closed dialog. */
+.search-modal[open] {
   display: flex;
   flex-direction: column;
-  pointer-events: auto;
-  overflow: hidden;
+}
+
+.search-modal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
 }
 
 /* Search Header */
@@ -246,7 +239,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
-:root.dark .search-modal-backdrop {
+:root.dark .search-modal::backdrop {
   background: rgba(0, 0, 0, 0.7);
 }
 
@@ -260,14 +253,10 @@
     padding: 0.375rem;
   }
 
-  .search-modal-container {
-    padding: 1rem;
-    padding-top: 5vh;
-  }
-
   .search-modal {
-    width: 100%;
+    width: calc(100% - 2rem);
     max-height: 80vh;
+    margin-top: 5vh;
   }
 
   .search-modal-header {

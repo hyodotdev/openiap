@@ -68,7 +68,7 @@ func _run_all_tests() -> void:
 	# Error code mapping
 	_test_purchase_error_code_mapping()
 	_test_error_code_maps_complete()
-	_test_enum_value_maps_bijective()
+	_test_enum_value_maps_round_trip()
 
 	# Wire-format (JSON) round trips
 	_test_purchase_android_json_round_trip()
@@ -808,8 +808,8 @@ func _test_error_code_maps_complete() -> void:
 	_assert_equal(Types.ERROR_CODE_VALUES[Types.ErrorCode.PURCHASE_VERIFICATION_FAILED], "purchase-verification-failed", "PURCHASE_VERIFICATION_FAILED wire value")
 
 
-func _test_enum_value_maps_bijective() -> void:
-	print("Testing enum VALUES/FROM_STRING bijections...")
+func _test_enum_value_maps_round_trip() -> void:
+	print("Testing enum VALUES/FROM_STRING round trips...")
 
 	var types_script: Script = Types
 	var constant_map: Dictionary = types_script.get_script_constant_map()
@@ -827,11 +827,17 @@ func _test_enum_value_maps_bijective() -> void:
 			continue
 		var from_map: Dictionary = constant_map[from_name]
 		pair_count += 1
-		var consistent = from_map.size() == values.size()
+		# FROM_STRING may also accept alias spellings, so compare by direction, not size.
+		var round_trips := true
 		for enum_value in values:
 			if from_map.get(values[enum_value], null) != enum_value:
-				consistent = false
-		_assert_equal(consistent, true, "%s and %s should be a bijection" % [key, from_name])
+				round_trips = false
+		var targets_known := true
+		for wire_value in from_map:
+			if not values.has(from_map[wire_value]):
+				targets_known = false
+		_assert_equal(round_trips, true, "Every %s entry should round-trip through %s" % [key, from_name])
+		_assert_equal(targets_known, true, "Every %s target should be a %s key" % [from_name, key])
 	_assert_equal(pair_count >= 30, true, "Expected at least 30 enum value maps (got %d)" % pair_count)
 
 

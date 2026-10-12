@@ -6,6 +6,7 @@ import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
 import dev.hyo.openiap.ErrorCode
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseError
@@ -17,6 +18,10 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
@@ -145,6 +150,9 @@ fun subscriptionUpdateSourceCount(
 ): Int = listOf(purchaseToken, originalExternalTransactionId)
     .count { !it.isNullOrBlank() }
 
+/** Google Play's offer and promo code redemption page. */
+const val PLAY_REDEEM_OFFER_CODE_URL = "https://play.google.com/redeem"
+
 fun requireAuthoritativeStorefrontCountry(countryCode: String?): String =
     countryCode
         ?.trim()
@@ -153,6 +161,126 @@ fun requireAuthoritativeStorefrontCountry(countryCode: String?): String =
             "Store returned no authoritative storefront country code"
         )
 
+fun isConnectionAttemptCurrent(
+    currentGeneration: Long,
+    attemptGeneration: Long,
+    ownsAttempt: Boolean,
+    ownsClient: Boolean,
+): Boolean = currentGeneration == attemptGeneration && ownsAttempt && ownsClient
+
+fun <T> connectionClientToClose(
+    ownsAttempt: Boolean,
+    connected: Boolean,
+    currentClient: T?,
+    expectedClient: T?,
+    expectedClientIsStale: Boolean,
+): T? = when {
+    ownsAttempt && !connected -> expectedClient ?: currentClient
+    !ownsAttempt && expectedClientIsStale -> expectedClient
+    else -> null
+}
+
+/**
+ * Whether a store purchase completes the launched request, pending or purchased: a requested SKU
+ * whose token the store did not report when the request launched.
+ */
+fun isPurchaseForPendingRequest(
+    productIds: Collection<String>,
+    purchaseToken: String?,
+    requestedSkus: Set<String>,
+    tokensBeforeLaunch: Set<String>,
+): Boolean = !purchaseToken.isNullOrBlank() &&
+    purchaseToken !in tokensBeforeLaunch &&
+    productIds.any { it in requestedSkus }
+
+/**
+ * Remembers recently delivered purchase states so each reaches listeners once, however many
+ * paths (store callback, polling, recovery) report it.
+ */
+class PurchaseDeliveryClaims(private val maximumSize: Int = 100) {
+    private val lock = Any()
+    private val keys = linkedSetOf<String>()
+
+    fun claim(purchase: Purchase): Boolean = synchronized(lock) {
+        val stableId = purchase.purchaseToken?.takeIf(String::isNotBlank)
+            ?: purchase.id.takeIf(String::isNotBlank)
+            ?: "${purchase.productId}:${purchase.transactionDate}"
+        if (!keys.add("$stableId:${purchase.purchaseState.rawValue}")) return@synchronized false
+        while (keys.size > maximumSize) keys.remove(keys.first())
+        true
+    }
+}
+
+/** Claims [current] for one terminal result when [owns] accepts it. */
+fun <T : Any> claimPendingPurchaseIfOwned(
+    lock: Any,
+    current: () -> T?,
+    owns: (T) -> Boolean,
+    clear: () -> Unit,
+): T? = synchronized(lock) {
+    current()?.takeIf(owns)?.also { clear() }
+}
+
+data class AllProductQueryResults<T : Any>(
+    val inApp: T?,
+    val subscriptions: T?,
+)
+
+/**
+ * Runs the in-app and subscription queries of a `type: all` fetch together. One failed branch
+ * yields `null` for it; both failing throws the in-app error. Cancellation, [Error], and a
+ * dropped connection are never recovered.
+ */
+suspend fun <T : Any> collectAllProductQueryResults(
+    queryInApp: suspend () -> T,
+    querySubscriptions: suspend () -> T,
+): AllProductQueryResults<T> {
+    suspend fun capture(query: suspend () -> T): Result<T> = try {
+        Result.success(query())
+    } catch (error: Throwable) {
+        if (
+            error is CancellationException ||
+            error is Error ||
+            error is OpenIapError.ServiceDisconnected
+        ) throw error
+        Result.failure(error)
+    }
+
+    val (inAppResult, subscriptionsResult) = coroutineScope {
+        awaitAll(
+            async { capture(queryInApp) },
+            async { capture(querySubscriptions) },
+        )
+    }
+    if (inAppResult.isFailure && subscriptionsResult.isFailure) {
+        throw checkNotNull(inAppResult.exceptionOrNull())
+    }
+    return AllProductQueryResults(
+        inApp = inAppResult.getOrNull(),
+        subscriptions = subscriptionsResult.getOrNull(),
+    )
+}
+
+/**
+ * Consumes ([isConsumable]) or acknowledges [purchaseToken] and throws
+ * [OpenIapError.BillingError] (`service-error`) when the store refuses, which
+ * `consumePurchaseAndroid` and `acknowledgePurchaseAndroid` report as `false`.
+ */
+suspend fun OpenIapProtocol.finishPurchaseToken(purchaseToken: String, isConsumable: Boolean) {
+    val finished = if (isConsumable) {
+        consumePurchaseAndroid(purchaseToken)
+    } else {
+        acknowledgePurchaseAndroid(purchaseToken)
+    }
+    if (!finished) {
+        val operation = if (isConsumable) "consume" else "acknowledge"
+        throw OpenIapError.BillingError("The store did not $operation the purchase")
+    }
+}
+
+// Binary-compatibility shims for openiap-core consumers; OpenIAP itself no longer calls them.
+
+@Deprecated("Unused by OpenIAP; it will be removed in the next major release.")
 fun emitFailureAndThrow(
     error: OpenIapError,
     emitError: (OpenIapError) -> Unit,
@@ -165,6 +293,8 @@ fun emitFailureAndThrow(
  * Complete an asynchronous storefront query exactly once and publish only the
  * failure that wins the callback race.
  */
+@Deprecated("Unused by OpenIAP; it will be removed in the next major release.")
+@Suppress("DEPRECATION")
 suspend fun awaitAuthoritativeStorefrontCountry(
     emitError: (OpenIapError) -> Unit,
     onRequestFailure: (Exception) -> Unit = {},
@@ -200,29 +330,9 @@ suspend fun awaitAuthoritativeStorefrontCountry(
     }
 }
 
-fun isConnectionAttemptCurrent(
-    currentGeneration: Long,
-    attemptGeneration: Long,
-    ownsAttempt: Boolean,
-    ownsClient: Boolean,
-): Boolean = currentGeneration == attemptGeneration && ownsAttempt && ownsClient
-
-fun <T> connectionClientToClose(
-    ownsAttempt: Boolean,
-    connected: Boolean,
-    currentClient: T?,
-    expectedClient: T?,
-    expectedClientIsStale: Boolean,
-): T? = when {
-    ownsAttempt && !connected -> expectedClient ?: currentClient
-    !ownsAttempt && expectedClientIsStale -> expectedClient
-    else -> null
-}
-
-/**
- * Correlate a store purchase update with the request that launched the billing
- * UI. Purchase updates can also be delivered for out-of-band or older flows.
- */
+@Deprecated(
+    "Purchase time cannot correlate a purchase with its request; it will be removed in the next major release.",
+)
 fun isPurchaseForPendingRequest(
     transactionDateMillis: Double,
     productIds: Collection<String>,

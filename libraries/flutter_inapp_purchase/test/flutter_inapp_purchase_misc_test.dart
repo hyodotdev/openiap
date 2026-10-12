@@ -11,6 +11,18 @@ void main() {
     expect(identical(first, second), isTrue);
   });
 
+  test('public constructor returns the shared instance', () {
+    expect(identical(FlutterInappPurchase(), FlutterInappPurchase.instance),
+        isTrue);
+    expect(
+      identical(
+        FlutterInappPurchase(platform: FakePlatform(operatingSystem: 'ios')),
+        FlutterInappPurchase.instance,
+      ),
+      isFalse,
+    );
+  });
+
   test('platform getters reflect provided platform', () {
     final iap = FlutterInappPurchase.private(
       FakePlatform(operatingSystem: 'ios'),

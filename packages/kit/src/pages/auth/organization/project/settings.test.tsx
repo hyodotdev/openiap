@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     amazonRtnTopicArn: undefined as string | undefined,
   },
   saveFile: vi.fn(),
+  saveAppleP8Key: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   validateGoogleServiceAccount: vi.fn(),
@@ -78,6 +79,7 @@ vi.mock("convex/react", () => ({
     if (reference === "files.validateGoogleServiceAccountUpload") {
       return mocks.validateGoogleServiceAccount;
     }
+    if (reference === "files.saveAppleP8Key") return mocks.saveAppleP8Key;
     return mocks.downloadFile;
   },
   useMutation: (reference: string) => {
@@ -99,6 +101,7 @@ vi.mock("@/convex", () => ({
           "files.validateAppleReviewScreenshotUpload",
         validateGoogleServiceAccountUpload:
           "files.validateGoogleServiceAccountUpload",
+        saveAppleP8Key: "files.saveAppleP8Key",
       },
       mutation: {
         generateUploadUrl: "files.generateUploadUrl",
@@ -134,6 +137,7 @@ describe("ProjectSettings", () => {
     mocks.generateUploadUrl.mockReset();
     mocks.otherMutation.mockReset();
     mocks.saveFile.mockReset();
+    mocks.saveAppleP8Key.mockReset();
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.validateGoogleServiceAccount.mockReset();
@@ -149,6 +153,10 @@ describe("ProjectSettings", () => {
       json: async () => ({ storageId: "storage_test" }),
     });
     mocks.saveFile.mockResolvedValue({
+      success: false,
+      code: "TARGET_PENDING_DELETION",
+    });
+    mocks.saveAppleP8Key.mockResolvedValue({
       success: false,
       code: "TARGET_PENDING_DELETION",
     });
@@ -449,20 +457,41 @@ describe("ProjectSettings", () => {
   });
 
   it.each([
-    {
-      inputId: "ios-file-upload",
-      fileName: "AuthKey.p8",
-      mimeType: "application/octet-stream",
-      successText: "Authentication file uploaded successfully",
-      purpose: "apple_p8_key",
+    { inputId: "ios-file-upload", purpose: "apple_p8_key" },
+    { inputId: "ios-asc-file-upload", purpose: "apple_p8_asc_api_key" },
+  ])(
+    "sends $inputId to the server-side .p8 check instead of the upload URL",
+    async ({ inputId, purpose }) => {
+      render(<ProjectSettings />);
+      const file = new File(["private credential"], "AuthKey_ABC.p8", {
+        type: "application/octet-stream",
+      });
+      Object.defineProperty(file, "text", {
+        value: async () => "private credential",
+      });
+
+      fireEvent.change(document.getElementById(inputId)!, {
+        target: { files: [file] },
+      });
+
+      await waitFor(() => {
+        expect(mocks.toastError).toHaveBeenCalledWith(TARGET_PENDING_MESSAGE);
+      });
+      expect(mocks.saveAppleP8Key).toHaveBeenCalledWith({
+        organizationId: "organizations_test",
+        projectId: "projects_test",
+        purpose,
+        fileName: "AuthKey_ABC.p8",
+        fileType: "application/octet-stream",
+        content: "private credential",
+      });
+      expect(mocks.generateUploadUrl).not.toHaveBeenCalled();
+      expect(mocks.saveFile).not.toHaveBeenCalled();
+      expect(mocks.toastSuccess).not.toHaveBeenCalled();
     },
-    {
-      inputId: "ios-asc-file-upload",
-      fileName: "ConnectKey.p8",
-      mimeType: "application/octet-stream",
-      successText: "Connect API key uploaded successfully",
-      purpose: "apple_p8_asc_api_key",
-    },
+  );
+
+  it.each([
     {
       inputId: "ios-review-screenshot-upload",
       fileName: "review.png",

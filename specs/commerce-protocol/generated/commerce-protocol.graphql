@@ -561,7 +561,7 @@ scalar ProtocolErrorCode
   )
 
 """
-One protocol operation failure. Both bindings carry the same code space: REST wraps it in ProtocolErrorResponse, GraphQL carries `code` in `errors[].extensions`. A message is human-readable and MUST NOT contain credentials, store evidence, stack traces, or implementation source paths.
+One protocol operation failure. Both bindings carry the same code space: REST wraps it in ProtocolErrorResponse, GraphQL carries `code` in `errors[].extensions`. A message is human-readable; neither it nor any other error member, GraphQL `extensions` included, may contain credentials, store evidence, signed payloads, stack traces, or implementation source paths.
 """
 type ProtocolError
   @definition(schema: "operations")

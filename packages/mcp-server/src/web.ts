@@ -4,7 +4,12 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
+import {
+  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
+  isSecretApiKey,
+  MISSING_API_KEY_MESSAGE,
+} from "./auth.js";
+import { normalizeKitBaseUrl } from "./kit-client.js";
 import { createIapKitMcpServer } from "./mcp.js";
 import {
   buildSessionId,
@@ -20,6 +25,8 @@ import {
 
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const MCP_BODY_TOO_LARGE_ERROR = "MCP request body is too large";
+const INVALID_API_KEY_MESSAGE =
+  "The bearer is not an active IAPKit secret admin key.";
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://chatgpt.com",
   "https://chat.openai.com",
@@ -32,6 +39,16 @@ const DEFAULT_ALLOWED_ORIGINS = [
 export interface IapKitWebMcpHandlerOptions {
   allowedOrigins?: string[];
   logger?: Pick<Console, "error" | "info">;
+  /**
+   * The kit every tool calls. Defaults to IAPKIT_BASE_URL. Tool calls cannot
+   * override it: the hosted server sits inside kit's network.
+   */
+  kitBaseUrl?: string;
+  /**
+   * Checks a bearer is a real secret key before a session is created, so
+   * session slots are only spent by key holders.
+   */
+  authenticate?: (apiKey: string) => Promise<boolean>;
   /**
    * Identity of this process for session affinity. Defaults to
    * FLY_MACHINE_ID; session ids are prefixed with it so a follow-up
@@ -51,6 +68,10 @@ export function createIapKitWebMcpHandler(
   const machineId = options.machineId ?? currentMachineId();
   const transports =
     createMcpSessionStore<WebStandardStreamableHTTPServerTransport>(logger);
+  const kitBaseUrl = normalizeKitBaseUrl(
+    options.kitBaseUrl ?? process.env.IAPKIT_BASE_URL,
+  );
+  const authenticate = options.authenticate ?? (async () => true);
 
   return async function handleIapKitMcpRequest(
     request: Request,
@@ -67,7 +88,16 @@ export function createIapKitWebMcpHandler(
       const bearerToken = parseBearerToken(
         request.headers.get("authorization"),
       );
-      if (bearerToken && !isSecretApiKey(bearerToken)) {
+      if (!bearerToken) {
+        return withIapKitMcpCors(
+          request,
+          jsonRpcError(401, -32001, MISSING_API_KEY_MESSAGE, {
+            "www-authenticate": "Bearer",
+          }),
+          allowedOrigins,
+        );
+      }
+      if (!isSecretApiKey(bearerToken)) {
         return withIapKitMcpCors(
           request,
           jsonRpcError(403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE),
@@ -75,16 +105,21 @@ export function createIapKitWebMcpHandler(
         );
       }
 
-      const authInfo = authInfoFromRequest(request);
+      const authInfo: AuthInfo = {
+        token: bearerToken,
+        clientId: "iapkit-project-api-key",
+        scopes: ["iapkit:project"],
+      };
 
       if (request.method === "POST") {
-        const response = await handlePost(
-          request,
+        const response = await handlePost(request, {
           transports,
           logger,
           authInfo,
           machineId,
-        );
+          kitBaseUrl,
+          authenticate,
+        });
         return withIapKitMcpCors(request, response, allowedOrigins);
       }
 
@@ -128,12 +163,25 @@ export function createIapKitWebMcpHandler(
   };
 }
 
+interface PostContext {
+  transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>;
+  logger: Pick<Console, "error" | "info">;
+  authInfo: AuthInfo;
+  machineId: string | undefined;
+  kitBaseUrl: string;
+  authenticate: (apiKey: string) => Promise<boolean>;
+}
+
 async function handlePost(
   request: Request,
-  transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>,
-  logger: Pick<Console, "error" | "info">,
-  authInfo: AuthInfo | undefined,
-  machineId: string | undefined,
+  {
+    transports,
+    logger,
+    authInfo,
+    machineId,
+    kitBaseUrl,
+    authenticate,
+  }: PostContext,
 ): Promise<Response> {
   const sessionId = request.headers.get("mcp-session-id") ?? undefined;
   const body = await readJsonBody(request);
@@ -156,6 +204,10 @@ async function handlePost(
       -32000,
       "Bad Request: initialize first, then send mcp-session-id on follow-up requests.",
     );
+  }
+
+  if (!(await authenticate(authInfo.token))) {
+    return jsonRpcError(403, -32003, INVALID_API_KEY_MESSAGE);
   }
 
   const reservation = transports.reserve();
@@ -185,7 +237,7 @@ async function handlePost(
     if (initializedSessionId) transports.delete(initializedSessionId);
   };
 
-  const server = createIapKitMcpServer();
+  const server = createIapKitMcpServer({ kitBaseUrl });
   try {
     await server.connect(transport);
     return await transport.handleRequest(request, {
@@ -207,7 +259,7 @@ async function handlePost(
 async function handleExistingSession(
   request: Request,
   transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>,
-  authInfo: AuthInfo | undefined,
+  authInfo: AuthInfo,
   machineId: string | undefined,
 ): Promise<Response> {
   const sessionId = request.headers.get("mcp-session-id") ?? undefined;
@@ -265,17 +317,6 @@ function unknownSessionResponse(
   );
 }
 
-function authInfoFromRequest(request: Request): AuthInfo | undefined {
-  const token = parseBearerToken(request.headers.get("authorization"));
-  if (!token) return undefined;
-
-  return {
-    token,
-    clientId: "iapkit-project-api-key",
-    scopes: ["iapkit:project"],
-  };
-}
-
 function parseBearerToken(authorization: string | null): string | null {
   if (!authorization) return null;
   const match = authorization.match(/^Bearer\s+(.+)$/i);
@@ -283,16 +324,36 @@ function parseBearerToken(authorization: string | null): string | null {
   return token || null;
 }
 
+// Reads a clone so the transport can still consume the original. The cap
+// applies while streaming, so a chunked body without Content-Length cannot
+// grow past it in memory.
 async function readJsonBody(request: Request): Promise<unknown> {
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > MAX_MCP_BODY_BYTES) {
     throw new Error(MCP_BODY_TOO_LARGE_ERROR);
   }
+  const stream = request.clone().body;
+  if (!stream) return undefined;
 
-  const raw = await request.clone().text();
-  if (new TextEncoder().encode(raw).length > MAX_MCP_BODY_BYTES) {
-    throw new Error(MCP_BODY_TOO_LARGE_ERROR);
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let raw = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_MCP_BODY_BYTES) {
+        throw new Error(MCP_BODY_TOO_LARGE_ERROR);
+      }
+      raw += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    // Not awaited: a tee branch's cancel settles only once both branches end.
+    void reader.cancel().catch(() => undefined);
   }
+  raw += decoder.decode();
   if (!raw.trim()) return undefined;
   return JSON.parse(raw);
 }

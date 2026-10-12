@@ -27,7 +27,7 @@ import {
   commerceEventTypesToEmit,
   type CommerceEventType,
 } from "../../../convex/commerce/contract";
-import { isEntitledAt } from "../../../convex/subscriptions/query";
+import { entitlementActive } from "../../../convex/subscriptions/stateMachine";
 import { getProjectByApiKey as getProjectByApiKeyQuery } from "../../../convex/projects/internal";
 import { readBoundPurchaseEntitlements as readBoundPurchaseEntitlementsAction } from "../../../convex/purchases/action";
 import { verifyAmazonReceiptInternalV1 } from "../../../convex/purchases/amazon";
@@ -54,7 +54,7 @@ import { testableFunction } from "../../../convex/test.setup";
 // the delivery envelope (composeDeliveryHeaders, which the worker in
 // convex/commerce/delivery.ts sends), response classification
 // (classifyDeliveryResponse, which the worker records), the emission rules
-// (commerceEventTypesToEmit), and the entitlement gate (isEntitledAt). Only
+// (commerceEventTypesToEmit), and the entitlement gate (entitlementActive). Only
 // `verify` has no production counterpart — IAPKit emits webhooks, consumers
 // verify them — so it is written here from the shipped tolerance.
 const iapkitEventsAdapter = {
@@ -116,6 +116,8 @@ const iapkitEventsAdapter = {
   // The worker passes `undefined` when no status arrived (its catch path).
   classifyResponse: (status: number | "connection-error" | "timeout") =>
     classifyDeliveryResponse(typeof status === "number" ? status : undefined),
+  // Store-agnostic: the kit-only Apple guard is pinned against the same
+  // vectors in convex/commerce/spec.conformance.test.ts.
   entitled: ({
     state,
     expiresAt,
@@ -124,7 +126,7 @@ const iapkitEventsAdapter = {
     state: string;
     expiresAt?: number;
     processedAt: number;
-  }) => isEntitledAt(state, expiresAt, processedAt),
+  }) => entitlementActive({ state, expiresAt }, processedAt),
   emission: ({
     lifecycleEvent,
     entitledBefore,
@@ -277,7 +279,7 @@ const ORGANIZATION_ID = "organizations:conformance";
 const AMAZON_PRODUCT = "conformance.amazon.premium";
 
 // The slice of ctx.db the purchase functions use: equality index lookups, a
-// field filter, get, and patch.
+// field filter, get, insert, and patch.
 function memoryDatabase(tables: Record<string, Row[]>) {
   const byId = (id: unknown): Row | null =>
     Object.values(tables)
@@ -321,6 +323,12 @@ function memoryDatabase(tables: Record<string, Row[]>) {
       return query;
     },
     get: async (id: unknown) => byId(id),
+    insert: async (table: string, value: Record<string, unknown>) => {
+      const rows = (tables[table] ??= []);
+      const _id = `${table}:${rows.length}`;
+      rows.push({ _id, ...value });
+      return _id;
+    },
     patch: async (id: unknown, value: Record<string, unknown>) => {
       const row = byId(id);
       if (!row) throw new Error(`Missing row ${String(id)}`);

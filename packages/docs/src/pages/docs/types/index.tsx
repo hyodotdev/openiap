@@ -174,6 +174,11 @@ const VALIDATION_TYPES: TypeRow[] = [
     description:
       'Public TOML, JSON, or text data attached to an IAPKit product.',
   },
+  {
+    to: '/docs/types/app-ownership-verification',
+    name: 'AppOwnershipVerificationResult',
+    description: 'verifyAppOwnership input, result, status, and reasons.',
+  },
 ];
 
 const ALT_BILLING_TYPES: TypeRow[] = [

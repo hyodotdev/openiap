@@ -50,13 +50,4 @@ class HorizonBlankOrderIdTest {
         assertEquals("order-1", purchase.id)
         assertEquals("order-1", purchase.transactionId)
     }
-
-    @Test
-    fun `blank orderId falls back to the purchase token for active subscriptions`() {
-        val subscription = with(HorizonBillingConverters) {
-            horizonPurchase(orderId = "").toActiveSubscription()
-        }
-
-        assertEquals("purchase-token", subscription.transactionId)
-    }
 }

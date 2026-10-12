@@ -29,9 +29,12 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions used by kit's deploy workflow
+  # GitHub Actions in workflows and composite actions
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # "/" reads only .github/workflows; composite actions need their own path.
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -52,6 +55,10 @@ updates:
       gradle-actions:
         patterns:
           - "gradle/actions*"
+      # One PR per action across directories, so a workflow and a composite
+      # action never pin the same action at two commits.
+      actions-across-directories:
+        group-by: dependency-name
 
   # packages/kit Dockerfile base image
   - package-ecosystem: "docker"
@@ -64,6 +71,20 @@ updates:
       - "openiap-kit"
       - "👷‍♀️ build"
       - "📦 update packages"
+
+  # Apple release CocoaPods toolchain. CocoaPods itself is pinned in the
+  # Gemfile and moves only with a release lint; its dependencies still update.
+  - package-ecosystem: "bundler"
+    directory: "/packages/apple"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "📱 iOS"
+      - "📦 update packages"
+    ignore:
+      - dependency-name: "cocoapods"
 
   # React Native example CocoaPods toolchain
   - package-ecosystem: "bundler"

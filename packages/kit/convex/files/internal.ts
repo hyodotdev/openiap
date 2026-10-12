@@ -3,21 +3,15 @@ import {
   internalMutation,
   internalAction,
 } from "../_generated/server";
-import type { QueryCtx } from "../_generated/server";
+import type { ActionCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
-import {
-  deleteFileAndStorageIfUnreferenced,
-  deleteStorageIfUnreferenced,
-} from "./storage";
+import { deleteStorageIfUnreferenced } from "./storage";
+import { appleP8PurposeValidator, type AppleP8Purpose } from "./validation";
 
 export const UPLOAD_RESERVATION_PRUNE_BATCH_SIZE = 200;
-
-function describeErrorForLog(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
-}
 
 export const getFileRecord = internalQuery({
   args: {
@@ -39,103 +33,19 @@ export const getUploadReservationForValidation = internalQuery({
   }),
 });
 
-export const updateFileAccess = internalMutation({
-  args: {
-    fileId: v.id("files"),
-    accessCount: v.number(),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.fileId, {
-      lastAccessedAt: Date.now(),
-      accessCount: args.accessCount,
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-// Internal action to get file content - NEVER expose to client
-export const getFileContent = internalAction({
-  args: {
-    fileId: v.id("files"),
-  },
-  handler: async (ctx, args): Promise<any> => {
-    const file = await ctx.runQuery(internal.files.internal.getFileRecord, {
-      fileId: args.fileId,
-    });
-
-    if (!file) {
-      throw new ConvexError("File not found");
-    }
-
-    const blob = await ctx.storage.get(file.storageId);
-    if (!blob) {
-      throw new ConvexError("File content not found in storage");
-    }
-
-    // Update access tracking
-    // await ctx.runMutation(internal.files.internal.updateFileAccess, {
-    //   fileId: args.fileId,
-    //   accessCount: (file.accessCount || 0) + 1,
-    // });
-
-    return {
-      file,
-      blob,
-    };
-  },
-});
-
-export const getFileByStorageId = internalAction({
-  args: {
-    storageId: v.id("_storage"),
-  },
-  handler: async (ctx, args): Promise<any> => {
-    const file = await ctx.runQuery(
-      internal.files.internal.getFileByStorageIdQuery,
-      {
-        storageId: args.storageId,
-      },
-    );
-
-    if (!file) {
-      throw new ConvexError("File not found");
-    }
-
-    const blob = await ctx.storage.get(file.storageId);
-    if (!blob) {
-      throw new ConvexError("File content not found in storage");
-    }
-
-    // Update access tracking
-    // await ctx.runMutation(internal.files.internal.updateFileAccess, {
-    //   fileId: file._id,
-    //   accessCount: (file.accessCount || 0) + 1,
-    // });
-
-    return {
-      file,
-      blob,
-    };
-  },
-});
-
-export const getFileByStorageIdQuery = internalQuery({
-  args: {
-    storageId: v.id("_storage"),
-  },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("files")
-      .withIndex("by_storage_id", (q) => q.eq("storageId", args.storageId))
-      .first();
-  },
-});
-
 export const readFileAsText = internalAction({
   args: {
     fileId: v.id("files"),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    fileId: Id<"files">;
+    fileName: string;
+    content: string;
+    metadata: unknown;
+  }> => {
     const file = await ctx.runQuery(internal.files.internal.getFileRecord, {
       fileId: args.fileId,
     });
@@ -148,12 +58,6 @@ export const readFileAsText = internalAction({
     if (!blob) {
       throw new ConvexError("File content not found in storage");
     }
-
-    // Update access tracking
-    // await ctx.runMutation(internal.files.internal.updateFileAccess, {
-    //   fileId: args.fileId,
-    //   accessCount: (file.accessCount || 0) + 1,
-    // });
 
     const text = await blob.text();
 
@@ -170,7 +74,18 @@ export const readFileAsBase64 = internalAction({
   args: {
     fileId: v.id("files"),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    fileId: Id<"files">;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    purpose: Doc<"files">["purpose"];
+    content: string;
+    metadata: unknown;
+  }> => {
     const file = await ctx.runQuery(internal.files.internal.getFileRecord, {
       fileId: args.fileId,
     });
@@ -184,12 +99,6 @@ export const readFileAsBase64 = internalAction({
       throw new ConvexError("File content not found in storage");
     }
 
-    // Update access tracking
-    // await ctx.runMutation(internal.files.internal.updateFileAccess, {
-    //   fileId: args.fileId,
-    //   accessCount: (file.accessCount || 0) + 1,
-    // });
-
     // No `Buffer` global in the V8 runtime (no "use node"), so use `btoa`.
     // Chunks stay under the `String.fromCharCode` argument limit, and one
     // `join` avoids quadratic string concatenation on multi-megabyte files.
@@ -198,12 +107,7 @@ export const readFileAsBase64 = internalAction({
     const CHUNK = 0x8000;
     const chunks: string[] = [];
     for (let i = 0; i < bytes.length; i += CHUNK) {
-      chunks.push(
-        String.fromCharCode.apply(
-          null,
-          bytes.subarray(i, i + CHUNK) as unknown as number[],
-        ),
-      );
+      chunks.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
     }
     const base64 = btoa(chunks.join(""));
 
@@ -216,50 +120,6 @@ export const readFileAsBase64 = internalAction({
       content: base64,
       metadata: file.metadata,
     };
-  },
-});
-
-// What `findFilesByPurpose` returns: callers like `getAppleP8Key` must not
-// see `storageId` or `uploadedBy`. Declared explicitly because inference
-// through the Convex handler would give callers `any[]`.
-type FilePublicProjection = Omit<
-  Doc<"files">,
-  "storageId" | "uploadedBy" | "accessCount" | "lastAccessedAt"
->;
-
-export const findFilesByPurpose = internalQuery({
-  args: {
-    organizationId: v.id("organizations"),
-    purpose: v.union(
-      v.literal("apple_p8_key"),
-      v.literal("apple_p8_asc_api_key"),
-      v.literal("android_service_account"),
-      v.literal("apple_iap_review_screenshot"),
-    ),
-  },
-  handler: async (ctx, args): Promise<FilePublicProjection[]> => {
-    const files = await ctx.db
-      .query("files")
-      .withIndex("by_org_and_purpose", (q) =>
-        q.eq("organizationId", args.organizationId).eq("purpose", args.purpose),
-      )
-      .collect();
-
-    return files.map((file) => ({
-      _id: file._id,
-      _creationTime: file._creationTime,
-      organizationId: file.organizationId,
-      projectId: file.projectId,
-      fileName: file.fileName,
-      fileType: file.fileType,
-      fileSize: file.fileSize,
-      purpose: file.purpose,
-      description: file.description,
-      metadata: file.metadata,
-      isInternal: file.isInternal,
-      createdAt: file.createdAt,
-      updatedAt: file.updatedAt,
-    }));
   },
 });
 
@@ -324,145 +184,50 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
   },
 });
 
-// Internal action to get Apple P8 key content for JWT generation
-export const getAppleP8Key = internalAction({
+// The newest key of this project, else the newest organization-level key (no
+// projectId). Never another project's key.
+export const getAppleP8KeyFile = internalQuery({
   args: {
-    organizationId: v.id("organizations"),
-    projectId: v.optional(v.id("projects")),
-  },
-  handler: async (ctx, args): Promise<any> => {
-    // Find the most recent Apple P8 key file
-    const files = await ctx.runQuery(
-      internal.files.internal.findFilesByPurpose,
-      {
-        organizationId: args.organizationId,
-        purpose: "apple_p8_key",
-      },
-    );
-
-    let targetFile = files[0];
-    if (args.projectId) {
-      const projectFiles = files.filter(
-        (f: any) => f.projectId === args.projectId,
-      );
-      targetFile = projectFiles[0] || files[0];
-    }
-
-    if (!targetFile) {
-      throw new ConvexError("No Apple P8 key found for this organization");
-    }
-    const content = await ctx.runAction(
-      internal.files.internal.readFileAsText,
-      {
-        fileId: targetFile._id,
-      },
-    );
-
-    return {
-      keyContent: content.content,
-      metadata: content.metadata,
-      fileId: targetFile._id,
-    };
-  },
-});
-
-// A different .p8 than `getAppleP8Key` returns (see schema.ts).
-// Used by `products/asc.ts` push-sync.
-export const getAppleAscApiKey = internalAction({
-  args: {
-    organizationId: v.id("organizations"),
-    projectId: v.optional(v.id("projects")),
-  },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    keyContent: string;
-    metadata: unknown;
-    fileId: Id<"files">;
-  }> => {
-    const files = await ctx.runQuery(
-      internal.files.internal.findFilesByPurpose,
-      {
-        organizationId: args.organizationId,
-        purpose: "apple_p8_asc_api_key",
-      },
-    );
-
-    let targetFile = files[0];
-    if (args.projectId) {
-      const projectFiles = files.filter(
-        (f: FilePublicProjection) => f.projectId === args.projectId,
-      );
-      targetFile = projectFiles[0] || files[0];
-    }
-
-    if (!targetFile) {
-      throw new ConvexError(
-        "No App Store Connect API key (.p8) uploaded for this project — generate one at App Store Connect → Users and Access → Integrations → App Store Connect API and upload it in Settings.",
-      );
-    }
-    const content = await ctx.runAction(
-      internal.files.internal.readFileAsText,
-      {
-        fileId: targetFile._id,
-      },
-    );
-
-    return {
-      keyContent: content.content,
-      metadata: content.metadata,
-      fileId: targetFile._id,
-    };
-  },
-});
-
-export const cleanupOldFiles = internalMutation({
-  args: {
-    organizationId: v.id("organizations"),
-    olderThanDays: v.number(),
+    projectId: v.id("projects"),
+    purpose: appleP8PurposeValidator,
   },
   handler: async (ctx, args) => {
-    const cutoffTime = Date.now() - args.olderThanDays * 24 * 60 * 60 * 1000;
-
-    const files = await ctx.db
+    const projectKey = await ctx.db
       .query("files")
-      .withIndex("by_organization", (q) =>
-        q.eq("organizationId", args.organizationId),
+      .withIndex("by_project_and_purpose", (q) =>
+        q.eq("projectId", args.projectId).eq("purpose", args.purpose),
       )
-      .filter((q) => q.lt(q.field("createdAt"), cutoffTime))
-      .collect();
-
-    let deletedCount = 0;
-    for (const file of files) {
-      // The screenshot purpose check also covers legacy rows where
-      // isInternal is false.
-      if (
-        file.isInternal ||
-        file.purpose === "apple_p8_key" ||
-        file.purpose === "apple_p8_asc_api_key" ||
-        file.purpose === "apple_iap_review_screenshot"
-      ) {
-        continue;
-      }
-
-      try {
-        await deleteFileAndStorageIfUnreferenced(ctx, file);
-        deletedCount++;
-      } catch (error) {
-        console.error("Failed to delete file", {
-          fileId: file._id,
-          error: describeErrorForLog(error),
-        });
-        // Rethrow so Convex rolls back the row delete. Swallowing the error
-        // would leave an orphan blob with no row for a retry to find.
-        throw error;
-      }
-    }
-
-    return { deletedCount };
+      .order("desc")
+      .first();
+    if (projectKey) return projectKey;
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return null;
+    return await ctx.db
+      .query("files")
+      .withIndex("by_org_and_purpose", (q) =>
+        q
+          .eq("organizationId", project.organizationId)
+          .eq("purpose", args.purpose),
+      )
+      .order("desc")
+      .filter((q) => q.eq(q.field("projectId"), undefined))
+      .first();
   },
 });
+
+/** The .p8 of `purpose` that `getAppleP8KeyFile` selects, or null. */
+export async function readAppleP8Key(
+  ctx: Pick<ActionCtx, "runQuery" | "storage">,
+  projectId: Id<"projects">,
+  purpose: AppleP8Purpose,
+): Promise<string | null> {
+  const file = await ctx.runQuery(internal.files.internal.getAppleP8KeyFile, {
+    projectId,
+    purpose,
+  });
+  const blob = file ? await ctx.storage.get(file.storageId) : null;
+  return blob ? await blob.text() : null;
+}
 
 // Most expired reservations have no storageId: storage assigns one only when
 // the client POSTs the upload. Validation claims the id before downloading

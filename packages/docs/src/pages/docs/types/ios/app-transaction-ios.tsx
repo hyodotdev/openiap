@@ -105,7 +105,8 @@ function AppTransactionIos() {
                 <code>environment</code>
               </td>
               <td>
-                Environment: &quot;Sandbox&quot; or &quot;Production&quot;
+                Environment: &quot;Production&quot;, &quot;Sandbox&quot;, or
+                &quot;Xcode&quot;
               </td>
             </tr>
             <tr>
@@ -219,7 +220,7 @@ function AppTransactionIos() {
     let originalPurchaseDate: Double  // epoch ms
     let deviceVerification: String
     let deviceVerificationNonce: String
-    let environment: String  // "Sandbox" | "Production"
+    let environment: String  // "Production" | "Sandbox" | "Xcode"
     let signedDate: Double  // epoch ms
     let appId: Double
     let appVersionId: Double
@@ -240,7 +241,7 @@ function AppTransactionIos() {
     val originalPurchaseDate: Double,  // epoch ms
     val deviceVerification: String,
     val deviceVerificationNonce: String,
-    val environment: String,  // "Sandbox" | "Production"
+    val environment: String,  // "Production" | "Sandbox" | "Xcode"
     val signedDate: Double,  // epoch ms
     val appId: Double,
     val appVersionId: Double,
@@ -261,7 +262,7 @@ function AppTransactionIos() {
   final double originalPurchaseDate;  // epoch ms
   final String deviceVerification;
   final String deviceVerificationNonce;
-  final String environment;  // "Sandbox" | "Production"
+  final String environment;  // "Production" | "Sandbox" | "Xcode"
   final double signedDate;  // epoch ms
   final double appId;
   final double appVersionId;
@@ -303,7 +304,7 @@ public sealed record AppTransaction
     public required double OriginalPurchaseDate { get; init; } // epoch ms
     public required string DeviceVerification { get; init; }
     public required string DeviceVerificationNonce { get; init; }
-    public required string Environment { get; init; } // "Sandbox" | "Production"
+    public required string Environment { get; init; } // "Production" | "Sandbox" | "Xcode"
     public required double SignedDate { get; init; } // epoch ms
     public required double AppId { get; init; }
     public required double AppVersionId { get; init; }
@@ -363,7 +364,7 @@ if (appTransaction) {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 // Get app transaction (iOS only)
 let appTransaction = try await OpenIapModule.shared.getAppTransactionIOS()

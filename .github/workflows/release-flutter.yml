@@ -172,6 +172,7 @@ jobs:
 
   deploy:
     needs: [validate-android, validate-ios, validate-apple-swiftpm]
+    environment: release
     permissions:
       actions: write
       contents: write

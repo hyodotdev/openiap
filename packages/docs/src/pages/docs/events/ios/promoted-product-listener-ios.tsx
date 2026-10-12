@@ -111,7 +111,7 @@ const subscription = promotedProductListenerIOS(async (product) => {
 subscription.remove();`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`import OpenIap
+            <CodeBlock language="swift">{`import OpenIAP
 
 let subscription = OpenIapModule.shared.promotedProductListenerIOS { productId in
     Task {

@@ -53,7 +53,9 @@ final class OpenIapConnectionLifecycle {
 
             connectionGeneration += 1
             let generation = connectionGeneration
-            let task = Task<Bool, Error> {
+            // Detached: the listeners this task starts outlive the caller and must not
+            // inherit its task-locals, such as requestPurchase's error suppression.
+            let task = Task<Bool, Error>.detached(priority: Task.currentPriority) {
                 try await operation(generation)
             }
             initTask = task

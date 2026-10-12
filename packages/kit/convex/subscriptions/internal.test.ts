@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Id } from "../_generated/dataModel";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import { hmacSha256Hex } from "../utils/sha256";
 import {
@@ -2610,6 +2611,33 @@ describe("recordVerifiedSubscriptionHandler", () => {
     });
     expect(db.rows("subscriptions")).toMatchObject([
       { purchaseToken: "ios-unknown-reason-token", state: "Unknown" },
+    ]);
+  });
+
+  it("ignores an older iOS renewal verified after a newer one", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      productId: "pro_monthly",
+    };
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 20 * day,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: now - 10 * day,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", expiresAt: now + 20 * day },
     ]);
   });
 

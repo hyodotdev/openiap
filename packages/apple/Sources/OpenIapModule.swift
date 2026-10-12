@@ -218,11 +218,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
 #if os(iOS)
 extension OpenIapModule: SKPaymentTransactionObserver {
+    @available(*, deprecated, message: "OpenIapModule is never registered with SKPaymentQueue. This conformance will be removed in the next major release.")
     public func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         guard let storeKit = (try? provider) as? OpenIapStoreKitModule else { return }
         storeKit.paymentQueue(queue, updatedTransactions: transactions)
     }
 
+    @available(*, deprecated, message: "OpenIapModule is never registered with SKPaymentQueue. This conformance will be removed in the next major release.")
     public func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
         guard let storeKit = (try? provider) as? OpenIapStoreKitModule else { return false }
         return storeKit.paymentQueue(queue, shouldAddStorePayment: payment, for: product)

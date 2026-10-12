@@ -140,6 +140,56 @@ final class OpenIapTests: XCTestCase {
         XCTAssertNil(lifecycle.currentConnectedGeneration())
     }
 
+    private enum TaskLocalProbe {
+        @TaskLocal static var value = false
+    }
+
+    func testConnectionTasksDoNotInheritCallerTaskLocals() async throws {
+        // Mirrors requestPurchase connecting lazily while its error suppression is set.
+        let lifecycle = OpenIapConnectionLifecycle()
+        let initWork = try TaskLocalProbe.$value.withValue(true) {
+            try XCTUnwrap(lifecycle.makeInitTask { _ in
+                let listener = Task { TaskLocalProbe.value }
+                return await listener.value
+            })
+        }
+        let listenerSawCallerValue = try await initWork.task.value
+        XCTAssertFalse(listenerSawCallerValue)
+    }
+
+    private func storeKitModuleSource() throws -> String {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/OpenIapStoreKitModule.swift")
+        return try String(contentsOf: sourceURL, encoding: .utf8)
+    }
+
+    /// Name of the function that contains the end of `prefix`.
+    private func enclosingFunction(of prefix: String) -> String {
+        prefix.components(separatedBy: "func ").last ?? ""
+    }
+
+    func testOnlyPurchasesCheckCanMakePayments() throws {
+        let checks = try storeKitModuleSource().components(separatedBy: "AppStore.canMakePayments")
+        XCTAssertEqual(checks.count - 1, 1, "Screen Time and MDM must not block reads or restore")
+        XCTAssertTrue(enclosingFunction(of: checks[0]).hasPrefix("performRequestPurchase("))
+    }
+
+    func testStoreProductQueryFailureEmissionIsOptIn() throws {
+        let source = try storeKitModuleSource()
+        let body = try XCTUnwrap(
+            source.components(separatedBy: "private func storeProduct(for sku: String").last?
+                .components(separatedBy: "\n    }\n").first
+        )
+        XCTAssertTrue(body.contains("if emitsLookupFailure {"), "a failed product query is throw-only unless the caller opts in")
+
+        // requestPurchase emits its own canonical error; only the promoted-product read keeps its old event.
+        let optIns = source.components(separatedBy: "emitsLookupFailure: true")
+        XCTAssertEqual(optIns.count - 1, 1)
+        XCTAssertTrue(enclosingFunction(of: optIns[0]).hasPrefix("getPromotedProductIOS("))
+    }
+
     func testProductIOS() {
         let product = makeSampleProduct()
         XCTAssertEqual(product.id, "dev.hyo.premium")

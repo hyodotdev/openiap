@@ -118,6 +118,7 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
   }
 
   // Legacy structured error — `new ConvexError(JSON.stringify({ error, message }))`.
+  // Receipt verification adds `retryAfterSec` when the store was unreachable.
   try {
     const data = JSON.parse(error.data);
 
@@ -125,6 +126,7 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
       v.object({
         error: v.string(),
         message: v.string(),
+        retryAfterSec: v.optional(v.number()),
       }),
       data,
     );
@@ -133,6 +135,9 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
       return {
         code: result.output.error,
         message: result.output.message,
+        ...(result.output.retryAfterSec !== undefined
+          ? { retryAfterSec: result.output.retryAfterSec }
+          : {}),
       };
     }
   } catch {

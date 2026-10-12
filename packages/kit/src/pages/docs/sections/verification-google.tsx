@@ -186,7 +186,8 @@ export default function VerificationGooglePage() {
               <td className="px-3 py-2">
                 Every store-side failure after credentials load: token not
                 found, auth or permission failure, or a response IAPKit could
-                not interpret. The originating reason is in the message.
+                not interpret. The message names the reason. An outage returns
+                503 with Retry-After and keeps the last confirmed result.
               </td>
             </tr>
             <tr>

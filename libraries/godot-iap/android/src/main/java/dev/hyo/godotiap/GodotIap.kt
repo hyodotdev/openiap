@@ -4,7 +4,9 @@ import dev.hyo.openiap.*
 import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
+import dev.hyo.openiap.helpers.finishPurchaseToken
 import dev.hyo.openiap.store.OpenIapStore
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
@@ -78,6 +80,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     private val developerProvidedBillingListener = OpenIapDeveloperProvidedBillingListener { details ->
         emitSignal("developer_provided_billing", JSONObject(details.toJson()).toString())
+    }
+
+    // A dropped billing service ends the bridge connection, so initConnection connects again.
+    private val connectionStateListener = OpenIapConnectionStateListener {
+        pluginScope.launch(Dispatchers.IO) { endConnection() }
     }
 
     override fun getPluginName(): String = "GodotIap"
@@ -214,6 +221,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         targetStore.addUserChoiceBillingListener(userChoiceBillingListener)
         targetStore.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
         module.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
+        module.addConnectionStateListener(connectionStateListener)
     }
 
     private fun detachListeners(module: OpenIapProtocol, targetStore: OpenIapStore): Unit {
@@ -222,6 +230,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         targetStore.removeUserChoiceBillingListener(userChoiceBillingListener)
         targetStore.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
         module.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
+        module.removeConnectionStateListener(connectionStateListener)
     }
 
     // ==========================================
@@ -233,10 +242,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("fetchProducts", requestJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("error", "Not initialized")
-                put("products", JSONArray())
-            }.toString()
+            return notInitializedJson("products" to JSONArray())
         }
 
         return runBlocking {
@@ -297,11 +303,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 responseJson.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("fetchProducts", e)
-                JSONObject().apply {
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                    put("products", JSONArray())
-                }.toString()
+                failureJson(e, fields = arrayOf("products" to JSONArray()))
             }
         }
     }
@@ -320,10 +322,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("requestPurchase", paramsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         val requestProps = try {
@@ -377,11 +376,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             }
         } catch (e: Exception) {
             GodotIapLog.failure("requestPurchase", e)
-            return JSONObject().apply {
-                put("success", false)
-                put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                put("error", e.message)
-            }.toString()
+            return failureJson(e)
         }
 
         pluginScope.launch {
@@ -410,10 +405,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("finishTransaction", mapOf("purchaseJson" to purchaseJson, "isConsumable" to isConsumable))
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -456,11 +448,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("finishTransaction", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -477,7 +465,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("restorePurchases called")
 
         if (!isInitialized) {
-            return restoreNotInitialized()
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -488,22 +476,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 countAvailable = { store.getAvailablePurchases(null).size },
             )
         }
-    }
-
-    @UsedByGodot
-    fun getAvailablePurchases(): String = getAvailablePurchasesInternal(null)
-
-    @UsedByGodot
-    fun getAvailablePurchasesWithOptions(optionsJson: String): String {
-        val options = try {
-            PurchaseOptions.fromJson(
-                GodotIapHelper.jsonObjectToMap(JSONObject(optionsJson))
-            )
-        } catch (e: Exception) {
-            GodotIapLog.failure("getAvailablePurchasesWithOptions", e)
-            return JSONArray().toString()
-        }
-        return getAvailablePurchasesInternal(options)
     }
 
     /**
@@ -521,10 +493,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             )
         } catch (error: Exception) {
             GodotIapLog.failure("getAvailablePurchasesResultWithOptions", error)
-            return availablePurchasesFailure(
-                code = "developer-error",
-                message = error.message ?: "Invalid purchase options",
-            )
+            return failureJson(ErrorCode.DeveloperError.toJson(), error.message ?: "Invalid purchase options")
         }
         return getAvailablePurchasesResultInternal(options)
     }
@@ -533,10 +502,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("getAvailablePurchasesResult called")
 
         if (!isInitialized) {
-            return availablePurchasesFailure(
-                code = "not-prepared",
-                message = "IAP connection is not initialized",
-            )
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -555,52 +521,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     put("success", true)
                     put("purchases", purchasesArray)
                 }.toString()
-            } catch (error: OpenIapError) {
-                GodotIapLog.failure("getAvailablePurchasesResult", error)
-                val payload = serializeOpenIapError(error)
-                availablePurchasesFailure(
-                    code = payload["code"]?.toString() ?: "service-error",
-                    message = error.message,
-                )
             } catch (error: Exception) {
                 GodotIapLog.failure("getAvailablePurchasesResult", error)
-                availablePurchasesFailure(
-                    code = "service-error",
-                    message = error.message ?: "Failed to get available purchases",
-                )
-            }
-        }
-    }
-
-    private fun availablePurchasesFailure(code: String, message: String): String =
-        JSONObject().apply {
-            put("success", false)
-            put("code", code)
-            put("error", message)
-        }.toString()
-
-    private fun getAvailablePurchasesInternal(options: PurchaseOptions?): String {
-        GodotIapLog.debug("getAvailablePurchases called")
-
-        if (!isInitialized) {
-            return JSONArray().toString()
-        }
-
-        return runBlocking {
-            try {
-                val purchases = store.getAvailablePurchases(options)
-                val purchasesArray = JSONArray()
-
-                for (purchase in purchases) {
-                    val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
-                    purchasesArray.put(JSONObject(sanitized))
-                }
-
-                GodotIapLog.result("getAvailablePurchases", "count=${purchasesArray.length()}")
-                purchasesArray.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("getAvailablePurchases", e)
-                JSONArray().toString()
+                failureJson(error)
             }
         }
     }
@@ -609,40 +532,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     // Subscriptions
     // ==========================================
 
-    @UsedByGodot
-    fun getActiveSubscriptions(subscriptionIdsJson: String?): String {
-        GodotIapLog.debug("getActiveSubscriptions called")
-
-        if (!isInitialized) {
-            return JSONArray().toString()
-        }
-
-        return runBlocking {
-            try {
-                val subscriptionIds = subscriptionIdsJson?.let {
-                    val array = JSONArray(it)
-                    val list = mutableListOf<String>()
-                    for (i in 0 until array.length()) {
-                        list.add(array.getString(i))
-                    }
-                    list.takeIf { ids -> ids.isNotEmpty() }
-                }
-
-                val subscriptions = store.getActiveSubscriptions(subscriptionIds)
-                val subscriptionsArray = JSONArray()
-
-                for (sub in subscriptions) {
-                    val sanitized = GodotIapHelper.sanitizeDictionary(sub.toJson())
-                    subscriptionsArray.put(JSONObject(sanitized))
-                }
-
-                GodotIapLog.result("getActiveSubscriptions", "count=${subscriptionsArray.length()}")
-                subscriptionsArray.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("getActiveSubscriptions", e)
-                JSONArray().toString()
-            }
-        }
+    /** An empty or missing filter means every subscription. */
+    private fun parseSubscriptionIds(subscriptionIdsJson: String?): List<String>? {
+        val array = JSONArray(subscriptionIdsJson ?: return null)
+        return List(array.length()) { array.getString(it) }.takeIf { it.isNotEmpty() }
     }
 
     /** Structured entitlement query used by the failure-aware GDScript API. */
@@ -651,22 +544,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("getActiveSubscriptionsResult called")
 
         if (!isInitialized) {
-            return activeSubscriptionsFailure(
-                code = "not-prepared",
-                message = "IAP connection is not initialized",
-            )
+            return notInitializedJson()
         }
 
         return runBlocking {
             try {
-                val subscriptionIds = subscriptionIdsJson?.let {
-                    val array = JSONArray(it)
-                    val list = mutableListOf<String>()
-                    for (i in 0 until array.length()) {
-                        list.add(array.getString(i))
-                    }
-                    list.takeIf { ids -> ids.isNotEmpty() }
-                }
+                val subscriptionIds = parseSubscriptionIds(subscriptionIdsJson)
                 val subscriptionsArray = JSONArray()
                 for (subscription in store.getActiveSubscriptions(subscriptionIds)) {
                     val sanitized = GodotIapHelper.sanitizeDictionary(subscription.toJson())
@@ -676,53 +559,24 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     put("success", true)
                     put("subscriptions", subscriptionsArray)
                 }.toString()
-            } catch (error: OpenIapError) {
-                GodotIapLog.failure("getActiveSubscriptionsResult", error)
-                val payload = serializeOpenIapError(error)
-                activeSubscriptionsFailure(
-                    code = payload["code"]?.toString() ?: "service-error",
-                    message = error.message,
-                )
             } catch (error: Exception) {
                 GodotIapLog.failure("getActiveSubscriptionsResult", error)
-                activeSubscriptionsFailure(
-                    code = "service-error",
-                    message = error.message ?: "Failed to get active subscriptions",
-                )
+                failureJson(error)
             }
         }
     }
-
-    private fun activeSubscriptionsFailure(code: String, message: String): String =
-        JSONObject().apply {
-            put("success", false)
-            put("code", code)
-            put("error", message)
-        }.toString()
 
     @UsedByGodot
     fun hasActiveSubscriptions(subscriptionIdsJson: String?): String {
         GodotIapLog.debug("hasActiveSubscriptions called")
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("hasActive", false)
-                put("code", "not-prepared")
-                put("error", "IAP connection is not initialized")
-            }.toString()
+            return notInitializedJson("hasActive" to false)
         }
 
         return runBlocking {
             try {
-                val subscriptionIds = subscriptionIdsJson?.let {
-                    val array = JSONArray(it)
-                    val list = mutableListOf<String>()
-                    for (i in 0 until array.length()) {
-                        list.add(array.getString(i))
-                    }
-                    list.takeIf { ids -> ids.isNotEmpty() }
-                }
+                val subscriptionIds = parseSubscriptionIds(subscriptionIdsJson)
 
                 val hasActive = store.hasActiveSubscriptions(subscriptionIds)
 
@@ -733,18 +587,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("hasActiveSubscriptions", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("hasActive", false)
-                    put(
-                        "code",
-                        (e as? OpenIapError)
-                            ?.let(::serializeOpenIapError)
-                            ?.get("code")
-                            ?: "service-error",
-                    )
-                    put("error", e.message ?: "Failed to check active subscriptions")
-                }.toString()
+                failureJson(e, fields = arrayOf("hasActive" to false))
             }
         }
     }
@@ -758,28 +601,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("acknowledgePurchaseAndroid called")
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
-        return runBlocking {
-            try {
-                openIap.acknowledgePurchaseAndroid(purchaseToken)
-                GodotIapLog.result("acknowledgePurchaseAndroid", "success")
-                JSONObject().apply {
-                    put("success", true)
-                }.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("acknowledgePurchaseAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
-            }
-        }
+        return finishPurchaseTokenJson(purchaseToken, isConsumable = false)
+            .also { GodotIapLog.result("acknowledgePurchaseAndroid", it) }
     }
 
     @UsedByGodot
@@ -787,40 +613,29 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("consumePurchaseAndroid called")
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
-        return runBlocking {
+        return finishPurchaseTokenJson(purchaseToken, isConsumable = true)
+            .also { GodotIapLog.result("consumePurchaseAndroid", it) }
+    }
+
+    private fun finishPurchaseTokenJson(purchaseToken: String, isConsumable: Boolean): String =
+        runBlocking {
             try {
-                openIap.consumePurchaseAndroid(purchaseToken)
-                GodotIapLog.result("consumePurchaseAndroid", "success")
-                JSONObject().apply {
-                    put("success", true)
-                }.toString()
+                openIap.finishPurchaseToken(purchaseToken, isConsumable)
+                JSONObject().put("success", true).toString()
             } catch (e: Exception) {
-                GodotIapLog.failure("consumePurchaseAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
-    }
 
     @UsedByGodot
     fun isBillingProgramAvailableAndroid(billingProgram: String): String {
         GodotIapLog.payload("isBillingProgramAvailableAndroid", billingProgram)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("isAvailable", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson("isAvailable" to false)
         }
 
         return runBlocking {
@@ -837,12 +652,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("isBillingProgramAvailableAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("isAvailable", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e, fields = arrayOf("isAvailable" to false))
             }
         }
     }
@@ -852,10 +662,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("getBillingChoiceInfoAndroid", paramsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -877,11 +684,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("getBillingChoiceInfoAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -891,18 +694,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("launchExternalLinkAndroid", paramsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
-        val activity = activity ?: run {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Activity not available")
-            }.toString()
-        }
+        val activity = activity
+            ?: return failureJson(OpenIapError.MissingCurrentActivity.CODE, "Activity not available")
 
         return runBlocking {
             try {
@@ -930,11 +726,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("launchExternalLinkAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -968,13 +760,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     fun openRedeemOfferCode(): String {
         GodotIapLog.debug("openRedeemOfferCode called")
 
-        val activity = activity ?: run {
-            return JSONObject().apply {
-                put("success", false)
-                put("code", OpenIapError.MissingCurrentActivity.CODE)
-                put("error", "Activity not available")
-            }.toString()
-        }
+        val activity = activity
+            ?: return failureJson(OpenIapError.MissingCurrentActivity.CODE, "Activity not available")
 
         return try {
             val provider = if (isInitialized) openIap else OpenIapProvider.create(activity)
@@ -986,11 +773,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             }.toString()
         } catch (e: Exception) {
             GodotIapLog.failure("openRedeemOfferCode", e)
-            JSONObject().apply {
-                put("success", false)
-                put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                put("error", e.message)
-            }.toString()
+            failureJson(e)
         }
     }
 
@@ -1009,11 +792,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 json.optString("developerBillingType", "").takeIf { it.isNotBlank() }
             )
         } catch (e: Exception) {
-            JSONObject().apply {
-                put("success", false)
-                put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                put("error", e.message)
-            }.toString()
+            failureJson(e)
         }
     }
 
@@ -1024,10 +803,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("createBillingProgramReportingDetailsAndroid", billingProgram)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -1045,11 +821,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -1059,28 +831,21 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("showBillingProgramInformationDialogAndroid", paramsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
-        val activity = activity ?: run {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Activity not available")
-            }.toString()
-        }
+        val activity = activity
+            ?: return failureJson(OpenIapError.MissingCurrentActivity.CODE, "Activity not available")
 
         return runBlocking {
             try {
                 val json = JSONObject(paramsJson)
                 val token = json.optString("externalTransactionToken", "")
                 if (token.isBlank()) {
-                    return@runBlocking JSONObject().apply {
-                        put("success", false)
-                        put("error", "externalTransactionToken is required")
-                    }.toString()
+                    return@runBlocking failureJson(
+                        ErrorCode.DeveloperError.toJson(),
+                        "externalTransactionToken is required",
+                    )
                 }
                 val result = store.showBillingProgramInformationDialog(
                     activity,
@@ -1097,11 +862,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("showBillingProgramInformationDialogAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -1111,18 +872,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("showInAppMessagesAndroid", paramsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
-        val activity = activity ?: run {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Activity not available")
-            }.toString()
-        }
+        val activity = activity
+            ?: return failureJson(OpenIapError.MissingCurrentActivity.CODE, "Activity not available")
 
         return runBlocking {
             try {
@@ -1138,11 +892,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("showInAppMessagesAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -1156,10 +906,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.debug("getStorefrontAndroid called")
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -1172,11 +919,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("getStorefrontAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -1186,10 +929,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("deepLinkToSubscriptions", optionsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         return runBlocking {
@@ -1209,11 +949,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("deepLinkToSubscriptions", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e)
             }
         }
     }
@@ -1227,54 +963,17 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         GodotIapLog.payload("verifyPurchase", propsJson)
 
         if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
+            return notInitializedJson()
         }
 
         return runBlocking {
             try {
-                val json = JSONObject(propsJson)
-                val googleJson = json.optJSONObject("google")
-
-                if (googleJson != null) {
-                    // Server-side verification with Google options
-                    val googleOptions = VerifyPurchaseGoogleOptions(
-                        sku = googleJson.getString("sku"),
-                        accessToken = googleJson.getString("accessToken"),
-                        packageName = googleJson.getString("packageName"),
-                        purchaseToken = googleJson.getString("purchaseToken"),
-                        isSub = googleJson.optBoolean("isSub", false)
-                    )
-
-                    val props = VerifyPurchaseProps(google = googleOptions)
-                    val result = openIap.verifyPurchase(props)
-                    val resultMap = result.toJson()
-
-                    val response = JSONObject().apply {
-                        for ((key, value) in resultMap) {
-                            put(key, value)
-                        }
-                        // Set success after loop to avoid being overwritten by resultMap
-                        put("success", true)
-                    }.toString()
-                    GodotIapLog.result("verifyPurchase", "verified")
-                    response
-                } else {
-                    GodotIapLog.warning("verifyPurchase: Missing google verification options")
-                    JSONObject().apply {
-                        put("success", false)
-                        put("error", "Missing google verification options")
-                    }.toString()
-                }
+                val result = openIap.verifyPurchase(GodotIapHelper.parseVerifyPurchaseProps(propsJson))
+                GodotIapLog.result("verifyPurchase", "verified")
+                JSONObject(result.toJson()).put("success", true).toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("verifyPurchase", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("code", (e as? OpenIapError)?.code ?: ErrorCode.PurchaseVerificationFailed.toJson())
-                    put("error", e.message)
-                }.toString()
+                failureJson(e, ErrorCode.PurchaseVerificationFailed)
             }
         }
     }
@@ -1308,34 +1007,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val jsonBridge = object {
-                    fun objectToMap(json: JSONObject): Map<String, Any?> {
-                        val map = linkedMapOf<String, Any?>()
-                        val keys = json.keys()
-                        while (keys.hasNext()) {
-                            val key = keys.next()
-                            map[key] = valueToAny(json.opt(key))
-                        }
-                        return map
-                    }
-
-                    fun arrayToList(json: JSONArray): List<Any?> {
-                        return (0 until json.length()).map { index ->
-                            valueToAny(json.opt(index))
-                        }
-                    }
-
-                    fun valueToAny(value: Any?): Any? {
-                        if (value == null || value == JSONObject.NULL) return null
-                        return when (value) {
-                            is JSONObject -> objectToMap(value)
-                            is JSONArray -> arrayToList(value)
-                            else -> value
-                        }
-                    }
-                }
-
-                val propsMap = jsonBridge.objectToMap(JSONObject(propsJson))
+                val propsMap = GodotIapHelper.jsonObjectToMap(JSONObject(propsJson))
                 val providerProps = VerifyPurchaseWithProviderProps.fromJson(propsMap)
                     ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
 

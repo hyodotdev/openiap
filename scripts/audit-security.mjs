@@ -599,6 +599,89 @@ export function findActionFamilyDrift(sources, exempt = LOCKSTEP_EXEMPT) {
   return findings;
 }
 
+/**
+ * A job that reads a stored secret must name a deployment environment, so the
+ * secret can live there behind a branch policy instead of at repository level.
+ */
+export function findUngatedSecretJobs(source, filename) {
+  let workflow;
+  try {
+    workflow = parseYaml(source);
+  } catch {
+    return [];
+  }
+  const secretsIn = (value) => [
+    ...new Set(
+      [
+        ...JSON.stringify(value ?? null).matchAll(
+          /secrets(?:\.|\[\\?['"])([A-Za-z0-9_]+)/gu,
+        ),
+      ]
+        .map(([, name]) => name)
+        .filter((name) => name !== "GITHUB_TOKEN"),
+    ),
+  ];
+  const findings = [];
+  const workflowSecrets = secretsIn(workflow?.env);
+  if (workflowSecrets.length > 0) {
+    findings.push(
+      `${filename}: workflow env reads ${workflowSecrets.join(", ")}; move it to the job that needs it`,
+    );
+  }
+  for (const [jobId, job] of Object.entries(workflow?.jobs ?? {})) {
+    const names = secretsIn(job);
+    if (names.length > 0 && !job?.environment) {
+      findings.push(
+        `${filename}: job ${jobId} reads ${names.join(", ")} without an environment`,
+      );
+    }
+  }
+  return findings;
+}
+
+function globToRegExp(glob) {
+  const body = glob
+    .split("*")
+    .map((part) => part.replace(/[.+?^${}()|[\]\\]/gu, "\\$&"))
+    .join("[^/]*");
+  return new RegExp(`^${body}/?$`, "u");
+}
+
+/**
+ * Dependabot's github-actions "/" entry reads only .github/workflows, so each
+ * composite action needs its own directory, and an action shared across
+ * directories must arrive in one PR or the family-drift check above fails it.
+ */
+export function findDependabotActionGaps(source, actionDirectories) {
+  const entries = (parseYaml(source)?.updates ?? []).filter(
+    (entry) => entry["package-ecosystem"] === "github-actions",
+  );
+  const findings = [];
+  for (const directory of actionDirectories) {
+    const covered = entries.some((entry) =>
+      [entry.directory, ...(entry.directories ?? [])]
+        .filter(Boolean)
+        .some((glob) => globToRegExp(glob).test(`/${directory}`)),
+    );
+    if (!covered) {
+      findings.push(
+        `.github/dependabot.yml: no github-actions entry covers /${directory}`,
+      );
+    }
+  }
+  for (const entry of entries) {
+    const groupsByName = Object.values(entry.groups ?? {}).some(
+      (group) => group?.["group-by"] === "dependency-name",
+    );
+    if ((entry.directories ?? []).length > 1 && !groupsByName) {
+      findings.push(
+        ".github/dependabot.yml: a github-actions entry with several directories needs a group with group-by: dependency-name",
+      );
+    }
+  }
+  return findings;
+}
+
 export async function auditWorkflowFiles(paths) {
   const runExpressions = paths.flatMap((path) =>
     findWorkflowRunInterpolations(
@@ -615,7 +698,23 @@ export async function auditWorkflowFiles(paths) {
   const drift = findActionFamilyDrift(
     paths.map((path) => [path, readFileSync(resolve(repoRoot, path), "utf8")]),
   );
-  const findings = [...runExpressions, ...dependencyFindings, ...drift];
+  const ungatedSecrets = paths.flatMap((path) =>
+    findUngatedSecretJobs(readFileSync(resolve(repoRoot, path), "utf8"), path),
+  );
+  const actionDirectories = paths
+    .filter((path) => /^\.github\/actions\/[^/]+\/action\.ya?ml$/u.test(path))
+    .map((path) => dirname(path));
+  const dependabotGaps = findDependabotActionGaps(
+    readFileSync(resolve(repoRoot, ".github/dependabot.yml"), "utf8"),
+    actionDirectories,
+  );
+  const findings = [
+    ...runExpressions,
+    ...dependencyFindings,
+    ...drift,
+    ...ungatedSecrets,
+    ...dependabotGaps,
+  ];
   if (findings.length > 0) {
     throw new Error(findings.join("\n"));
   }

@@ -69,7 +69,7 @@ Before adding a release card, inspect the newest entries and package tags.
 - Use only sections with distinct user-visible behavior or required action.
   Keep any shared summary first, affected native and framework notes next,
   migration or integration action after them, and `Package Releases` at the
-  bottom (see Editing Release Notes).
+  bottom (see the card format in `05-docs-patterns.md`).
 - IAPKit and its MCP deploy as services and have no package version. Include
   their user-visible behavior in the consolidated card, but never invent an
   IAPKit item in the versioned `Package Releases` list.
@@ -119,65 +119,10 @@ whether work belongs to the existing train.
 
 ## Editing Release Notes
 
-Release notes live in:
-
-`packages/docs/src/pages/docs/updates/releases.tsx`
-
-Follow the existing card pattern:
-
-- Add the newest note near the top of `allNotes`.
-- Use a stable kebab-case `id` with the date.
-- Use `new Date('YYYY-MM-DD')`.
-- Use `AnchorLink` for the heading.
-- Keep package links in a `Package Releases` list.
-- Name the expected version once per package behavior group and in the linked
-  `Package Releases` list.
-- Link issues and PRs when they exist.
-- Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
-  is produced by `./scripts/sync-versions.sh`.
-- Register the card's package tags as aliases and render their hidden anchors:
-
-  ```tsx
-  aliases: MY_RELEASES.map((release) => release.tag),
-  // and, first thing inside the card's <div>:
-  {MY_RELEASES.map((release) => (
-    <span key={release.tag} id={release.tag} aria-hidden="true" />
-  ))}
-  ```
-
-  Release workflows link a version's own anchor
-  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and resolves a
-  hash only against a note's `id` or `aliases`, so a card without them leaves
-  those links on page one — a dead link that still looks alive. `bun run
-audit:docs` fails when a card lists `Package Releases` without them.
-
-Card section layout (mandatory for multi-package cards):
-
-- Use only the sections that contain distinct user-visible behavior or
-  information readers must act on. When present, keep this order:
-  1. `Common changes`
-  2. `Protocols and native packages`
-  3. `Framework libraries`
-  4. `Integration notes` (or migration notes)
-  5. The bordered `Package Releases` block
-- Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
-  `React Native`, `Expo`, ... headings). Use one parent `<li>` per package,
-  following the package-specific grouping rule in
-  `knowledge/internal/05-docs-patterns.md`: put `<strong>package version</strong>`
-  once, then one inline change or a nested `<ul>` for multiple changes.
-  Never repeat the package/version label on each nested change.
-- `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
-  `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
-  framework SDK bullets. Omit the section when it would be empty.
-- A package whose only change is selecting a shared native dependency,
-  regenerating types, or republishing the same behavior belongs only in
-  `Package Releases`. Do not manufacture one boilerplate bullet per wrapper.
-- One bullet may name multiple packages when the same user-visible behavior and
-  caveats apply to all of them. Keep distinct changes in separate nested
-  bullets within their package group.
-- The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
-  August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
-  reference implementations of this layout.
+Follow the card format in
+[`knowledge/internal/05-docs-patterns.md#card-format`](../../../knowledge/internal/05-docs-patterns.md#card-format):
+id, date, heading, package-tag aliases, section order, and the
+`Package Releases` block.
 
 ## Reader-First Writing Standard
 

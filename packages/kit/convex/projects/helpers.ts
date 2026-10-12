@@ -233,36 +233,14 @@ export async function deleteProjectWithData(
     return false;
   }
 
-  const webhookIdempotencyKeys = await ctx.db
-    .query("webhookIdempotencyKeys")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .take(PROJECT_DELETION_PAGE);
-  for (const key of webhookIdempotencyKeys) {
-    await ctx.db.delete(key._id);
-  }
-  if (webhookIdempotencyKeys.length > 0) {
-    await scheduleProjectDeletionContinuation(ctx, projectId);
-    return false;
-  }
-
-  const webhookEvent = await ctx.db
+  const webhookEvents = await ctx.db
     .query("webhookEvents")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .first();
-  if (webhookEvent) {
-    // Widen-phase rows may predate webhookIdempotencyKeys.projectId. Their
-    // eventId still links them to this project, so remove that legacy row
-    // before deleting the event that makes the ownership discoverable.
-    const legacyKeys = await ctx.db
-      .query("webhookIdempotencyKeys")
-      .withIndex("by_event", (q) => q.eq("eventId", webhookEvent._id))
-      .take(PROJECT_DELETION_PAGE);
-    for (const key of legacyKeys) await ctx.db.delete(key._id);
-    // A corrupt/legacy deployment can contain more than the natural-key
-    // invariant's single row. Keep the event until every linked key is gone.
-    if (legacyKeys.length < PROJECT_DELETION_PAGE) {
-      await ctx.db.delete(webhookEvent._id);
-    }
+    .take(PROJECT_DELETION_PAGE);
+  for (const event of webhookEvents) {
+    await ctx.db.delete(event._id);
+  }
+  if (webhookEvents.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }
@@ -371,6 +349,18 @@ export async function deleteProjectWithData(
     await ctx.db.delete(stats._id);
   }
   if (purchaseStats.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const admissionBuckets = await ctx.db
+    .query("verificationAdmissionBuckets")
+    .withIndex("by_project_and_bucket", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const bucket of admissionBuckets) {
+    await ctx.db.delete(bucket._id);
+  }
+  if (admissionBuckets.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }

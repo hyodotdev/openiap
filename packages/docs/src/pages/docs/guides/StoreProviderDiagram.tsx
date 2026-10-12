@@ -135,10 +135,8 @@ export default function StoreProviderDiagram() {
         </ol>
         <p>
           The store provider runs on the device. A{' '}
-          <Link to="/commerce-protocol/overview">
-            Commerce Protocol provider
-          </Link>{' '}
-          runs on your backend. Selecting a store provider does not add receipt
+          <Link to="/commerce-protocol">Commerce Protocol provider</Link> runs
+          on your backend. Selecting a store provider does not add receipt
           verification support to a backend.
         </p>
       </div>

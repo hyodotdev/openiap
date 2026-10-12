@@ -30,6 +30,7 @@ import TypesExternalPurchaseLink from './types/external-purchase-link';
 import TypesVerifyPurchase from './types/verify-purchase';
 import TypesVerifyPurchaseWithProviderProps from './types/verify-purchase-with-provider-props';
 import TypesVerifyPurchaseWithProviderResult from './types/verify-purchase-with-provider-result';
+import TypesAppOwnershipVerification from './types/app-ownership-verification';
 import TypesSubscriptionPeriodIOS from './types/ios/subscription-period-ios';
 import TypesSubscriptionBillingPlanIOS from './types/ios/subscription-billing-plan-ios';
 import TypesPaymentModeIOS from './types/ios/payment-mode-ios';
@@ -254,6 +255,10 @@ function Docs() {
                 {
                   to: '/docs/types/verify-purchase-with-provider-result',
                   label: 'VerifyPurchaseWithProviderResult',
+                },
+                {
+                  to: '/docs/types/app-ownership-verification',
+                  label: 'AppOwnershipVerification',
                 },
                 {
                   to: '/docs/types/alternative-billing-types',
@@ -855,6 +860,10 @@ function Docs() {
         <Route
           path="types/verify-purchase-with-provider-result"
           element={<TypesVerifyPurchaseWithProviderResult />}
+        />
+        <Route
+          path="types/app-ownership-verification"
+          element={<TypesAppOwnershipVerification />}
         />
         <Route
           path="types/ios/discount-offer-ios"

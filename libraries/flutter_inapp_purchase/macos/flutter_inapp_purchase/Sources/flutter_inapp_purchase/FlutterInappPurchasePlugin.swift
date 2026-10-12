@@ -7,15 +7,12 @@ import OpenIAP
 public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     private static let TAG = "[FlutterInappPurchase]"
     private var channel: FlutterMethodChannel?
-    private var updateListenerTask: Task<Void, Never>?
     // OpenIAP listener tokens
     private var purchaseUpdatedToken: OpenIAP.Subscription?
     private var purchaseErrorToken: OpenIAP.Subscription?
     private var promotedProductToken: OpenIAP.Subscription?
     private var subscriptionBillingIssueToken: OpenIAP.Subscription?
     private var purchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions()
-    // No local StoreKit caches; OpenIAP handles state internally
-    private var processedTransactionIds: Set<String> = []
     
     // Override local catalog with canonical OpenIAP messages
     private func defaultMessage(for code: ErrorCode) -> String {
@@ -80,8 +77,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         let instance = FlutterInappPurchasePlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
         instance.channel = channel
-        // Set up OpenIAP listeners as early as possible (Expo-style)
-        instance.setupOpenIapListeners()
+        // Listeners attach in initConnection, once Dart can receive events;
+        // packages/apple holds a promoted product until then.
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -207,6 +204,11 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "openRedeemOfferCode":
             openRedeemOfferCode(result: result)
             
+        case "beginRefundRequestIOS":
+            withSku(from: call.arguments, result: result) { sku in
+                beginRefundRequestIOS(sku: sku, result: result)
+            }
+
         case "getPromotedProductIOS":
             getPromotedProductIOS(result: result)
             
@@ -420,13 +422,6 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func cleanupExistingState() {
-        updateListenerTask?.cancel()
-        updateListenerTask = nil
-        processedTransactionIds.removeAll()
-        removeOpenIapListeners()
-    }
-    
     // MARK: - OpenIAP Listeners
     private func setupOpenIapListeners() {
         FlutterIapLog.debug("Setting up OpenIAP listeners")
@@ -729,6 +724,24 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     }
     
     @available(iOS 15.0, macOS 14.0, tvOS 15.0, *)
+    private func beginRefundRequestIOS(sku: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("beginRefundRequestIOS called for sku=\(sku)")
+        Task { @MainActor in
+            do {
+                let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: sku)
+                FlutterIapLog.result("beginRefundRequestIOS", value: status ?? "nil")
+                result(status)
+            } catch let purchaseError as PurchaseError {
+                FlutterIapLog.failure("beginRefundRequestIOS", error: purchaseError)
+                result(flutterError(from: purchaseError, fallbackProductId: sku))
+            } catch {
+                FlutterIapLog.failure("beginRefundRequestIOS", error: error)
+                let code: ErrorCode = .serviceError
+                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
+            }
+        }
+    }
+
     private func showManageSubscriptionsIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("showManageSubscriptionsIOS called")
         Task { @MainActor in

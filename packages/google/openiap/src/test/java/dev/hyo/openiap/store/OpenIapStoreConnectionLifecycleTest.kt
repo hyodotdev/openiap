@@ -1,6 +1,12 @@
 package dev.hyo.openiap.store
 
+import dev.hyo.openiap.FetchProductsResult
+import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.MutationAcknowledgePurchaseAndroidHandler
+import dev.hyo.openiap.MutationConsumePurchaseAndroidHandler
+import dev.hyo.openiap.MutationFinishTransactionHandler
+import dev.hyo.openiap.QueryFetchProductsHandler
 import dev.hyo.openiap.MutationEndConnectionHandler
 import dev.hyo.openiap.MutationInitConnectionHandler
 import dev.hyo.openiap.MutationRequestPurchaseHandler
@@ -185,7 +191,7 @@ class OpenIapStoreConnectionLifecycleTest {
     }
 }
 
-private class FakeOpenIapProtocol {
+internal class FakeOpenIapProtocol {
     val purchaseUpdateListeners = linkedSetOf<OpenIapPurchaseUpdateListener>()
     val purchaseErrorListeners = linkedSetOf<OpenIapPurchaseErrorListener>()
     val connectionStateListeners = linkedSetOf<OpenIapConnectionStateListener>()
@@ -194,8 +200,28 @@ private class FakeOpenIapProtocol {
     var connectionResult = true
     var endConnectionError: Exception? = null
     var purchaseResult: RequestPurchaseResult? = null
+    var fetchProductsResult: FetchProductsResult = FetchProductsResultProducts(emptyList())
+    val finishTransactionCalls = java.util.concurrent.atomic.AtomicInteger(0)
+    var storeAcceptsFinish = true
+    val finishedTokens = mutableListOf<String>()
 
     private val initConnection: MutationInitConnectionHandler = { connectionResult }
+    private val fetchProducts: QueryFetchProductsHandler = { fetchProductsResult }
+    var finishDelayMillis = 0L
+    var finishError: Exception? = null
+    private val finishTransaction: MutationFinishTransactionHandler = { _, _ ->
+        finishTransactionCalls.incrementAndGet()
+        kotlinx.coroutines.delay(finishDelayMillis)
+        finishError?.let { throw it }
+    }
+    private val acknowledgePurchase: MutationAcknowledgePurchaseAndroidHandler = { token ->
+        finishedTokens += "acknowledge:$token"
+        storeAcceptsFinish
+    }
+    private val consumePurchase: MutationConsumePurchaseAndroidHandler = { token ->
+        finishedTokens += "consume:$token"
+        storeAcceptsFinish
+    }
     private val endConnection: MutationEndConnectionHandler = {
         endConnectionError?.let { throw it }
         true
@@ -215,6 +241,10 @@ private class FakeOpenIapProtocol {
             "getEndConnection" -> endConnection
             "getGetAvailablePurchases" -> getAvailablePurchases
             "getRequestPurchase" -> requestPurchase
+            "getFetchProducts" -> fetchProducts
+            "getFinishTransaction" -> finishTransaction
+            "getAcknowledgePurchaseAndroid" -> acknowledgePurchase
+            "getConsumePurchaseAndroid" -> consumePurchase
             "addPurchaseUpdateListener" -> {
                 purchaseUpdateListeners += args.single() as OpenIapPurchaseUpdateListener
                 Unit

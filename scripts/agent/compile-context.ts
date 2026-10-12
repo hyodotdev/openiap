@@ -305,6 +305,9 @@ and checks. Read the code for the responsibility being implemented:
 Explain what the person gets and what they must decide before showing code.
 Implement in the target project, install and run from clean source, and verify
 the promised behavior. Report commands, actual results, and remaining work.
+Every recorded run in this reference uses fixture store evidence, fictional
+prices and a controlled clock with real local HTTP, SQLite and signatures. None
+proves a real store purchase, device checkout or production conformance.
 Separate fixture checks, real store sandbox tests, and profile conformance;
 do not claim one from another or hide failures by reducing the declared scope.
 
@@ -361,8 +364,8 @@ The connection example keeps experiment assignments in the host product and join
 signed events using authenticated project/store/environment/purchase-chain/user
 associations. For events without a purchase chain, configure a trusted account,
 store, environment and product assignment; never invent transaction references.
-One receiver processes two store fixtures. The same paywall handler and receiver
-also run against IAPKit’s local handlers, with store/OIDC fixtures, via the
+One receiver processes two stores. The same paywall handler and receiver
+also run against IAPKit’s local handlers via the
 optional fresh-example argument to run-commerce-interop.mjs. Its actual signed Google
 events exercise the missing-chain account policy. Read the recorded source and
 reproduction instructions in paywall-provider-run.json for that separate check. Pending, canceled or
@@ -371,24 +374,22 @@ Use event ID deduplication in the authenticated emitter/project scope, not
 transaction ID deduplication. Keep unknown or inferred amounts out of known
 purchase totals, group currencies separately, and flag refunds/recoveries for
 reconciliation. The demo's gross purchase observations are not net revenue, MRR
-or ARPU. Its store adapters and prices are fictional; real local HTTP, signatures
-and SQLite run. It extends the prior backend with AI and conversation context,
+or ARPU. It extends the prior backend with AI and conversation context,
 not an independent one-prompt reproduction or an external product integration.
 
 The recorded replacement check at
 https://openiap.dev/commerce-protocol/ecosystem#composition-proof uses the same
 app backend and event receiver with the example and IAPKit. Read its report,
 configuration and limits; compatible APIs do not migrate ownership records or
-provision providers. Real local services run with simulated store responses.
+provision providers.
 The new backend build at https://openiap.dev/commerce-example/from-scratch.md
 starts from an independent initial commit with the exact CLI output and AI input,
 then adds seven implementation commits. Each commit links its code, diff, real
 run output and screen. The final source, first conformance failure, correction,
 clean-checkout replay, and intentional failing negative controls are retained.
 This was an iterative build by an AI with prior conversation context, not an
-independent model trial or one-prompt guarantee. Store evidence, sessions and
-time are fixtures; HTTP, SQLite, signatures, process restarts and erasure run
-locally. Read the evidence's precise profile scope before reporting conformance.
+independent model trial or one-prompt guarantee. Read the evidence's precise
+profile scope before reporting conformance.
 Its dashboard buttons run finished code; they do not generate it.
 The older prototype walkthrough is a separate record; do not attach the new
 commit history to its screenshots or claim those are the same implementation.
@@ -396,8 +397,6 @@ commit history to its screenshots or claim those are the same implementation.
 Recorded example walkthrough: https://openiap.dev/docs/guides/ai-assistants#existing-project-example
 Matching source and run commands: https://openiap.dev/commerce-protocol/implementation#local-example
 Store sandbox and device checks: https://openiap.dev/docs/guides/testing
-The recorded backend uses simulated store evidence and time. It does not prove
-real store purchases or production conformance; report those checks separately.
 
 The optional CLI requires Node.js 20+:
 
@@ -418,24 +417,28 @@ Check reference: https://github.com/hyodotdev/openiap/tree/main/packages/cli
 `;
   const deprecationMigrationReference = `## Deprecations and major-version migration
 
+Each coordinated major train removes the OpenIAP-owned aliases deprecated for it:
+
 - OpenIAP 3.0, \`react-native-iap\` 16.0.0, \`expo-iap\` 5.0.0,
   \`flutter_inapp_purchase\` 10.0.0, \`godot-iap\` 3.0.0,
   \`kmp-iap\` 3.0.0, and \`OpenIap.Maui\` 2.0.0 expose only the canonical
   OpenIAP-owned contract.
-- Generated declarations and handwritten wrappers contain no member from the
-  completed removal catalog. Raw JavaScript, Expo config, Flutter
-  MethodChannel, and Godot dictionary inputs must also use canonical keys.
-- Removed aliases are rejected or ignored rather than regaining precedence
-  when canonical input is absent. Historical redirects remain only to route
-  documentation bookmarks to current replacements.
-- StoreKit, Play Billing, Amazon, Horizon, and internal SDK transport response
-  normalization are upstream compatibility, not user-authored legacy input,
-  and remain until their upstream contracts permit removal.
-- Future deprecations require one named future major, one canonical
-  replacement, generated warnings where supported, migration documentation,
-  and executable absence checks at the removal boundary. Patch and minor
-  releases must not remove them early.
-- See https://openiap.dev/docs/updates/migration for the complete mapping.
+- Client Protocol 1.0.0, openiap-apple and openiap-google 4.0.0,
+  \`react-native-iap\` 17.0.0, \`expo-iap\` 6.0.0,
+  \`flutter_inapp_purchase\` 11.0.0, \`godot-iap\` 4.0.0, \`kmp-iap\` 4.0.0,
+  and \`OpenIap.Maui\` 3.0.0 also remove the per-platform redeem-code calls,
+  Horizon \`success\`, and \`OpenIapVersion.specVersion\`:
+  https://openiap.dev/docs/updates/migration#client-protocol-1-removals
+
+After a removal, generated declarations, wrappers, and raw JavaScript, Expo
+config, Flutter MethodChannel, and Godot dictionary inputs accept only
+canonical names; removed aliases are rejected or ignored, never given
+precedence. Historical redirects remain only to route documentation bookmarks
+to current replacements. StoreKit, Play Billing, Amazon, Horizon, and internal
+SDK transport normalization are upstream compatibility, not legacy input, and
+stay until their upstream contracts permit removal. A deprecation names one
+future major and one canonical replacement; patch and minor releases never
+remove it early. Complete mapping: https://openiap.dev/docs/updates/migration
 `;
 
   // Read all external API docs
@@ -710,11 +713,18 @@ import { useEffect } from 'react';
 import { Button } from 'react-native';
 import { useIAP } from 'expo-iap'; // or 'react-native-iap'
 
+// verifyOnServer and grantPremium are your app's functions.
 function PremiumButton() {
   const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
     onPurchaseSuccess: (purchase) => {
-      void finishTransaction({ purchase, isConsumable: true }).catch((error) => {
-        console.warn('Transaction finalization failed:', error);
+      void (async () => {
+        // Verify on your backend, grant access, then finish.
+        if (!(await verifyOnServer(purchase))) return;
+        await grantPremium(purchase);
+        // premium is a non-consumable; finishing must not consume it.
+        await finishTransaction({ purchase, isConsumable: false });
+      })().catch((error) => {
+        console.warn('Purchase handling failed:', error);
       });
     },
   });
@@ -746,10 +756,17 @@ function PremiumButton() {
 ### Flutter
 \`\`\`dart
 final iap = FlutterInappPurchase.instance;
+// verifyOnServer and grantPremium are your app's functions.
+Future<void> handlePurchase(Purchase purchase) async {
+  // Verify on your backend, grant access, then finish.
+  if (!await verifyOnServer(purchase)) return;
+  await grantPremium(purchase);
+  // premium is a non-consumable; finishing must not consume it.
+  await iap.finishTransaction(purchase: purchase, isConsumable: false);
+}
 iap.purchaseUpdatedListener.listen((purchase) {
-  iap
-      .finishTransaction(purchase: purchase, isConsumable: true)
-      .catchError((Object error) => print('Transaction finalization failed: $error'));
+  handlePurchase(purchase)
+      .catchError((Object error) => print('Purchase handling failed: $error'));
 });
 final connected = await iap.initConnection();
 if (!connected) throw StateError('Store connection failed');
@@ -773,11 +790,17 @@ GodotIapPlugin.request_purchase(props)
 ### Kotlin Multiplatform
 \`\`\`kotlin
 val iap = KmpIAP()
+// verifyOnServer and grantPremium are your app's functions.
 val purchaseJob = appScope.launch(
     start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED
 ) {
     iap.purchaseUpdatedListener.collect { purchase ->
-        iap.finishTransaction(purchase = purchase, isConsumable = true)
+        // Verify on your backend, grant access, then finish.
+        if (verifyOnServer(purchase)) {
+            grantPremium(purchase)
+            // premium is a non-consumable; finishing must not consume it.
+            iap.finishTransaction(purchase = purchase, isConsumable = false)
+        }
     }
 }
 val connected = iap.initConnection()
@@ -804,23 +827,28 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
     Type = ProductQueryType.InApp,
 });
 
-async Task FinishPurchaseSafelyAsync(Purchase purchase)
+// VerifyOnServerAsync and GrantPremiumAsync are your app's methods.
+async Task HandlePurchaseAsync(Purchase purchase)
 {
     try
     {
+        // Verify on your backend, grant access, then finish.
+        if (!await VerifyOnServerAsync(purchase)) return;
+        await GrantPremiumAsync(purchase);
+        // premium is a non-consumable; finishing must not consume it.
         await ((MutationResolver)iap).FinishTransactionAsync(
             new PurchaseInput(purchase),
-            isConsumable: true
+            isConsumable: false
         );
     }
     catch (Exception error)
     {
-        Console.WriteLine($"Transaction finalization failed: {error.Message}");
+        Console.WriteLine($"Purchase handling failed: {error.Message}");
     }
 }
 
 ((IOpenIap)iap).PurchaseUpdated.Subscribe(
-    purchase => _ = FinishPurchaseSafelyAsync(purchase));
+    purchase => _ = HandlePurchaseAsync(purchase));
 \`\`\`
 
 ---
@@ -1011,6 +1039,17 @@ await restorePurchases();
 const purchases = await getAvailablePurchases();
 \`\`\`
 
+### Verify App Ownership
+\`\`\`typescript
+// Checks the app download itself, separately from in-app purchases.
+const evidence = await verifyAppOwnership({
+  google: { cloudProjectNumber: '123456789012', requestHash }, // Play only
+});
+// evidence.status: 'licensed' | 'unlicensed' | 'unknown'. Unknown is never a
+// denial; Play always returns unknown with a token your backend must verify.
+\`\`\`
+Guide: https://openiap.dev/docs/apis/verify-app-ownership
+
 ### Redeem Offer Code
 \`\`\`typescript
 // Opens the selected store's offer-code redemption flow.
@@ -1073,6 +1112,8 @@ type ProductSubscription = ProductSubscriptionAndroid | ProductSubscriptionIOS;
 interface PurchaseCommon {
   id: string;
   productId: string;
+  store: IapStore;         // 'apple' | 'google' | 'horizon' | 'amazon' | 'unknown'
+  storeId: string;         // apple, play, horizon, amazon, or a community provider id
   transactionDate: number;
   purchaseState: PurchaseState;
   purchaseToken?: string | null;
@@ -1114,7 +1155,7 @@ interface PurchaseError {
 ## API Naming Convention
 
 - **Cross-platform**: No suffix (fetchProducts, requestPurchase)
-- **iOS-only**: \`IOS\` suffix (syncIOS, getStorefrontIOS)
+- **iOS-only**: \`IOS\` suffix (syncIOS, getPromotedProductIOS)
 - **Android-only**: \`Android\` suffix (acknowledgePurchaseAndroid)
 
 ## Platform-Specific APIs
@@ -1165,9 +1206,8 @@ identifier, or central runtime.
 - Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 
 The recorded example follows seven build milestones with reviewed source revisions, AI tasks,
-code changes, actual captures, and a correction/recheck log. It uses a fictional
-store and controlled clock with real local HTTP, SQLite and signed delivery. It is not a production provider or a
-full profile conformance claim. Its execution report is available at
+code changes, actual captures, and a correction/recheck log. It is not a
+production provider. Its execution report is available at
 https://openiap.dev/commerce-example/run.json.
 The IAPKit replacement check keeps the same app backend and receiver while
 switching between the example and IAPKit for Apple, Google, Amazon and Horizon.
@@ -1178,9 +1218,8 @@ lifecycle events in beta; Horizon remains an ownership check. Live Amazon SNS
 and LAT transitions remain unverified. Read entitlements.productIds for access;
 all four stores cover account erasure. The app backend authenticates store
 identity. Consumable quantities need a separate durable fulfillment ledger.
-Actual IAPKit handlers and local Convex storage run with fixture store
-responses; Apple cryptographic verification and Google OIDC are substituted.
-This does not prove device checkout or real store authentication. Read the
+It runs the actual IAPKit handlers and local Convex storage; Apple
+cryptographic verification and Google OIDC are substituted. Read the
 scope, command and source hashes at
 https://openiap.dev/commerce-protocol/ecosystem#composition-proof and
 https://openiap.dev/commerce-composition/iapkit-run.json.

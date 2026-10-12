@@ -150,11 +150,20 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('');
   }
 
+  /** Doc lines, then the canonical deprecation so Dart callers get an analyzer warning. */
   protected generateDocComment(description: string | undefined, indent: string = ''): void {
     if (!description) return;
     for (const line of description.split(/\r?\n/)) {
       this.emit(line ? `${indent}/// ${line}` : `${indent}///`);
     }
+    this.generateDeprecationAnnotation(description, indent);
+  }
+
+  private generateDeprecationAnnotation(description: string | undefined, indent: string = ''): void {
+    const reason = this.deprecationReason(description);
+    if (!reason) return;
+    const escaped = reason.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('$', '\\$');
+    this.emit(`${indent}@Deprecated('${escaped}')`);
   }
 
   // ============================================================================
@@ -181,9 +190,17 @@ export class DartPlugin extends CodegenPlugin {
     this.emit("    final normalized = value.toLowerCase().replaceAll('_', '-');");
     this.emit('    switch (normalized) {');
 
+    // Matching stays case-insensitive, so each IR spelling becomes its normalized label.
+    const owners = new Map<string, string>();
     for (const value of values) {
       const caseName = this.escapeKeyword(this.enumValueCase(value.name));
-      this.emit(`      case '${value.rawValue}':`);
+      const labels = [...new Set(this.enumSpellings(value).map((spelling) => spelling.toLowerCase().replaceAll('_', '-')))];
+      for (const label of labels) {
+        const owner = owners.get(label);
+        if (owner) throw new Error(`${irEnum.name} enum values ${owner} and ${value.name} both normalize to "${label}" in Dart.`);
+        owners.set(label, value.name);
+        this.emit(`      case '${label}':`);
+      }
       this.emit(`        return ${irEnum.name}.${caseName};`);
     }
 
@@ -300,6 +317,7 @@ export class DartPlugin extends CodegenPlugin {
       this.emit(`  final ${propertyType} ${this.escapeKeyword(field.name)};`);
     }
     if (needsAlternativeBilling) {
+      this.emit("  @Deprecated('Not part of the OpenIAP schema and never set by native code. It will be removed in the next major release.')");
       this.emit('  final bool? isAlternativeBilling;');
     }
 
@@ -781,6 +799,7 @@ export class DartPlugin extends CodegenPlugin {
     for (const field of sortedFields) {
       const pascalField = toPascalCasePreserveIOS(field.name);
       const aliasName = `${rootName}${pascalField}Handler`;
+      this.generateDeprecationAnnotation(this.operationFieldDescription(field), '  ');
       this.emit(`  final ${aliasName}? ${this.escapeKeyword(field.name)};`);
     }
 

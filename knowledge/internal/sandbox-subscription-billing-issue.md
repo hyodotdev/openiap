@@ -40,7 +40,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 
 1. Sign the device out of its production Apple ID. Sign the sandbox tester into **Settings → App Store → Sandbox Account**.
 2. Open the Example app:
-   - `packages/apple/Example/OpenIapExample.xcodeproj` — run the `OpenIapExample` scheme.
+   - `packages/apple/Example/Martie.xcodeproj` — run the `OpenIapExample` scheme.
 3. In-app: navigate to the **Subscription Flow** screen and subscribe to `dev.hyo.martie.premium`.
 4. Force a billing issue on the **device** (requires iOS 16+ / iPadOS 16+):
    - Go to **Settings → Developer → Sandbox Account → Manage → Account Settings**.

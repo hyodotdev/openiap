@@ -458,7 +458,7 @@ async function handleExternalPurchase(externalUrl: string) {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 @available(iOS 17.4, *)
 func handleExternalPurchase(externalUrl: String) async {

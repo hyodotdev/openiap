@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { FakeStore, StoreOutcome } from '../fake-store/fake-store.mjs';
 import { ReferenceImplementation } from '../fake-store/reference-implementation.mjs';
+import { capabilityLevel } from '../spec/generated-spec.mjs';
 
 /**
  * Reference adapter — the worked example of the contract in README.md.
@@ -24,7 +25,7 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
     return iap;
   };
 
-  return {
+  const adapter = {
     implementation: 'openiap-reference',
     store,
     declaredCapabilities: {
@@ -212,9 +213,18 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
 
       'subscriptions.has-active-agrees-with-get-active': async () => {
         const impl = fresh();
-        assert.equal(await impl.hasActiveSubscriptions(), false);
+        const agrees = async (expected) => {
+          const active = (await impl.getActiveSubscriptions()).some((item) => item.isActive);
+          assert.equal(active, expected);
+          assert.equal(await impl.hasActiveSubscriptions(), active);
+        };
+        await agrees(false);
+        // A pending subscription is listed but not active.
+        fake.forceOutcome('dev.hyo.martie.premium', StoreOutcome.Pending);
         await impl.requestPurchase({ sku: 'dev.hyo.martie.premium' });
-        assert.equal(await impl.hasActiveSubscriptions(), true);
+        await agrees(false);
+        await impl.requestPurchase({ sku: 'dev.hyo.martie.pro' });
+        await agrees(true);
       },
 
       // --- errors --------------------------------------------------------
@@ -303,10 +313,14 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
       },
 
       'capabilities.declared-capabilities-match-the-matrix': async () => {
-        // Verified against the matrix by the runner's capability gating; this
-        // asserts the adapter actually declares something to check.
-        assert.ok(Object.keys(createReferenceAdapter().declaredCapabilities).length > 0);
+        const declared = Object.entries(adapter.declaredCapabilities);
+        assert.ok(declared.length > 0, 'the adapter must declare its capabilities');
+        for (const [capability, level] of declared) {
+          const expected = capabilityLevel(capability, adapter.store);
+          assert.equal(level, expected, `${adapter.store} declares ${capability} as ${level}`);
+        }
       },
     },
   };
+  return adapter;
 }

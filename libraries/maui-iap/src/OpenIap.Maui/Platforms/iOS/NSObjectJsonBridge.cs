@@ -34,19 +34,7 @@ internal static class NSObjectJsonBridge
         var json = new JsonObject();
         foreach (var key in dict.Keys)
         {
-            if (key?.ToString() != "__typename") continue;
-            json["__typename"] = ToJsonNode(dict.ObjectForKey(key));
-            break;
-        }
-
-        foreach (var key in dict.Keys)
-        {
-            if (key is null) continue;
-            var k = key.ToString();
-            if (k is null) continue;
-            if (k == "__typename") continue;
-            var v = dict.ObjectForKey(key);
-            json[k] = ToJsonNode(v);
+            if (key?.ToString() is { } k) json[k] = ToJsonNode(dict.ObjectForKey(key));
         }
         return json;
     }

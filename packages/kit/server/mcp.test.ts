@@ -1,8 +1,30 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { handleIapKitMcpRequest } from "./mcp";
+const convexMock = vi.hoisted(() => ({ query: vi.fn() }));
+vi.mock("./convex", () => ({ client: { query: convexMock.query } }));
+
+const { handleIapKitMcpRequest } = await import("./mcp");
+
+const SECRET_KEY = "openiap-kit_sk_hosted";
 
 describe("IAPKit MCP route handler", () => {
+  beforeEach(() => {
+    convexMock.query.mockReset();
+    convexMock.query.mockResolvedValue({ found: true });
+  });
+
+  it("creates no session until Convex confirms the secret key", async () => {
+    convexMock.query.mockResolvedValue({ found: false });
+
+    const response = await postMcp(INITIALIZE);
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("mcp-session-id")).toBeNull();
+    expect(convexMock.query).toHaveBeenCalledWith(expect.anything(), {
+      apiKey: SECRET_KEY,
+    });
+  });
+
   it("initializes a Codex-compatible MCP session", async () => {
     const initResponse = await postMcp({
       jsonrpc: "2.0",
@@ -101,6 +123,7 @@ function postMcp(
       headers: {
         accept: "application/json, text/event-stream",
         "content-type": "application/json",
+        authorization: `Bearer ${SECRET_KEY}`,
         ...(sessionId ? { "mcp-session-id": sessionId } : {}),
         ...extraHeaders,
       },
@@ -116,11 +139,23 @@ function rawPostMcp(body: string): Promise<Response> {
       headers: {
         accept: "application/json, text/event-stream",
         "content-type": "application/json",
+        authorization: `Bearer ${SECRET_KEY}`,
       },
       body,
     }),
   );
 }
+
+const INITIALIZE = {
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "vitest", version: "0.0.0" },
+  },
+};
 
 function parseSseJson(raw: string): any {
   const dataLine = raw.split("\n").find((line) => line.startsWith("data: "));

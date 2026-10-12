@@ -1,34 +1,45 @@
 package io.github.hyochan.kmpiap
 
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class IapkitBaseUrlBridgeTest {
+    // The delegate hands IAPKit options to openiap-google through this JSON boundary.
     @Test
-    fun playBridgeForwardsBaseUrlToOpenIap() {
-        val source = File(
-            "src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt"
-        ).readText()
+    fun androidBridgeForwardsBaseUrlAndAmazonFields() {
+        val options = RequestVerifyPurchaseWithIapkitProps(
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                receiptId = "receipt",
+                sandbox = true,
+                userId = "user",
+                expectedProductId = "premium",
+            ),
+            apiKey = "key",
+            baseUrl = "https://kit.example.test",
+        )
 
-        assertTrue(source.contains("baseUrl = iapkitOptions.baseUrl"))
+        val android = dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps.fromJson(options.toJson())
+
+        assertEquals("https://kit.example.test", android.baseUrl)
+        assertEquals("receipt", android.amazon?.receiptId)
+        assertEquals(true, android.amazon?.sandbox)
+        assertEquals("user", android.amazon?.userId)
+        assertEquals("premium", android.amazon?.expectedProductId)
     }
 
     @Test
-    fun platformBridgesPreserveAmazonVerificationFields() {
-        val androidSource = File(
-            "src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt"
-        ).readText()
+    fun platformBridgesPreserveIapkitEnvironment() {
         val iosSource = File(
             "src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt"
         ).readText()
-
         val helperSource = File(
             "src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt"
         ).readText()
 
-        assertTrue(androidSource.contains("expectedProductId = amazon.expectedProductId"))
-        assertTrue(androidSource.contains("androidResult.toKmpIapkitResult()"))
         assertTrue(helperSource.contains("environment = environment"))
         // Unknown values degrade; openiap-google already decoded them safely.
         assertTrue(helperSource.contains("getOrDefault(IapkitPurchaseState.Unknown)"))

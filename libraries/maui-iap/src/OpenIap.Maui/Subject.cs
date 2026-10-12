@@ -47,6 +47,21 @@ internal sealed class Subject<T> : IObservable<T>
         }
     }
 
+    /// <summary>Ends the stream: current observers complete and are released.</summary>
+    public void OnCompleted()
+    {
+        IObserver<T>[] snapshot;
+        lock (_lock)
+        {
+            snapshot = _observers.ToArray();
+            _observers.Clear();
+        }
+        foreach (var o in snapshot)
+        {
+            try { o.OnCompleted(); } catch { }
+        }
+    }
+
     private void Unsubscribe(IObserver<T> observer)
     {
         lock (_lock) _observers.Remove(observer);

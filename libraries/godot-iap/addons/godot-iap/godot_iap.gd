@@ -75,8 +75,11 @@ signal subscription_billing_issue(purchase: Dictionary)
 
 # Native plugin reference
 var _native_plugin: Object = null
+## Every wrapper shares one native plugin: the Apple GDExtension object owns the StoreKit listeners.
+static var _shared_native_plugin: Object = null
 var _is_connected: bool = false
-static var _is_initialized: bool = false
+## True once _ready() set this wrapper up; tests set it early to keep injected fakes.
+var _is_initialized: bool = false
 var _purchase_updated_listener_options: Dictionary = {}
 var _apple_async_results: Dictionary = {}
 var _apple_async_result_order: Array[String] = []
@@ -115,31 +118,29 @@ func _exit_tree() -> void:
 func _init_native_plugin() -> void:
 	print("[GodotIap] Initializing native plugin...")
 	print("[GodotIap] Platform: ", _platform)
+	if _shared_native_plugin == null:
+		_shared_native_plugin = _load_native_plugin()
+	_native_plugin = _shared_native_plugin
+	if _native_plugin == null:
+		print("[GodotIap] Native plugin not available - expected in the editor or on desktop")
+	elif _is_apple():
+		_connect_signals_apple()
+	elif _platform == "Android":
+		_connect_signals_android()
 
-	# iOS/macOS: Try ClassDB for SwiftGodot GDExtension
-	if _is_apple():
-		if ClassDB.class_exists("GodotIap") and ClassDB.can_instantiate("GodotIap"):
-			_native_plugin = ClassDB.instantiate("GodotIap")
-			if _native_plugin:
-				print("[GodotIap] Native plugin loaded via ClassDB (", _platform, ")")
-				_connect_signals_apple()
-				return
 
-	# Android: Try GodotIap singleton
+func _load_native_plugin() -> Object:
+	# iOS/macOS: SwiftGodot GDExtension
+	if _is_apple() and ClassDB.class_exists("GodotIap") and ClassDB.can_instantiate("GodotIap"):
+		print("[GodotIap] Native plugin loaded via ClassDB (", _platform, ")")
+		return ClassDB.instantiate("GodotIap")
+	# Android: plugin singleton
 	if _platform == "Android":
-		print("[GodotIap] Checking for Android singleton...")
 		if Engine.has_singleton("GodotIap"):
-			_native_plugin = Engine.get_singleton("GodotIap")
 			print("[GodotIap] Native plugin loaded via Engine singleton (Android)")
-			print("[GodotIap] Plugin class: ", _native_plugin.get_class())
-			_connect_signals_android()
-			return
-		else:
-			print("[GodotIap] ERROR: GodotIap singleton not found!")
-
-	# No native plugin available - desktop/editor mode
-	print("[GodotIap] Native plugin not available - running in no native plugin")
-	print("[GodotIap] This is expected when running in the editor or on desktop")
+			return Engine.get_singleton("GodotIap")
+		print("[GodotIap] ERROR: GodotIap singleton not found!")
+	return null
 
 func _connect_signals_apple() -> void:
 	if not _native_plugin:
@@ -1226,7 +1227,7 @@ func _get_active_subscriptions_result_raw(subscription_ids: Array = []) -> Dicti
 			"code": "not-prepared",
 			"error": "Native plugin not available",
 		}
-	var ids_json = JSON.stringify(subscription_ids) if subscription_ids.size() > 0 else ("" if _is_apple() else null)
+	var ids_json := _subscription_ids_json(subscription_ids)
 	if _platform == "Android":
 		var result = JSON.parse_string(
 			_native_plugin.call("getActiveSubscriptionsResult", ids_json)
@@ -1252,6 +1253,13 @@ func _get_active_subscriptions_result_raw(subscription_ids: Array = []) -> Dicti
 		var subscriptions = JSON.parse_string(payload.get("subscriptionsJson", ""))
 		return _validated_active_subscription_batch(subscriptions, _platform)
 	return _active_subscription_failure("feature-not-supported", "Unsupported platform")
+
+
+## Apple reads "" as no filter; Android's JNI String parameter cannot take null.
+func _subscription_ids_json(subscription_ids: Array) -> String:
+	if subscription_ids.is_empty() and _is_apple():
+		return ""
+	return JSON.stringify(subscription_ids)
 
 
 func _validated_active_subscription_batch(value, platform_name: String) -> Dictionary:
@@ -1317,7 +1325,7 @@ func has_active_subscriptions_result(
 ) -> Dictionary:
 	print("[GodotIap] has_active_subscriptions_result called")
 	if _native_plugin and (_platform == "Android" or _is_apple()):
-		var ids_json = JSON.stringify(subscription_ids) if subscription_ids.size() > 0 else ("" if _is_apple() else null)
+		var ids_json := _subscription_ids_json(subscription_ids)
 		var result = null
 		if _is_apple():
 			result = await _call_native_async("hasActiveSubscriptions", [ids_json])
@@ -1708,16 +1716,25 @@ func can_present_external_purchase_notice_ios() -> bool:
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
 func present_external_purchase_notice_sheet_ios() -> Variant:
-	if _native_plugin and _platform == "iOS":
-		var payload = await _call_native_async(
-			"presentExternalPurchaseNoticeSheetIOS", [], _apple_async_ui_timeout_seconds
-		)
-		if payload.get("success", false):
-			var decoded = JSON.parse_string(payload.get("resultJson", "{}"))
-			if decoded is Dictionary:
-				return Types.ExternalPurchaseNoticeResultIOS.from_dict(decoded)
-	var default_result = Types.ExternalPurchaseNoticeResultIOS.new()
-	return default_result
+	# A failure must never read as CONTINUE, the enum's zero value.
+	var failed = Types.ExternalPurchaseNoticeResultIOS.new()
+	failed.result = Types.ExternalPurchaseNoticeAction.DISMISSED
+	if not (_native_plugin and _platform == "iOS"):
+		failed.error = "External purchase notice requires the iOS native plugin"
+		return failed
+	var payload = await _call_native_async(
+		"presentExternalPurchaseNoticeSheetIOS", [], _apple_async_ui_timeout_seconds
+	)
+	if payload.get("success", false):
+		var decoded = JSON.parse_string(payload.get("resultJson", "{}"))
+		if decoded is Dictionary:
+			var notice = Types.ExternalPurchaseNoticeResultIOS.from_dict(decoded)
+			if notice != null:
+				return notice
+		payload = {"code": "billing-response-json-parse-error", "error": "Invalid external purchase notice result"}
+	failed.error = String(payload.get("error", "External purchase notice failed"))
+	_purchase_failure(String(payload.get("code", "service-error")), failed.error)
+	return failed
 
 ## Present external purchase link.
 ## @param url: String - external purchase URL
@@ -2131,12 +2148,21 @@ func create_billing_program_reporting_details_android(billing_program, developer
 ##
 ## See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 func show_billing_program_information_dialog_android(params) -> Variant:
-	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return Types.BillingResultAndroid.from_dict(result)
-	return Types.BillingResultAndroid.new()
+	# A failure must never read as response code 0 (OK); 6 is Play's ERROR.
+	var failed = Types.BillingResultAndroid.new()
+	failed.response_code = 6
+	if not (_native_plugin and _platform == "Android"):
+		failed.debug_message = "The billing information dialog requires the Android native plugin"
+		return failed
+	var result_json = _native_plugin.call("showBillingProgramInformationDialogAndroid", JSON.stringify(params.to_dict()))
+	var result = JSON.parse_string(result_json)
+	if not result is Dictionary:
+		result = {"code": "billing-response-json-parse-error", "error": "Invalid billing information dialog result"}
+	if result.get("success", false):
+		return Types.BillingResultAndroid.from_dict(result)
+	failed.debug_message = String(result.get("error", "The billing information dialog failed"))
+	_purchase_failure(String(result.get("code", "service-error")), failed.debug_message)
+	return failed
 
 ## Show Play Billing in-app messages (Android).
 ## @param params: Types.InAppMessageParamsAndroid or null

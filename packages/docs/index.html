@@ -6,6 +6,19 @@
     <link rel="icon" type="image/webp" sizes="16x16" href="/favicon-16.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
+    <!-- Applies the theme before first paint; DarkModeToggle saves it. -->
+    <script>
+      (function () {
+        var theme = null;
+        try {
+          theme = localStorage.getItem('theme');
+        } catch (error) {}
+        var dark = theme
+          ? theme === 'dark'
+          : matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
 
     <!-- Route metadata and content are prerendered from the React pages. -->
 

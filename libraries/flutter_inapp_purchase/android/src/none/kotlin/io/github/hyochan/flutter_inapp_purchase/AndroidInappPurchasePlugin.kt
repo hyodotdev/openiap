@@ -13,8 +13,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
 
     fun setChannel(channel: MethodChannel?) = Unit
 
-    fun onDetachedFromActivity() = Unit
-
     fun dispose() = Unit
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {

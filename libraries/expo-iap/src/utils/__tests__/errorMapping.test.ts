@@ -3,9 +3,11 @@ import {
   isNetworkError,
   isRecoverableError,
   getUserFriendlyErrorMessage,
+} from '../errorMapping';
+import {
   createPurchaseErrorFromNativeException,
   OPENIAP_ERROR_ENVELOPE_PREFIX,
-} from '../errorMapping';
+} from '../nativeError';
 import {ErrorCode} from '../../types';
 
 // Expo builds a rejected function's message from the exception's

@@ -279,6 +279,24 @@ describe('Public API (index.ts)', () => {
       expect(fn).toHaveBeenCalledWith(err);
     });
 
+    it('delivers canonical codes for native purchase-error events', () => {
+      const fn = jest.fn();
+      purchaseErrorListener(fn);
+      const passed = registeredListener(0);
+
+      passed({code: 'developer-billing-error', message: 'emit failed'});
+      passed({code: 'E_USER_CANCELED', message: 'legacy cancel'});
+
+      expect(fn).toHaveBeenNthCalledWith(1, {
+        code: ErrorCode.Unknown,
+        message: 'emit failed',
+      });
+      expect(fn).toHaveBeenNthCalledWith(2, {
+        code: ErrorCode.UserCancelled,
+        message: 'legacy cancel',
+      });
+    });
+
     it('promotedProductListenerIOS warns on non‑iOS, adds on iOS', () => {
       Object.assign(Platform, {OS: 'android'});
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -1595,6 +1613,44 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.acknowledgePurchaseAndroid).not.toHaveBeenCalled();
     });
 
+    it('Android rejects when the store refuses the acknowledgement', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      const envelope = {
+        code: 'service-error',
+        message: 'Billing error',
+        debugMessage: 'The store did not acknowledge the purchase',
+        platform: 'android',
+      };
+      (ExpoIapModule.acknowledgePurchaseAndroid as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue({
+          code: 'service-error',
+          message: `OPENIAP_ERROR_JSON:${JSON.stringify(envelope)}`,
+        });
+
+      await expect(
+        finishTransaction({
+          purchase: {
+            store: 'google',
+            storeId: 'play',
+            productId: 'premium',
+            isAutoRenewing: false,
+            purchaseState: 'purchased',
+            purchaseToken: 'refused-token',
+            quantity: 1,
+            transactionDate: Date.now(),
+            id: 'txn-refused',
+          },
+        }),
+      ).rejects.toMatchObject({
+        name: '[expo-iap]: PurchaseError',
+        code: ErrorCode.ServiceError,
+        debugMessage: 'The store did not acknowledge the purchase',
+        productId: 'premium',
+      });
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
+
     it('finishTransaction rejects on unsupported platform', async () => {
       const originalOs = Platform.OS;
       Object.assign(Platform, {OS: 'web'});
@@ -2081,6 +2137,33 @@ describe('Public API (index.ts)', () => {
         apple: {sku: 'com.example.product'},
       });
       expect(result).toEqual(mockResult);
+    });
+
+    it('returns the flat iOS union member the native bridge encodes', async () => {
+      Object.assign(Platform, {OS: 'ios'});
+      const nativeResult = {
+        __typename: 'VerifyPurchaseResultIOS',
+        isValid: true,
+        jwsRepresentation: 'jws',
+        receiptData: 'receipt',
+        latestTransaction: {
+          __typename: 'PurchaseIOS',
+          id: '2000000000000001',
+          productId: 'com.example.product',
+          store: 'apple',
+          storeId: 'apple',
+        },
+      };
+      (ExpoIapModule.verifyPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(nativeResult);
+
+      const result = await verifyPurchase({
+        apple: {sku: 'com.example.product'},
+      });
+
+      expect(result).toBe(nativeResult);
+      expect(result.isValid).toBe(true);
     });
 
     it('calls native module on Android', async () => {

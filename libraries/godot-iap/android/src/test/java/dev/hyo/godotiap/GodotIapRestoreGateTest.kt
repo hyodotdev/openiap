@@ -165,7 +165,7 @@ class GodotIapRestoreGateTest {
 
     @Test
     fun `restore before connecting keeps the not-prepared code`() {
-        val result = JSONObject(restoreNotInitialized())
+        val result = JSONObject(notInitializedJson())
         assertFalse(result.getBoolean("success"))
         assertEquals("not-prepared", result.getString("code"))
         assertEquals("IAP connection is not initialized", result.getString("error"))

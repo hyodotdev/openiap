@@ -1,7 +1,10 @@
+/** The bindings the runner judges; any other name is rejected up front. */
+export type ConformanceBinding = "rest" | "graphql";
+
 export interface ResultOutcome {
   kind: "result";
   status: number;
-  /** Normalized shape: null members stripped, binding-neutral. */
+  /** REST: the body as served. GraphQL: null members stripped (SPEC.md §7). */
   data: unknown;
   /**
    * REQUIRED on a GraphQL result: the pre-normalization shape. The runner
@@ -32,8 +35,12 @@ export interface GraphqlErrorOutcome {
   status: number;
   /** Normalized first code (INVALID_REQUEST when the envelope is codeless). */
   code: string;
-  /** The whole envelope, entry by entry, in order. */
-  errors: Array<{ message: string; code?: string }>;
+  /** The whole envelope, entry by entry, in order; `extensions` is scanned for leaks too. */
+  errors: Array<{
+    message: string;
+    code?: string;
+    extensions?: Record<string, unknown>;
+  }>;
   /** Whether the response carried a `data` member (SPEC.md §7 pre-execution rule). */
   hasData: boolean;
 }
@@ -58,7 +65,7 @@ export type ConformanceOutcome =
   | RestErrorOutcome;
 
 export interface ConformanceAdapter {
-  binding: string;
+  binding: ConformanceBinding;
   /**
    * The configured credential VALUES. REQUIRED — the runner records an
    * adapter-contract failure without them, because the SPEC.md §8
@@ -90,7 +97,7 @@ export interface AdapterFetch {
 
 export interface ConformanceCaseResult {
   id: string;
-  binding: string;
+  binding: ConformanceBinding;
   ok: boolean;
   failures: string[];
 }

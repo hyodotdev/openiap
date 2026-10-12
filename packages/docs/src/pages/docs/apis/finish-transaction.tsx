@@ -77,10 +77,10 @@ interface MutationFinishTransactionArgs {
 });`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func finish_transaction(purchase: Purchase, is_consumable: bool = false) -> void`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func finish_transaction(purchase, is_consumable: bool = false) -> Variant # Types.VoidResult`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<VoidResult> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -180,7 +180,7 @@ function PurchaseScreen() {
 )`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.finishTransaction(purchase, isConsumable = false)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`openIapStore.finishTransaction(purchase, false) // false: non-consumable`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`kmpIAP.finishTransaction(purchase, isConsumable = false)

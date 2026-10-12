@@ -311,7 +311,7 @@ function Purchase() {
                       <td>
                         <code>environmentIOS</code>
                       </td>
-                      <td>Environment: "Sandbox" or "Production"</td>
+                      <td>Environment: "Production", "Sandbox", or "Xcode"</td>
                     </tr>
                     <tr>
                       <td>
@@ -400,7 +400,11 @@ function Purchase() {
                       </td>
                       <td>
                         Applied offer details. Contains: <code>id</code>,{' '}
-                        <code>type</code>, <code>paymentMode</code>
+                        <code>type</code>, <code>paymentMode</code>.{' '}
+                        <code>type</code> is <code>introductory</code>,{' '}
+                        <code>promotional</code>,{' '}
+                        <code>subscription-offer-code</code>,{' '}
+                        <code>win-back</code>, or <code>unknown</code>
                       </td>
                     </tr>
                     <tr>
@@ -882,7 +886,9 @@ function Purchase() {
               </td>
               <td>iOS</td>
               <td>
-                <code>false</code>
+                <Link to="/docs/apis/get-available-purchases#parameters">
+                  Varies by SDK
+                </Link>
               </td>
               <td>
                 Switches the query from <code>Transaction.all</code> (full

@@ -40,10 +40,6 @@ class FakeAndroidJsonPlugin:
 		last_args = [purchase_json, is_consumable]
 		return _respond("finishTransaction", JSON.stringify({"success": true}))
 
-	func getAvailablePurchases() -> String:
-		last_args = []
-		return _respond("getAvailablePurchases", "[]")
-
 	func restorePurchases() -> String:
 		last_method = "restorePurchases"
 		return _respond("restorePurchases", JSON.stringify({"success": true}))
@@ -62,18 +58,15 @@ class FakeAndroidJsonPlugin:
 			JSON.stringify({"success": true, "purchases": []})
 		)
 
-	func getActiveSubscriptions(ids_json) -> String:
-		last_args = [ids_json]
-		return _respond("getActiveSubscriptions", "[]")
-
-	func getActiveSubscriptionsResult(ids_json) -> String:
+	# Typed like the JNI String parameter, which rejects null.
+	func getActiveSubscriptionsResult(ids_json: String) -> String:
 		last_args = [ids_json]
 		return _respond(
 			"getActiveSubscriptionsResult",
 			JSON.stringify({"success": true, "subscriptions": []})
 		)
 
-	func hasActiveSubscriptions(ids_json) -> String:
+	func hasActiveSubscriptions(ids_json: String) -> String:
 		last_args = [ids_json]
 		return _respond(
 			"hasActiveSubscriptions",
@@ -115,6 +108,10 @@ class FakeAndroidJsonPlugin:
 	func getStorefrontAndroid() -> String:
 		return _respond("getStorefrontAndroid", JSON.stringify({"success": true, "countryCode": "US"}))
 
+	func showBillingProgramInformationDialogAndroid(params_json: String) -> String:
+		last_args = [params_json]
+		return _respond("showBillingProgramInformationDialogAndroid", "{}")
+
 
 class FakeImmediateApplePlugin:
 	extends RefCounted
@@ -146,6 +143,9 @@ class FakeImmediateApplePlugin:
 
 	func syncIOS() -> String:
 		return _respond("syncIOS", JSON.stringify({"success": true}))
+
+	func presentExternalPurchaseNoticeSheetIOS() -> String:
+		return _respond("presentExternalPurchaseNoticeSheetIOS", "{}")
 
 	func getStorefront() -> String:
 		return _respond("getStorefront", "0")
@@ -220,6 +220,7 @@ func _init() -> void:
 
 func _run_suite() -> void:
 	GodotIapPlugin = GodotIapWrapper.new()
+	GodotIapPlugin._is_initialized = true
 	root.add_child(GodotIapPlugin)
 	await process_frame
 	_original_platform = GodotIapPlugin._platform
@@ -249,6 +250,7 @@ func _run_all_tests() -> void:
 	await test_apple_async_timeout_and_late_callback()
 	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
+	await test_failed_notice_and_dialog_never_read_as_success()
 	await test_ios_restore_waits_for_a_sign_in_sheet()
 	await test_android_restore_uses_provider_operation()
 	await test_ios_sync_waits_for_a_sign_in_sheet()
@@ -320,6 +322,45 @@ func _uninstall_fake() -> void:
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = _original_platform
 	GodotIapPlugin._is_connected = false
+
+
+func test_failed_notice_and_dialog_never_read_as_success() -> void:
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	var ios = _install_ios_fake()
+	ios.responses["presentExternalPurchaseNoticeSheetIOS"] = JSON.stringify({"success": false, "code": "user-cancelled", "error": "Sheet failed"})
+	var notice = await GodotIapPlugin.present_external_purchase_notice_sheet_ios()
+	_assert_equal(notice.result, Types.ExternalPurchaseNoticeAction.DISMISSED, "A failed notice sheet must not read as CONTINUE")
+	_assert_equal(notice.error, "Sheet failed", "A failed notice sheet carries the native error")
+	_assert_equal(errors.size(), 1, "A failed notice sheet emits one purchase_error")
+	_assert_equal(errors[0].get("code"), "user-cancelled", "The notice failure keeps the native code")
+	ios.responses["presentExternalPurchaseNoticeSheetIOS"] = JSON.stringify({"success": true, "resultJson": JSON.stringify({"result": "continue", "externalPurchaseToken": "token"})})
+	notice = await GodotIapPlugin.present_external_purchase_notice_sheet_ios()
+	_assert_equal(notice.result, Types.ExternalPurchaseNoticeAction.CONTINUE, "A completed notice sheet keeps CONTINUE")
+	_assert_equal(notice.external_purchase_token, "token", "A completed notice sheet keeps its token")
+	_uninstall_fake()
+
+	errors.clear()
+	var android = _install_android_fake()
+	var params = Types.BillingProgramInformationDialogParamsAndroid.new()
+	params.billing_program = Types.BillingProgramAndroid.BILLING_CHOICE
+	params.external_transaction_token = "token"
+	android.responses["showBillingProgramInformationDialogAndroid"] = JSON.stringify({"success": false, "code": "not-prepared", "error": "IAP connection is not initialized"})
+	var dialog = GodotIapPlugin.show_billing_program_information_dialog_android(params)
+	_assert_true(dialog.response_code != 0, "A failed billing dialog must not report response code 0 (OK)")
+	_assert_equal(dialog.debug_message, "IAP connection is not initialized", "A failed billing dialog carries the native error")
+	_assert_equal(errors.size(), 1, "A failed billing dialog emits one purchase_error")
+	_assert_equal(errors[0].get("code"), "not-prepared", "The dialog failure keeps the native code")
+	android.responses["showBillingProgramInformationDialogAndroid"] = JSON.stringify({"success": true, "responseCode": 0})
+	dialog = GodotIapPlugin.show_billing_program_information_dialog_android(params)
+	_assert_equal(dialog.response_code, 0, "A shown billing dialog keeps Play's response code")
+	_assert_equal(errors.size(), 1, "A shown billing dialog emits no error")
+	_uninstall_fake()
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
 
 
 # ============================================
@@ -1174,7 +1215,7 @@ func test_android_active_subscriptions_envelope() -> void:
 	_assert_true(subscriptions[0] is Types.ActiveSubscription, "Entries should be ActiveSubscription")
 	_assert_equal(subscriptions[0].product_id, "sub.gold", "Subscription fields should survive the envelope")
 	_assert_equal(subscriptions[0].auto_renewing_android, true, "Android-only fields should survive the envelope")
-	_assert_equal(fake.last_args[0], null, "An empty filter should be sent to Android as null")
+	_assert_equal(fake.last_args[0], "[]", "An empty filter should reach Android as an empty JSON array")
 
 	var filter: Array[String] = ["sub.gold"]
 	await GodotIapPlugin.get_active_subscriptions(filter)
@@ -1194,6 +1235,7 @@ func test_android_has_active_subscriptions_envelope() -> void:
 	var fake = _install_android_fake()
 	fake.responses["hasActiveSubscriptions"] = JSON.stringify({"success": true, "hasActive": true})
 	_assert_true(await GodotIapPlugin.has_active_subscriptions(), "hasActive envelopes should map to true")
+	_assert_equal(fake.last_args[0], "[]", "An empty filter should reach Android as an empty JSON array")
 
 	# A malformed envelope must not become a false entitlement result.
 	fake.responses["hasActiveSubscriptions"] = "[]"

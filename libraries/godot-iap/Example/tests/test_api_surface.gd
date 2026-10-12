@@ -25,6 +25,7 @@ func _init() -> void:
 
 func _run_suite() -> void:
 	GodotIapPlugin = GodotIapWrapper.new()
+	GodotIapPlugin._is_initialized = true
 	root.add_child(GodotIapPlugin)
 	await process_frame
 	_types_instance = Types.new()

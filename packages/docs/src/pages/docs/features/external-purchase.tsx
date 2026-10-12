@@ -1205,12 +1205,10 @@ import io.github.hyochan.kmpiap.openiap.*
 
 val kmpIAP = KmpIAP()
 
+// Collect before initConnection so no selection is missed.
 scope.launch {
-    try {
-        val details = kmpIAP.developerProvidedBillingAndroid()
+    kmpIAP.developerProvidedBillingListenerAndroid.collect { details ->
         yourBackend.handleDeveloperBilling(details)
-    } catch (e: Exception) {
-        Log.e("IAP", "Developer billing error: \${e.message}")
     }
 }
 

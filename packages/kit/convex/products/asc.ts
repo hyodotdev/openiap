@@ -7,6 +7,7 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
+import { readAppleP8Key } from "../files/internal";
 import { validateAppleReviewScreenshotContent } from "../files/validation";
 import { mintAscJwt } from "./jwt";
 import { listingRowsForProduct, splitStoreListings } from "./localizations";
@@ -204,34 +205,9 @@ async function resolveAscCredentials(
   }
   // Dedicated ASC .p8 first, else the Server API one; `call()`'s 401 hint
   // covers the wrong kind.
-  let keyContent: string | undefined;
-  try {
-    const ascKey = await ctx.runAction(
-      internal.files.internal.getAppleAscApiKey,
-      {
-        organizationId: project.organizationId,
-        projectId: project._id,
-      },
-    );
-    keyContent = ascKey?.keyContent;
-  } catch (error) {
-    // Only a missing ASC key falls through to the legacy slot. Any other error
-    // would end up signing with the wrong key and surface as a confusing 401.
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes("No App Store Connect API key (.p8) uploaded")) {
-      throw error;
-    }
-  }
-  if (!keyContent) {
-    const legacyKey = await ctx.runAction(
-      internal.files.internal.getAppleP8Key,
-      {
-        organizationId: project.organizationId,
-        projectId: project._id,
-      },
-    );
-    keyContent = legacyKey?.keyContent;
-  }
+  const keyContent =
+    (await readAppleP8Key(ctx, project._id, "apple_p8_asc_api_key")) ??
+    (await readAppleP8Key(ctx, project._id, "apple_p8_key"));
   if (!keyContent) {
     throw new Error(
       options.detailedErrors

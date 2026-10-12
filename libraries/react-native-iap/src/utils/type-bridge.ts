@@ -576,7 +576,7 @@ export function convertNitroSubscriptionStatusToSubscriptionStatusIOS(
   nitro: NitroSubscriptionStatus,
 ): SubscriptionStatusIOS {
   return {
-    state: String(nitro.state ?? ''),
+    state: nitro.state,
     renewalInfo: nitro.renewalInfo
       ? convertNitroRenewalInfoToRenewalInfoIOS(nitro.renewalInfo)
       : undefined,

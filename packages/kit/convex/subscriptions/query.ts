@@ -7,6 +7,7 @@ import {
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
 import { monthlyMicrosForSub } from "./monthlyMicros";
+import { entitlementActive } from "./stateMachine";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
 import {
   DEFAULT_REPORTING_CURRENCY,
@@ -64,24 +65,8 @@ type SubscriptionV2Row = Infer<typeof subscriptionV2Shape>;
 type SubscriptionEvaluationRow = Infer<typeof subscriptionEvaluationRowShape>;
 export const MAX_USER_SUBSCRIPTION_ROWS = 200;
 
-/**
- * SPEC.md 2.3 entitlement gate as a pure predicate: only Active and
- * InGracePeriod grant access, an omitted expiry means none is known, and the
- * boundary is exclusive — expiresAt == now is NOT entitled. Exported so the
- * conformance adapter certifies the same predicate every read uses.
- */
-export function isEntitledAt(
-  state: string,
-  expiresAt: number | null | undefined,
-  now: number,
-): boolean {
-  if (state !== "Active" && state !== "InGracePeriod") return false;
-  if (expiresAt != null && expiresAt <= now) return false;
-  return true;
-}
-
 function isActive(sub: Doc<"subscriptions">, now: number): boolean {
-  return isEntitledAt(sub.state, sub.expiresAt, now);
+  return entitlementActive(sub, now);
 }
 
 function isEntitledState(sub: Doc<"subscriptions">): boolean {

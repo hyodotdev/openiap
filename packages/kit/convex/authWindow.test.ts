@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EMAIL_SIGN_IN_CLOSES_AT,
   EMAIL_SIGN_IN_CLOSES_ON,
   assertEmailSignInWindowOpen,
   assertLegacyEmailAccount,
+  fetchGitHubProfileWithVerifiedEmail,
   isEmailSignInOpen,
   isResendProviderId,
 } from "./authWindow";
@@ -59,5 +60,44 @@ describe("email sign-in gates", () => {
     expect(() => assertLegacyEmailAccount("resend-otp-en", false)).toThrow(
       /continue with GitHub/i,
     );
+  });
+});
+
+describe("GitHub sign-in email", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubGitHub(profile: object, emails: object[]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/user/emails") ? emails : profile),
+      ),
+    );
+  }
+
+  it("never offers an unverified primary address for account linking", async () => {
+    stubGitHub({ id: 1, login: "attacker", email: null }, [
+      { email: "victim@example.com", primary: true, verified: false },
+    ]);
+
+    await expect(
+      fetchGitHubProfileWithVerifiedEmail("token"),
+    ).resolves.toMatchObject({ login: "attacker", email: null });
+  });
+
+  it("keeps the public, then primary, verified address", async () => {
+    const emails = [
+      { email: "other@example.com", primary: false, verified: true },
+      { email: "primary@example.com", primary: true, verified: true },
+    ];
+    stubGitHub({ id: 1, email: "other@example.com" }, emails);
+    await expect(
+      fetchGitHubProfileWithVerifiedEmail("token"),
+    ).resolves.toMatchObject({ email: "other@example.com" });
+
+    stubGitHub({ id: 1, email: null }, emails);
+    await expect(
+      fetchGitHubProfileWithVerifiedEmail("token"),
+    ).resolves.toMatchObject({ email: "primary@example.com" });
   });
 });

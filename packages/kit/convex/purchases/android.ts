@@ -604,13 +604,12 @@ async function lookUpGooglePlayPurchase(
   return { receiptData, remoteResponse };
 }
 
-function shouldPersistFailedGoogleReceipt(
+// Only Google's definite "no such purchase" is a verdict. Outages, quota, and
+// unclassified errors keep the last confirmed row, as on Horizon and Amazon.
+export function shouldPersistFailedGoogleReceipt(
   error: ReceiptVerificationError,
 ): boolean {
-  return (
-    error instanceof PlayStorePurchaseNotFoundError ||
-    error instanceof PlayStorePurchaseVerificationFailedError
-  );
+  return error instanceof PlayStorePurchaseNotFoundError;
 }
 
 async function persistFailedGoogleReceipt(

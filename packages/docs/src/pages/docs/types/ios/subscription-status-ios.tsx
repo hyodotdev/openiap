@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -67,8 +68,12 @@ function SubscriptionStatusIos() {
                 <code>renewalInfo</code>
               </td>
               <td>
-                Renewal details. Contains: <code>willAutoRenew</code>,{' '}
-                <code>autoRenewPreference</code>
+                Verified{' '}
+                <Link to="/docs/types/ios/renewal-info-ios">
+                  <code>RenewalInfoIOS</code>
+                </Link>{' '}
+                for this product, including <code>jsonRepresentation</code>;{' '}
+                <code>null</code> when StoreKit cannot verify it
               </td>
             </tr>
           </tbody>
@@ -125,6 +130,13 @@ function SubscriptionStatusIos() {
               <td>Billing retry in progress</td>
               <td>Consider granting access</td>
             </tr>
+            <tr>
+              <td>
+                <code>unknown</code>
+              </td>
+              <td>A state this SDK version does not recognize</td>
+              <td>Check entitlement on your server</td>
+            </tr>
           </tbody>
         </table>
 
@@ -132,45 +144,45 @@ function SubscriptionStatusIos() {
           iOS Expiration Reasons
         </AnchorLink>
         <p>
-          When <code>willAutoRenew</code> is <code>false</code>, the{' '}
-          <code>expirationReason</code> field in <code>renewalInfo</code>{' '}
-          indicates why:
+          After a subscription expires, <code>expirationReason</code> in{' '}
+          <code>renewalInfo</code> holds StoreKit&apos;s raw reason value as a
+          string. Keep values you do not recognize.
         </p>
         <table className="doc-table">
           <thead>
             <tr>
+              <th>Value</th>
               <th>Reason</th>
-              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>
-                <code>VOLUNTARY</code>
+                <code>&quot;1&quot;</code>
               </td>
-              <td>User cancelled the subscription</td>
+              <td>The user turned off auto-renew</td>
             </tr>
             <tr>
               <td>
-                <code>BILLING_ERROR</code>
+                <code>&quot;2&quot;</code>
               </td>
-              <td>Payment failed (card declined, etc.)</td>
+              <td>Billing error (card declined, etc.)</td>
             </tr>
             <tr>
               <td>
-                <code>DID_NOT_AGREE_TO_PRICE_INCREASE</code>
+                <code>&quot;3&quot;</code>
               </td>
-              <td>User declined a price increase</td>
+              <td>The user did not agree to a price increase</td>
             </tr>
             <tr>
               <td>
-                <code>PRODUCT_NOT_AVAILABLE</code>
+                <code>&quot;4&quot;</code>
               </td>
-              <td>Product no longer available for purchase</td>
+              <td>The product was no longer available</td>
             </tr>
             <tr>
               <td>
-                <code>UNKNOWN</code>
+                <code>&quot;5&quot;</code>
               </td>
               <td>Unknown reason</td>
             </tr>

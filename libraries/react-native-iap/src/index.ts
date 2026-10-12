@@ -72,7 +72,6 @@ import {isUserCancelledError, parseErrorStringToJsonObj} from './utils/error';
 import {
   normalizeErrorCodeFromNative,
   createPurchaseError,
-  DUPLICATE_PURCHASE_CODE,
 } from './utils/errorMapping';
 import {RnIapConsole} from './utils/debug';
 import {createFirstPurchaseNotice} from './utils/first-purchase-notice';
@@ -319,10 +318,7 @@ function tryAttachPurchaseUpdateNative(
 const purchaseErrorJsListeners = new Set<(error: PurchaseError) => void>();
 let purchaseErrorNativeAttached = false;
 const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
-  const normalizedCode =
-    error.code === DUPLICATE_PURCHASE_CODE
-      ? ErrorCode.DuplicatePurchase
-      : normalizeErrorCodeFromNative(error.code);
+  const normalizedCode = normalizeErrorCodeFromNative(error.code);
   const normalized: PurchaseError = {
     code: normalizedCode,
     message: error.message,
@@ -410,8 +406,8 @@ function tryAttachPromotedProductNative(): void {
 }
 
 /**
- * Reset all JS-level listener tracking state.
- * Called during endConnection to ensure clean re-registration on next initConnection.
+ * Forget the native listener attachments that endConnection drops. JS
+ * listeners stay registered and reattach on the next initConnection.
  */
 export const resetListenerState = (): void => {
   purchaseUpdateNativeAttached = false;
@@ -423,14 +419,6 @@ export const resetListenerState = (): void => {
   userChoiceBillingNativeAttached = false;
   developerProvidedBillingNativeAttached = false;
   subscriptionBillingIssueNativeAttached = false;
-  // Clear all JS listeners since native side clears them in endConnection
-  purchaseUpdateJsListeners.clear();
-  purchaseUpdateDuplicateJsListeners.clear();
-  purchaseErrorJsListeners.clear();
-  promotedProductJsListeners.clear();
-  userChoiceBillingJsListeners.clear();
-  developerProvidedBillingJsListeners.clear();
-  subscriptionBillingIssueJsListeners.clear();
 };
 
 export const purchaseUpdatedListener = (
@@ -921,7 +909,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1986,21 +1975,6 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
     return;
   } catch (error) {
     const parsedError = parseErrorStringToJsonObj(error);
-    // StoreKit can finish a transaction before a replay reaches JavaScript.
-    if (
-      Platform.OS === 'ios' &&
-      (purchase.store === 'apple' || purchase.store == null) &&
-      (purchase.storeId === 'apple' || purchase.storeId == null)
-    ) {
-      const msg = (parsedError.message || '').toString();
-      const code = (parsedError.code || '').toString();
-      if (
-        msg.includes('Transaction not found') ||
-        code === 'E_ITEM_UNAVAILABLE'
-      ) {
-        return;
-      }
-    }
     if (!isUserCancelledError(parsedError)) {
       RnIapConsole.error('Failed to finish transaction:', error);
     }
@@ -2599,10 +2573,6 @@ export const getActiveSubscriptions: QueryField<
       }),
     );
   } catch (error) {
-    if (error instanceof Error && error.message.includes('NotPrepared')) {
-      RnIapConsole.error('IAP connection not initialized:', error);
-      throw error;
-    }
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to get active subscriptions:',
       error,
@@ -2770,7 +2740,7 @@ export const isBillingProgramAvailableAndroid: MutationField<
   try {
     const result = await IAP.instance.isBillingProgramAvailableAndroid(program);
     return {
-      billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
+      billingProgram: result.billingProgram,
       choiceScreenType: result.choiceScreenType,
       isAvailable: result.isAvailable,
       isExternalLinkAvailable: result.isExternalLinkAvailable,
@@ -2862,7 +2832,7 @@ export const createBillingProgramReportingDetailsAndroid: MutationField<'createB
         resolvedDeveloperBillingType ?? null,
       );
     return {
-      billingProgram: result.billingProgram as unknown as BillingProgramAndroid,
+      billingProgram: result.billingProgram,
       externalTransactionToken: result.externalTransactionToken,
     };
   } catch (error) {

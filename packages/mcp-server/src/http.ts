@@ -12,7 +12,11 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
+import {
+  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
+  isSecretApiKey,
+  MISSING_API_KEY_MESSAGE,
+} from "./auth.js";
 import {
   createIapKitMcpServer,
   IAPKIT_MCP_SERVER_NAME,
@@ -31,7 +35,10 @@ import {
 } from "./session-store.js";
 
 const DEFAULT_MCP_PATH = "/mcp";
+const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3939;
+// Loopback names only, so a DNS-rebinding page cannot reach the server.
+const DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const MCP_BODY_TOO_LARGE_ERROR = "MCP request body is too large";
 const DEFAULT_ALLOWED_ORIGINS = [
@@ -46,8 +53,13 @@ const DEFAULT_ALLOWED_ORIGINS = [
 type AuthenticatedRequest = IncomingMessage & { auth?: AuthInfo };
 
 export interface RemoteMcpHttpServerOptions {
-  /** Interface address to bind. Defaults to HOST, then 0.0.0.0. */
+  /** Interface address to bind. Defaults to HOST, then 127.0.0.1. */
   host?: string;
+  /**
+   * Host header names accepted on the MCP path. Defaults to
+   * IAPKIT_MCP_ALLOWED_HOSTS, then loopback names.
+   */
+  allowedHosts?: string[];
   /** TCP port to bind. Defaults to PORT, IAPKIT_MCP_PORT, then 3939. */
   port?: number;
   /** MCP endpoint path. Defaults to /mcp. */
@@ -87,6 +99,10 @@ export function createRemoteMcpHttpServer(
   const allowedOrigins =
     options.allowedOrigins ??
     parseAllowedOrigins(process.env.IAPKIT_MCP_ALLOWED_ORIGINS);
+  const allowedHosts =
+    options.allowedHosts ??
+    parseList(process.env.IAPKIT_MCP_ALLOWED_HOSTS) ??
+    DEFAULT_ALLOWED_HOSTS;
   const machineId = options.machineId ?? currentMachineId();
   const transports =
     createMcpSessionStore<StreamableHTTPServerTransport>(logger);
@@ -122,10 +138,7 @@ export function createRemoteMcpHttpServer(
             mcp: mcpPath,
             health: "/health",
           },
-          authentication: [
-            "Authorization: Bearer <IAPKit secret admin key>",
-            "IAPKIT_API_KEY environment variable (secret admin key)",
-          ],
+          authentication: ["Authorization: Bearer <IAPKit secret admin key>"],
         });
         return;
       }
@@ -135,15 +148,31 @@ export function createRemoteMcpHttpServer(
         return;
       }
 
+      if (!isAllowedHost(headerString(req.headers.host), allowedHosts)) {
+        writeJsonRpcError(res, 403, -32000, "Host header is not allowed");
+        return;
+      }
+
+      // Every request carries its own key; the server never spends the
+      // operator's environment key on a network caller's behalf.
       const bearerToken = parseBearerToken(
         headerString(req.headers.authorization),
       );
-      if (bearerToken && !isSecretApiKey(bearerToken)) {
+      if (!bearerToken) {
+        res.setHeader("WWW-Authenticate", "Bearer");
+        writeJsonRpcError(res, 401, -32001, MISSING_API_KEY_MESSAGE);
+        return;
+      }
+      if (!isSecretApiKey(bearerToken)) {
         writeJsonRpcError(res, 403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
         return;
       }
 
-      attachAuthInfo(req as AuthenticatedRequest);
+      (req as AuthenticatedRequest).auth = {
+        token: bearerToken,
+        clientId: "iapkit-project-api-key",
+        scopes: ["iapkit:project"],
+      };
 
       if (req.method === "POST") {
         await handleMcpPost(
@@ -205,7 +234,7 @@ export function createRemoteMcpHttpServer(
 export async function startRemoteMcpHttpServer(
   options: RemoteMcpHttpServerOptions = {},
 ): Promise<RemoteMcpHttpServer> {
-  const host = options.host ?? process.env.HOST ?? "0.0.0.0";
+  const host = options.host ?? process.env.HOST ?? DEFAULT_HOST;
   const port =
     options.port ??
     parsePort(process.env.PORT) ??
@@ -374,17 +403,6 @@ function writeUnknownSessionResponse(
   );
 }
 
-function attachAuthInfo(req: AuthenticatedRequest): void {
-  const bearerToken = parseBearerToken(headerString(req.headers.authorization));
-  if (!bearerToken) return;
-
-  req.auth = {
-    token: bearerToken,
-    clientId: "iapkit-project-api-key",
-    scopes: ["iapkit:project"],
-  };
-}
-
 function parseBearerToken(authorization: string | undefined): string | null {
   if (!authorization) return null;
   const match = authorization.match(/^Bearer\s+(\S.*)$/i);
@@ -440,12 +458,29 @@ function setCorsHeaders(
 }
 
 function parseAllowedOrigins(raw: string | undefined): string[] {
-  if (!raw) return DEFAULT_ALLOWED_ORIGINS;
-  const origins = raw
+  return parseList(raw) ?? DEFAULT_ALLOWED_ORIGINS;
+}
+
+function parseList(raw: string | undefined): string[] | undefined {
+  const items = (raw ?? "")
     .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-  return origins.length > 0 ? origins : DEFAULT_ALLOWED_ORIGINS;
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  return items.length > 0 ? items : undefined;
+}
+
+function isAllowedHost(
+  hostHeader: string | undefined,
+  allowedHosts: string[],
+): boolean {
+  if (!hostHeader) return false;
+  let hostname: string;
+  try {
+    hostname = new URL(`http://${hostHeader}`).hostname;
+  } catch {
+    return false;
+  }
+  return allowedHosts.includes(hostname);
 }
 
 function requestPathname(req: IncomingMessage): string {

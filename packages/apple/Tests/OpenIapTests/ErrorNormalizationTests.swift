@@ -65,6 +65,56 @@ final class ErrorNormalizationTests: XCTestCase {
         }
     }
 
+    // MARK: - StoreKit 2 (Product.PurchaseError)
+
+    func testProductPurchaseErrorsNormalizeLikeTheirStoreKit1Counterparts() {
+        let expected: [(StoreKit.Product.PurchaseError, ErrorCode)] = [
+            (.purchaseNotAllowed, .iapNotAvailable),
+            (.productUnavailable, .itemUnavailable),
+            (.invalidQuantity, .developerError),
+            (.ineligibleForOffer, .skuOfferMismatch),
+            (.invalidOfferIdentifier, .skuOfferMismatch),
+            (.invalidOfferPrice, .skuOfferMismatch),
+            (.missingOfferParameters, .skuOfferMismatch),
+            (.invalidOfferSignature, .transactionValidationFailed),
+        ]
+        for (storeKitError, code) in expected {
+            XCTAssertEqual(PurchaseError.wrap(storeKitError, fallback: .purchaseError, productId: "p1").code, code)
+        }
+    }
+
+    func testPurchaseFailureKeepsTheMappedCodeForPromotionalOffers() {
+        let offerError = OpenIapStoreKitModule.purchaseFailure(
+            StoreKit.Product.PurchaseError.invalidOfferSignature,
+            sku: "p1",
+            hasPromotionalOffer: true
+        )
+        XCTAssertEqual(offerError.code, .transactionValidationFailed)
+        XCTAssertEqual(offerError.productId, "p1")
+        XCTAssertTrue(offerError.message.hasPrefix("Promotional offer purchase failed:"))
+
+        // Failures a bad offer cannot cause pass through untouched.
+        let unrelated: [Error] = [
+            StoreKitError.userCancelled,
+            StoreKit.Product.PurchaseError.purchaseNotAllowed,
+            StoreKitError.networkError(URLError(.notConnectedToInternet)),
+        ]
+        for error in unrelated {
+            let passedThrough = OpenIapStoreKitModule.purchaseFailure(error, sku: "p1", hasPromotionalOffer: true)
+            let wrapped = PurchaseError.wrap(error, fallback: .purchaseError, productId: "p1")
+            XCTAssertEqual(passedThrough.code, wrapped.code)
+            XCTAssertEqual(passedThrough.message, wrapped.message)
+        }
+
+        let plain = OpenIapStoreKitModule.purchaseFailure(
+            StoreKit.Product.PurchaseError.invalidOfferSignature,
+            sku: "p1",
+            hasPromotionalOffer: false
+        )
+        XCTAssertEqual(plain.code, .transactionValidationFailed)
+        XCTAssertFalse(plain.message.contains("Common causes"))
+    }
+
     // MARK: - Bridged NSError extraction
 
     func testBridgedNSErrorInStoreKitDomainIsRecognized() {

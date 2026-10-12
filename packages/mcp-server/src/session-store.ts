@@ -63,8 +63,13 @@ export class BoundedSessionStore<T> {
 
     const now = this.now();
     this.pruneExpired(now);
+    // Evict the least recently used session rather than refuse: its client
+    // gets a 404 and re-initializes, while refusing would let one caller hold
+    // every slot. Only a store full of in-flight reservations refuses.
     if (this.entries.size + this.pendingReservations >= this.options.maxSize) {
-      return null;
+      const oldestSessionId = this.entries.keys().next().value;
+      if (oldestSessionId === undefined) return null;
+      this.evict(oldestSessionId);
     }
 
     this.pendingReservations += 1;

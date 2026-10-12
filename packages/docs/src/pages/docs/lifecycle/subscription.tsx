@@ -244,12 +244,14 @@ function Subscription() {
             : Returns the purchases the store still holds — owned
             non-consumables, active subscriptions, and unfinished transactions.
             It is <strong>not</strong> a purchase-history source on either
-            platform. The framework SDKs default{' '}
-            <code>onlyIncludeActiveItemsIOS</code> to <code>true</code>, so iOS
-            reads <code>Transaction.currentEntitlements</code>; pass{' '}
-            <code>{'{ onlyIncludeActiveItemsIOS: false }'}</code> to read{' '}
-            <code>Transaction.all</code> including expired and revoked entries.
-            Android&apos;s <code>queryPurchasesAsync</code> returns only
+            platform. With <code>onlyIncludeActiveItemsIOS: true</code>, iOS
+            reads <code>Transaction.currentEntitlements</code>; with{' '}
+            <code>false</code>, it reads <code>Transaction.all</code>, including
+            expired and revoked entries. The default{' '}
+            <Link to="/docs/apis/get-available-purchases#parameters">
+              varies by SDK
+            </Link>
+            . Android&apos;s <code>queryPurchasesAsync</code> returns only
             currently-owned purchases and has no equivalent option. For full iOS
             history use{' '}
             <Link to="/docs/apis/ios/get-all-transactions-ios">
@@ -878,10 +880,12 @@ function Subscription() {
                   <li>
                     <strong>renewalOfferId / renewalOfferType</strong>: The
                     offer applied to the next renewal.{' '}
-                    <code>renewalOfferType</code> carries values such as{' '}
+                    <code>renewalOfferType</code> is one of{' '}
+                    <code>&quot;INTRODUCTORY&quot;</code>,{' '}
                     <code>&quot;PROMOTIONAL&quot;</code>,{' '}
-                    <code>&quot;SUBSCRIPTION_OFFER_CODE&quot;</code>, and{' '}
-                    <code>&quot;WIN_BACK&quot;</code>.
+                    <code>&quot;SUBSCRIPTION_OFFER_CODE&quot;</code>,{' '}
+                    <code>&quot;WIN_BACK&quot;</code>, or{' '}
+                    <code>&quot;UNKNOWN&quot;</code>.
                   </li>
                 </ul>
               </section>

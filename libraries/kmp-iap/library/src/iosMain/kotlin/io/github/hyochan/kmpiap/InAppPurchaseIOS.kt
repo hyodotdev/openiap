@@ -3,11 +3,10 @@ package io.github.hyochan.kmpiap
 import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.cValue
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -32,6 +31,13 @@ internal fun requireStorefront(value: String?): String =
                 message = "App Store storefront is unavailable"
             )
         )
+
+// ObjC bridges marked @available still exist on older iOS, and calling one there crashes.
+@OptIn(ExperimentalForeignApi::class)
+internal fun isAtLeastIOS(major: Int, minor: Int = 0): Boolean =
+    NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(
+        cValue { majorVersion = major.toLong(); minorVersion = minor.toLong(); patchVersion = 0 }
+    )
 
 // Native matches an empty filter against nothing; empty means "all" here.
 internal fun List<String>?.normalizeSubscriptionIdsIOS(): List<String>? =
@@ -81,11 +87,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private val openIapModule = OpenIapModule()
 
     // Event flows
-    private val _purchaseUpdatedFlow = MutableSharedFlow<Purchase>(
-        replay = 0,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val _purchaseUpdatedFlow = eventFlow<Purchase>()
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedFlow.asSharedFlow()
 
     override fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions?): Flow<Purchase> {
@@ -104,29 +106,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
 
-    private val _purchaseErrorFlow = MutableSharedFlow<PurchaseError>(
-        replay = 0,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val _purchaseErrorFlow = eventFlow<PurchaseError>()
     override val purchaseErrorListener: Flow<PurchaseError> = _purchaseErrorFlow.asSharedFlow()
 
-    private val _promotedProductFlow = MutableSharedFlow<String?>(
-        replay = 0,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val _promotedProductFlow = eventFlow<String?>()
     override val promotedProductListener: Flow<String?> = _promotedProductFlow.asSharedFlow()
 
     // StoreKit 2 Message.billingIssue bridge (iOS / Mac Catalyst 16.4+).
     // Reference: https://developer.apple.com/documentation/storekit/message/reason/4123328-billingissue
     // Backed by openIapModule.addSubscriptionBillingIssueListener, set up in setupListeners()
     // and removed in endConnection().
-    private val _subscriptionBillingIssueFlow = MutableSharedFlow<Purchase>(
-        replay = 0,
-        extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val _subscriptionBillingIssueFlow = eventFlow<Purchase>()
     override val subscriptionBillingIssueListener: Flow<Purchase> = _subscriptionBillingIssueFlow.asSharedFlow()
 
     private var isConnected = false
@@ -284,8 +274,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? =
         suspendCancellableCoroutine { continuation ->
-            requireIosSku(params)?.let { message ->
-                continuation.resumeWithExceptionIfActive(Exception(message))
+            requireIosSku(params)?.let { error ->
+                // Native emits its request failures; this one never reaches native.
+                _purchaseErrorFlow.tryEmit(error)
+                continuation.resumeWithExceptionIfActive(PurchaseException(error))
                 return@suspendCancellableCoroutine
             }
 
@@ -301,7 +293,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    private fun requireIosSku(params: RequestPurchaseProps): String? {
+    private fun requireIosSku(params: RequestPurchaseProps): PurchaseError? {
         val (sku, kind) = when (val request = params.request) {
             is RequestPurchaseProps.Request.Purchase ->
                 request.value.apple?.sku to "purchase"
@@ -309,8 +301,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 request.value.apple?.sku to "subscription"
         }
 
+        // Same code React Native and Expo report for a missing iOS SKU.
         return if (sku.isNullOrBlank()) {
-            "SKU is required for iOS $kind"
+            PurchaseError(code = ErrorCode.EmptySkuList, message = "SKU is required for iOS $kind")
         } else {
             null
         }
@@ -513,8 +506,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * List the user's unfinished purchases — non-consumables, active subscriptions, and
      * any pending transactions not finished previously.
      *
-     * @param options Optional [PurchaseOptions]. iOS-only fields
-     *   (`alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`) are ignored on Android.
+     * @param options Optional [PurchaseOptions]. On iOS, `onlyIncludeActiveItemsIOS = true` reads
+     *   current entitlements; the default reads `Transaction.all`. Android ignores iOS-only fields.
      * @return List of [Purchase] currently held by the platform store.
      * @throws PurchaseException when the platform query fails.
      *
@@ -522,7 +515,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.getAvailablePurchasesWithCompletion { result, error ->
+            openIapModule.getAvailablePurchasesWithOptions(options?.toJson()?.toBridgeMapIOS()) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
@@ -654,8 +647,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps?): AppOwnershipVerificationResult =
         suspendCancellableCoroutine { continuation ->
-            val payload = options?.toJson()?.let { values -> buildMap<Any?, Any?> { putAll(values) } }
-            openIapModule.verifyAppOwnershipWithOptions(payload) { result, error ->
+            openIapModule.verifyAppOwnershipWithOptions(options?.toJson()?.toBridgeMapIOS()) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
@@ -675,10 +667,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/get-app-transaction-ios">https://openiap.dev/docs/apis/ios/get-app-transaction-ios</a>
      */
-    override suspend fun getAppTransactionIOS(): AppTransaction? =
-        suspendCancellableCoroutine { continuation ->
-            // Note: getAppTransactionIOS requires iOS 16.0+
-            // The @available annotation on the Swift side handles version checking
+    override suspend fun getAppTransactionIOS(): AppTransaction? {
+        // AppTransaction is iOS 16+; React Native and Expo also return null below it.
+        if (!isAtLeastIOS(16)) return null
+        return suspendCancellableCoroutine { continuation ->
             openIapModule.getAppTransactionIOSWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
@@ -697,6 +689,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 continuation.resumeIfActive(appTransaction)
             }
         }
+    }
 
     /**
      * Get the user's current entitlement for a product.
@@ -773,7 +766,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios">https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</a>
      */
     override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean =
-        suspendCancellableCoroutine { continuation ->
+        isAtLeastIOS(18, 1) && suspendCancellableCoroutine { continuation ->
             openIapModule.isEligibleForExternalPurchaseCustomLinkIOSWithCompletion { isEligible, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
@@ -792,7 +785,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(
         noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
     ): ExternalPurchaseCustomLinkNoticeResultIOS =
-        suspendCancellableCoroutine { continuation ->
+        if (!isAtLeastIOS(18, 1)) {
+            ExternalPurchaseCustomLinkNoticeResultIOS(continued = false, error = "Requires iOS 18.1 or later")
+        } else suspendCancellableCoroutine { continuation ->
             openIapModule.showExternalPurchaseCustomLinkNoticeIOSWithNoticeType(noticeType.rawValue) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
@@ -827,7 +822,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun getExternalPurchaseCustomLinkTokenIOS(
         tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
     ): ExternalPurchaseCustomLinkTokenResultIOS =
-        suspendCancellableCoroutine { continuation ->
+        if (!isAtLeastIOS(18, 1)) {
+            ExternalPurchaseCustomLinkTokenResultIOS(token = null, error = "Requires iOS 18.1 or later")
+        } else suspendCancellableCoroutine { continuation ->
             openIapModule.getExternalPurchaseCustomLinkTokenIOSWithTokenType(tokenType.rawValue) { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
@@ -1420,7 +1417,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</a>
      */
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS =
-        suspendCancellableCoroutine { continuation ->
+        if (!isAtLeastIOS(16)) {
+            ExternalPurchaseLinkResultIOS(success = false, error = "Requires iOS 16.0 or later")
+        } else suspendCancellableCoroutine { continuation ->
             openIapModule.presentExternalPurchaseLinkIOSWithUrl(url) { result, error ->
                 if (error != null) {
                     continuation.resumeIfActive(
@@ -1448,7 +1447,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios">https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</a>
      */
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS =
-        suspendCancellableCoroutine { continuation ->
+        if (!isAtLeastIOS(17, 4)) {
+            ExternalPurchaseNoticeResultIOS(result = ExternalPurchaseNoticeAction.Dismissed, error = "Requires iOS 17.4 or later")
+        } else suspendCancellableCoroutine { continuation ->
             openIapModule.presentExternalPurchaseNoticeSheetIOSWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeIfActive(
@@ -1481,7 +1482,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      * @see <a href="https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios">https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</a>
      */
     override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean =
-        suspendCancellableCoroutine { continuation ->
+        isAtLeastIOS(17, 4) && suspendCancellableCoroutine { continuation ->
             openIapModule.canPresentExternalPurchaseNoticeIOSWithCompletion { canPresent, error ->
                 continuation.resumeIfActive(error == null && canPresent)
             }

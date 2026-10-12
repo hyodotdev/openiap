@@ -72,8 +72,8 @@ deprecation warning until the next major release.
 ```dart
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Create instance
-final iap = FlutterInappPurchase();
+// One shared instance per app; FlutterInappPurchase() returns it too.
+final iap = FlutterInappPurchase.instance;
 
 // Initialize connection
 await iap.initConnection();
@@ -109,19 +109,6 @@ Quick links:
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
-
-### Singleton Usage
-
-For global state management or when you need a shared instance:
-
-```dart
-// Use singleton instance
-final iap = FlutterInappPurchase.instance;
-await iap.initConnection();
-
-// The instance is shared across your app
-final sameIap = FlutterInappPurchase.instance; // Same instance
-```
 
 ## Powered by OpenIAP
 

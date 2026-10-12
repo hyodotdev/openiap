@@ -183,7 +183,6 @@ actor IapState {
     func storePending(id: String, transaction: Transaction) { pendingTransactions[id] = transaction }
     func getPending(id: String) -> Transaction? { pendingTransactions[id] }
     func removePending(id: String) { pendingTransactions.removeValue(forKey: id) }
-    func pendingSnapshot() -> [Transaction] { Array(pendingTransactions.values) }
 
     // MARK: - Purchase Update Emissions
     func recordPurchaseUpdateEmission(

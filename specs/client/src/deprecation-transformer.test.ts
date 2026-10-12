@@ -61,6 +61,36 @@ describe('deprecation documentation transformation', () => {
     }
   });
 
+  it('rejects SDL defaults that do not coerce to the declared type', () => {
+    const query = 'type Query { ping(request: ProductRequest!): Boolean }';
+    expect(() => transform(`enum ProductQueryType { InApp Subs } input ProductRequest { type: ProductQueryType = InAp } ${query}`)).toThrow(
+      'ProductRequest.type default InAp is not a valid ProductQueryType.',
+    );
+    expect(() => transform(`input ProductRequest { count: Int = "ten" } ${query}`)).toThrow(
+      'ProductRequest.count default "ten" is not a valid Int.',
+    );
+    expect(() => transform('type Query { ping(limit: Int = "ten"): Boolean }')).toThrow('Query.ping(limit) default "ten" is not a valid Int.');
+
+    const schema = transform(`enum Category { TRANSACTIONAL } input Params { categories: [Category!] = TRANSACTIONAL } type Query { ping(params: Params): Boolean }`);
+    expect(schema.inputs[0].fields[0].defaultValue).toEqual(['TRANSACTIONAL']);
+  });
+
+  it('records every legacy spelling in the IR and renders that set in every language', () => {
+    const schema = transform('enum Mode { InApp BILLING_CHOICE Ios } type Query { mode: Mode }');
+    expect(schema.enums[0].values.map((value) => [value.rawValue, value.legacyAliases])).toEqual([
+      ['in-app', ['IN_APP', 'InApp']],
+      ['billing-choice', ['BILLING_CHOICE']],
+      ['ios', ['IOS', 'Ios']],
+    ]);
+
+    expect(new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema)).toContain('case "in-app", "IN_APP", "InApp":');
+    expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain('"InApp" -> Mode.InApp');
+    expect(new CSharpPlugin({ outputPath: 'Types.cs' }).generate(schema)).toContain('["InApp"] = Mode.InApp,');
+    expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema)).toContain('"InApp": Mode.IN_APP');
+    // Dart matches case-insensitively, so it renders the normalized spellings.
+    expect(new DartPlugin({ outputPath: 'types.dart' }).generate(schema)).toContain("case 'in-app':\n      case 'inapp':\n        return Mode.InApp;");
+  });
+
   it('fails closed when ProductCommon platform defaults lose exact schema ownership', () => {
     const productContract = `
       enum IapPlatform { IOS Android }
@@ -176,6 +206,41 @@ describe('deprecation documentation transformation', () => {
     expect(kotlin).toContain(
       '    @Deprecated("Use MODERN instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("Modern"))\n    Legacy("legacy")',
     );
+  });
+
+  it('annotates deprecated Swift and Dart types, enum cases, and resolver methods', () => {
+    const schema = transform(`
+      type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.0.") {
+        id: String!
+      }
+      enum LegacyBillingMode {
+        LEGACY @deprecated(reason: "Use MODERN instead. Scheduled for removal in client protocol 3.0.0.")
+        MODERN
+      }
+      type Query {
+        legacyOffer: LegacyOffer @deprecated(reason: "Use 'offer' instead. Scheduled for removal in client protocol 3.0.0.")
+      }
+    `);
+
+    const swift = new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema);
+    expect(swift).toContain(
+      '@available(*, deprecated, message: "Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.0.")\npublic struct LegacyOffer',
+    );
+    expect(swift).toContain(
+      '    @available(*, deprecated, message: "Use MODERN instead. Scheduled for removal in client protocol 3.0.0.")\n    case legacy = "legacy"',
+    );
+    expect(swift).toContain(
+      '    @available(*, deprecated, message: "Use \'offer\' instead. Scheduled for removal in client protocol 3.0.0.")\n    func legacyOffer() async throws',
+    );
+    expect(swift).toContain(
+      '    @available(*, deprecated, message: "Use \'offer\' instead. Scheduled for removal in client protocol 3.0.0.")\n    public var legacyOffer: QueryLegacyOfferHandler?',
+    );
+
+    const dart = new DartPlugin({ outputPath: 'types.dart' }).generate(schema);
+    expect(dart).toContain("@Deprecated('Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.0.')\nclass LegacyOffer");
+    expect(dart).toContain("  @Deprecated('Use MODERN instead. Scheduled for removal in client protocol 3.0.0.')\n  Legacy('legacy')");
+    expect(dart).toContain("  @Deprecated('Use \\'offer\\' instead. Scheduled for removal in client protocol 3.0.0.')\n  Future<LegacyOffer?> legacyOffer();");
+    expect(dart).toContain("  @Deprecated('Use \\'offer\\' instead. Scheduled for removal in client protocol 3.0.0.')\n  final QueryLegacyOfferHandler? legacyOffer;");
   });
 
   it('preserves shared-interface deprecations on Swift union accessors', () => {

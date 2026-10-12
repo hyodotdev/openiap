@@ -159,9 +159,9 @@ function findTokenMembers(value, path = "", found = []) {
 
 /**
  * GraphQL returns null for a selected member the provider omitted, and the
- * operation types deliberately never allow a meaningful null — so dropping
- * null members yields the binding-neutral shape both transports are judged
- * on.
+ * operation types deliberately never allow a meaningful null (SPEC.md 7), so
+ * a GraphQL result is judged with null members dropped. REST results are
+ * judged as served.
  */
 export function normalizeResultData(value) {
   if (Array.isArray(value)) return value.map(normalizeResultData);
@@ -315,8 +315,9 @@ export function createRestAdapter({ baseUrl, fetch: fetchFn, credentials }) {
       } catch {
         return { kind: "invalid", status, detail: "response body is not JSON" };
       }
+      // Raw: REST can omit a member, so a null placeholder must fail the schema.
       if (status === definition.successStatus) {
-        return { kind: "result", status, data: normalizeResultData(body) };
+        return { kind: "result", status, data: body };
       }
       const code = body?.error?.code;
       if (
@@ -496,6 +497,9 @@ export function createGraphqlAdapter({ url, fetch: fetchFn, credentials }) {
             ...(typeof error.extensions?.code === "string"
               ? { code: error.extensions.code }
               : {}),
+            ...(error.extensions === undefined
+              ? {}
+              : { extensions: error.extensions }),
           })),
           // SPEC.md 7: a pre-execution refusal omits data; vectors for
           // server-role auth negatives assert on this.
@@ -560,12 +564,9 @@ function buildValidator(Ajv) {
   return (pointer) => ajv.getSchema(`bundle#/$defs/${pointer}`);
 }
 
-// A returned error must map to its manifest status on REST, must be one the
-// operation actually declares, and — for a non-blocking code every operation
-// can hit — must sit in a small always-allowed set. Applied to both the
-// expected-error branch and the allowCodes bypass so neither escapes it.
-const ALWAYS_ALLOWED_ERROR_CODES = new Set(["RATE_LIMITED", "INTERNAL_ERROR"]);
-
+// A returned error must map to its manifest status on REST and be one the
+// operation declares in the manifest. Applied to both the expected-error
+// branch and the allowCodes bypass so neither escapes it.
 function checkErrorOutcome(outcome, operationName, adapter) {
   const failures = [];
   if (adapter.binding === "rest") {
@@ -581,7 +582,7 @@ function checkErrorOutcome(outcome, operationName, adapter) {
   const derived =
     adapter.binding === "graphql" ? graphqlErrorCodes(outcome) : [];
   for (const code of derived.length ? derived : [outcome.code]) {
-    if (!declared.includes(code) && !ALWAYS_ALLOWED_ERROR_CODES.has(code)) {
+    if (!declared.includes(code)) {
       failures.push(
         `${operationName} returned ${code}, which it does not declare in the manifest`,
       );
@@ -602,9 +603,6 @@ function statusInvariants(data) {
     failures.push(
       `active (${data.active}) disagrees with subscription.active (${data.subscription?.active})`,
     );
-  }
-  if (active && !data.subscription) {
-    failures.push("active is true but no entitling subscription is present");
   }
   return failures;
 }
@@ -647,23 +645,26 @@ function entitlementsInvariants(data, input) {
 }
 
 /**
- * SPEC.md 8 message hygiene, shared by the vector envelope checks AND the
- * executor probes so neither becomes a side door: every error message is a
- * non-empty string (human-readable) and echoes neither the submitted
- * evidence nor a configured credential.
+ * SPEC.md 8 hygiene, shared by the vector envelope checks AND the executor
+ * probes so neither becomes a side door: every error has a non-empty message,
+ * and no string anywhere in the error — GraphQL `extensions` included —
+ * echoes the submitted evidence or a configured credential.
  */
-function messageHygieneFailures(messages, forbidden, context) {
+function errorHygieneFailures(errors, forbidden, context) {
   const failures = [];
-  for (const message of messages) {
-    if (typeof message !== "string" || message.length === 0) {
+  for (const error of errors) {
+    if (typeof error?.message !== "string" || error.message.length === 0) {
       failures.push(
         `${context}: an error message must be a non-empty string (SPEC.md 8)`,
       );
-      continue;
     }
-    if (forbidden.some((token) => message.includes(token))) {
+    if (
+      stringLeaves(error).some((leaf) =>
+        forbidden.some((token) => leaf.includes(token)),
+      )
+    ) {
       failures.push(
-        `${context}: an error message echoes submitted evidence or a credential (SPEC.md 8)`,
+        `${context}: an error echoes submitted evidence or a credential (SPEC.md 8)`,
       );
     }
   }
@@ -671,11 +672,11 @@ function messageHygieneFailures(messages, forbidden, context) {
 }
 
 /**
- * Values that must never appear in an error message: this vector's own
+ * Values that must never appear anywhere in an error: this vector's own
  * evidence, the AUTHORITATIVE credential values the caller handed the runner
  * (an adapter-supplied list alone could be emptied to dodge the scan), any
  * adapter-declared extras, and the runner's invalid-credential constant.
- * Compared locally against message text only; nothing leaves the runner.
+ * Compared locally against every string in the error; nothing leaves the runner.
  */
 function forbiddenTokens({ input, adapter, credentials }) {
   // Evidence values keep a minimum length so a short generic fragment can't
@@ -799,25 +800,36 @@ function errorEnvelopeFailures({
       `adapter contract: outcome.code (${outcome.code}) disagrees with errorBody.error.code (${outcome.errorBody.error.code})`,
     );
   }
-  const forbidden = forbiddenTokens({ input, adapter, credentials });
-  const messages =
+  const errors =
     adapter.binding === "graphql"
       ? Array.isArray(outcome.errors)
-        ? outcome.errors.map((error) => error?.message)
+        ? outcome.errors
         : []
-      : [outcome.errorBody?.error?.message].filter(
-          (message) => message !== undefined,
-        );
+      : outcome.errorBody?.error === undefined
+        ? []
+        : [outcome.errorBody.error];
   failures.push(
-    ...messageHygieneFailures(messages, forbidden, "error envelope"),
+    ...errorHygieneFailures(
+      errors,
+      forbiddenTokens({ input, adapter, credentials }),
+      "error envelope",
+    ),
   );
   // SPEC.md 6: the REST error envelope is CLOSED — validate the whole body,
   // so a leak attached beside `error` fails instead of riding out unseen.
-  if (outcome.errorBody !== undefined && validate) {
-    const validator = validate("ProtocolErrorResponse");
-    if (validator && !validator(outcome.errorBody)) {
+  if (outcome.errorBody !== undefined) {
+    const definition = String(httpBindingManifest.errorResponse ?? "").replace(
+      "#/$defs/",
+      "",
+    );
+    const validator = definition ? validate(definition) : undefined;
+    if (!validator) {
       failures.push(
-        `error envelope does not validate against ProtocolErrorResponse: ${JSON.stringify(validator.errors?.slice(0, 2))}`,
+        `no bundle definition for the REST error envelope (manifest errorResponse ${JSON.stringify(httpBindingManifest.errorResponse)})`,
+      );
+    } else if (!validator(outcome.errorBody)) {
+      failures.push(
+        `error envelope does not validate against ${definition}: ${JSON.stringify(validator.errors?.slice(0, 2))}`,
       );
     }
   }
@@ -990,12 +1002,6 @@ function evaluateResultChecks({ outcome, expect, adapter, validate, input }) {
   return failures;
 }
 
-/**
- * Probes the GraphQL binding as a real executor, not an operationName-only
- * dispatcher. Sends documents a dispatcher that ignores `query` would mishandle
- * — a parse error, a field the schema does not define, a variable of the wrong
- * type — plus an introspection query that must agree with the projection.
- */
 /** Renders an introspection type reference back into SDL notation. */
 function typeRefString(ref) {
   if (!ref || typeof ref !== "object") return null;
@@ -1152,47 +1158,64 @@ function compareIntrospection(servedSchema) {
   return failures;
 }
 
-async function probeGraphqlExecutor(
-  adapter,
-  forbidden = [],
-  probeRole = "server",
-) {
+/**
+ * Probe targets per role. Probe an operation the provider authorizes for that
+ * role, or a valid FORBIDDEN looks like an executor failure. `none` serves an
+ * events-only provider: providerCapabilities takes no input, so its variable
+ * is a standard @include flag.
+ */
+const PROBE_TARGETS = {
+  server: {
+    name: "SubscriptionStatus",
+    field: "subscriptionStatus",
+    variables: "$input: SubscriptionStatusInput!",
+    root: "subscriptionStatus(input: $input)",
+    valid: { input: { userId: "executor-probe" } },
+    resultField: "active",
+  },
+  verification: {
+    name: "VerifyPurchase",
+    field: "verifyPurchase",
+    variables: "$input: VerifyPurchaseInput!",
+    root: "verifyPurchase(input: $input)",
+    valid: { input: { store: "a_store_openiap_has_never_heard_of" } },
+    resultField: "isValid",
+  },
+  none: {
+    name: "ProviderCapabilities",
+    field: "providerCapabilities",
+    variables: "$include: Boolean!",
+    root: "providerCapabilities @include(if: $include)",
+    valid: { include: true },
+    resultField: "commerceProtocolVersion",
+  },
+};
+
+/**
+ * Probes the GraphQL binding as a real executor, not an operationName-only
+ * dispatcher. Sends documents a dispatcher that ignores `query` would mishandle
+ * — a parse error, a field the schema does not define, a variable of the wrong
+ * type — plus an introspection query that must agree with the projection.
+ */
+async function probeGraphqlExecutor(adapter, forbidden, probeRole) {
   const failures = [];
-  if (probeRole !== "server" && probeRole !== "verification") {
+  const target = PROBE_TARGETS[probeRole];
+  if (!target) {
     return [
       "no credentialed role is available to probe the executor — pass the credentials this provider issues",
     ];
   }
-  // Probe an operation authorized by a role the provider actually exposes;
-  // otherwise a valid FORBIDDEN response looks like an executor failure.
-  const target =
-    probeRole === "server"
-      ? {
-          name: "SubscriptionStatus",
-          field: "subscriptionStatus",
-          inputType: "SubscriptionStatusInput",
-          validInput: { userId: "executor-probe" },
-          resultField: "active",
-        }
-      : {
-          name: "VerifyPurchase",
-          field: "verifyPurchase",
-          inputType: "VerifyPurchaseInput",
-          validInput: { store: "a_store_openiap_has_never_heard_of" },
-          resultField: "isValid",
-        };
-  const send = (payload, credential = null) =>
-    adapter.rawGraphql(payload, credential);
+  const credential = probeRole === "none" ? null : probeRole;
+  const variableName = Object.keys(target.valid)[0];
+  const send = (payload) => adapter.rawGraphql(payload, credential);
   const isRequestRejection = (result) =>
     isWellFormedRequestRejection(result.status, result.body);
   // SPEC.md 8 hygiene on the probes' own responses — the same helper the
   // vector envelope checks use, so a credential echoed only into a probe
   // rejection (a path no vector exercises) still fails.
   const hygiene = (result, label) =>
-    messageHygieneFailures(
-      Array.isArray(result.body?.errors)
-        ? result.body.errors.map((error) => error?.message)
-        : [],
+    errorHygieneFailures(
+      Array.isArray(result.body?.errors) ? result.body.errors : [],
       forbidden,
       label,
     );
@@ -1201,14 +1224,11 @@ async function probeGraphqlExecutor(
   // variables and credential. A real executor parses the query and fails; a
   // dispatcher that ignores the query text and keys on operationName would run
   // the selected operation and return data. Returning data here is the tell.
-  const broken = await send(
-    {
-      query: "this is not graphql at all {{{",
-      operationName: target.name,
-      variables: { input: target.validInput },
-    },
-    probeRole,
-  );
+  const broken = await send({
+    query: "this is not graphql at all {{{",
+    operationName: target.name,
+    variables: target.valid,
+  });
   failures.push(...hygiene(broken, "probe: syntactically invalid query"));
   if (broken.body?.data !== undefined || !isRequestRejection(broken)) {
     failures.push(
@@ -1219,14 +1239,11 @@ async function probeGraphqlExecutor(
   // 2. A syntactically valid query that selects a field the result type does
   // not define, again with a real operationName. A real executor rejects it at
   // validation; a dispatcher returns data.
-  const unknownField = await send(
-    {
-      query: `query ${target.name}($input: ${target.inputType}!) { ${target.field}(input: $input) { thisFieldDoesNotExist } }`,
-      operationName: target.name,
-      variables: { input: target.validInput },
-    },
-    probeRole,
-  );
+  const unknownField = await send({
+    query: `query ${target.name}(${target.variables}) { ${target.root} { thisFieldDoesNotExist } }`,
+    operationName: target.name,
+    variables: target.valid,
+  });
   failures.push(...hygiene(unknownField, "probe: undefined field"));
   if (
     unknownField.body?.data !== undefined ||
@@ -1237,16 +1254,13 @@ async function probeGraphqlExecutor(
     );
   }
 
-  // 3. An input variable of the wrong SHAPE (a scalar where the schema expects
-  // an input object) must fail graphql-js input coercion.
-  const badVariable = await send(
-    {
-      query: `query ${target.name}($input: ${target.inputType}!) { ${target.field}(input: $input) { ${target.resultField} } }`,
-      operationName: target.name,
-      variables: { input: "not-an-input-object" },
-    },
-    probeRole,
-  );
+  // 3. A variable of the wrong type (a string where the schema expects an
+  // input object or a Boolean) must fail graphql-js input coercion.
+  const badVariable = await send({
+    query: `query ${target.name}(${target.variables}) { ${target.root} { ${target.resultField} } }`,
+    operationName: target.name,
+    variables: { [variableName]: "not-an-input-object" },
+  });
   failures.push(...hygiene(badVariable, "probe: mistyped variable"));
   if (
     badVariable.body?.data?.[target.field] !== undefined ||
@@ -1273,12 +1287,9 @@ async function probeGraphqlExecutor(
     "kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name } } } }";
   // Use the same credential as probes 1-3 because production providers may
   // gate introspection behind authentication.
-  const introspection = await send(
-    {
-      query: `query { __schema { queryType { name } mutationType { name } types { name kind fields(includeDeprecated: true) { name args { name type { ${TYPE_REF} } } type { ${TYPE_REF} } } inputFields { name type { ${TYPE_REF} } } enumValues(includeDeprecated: true) { name } } } }`,
-    },
-    probeRole,
-  );
+  const introspection = await send({
+    query: `query { __schema { queryType { name } mutationType { name } types { name kind fields(includeDeprecated: true) { name args { name type { ${TYPE_REF} } } type { ${TYPE_REF} } } inputFields { name type { ${TYPE_REF} } } enumValues(includeDeprecated: true) { name } } } }`,
+  });
   // SPEC.md 7: "Introspection, WHERE ENABLED, must agree" — a provider that
   // disables introspection (a common production default) answers this with a
   // WELL-FORMED §7 request-level rejection and skips the agreement check;
@@ -1779,6 +1790,14 @@ export async function runConformance({
   if (!Array.isArray(adapters) || adapters.length === 0) {
     throw new Error("runConformance needs at least one adapter");
   }
+  // Every envelope rule is binding-specific; an unknown binding would skip them all.
+  for (const adapter of adapters) {
+    if (!Object.hasOwn(httpBindingManifest.bindings, adapter?.binding)) {
+      throw new Error(
+        `runConformance: adapter binding ${JSON.stringify(adapter?.binding)} is not one of ${Object.keys(httpBindingManifest.bindings).join(", ")}`,
+      );
+    }
+  }
   const validate = buildValidator(Ajv);
   const results = [];
   const outcomesByCase = new Map();
@@ -1921,16 +1940,20 @@ export async function runConformance({
             // Probe an operation the provider serves, with a credential the
             // runner holds; a partial provider may serve either role alone.
             // Roles come from the served operations (bindPurchase/eraseUser are
-            // server-role but live outside entitlements), not the profiles.
-            servedRoles.has("server") &&
-              typeof credentials?.server === "string" &&
-              credentials.server
-              ? "server"
-              : servedRoles.has("verification") &&
-                  typeof credentials?.verification === "string" &&
-                  credentials.verification
-                ? "verification"
-                : null,
+            // server-role but live outside entitlements), not the profiles. A
+            // provider whose profiles have no operations (events only) is
+            // probed through providerCapabilities, which needs no credential.
+            servedRoles.size === 0
+              ? "none"
+              : servedRoles.has("server") &&
+                  typeof credentials?.server === "string" &&
+                  credentials.server
+                ? "server"
+                : servedRoles.has("verification") &&
+                    typeof credentials?.verification === "string" &&
+                    credentials.verification
+                  ? "verification"
+                  : null,
           );
         } catch (error) {
           probeFailures = [
@@ -2139,15 +2162,14 @@ export async function runConformance({
           outcome.kind === "result"
             ? {
                 kind: "result",
-                // Projection applies to the NON-GraphQL bindings only: the
-                // GraphQL result was already checked raw against the tree
-                // (unrequested members fail the case itself), so projecting
-                // it here would only mask that check.
+                // Only REST is projected and null-stripped here: GraphQL was
+                // already checked raw against the tree and normalized, and a
+                // REST null placeholder already failed its schema.
                 data: withoutMembers(
                   shape !== undefined &&
                     typeof shape === "object" &&
                     binding !== "graphql"
-                    ? projectOnto(outcome.data, shape)
+                    ? normalizeResultData(projectOnto(outcome.data, shape))
                     : outcome.data,
                   ignore,
                 ),

@@ -54,7 +54,7 @@ private val PRODUCT_IDS = ConsumableProductIds
  * - Call requestPurchase() with enableBillingProgramAndroid = UserChoiceBilling
  * - Google shows selection dialog automatically
  * - If user selects Google Play: onPurchaseUpdated callback
- * - If user selects alternative: No callback (manual flow required)
+ * - If user selects alternative: userChoiceBillingListenerAndroid
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,11 +149,30 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
-    // Listen for developer provided billing (External Payments - Android 8.3.0+)
-    // Note: On Android, listen to kmpIapInstance.developerProvidedBillingListener
-    // to receive DeveloperProvidedBillingDetailsAndroid with externalTransactionToken
-    // when user selects developer billing in External Payments mode.
-    // This is done via platform-specific code since the listener is Android-only.
+    // Android: the user chose your billing in External Payments or Billing Choice.
+    // Send externalTransactionToken to your backend and report it to Google.
+    LaunchedEffect(Unit) {
+        kmpIapInstance.developerProvidedBillingListenerAndroid.collect { details ->
+            isProcessing = false
+            purchaseResult = """
+                Developer billing selected
+                Products: ${details.products.joinToString { it.id }}
+                Report the external transaction token from your backend.
+            """.trimIndent()
+        }
+    }
+
+    // Android: the user chose alternative billing in User Choice Billing.
+    LaunchedEffect(Unit) {
+        kmpIapInstance.userChoiceBillingListenerAndroid.collect { details ->
+            isProcessing = false
+            purchaseResult = """
+                Alternative billing selected
+                Products: ${details.products.joinToString()}
+                Report the external transaction token from your backend.
+            """.trimIndent()
+        }
+    }
 
     // Reconnect with new billing program
     fun reconnectWithProgram(program: BillingProgramAndroid) {
@@ -430,7 +449,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                     If user selects:
                     - Google Play: onPurchaseUpdated callback
-                    - Alternative: userChoiceBillingListener callback
+                    - Alternative: userChoiceBillingListenerAndroid
 
                     ⚠️ Billing Library 7.0+ required
                 """.trimIndent()
@@ -793,7 +812,7 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                           - Your payment system (lower fee)
                         • Google shows selection dialog
                         • If Google Play: onPurchaseUpdated
-                        • If alternative: userChoiceBillingListener
+                        • If alternative: userChoiceBillingListenerAndroid
                     """.trimIndent()
                     BillingProgramAndroid.BillingChoice -> """
                         • Billing Choice (9.1.0+)
@@ -815,7 +834,7 @@ private fun InfoCard(platform: String, billingProgram: BillingProgramAndroid) {
                         • Japan users only
                         • Side-by-side choice in purchase dialog
                         • If Google Play: onPurchaseUpdated
-                        • If developer: developerProvidedBillingListener
+                        • If developer: developerProvidedBillingListenerAndroid
                         • Report externalTransactionToken to Google
                     """.trimIndent()
                     BillingProgramAndroid.ExternalContentLink -> """

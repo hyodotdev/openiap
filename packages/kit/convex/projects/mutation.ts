@@ -308,6 +308,24 @@ export const createProject = mutation({
   },
 });
 
+// Store identities and secrets decide which receipts verify; like the .p8
+// and service-account slots, only owners and admins may change them.
+const ADMIN_ONLY_PROJECT_FIELDS = [
+  "androidPackageName",
+  "iosBundleId",
+  "iosAppAppleId",
+  "iosAppStoreIssuerId",
+  "iosAppStoreKeyId",
+  "iosAscIssuerId",
+  "iosAscKeyId",
+  "horizonEnabled",
+  "horizonAppId",
+  "horizonAppSecret",
+  "amazonSharedSecret",
+  "amazonSandboxEnabled",
+  "amazonRtnTopicArn",
+] as const;
+
 export const updateProject = mutation({
   args: {
     projectId: v.id("projects"),
@@ -354,7 +372,11 @@ export const updateProject = mutation({
       )
       .first();
 
-    if (!membership) {
+    if (
+      !membership ||
+      (membership.role === "member" &&
+        ADMIN_ONLY_PROJECT_FIELDS.some((field) => args[field] !== undefined))
+    ) {
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 

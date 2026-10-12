@@ -252,23 +252,10 @@ cd specs/client && bun run generate  # Generate every language and sync every ma
 
 ### Client Specification Code Generation System
 
-Type generation has two guarded lanes over the same schema inventory and
-contract metadata:
-
-```text
-GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
-                └─► Parser → IR → language plugins ─► Swift/Kotlin/Dart/GDScript/C#
-                                                        ↓
-                                             generated-sync-manifest.mjs
-```
-
-**Language plugins handle:**
-
-- **Swift**: Codable protocol, ErrorCode custom initializer, platform defaults
-- **Kotlin**: sealed interface, fromJson/toJson with nullable patterns
-- **Dart**: sealed class, factory constructors, extends/implements
-- **GDScript**: \_init() pattern, Variant type for unions
-- **C#**: sealed records, per-enum JsonConverter, [JsonPolymorphic] unions
+Types come from two guarded lanes over the same schema: graphql-codegen for
+TypeScript, and Parser → IR → language plugins for Swift, Kotlin, Dart,
+GDScript, and C#. The lanes, plugins, and sync manifest are documented in
+[`specs/client/CONVENTION.md`](specs/client/CONVENTION.md).
 
 ### Git Commit Format
 
@@ -467,7 +454,7 @@ All comprehensive rules are documented in [`knowledge/internal/`](knowledge/inte
 2. **02-architecture.md** - Monorepo structure, module patterns, async patterns
 3. **03-coding-style.md** - TypeScript/Swift/Kotlin style rules, error handling
 4. **04-platform-packages.md** - Apple/Google/GQL/Docs package workflows
-5. **05-docs-patterns.md** - React modal patterns, component organization
+5. **05-docs-patterns.md** - Docs writing standard, page patterns, release notes
 6. **06-git-deployment.md** - Commit format, deployment workflows
 7. **07-docs-consistency.md** - Docs/API/type consistency audits
 8. **08-fact-graph.md** - Declared-fact registry and drift audit

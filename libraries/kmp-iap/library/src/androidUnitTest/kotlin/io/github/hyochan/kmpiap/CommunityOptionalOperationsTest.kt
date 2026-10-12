@@ -1,14 +1,13 @@
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
+import android.content.Intent
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.MutationEndConnectionHandler
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import io.github.hyochan.kmpiap.openiap.*
-import java.lang.reflect.Proxy
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -18,6 +17,8 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,7 +41,7 @@ class CommunityOptionalOperationsTest {
                 "isValid" to true, "receiptId" to "community-receipt", "productId" to "product", "quantity" to 2,
             ))
         }
-        val provider = provider { method, args ->
+        val provider = fakeModule { method, args ->
             calls.add(method)
             when (method) {
                 "getVerifyPurchase" -> verification
@@ -77,7 +78,7 @@ class CommunityOptionalOperationsTest {
                 else -> error("Unexpected call: $method")
             }
         }
-        val delegate = delegate(provider, activity)
+        val delegate = delegateFor(Store.UNKNOWN, provider, activity)
         val verified = delegate.verifyPurchase(VerifyPurchaseProps.fromJson(mapOf("google" to mapOf(
             "purchaseToken" to "opaque-token", "accessToken" to "test-access", "packageName" to "test.package", "sku" to "product",
         )))) as VerifyPurchaseResultAndroid
@@ -103,14 +104,14 @@ class CommunityOptionalOperationsTest {
             store = dev.hyo.openiap.IapStore.Unknown, storeId = "community_fixture",
             transactionDate = 1.0, purchaseToken = "opaque-community-token",
         )
-        val provider = provider { method, args ->
+        val provider = fakeModule { method, args ->
             when (method) {
                 "setActivity" -> { assertEquals(activity, args?.get(0)); null }
                 "getMutationHandlers" -> dev.hyo.openiap.MutationHandlers(openRedeemOfferCode = { nativePurchase })
                 else -> error("Unexpected call: $method")
             }
         }
-        val purchase = assertNotNull(delegate(provider, activity).openRedeemOfferCode())
+        val purchase = assertNotNull(delegateFor(Store.UNKNOWN, provider, activity).openRedeemOfferCode())
         assertEquals("redeemed", purchase.id)
         assertEquals(IapStore.Unknown, purchase.store)
         assertEquals("community_fixture", purchase.storeId)
@@ -119,44 +120,46 @@ class CommunityOptionalOperationsTest {
 
     @Test
     fun providerFailuresAndMissingActivityRemainTyped() = runBlocking {
-        val failing = delegate(provider { _, args ->
-            @Suppress("UNCHECKED_CAST")
-            val continuation = args!!.last() as Continuation<Any?>
-            continuation.resumeWith(Result.failure(OpenIapError.FeatureNotSupported("Provider declines this operation")))
-            COROUTINE_SUSPENDED
-        })
-        val error = assertFailsWith<PurchaseException> { failing.isBillingProgramAvailableAndroid(BillingProgramAndroid.BillingChoice) }
-        assertEquals(ErrorCode.FeatureNotSupported, error.error.code)
-        assertEquals("Provider declines this operation", error.error.message)
-        val ui = delegate(provider { method, _ -> error("Must not invoke $method without an Activity") })
-        for (operation in listOf<suspend () -> Any?>(
-            { ui.showInAppMessagesAndroid(null) },
-            { ui.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },
-            { ui.launchExternalLinkAndroid(linkParams()) },
-            { ui.openRedeemOfferCode() },
-        )) assertEquals(ErrorCode.ActivityUnavailable, assertFailsWith<PurchaseException> { operation() }.error.code)
+        for (store in listOf(Store.UNKNOWN, Store.PLAY_STORE)) {
+            val failing = delegateFor(store, fakeModule { _, args ->
+                @Suppress("UNCHECKED_CAST")
+                val continuation = args!!.last() as Continuation<Any?>
+                continuation.resumeWith(Result.failure(OpenIapError.FeatureNotSupported("Provider declines this operation")))
+                COROUTINE_SUSPENDED
+            })
+            val error = assertFailsWith<PurchaseException> { failing.isBillingProgramAvailableAndroid(BillingProgramAndroid.BillingChoice) }
+            assertEquals(ErrorCode.FeatureNotSupported, error.error.code)
+            assertEquals("Provider declines this operation", error.error.message)
+            val ui = delegateFor(store, fakeModule { method, _ -> error("Must not invoke $method without an Activity") })
+            val operations = listOf<suspend () -> Any?>(
+                { ui.showInAppMessagesAndroid(null) },
+                { ui.showBillingProgramInformationDialogAndroid(BillingProgramInformationDialogParamsAndroid(externalTransactionToken = "token")) },
+                { ui.launchExternalLinkAndroid(linkParams()) },
+            ) + if (store == Store.UNKNOWN) listOf<suspend () -> Any?>({ ui.openRedeemOfferCode() }) else emptyList()
+            for (operation in operations) {
+                assertEquals(ErrorCode.ActivityUnavailable, assertFailsWith<PurchaseException> { operation() }.error.code, "$store")
+            }
+        }
     }
 
     @Test
     fun billingSelectionEventsReachCollectorsAndDetachAtEndConnection() = runBlocking {
-        val listeners = mutableMapOf<String, Any>()
+        val attached = AttachedListeners()
         val end: MutationEndConnectionHandler = { true }
-        val provider = provider { method, args ->
+        val provider = fakeModule { method, args ->
             when {
-                method.startsWith("add") -> { listeners[method.removePrefix("add")] = args!![0]!!; null }
-                method.startsWith("remove") -> { assertEquals(listeners.remove(method.removePrefix("remove")), args!![0]); null }
+                attached.record(method, args) -> null
                 method == "getEndConnection" -> end
                 else -> error("Unexpected call: $method")
             }
         }
-        val delegate = delegate(provider)
-        delegate.javaClass.getDeclaredMethod("registerListeners", OpenIapProtocol::class.java).apply { isAccessible = true }.invoke(delegate, provider)
+        val delegate = delegateFor(Store.UNKNOWN, provider, registerListeners = true)
         val user = async(start = CoroutineStart.UNDISPATCHED) { delegate.userChoiceBillingAndroid() }
         val developer = async(start = CoroutineStart.UNDISPATCHED) { delegate.developerProvidedBillingAndroid() }
-        (listeners.getValue("UserChoiceBillingListener") as OpenIapUserChoiceBillingListener).onUserChoiceBilling(
+        attached.get<OpenIapUserChoiceBillingListener>("UserChoiceBillingListener").onUserChoiceBilling(
             dev.hyo.openiap.UserChoiceBillingDetails.fromJson(mapOf("externalTransactionToken" to "user-token", "products" to listOf("product"), "originalExternalTransactionId" to "original"))
         )
-        (listeners.getValue("DeveloperProvidedBillingListener") as OpenIapDeveloperProvidedBillingListener).onDeveloperProvidedBilling(
+        attached.get<OpenIapDeveloperProvidedBillingListener>("DeveloperProvidedBillingListener").onDeveloperProvidedBilling(
             dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid.fromJson(mapOf("externalTransactionToken" to "developer-token", "products" to emptyList<Any>(), "linkUri" to "https://example.test/pay"))
         )
         val userResult = withTimeout(5_000) { user.await() }
@@ -165,7 +168,19 @@ class CommunityOptionalOperationsTest {
         assertEquals("original", userResult.originalExternalTransactionId)
         assertEquals("https://example.test/pay", withTimeout(5_000) { developer.await() }.linkUri)
         assertTrue(delegate.endConnection())
-        assertTrue(listeners.isEmpty())
+        assertTrue(attached.byType.isEmpty())
+    }
+
+    @Test
+    fun playOpensTheRedeemPageFromTheAppContextWithoutAnActivity() = runBlocking {
+        val app = RuntimeEnvironment.getApplication()
+        val play = delegateFor(Store.PLAY_STORE, fakeModule { method, _ -> error("Unexpected call: $method") }, context = app)
+
+        assertNull(play.openRedeemOfferCode())
+
+        val opened = assertNotNull(shadowOf(app).nextStartedActivity)
+        assertEquals("https://play.google.com/redeem", opened.dataString)
+        assertTrue(opened.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
     }
 
     @Test
@@ -183,15 +198,6 @@ class CommunityOptionalOperationsTest {
             )) assertEquals(ErrorCode.FeatureNotSupported, assertFailsWith<PurchaseException> { operation() }.error.code)
         }
     }
-
-    private fun delegate(provider: OpenIapProtocol, activity: Activity? = null): OpenIapDelegateInAppPurchaseAndroid =
-        OpenIapDelegateInAppPurchaseAndroid("community", Store.UNKNOWN, "Android Community").also { delegate ->
-            delegate.javaClass.getDeclaredField("module").apply { isAccessible = true }.set(delegate, provider)
-            delegate.javaClass.getDeclaredField("currentActivity").apply { isAccessible = true }.set(delegate, activity)
-        }
-
-    private fun provider(invoke: (String, Array<out Any?>?) -> Any?): OpenIapProtocol =
-        Proxy.newProxyInstance(OpenIapProtocol::class.java.classLoader, arrayOf(OpenIapProtocol::class.java)) { _, method, args -> invoke(method.name, args) } as OpenIapProtocol
 
     private fun linkParams() = LaunchExternalLinkParamsAndroid.fromJson(mapOf(
         "billingProgram" to "billing-choice", "launchMode" to "launch-in-external-browser-or-app", "linkType" to "link-to-digital-content-offer", "linkUri" to "https://example.test/pay",

@@ -17,16 +17,37 @@ public class OpenIapClientFacadeTests
         => Assert.Throws<ArgumentNullException>(() => OpenIapClient.OverrideInstance(null!));
 
     [Fact]
-    public void InstanceLifecycle_FallsBackToUnsupportedAndHonorsOverrides()
+    public async Task UnsupportedTarget_ResolversRejectEveryCallAsFeatureNotSupported()
+    {
+        var fallback = new UnsupportedOpenIap();
+        var operations = typeof(QueryResolver).GetMethods().Concat(typeof(MutationResolver).GetMethods()).ToList();
+        Assert.True(operations.Count > 40, $"Expected every resolver operation, found {operations.Count}");
+
+        foreach (var operation in operations)
+        {
+            var arguments = operation.GetParameters()
+                .Select(parameter => parameter.ParameterType.IsValueType ? Activator.CreateInstance(parameter.ParameterType) : null)
+                .ToArray();
+            var task = Assert.IsAssignableFrom<Task>(operation.Invoke(fallback, arguments));
+            var error = await Assert.ThrowsAsync<OpenIapException>(() => task);
+            Assert.Equal(ErrorCode.FeatureNotSupported, error.Error.Code);
+            Assert.Contains(operation.Name, error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task InstanceLifecycle_FallsBackToUnsupportedAndHonorsOverrides()
     {
         try
         {
             // On net10.0 (no platform identifier) the factory resolves the
-            // UnsupportedOpenIap fallback and caches it. No other test in
-            // this assembly touches Instance, so this is the first access.
-            var initial = OpenIapClient.Instance;
+            // UnsupportedOpenIap fallback once, even when first reads race.
+            // No other test in this assembly touches Instance.
+            var first = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(() => OpenIapClient.Instance)));
+            var initial = first[0];
+            Assert.All(first, instance => Assert.Same(initial, instance));
             Assert.IsType<UnsupportedOpenIap>(initial);
-            Assert.Same(initial, OpenIapClient.Instance);
+            Assert.IsAssignableFrom<QueryResolver>(initial);
 
             // Listener contract defaults: every stream is a non-null empty
             // observable that accepts subscriptions and never emits.

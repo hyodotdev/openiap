@@ -777,8 +777,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (result) {
-        // endConnection invalidates these hook-owned subscription handles.
-        cleanupListeners();
         registerListeners();
         setConnected(true);
         return true;

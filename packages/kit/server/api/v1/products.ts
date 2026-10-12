@@ -361,8 +361,12 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
   }
 }
 
-products.post("/", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
-  handleUpsertProduct(c, c.var.apiKey),
+products.post(
+  "/",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  (c) => handleUpsertProduct(c, c.var.apiKey),
 );
 
 // State-only update for the existing row. MCP `manage_product` uses
@@ -427,8 +431,12 @@ async function handleSetProductState(c: Context, apiKey: string) {
   }
 }
 
-products.post("/state", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
-  handleSetProductState(c, c.var.apiKey),
+products.post(
+  "/state",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  (c) => handleSetProductState(c, c.var.apiKey),
 );
 products.post("/:apiKey", pathApiKeyGuard, (c) =>
   handleUpsertProduct(c, guardedPathApiKey(c)),
@@ -485,6 +493,7 @@ products.post(
   "/sync/:platform",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   (c) => handleEnqueueProductSync(c, c.var.apiKey),
 );
 products.post("/:apiKey/sync/:platform", pathApiKeyGuard, (c) =>
@@ -528,6 +537,7 @@ products.get(
   "/sync/jobs/:jobId",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   (c) => handleGetProductSyncJob(c, c.var.apiKey),
 );
 products.get("/:apiKey/sync/jobs/:jobId", pathApiKeyGuard, (c) =>
@@ -564,6 +574,7 @@ products.post(
   "/sync/jobs/:jobId/cancel",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   (c) => handleCancelProductSync(c, c.var.apiKey),
 );
 products.post("/:apiKey/sync/jobs/:jobId/cancel", pathApiKeyGuard, (c) =>
@@ -639,6 +650,7 @@ products.get(
   "/client-payload/:productId",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   async (c) => {
     const apiKey = c.var.apiKey;
     const productId = c.req.param("productId");
@@ -687,6 +699,7 @@ products.put(
   "/client-payload/:productId",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   async (c) => {
     const apiKey = c.var.apiKey;
     const productId = c.req.param("productId");
@@ -764,6 +777,7 @@ products.delete(
   "/client-payload/:productId",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   async (c) => {
     const apiKey = c.var.apiKey;
     const productId = c.req.param("productId");
@@ -842,6 +856,7 @@ products.delete(
   "/:productId",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   (c) => handleRemoveProduct(c, c.var.apiKey),
 );
 products.delete("/:apiKey/:productId", pathApiKeyGuard, (c) =>

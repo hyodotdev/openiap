@@ -61,20 +61,31 @@ class _PurchaseUpdatedDedupeHistoryIOS {
 }
 
 class FlutterInappPurchase with RequestPurchaseBuilderApi {
-  // Singleton instance
   static FlutterInappPurchase? _instance;
 
-  /// Get the singleton instance
-  static FlutterInappPurchase get instance {
-    _instance ??= FlutterInappPurchase();
-    return _instance!;
+  /// The shared instance. Instances share one MethodChannel, whose events
+  /// reach only the instance created last, so apps use this one.
+  static FlutterInappPurchase get instance =>
+      _instance ??= FlutterInappPurchase._(const LocalPlatform());
+
+  /// Returns [instance]. A [platform] creates a separate instance for tests.
+  factory FlutterInappPurchase({Platform? platform}) =>
+      platform == null ? instance : FlutterInappPurchase._(platform);
+
+  @visibleForTesting
+  FlutterInappPurchase.private(Platform platform) : this._(platform);
+
+  FlutterInappPurchase._(this._pf) {
+    _channel.setMethodCallHandler(_handleMethodCall);
   }
 
-  StreamController<String?>? _purchasePromotedController;
-  Stream<String?> get purchasePromoted {
-    _purchasePromotedController ??= StreamController<String?>.broadcast();
-    return _purchasePromotedController!.stream;
-  }
+  late final StreamController<String?> _purchasePromotedController =
+      StreamController<String?>.broadcast(
+    onListen: _replayPendingPromotedProductIOS,
+  );
+  String? _pendingPromotedProductIOS;
+
+  Stream<String?> get purchasePromoted => _purchasePromotedController.stream;
 
   final Map<String, bool> _acknowledgedAndroidPurchaseTokens = <String, bool>{};
 
@@ -93,12 +104,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   late final FirstPurchaseNotice _firstPurchaseNotice =
       FirstPurchaseNotice(_platform, _channel);
-
-  FlutterInappPurchase({Platform? platform})
-      : _pf = platform ?? const LocalPlatform();
-
-  @visibleForTesting
-  FlutterInappPurchase.private(Platform platform) : _pf = platform;
 
   // Purchase event streams
   final StreamController<gentype.Purchase> _purchaseUpdatedListener =
@@ -226,13 +231,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Future<void> _setPurchaseUpdatedListenerOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) =>
-      _configurePurchaseListener(() async {
-        await _setPurchaseListener();
-        await _channel.invokeMethod<void>(
+      _configurePurchaseListener(
+        () => _channel.invokeMethod<void>(
           'setPurchaseUpdatedListenerOptions',
           options?.toJson(),
-        );
-      });
+        ),
+      );
 
   Future<void> _setDedupingPurchaseUpdatedListenerOptionsIOS(
     gentype.PurchaseUpdatedListenerOptions? options,
@@ -309,92 +313,103 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     return current;
   }
 
-  Future<void> _setPurchaseListener() async {
-    _purchasePromotedController ??= StreamController.broadcast();
+  void _replayPendingPromotedProductIOS() {
+    final productId = _pendingPromotedProductIOS;
+    _pendingPromotedProductIOS = null;
+    if (productId != null) _purchasePromotedController.add(productId);
+  }
 
-    _channel.setMethodCallHandler((MethodCall call) async {
-      switch (call.method) {
-        case 'purchase-updated':
-          _handlePurchaseUpdatedCall(
-            call,
-            _purchaseUpdatedListener,
-          );
-          break;
-        case 'purchase-error':
-          debugPrint(
-            '[flutter_inapp_purchase] Processing purchase-error event',
-          );
+  Future<void> _handleMethodCall(MethodCall call) async {
+    switch (call.method) {
+      case 'purchase-updated':
+        _handlePurchaseUpdatedCall(
+          call,
+          _purchaseUpdatedListener,
+        );
+        break;
+      case 'purchase-error':
+        debugPrint(
+          '[flutter_inapp_purchase] Processing purchase-error event',
+        );
+        Map<String, dynamic> result =
+            jsonDecode(call.arguments as String) as Map<String, dynamic>;
+        final error = PurchaseError.fromPlatformError(
+          result,
+          _platform.isIOS || _platform.isMacOS
+              ? gentype.IapPlatform.IOS
+              : gentype.IapPlatform.Android,
+        );
+        debugPrint(
+          '[flutter_inapp_purchase] Emitting error to purchaseErrorListener: $error',
+        );
+        _purchaseErrorListener.add(error);
+        break;
+      case 'connection-updated':
+        // A dropped billing service needs initConnection again.
+        final state = jsonDecode(call.arguments as String);
+        if (state is Map && state['connected'] == false) {
+          _isInitialized = false;
+        }
+        break;
+      case 'iap-promoted-product':
+        final productId = call.arguments as String?;
+        // Hold an event nobody listens to yet, as packages/apple does.
+        if (_purchasePromotedController.hasListener) {
+          _purchasePromotedController.add(productId);
+        } else {
+          _pendingPromotedProductIOS = productId;
+        }
+        break;
+      case 'user-choice-billing-android':
+        try {
           Map<String, dynamic> result =
               jsonDecode(call.arguments as String) as Map<String, dynamic>;
-          final error = PurchaseError.fromPlatformError(
-            result,
-            _platform.isIOS || _platform.isMacOS
-                ? gentype.IapPlatform.IOS
-                : gentype.IapPlatform.Android,
-          );
+          final details = gentype.UserChoiceBillingDetails.fromJson(result);
+          _userChoiceBillingAndroidListener.add(details);
+        } catch (e, stackTrace) {
           debugPrint(
-            '[flutter_inapp_purchase] Emitting error to purchaseErrorListener: $error',
+            '[flutter_inapp_purchase] ERROR in user-choice-billing-android: $e',
           );
-          _purchaseErrorListener.add(error);
-          break;
-        case 'connection-updated':
-          break;
-        case 'iap-promoted-product':
-          String? productId = call.arguments as String?;
-          _purchasePromotedController!.add(productId);
-          break;
-        case 'user-choice-billing-android':
-          try {
-            Map<String, dynamic> result =
-                jsonDecode(call.arguments as String) as Map<String, dynamic>;
-            final details = gentype.UserChoiceBillingDetails.fromJson(result);
-            _userChoiceBillingAndroidListener.add(details);
-          } catch (e, stackTrace) {
-            debugPrint(
-              '[flutter_inapp_purchase] ERROR in user-choice-billing-android: $e',
-            );
-            debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
-          }
-          break;
-        case 'developer-provided-billing-android':
-          try {
-            Map<String, dynamic> result =
-                jsonDecode(call.arguments as String) as Map<String, dynamic>;
-            final details =
-                gentype.DeveloperProvidedBillingDetailsAndroid.fromJson(result);
-            _developerProvidedBillingAndroidListener.add(details);
-          } catch (e, stackTrace) {
-            debugPrint(
-              '[flutter_inapp_purchase] ERROR in developer-provided-billing-android: $e',
-            );
-            debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
-          }
-          break;
-        case 'subscription-billing-issue':
-          try {
-            Map<String, dynamic> result =
-                jsonDecode(call.arguments as String) as Map<String, dynamic>;
-            final purchase = convertToPurchase(
-              result,
-              originalJson: result,
-              platformIsAndroid: _platform.isAndroid,
-              platformIsIOS: _platform.isIOS || _platform.isMacOS,
-              acknowledgedAndroidPurchaseTokens:
-                  _acknowledgedAndroidPurchaseTokens,
-            );
-            _subscriptionBillingIssueListener.add(purchase);
-          } catch (e, stackTrace) {
-            debugPrint(
-              '[flutter_inapp_purchase] ERROR in subscription-billing-issue: $e',
-            );
-            debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
-          }
-          break;
-        default:
-          throw ArgumentError('Unknown method ${call.method}');
-      }
-      return Future.value(null);
-    });
+          debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
+        }
+        break;
+      case 'developer-provided-billing-android':
+        try {
+          Map<String, dynamic> result =
+              jsonDecode(call.arguments as String) as Map<String, dynamic>;
+          final details =
+              gentype.DeveloperProvidedBillingDetailsAndroid.fromJson(result);
+          _developerProvidedBillingAndroidListener.add(details);
+        } catch (e, stackTrace) {
+          debugPrint(
+            '[flutter_inapp_purchase] ERROR in developer-provided-billing-android: $e',
+          );
+          debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
+        }
+        break;
+      case 'subscription-billing-issue':
+        try {
+          Map<String, dynamic> result =
+              jsonDecode(call.arguments as String) as Map<String, dynamic>;
+          final purchase = convertToPurchase(
+            result,
+            originalJson: result,
+            platformIsAndroid: _platform.isAndroid,
+            platformIsIOS: _platform.isIOS || _platform.isMacOS,
+            acknowledgedAndroidPurchaseTokens:
+                _acknowledgedAndroidPurchaseTokens,
+          );
+          _subscriptionBillingIssueListener.add(purchase);
+        } catch (e, stackTrace) {
+          debugPrint(
+            '[flutter_inapp_purchase] ERROR in subscription-billing-issue: $e',
+          );
+          debugPrint('[flutter_inapp_purchase] Stack trace: $stackTrace');
+        }
+        break;
+      default:
+        throw ArgumentError('Unknown method ${call.method}');
+    }
   }
 
   void _handlePurchaseUpdatedCall(
@@ -445,7 +460,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          await _configurePurchaseListener(_setPurchaseListener);
+          // Let pending listener-option changes reach native first.
+          await _purchaseListenerConfiguration;
 
           Map<String, dynamic>? config;
           if (billingChoiceScreenTypeAndroid != null ||
@@ -1121,15 +1137,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Present the refund request sheet (iOS 15+).
+  /// Present the refund request sheet (iOS 15+); macOS opens Apple's refund page.
   ///
   /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
   gentype.MutationBeginRefundRequestIOSHandler get beginRefundRequestIOS =>
       (String sku) async {
-        if (!_platform.isIOS || _platform.isMacOS) {
+        if (!isIOS) {
           throw PlatformException(
             code: 'platform',
-            message: 'beginRefundRequestIOS is only supported on iOS',
+            message: 'beginRefundRequestIOS is only supported on iOS and macOS',
           );
         }
 
@@ -1480,91 +1496,41 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
   gentype.MutationAcknowledgePurchaseAndroidHandler
-      get acknowledgePurchaseAndroid => (purchaseToken) async {
-            if (!_platform.isAndroid) {
-              throw PurchaseError(
-                code: gentype.ErrorCode.IapNotAvailable,
-                message:
-                    'acknowledgePurchaseAndroid is only available on Android',
-              );
-            }
-
-            try {
-              final dynamic response = await _channel.invokeMethod(
-                'acknowledgePurchaseAndroid',
-                {'purchaseToken': purchaseToken},
-              );
-
-              parseAndLogAndroidResponse(
-                response,
-                successLog:
-                    '[FlutterInappPurchase] Android: Purchase acknowledged successfully',
-                failureLog:
-                    '[FlutterInappPurchase] Android: Failed to parse acknowledge response',
-              );
-
-              if (response is bool) {
-                return response;
-              }
-
-              if (response is String) {
-                final parsed = json.decode(response) as Map<String, dynamic>;
-                final code = parsed['responseCode'] as int? ?? 0;
-                final success = parsed['success'] as bool? ?? false;
-                return code == 0 || success;
-              }
-
-              if (response is Map) {
-                final parsed = response.map<String, dynamic>(
-                  (key, value) => MapEntry(key.toString(), value),
-                );
-                final code = parsed['responseCode'] as int? ?? 0;
-                final success = parsed['success'] as bool? ?? false;
-                return code == 0 || success;
-              }
-
-              return true;
-            } catch (error) {
-              debugPrint('Error acknowledging purchase: $error');
-              return false;
-            }
-          };
+      get acknowledgePurchaseAndroid => (purchaseToken) =>
+          _completeAndroidPurchase('acknowledgePurchaseAndroid', purchaseToken);
 
   /// Consume a consumable purchase so it can be re-bought.
   ///
   /// See: https://openiap.dev/docs/apis/android/consume-purchase-android
   gentype.MutationConsumePurchaseAndroidHandler get consumePurchaseAndroid =>
-      (purchaseToken) async {
-        if (!_platform.isAndroid) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.IapNotAvailable,
-            message: 'consumePurchaseAndroid is only available on Android',
-          );
-        }
+      (purchaseToken) =>
+          _completeAndroidPurchase('consumePurchaseAndroid', purchaseToken);
 
-        try {
-          final dynamic response = await _channel.invokeMethod(
-            'consumePurchaseAndroid',
-            {'purchaseToken': purchaseToken},
-          );
+  /// True only when native confirms the store accepted the call.
+  Future<bool> _completeAndroidPurchase(
+    String method,
+    String purchaseToken,
+  ) async {
+    if (!_platform.isAndroid) {
+      throw PurchaseError(
+        code: gentype.ErrorCode.IapNotAvailable,
+        message: '$method is only available on Android',
+      );
+    }
 
-          if (response is Map) {
-            final map = response.map<String, dynamic>(
-              (key, value) => MapEntry(key.toString(), value),
-            );
-            return map['success'] as bool? ?? true;
-          }
-
-          if (response is bool) {
-            return response;
-          }
-
-          return true;
-        } catch (error) {
-          debugPrint('Error consuming purchase: $error');
-          return false;
-        }
-      };
+    try {
+      final response = await _channel.invokeMethod<Object?>(
+        method,
+        {'purchaseToken': purchaseToken},
+      );
+      if (response is bool) return response;
+      final decoded = response is String ? jsonDecode(response) : response;
+      return decoded is Map && decoded['responseCode'] == 0;
+    } catch (error) {
+      debugPrint('[FlutterInappPurchase] $method failed: $error');
+      return false;
+    }
+  }
 
   /// Open the platform's subscription management UI.
   ///
@@ -1645,131 +1611,45 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         final transactionId = purchase.id;
 
         if (_platform.isAndroid) {
-          if (purchase.store == gentype.IapStore.Unknown) {
-            await _channel.invokeMethod('finishTransaction', <String, dynamic>{
-              'purchase': purchase.toJson(),
-              'isConsumable': consumable,
-            });
-            unawaited(_firstPurchaseNotice.onFinished(purchase));
-            return;
-          }
-          if (purchase.purchaseToken == null ||
-              purchase.purchaseToken!.isEmpty) {
-            throw PurchaseError(
-              code: gentype.ErrorCode.PurchaseError,
-              message:
-                  'Purchase token is required to finish Android transactions.',
-            );
-          }
-
-          if (consumable) {
-            if (kDebugMode) {
-              debugPrint(
-                '[FlutterInappPurchase] Android: Consuming ${purchase.productId}',
+          final token = purchase.purchaseToken;
+          // Community stores identify purchases their own way.
+          if (purchase.store != gentype.IapStore.Unknown) {
+            if (token == null || token.isEmpty) {
+              throw PurchaseError(
+                code: gentype.ErrorCode.PurchaseError,
+                message:
+                    'Purchase token is required to finish Android transactions.',
               );
             }
-            final result = await _channel.invokeMethod(
-              'consumePurchaseAndroid',
-              <String, dynamic>{'purchaseToken': purchase.purchaseToken},
-            );
-            parseAndLogAndroidResponse(
-              result,
-              successLog:
-                  '[FlutterInappPurchase] Android: Product consumed successfully',
-              failureLog:
-                  '[FlutterInappPurchase] Android: Failed to parse consume response',
-            );
-            _acknowledgedAndroidPurchaseTokens.remove(purchase.purchaseToken!);
-            unawaited(_firstPurchaseNotice.onFinished(purchase));
-            return;
-          }
-
-          final alreadyAcknowledged =
-              _acknowledgedAndroidPurchaseTokens[purchase.purchaseToken!] ??
-                  false;
-          if (alreadyAcknowledged) {
-            if (kDebugMode) {
-              debugPrint(
-                '[FlutterInappPurchase] Android: Purchase already acknowledged (cached)',
-              );
+            if (!consumable &&
+                (_acknowledgedAndroidPurchaseTokens[token] ?? false)) {
+              if (kDebugMode) {
+                debugPrint(
+                  '[FlutterInappPurchase] Android: Purchase already acknowledged (cached)',
+                );
+              }
+              return;
             }
-            return;
           }
 
           if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledging ${purchase.productId}',
+              '[FlutterInappPurchase] Android: Finishing ${purchase.productId}',
             );
           }
-
-          final result = await _channel.invokeMethod(
-            'acknowledgePurchaseAndroid',
-            <String, dynamic>{
-              'purchaseToken': purchase.purchaseToken,
-            },
-          );
-          bool didAcknowledgeSucceed(dynamic response) {
-            if (response == null) {
-              return false;
+          // Native throws when the store rejects the acknowledge or consume.
+          await _channel.invokeMethod('finishTransaction', <String, dynamic>{
+            'purchase': purchase.toJson(),
+            'isConsumable': consumable,
+          });
+          if (token != null) {
+            if (consumable) {
+              _acknowledgedAndroidPurchaseTokens.remove(token);
+            } else {
+              _acknowledgedAndroidPurchaseTokens[token] = true;
             }
-
-            if (response is bool) {
-              return response;
-            }
-
-            Map<String, dynamic>? parsed;
-
-            if (response is String) {
-              try {
-                final dynamic decoded = jsonDecode(response);
-                if (decoded is Map<String, dynamic>) {
-                  parsed = decoded;
-                } else {
-                  return false;
-                }
-              } catch (_) {
-                return false;
-              }
-            } else if (response is Map<dynamic, dynamic>) {
-              parsed = response.map<String, dynamic>(
-                (key, value) => MapEntry(key.toString(), value),
-              );
-            }
-
-            if (parsed != null) {
-              final dynamic code = parsed['responseCode'];
-              if (code is num && code == 0) {
-                return true;
-              }
-              if (code is String && int.tryParse(code) == 0) {
-                return true;
-              }
-
-              final bool? success = parsed['success'] as bool?;
-              if (success != null) {
-                return success;
-              }
-            }
-
-            return false;
           }
-
-          final didAcknowledge = didAcknowledgeSucceed(result);
-          parseAndLogAndroidResponse(
-            result,
-            successLog:
-                '[FlutterInappPurchase] Android: Purchase acknowledged successfully',
-            failureLog:
-                '[FlutterInappPurchase] Android: Failed to parse acknowledge response',
-          );
-          if (didAcknowledge) {
-            _acknowledgedAndroidPurchaseTokens[purchase.purchaseToken!] = true;
-            unawaited(_firstPurchaseNotice.onFinished(purchase));
-          } else if (kDebugMode) {
-            debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.productId})',
-            );
-          }
+          unawaited(_firstPurchaseNotice.onFinished(purchase));
           return;
         }
 

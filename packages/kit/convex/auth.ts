@@ -5,10 +5,11 @@ import {
   ResendOTPEmailJa,
 } from "./ResendOTP";
 import GitHub, { type GitHubProfile } from "@auth/core/providers/github";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import {
   assertEmailSignInWindowOpen,
   assertLegacyEmailAccount,
+  fetchGitHubProfileWithVerifiedEmail,
   isResendProviderId,
 } from "./authWindow";
 
@@ -20,6 +21,12 @@ const CustomAuth = convexAuth({
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID!,
       clientSecret: process.env.AUTH_GITHUB_SECRET!,
+      // Auth.js would fall back to an unverified primary address.
+      userinfo: {
+        url: "https://api.github.com/user",
+        request: ({ tokens }: { tokens: { access_token?: string } }) =>
+          fetchGitHubProfileWithVerifiedEmail(tokens.access_token ?? ""),
+      },
       profile(profile) {
         return {
           id: profile.id.toString(),
@@ -84,14 +91,17 @@ const CustomAuth = convexAuth({
           : undefined;
         const githubUsername = githubProfile?.login;
 
-        await ctx.runMutation(api.userProfiles.mutation.createOrUpdateProfile, {
-          userId,
-          email,
-          name: profileName ?? existingUser.name ?? undefined,
-          loginMethod: args.provider.id,
-          isGitHub,
-          ...(githubUsername ? { githubUsername } : {}),
-        });
+        await ctx.runMutation(
+          internal.userProfiles.internal.createOrUpdateProfile,
+          {
+            userId,
+            email,
+            name: profileName ?? existingUser.name ?? undefined,
+            loginMethod: args.provider.id,
+            isGitHub,
+            ...(githubUsername ? { githubUsername } : {}),
+          },
+        );
 
         return userId;
       }
@@ -136,14 +146,17 @@ const CustomAuth = convexAuth({
         : undefined;
       const githubUsername = githubProfile?.login;
 
-      await ctx.runMutation(api.userProfiles.mutation.createOrUpdateProfile, {
-        userId,
-        email,
-        name: profileName,
-        loginMethod: args.provider.id,
-        isGitHub,
-        ...(githubUsername ? { githubUsername } : {}),
-      });
+      await ctx.runMutation(
+        internal.userProfiles.internal.createOrUpdateProfile,
+        {
+          userId,
+          email,
+          name: profileName,
+          loginMethod: args.provider.id,
+          isGitHub,
+          ...(githubUsername ? { githubUsername } : {}),
+        },
+      );
 
       return userId;
     },

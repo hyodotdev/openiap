@@ -40,14 +40,12 @@ function RestorePurchases() {
         . <strong>Android:</strong> Reads owned purchases from the store (Play:{' '}
         <code>queryPurchasesAsync</code>; Amazon:{' '}
         <code>PurchasingService.getPurchaseUpdates</code>) with no system-level
-        UI prompt. React Native, Expo, Flutter, MAUI, Godot, and KMP (Amazon,
-        Horizon, and community-provider builds) call the provider&apos;s
-        restore; KMP&apos;s Play build queries ownership directly. Play and
-        Amazon restores deliver nothing by themselves, while Horizon&apos;s
-        restore delivers each owned purchase to the purchase listeners (React
-        Native, Expo, Flutter, MAUI, and KMP). Godot emits no{' '}
-        <code>purchase_updated</code> signal; read owned purchases with{' '}
-        <code>get_available_purchases_result</code>.{' '}
+        UI prompt. React Native, Expo, Flutter, MAUI, Godot, and KMP call the
+        provider&apos;s restore. Play and Amazon restores deliver nothing by
+        themselves, while Horizon&apos;s restore delivers each owned purchase to
+        the purchase listeners (React Native, Expo, Flutter, MAUI, and KMP).
+        Godot emits no <code>purchase_updated</code> signal; read owned
+        purchases with <code>get_available_purchases_result</code>.{' '}
         <a
           href="https://developer.android.com/google/play/billing/integrate"
           target="_blank"
@@ -86,10 +84,10 @@ function RestorePurchases() {
             <CodeBlock language="dart">{`Future<void> restorePurchases();`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<VoidResult> RestorePurchasesAsync();`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func restore_purchases() -> GodotIapWrapper.RestoreResult`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func restore_purchases() -> Variant # GodotIapWrapper.RestoreResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -103,7 +101,8 @@ function RestorePurchases() {
         <code>purchaseUpdatedListener</code> / surface as{' '}
         <code>getAvailablePurchases</code> results, depending on platform. In
         MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
-        <code>Task&lt;VoidResult&gt;</code>. Godot returns a{' '}
+        <code>Task&lt;string&gt;</code>; the string carries no data, and a
+        failure throws <code>OpenIapException</code>. Godot returns a{' '}
         <code>GodotIapWrapper.RestoreResult</code> extending{' '}
         <code>Types.VoidResult</code>; check <code>success</code> because a
         failed store query must not be treated as a successful restore. A failed

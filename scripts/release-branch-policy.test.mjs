@@ -128,7 +128,7 @@ test("Gradle wrappers pin distributions and validate tracked jars", () => {
   );
 });
 
-test("React Native Ruby dependencies are locked and installed frozen", () => {
+test("Ruby dependencies are locked and installed frozen", () => {
   const gemfile = readFileSync(
     resolve(repoRoot, "libraries/react-native-iap/example/Gemfile"),
     "utf8",
@@ -155,11 +155,13 @@ test("React Native Ruby dependencies are locked and installed frozen", () => {
     concurrentRuby.localeCompare("1.3.7", undefined, { numeric: true }) >= 0,
   );
 
-  for (const [filename, installStep] of [
-    ["ci.yml", "Verify Ruby lock"],
-    ["ci-react-native-iap.yml", "Install Ruby dependencies"],
-    ["release-react-native.yml", "Install Ruby dependencies"],
-    ["codeql.yml", "Build React Native Swift wrapper"],
+  const example = "libraries/react-native-iap/example";
+  for (const [filename, installStep, directory] of [
+    ["ci.yml", "Verify Ruby locks", example],
+    ["ci-react-native-iap.yml", "Install Ruby dependencies", example],
+    ["release-react-native.yml", "Install Ruby dependencies", example],
+    ["release-apple.yml", "Install CocoaPods", "packages/apple"],
+    ["codeql.yml", "Build React Native Swift wrapper", example],
   ]) {
     const workflow = readWorkflow(filename);
     const setup = extractNamedStep(workflow, "Setup Ruby").source;
@@ -169,22 +171,27 @@ test("React Native Ruby dependencies are locked and installed frozen", () => {
       /ruby\/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1/u,
     );
     assert.match(setup, /ruby-version: "3\.3"/u);
-    assert.match(
-      setup,
-      /working-directory: libraries\/react-native-iap\/example/u,
-    );
+    assert.ok(setup.includes(`working-directory: ${directory}`), filename);
     assert.match(install, /BUNDLE_FROZEN=true bundle install/u);
   }
 
+  // The Apple release owns its CocoaPods lock; an example bump cannot move it.
+  assert.match(
+    readFileSync(resolve(repoRoot, "packages/apple/Gemfile"), "utf8"),
+    /^gem 'cocoapods', '\d+\.\d+\.\d+'$/mu,
+  );
   const dependabot = readFileSync(
     resolve(repoRoot, ".github/dependabot.yml"),
     "utf8",
   );
-  assert.match(dependabot, /package-ecosystem: "bundler"/u);
-  assert.match(
-    dependabot,
-    /directory: "\/libraries\/react-native-iap\/example"/u,
-  );
+  const lockCheck = extractNamedStep(
+    readWorkflow("ci.yml"),
+    "Verify Ruby locks",
+  ).source;
+  for (const directory of [example, "packages/apple"]) {
+    assert.ok(lockCheck.includes(directory), directory);
+    assert.ok(dependabot.includes(`directory: "/${directory}"`), directory);
+  }
 });
 
 test("Godot verifies the exact SwiftGodot commit before building it", () => {
@@ -2213,7 +2220,7 @@ test("Apple release preflights CocoaPods before repository mutation", () => {
   );
   assert.match(
     workflow.slice(registry, credentials),
-    /if ! POD_INFO=\$\(pod trunk info openiap\); then/u,
+    /if ! POD_INFO=\$\(bundle exec pod trunk info openiap\); then/u,
   );
 });
 

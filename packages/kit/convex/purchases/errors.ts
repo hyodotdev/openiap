@@ -1,25 +1,39 @@
 import { ConvexError } from "convex/values";
 
+import { extractHttpStatus, isTransientHttpError } from "./retry";
+
+// Suggested wait after a store outage; `/v1` answers these with 503.
+export const STORE_OUTAGE_RETRY_AFTER_SEC = 5;
+
+export function isStoreOutage(error: unknown): boolean {
+  return isTransientHttpError(error) || extractHttpStatus(error) === 429;
+}
+
 export abstract class ReceiptVerificationError extends ConvexError<string> {
   public readonly errorCode: string;
   public readonly errorMessage: string;
   public readonly errorDetails?: Record<string, unknown>;
+  /** Set when the store could not answer: a retry may succeed. */
+  public readonly retryAfterSec?: number;
 
   constructor(
     errorCode: string,
     message: string,
     details?: Record<string, unknown>,
+    retryAfterSec?: number,
   ) {
     const errorData = JSON.stringify({
       error: errorCode,
       message,
       details,
+      ...(retryAfterSec !== undefined ? { retryAfterSec } : {}),
     });
     super(errorData);
 
     this.errorCode = errorCode;
     this.errorMessage = message;
     this.errorDetails = details;
+    this.retryAfterSec = retryAfterSec;
   }
 }
 
@@ -57,11 +71,12 @@ export class ProjectMetaHorizonAppSecretNotConfiguredError extends ReceiptVerifi
 }
 
 export class MetaHorizonVerificationError extends ReceiptVerificationError {
-  constructor(detail: string) {
+  constructor(detail: string, retryAfterSec?: number) {
     super(
       "META_HORIZON_VERIFICATION_ERROR",
       `Meta Horizon verification failed: ${detail}`,
       { originalError: detail },
+      retryAfterSec,
     );
   }
 }
@@ -219,12 +234,16 @@ export class PlayStorePurchaseNotFoundError extends ReceiptVerificationError {
   }
 }
 
+// Google's own wording stays in details; the message is safe to return.
 export class PlayStorePurchaseVerificationFailedError extends ReceiptVerificationError {
-  constructor(originalError: string) {
+  constructor(originalError: string, status?: number, retryAfterSec?: number) {
     super(
       "PLAY_STORE_PURCHASE_VERIFICATION_FAILED",
-      `Purchase verification failed: ${originalError}`,
-      { originalError },
+      status === undefined
+        ? "Purchase verification failed"
+        : `Purchase verification failed (HTTP ${status})`,
+      { originalError, ...(status !== undefined ? { status } : {}) },
+      retryAfterSec,
     );
   }
 }
@@ -253,25 +272,24 @@ export function isPlayStorePackageNameMismatchError(
   );
 }
 
+// Only curated messages reach `/v1`; anything unclassified (an OCC retry, a
+// Convex internal error) is reported as temporary.
 export class PlayStoreVerificationError extends ReceiptVerificationError {
   constructor(originalError: unknown) {
-    const errorMessage =
-      originalError instanceof Error
-        ? originalError.message
-        : String(originalError);
+    const inner =
+      originalError instanceof ReceiptVerificationError
+        ? originalError
+        : undefined;
     super(
       "PLAY_STORE_VERIFICATION_ERROR",
-      `Failed to verify Google Play purchase: ${errorMessage}`,
-      { originalError: errorMessage },
-    );
-  }
-}
-
-export class AppStoreProductionRequiresAppAppleIdError extends ReceiptVerificationError {
-  constructor() {
-    super(
-      "APP_STORE_PRODUCTION_REQUIRES_APP_APPLE_ID",
-      "appAppleId is required when using production environment. Please provide appAppleId parameter or use sandbox environment.",
+      `Failed to verify Google Play purchase: ${inner?.errorMessage ?? "Google Play verification did not complete"}`,
+      {
+        originalError:
+          originalError instanceof Error
+            ? originalError.message
+            : String(originalError),
+      },
+      inner ? inner.retryAfterSec : STORE_OUTAGE_RETRY_AFTER_SEC,
     );
   }
 }
@@ -332,40 +350,17 @@ export class AppStoreInvalidJWSFormatError extends ReceiptVerificationError {
 }
 
 export class AppStoreTransactionVerificationFailedError extends ReceiptVerificationError {
-  constructor(message: string = "Unknown verification error") {
+  constructor(
+    message: string = "Unknown verification error",
+    retryAfterSec?: number,
+  ) {
     super(
       "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
       `App Store transaction verification failed: ${message}`,
+      undefined,
+      retryAfterSec,
     );
   }
-}
-
-export class AppStoreVerificationError extends ReceiptVerificationError {
-  constructor(originalError: unknown) {
-    const errorMessage =
-      originalError instanceof Error
-        ? originalError.message
-        : String(originalError);
-    super(
-      "APP_STORE_VERIFICATION_ERROR",
-      `Failed to verify App Store purchase: ${errorMessage}`,
-      { originalError: errorMessage },
-    );
-  }
-}
-
-export function createAppStoreError(error: unknown): ReceiptVerificationError {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-
-  if (errorMessage.includes("Invalid JWS")) {
-    return new AppStoreInvalidJWSFormatError();
-  }
-
-  if (errorMessage.includes("appAppleId is required")) {
-    return new AppStoreProductionRequiresAppAppleIdError();
-  }
-
-  return new AppStoreTransactionVerificationFailedError();
 }
 
 export function createPlayStoreError(error: unknown): ReceiptVerificationError {
@@ -394,5 +389,9 @@ export function createPlayStoreError(error: unknown): ReceiptVerificationError {
     return new PlayStoreInvalidCredentialsError();
   }
 
-  return new PlayStorePurchaseVerificationFailedError(errorMessage);
+  return new PlayStorePurchaseVerificationFailedError(
+    errorMessage,
+    extractHttpStatus(error),
+    isStoreOutage(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
+  );
 }

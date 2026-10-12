@@ -156,6 +156,14 @@ export function androidStoreChecks(root, framework) {
       "Use play, horizon, amazon, or auto; or pair a lowercase community openiapStore id with fixed openiapProvider=group:artifact:version coordinates.",
       {line: providerEntry?.line ?? storeEntry?.line},
     ));
+  } else if (provider.split(":")[2]?.toLowerCase().includes("snapshot")) {
+    // Same refusal and wording as openIapCheckProvider in openiap-store.gradle.
+    findings.push(finding(
+      "android-store-unknown", "error", "android/gradle.properties",
+      "openiapProvider must be group:artifact:version with a fixed version.",
+      "Pin a released provider version; a snapshot changes under the same coordinates.",
+      {line: providerEntry?.line},
+    ));
   }
 
   if (platformEntry && !optOut) {

@@ -5,6 +5,7 @@ package dev.hyo.openiap.maui
 import android.app.Activity
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.JsonParseException
 import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeepLinkOptions
@@ -424,6 +425,9 @@ class OpenIapMauiModule(private val context: Context) {
     private fun encodeThrowable(e: Throwable): String {
         val payload = when (e) {
             is OpenIapError -> encodeError(e)
+            // Malformed JSON, a wrong JSON type, or a missing field the decoders cast is the caller's input.
+            is IllegalArgumentException, is JsonParseException, is ClassCastException, is NullPointerException ->
+                encodeError(OpenIapError.DeveloperError(e.message))
             else -> mapOf(
                 "code" to "unknown",
                 "message" to (e.message ?: e.javaClass.simpleName),
@@ -433,9 +437,6 @@ class OpenIapMauiModule(private val context: Context) {
         return gson.toJson(payload)
     }
 
-    private fun badInput(typeName: String): IllegalArgumentException {
-        // The generated `Type.fromJson(Map)` returns null when required fields are missing.
-        // Surface this as a typed error so the C# side can map it to OpenIapError.DeveloperError.
-        return IllegalArgumentException("Could not decode $typeName from JSON")
-    }
+    // A generated `Type.fromJson(Map)` returns null when a required field is missing.
+    private fun badInput(typeName: String) = IllegalArgumentException("Could not decode $typeName from JSON")
 }

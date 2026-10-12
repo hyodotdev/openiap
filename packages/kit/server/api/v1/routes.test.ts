@@ -143,6 +143,34 @@ describe("apiRoutes", () => {
     expect((await response.json()).errors[0].code).toBe("RATE_LIMITED");
   });
 
+  it("answers a store outage with 503 and Retry-After instead of a permanent 400", async () => {
+    convexClientMock.action.mockRejectedValueOnce(new Error("outage"));
+    convexClientMock.handleConvexError.mockReturnValueOnce({
+      code: "PLAY_STORE_VERIFICATION_ERROR",
+      message:
+        "Failed to verify Google Play purchase: Purchase verification failed (HTTP 503)",
+      retryAfterSec: 5,
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-outage",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: "token".repeat(8),
+      }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("5");
+    expect((await response.json()).errors[0].code).toBe(
+      "PLAY_STORE_VERIFICATION_ERROR",
+    );
+  });
+
   it("forwards Amazon sandbox and expected product checks and exposes the RVS environment", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: true,

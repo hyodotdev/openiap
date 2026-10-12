@@ -694,7 +694,7 @@ describe('Public API (src/index.ts)', () => {
       sub2.remove();
     });
 
-    it('clears pre-init listeners when ending without a native instance', async () => {
+    it('keeps pre-init listeners when ending without a native instance', async () => {
       const createHybridObject = jest
         .fn()
         .mockImplementationOnce(() => {
@@ -706,14 +706,15 @@ describe('Public API (src/index.ts)', () => {
         NitroModules: {createHybridObject},
       }));
       const freshIAP = require('../index');
-      const staleListener = jest.fn();
+      const earlyListener = jest.fn();
 
-      freshIAP.purchaseUpdatedListener(staleListener);
+      freshIAP.purchaseUpdatedListener(earlyListener);
       await expect(freshIAP.endConnection()).resolves.toBe(true);
       await freshIAP.initConnection();
 
       const currentListener = jest.fn();
       freshIAP.purchaseUpdatedListener(currentListener);
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
       const nativeHandler =
         mockIap.addPurchaseUpdatedListener.mock.calls.at(-1)[0];
       nativeHandler({
@@ -728,8 +729,65 @@ describe('Public API (src/index.ts)', () => {
         isAutoRenewing: false,
       });
 
-      expect(staleListener).not.toHaveBeenCalled();
+      expect(earlyListener).toHaveBeenCalledTimes(1);
       expect(currentListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps native listener state when native endConnection fails', async () => {
+      // Native keeps its listeners when teardown fails; reattaching would deliver twice.
+      await IAP.initConnection();
+      const listener = jest.fn();
+      IAP.purchaseUpdatedListener(listener);
+      mockIap.endConnection.mockRejectedValueOnce(
+        new Error(
+          JSON.stringify({code: 'service-error', message: 'teardown failed'}),
+        ),
+      );
+
+      await expect(IAP.endConnection()).rejects.toMatchObject({
+        code: ErrorCode.ServiceError,
+      });
+      await IAP.initConnection();
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('reattaches registered listeners after endConnection → initConnection', async () => {
+      await IAP.initConnection();
+      const purchaseListener = jest.fn();
+      const errorListener = jest.fn();
+      IAP.purchaseUpdatedListener(purchaseListener);
+      IAP.purchaseErrorListener(errorListener);
+
+      // An app-level sign-out ends the connection while a screen's hook is mounted.
+      await IAP.endConnection();
+      jest.clearAllMocks();
+      await IAP.initConnection();
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(mockIap.addPurchaseErrorListener).toHaveBeenCalledTimes(1);
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0]({
+        id: 't2',
+        transactionId: 't2',
+        productId: 'p2',
+        transactionDate: Date.now(),
+        store: 'apple',
+        storeId: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+      mockIap.addPurchaseErrorListener.mock.calls[0][0]({
+        code: 'user-cancelled',
+        message: 'User cancelled',
+      });
+
+      expect(purchaseListener).toHaveBeenCalledWith(
+        expect.objectContaining({productId: 'p2'}),
+      );
+      expect(errorListener).toHaveBeenCalledWith(
+        expect.objectContaining({code: ErrorCode.UserCancelled}),
+      );
     });
 
     it('attaches a pre-init purchase listener after initConnection', async () => {
@@ -1753,14 +1811,14 @@ describe('Public API (src/index.ts)', () => {
       });
     });
 
-    it('iOS: treats already-finished error as success', async () => {
+    it('iOS: surfaces finish errors (native already resolves finished transactions)', async () => {
       Object.assign(Platform, {OS: 'ios'});
       mockIap.finishTransaction.mockRejectedValueOnce(
         new Error('Transaction not found'),
       );
       await expect(
         IAP.finishTransaction({purchase: {id: 'tid'}}),
-      ).resolves.toBeUndefined();
+      ).rejects.toThrow('Transaction not found');
     });
 
     it('iOS: preserves community completion errors', async () => {
@@ -2021,19 +2079,27 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.beginRefundRequestIOS('sku')).resolves.toBe('success');
     });
 
-    it('subscriptionStatusIOS converts items', async () => {
+    it('subscriptionStatusIOS keeps the documented state names', async () => {
       Object.assign(Platform, {OS: 'ios'});
-      mockIap.subscriptionStatusIOS = jest.fn(async () => [
-        {
-          state: 1,
+      const states = [
+        'subscribed',
+        'expired',
+        'inBillingRetryPeriod',
+        'inGracePeriod',
+        'revoked',
+        'unknown',
+      ];
+      mockIap.subscriptionStatusIOS = jest.fn(async () =>
+        states.map((state) => ({
+          state,
           platform: 'ios',
-          isAutoRenewing: true,
           renewalInfo: {willAutoRenew: true},
-        },
-      ]);
+        })),
+      );
       const res = await IAP.subscriptionStatusIOS('sku');
-      expect(Array.isArray(res)).toBe(true);
-      expect(res?.length).toBe(1);
+      expect(res?.map((status: {state: string}) => status.state)).toEqual(
+        states,
+      );
     });
 
     it('currentEntitlementIOS and latestTransactionIOS map purchases', async () => {
@@ -2622,6 +2688,25 @@ describe('Public API (src/index.ts)', () => {
     });
 
     describe('getActiveSubscriptions', () => {
+      it('normalizes a not-prepared connection error', async () => {
+        Object.assign(Platform, {OS: 'android'});
+        mockIap.getActiveSubscriptions.mockRejectedValueOnce(
+          new Error(
+            JSON.stringify({
+              code: 'not-prepared',
+              message: 'Billing client not ready',
+              platform: 'android',
+            }),
+          ),
+        );
+
+        await expect(IAP.getActiveSubscriptions()).rejects.toMatchObject({
+          name: '[react-native-iap]: PurchaseError',
+          code: ErrorCode.NotPrepared,
+          message: 'Billing client not ready',
+        });
+      });
+
       it('iOS: should call native getActiveSubscriptions and map results', async () => {
         Object.assign(Platform, {OS: 'ios'});
 

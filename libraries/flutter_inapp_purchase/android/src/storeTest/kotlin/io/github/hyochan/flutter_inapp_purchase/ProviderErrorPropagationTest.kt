@@ -2,73 +2,33 @@
 
 package io.github.hyochan.flutter_inapp_purchase
 
-import android.os.Looper
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.OpenIapError
-import dev.hyo.openiap.OpenIapProtocol
-import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
-import java.lang.reflect.Proxy
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ProviderErrorPropagationTest {
+    @Before fun installFakeProvider() = FakeProviderFactory.install()
+
     @Test
     fun `malformed ownership options reject without calling the provider`() {
-        var providerCalls = 0
-        val provider =
-            Proxy.newProxyInstance(
-                OpenIapProtocol::class.java.classLoader,
-                arrayOf(OpenIapProtocol::class.java),
-            ) { _, _, _ ->
-                providerCalls++
-                null
-            } as OpenIapProtocol
-        val plugin = AndroidInappPurchasePlugin()
-        for ((name, value) in mapOf("openIap" to provider, "connectionReady" to true, "listenersAttached" to true)) {
-            plugin.javaClass
-                .getDeclaredField(name)
-                .apply { isAccessible = true }
-                .set(plugin, value)
-        }
+        val plugin = fakeEngine()
         for (params in listOf(mapOf("google" to "bad"), mapOf("google" to emptyMap<String, Any?>()))) {
-            var responses = 0
-            plugin.onMethodCall(
-                MethodCall("verifyAppOwnership", params),
-                object : MethodChannel.Result {
-                    override fun success(result: Any?) {
-                        fail("Malformed ownership input must reject")
-                    }
-
-                    override fun notImplemented() {
-                        fail("Ownership API must exist")
-                    }
-
-                    override fun error(
-                        code: String,
-                        message: String?,
-                        details: Any?,
-                    ) {
-                        assertEquals(OpenIapError.DeveloperError.CODE, code)
-                        responses++
-                    }
-                },
-            )
-            shadowOf(Looper.getMainLooper()).idle()
-            assertEquals(1, responses)
-            assertEquals(0, providerCalls)
+            assertEquals("error:${OpenIapError.DeveloperError.CODE}", plugin.call("verifyAppOwnership", params))
+            assertEquals(0, FakeProviderFactory.calls)
         }
         plugin.dispose()
+        settle()
     }
 
     @Test
@@ -76,33 +36,12 @@ class ProviderErrorPropagationTest {
         for (error in listOf(OpenIapError.FeatureNotSupported("Use the vendor backend"), OpenIapError.NotPrepared)) {
             val verify: MutationVerifyPurchaseHandler = { throw error }
             val managed: MutationVerifyPurchaseWithProviderHandler = { throw error }
-            val provider =
-                Proxy.newProxyInstance(OpenIapProtocol::class.java.classLoader, arrayOf(OpenIapProtocol::class.java)) { _, method, _ ->
-                    when (method.name) {
-                        "getVerifyPurchase" -> verify
-                        "getVerifyPurchaseWithProvider" -> managed
-                        else -> null
-                    }
-                } as OpenIapProtocol
-            val messenger =
-                Proxy.newProxyInstance(
-                    BinaryMessenger::class.java.classLoader,
-                    arrayOf(BinaryMessenger::class.java),
-                ) { _, _, _ -> null } as BinaryMessenger
-            val plugin = AndroidInappPurchasePlugin()
-            plugin.setContext(RuntimeEnvironment.getApplication())
-            plugin.setChannel(MethodChannel(messenger, "test"))
-            for ((name, value) in mapOf("openIap" to provider, "connectionReady" to true, "listenersAttached" to true)) {
-                plugin.javaClass
-                    .getDeclaredField(name)
-                    .apply { isAccessible = true }
-                    .set(plugin, value)
-            }
+            FakeProviderFactory.handlers["getVerifyPurchase"] = verify
+            FakeProviderFactory.handlers["getVerifyPurchaseWithProvider"] = managed
+            val plugin = fakeEngine()
             for (method in listOf("verifyPurchase", "verifyPurchaseWithProvider")) {
                 val params =
-                    if (method ==
-                        "verifyPurchase"
-                    ) {
+                    if (method == "verifyPurchase") {
                         mapOf(
                             "google" to
                                 mapOf("sku" to "sku", "accessToken" to "fixture", "packageName" to "test.app", "purchaseToken" to "opaque"),
@@ -134,10 +73,11 @@ class ProviderErrorPropagationTest {
                         }
                     },
                 )
-                shadowOf(Looper.getMainLooper()).idle()
+                settle()
                 assertEquals(1, responses)
             }
             plugin.dispose()
+            settle()
         }
     }
 }

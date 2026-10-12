@@ -34,9 +34,12 @@ class ContinuationResumeGuard<T>(
 
     @OptIn(InternalCoroutinesApi::class)
     fun resumeWithException(error: Throwable) {
-        resumeWithException(error) {}
+        val token = continuation.tryResumeWithException(error) ?: return
+        didComplete.set(true)
+        continuation.completeResume(token)
     }
 
+    @Deprecated("Unused by OpenIAP; it will be removed in the next major release.")
     @OptIn(InternalCoroutinesApi::class)
     fun resumeWithException(
         error: Throwable,

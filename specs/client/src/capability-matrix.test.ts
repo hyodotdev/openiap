@@ -54,8 +54,9 @@ describe('store capability matrix', () => {
     for (const [behavior, entry] of Object.entries(CAPABILITY_MATRIX)) {
       for (const [store, level] of Object.entries(entry.stores)) {
         if (level === 'required') continue;
+        const evidence: Partial<Record<string, string>> = 'evidence' in entry ? entry.evidence : {};
         expect(
-          entry.evidence?.[store]?.trim(),
+          evidence[store]?.trim(),
           `${behavior}.${store} is "${level}" and needs evidence`,
         ).toBeTruthy();
       }

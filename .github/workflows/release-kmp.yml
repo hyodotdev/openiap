@@ -148,6 +148,7 @@ jobs:
 
   publish:
     needs: [validate-android, validate-ios]
+    environment: release
     permissions:
       actions: write
       contents: write

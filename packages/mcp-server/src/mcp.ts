@@ -11,11 +11,16 @@ import type {
 import { z } from "zod";
 
 import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
-import { kitClient, KitHttpError, normalizeKitBaseUrl } from "./kit-client.js";
+import {
+  fetchKit,
+  kitClient,
+  KitHttpError,
+  normalizeKitBaseUrl,
+} from "./kit-client.js";
 
-// MCP server for IAPKit. Every tool funnels through `withClient`
-// so Authorization bearer / IAPKIT_API_KEY config is consistent and errors
-// surface in a uniform `{ ok: false, error }` shape that LLMs handle predictably.
+// MCP server for IAPKit. Every tool funnels through `withClient`, so key
+// resolution and the kit endpoint are decided in one place, and errors surface
+// in a uniform `{ ok: false, error }` shape that LLMs handle predictably.
 
 export const IAPKIT_MCP_SERVER_NAME = "iapkit-mcp";
 export const IAPKIT_MCP_SERVER_VERSION = "0.1.0";
@@ -38,10 +43,12 @@ const OPTIONAL_BASE_URL = z
   .url()
   .optional()
   .describe(
-    "Override IAPKit base URL. Defaults to IAPKIT_BASE_URL, then https://kit.openiap.dev.",
+    "Override IAPKit base URL. Defaults to IAPKIT_BASE_URL, then https://kit.openiap.dev. The hosted server ignores it.",
   );
 
 const API_KEY_PLACEHOLDER = "<IAPKIT_SECRET_KEY>";
+export const MANAGE_PRODUCT_DISABLE_MESSAGE =
+  "IAPKit has no non-destructive disabled state. Pause sales in App Store Connect or Play Console, or use action 'remove' to delete the product on the next push sync.";
 const PUBLISHABLE_KEY_PLACEHOLDER = "<IAPKIT_PUBLISHABLE_KEY>";
 const MAX_API_KEY_LENGTH = 128;
 const MAX_KIT_ID_LENGTH = 256;
@@ -91,7 +98,7 @@ const API_KEY_PARAM = z
   });
 
 const OPTIONAL_API_KEY = API_KEY_PARAM.optional().describe(
-  "IAPKit secret admin key. Defaults to the MCP Authorization bearer token, then IAPKIT_API_KEY.",
+  "IAPKit secret admin key. Defaults to the MCP Authorization bearer token (stdio: IAPKIT_API_KEY).",
 );
 
 function validateApiKey(apiKey: string): string | null {
@@ -103,34 +110,61 @@ function validateApiKey(apiKey: string): string | null {
   return null;
 }
 
-function resolveApiKey(
-  opts: { apiKey?: string; baseUrl?: string },
-  extra?: ToolExtra,
-): string | undefined {
-  return opts.apiKey ?? extra?.authInfo?.token ?? process.env.IAPKIT_API_KEY;
+export interface IapKitMcpServerOptions {
+  /**
+   * Kit endpoint every tool calls. When set, the per-call `baseUrl` argument
+   * is ignored, so a tool call cannot point the server at another host.
+   */
+  kitBaseUrl?: string;
+  /**
+   * Fall back to IAPKIT_API_KEY when a call carries no key. Only for stdio,
+   * where the operator owns the process; network transports require a bearer.
+   */
+  allowEnvApiKey?: boolean;
 }
 
-function withClient(
-  opts: { apiKey?: string; baseUrl?: string },
-  extra?: ToolExtra,
-) {
-  const apiKey = resolveApiKey(opts, extra);
-  if (!apiKey) {
-    throw new Error(
-      `No IAPKit secret admin key was provided. Set Authorization: Bearer ${API_KEY_PLACEHOLDER}, IAPKIT_API_KEY, or the tool's apiKey argument.`,
-    );
-  }
-  const validationError = validateApiKey(apiKey);
-  if (validationError) {
-    throw new Error(validationError);
-  }
-  if (!isSecretApiKey(apiKey)) {
-    throw new Error(INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
-  }
-  return kitClient({
-    apiKey,
-    baseUrl: opts.baseUrl ?? process.env.IAPKIT_BASE_URL,
-  });
+type KeyedArgs = { apiKey?: string; baseUrl?: string };
+
+interface KitAccess {
+  /** The caller's `baseUrl`, or undefined when the server pins its kit. */
+  callerBaseUrl: (requested?: string) => string | undefined;
+  kitBaseUrl: (requested?: string) => string | undefined;
+  resolveApiKey: (opts: KeyedArgs, extra?: ToolExtra) => string | undefined;
+  withClient: (
+    opts: KeyedArgs,
+    extra?: ToolExtra,
+  ) => ReturnType<typeof kitClient>;
+}
+
+function createKitAccess(options: IapKitMcpServerOptions): KitAccess {
+  const callerBaseUrl = (requested?: string): string | undefined =>
+    options.kitBaseUrl === undefined ? requested : undefined;
+  const kitBaseUrl = (requested?: string): string | undefined =>
+    options.kitBaseUrl ?? requested ?? process.env.IAPKIT_BASE_URL;
+  const resolveApiKey = (
+    opts: KeyedArgs,
+    extra?: ToolExtra,
+  ): string | undefined =>
+    opts.apiKey ??
+    extra?.authInfo?.token ??
+    (options.allowEnvApiKey ? process.env.IAPKIT_API_KEY : undefined);
+  const withClient = (opts: KeyedArgs, extra?: ToolExtra) => {
+    const apiKey = resolveApiKey(opts, extra);
+    if (!apiKey) {
+      throw new Error(
+        `No IAPKit secret admin key was provided. Set Authorization: Bearer ${API_KEY_PLACEHOLDER} or the tool's apiKey argument.`,
+      );
+    }
+    const validationError = validateApiKey(apiKey);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+    if (!isSecretApiKey(apiKey)) {
+      throw new Error(INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
+    }
+    return kitClient({ apiKey, baseUrl: kitBaseUrl(opts.baseUrl) });
+  };
+  return { callerBaseUrl, kitBaseUrl, resolveApiKey, withClient };
 }
 
 function ok(payload: unknown) {
@@ -232,17 +266,22 @@ function registerTool<Args extends z.ZodRawShape>(
  *
  * @returns An `McpServer` instance with all IAPKit tools registered.
  */
-export function createIapKitMcpServer(): McpServer {
+export function createIapKitMcpServer(
+  options: IapKitMcpServerOptions = {},
+): McpServer {
   const server = new McpServer({
     name: IAPKIT_MCP_SERVER_NAME,
     version: IAPKIT_MCP_SERVER_VERSION,
     websiteUrl: "https://kit.openiap.dev",
   });
-  registerIapKitTools(server);
+  registerIapKitTools(server, createKitAccess(options));
   return server;
 }
 
-function registerIapKitTools(server: McpServer) {
+function registerIapKitTools(
+  server: McpServer,
+  { callerBaseUrl, kitBaseUrl, resolveApiKey, withClient }: KitAccess,
+) {
   // ---------------------------------------------------------------------------
   // 1. setup — generate per-framework integration snippet.
   // ---------------------------------------------------------------------------
@@ -567,9 +606,7 @@ function registerIapKitTools(server: McpServer) {
         }
         let baseUrl: string;
         try {
-          baseUrl = normalizeKitBaseUrl(
-            args.baseUrl ?? process.env.IAPKIT_BASE_URL,
-          );
+          baseUrl = normalizeKitBaseUrl(kitBaseUrl(args.baseUrl));
         } catch (error) {
           return err(error, publishableKey);
         }
@@ -589,7 +626,7 @@ function registerIapKitTools(server: McpServer) {
           subscription: "projects/local/subscriptions/openiap-test",
         };
         try {
-          const response = await fetch(
+          const { response, text: responseBody } = await fetchKit(
             `${baseUrl}/v1/webhooks/${encodeURIComponent(publishableKey)}`,
             {
               method: "POST",
@@ -597,7 +634,6 @@ function registerIapKitTools(server: McpServer) {
               body: JSON.stringify(body),
             },
           );
-          const responseBody = await response.text();
           if (!response.ok) {
             return err(
               new KitHttpError(
@@ -635,7 +671,7 @@ function registerIapKitTools(server: McpServer) {
       try {
         const client = withClient(args, extra);
         const publicBaseUrl = normalizeKitBaseUrl(
-          args.baseUrl ?? process.env.IAPKIT_PUBLIC_BASE_URL,
+          callerBaseUrl(args.baseUrl) ?? process.env.IAPKIT_PUBLIC_BASE_URL,
         );
         const [metrics, products] = await Promise.all([
           client
@@ -705,12 +741,12 @@ function registerIapKitTools(server: McpServer) {
   );
 
   // ---------------------------------------------------------------------------
-  // 11. manage_product — disable / refresh a product entry.
+  // 11. manage_product — enable / remove a product entry.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
     "manage_product",
-    "Update or remove a product in IAPKit's catalog. `action: 'remove'` marks the row Removed; the next product sync push/both deletes the upstream store product when the platform allows it.",
+    "Update or remove a product in IAPKit's catalog. `action: 'remove'` marks the row Removed; the next product sync push/both deletes the upstream store product when the platform allows it. `action: 'disable'` is rejected: IAPKit has no non-destructive disabled state, so pause sales in App Store Connect or Play Console instead.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -721,23 +757,15 @@ function registerIapKitTools(server: McpServer) {
     WRITE_TOOL,
     async (args, extra) => {
       try {
-        const client = withClient(args, extra);
-        // Map the action onto the state-only endpoint. Using
-        // `setProductState` instead of `upsertProduct` here avoids the
-        // prior bug where calling upsertProduct with a hardcoded
-        // `type: "Subscription"` + blank `title` would silently clobber
-        // the existing row's product type and (depending on
-        // upsertProduct's branch) its title.
-        const stateMap = {
-          disable: "Removed" as const,
-          enable: "Active" as const,
-          remove: "Removed" as const,
-        };
-        const action = args.action as keyof typeof stateMap;
-        const next = await client.setProductState({
+        // Kept in the schema so existing callers get this message, not a
+        // validation error.
+        if (args.action === "disable") {
+          return err(new Error(MANAGE_PRODUCT_DISABLE_MESSAGE));
+        }
+        const next = await withClient(args, extra).setProductState({
           productId: args.productId,
           platform: args.platform,
-          state: stateMap[action],
+          state: args.action === "enable" ? "Active" : "Removed",
         });
         return ok({ ...next, action: args.action });
       } catch (error) {

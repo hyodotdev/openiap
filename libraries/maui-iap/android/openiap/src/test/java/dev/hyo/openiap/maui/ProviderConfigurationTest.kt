@@ -44,4 +44,15 @@ class ProviderConfigurationTest {
         assertTrue(payload["message"].asString.contains("provider", ignoreCase = true))
         module.removeListener(token)
     }
+
+    @Test fun `malformed input is reported as a developer error`() {
+        val module = OpenIapMauiModule(RuntimeEnvironment.getApplication())
+        val errors = mutableListOf<String?>()
+        module.fetchProducts("not json") { _, errorJson -> errors.add(errorJson) }
+        module.requestPurchase("""{"type":"bogus"}""") { _, errorJson -> errors.add(errorJson) }
+        module.requestPurchase("""{"requestPurchase":"not an object"}""") { _, errorJson -> errors.add(errorJson) }
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(3, errors.size)
+        errors.forEach { assertEquals("developer-error", JsonParser.parseString(it).asJsonObject["code"].asString) }
+    }
 }

@@ -25,7 +25,6 @@ import {
   GRAPHQL_TO_KOTLIN,
   requireGraphQLScalarMapping,
   toPascalCase,
-  toConstantCase,
   capitalize,
 } from '../core/utils.js';
 
@@ -223,16 +222,8 @@ export class KotlinPlugin extends CodegenPlugin {
 
     for (const value of irEnum.values) {
       const caseName = this.escapeKeyword(this.enumValueCase(value.name));
-      const rawValue = value.rawValue;
-      this.emit(`            "${rawValue}" -> ${irEnum.name}.${caseName}`);
-
-      // Add legacy aliases (CONSTANT_CASE and PascalCase)
-      // Use Set to deduplicate (e.g., "None" as both PascalCase and value.name when name is "None")
-      const legacyValues = new Set([toConstantCase(value.name), value.name]);
-      for (const legacy of legacyValues) {
-        if (legacy !== rawValue) {
-          this.emit(`            "${legacy}" -> ${irEnum.name}.${caseName}`);
-        }
+      for (const spelling of this.enumSpellings(value)) {
+        this.emit(`            "${spelling}" -> ${irEnum.name}.${caseName}`);
       }
     }
 
@@ -638,6 +629,10 @@ export class KotlinPlugin extends CodegenPlugin {
       return;
     }
 
+    this.generateInputDataClass(irInput);
+  }
+
+  private generateInputDataClass(irInput: IRInput): void {
     // Sort fields alphabetically for Kotlin
     const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
     const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
@@ -874,103 +869,12 @@ export class KotlinPlugin extends CodegenPlugin {
         this.generateRequestPurchaseProps(irInput);
         break;
       case 'DiscountOfferInputIOS':
-        // In Kotlin, DiscountOfferInputIOS uses standard data class generation
-        // (unlike Swift which needs custom Decodable for String -> Double conversion)
-        this.generateStandardInput(irInput);
+        // Only Swift customizes this input (it accepts a String timestamp).
+        this.generateInputDataClass(irInput);
         break;
       default:
         throw new Error(`${irInput.name} is marked as a custom input without a Kotlin generator strategy.`);
     }
-  }
-
-  private generateStandardInput(irInput: IRInput): void {
-    const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
-    this.generateDocComment(irInput.description);
-    this.generateDeprecationAnnotation(irInput.description);
-    this.emit(`public data class ${irInput.name}(`);
-
-    irInput.fields.forEach((field, index) => {
-      this.generateDocComment(field.description, '    ');
-      this.generateDeprecationAnnotation(field.description, '    ');
-      const propertyType = this.getPropertyType(field.type);
-      const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-      const suffix = index === irInput.fields.length - 1 ? '' : ',';
-      const schemaDefault = this.buildDefaultValueExpression(field);
-      const defaultValue = schemaDefault ? ` = ${schemaDefault}` : field.type.nullable ? ' = null' : '';
-      this.emit(`    val ${propertyName}: ${propertyType}${defaultValue}${suffix}`);
-    });
-
-    this.emit(') {');
-    this.emit('    companion object {');
-
-    // Check if input has required fields
-    const hasRequiredFields = irInput.fields.some((f) => !f.type.nullable && !this.hasSchemaDefault(f));
-
-    if (hasRequiredFields) {
-      // Nullable fromJson pattern
-      this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name}? {`);
-      for (const field of irInput.fields) {
-        const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        const expression = this.buildFromJsonExpression(
-          field.type,
-          `json["${field.name}"]`,
-          false,
-          true,
-          this.buildDefaultValueExpression(field),
-          rejectMissingStrictEnums,
-          true,
-        );
-        this.emit(`            val ${propertyName} = ${expression}`);
-      }
-
-      // Null check for required fields (excluding enums which have fallbacks)
-      const requiredFields = irInput.fields.filter((f) => !f.type.nullable && !this.hasSchemaDefault(f) && f.type.kind !== 'enum');
-      if (requiredFields.length > 0) {
-        const nullChecks = requiredFields.map((f) => `${this.escapeKeyword(this.fieldNameCase(f.name))} == null`).join(' || ');
-        this.emit(`            if (${nullChecks}) return null`);
-      }
-
-      this.emit(`            return ${irInput.name}(`);
-      for (const field of irInput.fields) {
-        const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        this.emit(`                ${propertyName} = ${propertyName},`);
-      }
-      this.emit('            )');
-      this.emit('        }');
-    } else {
-      // Non-null fromJson pattern
-      this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name} {`);
-      this.emit(`            return ${irInput.name}(`);
-      for (const field of irInput.fields) {
-        const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-        const expression = this.buildFromJsonExpression(
-          field.type,
-          `json["${field.name}"]`,
-          false,
-          false,
-          this.buildDefaultValueExpression(field),
-          rejectMissingStrictEnums,
-          true,
-        );
-        this.emit(`                ${propertyName} = ${expression},`);
-      }
-      this.emit('            )');
-      this.emit('        }');
-    }
-
-    this.emit('    }');
-    this.emit('');
-    this.emit('    fun toJson(): Map<String, Any?> = mapOf(');
-
-    for (const field of irInput.fields) {
-      const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-      const expression = this.buildToJsonExpression(field.type, propertyName);
-      this.emit(`        "${field.name}" to ${expression},`);
-    }
-
-    this.emit('    )');
-    this.emit('}');
-    this.emit('');
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
@@ -1312,6 +1216,7 @@ export class KotlinPlugin extends CodegenPlugin {
     }
 
     if (type.kind === 'scalar') {
+      // A missing required output scalar decodes to "" / 0 / false: a published compatibility default.
       const useNullable = type.nullable || isListElement || forNullableFromJson;
       const strictInputScalar = (cast: string): string => {
         const location = isListElement ? 'input list element' : 'input value';
@@ -1518,12 +1423,6 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit(line.length === 0 ? `${indent} *` : `${indent} * ${line}`);
     }
     this.emit(`${indent} */`);
-  }
-
-  private deprecationReason(description: string | undefined): string | null {
-    if (!description) return null;
-    const match = description.match(/(?:^|\n)@deprecated\s+([^\n]+)/);
-    return match?.[1]?.trim() || null;
   }
 
   private deprecationAnnotation(

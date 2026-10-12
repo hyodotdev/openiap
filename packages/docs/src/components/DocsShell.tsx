@@ -6,10 +6,11 @@ import type {
   ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
 import { DOCS_SIDEBAR } from '../lib/config';
+import { readPreference, savePreference } from '../lib/storage';
 import { useDetailsTransition } from '../hooks/useDetailsTransition';
 
 function clampSidebarWidth(width: number): number {
@@ -19,27 +20,9 @@ function clampSidebarWidth(width: number): number {
   );
 }
 
-function readSidebarPreference(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function saveSidebarPreference(key: string, value: string | null): void {
-  try {
-    if (value === null) window.localStorage.removeItem(key);
-    else window.localStorage.setItem(key, value);
-  } catch {
-    // Resizing still works when browser storage is unavailable.
-  }
-}
-
 function readSavedSidebarWidth(): number | null {
-  const saved = readSidebarPreference(DOCS_SIDEBAR.widthStorageKey);
-  const value =
-    saved ?? readSidebarPreference(DOCS_SIDEBAR.legacyWidth.storageKey);
+  const saved = readPreference(DOCS_SIDEBAR.widthStorageKey);
+  const value = saved ?? readPreference(DOCS_SIDEBAR.legacyWidth.storageKey);
   const parsed = value?.trim() ? Number(value) : Number.NaN;
   // The old version saved its default even when the reader never resized.
   if (saved === null && parsed === DOCS_SIDEBAR.legacyWidth.defaultWidth)
@@ -48,7 +31,7 @@ function readSavedSidebarWidth(): number | null {
 }
 
 function readSavedSidebarCollapsed(): boolean {
-  return readSidebarPreference(DOCS_SIDEBAR.collapsedStorageKey) === 'true';
+  return readPreference(DOCS_SIDEBAR.collapsedStorageKey) === 'true';
 }
 
 interface DocsShellProps {
@@ -89,6 +72,42 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   } | null>(null);
 
   const closeSidebar = () => setIsSidebarOpen(false);
+  const sidebarToggleRef = useRef<HTMLButtonElement | null>(null);
+  const sidebarCloseRef = useRef<HTMLButtonElement | null>(null);
+  const sidebarWasOpen = useRef(false);
+
+  // The drawer takes focus while open and hands it back to the toggle after.
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      if (sidebarWasOpen.current) sidebarToggleRef.current?.focus();
+      sidebarWasOpen.current = false;
+      return;
+    }
+
+    sidebarWasOpen.current = true;
+    sidebarCloseRef.current?.focus();
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setIsSidebarOpen(false);
+      if (event.key !== 'Tab') return;
+      // Keep Tab inside the open drawer.
+      const focusable = sidebarRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled])'
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey ? active === first : active === last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (!sidebarRef.current?.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -101,16 +120,13 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
 
   useEffect(() => {
     if (savedSidebarWidth !== null) {
-      saveSidebarPreference(
-        DOCS_SIDEBAR.widthStorageKey,
-        String(savedSidebarWidth)
-      );
+      savePreference(DOCS_SIDEBAR.widthStorageKey, String(savedSidebarWidth));
     }
-    saveSidebarPreference(DOCS_SIDEBAR.legacyWidth.storageKey, null);
+    savePreference(DOCS_SIDEBAR.legacyWidth.storageKey, null);
   }, [savedSidebarWidth]);
 
   useEffect(() => {
-    saveSidebarPreference(
+    savePreference(
       DOCS_SIDEBAR.collapsedStorageKey,
       String(isSidebarCollapsed)
     );
@@ -230,20 +246,14 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
     '--docs-sidebar-mobile-width': `${DOCS_SIDEBAR.mobileWidth}px`,
   } as CSSProperties;
 
-  // Portal the sidebar toggle to document.body so it sits OUTSIDE any
-  // ancestor's stacking context, AND fully unmount it while the drawer
-  // is open. Earlier rounds left the toggle in the DOM with
-  // `.hidden { opacity: 0; pointer-events: none }` while the drawer was
-  // open, which on iOS Safari still let the toggle absorb taps that
-  // landed on the drawer's first menu item ("APIs" header sits at
-  // y≈88-120px, exactly where the fixed toggle at top: 70px lives).
-  // Removing the element from the DOM entirely guarantees the drawer
-  // items underneath get every tap they should.
+  // Portaled above every stacking context and unmounted while the drawer is
+  // open: iOS Safari let a hidden toggle absorb taps on the first menu item.
   const sidebarToggle =
     isSidebarOpen || typeof document === 'undefined'
       ? null
       : createPortal(
           <button
+            ref={sidebarToggleRef}
             type="button"
             className={`docs-sidebar-toggle ${isScrolled ? 'scrolled' : ''}`}
             onClick={(event) => {
@@ -280,9 +290,7 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
     >
       {sidebarToggle}
 
-      {/* Kept mounted so it can fade OUT with the drawer; unmounting it on
-          close made the backdrop vanish instantly while the drawer was still
-          sliding. Hidden state is visibility + pointer-events, not unmount. */}
+      {/* Kept mounted so it fades out with the drawer. */}
       <div
         className={`sidebar-overlay ${isSidebarOpen ? 'is-visible' : ''}`}
         onClick={closeSidebar}
@@ -296,6 +304,15 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
         } ${isSidebarScrolling ? 'is-sidebar-scrolling' : ''}`}
         onScroll={handleSidebarScroll}
       >
+        <button
+          ref={sidebarCloseRef}
+          type="button"
+          className="docs-sidebar-close"
+          onClick={closeSidebar}
+          aria-label="Close navigation"
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
         <nav className="docs-nav">{nav(closeSidebar)}</nav>
       </aside>
       <div
@@ -316,7 +333,7 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
           onPointerDown={startSidebarResize}
           onDoubleClick={() => {
             setSavedSidebarWidth(null);
-            saveSidebarPreference(DOCS_SIDEBAR.widthStorageKey, null);
+            savePreference(DOCS_SIDEBAR.widthStorageKey, null);
           }}
           onKeyDown={handleSidebarResizerKeyDown}
         >

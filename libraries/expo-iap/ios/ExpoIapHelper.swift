@@ -31,6 +31,32 @@ final class IapException: GenericException<(code: String, envelope: String)>, @u
             ?? "{\"code\":\"unknown\",\"message\":\"Unknown error occurred\",\"platform\":\"ios\"}"
         return IapException((code: code, envelope: envelopePrefix + fallbackJson))
     }
+
+    /// Runs an AsyncFunction body so every failure reaches JS as the OpenIAP error envelope.
+    /// Task cancellation propagates unchanged, as OpenIAP Apple documents.
+    static func bridging<T>(
+        _ name: String,
+        fallback: ErrorCode = .serviceError,
+        productId: String? = nil,
+        _ body: () async throws -> T
+    ) async throws -> T {
+        do {
+            return try await body()
+        } catch let cancellation as CancellationError {
+            throw cancellation
+        } catch {
+            ExpoIapLog.failure(name, error: error)
+            // A DecodingError means JS passed arguments the schema rejects.
+            let purchaseError = error is DecodingError
+                ? PurchaseError.make(
+                    code: .developerError,
+                    message: "Invalid arguments for \(name)",
+                    debugMessage: error.localizedDescription
+                )
+                : PurchaseError.wrap(error, fallback: fallback, productId: productId)
+            throw from(purchaseError)
+        }
+    }
 }
 
 enum ExpoIapHelper {

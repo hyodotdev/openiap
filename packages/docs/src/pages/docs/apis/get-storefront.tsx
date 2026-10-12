@@ -62,7 +62,8 @@ function GetStorefront() {
             <CodeBlock language="swift">{`func getStorefront() async throws -> String`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// OpenIapModule (OpenIapProtocol); OpenIapStore does not expose it
+suspend fun getStorefront(): String`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
@@ -85,12 +86,13 @@ function GetStorefront() {
       <p>
         <code>Promise&lt;string&gt;</code> — the store account&apos;s country
         code. StoreKit returns ISO 3166-1 alpha-3 (for example{' '}
-        <code>"USA"</code> or <code>"KOR"</code>). Google Play Billing and
-        Horizon return alpha-2 country codes, while Amazon returns its
-        alpha-2-like <code>UserData.marketplace</code> value (for example{' '}
-        <code>"US"</code> or <code>"DE"</code>). This is not the device locale.
-        A failed store lookup rejects or throws a platform-mapped purchase
-        error.
+        <code>"USA"</code> or <code>"KOR"</code>). Google Play Billing returns
+        an alpha-2 country code, while Amazon returns its alpha-2-like{' '}
+        <code>UserData.marketplace</code> value (for example <code>"US"</code>{' '}
+        or <code>"DE"</code>). This is not the device locale. A failed store
+        lookup rejects or throws a platform-mapped purchase error and does not
+        fire <code>purchaseError</code> listeners. Godot, which cannot throw,
+        returns an empty string and emits <code>purchase_error</code>.
       </p>
 
       <h2>Example</h2>
@@ -138,7 +140,10 @@ function StorefrontBadge() {
             <CodeBlock language="swift">{`let countryCode = try await OpenIapModule.shared.getStorefront()`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`val countryCode = openIapStore.getStorefront()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// Share one module with OpenIapStore(module) instead of creating a second client.
+val module = OpenIapModule(context)
+
+val countryCode = module.getStorefront()`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`val countryCode = kmpIAP.getStorefront()`}</CodeBlock>

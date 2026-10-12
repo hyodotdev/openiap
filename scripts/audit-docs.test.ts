@@ -541,6 +541,34 @@ describe("canonical offer docs audit", () => {
     },
   );
 
+  test("reads generated Swift cases before the raw-value initializers", () => {
+    const generatedSwift = replaceRequired(
+      VALID_GENERATED_OFFER_TYPES.swift,
+      '  case oneTime = "one-time"\n}',
+      `  case oneTime = "one-time"
+
+  public init?(rawValue: String) {
+    switch rawValue {
+    case "one-time", "ONE_TIME", "OneTime":
+      self = .oneTime
+    default:
+      return nil
+    }
+  }
+
+  public init(from decoder: Decoder) throws {
+    self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .promotional
+  }
+}`,
+    );
+
+    expect(
+      auditCanonicalOfferDocs(
+        validOfferDocsSources({ generatedOfferTypes: { swift: generatedSwift } }),
+      ),
+    ).toEqual([]);
+  });
+
   test("does not cascade docs errors when the TypeScript SSOT is invalid", () => {
     const drifts = auditCanonicalOfferDocs(
       validOfferDocsSources({

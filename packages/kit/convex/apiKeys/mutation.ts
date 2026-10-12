@@ -4,6 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateApiKey } from "../utils/helpers";
 import { getProjectById } from "../projects/helpers";
 import { apiKeyStorageFields } from "./helpers";
+import type { Doc } from "../_generated/dataModel";
 
 const apiKeyTypeValidator = v.union(
   v.literal("publishable"),
@@ -117,7 +118,7 @@ export const update = mutation({
     }
 
     // Prepare update object
-    const updates: any = {
+    const updates: Partial<Doc<"apiKeys">> = {
       updatedAt: Date.now(),
     };
 

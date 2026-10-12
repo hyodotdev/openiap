@@ -637,6 +637,15 @@ export default function ApiReferencePage() {
               </td>
             </tr>
             <tr>
+              <td className="px-3 py-2 font-mono text-xs">503</td>
+              <td className="px-3 py-2 font-mono text-xs">Store error code</td>
+              <td className="px-3 py-2">
+                The store did not answer, so no verdict was recorded. The body
+                keeps the store&apos;s error code and adds retryAfterSec; retry
+                after Retry-After.
+              </td>
+            </tr>
+            <tr>
               <td className="px-3 py-2 font-mono text-xs">500</td>
               <td className="px-3 py-2 font-mono text-xs">UNKNOWN_ERROR</td>
               <td className="px-3 py-2">

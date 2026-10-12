@@ -432,6 +432,11 @@ fi`}
           The recommended way to use GodotIap is to add{' '}
           <code>GodotIapWrapper</code> as a child node:
         </p>
+        <p>
+          Enabling the plugin already adds the <code>GodotIapPlugin</code>{' '}
+          autoload. Connect purchase signals on one wrapper only (that autoload
+          or your own node), because each wrapper re-emits every store event.
+        </p>
         <ol>
           <li>
             Open your main scene (or create an autoload scene for IAP

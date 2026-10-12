@@ -412,5 +412,5 @@ export function clientFiles(root) {
 }
 
 export function isEnvFile(file) {
-  return FLUTTER_ENV.test(path.basename(file)) && !BUNDLED_FILES.includes(file);
+  return FLUTTER_ENV.test(path.basename(file));
 }

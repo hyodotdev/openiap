@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
+import { statsContributionFor } from "./stats";
 
 import {
   assertUserSubscriptionRowLimit,
@@ -183,6 +184,20 @@ describe("v2 account-read authorization", () => {
           userId: "user-1",
           expiresAt: 10,
         }),
+        subscriptionDoc({
+          _id: "subscriptions_pass" as Id<"subscriptions">,
+          userId: "user-pass",
+          platform: "IOS",
+          state: "Active",
+          expiresAt: undefined,
+        }),
+        subscriptionDoc({
+          _id: "subscriptions_grace" as Id<"subscriptions">,
+          userId: "user-grace",
+          platform: "IOS",
+          state: "InGracePeriod",
+          expiresAt: undefined,
+        }),
       ],
     } as Record<string, Record<string, unknown>[]>,
     async get(id: string) {
@@ -276,6 +291,50 @@ describe("v2 account-read authorization", () => {
     expect(beforeExpiry.active).toBe(true);
     expect(atExpiry.active).toBe(false);
     expect(entitlements.productIds).toEqual([]);
+  });
+
+  it("never entitles an iOS row without an expiry (a non-renewing pass)", async () => {
+    const ctx = { db } as never;
+    const read = { apiKey: "openiap-kit_sk_backend", userId: "user-pass" };
+
+    const status = await subscriptionStatusV2._handler(ctx, {
+      ...read,
+      now: 1,
+    });
+    const entitlements = await entitlementsV2._handler(ctx, {
+      ...read,
+      now: 1,
+    });
+
+    expect(status.active).toBe(false);
+    expect(entitlements.productIds).toEqual([]);
+  });
+
+  it("keeps an iOS grace period without a deadline entitled", async () => {
+    const ctx = { db } as never;
+    const status = await subscriptionStatusV2._handler(ctx, {
+      apiKey: "openiap-kit_sk_backend",
+      userId: "user-grace",
+      now: 1,
+    });
+
+    expect(status.active).toBe(true);
+  });
+});
+
+describe("statsContributionFor", () => {
+  it("keeps an iOS row without an expiry out of active counts and MRR", () => {
+    const pass = subscriptionDoc({
+      state: "Active",
+      expiresAt: undefined,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    });
+
+    expect(statsContributionFor(pass, "P1M", 5)).toBeNull();
+    expect(
+      statsContributionFor({ ...pass, expiresAt: 10 }, "P1M", 5),
+    ).toMatchObject({ state: "Active", mrrMicros: 9_990_000 });
   });
 });
 

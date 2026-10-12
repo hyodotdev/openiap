@@ -11,15 +11,12 @@ import OpenIAP
 public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     private static let TAG = "[FlutterInappPurchase]"
     private var channel: FlutterMethodChannel?
-    private var updateListenerTask: Task<Void, Never>?
     // OpenIAP listener tokens
     private var purchaseUpdatedToken: OpenIAP.Subscription?
     private var purchaseErrorToken: OpenIAP.Subscription?
     private var promotedProductToken: OpenIAP.Subscription?
     private var subscriptionBillingIssueToken: OpenIAP.Subscription?
     private var purchaseUpdatedListenerOptions = PurchaseUpdatedListenerOptions()
-    // No local StoreKit caches; OpenIAP handles state internally
-    private var processedTransactionIds: Set<String> = []
     
     // Override local catalog with canonical OpenIAP messages
     private func defaultMessage(for code: ErrorCode) -> String {
@@ -73,8 +70,8 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         let instance = FlutterInappPurchasePlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
         instance.channel = channel
-        // Set up OpenIAP listeners as early as possible (Expo-style)
-        instance.setupOpenIapListeners()
+        // Listeners attach in initConnection, once Dart can receive events;
+        // packages/apple holds a promoted product until then.
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -465,13 +462,6 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func cleanupExistingState() {
-        updateListenerTask?.cancel()
-        updateListenerTask = nil
-        processedTransactionIds.removeAll()
-        removeOpenIapListeners()
-    }
-    
     // MARK: - OpenIAP Listeners
     private func setupOpenIapListeners() {
         FlutterIapLog.debug("Setting up OpenIAP listeners")

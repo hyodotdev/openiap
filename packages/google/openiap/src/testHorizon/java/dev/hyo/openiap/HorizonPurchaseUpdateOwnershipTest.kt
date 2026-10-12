@@ -128,6 +128,7 @@ class HorizonPurchaseUpdateOwnershipTest {
             ProductQueryType.InApp,
             emptyMap<String, String>(),
             1.0,
+            emptySet<String>(),
         )
         pendingPurchaseField().set(module, snapshot)
     }

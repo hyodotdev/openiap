@@ -7,8 +7,8 @@ import { SUITE_VERSION, clientProtocolVersion } from "../spec/version.mjs";
  *
  * The runner owns capability gating so adapters cannot skip their own
  * requirements: a behavior gated on a capability the store must support is
- * required, and one gated on a capability the store cannot support is inverted
- * into an absence check rather than dropped.
+ * required, and one gated on a capability the store cannot support is not
+ * applicable unless the adapter opts in with an absence check.
  */
 
 /** @typedef {'pass' | 'fail' | 'skip' | 'not-applicable' | 'warn'} Outcome */

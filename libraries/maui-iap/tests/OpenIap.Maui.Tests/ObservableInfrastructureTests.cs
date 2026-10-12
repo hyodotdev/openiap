@@ -67,6 +67,29 @@ public class ObservableInfrastructureTests
     }
 
     [Fact]
+    public void Subject_CompletionReachesObserversAndReleasesThem()
+    {
+        var subject = new Subject<int>();
+        var observer = new RecordingObserver();
+
+        using var subscription = subject.Subscribe(observer);
+        subject.OnCompleted();
+        subject.OnNext(1);
+
+        Assert.Equal(1, observer.Completions);
+        Assert.Empty(observer.Values);
+    }
+
+    private sealed class RecordingObserver : IObserver<int>
+    {
+        public List<int> Values { get; } = new();
+        public int Completions { get; private set; }
+        public void OnNext(int value) => Values.Add(value);
+        public void OnError(Exception error) { }
+        public void OnCompleted() => Completions++;
+    }
+
+    [Fact]
     public void Subject_DisposeIsIdempotent()
     {
         var subject = new Subject<int>();

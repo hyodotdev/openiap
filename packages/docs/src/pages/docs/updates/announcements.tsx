@@ -1,8 +1,7 @@
-import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
-import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 import { AMAZON_SUPPORTER, META_SUPPORTER } from '../../../lib/sponsors';
@@ -1329,19 +1328,6 @@ function Announcements() {
 
   const itemsPerPage = 5;
 
-  const initialPage = useMemo(() => {
-    const hashId = getHashId();
-    if (!hashId) return 1;
-
-    const announcementIndex = sortedAnnouncements.findIndex(
-      (announcement) =>
-        announcement.id === hashId || announcement.aliases?.includes(hashId)
-    );
-    if (announcementIndex === -1) return 1;
-
-    return Math.floor(announcementIndex / itemsPerPage) + 1;
-  }, [sortedAnnouncements]);
-
   return (
     <div className="doc-page">
       <SEO
@@ -1352,7 +1338,7 @@ function Announcements() {
       <h1>📢 Announcements</h1>
       <p>Important news and updates about OpenIAP</p>
 
-      <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
+      <Pagination itemsPerPage={itemsPerPage}>
         {sortedAnnouncements.map((a) => (
           <section key={a.id} id={a.id}>
             {a.element}

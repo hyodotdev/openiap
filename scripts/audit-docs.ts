@@ -762,6 +762,9 @@ function findTopLevelMemberBoundary(
     if (language === "dart" && source[i] === ";") return i;
     if (language === "kotlin" && /^companion\s+object\b/.test(source.slice(i)))
       return i;
+    // Generated Swift enums list their cases before the raw-value initializers.
+    if (language === "swift" && /^(?:public\s+)?init\b/.test(source.slice(i)))
+      return i;
   }
   return source.length;
 }

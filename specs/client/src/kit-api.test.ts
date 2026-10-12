@@ -14,13 +14,8 @@ function fakeFetch(
     const url = new URL(input);
     const path = url.pathname + url.search;
     const { status, body } = recipe(path, init);
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      headers: new Headers(),
-      text: async () =>
-        typeof body === "string" ? body : JSON.stringify(body),
-    } as unknown as Response;
+    const text = typeof body === "string" ? body : JSON.stringify(body);
+    return new Response(text, { status });
   });
 }
 
@@ -33,7 +28,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "k",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
     const result = await api.status("user-1");
     expect(result.active).toBe(true);
@@ -51,7 +46,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "k 1",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
     await api.entitlements("u 1");
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -68,7 +63,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "bad",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
     await expect(api.status("u")).rejects.toBeInstanceOf(KitApiError);
   });
@@ -83,7 +78,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "k",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
     const result = await api.bindUser("tok", "user");
     expect(result).toEqual({ ok: true, bound: true });
@@ -97,7 +92,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "key",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
 
     await api.products();
@@ -116,7 +111,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "key",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
 
     await api.products({
@@ -133,11 +128,12 @@ describe("kitApi", () => {
   });
 
   it("requires a platform before fetching payload-inclusive products", () => {
-    const fetchImpl = vi.fn();
+    const fetchImpl =
+      vi.fn<(input: string, init?: RequestInit) => Promise<Response>>();
     const api = kitApi({
       apiKey: "key",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
 
     expect(() => api.products({ includeClientPayload: true })).toThrow(
@@ -160,7 +156,7 @@ describe("kitApi", () => {
     const api = kitApi({
       apiKey: "key with space",
       baseUrl: "http://localhost",
-      fetchImpl: fetchImpl as never,
+      fetchImpl,
     });
 
     await expect(api.clientPayload("premium/year", "Android")).resolves.toEqual(
@@ -176,8 +172,12 @@ describe("kitApi", () => {
     const values = new Map<string, string>();
     const cache = {
       getItem: vi.fn((key: string) => values.get(key) ?? null),
-      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
-      removeItem: vi.fn((key: string) => values.delete(key)),
+      setItem: vi.fn((key: string, value: string) => {
+        values.set(key, value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        values.delete(key);
+      }),
     };
     const payload = {
       clientPayload: {
@@ -217,8 +217,12 @@ describe("kitApi", () => {
     const values = new Map<string, string>();
     const cache = {
       getItem: vi.fn((key: string) => values.get(key) ?? null),
-      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
-      removeItem: vi.fn((key: string) => values.delete(key)),
+      setItem: vi.fn((key: string, value: string) => {
+        values.set(key, value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        values.delete(key);
+      }),
     };
     const payload = {
       clientPayload: {

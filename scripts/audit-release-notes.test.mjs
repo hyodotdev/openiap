@@ -536,10 +536,13 @@ test("the restore-purchases page documents the provider-first Android restore", 
   assert.ok(page.includes("with no system-level UI prompt"));
   assert.ok(
     page.includes(
-      "React Native, Expo, Flutter, MAUI, Godot, and KMP (Amazon, Horizon, and community-provider builds) call the provider's restore",
+      "React Native, Expo, Flutter, MAUI, Godot, and KMP call the provider's restore",
     ),
   );
-  assert.ok(page.includes("KMP's Play build queries ownership directly"));
+  assert.ok(
+    !page.includes("KMP's Play build queries ownership directly"),
+    "stale KMP Play restore claim is still present",
+  );
   assert.ok(page.includes("<code>PurchasingService.getPurchaseUpdates</code>"));
   assert.ok(
     page.includes("Play and Amazon restores deliver nothing by themselves"),

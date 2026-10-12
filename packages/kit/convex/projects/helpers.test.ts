@@ -112,10 +112,6 @@ describe("deleteProjectWithData", () => {
         projectId: PROJECT_ID,
         ...extra,
       }));
-    const webhookEvents = Array.from({ length: 3 }, (_, index) => ({
-      _id: `webhook_event_${index}`,
-      projectId: PROJECT_ID,
-    }));
     const db = new TestDb({
       projects: [{ _id: PROJECT_ID }],
       productClientPayloads: rows("payload", {
@@ -136,14 +132,7 @@ describe("deleteProjectWithData", () => {
       outboundDeliveries: rows("outbound_delivery"),
       outboundDestinations: rows("outbound_destination"),
       commerceEvents: rows("commerce_event"),
-      webhookIdempotencyKeys: [
-        ...rows("webhook_key"),
-        ...webhookEvents.map((event, index) => ({
-          _id: `legacy_webhook_key_${index}`,
-          eventId: event._id,
-        })),
-      ],
-      webhookEvents,
+      webhookEvents: rows("webhook_event"),
       subscriptionUserErasureJobs: rows("subscription_erasure_job"),
       subscriptionTokenAliases: rows("subscription_alias"),
       subscriptions: rows("subscription"),
@@ -153,6 +142,7 @@ describe("deleteProjectWithData", () => {
       products: rows("product"),
       productSyncJobs: rows("product_job", { result: "large" }),
       purchaseStats: rows("purchase_stats"),
+      verificationAdmissionBuckets: rows("admission_bucket"),
     });
     const scheduler = { runAfter: vi.fn().mockResolvedValue(undefined) };
     const storage = { delete: vi.fn().mockResolvedValue(undefined) };
@@ -166,7 +156,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(42);
+    expect(calls).toBe(41);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

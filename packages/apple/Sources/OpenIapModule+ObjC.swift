@@ -384,7 +384,7 @@ import StoreKit
                     completion(nil)
                     return
                 }
-                print("[OpenIAP] finishTransaction bridge start id=\(purchaseId) product=\(productId)")
+                OpenIapLog.debug("finishTransaction bridge start id=\(purchaseId) product=\(productId)")
                 let minimalPurchase = PurchaseIOS(
                     appAccountToken: nil,
                     appBundleIdIOS: nil,
@@ -423,10 +423,10 @@ import StoreKit
                 )
                 let purchaseInput = Purchase.purchaseIos(minimalPurchase)
                 try await finishTransaction(purchase: purchaseInput, isConsumable: isConsumable)
-                print("[OpenIAP] finishTransaction bridge complete id=\(purchaseId)")
+                OpenIapLog.debug("finishTransaction bridge complete id=\(purchaseId)")
                 completion(nil)
             } catch {
-                print("[OpenIAP] finishTransaction bridge error id=\(purchaseId): \(error.localizedDescription)")
+                OpenIapLog.error("finishTransaction bridge error id=\(purchaseId): \(error.localizedDescription)")
                 completion(error)
             }
         }

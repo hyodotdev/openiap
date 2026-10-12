@@ -381,12 +381,15 @@ platform)`, inserts the row, schedules the worker via
    `markJobFailed` so a thrown error never leaves the row in
    `running` forever.
 4. **Cron pair**: `reapStaleProductSyncJobs` (5 min, flips
-   `running` rows past `expectedDeadline + grace` to `failed`)
+   `queued` and `running` rows past `expectedDeadline + grace` to
+   `failed`; enqueue sets the deadline, so a worker that never starts
+   cannot hold the slot)
    and `pruneProductSyncJobs` (6 h, deletes `succeeded` rows
    older than 7 d / `failed` rows older than 30 d).
 5. **Dashboard**: `useQuery(getActiveSyncJob)` for the reactive
    button state + progress label; `useMutation(enqueue*)` to
-   start; `useMutation(cancel*)` to stop. The completion toast
+   start; `useMutation(cancel*)` to stop (a queued job ends at once and
+   frees the slot). The completion toast
    fires once via a `useRef`-gated `useEffect` so reactive
    updates don't re-toast.
 6. **HTTP**: `POST .../sync/...` returns 202 with `{ jobId,

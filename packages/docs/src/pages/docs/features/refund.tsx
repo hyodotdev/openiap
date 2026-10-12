@@ -146,7 +146,7 @@ switch (status) {
 }`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`import OpenIap
+                      <CodeBlock language="swift">{`import OpenIAP
 
 let status = try await OpenIapModule.shared.beginRefundRequestIOS(sku: purchase.productId)
 
@@ -161,16 +161,6 @@ if let status {
     }
 } else {
     print("Refund request status: nil")
-}`}</CodeBlock>
-                    ),
-                    kotlin: (
-                      <CodeBlock language="kotlin">{`// KMP iOS target
-val status = openIapStore.beginRefundRequestIOS(sku = purchase.productId)
-
-when (status) {
-    "success" -> println("Refund request submitted")
-    "userCancelled" -> println("User cancelled refund flow")
-    else -> println("Refund request status: $status")
 }`}</CodeBlock>
                     ),
                     kmp: (

@@ -6,7 +6,7 @@ open-source servers (hasan2025mcpfirstglance) — sources in
 [`knowledge/research/bibliography.md`](../../knowledge/research/bibliography.md)
 (backlog R7). Re-run this review when a tool is added or auth changes.
 
-Last reviewed: 2026-08-25.
+Last reviewed: 2026-10-13.
 
 ## Public showcase endpoint
 
@@ -37,12 +37,15 @@ Reviewed 2026-10-09. Tests live in `test/showcase.test.ts` and the docs site's
 
 ## Deployment
 
-| Threat                                             | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Credential theft via weak auth                     | **Covered.** MCP administration accepts only typed secret keys (`openiap-kit_sk_...`, `src/auth.ts`); publishable and legacy keys are rejected with a scope error.                                                                                                                                                                                                                                                                                                                       |
-| Session exhaustion / DoS                           | **Covered.** `BoundedSessionStore` caps sessions at 256 with a 15-minute idle TTL and a retry-after on capacity (`src/session-store.ts`).                                                                                                                                                                                                                                                                                                                                                |
-| Upstream redirection via caller-supplied `baseUrl` | **Gap (accepted, tracked).** `baseUrl` is a per-tool argument so self-hosted kit deployments work, and `normalizeKitBaseUrl` only restricts the scheme — a prompt-injected tool call could point kit traffic, including the caller's own `Authorization` key, at an arbitrary host. The key at risk is the caller's own, so this is exfiltration of self-supplied credentials, not privilege escalation. Candidate hardening: operator-only override with the per-call argument removed. |
-| Supply-chain integrity                             | **Covered elsewhere.** Release SBOM + provenance pipeline (docs `security/overview`).                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Threat                                             | Status                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Credential theft via weak auth                     | **Covered.** MCP administration accepts only typed secret keys (`openiap-kit_sk_...`, `src/auth.ts`); publishable and legacy keys are rejected with a scope error. The hosted endpoint also confirms the key is an active secret key in Convex before it creates a session (`authenticate` in `src/web.ts`, wired in kit's `server/mcp.ts`). |
+| Unauthenticated use of the operator's key          | **Covered.** Both HTTP transports require `Authorization: Bearer` on every request and never fall back to `IAPKIT_API_KEY`. Only stdio, where the operator runs the process, uses the environment key.                                                                                                                                       |
+| Local HTTP server reachable from the network       | **Covered.** `iapkit-mcp-http` binds `127.0.0.1` unless `HOST` says otherwise, and rejects a `Host` header outside `IAPKIT_MCP_ALLOWED_HOSTS` (loopback names by default), so a DNS-rebinding page cannot reach it.                                                                                                                          |
+| Requests from kit's network position (SSRF)        | **Covered.** The hosted server calls only kit's own base URL (`IAPKIT_BASE_URL`); the per-call `baseUrl` argument is ignored there, so a tool call cannot reach Fly-internal or metadata hosts. Every kit call refuses redirects, times out after 30 s, and stops reading past 1 MiB (`fetchKit` in `src/kit-client.ts`).                    |
+| Upstream redirection via caller-supplied `baseUrl` | **Accepted on local transports.** stdio and local HTTP keep the argument so self-hosted kits work; it can only send the caller's own key to a host the caller chose, from the caller's own machine.                                                                                                                                          |
+| Session exhaustion / DoS                           | **Covered.** Sessions need a bearer (hosted: a confirmed key). `BoundedSessionStore` caps sessions at 256 with a 15-minute idle TTL and, when full, evicts the least recently used session instead of refusing; its client gets a 404 and re-initializes (`src/session-store.ts`). Request bodies are capped at 1 MiB while they stream.     |
+| Supply-chain integrity                             | **Covered elsewhere.** Release SBOM + provenance pipeline (docs `security/overview`).                                                                                                                                                                                                                                                        |
 
 ## Operation
 
@@ -64,7 +67,4 @@ Reviewed 2026-10-09. Tests live in `test/showcase.test.ts` and the docs site's
 
 1. Untrusted-content delimiting for store-derived strings in tool results
    (Operation gap above) — design note before implementation.
-2. Restrict `baseUrl` to an operator-configured allowlist instead of a
-   per-call argument (Deployment gap above) — needs a product decision on
-   how self-hosted kit deployments configure the endpoint.
-3. Periodic re-review trigger: wire a checklist line into `/audit-iapkit`.
+2. Periodic re-review trigger: wire a checklist line into `/audit-iapkit`.

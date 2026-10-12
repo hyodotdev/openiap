@@ -41,7 +41,6 @@ class FlutterInappPurchasePlugin : FlutterPlugin, ActivityAware {
 
     override fun onDetachedFromActivity() {
         androidInappPurchasePlugin?.setActivity(null)
-        androidInappPurchasePlugin?.onDetachedFromActivity()
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {

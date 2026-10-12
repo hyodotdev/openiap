@@ -43,11 +43,13 @@ import type {
 import {ErrorCode, resolveStoreId} from './types';
 import {
   createPurchaseError,
-  createPurchaseErrorFromNativeException,
-  OPENIAP_ERROR_ENVELOPE_PREFIX,
+  normalizeErrorCodeFromNative,
   type PurchaseError,
-  type PurchaseErrorProps,
 } from './utils/errorMapping';
+import {
+  createPurchaseErrorFromNativeException,
+  invokeNativeWithPurchaseError,
+} from './utils/nativeError';
 
 export * from './types';
 export * from './modules/android';
@@ -104,6 +106,10 @@ const isStoreRuntime = (): boolean =>
 
 const unsupportedPlatformError = (): Error =>
   new Error(`Unsupported platform: ${Platform.OS}`);
+
+// Platform tag for PurchaseErrors built from native rejections.
+const nativePlatform = (): IapPlatform =>
+  Platform.OS === 'ios' ? 'ios' : 'android';
 
 // Listener calls go to the raw native module (see getNativeModule), resolved
 // lazily so importing this module doesn't throw on unsupported platforms.
@@ -317,8 +323,9 @@ export const purchaseUpdatedListener = (
 export const purchaseErrorListener = (
   listener: (error: PurchaseError) => void,
 ) => {
+  // Native events may carry codes outside ErrorCode; deliver canonical codes.
   const wrappedListener = (error: PurchaseError) => {
-    listener(error);
+    listener({...error, code: normalizeErrorCodeFromNative(error.code)});
   };
   const emitterSubscription = emitter.addListener(
     OpenIapEvent.PurchaseError,
@@ -546,7 +553,10 @@ export const subscriptionBillingIssueListener = (
 export const initConnection: MutationField<'initConnection'> = async (
   config,
 ) => {
-  const result = await ExpoIapModule.initConnection(config ?? null);
+  const result = await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.initConnection(config ?? null),
+    nativePlatform(),
+  );
   if (
     result === true &&
     Platform.OS === 'ios' &&
@@ -563,44 +573,14 @@ export const initConnection: MutationField<'initConnection'> = async (
  * @see {@link https://openiap.dev/docs/apis/end-connection}
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
-  const result = await ExpoIapModule.endConnection();
+  const result = await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.endConnection(),
+    nativePlatform(),
+  );
   if (result === true && Platform.OS === 'ios') {
     resetPurchaseUpdatedDedupeHistoryIOS();
   }
   return result;
-};
-
-const invokeNativeWithPurchaseError = async <T>(
-  operation: () => Promise<T>,
-  platform: IapPlatform,
-  fallback: PurchaseErrorProps,
-): Promise<T> => {
-  try {
-    return await operation();
-  } catch (error) {
-    const nativeError =
-      typeof error === 'object' && error !== null
-        ? (error as Record<string, unknown>)
-        : undefined;
-    const nativeMessage =
-      typeof nativeError?.message === 'string'
-        ? nativeError.message
-        : typeof error === 'string'
-        ? error
-        : '';
-    const hasCanonicalFields =
-      nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
-      nativeError?.code !== undefined ||
-      nativeError?.responseCode !== undefined ||
-      nativeError?.debugMessage !== undefined ||
-      nativeError?.productId !== undefined ||
-      nativeError?.productIds !== undefined;
-
-    // Preserve the identity of unrelated JavaScript errors (including adapter
-    // or test errors) while normalizing native OpenIAP rejections.
-    if (!hasCanonicalFields) throw error;
-    throw createPurchaseErrorFromNativeException(error, platform, fallback);
-  }
 };
 
 /**
@@ -748,13 +728,18 @@ export const getAvailablePurchases: QueryField<
   let purchases: Purchase[];
 
   if (Platform.OS === 'ios') {
-    purchases = (await ExpoIapModule.getAvailableItems(
-      normalizedOptions.alsoPublishToEventListenerIOS,
-      normalizedOptions.onlyIncludeActiveItemsIOS,
+    purchases = (await invokeNativeWithPurchaseError(
+      () =>
+        ExpoIapModule.getAvailableItems(
+          normalizedOptions.alsoPublishToEventListenerIOS,
+          normalizedOptions.onlyIncludeActiveItemsIOS,
+        ),
+      'ios',
     )) as Purchase[];
   } else if (Platform.OS === 'android') {
-    purchases = (await ExpoIapModule.getAvailableItems(
-      normalizedOptions,
+    purchases = (await invokeNativeWithPurchaseError(
+      () => ExpoIapModule.getAvailableItems(normalizedOptions),
+      'android',
     )) as Purchase[];
   } else {
     throw unsupportedPlatformError();
@@ -798,8 +783,9 @@ export const getActiveSubscriptions: QueryField<
     throw unsupportedPlatformError();
   }
 
-  const result = await ExpoIapModule.getActiveSubscriptions(
-    subscriptionIds ?? null,
+  const result = await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.getActiveSubscriptions(subscriptionIds ?? null),
+    nativePlatform(),
   );
   return (result ?? []) as ActiveSubscription[];
 };
@@ -828,8 +814,9 @@ export const hasActiveSubscriptions: QueryField<
     throw unsupportedPlatformError();
   }
 
-  return !!(await ExpoIapModule.hasActiveSubscriptions(
-    subscriptionIds ?? null,
+  return !!(await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.hasActiveSubscriptions(subscriptionIds ?? null),
+    nativePlatform(),
   ));
 };
 
@@ -846,7 +833,7 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
     });
   }
 
-  const platform: IapPlatform = Platform.OS === 'ios' ? 'ios' : 'android';
+  const platform = nativePlatform();
   if (typeof ExpoIapModule.getStorefront !== 'function') {
     throw createPurchaseError({
       code: ErrorCode.FeatureNotSupported,
@@ -950,7 +937,7 @@ export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
   }
   return invokeNativeWithPurchaseError(
     () => ExpoIapModule.verifyAppOwnership(options ?? {}),
-    Platform.OS === 'ios' ? 'ios' : 'android',
+    nativePlatform(),
     {
       code: ErrorCode.ServiceError,
     },
@@ -1216,11 +1203,16 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
 }) => {
   // The schema allows explicit null; the native boolean cannot take it.
   const consumable = isConsumable ?? false;
+  const platform = nativePlatform();
   if (
     Platform.OS === 'ios' ||
     (isAndroidStoreRuntime() && purchase.store === 'unknown')
   ) {
-    await ExpoIapModule.finishTransaction(purchase, consumable);
+    await invokeNativeWithPurchaseError(
+      () => ExpoIapModule.finishTransaction(purchase, consumable),
+      platform,
+      {productId: purchase.productId},
+    );
   } else if (isAndroidStoreRuntime()) {
     const token = purchase.purchaseToken ?? undefined;
 
@@ -1233,11 +1225,15 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
       });
     }
 
-    if (consumable) {
-      await ExpoIapModule.consumePurchaseAndroid(token);
-    } else {
-      await ExpoIapModule.acknowledgePurchaseAndroid(token);
-    }
+    // Native rejects when the store refuses the token, so a failure cannot pass as finished.
+    await invokeNativeWithPurchaseError(
+      () =>
+        consumable
+          ? ExpoIapModule.consumePurchaseAndroid(token)
+          : ExpoIapModule.acknowledgePurchaseAndroid(token),
+      'android',
+      {productId: purchase.productId},
+    );
   } else {
     throw unsupportedPlatformError();
   }
@@ -1320,7 +1316,7 @@ export const openRedeemOfferCode: MutationField<
   }
   return invokeNativeWithPurchaseError(
     () => ExpoIapModule.openRedeemOfferCode(),
-    Platform.OS === 'ios' ? 'ios' : 'android',
+    nativePlatform(),
     {code: ErrorCode.PurchaseError, message: 'Failed to redeem offer code.'},
   );
 };
@@ -1340,7 +1336,11 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
     throw unsupportedPlatformError();
   }
 
-  return ExpoIapModule.verifyPurchase(options);
+  // The native result is already the flat union member, with `__typename`.
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.verifyPurchase(options),
+    nativePlatform(),
+  );
 };
 
 /**
@@ -1407,8 +1407,9 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result = await ExpoIapModule.verifyPurchaseWithProvider(
-    resolvedOptions,
+  const result = await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions),
+    nativePlatform(),
   );
   if (result.iapkit == null) {
     return result;

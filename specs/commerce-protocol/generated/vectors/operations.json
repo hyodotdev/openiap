@@ -11,6 +11,9 @@
     "horizonUserId": "1234567890123456",
     "horizonSku": "conformance.sku",
     "unknownPurchaseToken": "conformance-google-purchase-token-unknown-9999",
+    "unknownAppleJws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.dW5rbm93bnNpZ25hdW5rbm93bnNpZ25hdW5rbm93bnNpZ25hdW5rbm93bnNpZ25h",
+    "unknownAmazonReceiptId": "conformance-amazon-receipt-unknown-9999",
+    "unknownHorizonSku": "conformance.unknown-sku",
     "unknownUserId": "conformance-user-the-provider-never-heard-of"
   },
   "credentialRoles": [
@@ -770,6 +773,26 @@
       }
     },
     {
+      "id": "bindPurchase.unknown-evidence.not-bound",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-unknown-9999"
+        }
+      },
+      "requiresStore": "google",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
+      }
+    },
+    {
       "id": "bindPurchase.success.contract.apple",
       "operation": "bindPurchase",
       "credential": "server",
@@ -823,6 +846,26 @@
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.unknown-evidence.not-bound.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.dW5rbm93bnNpZ25hdW5rbm93bnNpZ25hdW5rbm93bnNpZ25hdW5rbm93bnNpZ25h"
+        }
+      },
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
       }
     },
     {
@@ -885,6 +928,27 @@
       }
     },
     {
+      "id": "bindPurchase.unknown-evidence.not-bound.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.unknown-sku"
+        }
+      },
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
+      }
+    },
+    {
       "id": "bindPurchase.success.contract.amazon",
       "operation": "bindPurchase",
       "credential": "server",
@@ -944,6 +1008,28 @@
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.unknown-evidence.not-bound.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-unknown-9999",
+          "sandbox": true
+        }
+      },
+      "requiresStore": "amazon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
       }
     },
     {
@@ -1153,47 +1239,6 @@
         "checks": [
           "declaresTestedBinding"
         ]
-      }
-    },
-    {
-      "id": "bindPurchase.unknown-evidence.not-bound",
-      "operation": "bindPurchase",
-      "credential": "server",
-      "input": {
-        "userId": "conformance-user-1",
-        "store": "google",
-        "google": {
-          "purchaseToken": "conformance-google-purchase-token-unknown-9999"
-        }
-      },
-      "requiresStore": "google",
-      "expect": {
-        "kind": "result",
-        "schema": "BindPurchaseResult",
-        "resultSubset": {
-          "bound": false
-        }
-      }
-    },
-    {
-      "id": "bindPurchase.unknown-evidence.not-bound.horizon",
-      "operation": "bindPurchase",
-      "credential": "server",
-      "input": {
-        "userId": "conformance-user-1",
-        "store": "horizon",
-        "horizon": {
-          "userId": "mock-store-user",
-          "sku": "mock.premium"
-        }
-      },
-      "requiresStore": "horizon",
-      "expect": {
-        "kind": "result",
-        "schema": "BindPurchaseResult",
-        "resultSubset": {
-          "bound": false
-        }
       }
     },
     {

@@ -599,7 +599,10 @@ export async function applySubscriptionEventHandler(
     now,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
-  const active = entitlementActive(transition.next, now);
+  const active = entitlementActive(
+    { ...transition.next, platform: storedEvent.platform },
+    now,
+  );
   const commerceTransition = linkedStartedOnActivePredecessor
     ? effectiveTransition
     : firstStoreEventAfterVerification
@@ -872,6 +875,16 @@ export async function recordVerifiedSubscriptionHandler(
   // transaction; without comparable ordering metadata that snapshot must not
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
+  // An Apple JWS describes one transaction, so verifying an older renewal
+  // must not move the row back to that period's expiry and state.
+  if (
+    args.platform === "IOS" &&
+    existing?.expiresAt !== undefined &&
+    snapshot.expiresAt !== undefined &&
+    snapshot.expiresAt < existing.expiresAt
+  ) {
+    return existing._id;
+  }
   const now = Date.now();
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);

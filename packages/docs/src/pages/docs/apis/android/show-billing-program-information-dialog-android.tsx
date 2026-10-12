@@ -119,6 +119,11 @@ function ShowBillingProgramInformationDialogAndroid() {
         with <code>responseCode</code>, optional <code>debugMessage</code>, and
         optional <code>subResponseCode</code>.
       </p>
+      <p>
+        When the dialog fails, Godot returns <code>response_code</code> 6 (
+        <code>ERROR</code>) with <code>debug_message</code> set and emits{' '}
+        <code>purchase_error</code>.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>

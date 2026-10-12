@@ -3,6 +3,7 @@
 // Guards the path filters that gate native builds and Swift CodeQL.
 // Filters are read from the workflows themselves, so there is no second copy.
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -172,6 +173,7 @@ export const cases = Object.freeze([
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
+      "ci-kmp-iap.yml",
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
@@ -186,6 +188,7 @@ export const cases = Object.freeze([
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
+      "ci-kmp-iap.yml",
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
@@ -200,6 +203,20 @@ export const cases = Object.freeze([
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
+      "ci-react-native-iap.yml",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "codeql:analyze-swift",
+    ],
+  },
+  {
+    // CocoaPods consumers build the local pod from this spec.
+    name: "apple-core-podspec",
+    files: ["packages/apple/openiap.podspec"],
+    jobs: [
+      "ci-expo-iap.yml",
+      "ci-flutter-inapp-purchase.yml",
+      "ci-kmp-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
@@ -352,9 +369,21 @@ export const cases = Object.freeze([
     jobs: [],
   },
   {
+    // Every wrapper's Android build compiles the local openiap-google modules.
     name: "google-source",
     files: ["packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt"],
-    jobs: ["ci-kmp-iap.yml", "ci-maui-iap.yml", "ci:test-android"],
+    jobs: [...nativeWorkflows, "ci:test-android"],
+  },
+  {
+    name: "google-core-module",
+    files: ["packages/google/core/build.gradle.kts"],
+    jobs: [...nativeWorkflows, "ci:test-android"],
+  },
+  {
+    // Wrappers read plugin and SDK versions from it.
+    name: "google-root-build-script",
+    files: ["packages/google/build.gradle.kts"],
+    jobs: [...nativeWorkflows, "ci:test-android"],
   },
   {
     name: "root-version-manifest",
@@ -388,6 +417,7 @@ export const cases = Object.freeze([
     jobs: [
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
+      "ci-kmp-iap.yml",
       "ci-react-native-iap.yml",
       "codeql:analyze-swift-wrappers/expo",
       "codeql:analyze-swift-wrappers/expo-onside",
@@ -424,6 +454,12 @@ export const cases = Object.freeze([
     jobs: ["ci:test-docs", "ci:web-e2e"],
   },
   {
+    // Docs and kit import the MCP server's showcase and web modules.
+    name: "mcp-server-source",
+    files: ["packages/mcp-server/src/showcase.ts"],
+    jobs: ["ci:test-docs", "ci:web-e2e"],
+  },
+  {
     name: "commerce-protocol-source",
     files: ["specs/commerce-protocol/schema/05-operations.graphql"],
     // The kit server embeds the generated protocol artifacts at build time,
@@ -435,6 +471,99 @@ export const cases = Object.freeze([
     name: "docs-markdown",
     files: ["packages/docs/README.md"],
     jobs: ["ci:test-docs", "ci:web-e2e"],
+  },
+  // Inputs a test or `bun run` script reads; the step text does not name them.
+  {
+    name: "cli-readme-contract",
+    files: ["packages/cli/README.md"],
+    jobs: ["ci:test-cli"],
+  },
+  {
+    name: "community-touchpoints",
+    files: ["packages/docs/community-touchpoints.json"],
+    jobs: ["ci:test-cli", "ci:test-docs", "ci:web-e2e"],
+  },
+  {
+    name: "docs-audit-script",
+    files: ["scripts/audit-docs.ts"],
+    jobs: [
+      "ci:test-android",
+      "ci:test-gql",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "ci:test-docs",
+    ],
+  },
+  {
+    name: "generated-sync-manifest",
+    files: ["specs/client/generated-sync-manifest.mjs"],
+    jobs: [
+      "ci-maui-iap.yml",
+      "ci:test-android",
+      "ci:test-gql",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "ci:test-docs",
+    ],
+  },
+  {
+    name: "generated-typescript-types",
+    files: ["specs/client/src/generated/types.ts"],
+    jobs: [
+      "ci-expo-iap.yml",
+      "ci-maui-iap.yml",
+      "ci-react-native-iap.yml",
+      "ci:test-android",
+      "ci:test-gql",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "ci:test-docs",
+    ],
+  },
+  {
+    name: "web-e2e-runner",
+    files: ["scripts/e2e-web-sites.mjs"],
+    jobs: [
+      "ci:test-android",
+      "ci:test-gql",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "ci:web-e2e",
+    ],
+  },
+  {
+    name: "commerce-evidence-audit",
+    files: ["scripts/audit-commerce-evidence.mjs"],
+    jobs: [
+      "ci:test-android",
+      "ci:test-gql",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "ci:web-e2e",
+    ],
+  },
+  {
+    // openiap-google's settings include it, and every wrapper but Expo's includes that.
+    name: "conformance-android-module",
+    files: ["packages/conformance/android/build.gradle.kts"],
+    jobs: [
+      "ci-flutter-inapp-purchase.yml",
+      "ci-godot-iap.yml",
+      "ci-kmp-iap.yml",
+      "ci-maui-iap.yml",
+      "ci-react-native-iap.yml",
+      "ci:test-android",
+      "ci:test-gql",
+    ],
+  },
+  {
+    name: "apple-compatibility-fixture",
+    files: ["packages/apple/compatibility/community-provider/Package.swift"],
+    jobs: [
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "codeql:analyze-swift",
+    ],
   },
   {
     name: "scripts-docs-only",
@@ -553,21 +682,302 @@ function findQuantifierViolations(root) {
   });
 }
 
+// Inputs below come from this checkout, even when a test patches the workflows.
+let trackedCache;
+
+function tracked() {
+  if (!trackedCache) {
+    const listing = execFileSync("git", ["ls-files", "-s", "-z"], {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+    });
+    const files = new Map();
+    const directories = new Set();
+
+    for (const line of listing.split("\0").filter(Boolean)) {
+      const [meta, file] = line.split("\t");
+      files.set(file, meta.startsWith("120000"));
+      for (let dir = path.posix.dirname(file); dir !== "."; ) {
+        directories.add(dir);
+        dir = path.posix.dirname(dir);
+      }
+    }
+
+    trackedCache = { files, directories };
+  }
+
+  return trackedCache;
+}
+
+function readSource(file) {
+  return fs.readFileSync(path.join(repositoryRoot, file), "utf8");
+}
+
+// A directory input stands for every non-markdown file under it.
+function expandInput(input) {
+  const { files, directories } = tracked();
+
+  if (files.has(input)) {
+    return [input];
+  }
+
+  return directories.has(input)
+    ? [...files.keys()].filter(
+        (file) => file.startsWith(`${input}/`) && !file.endsWith(".md"),
+      )
+    : [];
+}
+
+export function coverageFindings(scope, patterns, inputs) {
+  return [...inputs].flatMap(([input, source]) => {
+    const files = expandInput(input);
+
+    if (files.length === 0) {
+      return [
+        `${scope}: ${source} reads ${input}, which no tracked file backs`,
+      ];
+    }
+
+    return files.every((file) => matchesFilter(patterns, [file]))
+      ? []
+      : [
+          `${scope}: paths miss ${tracked().directories.has(input) ? `${input}/**` : input}, which ${source} reads`,
+        ];
+  });
+}
+
+const WORKSPACE =
+  /\$\{\{\s*github\.workspace\s*\}\}|\$\{?GITHUB_WORKSPACE\}?/gu;
+
+function resolveRunToken(token, directory) {
+  if (token.startsWith("@ROOT@/")) {
+    return path.posix.normalize(token.slice("@ROOT@/".length));
+  }
+
+  if (!token || /^[$\-/]/u.test(token)) {
+    return null;
+  }
+
+  const resolved = path.posix.normalize(path.posix.join(directory, token));
+  return resolved.startsWith("..") ? null : resolved;
+}
+
+function workingDirectory(value) {
+  return (value ?? "").replace(WORKSPACE, "").replace(/^\/+/u, "") || ".";
+}
+
+// Repository files a set of steps names: scripts they run, files they read,
+// and local composite actions with everything those run in turn.
+function stepInputs(steps, directory, inputs, source) {
+  for (const step of steps ?? []) {
+    if (typeof step.uses === "string" && step.uses.startsWith("./")) {
+      const action = path.posix.join(step.uses.slice(2), "action.yml");
+      inputs.set(action, source);
+      stepInputs(
+        parseYaml(readSource(action)).runs?.steps,
+        ".",
+        inputs,
+        action,
+      );
+    }
+
+    if (typeof step.run !== "string") {
+      continue;
+    }
+
+    let cwd = workingDirectory(step["working-directory"] ?? directory);
+    const tokens = step.run
+      .replace(WORKSPACE, "@ROOT@")
+      .split(/[\s"'=;|&()<>`]+/u);
+
+    for (const [index, raw] of tokens.entries()) {
+      const target = resolveRunToken(raw.replace(/\\$/u, ""), cwd);
+
+      if (!target) {
+        continue;
+      }
+
+      if (tokens[index - 1] === "cd" && tracked().directories.has(target)) {
+        cwd = target;
+      } else if (tracked().files.has(target)) {
+        inputs.set(target, source);
+      }
+    }
+  }
+
+  return inputs;
+}
+
 /**
- * Docs link to the canonical Commerce Protocol and R15 checks its derived
- * transport constants, so every protocol change must run the docs job.
+ * Files a Gradle script reads and, for a settings script, the projects and
+ * builds it includes; an included build's own settings are followed too.
+ * Walk-up lookups name a root-relative `packages/...` path, so that is the
+ * fallback when a literal does not resolve beside the script.
+ *
+ * Only quoted `../` or `packages/` literals count: that is how every
+ * cross-directory edge is written today. Paths built by concatenation, bare
+ * names beside the script, and files Gradle reads implicitly
+ * (gradle.properties, version catalogs) are not seen; pin those with a case.
  */
-function findDocsFilterViolations(root) {
+function gradleInputs(file, inputs) {
+  const includesProjects = /(?:^|\/)settings\.gradle(?:\.kts)?$/u.test(file);
+
+  for (const [, literal] of readSource(file).matchAll(
+    /["']((?:\.\.\/)+[^"'$\s]+|packages\/[^"'$\s]+)["']/gu,
+  )) {
+    const target = [
+      path.posix.normalize(path.posix.join(path.posix.dirname(file), literal)),
+      literal.replace(/^(?:\.\.\/)+/u, ""),
+    ].find(
+      (candidate) =>
+        tracked().files.has(candidate) ||
+        (includesProjects && tracked().directories.has(candidate)),
+    );
+
+    if (!target || inputs.has(target)) {
+      continue;
+    }
+
+    inputs.set(target, file);
+    for (const settings of ["settings.gradle", "settings.gradle.kts"]) {
+      if (tracked().files.has(`${target}/${settings}`)) {
+        gradleInputs(`${target}/${settings}`, inputs);
+      }
+    }
+  }
+}
+
+// Build inputs a directory pulls in through its symlinks and Gradle scripts.
+function directoryInputs(directory, inputs) {
+  for (const [file, isLink] of tracked().files) {
+    if (!file.startsWith(`${directory}/`)) {
+      continue;
+    }
+
+    if (isLink) {
+      const target = path.posix.normalize(
+        path.posix.join(
+          path.posix.dirname(file),
+          fs.readlinkSync(path.join(repositoryRoot, file)),
+        ),
+      );
+      if (!target.startsWith(`${directory}/`)) {
+        inputs.set(target, file);
+      }
+    } else if (/\.gradle(?:\.kts)?$/u.test(file)) {
+      gradleInputs(file, inputs);
+    }
+  }
+
+  return inputs;
+}
+
+/**
+ * A path-filtered job must run when anything it reads changes. Inputs come
+ * from the workflow file and its steps; a wrapper's Gradle wiring and
+ * symlinks; and, for a ci.yml job, each package directory it runs in with
+ * that package's Gradle wiring and workspace dependencies. A new edge fails
+ * here until the filter covers it. CodeQL scopes are not derived; their
+ * cases above pin them.
+ */
+function findConsumedInputViolations(root) {
+  const findings = [];
+
+  for (const name of nativeWorkflows) {
+    const document = readWorkflow(root, name);
+    const patterns = document.on.pull_request.paths;
+    const inputs = new Map([[`.github/workflows/${name}`, "the workflow"]]);
+    const defaults = document.defaults?.run?.["working-directory"];
+
+    for (const job of Object.values(document.jobs)) {
+      stepInputs(
+        job.steps,
+        job.defaults?.run?.["working-directory"] ?? defaults,
+        inputs,
+        name,
+      );
+    }
+
+    for (const pattern of patterns) {
+      const library = pattern.match(/^(libraries\/[^/]+)\/\*\*$/u)?.[1];
+      if (library) {
+        directoryInputs(library, inputs);
+      }
+    }
+
+    findings.push(...coverageFindings(name, patterns, inputs));
+  }
+
   const ci = readWorkflow(root, "ci.yml");
   const { filters } = dornyStep(ci, "changes", "filter");
-  const docs = filters?.docs ?? [];
-  const required = ["specs/commerce-protocol/**"];
-  return required
-    .filter((pattern) => !docs.includes(pattern))
-    .map(
-      (pattern) =>
-        `ci.yml: docs filter must include '${pattern}' — the canonical contract and its generated artifacts govern docs`,
+  const directoryOf = new Map(
+    [...tracked().files.keys()]
+      .filter((file) =>
+        /^(?:packages|specs)\/[^/]+\/package\.json$/u.test(file),
+      )
+      .map((file) => [
+        JSON.parse(readSource(file)).name,
+        path.posix.dirname(file),
+      ]),
+  );
+
+  for (const [filter, labels] of Object.entries(ciFilterJobs)) {
+    const inputs = new Map([[".github/workflows/ci.yml", "the workflow"]]);
+
+    for (const label of labels) {
+      const jobId = label.replace(/^ci:/u, "");
+      const steps = ci.jobs[jobId]?.steps ?? [];
+      stepInputs(steps, ".", inputs, `ci.yml ${jobId}`);
+
+      for (const step of steps) {
+        const directory = workingDirectory(step["working-directory"]);
+        if (directory === ".") {
+          continue;
+        }
+
+        if (!inputs.has(directory)) {
+          inputs.set(directory, `ci.yml ${jobId}`);
+        }
+        directoryInputs(directory, inputs);
+        for (const dependency of workspaceDependencies(
+          directory,
+          directoryOf,
+        )) {
+          inputs.set(dependency, `${directory}/package.json`);
+        }
+      }
+    }
+
+    findings.push(
+      ...coverageFindings(`ci.yml ${filter}`, filters[filter] ?? [], inputs),
     );
+  }
+
+  return findings;
+}
+
+// Workspace packages a package builds against, by directory.
+function workspaceDependencies(directory, directoryOf) {
+  const manifest = `${directory}/package.json`;
+
+  if (!tracked().files.has(manifest)) {
+    return [];
+  }
+
+  const { dependencies, devDependencies, peerDependencies } = JSON.parse(
+    readSource(manifest),
+  );
+
+  return Object.entries({
+    ...dependencies,
+    ...devDependencies,
+    ...peerDependencies,
+  })
+    .filter(
+      ([name, version]) =>
+        String(version).startsWith("workspace:") && directoryOf.has(name),
+    )
+    .map(([name]) => directoryOf.get(name));
 }
 
 function findKitConsumerFilterViolations(root) {
@@ -741,7 +1151,7 @@ export function findPolicyViolations(root = repositoryRoot) {
     ...findQuantifierViolations(root),
     ...findVocabularyViolations(readScopes(root)),
     ...findCoverageViolations(root),
-    ...findDocsFilterViolations(root),
+    ...findConsumedInputViolations(root),
     ...findKitConsumerFilterViolations(root),
   ];
 }

@@ -5,7 +5,7 @@
   "description": "Input and result documents for the portable operation surface, plus the protocol error shape both transport bindings share. Operations travel over the REST and GraphQL bindings; these schemas validate their JSON projections.",
   "$defs": {
     "ProtocolError": {
-      "description": "One protocol operation failure. Both bindings carry the same code space: REST wraps it in ProtocolErrorResponse, GraphQL carries `code` in `errors[].extensions`. A message is human-readable and MUST NOT contain credentials, store evidence, stack traces, or implementation source paths.",
+      "description": "One protocol operation failure. Both bindings carry the same code space: REST wraps it in ProtocolErrorResponse, GraphQL carries `code` in `errors[].extensions`. A message is human-readable; neither it nor any other error member, GraphQL `extensions` included, may contain credentials, store evidence, signed payloads, stack traces, or implementation source paths.",
       "type": "object",
       "required": [
         "code",

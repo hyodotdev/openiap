@@ -1,4 +1,5 @@
 import { mutation } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { SPONSOR_CTA_THRESHOLD } from "../plans";
@@ -137,7 +138,7 @@ export const updateOrganization = mutation({
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
-    const updates: any = {
+    const updates: Partial<Doc<"organizations">> = {
       updatedAt: Date.now(),
     };
 
@@ -264,8 +265,11 @@ export const removeMember = mutation({
       throw createError(ErrorCode.NOT_ORGANIZATION_MEMBER);
     }
 
-    // Can't remove the last owner
+    // Only an owner may remove an owner, and never the last one.
     if (membershipToRemove.role === "owner") {
+      if (currentUserMembership.role !== "owner") {
+        throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
+      }
       const owners = await ctx.db
         .query("organizationMembers")
         .withIndex("by_organization", (q) =>

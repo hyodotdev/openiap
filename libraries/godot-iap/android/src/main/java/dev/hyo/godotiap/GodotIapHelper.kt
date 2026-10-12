@@ -8,7 +8,9 @@ import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.StoreIds
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+import dev.hyo.openiap.VerifyPurchaseProps
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.Locale
 
@@ -239,6 +241,21 @@ internal object GodotIapHelper {
             "keep_existing" -> SubscriptionReplacementModeAndroid.KeepExisting
             else -> null
         }
+    }
+
+    /** Decodes every Google and Horizon option through the generated type instead of copying fields. */
+    fun parseVerifyPurchaseProps(propsJson: String): VerifyPurchaseProps {
+        val props = try {
+            VerifyPurchaseProps.fromJson(jsonObjectToMap(JSONObject(propsJson)))
+        } catch (error: JSONException) {
+            throw OpenIapError.DeveloperError(error.message)
+        } catch (error: IllegalArgumentException) {
+            throw OpenIapError.DeveloperError(error.message)
+        }
+        if (props.google == null && props.horizon == null) {
+            throw OpenIapError.DeveloperError("Missing google or horizon verification options")
+        }
+        return props
     }
 
     /** Synchronous init failure for the wrapper log; the signal arrives a frame late. */

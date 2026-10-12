@@ -1,10 +1,7 @@
 package io.github.hyochan.flutter_inapp_purchase
 
 import android.app.Activity
-import android.app.Application
-import android.app.Application.ActivityLifecycleCallbacks
 import android.content.Context
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
@@ -34,9 +31,13 @@ import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
+import dev.hyo.openiap.helpers.finishPurchaseToken
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
+import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
+import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.utils.redeemOfferCode
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -53,7 +54,7 @@ import org.json.JSONObject
 import java.util.Locale
 
 /** Provider-backed Flutter MethodChannel implementation. */
-class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, ActivityLifecycleCallbacks {
+class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Main + job)
     private val handler = Handler(Looper.getMainLooper())
@@ -62,11 +63,13 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     private var activity: Activity? = null
     private var channel: MethodChannel? = null
 
-    private var connectionReady: Boolean = false
     private var listenersAttached = false
-    private val connectionMutex = Mutex()
-    // OpenIAP module instance
+    // This engine's handle on the shared provider.
     private var openIap: OpenIapProtocol? = null
+
+    /** Read under [lifecycle]: this engine asked for the connection and it is up. */
+    private val connectionReady: Boolean
+        get() = this in connectedEngines && providerReady
 
     private fun parseQueryType(raw: String?): ProductQueryType {
         return when (val normalized = raw?.trim()?.lowercase(Locale.ROOT)) {
@@ -191,15 +194,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         }
     }
 
-    private fun MethodResultWrapper.error(
-        code: String,
-        defaultMessage: String,
-        message: String? = null
-    ) {
-        val resolvedMessage = message ?: defaultMessage
-        this.error(code, resolvedMessage, null)
-    }
-
     private fun emitConnectionUpdated(connected: Boolean) {
         val item = JSONObject().apply { put("connected", connected) }
         handler.post { channel?.invokeMethod("connection-updated", item.toString()) }
@@ -211,58 +205,45 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
     fun setActivity(activity: Activity?) {
         this.activity = activity
-        openIap?.setActivity(activity)
+        openIap?.let { shareActivity(this, it, activity) }
     }
 
     fun setChannel(channel: MethodChannel?) {
         this.channel = channel
     }
 
-    fun onDetachedFromActivity() {
-        activity = null
-        openIap?.setActivity(null)
-    }
-
     fun dispose() {
-        val iap = openIap
-        openIap = null
-        context = null
-        activity = null
+        setActivity(null)
         channel = null
-        connectionReady = false
-        listenersAttached = false
         scope.launch {
-            connectionMutex.withLock {
-                kotlin.runCatching { iap?.endConnection() }
+            lifecycle.withLock {
+                val iap = openIap ?: return@withLock
+                openIap = null
+                if (listenersAttached) detachListeners(iap)
+                listenersAttached = false
+                val wasConnected = connectedEngines.remove(this@AndroidInappPurchasePlugin)
+                providerUsers--
+                if (providerUsers == 0) sharedProvider = null
+                // Ending inside the lock keeps a new provider from starting beside this one.
+                if (providerUsers == 0 || (wasConnected && connectedEngines.isEmpty())) {
+                    providerReady = false
+                    runCatching { iap.endConnection() }
+                }
             }
+            context = null
         }.invokeOnCompletion {
             job.cancel()
         }
     }
 
-    // ActivityLifecycleCallbacks (no-ops except for cleanup)
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-    override fun onActivityStarted(activity: Activity) {}
-    override fun onActivityResumed(activity: Activity) {}
-    override fun onActivityPaused(activity: Activity) {}
-    override fun onActivityStopped(activity: Activity) {}
-    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-    override fun onActivityDestroyed(activity: Activity) {
-        if (this.activity === activity) {
-            (context as? Application)?.unregisterActivityLifecycleCallbacks(this)
-            onDetachedFromActivity()
-        }
-    }
-
     @Suppress("DEPRECATION")
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        val ch = channel
-        if (ch == null) {
-            OpenIapLog.error("onMethodCall received for ${call.method} but channel is null. Cannot send result.")
+        if (channel == null) {
+            OpenIapLog.error("onMethodCall received for ${call.method} after the plugin detached")
             result.error(OpenIapError.DeveloperError.CODE, "MethodChannel is not attached", null)
             return
         }
-        val safe = MethodResultWrapper(result, ch)
+        val safe = MethodResultWrapper(result)
 
         // Quick methods that do not depend on billing readiness
         when (call.method) {
@@ -307,10 +288,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "openRedeemOfferCode" -> {
                 scope.launch {
                     try {
-                        val iap = connectionMutex.withLock {
-                            attachListenersIfNeeded()
-                            requireOpenIap()
-                        }
+                        val iap = lifecycle.withLock { attachListenersLocked() }
                         safe.success(redeemOfferCode(iap, activity)?.toJson())
                     } catch (e: OpenIapError) {
                         safe.error(e.code, e.message, serializeOpenIapError(e))
@@ -343,16 +321,22 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 OpenIapLog.debug("initConnection called with config: $configMap", TAG)
 
                 scope.launch {
-                    connectionMutex.withLock {
+                    lifecycle.withLock {
                         try {
-                            attachListenersIfNeeded()
-                            openIap?.setActivity(activity)
+                            val iap = attachListenersLocked()
+                            // Another engine already holds the connection; restarting would drop it.
+                            if (providerReady && (connectedEngines - this@AndroidInappPurchasePlugin).isNotEmpty()) {
+                                connectedEngines.add(this@AndroidInappPurchasePlugin)
+                                emitConnectionUpdated(true)
+                                safe.success("Billing client ready")
+                                return@withLock
+                            }
 
                             // Restart the connection to apply billing configuration.
                             try {
                                 OpenIapLog.debug("Ending connection before reinitializing (current ready state: $connectionReady)", TAG)
-                                openIap?.endConnection()
-                                connectionReady = false
+                                iap.endConnection()
+                                providerReady = false
 
                                 // Let Play finish asynchronous disconnection before reconnecting.
                                 kotlinx.coroutines.delay(300)
@@ -361,8 +345,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             }
 
                             OpenIapLog.debug("Initializing connection with config: $configMap", TAG)
-                            val ok = openIap?.initConnection(newConfig) ?: false
-                            connectionReady = ok
+                            val ok = iap.initConnection(newConfig)
+                            markConnected(ok)
                             OpenIapLog.debug("Connection initialized: $ok", TAG)
 
                             // Emit connection-updated for compatibility
@@ -386,11 +370,17 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
             "endConnection" -> {
                 scope.launch {
-                    connectionMutex.withLock {
+                    lifecycle.withLock {
                         try {
                             OpenIapLog.debug("endConnection called", TAG)
-                            val disconnected = openIap?.endConnection() ?: true
-                            if (disconnected) connectionReady = false
+                            val self = this@AndroidInappPurchasePlugin
+                            // Only the last engine that asked for the connection ends it.
+                            val disconnected = if ((connectedEngines - self).isNotEmpty()) {
+                                connectedEngines.remove(self)
+                                true
+                            } else {
+                                (openIap?.endConnection() ?: true).also { if (it) markConnected(false) }
+                            }
                             OpenIapLog.debug("endConnection result: $disconnected", TAG)
                             safe.success(disconnected)
                         } catch (e: Exception) {
@@ -406,7 +396,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 return
             }
             "isReady" -> {
-                safe.success(connectionReady)
+                scope.launch { safe.success(lifecycle.withLock { connectionReady }) }
                 return
             }
         }
@@ -566,10 +556,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
                 scope.launch {
                     // Ensure connection and listeners under mutex
-                    connectionMutex.withLock {
+                    lifecycle.withLock {
                         try {
-                            attachListenersIfNeeded()
-                            openIap?.setActivity(activity)
+                            attachListenersLocked()
 
                             // Check if connection is ready
                             if (!connectionReady) {
@@ -627,18 +616,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             // -----------------------------------------------------------------
             // Android-suffix stable APIs (kept)
             // -----------------------------------------------------------------
-            "getStorefront" -> {
-                scope.launch {
-                    try {
-                        val iap = requireOpenIap()
-                        val code = iap.getStorefront()
-                        safe.success(code)
-                    } catch (e: Exception) {
-                        replyBillingError(safe, e)
-                    }
-                }
-            }
-            "getStorefrontAndroid" -> {
+            "getStorefront", "getStorefrontAndroid" -> {
                 scope.launch {
                     try {
                         val iap = requireOpenIap()
@@ -696,7 +674,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     }
                 }
             }
-            "acknowledgePurchaseAndroid" -> {
+            "acknowledgePurchaseAndroid", "consumePurchaseAndroid" -> {
                 val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
                 val purchaseToken =
                     resolveCanonicalPurchaseToken(params)?.takeIf { it.isNotBlank() }
@@ -704,32 +682,13 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                     safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
                     return
                 }
+                val isConsumable = call.method == "consumePurchaseAndroid"
                 scope.launch {
                     try {
-                        val iap = requireOpenIap()
-                        iap.acknowledgePurchaseAndroid(purchaseToken)
-                        val resp = JSONObject().apply { put("responseCode", 0) }
-                        safe.success(resp.toString())
-                    } catch (e: Exception) {
-                        replyBillingError(safe, e)
-                    }
-                }
-            }
-            "consumePurchaseAndroid" -> {
-                val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
-                val purchaseToken =
-                    resolveCanonicalPurchaseToken(params)?.takeIf { it.isNotBlank() }
-                if (purchaseToken == null) {
-                    safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
-                    return
-                }
-                scope.launch {
-                    try {
-                        val iap = requireOpenIap()
-                        iap.consumePurchaseAndroid(purchaseToken)
+                        requireOpenIap().finishPurchaseToken(purchaseToken, isConsumable)
                         val resp = JSONObject().apply {
                             put("responseCode", 0)
-                            put("purchaseToken", purchaseToken)
+                            if (isConsumable) put("purchaseToken", purchaseToken)
                         }
                         safe.success(resp.toString())
                     } catch (e: Exception) {
@@ -1077,14 +1036,14 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         autoInit: Boolean = false,
         block: suspend () -> Unit
     ) {
-        connectionMutex.withLock {
+        lifecycle.withLock {
             try {
-                attachListenersIfNeeded()
-                openIap?.setActivity(activity)
+                val iap = attachListenersLocked()
                 if (!connectionReady) {
                     if (autoInit) {
-                        val ok = openIap?.initConnection(InitConnectionConfig()) ?: false
-                        connectionReady = ok
+                        // Join a connection another engine holds instead of starting a second one.
+                        val ok = providerReady || iap.initConnection(InitConnectionConfig())
+                        markConnected(ok)
                         emitConnectionUpdated(ok)
                         if (!ok) {
                             val initError = initConnectionError()
@@ -1110,12 +1069,23 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     private fun initConnectionError(): OpenIapError =
         context?.let { OpenIapError.InitConnection.forProvider(it) } ?: OpenIapError.InitConnection
 
-    private fun requireOpenIap(): OpenIapProtocol = openIap ?: run {
+    private suspend fun requireOpenIap(): OpenIapProtocol = openIap ?: lifecycle.withLock { providerLocked() }
+
+    /** Caller holds [lifecycle]; joins the shared provider, creating it once per process. */
+    private fun providerLocked(): OpenIapProtocol = openIap ?: run {
         val ctx = context ?: throw OpenIapError.NotPrepared
-        OpenIapProvider.create(ctx).also {
-            it.setActivity(activity)
-            openIap = it
-        }
+        val provider = sharedProvider ?: OpenIapProvider.create(ctx)
+        sharedProvider = provider
+        providerUsers++
+        openIap = provider
+        activity?.let { shareActivity(this, provider, it) }
+        provider
+    }
+
+    /** Caller holds [lifecycle]. */
+    private fun markConnected(connected: Boolean) {
+        providerReady = connected
+        if (connected) connectedEngines.add(this) else connectedEngines.remove(this)
     }
 
     private fun replyBillingError(
@@ -1130,66 +1100,90 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         }
     }
 
-    private fun attachListenersIfNeeded() {
-        if (listenersAttached) return
-        val iap = requireOpenIap()
-        iap.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { p ->
-            scope.launch {
-                try {
-                    val payload = JSONObject(p.toJson())
-                    channel?.invokeMethod("purchase-updated", payload.toString())
-                } catch (e: Exception) {
-                    OpenIapLog.error("Failed to send purchase-updated", e)
-                }
-            }
-        })
-        iap.addPurchaseErrorListener(OpenIapPurchaseErrorListener { e ->
-            scope.launch {
-                try {
-                    val payload = JSONObject(serializeOpenIapError(e))
-                    channel?.invokeMethod("purchase-error", payload.toString())
-                } catch (ex: Exception) {
-                    OpenIapLog.error("Failed to send purchase-error", ex)
-                }
-            }
-        })
-        iap.addUserChoiceBillingListener { details ->
-            scope.launch {
-                try {
-                    val payload = JSONObject(details.toJson())
-                    channel?.invokeMethod("user-choice-billing-android", payload.toString())
-                } catch (e: Exception) {
-                    OpenIapLog.error("Failed to send user-choice-billing-android", e)
-                }
+    private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
+        emit("purchase-updated") { JSONObject(purchase.toJson()) }
+    }
+    private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
+        emit("purchase-error") { JSONObject(serializeOpenIapError(error)) }
+    }
+    private val userChoiceBillingListener = OpenIapUserChoiceBillingListener { details ->
+        emit("user-choice-billing-android") { JSONObject(details.toJson()) }
+    }
+    private val developerProvidedBillingListener = OpenIapDeveloperProvidedBillingListener { details ->
+        emit("developer-provided-billing-android") { JSONObject(details.toJson()) }
+    }
+    private val subscriptionBillingIssueListener = OpenIapSubscriptionBillingIssueListener { purchase ->
+        emit("subscription-billing-issue") { JSONObject(purchase.toJson()) }
+    }
+
+    // The billing service dropped; every engine's Dart must call initConnection again.
+    private val connectionStateListener = OpenIapConnectionStateListener {
+        providerReady = false
+        emitConnectionUpdated(false)
+    }
+
+    private fun emit(method: String, payload: () -> JSONObject) {
+        scope.launch {
+            try {
+                channel?.invokeMethod(method, payload().toString())
+            } catch (e: Exception) {
+                OpenIapLog.error("Failed to send $method", e)
             }
         }
-        iap.addDeveloperProvidedBillingListener(OpenIapDeveloperProvidedBillingListener { details ->
-            scope.launch {
-                try {
-                    val payload = JSONObject(details.toJson())
-                    channel?.invokeMethod("developer-provided-billing-android", payload.toString())
-                } catch (e: Exception) {
-                    OpenIapLog.error("Failed to send developer-provided-billing-android", e)
-                }
-            }
-        })
-        iap.addSubscriptionBillingIssueListener(
-            dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener { purchase ->
-                scope.launch {
-                    try {
-                        val payload = JSONObject(purchase.toJson())
-                        channel?.invokeMethod("subscription-billing-issue", payload.toString())
-                    } catch (e: Exception) {
-                        OpenIapLog.error("Failed to send subscription-billing-issue", e)
-                    }
-                }
-            }
-        )
+    }
+
+    /** Caller holds [lifecycle]. */
+    private fun attachListenersLocked(): OpenIapProtocol {
+        val iap = providerLocked()
+        if (listenersAttached) return iap
+        iap.addPurchaseUpdateListener(purchaseUpdateListener)
+        iap.addPurchaseErrorListener(purchaseErrorListener)
+        iap.addUserChoiceBillingListener(userChoiceBillingListener)
+        iap.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
+        iap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
+        iap.addConnectionStateListener(connectionStateListener)
         listenersAttached = true
+        return iap
+    }
+
+    private fun detachListeners(iap: OpenIapProtocol) {
+        iap.removePurchaseUpdateListener(purchaseUpdateListener)
+        iap.removePurchaseErrorListener(purchaseErrorListener)
+        iap.removeUserChoiceBillingListener(userChoiceBillingListener)
+        iap.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
+        iap.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
+        iap.removeConnectionStateListener(connectionStateListener)
     }
 
     companion object {
         private const val TAG = "InappPurchasePlugin"
+
+        // Horizon kills the process when a second billing client queries purchases, so every
+        // FlutterEngine shares one provider and runs its connection lifecycle under one lock.
+        private val lifecycle = Mutex()
+        private var sharedProvider: OpenIapProtocol? = null
+        private var providerUsers = 0
+        // Engines whose Dart side connected and has not ended the connection.
+        private val connectedEngines = mutableSetOf<AndroidInappPurchasePlugin>()
+        @Volatile
+        private var providerReady = false
+        private var activityOwner: AndroidInappPurchasePlugin? = null
+
+        /** Purchases use the provider's Activity, so only the engine that set it may clear it. */
+        @Synchronized
+        private fun shareActivity(
+            plugin: AndroidInappPurchasePlugin,
+            provider: OpenIapProtocol,
+            activity: Activity?,
+        ) {
+            if (activity != null) {
+                activityOwner = plugin
+                provider.setActivity(activity)
+            } else if (activityOwner === plugin) {
+                activityOwner = null
+                provider.setActivity(null)
+            }
+        }
 
         private const val KEY_REQUEST_SUBSCRIPTION = "requestSubscription"
         private const val KEY_REQUEST_PURCHASE = "requestPurchase"

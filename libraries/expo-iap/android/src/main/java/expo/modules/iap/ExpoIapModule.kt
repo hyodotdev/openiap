@@ -25,6 +25,7 @@ import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
+import dev.hyo.openiap.helpers.finishPurchaseToken
 import dev.hyo.openiap.store.OpenIapStore
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
@@ -529,13 +530,13 @@ class ExpoIapModule : Module() {
                 ExpoIapLog.payload("acknowledgePurchaseAndroid", mapOf("token" to token))
                 scope.launch {
                     try {
-                        openIap.acknowledgePurchaseAndroid(token)
+                        openIap.finishPurchaseToken(token, isConsumable = false)
                         val response = mapOf("responseCode" to 0)
                         ExpoIapLog.result("acknowledgePurchaseAndroid", response)
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("acknowledgePurchaseAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }
@@ -544,7 +545,7 @@ class ExpoIapModule : Module() {
                 ExpoIapLog.payload("consumePurchaseAndroid", mapOf("token" to token))
                 scope.launch {
                     try {
-                        openIap.consumePurchaseAndroid(token)
+                        openIap.finishPurchaseToken(token, isConsumable = true)
                         val response = mapOf("responseCode" to 0, "purchaseToken" to token)
                         ExpoIapLog.result(
                             "consumePurchaseAndroid",
@@ -553,7 +554,7 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("consumePurchaseAndroid", e)
-                        promise.reject((e as? OpenIapError)?.code ?: OpenIapError.ServiceUnavailable.CODE, e.message, null)
+                        ExpoIapHelper.rejectWithErrorEnvelope(promise, e)
                     }
                 }
             }

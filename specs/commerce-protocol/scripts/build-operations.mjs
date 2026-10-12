@@ -424,21 +424,34 @@ const FIXTURES = Object.freeze({
   horizonUserId: "1234567890123456",
   horizonSku: "conformance.sku",
   unknownPurchaseToken: "conformance-google-purchase-token-unknown-9999",
+  unknownAppleJws: `eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.${"eyJjb25mb3JtYW5jZSI6dHJ1ZX0".repeat(4)}.${"dW5rbm93bnNpZ25h".repeat(4)}`,
+  unknownAmazonReceiptId: "conformance-amazon-receipt-unknown-9999",
+  unknownHorizonSku: "conformance.unknown-sku",
   unknownUserId: "conformance-user-the-provider-never-heard-of",
 });
 
-function storeEvidenceFixture(store) {
+// `known: false` is evidence no provider has a purchase for.
+function storeEvidenceFixture(store, known = true) {
   switch (store) {
     case "apple":
-      return { jws: FIXTURES.appleJws };
+      return { jws: known ? FIXTURES.appleJws : FIXTURES.unknownAppleJws };
     case "google":
-      return { purchaseToken: FIXTURES.googlePurchaseToken };
+      return {
+        purchaseToken: known
+          ? FIXTURES.googlePurchaseToken
+          : FIXTURES.unknownPurchaseToken,
+      };
     case "horizon":
-      return { userId: FIXTURES.horizonUserId, sku: FIXTURES.horizonSku };
+      return {
+        userId: FIXTURES.horizonUserId,
+        sku: known ? FIXTURES.horizonSku : FIXTURES.unknownHorizonSku,
+      };
     case "amazon":
       return {
         userId: FIXTURES.amazonUserId,
-        receiptId: FIXTURES.amazonReceiptId,
+        receiptId: known
+          ? FIXTURES.amazonReceiptId
+          : FIXTURES.unknownAmazonReceiptId,
         sandbox: true,
       };
     default:
@@ -665,6 +678,25 @@ function buildOperationVectors(ir, operationsSchema) {
           expect: { ...successExpect },
         });
       }
+      if (operation.name === "bindPurchase") {
+        // SPEC.md 4.4: unknown evidence is bound:false for every integrated
+        // store, indistinguishable from a foreign binding (anti-enumeration).
+        cases.push({
+          id: `${operation.name}.unknown-evidence.not-bound${suffix}`,
+          operation: operation.name,
+          credential,
+          input: {
+            ...variantInput,
+            [storeRule.member]: storeEvidenceFixture(storeRule.store, false),
+          },
+          ...storeRequirement,
+          expect: {
+            kind: "result",
+            schema: operation.result,
+            resultSubset: { bound: false },
+          },
+        });
+      }
     }
   }
 
@@ -707,42 +739,6 @@ function buildOperationVectors(ir, operationsSchema) {
         kind: "result",
         schema: "ProviderCapabilities",
         checks: ["declaresTestedBinding"],
-      },
-    },
-    {
-      // A purchase the provider has no binding for must report bound:false —
-      // and the anti-enumeration rule keeps that indistinguishable from a
-      // foreign binding, so a provider cannot probe whether it exists.
-      id: "bindPurchase.unknown-evidence.not-bound",
-      operation: "bindPurchase",
-      credential: "server",
-      input: {
-        userId: FIXTURES.userId,
-        store: "google",
-        google: { purchaseToken: FIXTURES.unknownPurchaseToken },
-      },
-      requiresStore: "google",
-      expect: {
-        kind: "result",
-        schema: "BindPurchaseResult",
-        resultSubset: { bound: false },
-      },
-    },
-    {
-      // Unknown evidence is a non-binding outcome for every integrated store.
-      id: "bindPurchase.unknown-evidence.not-bound.horizon",
-      operation: "bindPurchase",
-      credential: "server",
-      input: {
-        userId: FIXTURES.userId,
-        store: "horizon",
-        horizon: { userId: "mock-store-user", sku: "mock.premium" },
-      },
-      requiresStore: "horizon",
-      expect: {
-        kind: "result",
-        schema: "BindPurchaseResult",
-        resultSubset: { bound: false },
       },
     },
     {

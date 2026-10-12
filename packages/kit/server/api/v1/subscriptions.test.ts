@@ -144,6 +144,9 @@ describe("subscriptionsRoutes", () => {
     expect(responses.map((response) => response.status)).toEqual([
       200, 200, 200, 200, 200, 200,
     ]);
+    for (const response of responses) {
+      expect(response.headers.get("x-ratelimit-limit")).toBe("600");
+    }
     for (const [, args] of mocks.query.mock.calls) {
       expect(args).toMatchObject({ apiKey: "openiap-kit_sk_admin" });
     }
@@ -404,6 +407,14 @@ describe("subscriptionsRoutes", () => {
         subscriptionRow({
           id: "active-duplicate-product",
           productId: "premium",
+          platform: "Android",
+          state: "Active",
+          updatedAt: 2,
+        }),
+        subscriptionRow({
+          // A non-renewing pass recorded as a subscription before the fix.
+          id: "ios-without-expiry",
+          productId: "pass_1m",
           state: "Active",
           updatedAt: 2,
         }),
@@ -434,14 +445,14 @@ describe("subscriptionsRoutes", () => {
       active: true,
       subscription: { id: "grace-current" },
     });
-    await expect(entitlements.json()).resolves.toMatchObject({
+    const entitlementsBody = await entitlements.json();
+    expect(entitlementsBody).toMatchObject({
       userId: "user-1",
       productIds: ["premium"],
-      subscriptions: [
-        { id: "grace-current" },
-        { id: "active-duplicate-product" },
-      ],
     });
+    expect(
+      entitlementsBody.subscriptions.map((row: { id: string }) => row.id),
+    ).toEqual(["grace-current", "active-duplicate-product"]);
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
@@ -452,11 +463,13 @@ describe("subscriptionsRoutes", () => {
       evaluationSnapshot([
         subscriptionRow({
           id: "older-created",
+          expiresAt: 2_000,
           updatedAt: 5,
           createdAt: 10,
         }),
         subscriptionRow({
           id: "newer-created",
+          expiresAt: 2_000,
           updatedAt: 5,
           createdAt: 20,
         }),

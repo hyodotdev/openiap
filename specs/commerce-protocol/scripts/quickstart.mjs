@@ -3,6 +3,7 @@ import Ajv from "ajv/dist/2020.js";
 import {
   createGraphqlAdapter,
   createRestAdapter,
+  normalizeResultData,
   operationVectors,
   runConformance,
 } from "../conformance/index.mjs";
@@ -89,7 +90,8 @@ const graphqlAccess = await graphql.request({
 });
 assert.equal(access.kind, "result");
 assert.equal(graphqlAccess.kind, "result");
-assert.deepEqual(graphqlAccess.data, access.data);
+// GraphQL answers null for an omitted member; compare in that shape.
+assert.deepEqual(graphqlAccess.data, normalizeResultData(access.data));
 console.log("REST and GraphQL products:", access.data.productIds);
 
 const report = await runConformance({

@@ -30,6 +30,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import dev.hyo.openiap.helpers.PLAY_REDEEM_OFFER_CODE_URL
 import dev.hyo.openiap.helpers.ActiveStoreConnection
 import dev.hyo.openiap.helpers.ActiveStoreListenerOwner
 import dev.hyo.openiap.helpers.ActiveStoreOperationRegistry
@@ -65,13 +66,15 @@ import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.onSubscriptionBillingIssue
 import dev.hyo.openiap.helpers.onUserChoiceBilling
-import dev.hyo.openiap.helpers.emitFailureAndThrow
 import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.queryAlreadyOwnedPurchases
 import dev.hyo.openiap.helpers.queryProductDetails
 import dev.hyo.openiap.helpers.queryProductDetailsWithStatus
 import dev.hyo.openiap.helpers.queryPurchases
 import dev.hyo.openiap.helpers.isPurchaseForPendingRequest
+import dev.hyo.openiap.helpers.claimPendingPurchaseIfOwned
+import dev.hyo.openiap.helpers.collectAllProductQueryResults
+import dev.hyo.openiap.helpers.PurchaseDeliveryClaims
 import dev.hyo.openiap.helpers.isSubscriptionReplacementTargetCountValid
 import dev.hyo.openiap.helpers.isConnectionAttemptCurrent
 import dev.hyo.openiap.helpers.connectionClientToClose
@@ -101,9 +104,6 @@ import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -111,18 +111,6 @@ import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-
-internal fun recordRecoverableProductQueryFailure(
-    firstError: Throwable?,
-    error: Throwable,
-): Throwable {
-    if (
-        error is CancellationException ||
-        error is Error ||
-        error is OpenIapError.ServiceDisconnected
-    ) throw error
-    return firstError ?: error
-}
 
 internal fun hasInvalidPlaySubscriptionOffers(
     requestedSkus: Collection<String>,
@@ -144,49 +132,6 @@ internal fun areValidPlaySubscriptionOfferTokens(
     tokens: Collection<String>,
     availableTokens: Collection<String>,
 ): Boolean = tokens.isNotEmpty() && tokens.all { it in availableTokens }
-
-internal data class AllProductQueryResults<T : Any>(
-    val inApp: T?,
-    val subscriptions: T?,
-)
-
-internal suspend fun <T : Any> collectAllProductQueryResults(
-    queryInApp: suspend () -> T,
-    querySubscriptions: suspend () -> T,
-): AllProductQueryResults<T> {
-    suspend fun capture(query: suspend () -> T): Result<T> =
-        try {
-            Result.success(query())
-        } catch (error: Throwable) {
-            Result.failure(recordRecoverableProductQueryFailure(null, error))
-        }
-
-    val (inAppResult, subscriptionsResult) = coroutineScope {
-        awaitAll(
-            async { capture(queryInApp) },
-            async { capture(querySubscriptions) },
-        )
-    }
-    val firstError = inAppResult.exceptionOrNull()
-        ?: subscriptionsResult.exceptionOrNull()
-    if (inAppResult.isFailure && subscriptionsResult.isFailure) {
-        throw checkNotNull(firstError)
-    }
-
-    return AllProductQueryResults(
-        inApp = inAppResult.getOrNull(),
-        subscriptions = subscriptionsResult.getOrNull(),
-    )
-}
-
-internal fun <T : Any> claimPendingPurchaseIfOwned(
-    lock: Any,
-    current: () -> T?,
-    owns: (T) -> Boolean,
-    clear: () -> Unit,
-): T? = synchronized(lock) {
-    current()?.takeIf(owns)?.also { clear() }
-}
 
 internal fun commitPlayConnectionConfiguration(
     connected: Boolean,
@@ -217,6 +162,7 @@ class OpenIapModule(
         private const val TAG = "OpenIapModule"
         private const val AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS = 3
         private const val AMBIGUOUS_PURCHASE_QUERY_RETRY_DELAY_MILLIS = 500L
+        private const val PURCHASE_FLOW_TIMEOUT_MILLIS = 15 * 60_000L
     }
 
     @Volatile
@@ -296,6 +242,7 @@ class OpenIapModule(
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
     // Deduplicate callbacks across reconnects for this module's lifetime.
     private val handledUserChoiceTokens = mutableSetOf<String>()
+    private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
 
     private fun resetConnectionStateLocked() {
         productManager.clear()
@@ -317,6 +264,7 @@ class OpenIapModule(
         val requestedProductType: String?,
         val selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
         val launchStartedAtMillis: Double? = null,
+        val tokensBeforeLaunch: Set<String> = emptySet(),
     )
     private var pendingPurchase: PendingPurchaseSnapshot? = null
 
@@ -423,6 +371,7 @@ class OpenIapModule(
         expectedClient: BillingClient,
         requestedSkus: Set<String>,
         requestedProductType: String,
+        tokensBeforeLaunch: Set<String>,
         errorEventGate: PurchaseErrorEventGate,
         callback: (Result<List<Purchase>>) -> Unit
     ): OpenIapError? = synchronized(connectionLifecycleLock) {
@@ -441,6 +390,7 @@ class OpenIapModule(
                     errorEventGate = errorEventGate,
                     requestedSkus = requestedSkus.toSet(),
                     requestedProductType = requestedProductType,
+                    tokensBeforeLaunch = tokensBeforeLaunch,
                 )
                 null
             }
@@ -1362,7 +1312,7 @@ class OpenIapModule(
      */
     override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
         OpenIapLog.debug("Opening Google Play offer code redemption page", TAG)
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/redeem"))
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PLAY_REDEEM_OFFER_CODE_URL))
             .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         return runCatching { activity.startActivity(intent) }
             .onFailure { OpenIapLog.warn("Failed to open offer code redemption page: ${it.message}", TAG) }
@@ -1678,6 +1628,9 @@ class OpenIapModule(
             }
 
             val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
+            // Only a purchase token Play does not already report can complete this request.
+            val tokensBeforeLaunch = queryPurchases(client, activeOperations, desiredType, includeSuspended = true)
+                .mapNotNullTo(mutableSetOf()) { it.purchaseToken }
 
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
@@ -1701,6 +1654,7 @@ class OpenIapModule(
                     expectedClient = client,
                     requestedSkus = androidArgs.skus.toSet(),
                     requestedProductType = desiredType,
+                    tokensBeforeLaunch = tokensBeforeLaunch,
                     errorEventGate = errorEventGate,
                     callback = callback,
                 )
@@ -1858,15 +1812,15 @@ class OpenIapModule(
 
                         // Developer-billed replacements use only the original external
                         // transaction ID unless the caller explicitly supplies a mode.
-                        val replacementMode = 5.takeIf {
-                            !androidArgs.purchaseToken.isNullOrBlank() &&
-                                androidArgs.originalExternalTransactionId.isNullOrBlank() &&
-                                androidArgs.subscriptionProductReplacementParams == null
-                        }
-                        replacementMode?.let { mode ->
+                        if (!androidArgs.purchaseToken.isNullOrBlank() &&
+                            androidArgs.originalExternalTransactionId.isNullOrBlank() &&
+                            androidArgs.subscriptionProductReplacementParams == null
+                        ) {
                             @Suppress("DEPRECATION")
-                            updateParamsBuilder.setSubscriptionReplacementMode(mode)
-                            OpenIapLog.debug("  - Final replacement mode: $mode", TAG)
+                            updateParamsBuilder.setSubscriptionReplacementMode(
+                                BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE
+                            )
+                            OpenIapLog.debug("  - Final replacement mode: CHARGE_FULL_PRICE", TAG)
                         }
 
                         val updateParams = updateParamsBuilder.build()
@@ -2006,6 +1960,12 @@ class OpenIapModule(
                                 )
                             }
                             finishWithError(err, requireLaunched = true)
+                        } else {
+                            // A launched request holds the only purchase slot. If Play never
+                            // reports a result, recover a new owned purchase or free the slot.
+                            mainHandler.postDelayed({
+                                expirePurchaseFlow(client, callback)
+                            }, PURCHASE_FLOW_TIMEOUT_MILLIS)
                         }
                     }
                 }
@@ -2296,9 +2256,6 @@ class OpenIapModule(
         userChoiceBillingAndroid = userChoiceBillingAndroid,
     )
 
-    // BillingClient is built in initConnection() so billing mode and programs
-    // can be set before the first client exists.
-
     private fun emitPurchaseError(error: OpenIapError) {
         for (registeredListener in purchaseErrorListeners) {
             runCatching { registeredListener.onPurchaseError(error) }
@@ -2306,13 +2263,8 @@ class OpenIapModule(
     }
 
     override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
-        val client = billingClient ?: emitFailureAndThrow(
-            OpenIapError.NotPrepared,
-            ::emitPurchaseError,
-        )
-        if (!client.isReady) {
-            emitFailureAndThrow(OpenIapError.NotPrepared, ::emitPurchaseError)
-        }
+        val client = billingClient ?: throw OpenIapError.NotPrepared
+        if (!client.isReady) throw OpenIapError.NotPrepared
         try {
             activeOperations.await(client) { operation ->
                 client.getBillingConfigAsync(
@@ -2336,7 +2288,6 @@ class OpenIapModule(
             val mapped = error as? OpenIapError
                 ?: OpenIapError.ServiceUnavailable(error.message)
             OpenIapLog.warn("getStorefront failed: ${mapped.message}", TAG)
-            emitPurchaseError(mapped)
             throw mapped
         }
     }
@@ -2430,13 +2381,13 @@ class OpenIapModule(
         }
     }
 
-    /** Delivers purchases only while their originating connection is active. */
+    /** Delivers each purchase state once, and only while its originating connection is active. */
     private fun deliverPurchasesIfActive(
         purchases: List<Purchase>,
         owner: ActiveStoreListenerOwner<BillingClient>,
     ): Boolean = owner.deliver {
         notifySuspendedSubscriptions(purchases, owner)
-        for (purchase in purchases) {
+        for (purchase in purchases.filter(purchaseDeliveryClaims::claim)) {
             for (listener in purchaseUpdateListeners) {
                 runCatching { listener.onPurchaseUpdated(purchase) }
             }
@@ -2449,7 +2400,7 @@ class OpenIapModule(
         pendingRequest: PendingPurchaseSnapshot,
         error: OpenIapError,
         reason: String,
-        purchasedSinceMillis: Double? = null,
+        tokensBeforeLaunch: Set<String>? = null,
         deliverIfRequestCompletedElsewhere: Boolean = false,
     ) {
         val desiredType = pendingRequest.requestedProductType
@@ -2473,8 +2424,8 @@ class OpenIapModule(
             desiredType,
             pendingRequest.requestedSkus.toList(),
             pendingRequest.selectedBasePlanIdsBySku,
-            purchasedSinceMillis,
-            maxAttempts = if (purchasedSinceMillis != null) {
+            tokensBeforeLaunch,
+            maxAttempts = if (tokensBeforeLaunch != null) {
                 AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS
             } else {
                 1
@@ -2516,6 +2467,25 @@ class OpenIapModule(
                 )
             }
         }
+    }
+
+    private fun expirePurchaseFlow(
+        client: BillingClient,
+        callback: (Result<List<Purchase>>) -> Unit,
+    ) {
+        val pending = synchronized(connectionLifecycleLock) {
+            pendingPurchase?.takeIf {
+                it.client === client && it.callback === callback && it.launchStartedAtMillis != null
+            }
+        } ?: return
+        reconcilePurchaseFlowError(
+            sourceClient = client,
+            owner = listenerOwner(client, pending.generation),
+            pendingRequest = pending,
+            error = OpenIapError.ServiceTimeout("Play did not report a result for the purchase flow"),
+            reason = "purchase flow timeout",
+            tokensBeforeLaunch = pending.tokensBeforeLaunch,
+        )
     }
 
     private fun onPurchasesUpdated(
@@ -2580,16 +2550,18 @@ class OpenIapModule(
                     OpenIapLog.debug("Mapping purchase products=${purchase.products} to type=$productType basePlanId=$basePlanId (cached=${cached != null})", TAG)
                     purchase.toPurchase(productType, basePlanId)
                 }
-                val matched = pendingRequest?.launchStartedAtMillis?.let { launchStartedAtMillis ->
-                    mapped.filter { purchase ->
-                        isPurchaseForPendingRequest(
-                            transactionDateMillis = purchase.transactionDate,
-                            productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
-                            requestedSkus = pendingRequest.requestedSkus,
-                            launchStartedAtMillis = launchStartedAtMillis,
-                        )
+                val matched = pendingRequest?.takeIf { it.launchStartedAtMillis != null }
+                    ?.let { request ->
+                        mapped.filter { purchase ->
+                            isPurchaseForPendingRequest(
+                                productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
+                                purchaseToken = purchase.purchaseToken,
+                                requestedSkus = request.requestedSkus,
+                                tokensBeforeLaunch = request.tokensBeforeLaunch,
+                            )
+                        }
                     }
-                }.orEmpty()
+                    .orEmpty()
                 // Claim the callback before notifying listeners, so a listener that
                 // starts another purchase cannot race the resolution below. If the claim
                 // fails (already completed, or cleared by disconnect/endConnection),
@@ -2683,15 +2655,14 @@ class OpenIapModule(
                         billingResult.debugMessage,
                         subResponseCode,
                     )
-                    val launchStartedAtMillis = pendingRequest?.launchStartedAtMillis
-                    if (pendingRequest != null && launchStartedAtMillis != null) {
+                    if (pendingRequest?.launchStartedAtMillis != null) {
                         reconcilePurchaseFlowError(
                             sourceClient = sourceClient,
                             owner = owner,
                             pendingRequest = pendingRequest,
                             error = error,
                             reason = "ambiguous purchase-flow error ${billingResult.responseCode}",
-                            purchasedSinceMillis = launchStartedAtMillis,
+                            tokensBeforeLaunch = pendingRequest.tokensBeforeLaunch,
                         )
                     } else {
                         OpenIapLog.warn("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
@@ -2904,7 +2875,6 @@ class OpenIapModule(
                 }
 
                 val programConstant = when (program) {
-                    BillingProgramAndroid.UserChoiceBilling -> continue // Already handled above
                     BillingProgramAndroid.Unspecified -> continue
                     else -> billingProgramToConstant(program)
                 }

@@ -6,39 +6,15 @@ in `../CONVENTION.md`.
 
 ## Architecture
 
-```
-codegen/
-├── index.ts              # Main entry point
-├── core/
-│   ├── types.ts          # Intermediate Representation (IR) types
-│   ├── parser.ts         # GraphQL schema parser
-│   ├── transformer.ts    # AST → IR transformer
-│   └── utils.ts          # Common utilities (case conversion, keywords)
-├── plugins/
-│   ├── base-plugin.ts    # Abstract base class
-│   ├── swift.ts          # Swift plugin (~700 lines)
-│   ├── kotlin.ts         # Kotlin plugin (~850 lines)
-│   ├── dart.ts           # Dart plugin (~870 lines)
-│   ├── gdscript.ts       # GDScript plugin (~610 lines)
-│   └── csharp.ts         # C# plugin (.NET MAUI)
-```
+The directory layout, IR types, the steps for adding a language, and the
+cross-language wire rules (flat `__typename` unions, enum spellings, SDL
+defaults) live in [`../CONVENTION.md`](../CONVENTION.md#code-generation-architecture).
 
 ## How It Works
 
 1. **Parse**: GraphQL schema is parsed into AST
 2. **Transform**: AST is transformed into language-agnostic IR
 3. **Generate**: Language-specific plugins convert IR to target code
-
-## IR (Intermediate Representation)
-
-The IR includes:
-
-- `IREnum` - Enum types with values and legacy aliases
-- `IRInterface` - Protocol/Interface definitions
-- `IRObject` - Struct/Class definitions with fields
-- `IRInput` - Input type definitions
-- `IRUnion` - Union types with member tracking
-- `IROperation` - Query/Mutation/Subscription definitions
 
 ## Plugin Structure
 
@@ -71,9 +47,9 @@ Each language has complex, specific requirements:
 
 ### Swift
 
-- Codable protocol conformance
-- Custom initializer for ErrorCode (legacy alias handling)
-- Platform-specific defaults (ProductIOS, ProductAndroid)
+- Codable conformance, with flat `__typename` coding for unions
+- Raw-value initializers that accept the IR legacy aliases, and `.unknown` fallback
+- Input decoders that apply SDL defaults and keep enums strict
 
 ### Kotlin
 
@@ -105,18 +81,13 @@ These patterns are difficult to express cleanly in templates. The current plugin
 - Uses IR for shared schema representation
 - Allows language-specific customization
 
-## Adding a New Language
-
-1. Create `plugins/<language>.ts` extending `CodegenPlugin`
-2. Implement abstract methods
-3. Register in `index.ts`
-
 ## Testing
 
 ```bash
 cd specs/client
-bun test
+bun run test
 ```
 
-The test suite verifies schema parsing, transformation, and generated type
-fixtures.
+This typechecks `codegen/` and `src/` in strict mode, then runs the Vitest
+suite: schema parsing, transformation, generated fixtures, and a wire
+round trip through every installed Swift, Dart, and .NET toolchain.

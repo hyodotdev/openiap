@@ -66,13 +66,9 @@ fun AlternativeBillingScreen(navController: NavController) {
     var isModeDropdownExpanded by remember { mutableStateOf(false) }
     var selectedBillingProgram by remember { mutableStateOf(BillingProgramAndroid.ExternalOffer) }
 
-    // Initialize store - use default constructor for auto-detection (compatible with both Play and Horizon)
+    // The linked flavor fixes the store; the billing program is chosen in initConnection.
     val iapStore = remember {
         OpenIapLog.isEnabled = true
-        OpenIapLog.debug("Creating OpenIapStore with auto-detection", tag = "AlternativeBillingScreen")
-
-        // Use default constructor which auto-detects platform (Play or Horizon)
-        // Alternative billing mode will be set via initConnection config
         OpenIapStore(appContext)
     }
 
