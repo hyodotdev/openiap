@@ -66,6 +66,60 @@ export const OFFICIAL_OPENIAP_RESOURCES: OfficialOpenIapResource[] = [
 
 export const COMMUNITY_RESOURCES: CommunityResource[] = [
   {
+    id: 'amazon-openiap-community-providers',
+    title: 'OpenIAP opens its purchase layer to community providers',
+    url: 'https://community.amazondeveloper.com/t/oct-12-2026-new-alexa-tablets-ring-devices/29735#p-56427-newspaper-openiap-opens-its-purchase-layer-to-community-providershttpsmediumcomhyodotdevopeniap-opens-its-purchase-layer-to-community-providers-e6ebfb8099a7-14',
+    ecosystems: [
+      'openiap',
+      'react-native',
+      'expo',
+      'flutter',
+      'godot',
+      'kmp',
+      'maui',
+    ],
+    type: 'community',
+    sourceKind: 'community',
+    author: 'Moses Roth',
+    organization: 'Amazon Developer Community',
+    platform: 'Amazon Dev News',
+    publishedAt: '2026-10-12',
+    summary:
+      "Amazon's developer roundup highlights OpenIAP's public store-provider contract, storeId verification routing, and provider conformance checks across six frameworks.",
+    language: 'en',
+  },
+  {
+    id: 'amazon-openiap-fire-os-vega-os',
+    title: 'OpenIAP adds supports for Fire OS & Vega OS',
+    url: 'https://developer.amazon.com/apps-and-games/blogs/2026/08/amazon-sponsors-openiap-fire-os-vega-os',
+    ecosystems: [
+      'openiap',
+      'android',
+      'react-native',
+      'expo',
+      'flutter',
+      'kmp',
+      'maui',
+      'godot',
+      'iapkit',
+    ],
+    type: 'article',
+    sourceKind: 'company',
+    author: 'Anisha Malde',
+    organization: 'Amazon Developer',
+    platform: 'Amazon Appstore Developer Blog',
+    publishedAt: '2026-08-24',
+    summary:
+      'Amazon explains OpenIAP integration on Fire OS and Vega OS, including framework setup, shared receipt verification, and local purchase testing.',
+    language: 'en',
+    relatedLinks: [
+      {
+        label: 'Amazon Dev News · Fire OS & Vega OS',
+        url: 'https://community.amazondeveloper.com/t/aug-24-2026-alexa-on-fire-tv-openiap/29011',
+      },
+    ],
+  },
+  {
     id: 'anisha-malde-openiap-ecosystem',
     title: 'React Native IAP and the OpenIAP ecosystem',
     url: 'https://www.linkedin.com/posts/anishamalde_mondaykudos-activity-7431758243921797120-4AzA',
@@ -138,11 +192,15 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     platform: 'Newsletter',
     publishedAt: '2025-09-10',
     summary:
-      'Three newsletter editions track Expo IAP and OpenIAP, Alternative Billing support, and react-native-iap support for Horizon OS.',
+      'Newsletter editions track Expo IAP, OpenIAP core adoption, Alternative Billing, Horizon OS, and Fire OS and Vega OS support.',
     featured: true,
     language: 'en',
     seriesLabel: '#249 · Expo IAP / OpenIAP',
     relatedLinks: [
+      {
+        label: '#251 · OpenIAP core adoption',
+        url: 'https://thisweekinreact.com/newsletter/251',
+      },
       {
         label: '#253 · Alternative Billing',
         url: 'https://thisweekinreact.com/newsletter/253',
@@ -150,6 +208,10 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
       {
         label: '#256 · Horizon OS',
         url: 'https://thisweekinreact.com/newsletter/256',
+      },
+      {
+        label: '#295 · Fire OS & Vega OS',
+        url: 'https://thisweekinreact.com/newsletter/295#react-native',
       },
     ],
   },
