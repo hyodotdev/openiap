@@ -1,5 +1,7 @@
 package dev.hyo.openiap.store
 
+import dev.hyo.openiap.AppOwnershipVerificationResult
+import dev.hyo.openiap.VerifyAppOwnershipProps
 import dev.hyo.openiap.ActiveSubscription
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions
@@ -529,6 +531,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         module.getActiveSubscriptions(subscriptionIds)
 
     suspend fun restorePurchases() = module.restorePurchases()
+
+    suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps? = null): AppOwnershipVerificationResult =
+        module.verifyAppOwnership(options)
 
     /** Verify a purchase with the configured provider. */
     suspend fun verifyPurchaseWithProvider(

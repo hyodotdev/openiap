@@ -46,7 +46,9 @@ describe("generated GDScript list decoding", () => {
     const operation = mutation.slice(operationStart, operationEnd);
 
     expect(operation).toContain("var developer_billing_type: Variant = null");
-    expect(operation).toContain("if developer_billing_type != null:");
+    expect(operation).toContain(
+      "return _Types.create_billing_program_reporting_details_android_args(program, developer_billing_type)",
+    );
     expect(operation).not.toContain(
       "\n\t\t\tvar developer_billing_type: _Types.DeveloperBillingTypeAndroid\n",
     );

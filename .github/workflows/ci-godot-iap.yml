@@ -197,24 +197,18 @@ jobs:
               - 'libraries/godot-iap/scripts/verify-ios-toolchain.sh'
 
   apple-frameworks:
-    name: Build Apple frameworks (Xcode 26.6)
-    # App Store submissions need the iOS 26.5 SDK, and the release ZIP ships the
-    # committed frameworks. Build them with that toolchain whenever their
-    # sources change, and upload them to commit.
+    name: Build Apple frameworks (Xcode 27)
+    # The release ZIP ships the committed pair; refresh it with the current
+    # App Store toolchain whenever its sources change.
     needs: apple-changes
-    if: needs.apple-changes.outputs.apple == 'true'
-    runs-on: macos-26
+    if: needs.apple-changes.outputs.apple == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: xcode-27
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: "26.6"
 
       - name: Build iOS and macOS frameworks
         run: make ios macos
@@ -244,6 +238,10 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Test Apple framework provenance guards
+        working-directory: libraries/godot-iap
+        run: node --test scripts/verify-ios-toolchain.test.mjs scripts/install_apple_framework.test.mjs
 
       - name: Verify tracked iOS framework toolchain
         working-directory: libraries/godot-iap

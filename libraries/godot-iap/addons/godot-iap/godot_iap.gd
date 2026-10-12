@@ -109,7 +109,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	_cancel_pending_apple_async(
 		"service-disconnected",
-		"The IAP wrapper left the scene tree before the Apple operation completed"
+		"The IAP wrapper left the scene tree before the operation completed"
 	)
 
 func _init_native_plugin() -> void:
@@ -245,7 +245,7 @@ func _on_disconnected(_status_code: int = 0) -> void:
 	_is_connected = false
 	_cancel_pending_apple_async(
 		"service-disconnected",
-		"The store disconnected before the Apple operation completed",
+		"The store disconnected before the operation completed",
 		"endConnection"
 	)
 	disconnected.emit()
@@ -272,7 +272,7 @@ func _on_android_purchase_error(error_json: String) -> void:
 func _on_android_products_fetched(result_json: String) -> void:
 	var result = JSON.parse_string(result_json)
 	if result is Dictionary:
-		products_fetched.emit(result)
+		_on_products_fetched(result)
 
 func _on_android_user_choice_billing(details_json: String) -> void:
 	var details = JSON.parse_string(details_json)
@@ -327,7 +327,7 @@ func init_connection(config = null) -> bool:
 		elif _is_apple():
 			print("[GodotIap] Calling Apple initConnection...")
 			_apply_purchase_updated_listener_options_apple()
-			var payload = await _call_apple_async("initConnection")
+			var payload = await _call_native_async("initConnection")
 			_is_connected = payload.get("success", false)
 			if not _is_connected:
 				print("[GodotIap] ERROR: initConnection failed. Check StoreKit configuration.")
@@ -369,9 +369,9 @@ func end_connection() -> bool:
 		if _is_apple():
 			_cancel_pending_apple_async(
 				"service-disconnected",
-				"The store connection ended before the Apple operation completed"
+				"The store connection ended before the operation completed"
 			)
-			var payload = await _call_apple_async("endConnection")
+			var payload = await _call_native_async("endConnection")
 			if not payload.get("success", false):
 				return false
 		else:
@@ -511,7 +511,7 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 			return { "products": [], "error": "Parse error" }
 		elif _is_apple():
 			print("[GodotIap] Calling fetchProducts with: ", request_json)
-			var signal_result = await _call_apple_async("fetchProducts", [request_json])
+			var signal_result = await _call_native_async("fetchProducts", [request_json])
 			var products_array: Array = []
 			if signal_result.get("success", false):
 				var products_json = signal_result.get("productsJson", "[]")
@@ -866,7 +866,7 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 		var args = { "purchase": purchase, "isConsumable": is_consumable }
 		var args_json = JSON.stringify(args)
 		print("[GodotIap] Calling finishTransaction for productId=", purchase.get("productId", ""), ", isConsumable: ", is_consumable)
-		return await _call_apple_async("finishTransaction", [args_json])
+		return await _call_native_async("finishTransaction", [args_json])
 
 	return { "success": true }
 
@@ -920,7 +920,7 @@ func restore_purchases() -> Variant:
 		payload = {"success": false, "code": "not-prepared", "error": "Native plugin not available"}
 	elif _is_apple():
 		# AppStore.sync() can show a sign-in sheet, so restore gets the system-sheet timeout.
-		payload = await _call_apple_async(
+		payload = await _call_native_async(
 			"restorePurchases",
 			[],
 			_apple_async_ui_timeout_seconds
@@ -1086,7 +1086,7 @@ func _get_available_purchases_result_raw(options = null) -> Dictionary:
 		return _validated_purchase_batch(result.get("purchases", null), "Android")
 
 	if _is_apple():
-		var payload = await _call_apple_async(
+		var payload = await _call_native_async(
 			"getAvailablePurchases",
 			[JSON.stringify(options_dict)]
 		)
@@ -1243,7 +1243,7 @@ func _get_active_subscriptions_result_raw(subscription_ids: Array = []) -> Dicti
 			)
 		return _validated_active_subscription_batch(result.get("subscriptions", null), "Android")
 	if _is_apple():
-		var payload = await _call_apple_async("getActiveSubscriptions", [ids_json])
+		var payload = await _call_native_async("getActiveSubscriptions", [ids_json])
 		if not payload.get("success", false):
 			return _active_subscription_failure(
 				String(payload.get("code", "service-error")),
@@ -1320,7 +1320,7 @@ func has_active_subscriptions_result(
 		var ids_json = JSON.stringify(subscription_ids) if subscription_ids.size() > 0 else ("" if _is_apple() else null)
 		var result = null
 		if _is_apple():
-			result = await _call_apple_async("hasActiveSubscriptions", [ids_json])
+			result = await _call_native_async("hasActiveSubscriptions", [ids_json])
 		else:
 			result = JSON.parse_string(_native_plugin.call("hasActiveSubscriptions", ids_json))
 		if not result is Dictionary:
@@ -1365,7 +1365,7 @@ func get_storefront() -> String:
 		})
 		return ""
 	if _is_apple():
-		var payload = await _call_apple_async("getStorefront")
+		var payload = await _call_native_async("getStorefront")
 		if payload.get("success", false):
 			return String(payload.get("countryCode", "")).strip_edges()
 		purchase_error.emit({
@@ -1416,7 +1416,7 @@ func verify_purchase(props) -> Variant:
 	print("[GodotIap] verify_purchase called")
 	var props_dict := _as_dictionary(props)
 	if _native_plugin and _is_apple():
-		var payload = await _call_apple_async("verifyPurchase", [JSON.stringify(props_dict)])
+		var payload = await _call_native_async("verifyPurchase", [JSON.stringify(props_dict)])
 		if payload is Dictionary and payload.get("success", false):
 			var payload_json = payload.get("resultJson", "")
 			var decoded = JSON.parse_string(payload_json)
@@ -1452,7 +1452,7 @@ func verify_purchase_with_provider(props) -> Variant:
 	print("[GodotIap] verify_purchase_with_provider called")
 	var props_dict := _as_dictionary(props)
 	if _native_plugin and _is_apple():
-		var payload = await _call_apple_async("verifyPurchaseWithProvider", [JSON.stringify(props_dict)])
+		var payload = await _call_native_async("verifyPurchaseWithProvider", [JSON.stringify(props_dict)])
 		if payload is Dictionary and payload.get("success", false):
 			var payload_json = payload.get("resultJson", "")
 			var decoded = JSON.parse_string(payload_json)
@@ -1503,7 +1503,7 @@ func sync_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
 	# AppStore.sync() can show a sign-in sheet, as in restore_purchases().
-	var payload = await _call_apple_async("syncIOS", [], _apple_async_ui_timeout_seconds)
+	var payload = await _call_native_async("syncIOS", [], _apple_async_ui_timeout_seconds)
 	return payload.get("success", false)
 
 ## Clear pending transactions from the StoreKit payment queue (iOS only).
@@ -1513,7 +1513,7 @@ func sync_ios() -> bool:
 func clear_transaction_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
-	var payload = await _call_apple_async("clearTransactionIOS")
+	var payload = await _call_native_async("clearTransactionIOS")
 	return payload.get("success", false)
 
 ## Get verified unfinished transactions on iOS and macOS.
@@ -1523,7 +1523,7 @@ func clear_transaction_ios() -> bool:
 func get_pending_transactions_ios() -> Array:
 	var purchases: Array = []
 	if _native_plugin and _is_apple():
-		var payload = await _call_apple_async("getPendingTransactionsIOS")
+		var payload = await _call_native_async("getPendingTransactionsIOS")
 		if payload.get("success", false):
 			var transactions_json = payload.get("transactionsJson", "[]")
 			var transactions = JSON.parse_string(transactions_json)
@@ -1545,7 +1545,7 @@ func get_pending_transactions_ios() -> Array:
 func get_all_transactions_ios() -> Array:
 	var purchases: Array = []
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("getAllTransactionsIOS")
+		var payload = await _call_native_async("getAllTransactionsIOS")
 		if payload.get("success", false):
 			var transactions_json = payload.get("transactionsJson", "[]")
 			var transactions = JSON.parse_string(transactions_json)
@@ -1566,7 +1566,7 @@ func get_all_transactions_ios() -> Array:
 func show_manage_subscriptions_ios() -> Array:
 	var purchases: Array = []
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async(
+		var payload = await _call_native_async(
 			"showManageSubscriptionsIOS", [], _apple_async_ui_timeout_seconds
 		)
 		if payload.get("success", false):
@@ -1590,7 +1590,7 @@ func show_manage_subscriptions_ios() -> Array:
 func begin_refund_request_ios(product_id: String) -> String:
 	if not (_native_plugin and _platform == "iOS"):
 		return ""
-	var payload = await _call_apple_async(
+	var payload = await _call_native_async(
 		"beginRefundRequestIOS", [product_id], _apple_async_ui_timeout_seconds
 	)
 	if payload.get("success", false):
@@ -1604,7 +1604,7 @@ func begin_refund_request_ios(product_id: String) -> String:
 ## See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
 func current_entitlement_ios(sku: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("currentEntitlementIOS", [sku])
+		var payload = await _call_native_async("currentEntitlementIOS", [sku])
 		if payload.get("success", false):
 			var purchase_json = payload.get("purchaseJson", "null")
 			if purchase_json != "null":
@@ -1623,7 +1623,7 @@ func current_entitlement_ios(sku: String) -> Variant:
 ## See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
 func latest_transaction_ios(sku: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("latestTransactionIOS", [sku])
+		var payload = await _call_native_async("latestTransactionIOS", [sku])
 		if payload.get("success", false):
 			var purchase_json = payload.get("purchaseJson", "null")
 			if purchase_json != "null":
@@ -1641,7 +1641,7 @@ func latest_transaction_ios(sku: String) -> Variant:
 ## See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
 func get_app_transaction_ios() -> Variant:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("getAppTransactionIOS")
+		var payload = await _call_native_async("getAppTransactionIOS")
 		if payload.get("success", false):
 			var app_transaction_json = payload.get("appTransactionJson", "{}")
 			var app_transaction = JSON.parse_string(app_transaction_json)
@@ -1657,7 +1657,7 @@ func get_app_transaction_ios() -> Variant:
 func subscription_status_ios(sku: String) -> Array:
 	var statuses: Array = []
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("subscriptionStatusIOS", [sku])
+		var payload = await _call_native_async("subscriptionStatusIOS", [sku])
 		if payload.get("success", false):
 			var statuses_json = payload.get("statusesJson", "[]")
 			var parsed = JSON.parse_string(statuses_json)
@@ -1674,7 +1674,7 @@ func subscription_status_ios(sku: String) -> Array:
 ## See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
 func is_eligible_for_intro_offer_ios(group_id: String) -> bool:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("isEligibleForIntroOfferIOS", [group_id])
+		var payload = await _call_native_async("isEligibleForIntroOfferIOS", [group_id])
 		return payload.get("success", false) and payload.get("isEligible", false)
 	return false
 
@@ -1684,7 +1684,7 @@ func is_eligible_for_intro_offer_ios(group_id: String) -> bool:
 ## See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 func get_promoted_product_ios() -> Variant:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("getPromotedProductIOS")
+		var payload = await _call_native_async("getPromotedProductIOS")
 		if payload.get("success", false):
 			var product_json = payload.get("productJson", "null")
 			if product_json != "null":
@@ -1699,7 +1699,7 @@ func get_promoted_product_ios() -> Variant:
 ## See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
 func can_present_external_purchase_notice_ios() -> bool:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("canPresentExternalPurchaseNoticeIOS")
+		var payload = await _call_native_async("canPresentExternalPurchaseNoticeIOS")
 		return payload.get("success", false) and payload.get("canPresent", false)
 	return false
 
@@ -1709,7 +1709,7 @@ func can_present_external_purchase_notice_ios() -> bool:
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
 func present_external_purchase_notice_sheet_ios() -> Variant:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async(
+		var payload = await _call_native_async(
 			"presentExternalPurchaseNoticeSheetIOS", [], _apple_async_ui_timeout_seconds
 		)
 		if payload.get("success", false):
@@ -1726,7 +1726,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
 func present_external_purchase_link_ios(url: String) -> Variant:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async(
+		var payload = await _call_native_async(
 			"presentExternalPurchaseLinkIOS", [url], _apple_async_ui_timeout_seconds
 		)
 		if payload.get("success", false):
@@ -1742,7 +1742,7 @@ func present_external_purchase_link_ios(url: String) -> Variant:
 ## See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
 func get_receipt_data_ios() -> String:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("getReceiptDataIOS")
+		var payload = await _call_native_async("getReceiptDataIOS")
 		if payload.get("success", false):
 			return payload.get("receiptData", "")
 	return ""
@@ -1754,7 +1754,7 @@ func get_receipt_data_ios() -> String:
 ## See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
 func is_transaction_verified_ios(sku: String) -> bool:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("isTransactionVerifiedIOS", [sku])
+		var payload = await _call_native_async("isTransactionVerifiedIOS", [sku])
 		return payload.get("success", false) and payload.get("isVerified", false)
 	return false
 
@@ -1765,7 +1765,7 @@ func is_transaction_verified_ios(sku: String) -> bool:
 ## See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
 func get_transaction_jws_ios(sku: String) -> String:
 	if _native_plugin and _platform == "iOS":
-		var payload = await _call_apple_async("getTransactionJwsIOS", [sku])
+		var payload = await _call_native_async("getTransactionJwsIOS", [sku])
 		if payload.get("success", false):
 			return payload.get("jws", "")
 	return ""
@@ -1894,20 +1894,20 @@ func _mark_apple_async_terminal(cache_key: String) -> void:
 		var oldest := _apple_async_terminal_order.pop_front()
 		_apple_async_terminal_keys.erase(oldest)
 
-## Dispatch an Apple native method that returns a pending request token, then
+## Dispatch a native method that returns a pending request token, then
 ## await its method/requestId-tagged completion. Native completions are cached
 ## by `_on_products_fetched` so a very fast Swift Task cannot emit before this
 ## coroutine installs its signal waiter and get lost.
-func _call_apple_async(
+func _call_native_async(
 	method: String,
 	args: Array = [],
 	timeout_seconds: float = -1.0
 ) -> Dictionary:
-	if not (_native_plugin and _is_apple()):
+	if not _native_plugin:
 		return {
 			"success": false,
 			"code": "not-prepared",
-			"error": "Apple native plugin is unavailable",
+			"error": "Native plugin is unavailable",
 		}
 	var cancellation_generation := _apple_async_cancellation_generation
 	var pending = _native_plugin.callv(method, args)
@@ -1956,7 +1956,7 @@ func _parse_request_id(pending_json) -> String:
 func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
-	var payload = await _call_apple_async("isEligibleForExternalPurchaseCustomLinkIOS")
+	var payload = await _call_native_async("isEligibleForExternalPurchaseCustomLinkIOS")
 	if payload.get("success", false):
 		return bool(payload.get("eligible", false))
 	return false
@@ -1972,7 +1972,7 @@ func is_eligible_for_external_purchase_custom_link_ios() -> bool:
 func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
-	var payload = await _call_apple_async("getExternalPurchaseCustomLinkTokenIOS", [token_type])
+	var payload = await _call_native_async("getExternalPurchaseCustomLinkTokenIOS", [token_type])
 	if payload.get("success", false):
 		var payload_json = payload.get("resultJson", "")
 		var decoded = JSON.parse_string(payload_json)
@@ -1991,7 +1991,7 @@ func get_external_purchase_custom_link_token_ios(token_type: String) -> Variant:
 func show_external_purchase_custom_link_notice_ios(notice_type: String) -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
-	var payload = await _call_apple_async(
+	var payload = await _call_native_async(
 		"showExternalPurchaseCustomLinkNoticeIOS",
 		[notice_type],
 		_apple_async_ui_timeout_seconds
@@ -2180,7 +2180,7 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 			return Types.VoidResult.from_dict(android_result)
 	elif _native_plugin and _is_apple():
 		var apple_options_json = JSON.stringify(opts.to_dict())
-		var apple_payload = await _call_apple_async("deepLinkToSubscriptions", [apple_options_json])
+		var apple_payload = await _call_native_async("deepLinkToSubscriptions", [apple_options_json])
 		return Types.VoidResult.from_dict(apple_payload)
 	elif _is_apple():
 		# Apple: Open App Store subscription management URL
@@ -2205,6 +2205,25 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 	unavailable_result.success = false
 	return unavailable_result
 
+## Verify app acquisition; send integrity_token_android to your backend.
+func verify_app_ownership(options = null) -> Variant:
+	if not _native_plugin or not (_is_apple() or _platform == "Android"):
+		return Types.AppOwnershipVerificationResult.from_dict({"status": "unknown", "reason": "unsupported", "storeId": "unknown"})
+	var method := "verifyAppOwnership"
+	var payload = await _call_native_async(method, [JSON.stringify(_as_dictionary(options))], 65.0)
+	payload["method"] = method
+	if not payload.get("success", false):
+		_purchase_failure(String(payload.get("code", "service-error")), String(payload.get("error", "App ownership verification failed")), payload)
+		return null
+	var parsed = JSON.parse_string(String(payload.get("ownershipJson", "")))
+	if not parsed is Dictionary:
+		_purchase_failure("purchase-verification-failed", "Invalid app ownership verification result", payload)
+		return null
+	var ownership = Types.AppOwnershipVerificationResult.from_dict(parsed)
+	if ownership == null:
+		_purchase_failure("purchase-verification-failed", "Invalid app ownership verification result", payload)
+	return ownership
+
 # ==========================================
 # Offer Code Redemption (OpenIAP Mutation)
 # ==========================================
@@ -2226,7 +2245,7 @@ func open_redeem_offer_code() -> Variant:
 		if parsed is Dictionary:
 			payload = parsed
 	elif _platform == "iOS":
-		payload = await _call_apple_async("openRedeemOfferCode", [], _apple_async_ui_timeout_seconds)
+		payload = await _call_native_async("openRedeemOfferCode", [], _apple_async_ui_timeout_seconds)
 	else:
 		payload = {"success": false, "code": "feature-not-supported", "error": "Offer code redemption is unsupported on this platform"}
 	if not payload.get("success", false):

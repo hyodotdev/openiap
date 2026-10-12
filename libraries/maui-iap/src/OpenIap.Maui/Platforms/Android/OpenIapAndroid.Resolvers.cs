@@ -76,6 +76,14 @@ internal sealed partial class OpenIapAndroid
         return DecodeStringValue(result);
     }
 
+    public async Task<AppOwnershipVerificationResult> VerifyAppOwnershipAsync(VerifyAppOwnershipProps? options = null)
+    {
+        var json = JsonSerializer.Serialize(options ?? new VerifyAppOwnershipProps(), JsonOptions.Default);
+        var result = await Invoke(cb => _module.VerifyAppOwnership(json, cb));
+        return JsonSerializer.Deserialize<AppOwnershipVerificationResult>(result, JsonOptions.Default)
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.Unknown, "Empty app ownership verification result");
+    }
+
     public async Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options)
     {
         var json = JsonSerializer.Serialize(options, JsonOptions.Default);

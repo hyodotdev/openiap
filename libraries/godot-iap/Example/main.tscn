@@ -123,15 +123,21 @@ offset_bottom = 55.0
 theme_override_font_sizes/font_size = 24
 text = "X"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UI/StorePanel"]
+[node name="ScrollContainer" type="ScrollContainer" parent="UI/StorePanel"]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 80.0
 offset_right = 640.0
 offset_bottom = 860.0
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/StorePanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 15
 
-[node name="Buy10BulbsButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+[node name="Buy10BulbsButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
@@ -139,7 +145,7 @@ text = "10 Bulbs"
 text_overrun_behavior = 3
 clip_text = true
 
-[node name="Buy30BulbsButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+[node name="Buy30BulbsButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
@@ -147,7 +153,7 @@ text = "30 Bulbs"
 text_overrun_behavior = 3
 clip_text = true
 
-[node name="BuyCertifiedButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+[node name="BuyCertifiedButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
@@ -155,7 +161,7 @@ text = "Certified"
 text_overrun_behavior = 3
 clip_text = true
 
-[node name="BuyPremiumButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+[node name="BuyPremiumButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
@@ -163,7 +169,7 @@ text = "Premium"
 text_overrun_behavior = 3
 clip_text = true
 
-[node name="BuyPremiumYearButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+[node name="BuyPremiumYearButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
@@ -171,11 +177,11 @@ text = "Premium Year"
 text_overrun_behavior = 3
 clip_text = true
 
-[node name="Separator" type="HSeparator" parent="UI/StorePanel/VBoxContainer"]
+[node name="Separator" type="HSeparator" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 
-[node name="RestoreButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
+[node name="RestoreButton" type="Button" parent="UI/StorePanel/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22

@@ -180,6 +180,7 @@ const operationParityRegistry = {
     "isTransactionVerifiedIOS",
     "latestTransactionIOS",
     "subscriptionStatusIOS",
+    "verifyAppOwnership",
   ],
   Subscription: [
     "developerProvidedBillingAndroid",
@@ -1666,12 +1667,29 @@ function checkE2eExampleIds() {
   );
   for (const expected of [
     "verify reconnect/listener behavior",
-    "run the exposed purchase/restore flow",
-    "visibly marked as test or sandbox",
-    "Otherwise report build-only coverage",
+    "navigate the normal example to checkout",
+    "Apply the payment gate below before",
+    "purchase, verification, and consume coverage",
   ]) {
     if (!horizonStoreFlow.includes(expected)) {
       fail(`Expo Horizon store flow is missing ${JSON.stringify(expected)}`);
+    }
+  }
+  const horizonPaymentGate = extractBetween(
+    manualStoreFlows,
+    "### Horizon Test Accounts and Payments",
+    "## Leave the Normal Example on the Device",
+  );
+  for (const expected of [
+    "same-team Meta Test User",
+    "test release channel and verify membership",
+    "Verify the saved result; never add a real",
+    "verify the active Test User and selected test payment method",
+    "user explicitly authorized that real purchase",
+    "Record purchase, local verification, and consume results separately",
+  ]) {
+    if (!horizonPaymentGate.includes(expected)) {
+      fail(`Horizon payment gate is missing ${JSON.stringify(expected)}`);
     }
   }
   const finalReport = extractBetween(workflow, "## Final Report", null);
@@ -5700,7 +5718,7 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-godot.yml",
       "godot",
-      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
+      'git tag -a "$RELEASE_TAG" HEAD',
     ],
   ]) {
     expectIncludes(
@@ -5716,12 +5734,23 @@ function checkFrameworkDependencyHygiene() {
         "assert-release-head.mjs",
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
-        'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
-        'git commit --allow-empty -m "chore: recover release ref"',
+        ...(packageId === "godot"
+          ? [
+              "if: ${{ steps.check_tag.outputs.exists != 'true' }}",
+              'git commit -m "chore(release): godot-iap@$VERSION" --allow-empty',
+              "Sync generated release metadata",
+              "Build iOS and macOS frameworks",
+              "Refresh prebuilt binary digests",
+              "git push --atomic origin",
+            ]
+          : [
+              'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
+              'git commit --allow-empty -m "chore: recover release ref"',
+            ]),
         '"HEAD:refs/heads/$RELEASE_BRANCH"',
         '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       ],
-      `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
+      `${frameworkReleaseWorkflow} must tag only verified release source`,
     );
     expectNotIncludes(
       frameworkReleaseWorkflow,
@@ -6602,8 +6631,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/godot-iap/scripts/verify-ios-toolchain.sh",
     [
-      'EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-26.5}"',
-      'EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-1267.0}"',
+      'EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-27.0}"',
+      'EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-27037.1}"',
       "xcrun vtool -show-build",
       '$1 == "sdk" {',
       "sdk_failed = 1",
@@ -6613,7 +6642,7 @@ function checkFrameworkDependencyHygiene() {
       '$1 == "version" && expect_ld_version',
       "$2 != expected",
       "__LLVM_COV|__llvm_prf_",
-      "Rebuild with Xcode 26.6 / iPhoneOS SDK $EXPECTED_SDK_VERSION before release.",
+      "Rebuild with iPhoneOS SDK $EXPECTED_SDK_VERSION and linker $EXPECTED_LD_VERSION before release.",
     ],
     "Godot tracked iOS frameworks must require exact stable toolchain provenance",
   );
@@ -6625,6 +6654,8 @@ function checkFrameworkDependencyHygiene() {
       "CLANG_ENABLE_CODE_COVERAGE=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "SWIFT_ENABLE_CODE_COVERAGE=NO",
+      "APPLE_LINK_SDK_FLAGS := $$(inherited) -Xclang-linker -isysroot -Xclang-linker $$(SDKROOT)",
+      "OTHER_LDFLAGS='$(APPLE_LINK_SDK_FLAGS)'",
       "scripts/fetch-godot-lib.sh",
       '"$(GODOT_VERSION)-stable"',
       "describe --tags --exact-match",
@@ -8492,6 +8523,32 @@ function checkFrameworkDependencyHygiene() {
   const mauiStoreProps = read(
     "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
   );
+  for (const [gradleName, propertyName, artifact] of [
+    ["playIntegrityVersion", "MauiPlayIntegrityVersion", "integrity"],
+    ["playCoreCommonVersion", "MauiPlayCoreCommonVersion", "core-common"],
+  ]) {
+    const nativeVersion = googleBuildGradle.match(
+      new RegExp(`val\\s+${gradleName}\\s*=\\s*"([^"]+)"`),
+    )?.[1];
+    const managedVersion = mauiStoreProps.match(
+      new RegExp(`<${propertyName}>([^<]+)</${propertyName}>`),
+    )?.[1];
+    if (!nativeVersion || managedVersion !== nativeVersion) {
+      fail(`MAUI ${propertyName} must match packages/google ${gradleName}`);
+    }
+    expectIncludes(
+      "packages/google/openiap/build.gradle.kts",
+      [`com.google.android.play:${artifact}:$${gradleName}`],
+      `Google ${artifact} dependency must use its canonical version`,
+    );
+    expectIncludes(
+      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+      [
+        `<AndroidMavenLibrary Include="com.google.android.play:${artifact}" Version="$(${propertyName})" Repository="Google" Bind="false" />`,
+      ],
+      `MAUI ${artifact} dependency must use generated metadata`,
+    );
+  }
   const mauiBillingVersion = mauiStoreProps.match(
     /<MauiPlayBillingVersion>([^<]+)<\/MauiPlayBillingVersion>/,
   )?.[1];

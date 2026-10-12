@@ -156,6 +156,15 @@ class OpenIapMauiModule(private val context: Context) {
         wrapString("")
     }
 
+    fun verifyAppOwnership(propsJson: String, callback: ResultCallback) = run(callback) {
+        val options = try {
+            dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(parseMap(propsJson))
+        } catch (error: Exception) {
+            throw OpenIapError.DeveloperError(error.message)
+        }
+        gson.toJson(module.verifyAppOwnership(options).toJson())
+    }
+
     fun verifyPurchase(propsJson: String, callback: ResultCallback) = run(callback) {
         val props = VerifyPurchaseProps.fromJson(parseMap(propsJson))
         encodeVerifyPurchaseResult(module.verifyPurchase(props))

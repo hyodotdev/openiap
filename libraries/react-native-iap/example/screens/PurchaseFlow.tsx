@@ -13,13 +13,13 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import {
   requestPurchase,
   useIAP,
-  getAppTransactionIOS,
   getPendingTransactionsIOS,
   getStorefront,
   ErrorCode,
 } from 'react-native-iap';
 import {AMAZON_RVS_SANDBOX, IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 import Loading from '../src/components/Loading';
+import AppOwnershipCard from '../src/components/AppOwnershipCard';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
@@ -113,40 +113,6 @@ function PurchaseFlow({
     if (purchaseResult) {
       Clipboard.setString(purchaseResult);
       Alert.alert('Copied', 'Purchase result copied to clipboard');
-    }
-  };
-
-  const checkAppTransaction = async () => {
-    try {
-      console.log('Checking app transaction...');
-      const transaction = await getAppTransactionIOS();
-
-      if (transaction) {
-        Alert.alert(
-          'App Transaction',
-          `App Transaction Found:\n\n` +
-            `Original App Version: ${
-              transaction.originalAppVersion || 'N/A'
-            }\n` +
-            `Purchase Date: ${
-              transaction.originalPurchaseDate
-                ? new Date(
-                    transaction.originalPurchaseDate,
-                  ).toLocaleDateString()
-                : 'N/A'
-            }\n` +
-            `Device Verification: ${
-              transaction.deviceVerification || 'N/A'
-            }\n` +
-            `Environment: ${transaction.environment || 'N/A'}`,
-          [{text: 'OK'}],
-        );
-      } else {
-        Alert.alert('App Transaction', 'No app transaction found');
-      }
-    } catch (error) {
-      console.log('Failed to get app transaction:', error);
-      Alert.alert('Error', 'Failed to get app transaction');
     }
   };
 
@@ -324,16 +290,7 @@ function PurchaseFlow({
           </View>
         ) : null}
 
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={styles.appTransactionButton}
-            onPress={checkAppTransaction}
-          >
-            <Text style={styles.appTransactionButtonText}>
-              🔍 Check App Transaction (iOS 16+)
-            </Text>
-          </TouchableOpacity>
-        )}
+        <AppOwnershipCard />
 
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>How to test:</Text>
@@ -1352,19 +1309,6 @@ const styles = StyleSheet.create({
   },
   refreshButtonText: {
     color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  appTransactionButton: {
-    backgroundColor: '#FF9800',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  appTransactionButtonText: {
-    color: 'white',
     fontWeight: '600',
     fontSize: 14,
   },

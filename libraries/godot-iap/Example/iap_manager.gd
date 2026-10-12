@@ -199,16 +199,14 @@ func _fetch_products() -> void:
 
 
 func _on_products_fetched(result: Dictionary) -> void:
-	# Called asynchronously on iOS when products are fetched
+	if result.get("method", "fetchProducts") != "fetchProducts":
+		return
 	print("[IAPManager] Products fetched (async): %d" % result.get("products", []).size())
 	_set_loading(false)
 
 	if result.has("products"):
-		# Convert raw dictionaries to typed objects
 		for product_dict in result["products"]:
 			if product_dict is Dictionary:
-				# Note: In async callback, we need to convert manually
-				# In production, you might want to detect platform here
 				products[product_dict.get("id", "")] = product_dict
 		products_loaded.emit()
 	elif result.has("error"):
@@ -432,6 +430,8 @@ func _iapkit_state_name(state: int) -> String:
 
 
 func _on_purchase_error(error: Dictionary) -> void:
+	if error.get("method") == "verifyAppOwnership":
+		return
 	var message = error.get("message", "Unknown error")
 	var code = error.get("code", "")
 

@@ -132,6 +132,9 @@ test("a Google version bump stages MAUI's regenerated core version", (t) => {
   for (const path of [props, dependencies, "openiap-versions.json"]) {
     copyFileSync(join(REPO_ROOT, path), join(scratch, path));
   }
+  const googleBuild = "packages/google/openiap/build.gradle.kts";
+  mkdirSync(dirname(join(scratch, googleBuild)), { recursive: true });
+  copyFileSync(join(REPO_ROOT, googleBuild), join(scratch, googleBuild));
   const git = (...args) =>
     execFileSync("git", args, { cwd: scratch, encoding: "utf8" });
   git("init", "-q");

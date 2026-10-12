@@ -3,8 +3,8 @@
 set -euo pipefail
 
 FRAMEWORK_ROOT="${1:-addons/godot-iap/bin/ios}"
-EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-26.5}"
-EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-1267.0}"
+EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-27.0}"
+EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-27037.1}"
 
 for binary in \
   "$FRAMEWORK_ROOT/GodotIap.framework/GodotIap" \
@@ -69,7 +69,7 @@ for binary in \
     }
   ' <<<"$build_info"; then
     echo "::error::$binary was not linked by the expected stable linker $EXPECTED_LD_VERSION."
-    echo "::error::Rebuild with Xcode 26.6 / iPhoneOS SDK $EXPECTED_SDK_VERSION before release."
+    echo "::error::Rebuild with iPhoneOS SDK $EXPECTED_SDK_VERSION and linker $EXPECTED_LD_VERSION before release."
     exit 1
   fi
 

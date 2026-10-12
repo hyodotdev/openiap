@@ -224,9 +224,9 @@ Update the documentation site for users:
   `openiap-versions.json` only for `clientProtocol`, `google`, and `apple`;
   framework versions come from each library's package metadata
 - Derive expected versions from the explicit release plan and stable metadata;
-  release workflows own package-version commits, except a feature PR may set
-  `specs/client/package.json` when the in-tree code needs the new Client
-  Protocol version
+  all package version upgrades are CI-only, including the Client Protocol
+  manifest and its generated mirrors; follow
+  `knowledge/internal/06-git-deployment.md#version-file-management`
 - Link each package to its expected GitHub Release tag, per "Docs Ship With The
   Change" in `knowledge/internal/05-docs-patterns.md`
 - Document ALL changes: new features, bug fixes, breaking changes

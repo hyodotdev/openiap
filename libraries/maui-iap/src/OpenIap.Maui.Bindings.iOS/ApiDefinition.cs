@@ -109,6 +109,10 @@ interface OpenIapModule
 
     // -- Verification ------------------------------------------------------
 
+    [Export("verifyAppOwnershipWithOptions:completion:")]
+    [Async]
+    void VerifyAppOwnership([NullAllowed] NSDictionary options, Action<NSObject?, NSError?> completion);
+
     [Export("verifyPurchaseWithSku:completion:")]
     [Async]
     void VerifyPurchase(string sku, Action<NSDictionary?, NSError?> completion);

@@ -1,5 +1,37 @@
 # openiap.dev GraphQL Types for cross-platform IAP (common)
 
+"""App acquisition verdict; unknown means no trustworthy decision is available."""
+enum AppOwnershipStatus {
+  Licensed
+  Unlicensed
+  Unknown
+}
+
+"""Why the ownership check is inconclusive."""
+enum AppOwnershipVerificationReason {
+  BackendVerificationRequired
+  VerificationFailed
+  NetworkError
+  ServiceError
+  Unsupported
+}
+
+"""App acquisition evidence; unknown must never be treated as unlicensed."""
+type AppOwnershipVerificationResult {
+  status: AppOwnershipStatus!
+  storeId: String!
+  reason: AppOwnershipVerificationReason
+  appTransactionIOS: AppTransaction
+  """Signed AppTransaction evidence for Apple backend verification."""
+  signedAppTransactionIOS: String
+  """Encrypted Play Integrity evidence; collecting it does not grant a license."""
+  integrityTokenAndroid: String
+}
+
+input VerifyAppOwnershipProps {
+  google: PlayIntegrityParamsAndroid
+}
+
 # Platform discriminators
 enum IapPlatform {
   IOS

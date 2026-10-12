@@ -10,6 +10,20 @@ namespace OpenIap.Maui.Tests;
 
 public class RecordJsonTests
 {
+    [Fact]
+    public void OwnershipEvidenceKeepsAnInconclusiveVerdict()
+    {
+        const string json = """
+            {"status":"unknown","storeId":"play","reason":"backend-verification-required","integrityTokenAndroid":"encrypted-token"}
+            """;
+        var evidence = JsonSerializer.Deserialize<AppOwnershipVerificationResult>(json, Options)!;
+        Assert.Equal(AppOwnershipStatus.Unknown, evidence.Status);
+        Assert.Equal(AppOwnershipVerificationReason.BackendVerificationRequired, evidence.Reason);
+        Assert.Equal("encrypted-token", evidence.IntegrityTokenAndroid);
+        var restored = JsonSerializer.Deserialize<AppOwnershipVerificationResult>(JsonSerializer.Serialize(evidence, Options), Options)!;
+        Assert.Equal(evidence, restored);
+    }
+
     [Theory]
     [InlineData("google", "play")]
     [InlineData("apple", "apple")]

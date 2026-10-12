@@ -614,6 +614,54 @@ public partial class PurchaseFlowPage : ContentPage
         await DisplayAlertAsync("Copied", "Purchase result copied to clipboard", "OK");
     }
 
+    private async void OnCheckAppOwnershipClicked(object sender, EventArgs e)
+    {
+        var projectNumber = OwnershipCloudProjectNumberEntry.Text?.Trim() ?? string.Empty;
+        var requestHash = OwnershipRequestHashEntry.Text?.Trim() ?? string.Empty;
+        OwnershipResultLabel.IsVisible = true;
+        if (string.IsNullOrEmpty(projectNumber) != string.IsNullOrEmpty(requestHash))
+        {
+            OwnershipResultLabel.Text = $"Error: {ErrorCode.DeveloperError.ToJson()}\nEnter both Google Cloud project number and Request hash, or leave both empty.";
+            return;
+        }
+        var google = string.IsNullOrEmpty(projectNumber) ? null : new PlayIntegrityParamsAndroid
+        {
+            CloudProjectNumber = projectNumber,
+            RequestHash = requestHash,
+        };
+        OwnershipCheckButton.IsEnabled = false;
+        OwnershipCloudProjectNumberEntry.IsEnabled = false;
+        OwnershipRequestHashEntry.IsEnabled = false;
+        OwnershipCheckButton.Text = "Checking...";
+        OwnershipResultLabel.Text = string.Empty;
+        try
+        {
+            var query = (QueryResolver)OpenIapClient.Instance;
+            var result = await query.VerifyAppOwnershipAsync(new VerifyAppOwnershipProps { Google = google });
+            OwnershipResultLabel.Text =
+                $"Status: {result.Status.ToJson()}\n" +
+                $"Store ID: {result.StoreId}\n" +
+                $"Reason: {result.Reason?.ToJson() ?? "none"}\n" +
+                $"Signed AppTransaction length: {result.SignedAppTransactionIOS?.Length ?? 0}\n" +
+                $"Integrity token length: {result.IntegrityTokenAndroid?.Length ?? 0}";
+        }
+        catch (OpenIapException error)
+        {
+            OwnershipResultLabel.Text = $"Error: {error.Error.Code.ToJson()}\n{ErrorUtils.ExtractErrorMessage(error)}";
+        }
+        catch (Exception error)
+        {
+            OwnershipResultLabel.Text = $"App ownership failed: {ErrorUtils.ExtractErrorMessage(error)}";
+        }
+        finally
+        {
+            OwnershipCheckButton.IsEnabled = true;
+            OwnershipCloudProjectNumberEntry.IsEnabled = true;
+            OwnershipRequestHashEntry.IsEnabled = true;
+            OwnershipCheckButton.Text = "Check app ownership";
+        }
+    }
+
     private async void OnCheckAppTransactionClicked(object sender, EventArgs e)
     {
 #if IOS || MACCATALYST

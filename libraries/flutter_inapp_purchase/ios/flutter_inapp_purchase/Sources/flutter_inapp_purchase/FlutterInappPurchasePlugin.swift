@@ -276,6 +276,21 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "getReceiptDataIOS":
             getReceiptDataIOS(result: result)
 
+        case "verifyAppOwnership":
+            Task {
+                do {
+                    let options = try OpenIapSerialization.decode(object: call.arguments ?? [:], as: VerifyAppOwnershipProps.self)
+                    let ownership = try await OpenIapModule.shared.verifyAppOwnership(options)
+                    await MainActor.run { result(OpenIapSerialization.encode(ownership)) }
+                } catch is DecodingError {
+                    await MainActor.run { result(FlutterError(code: ErrorCode.developerError.rawValue, message: "Invalid app ownership options", details: nil)) }
+                } catch let error as PurchaseError {
+                    await MainActor.run { result(self.flutterError(from: error)) }
+                } catch {
+                    await MainActor.run { result(FlutterError(code: ErrorCode.serviceError.rawValue, message: error.localizedDescription, details: nil)) }
+                }
+            }
+
         case "getAppTransactionIOS":
             if #available(iOS 16.0, macOS 14.0, tvOS 16.0, *) {
                 getAppTransactionIOS(result: result)

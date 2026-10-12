@@ -25,6 +25,12 @@ typealias PurchaseIOS = io.github.hyochan.kmpiap.openiap.PurchaseIOS
 typealias PurchaseError = io.github.hyochan.kmpiap.openiap.PurchaseError
 typealias ActiveSubscription = io.github.hyochan.kmpiap.openiap.ActiveSubscription
 
+typealias AppOwnershipVerificationResult = io.github.hyochan.kmpiap.openiap.AppOwnershipVerificationResult
+typealias VerifyAppOwnershipProps = io.github.hyochan.kmpiap.openiap.VerifyAppOwnershipProps
+typealias PlayIntegrityParamsAndroid = io.github.hyochan.kmpiap.openiap.PlayIntegrityParamsAndroid
+typealias AppOwnershipStatus = io.github.hyochan.kmpiap.openiap.AppOwnershipStatus
+typealias AppOwnershipVerificationReason = io.github.hyochan.kmpiap.openiap.AppOwnershipVerificationReason
+
 // Re-export enums
 typealias IapPlatform = io.github.hyochan.kmpiap.openiap.IapPlatform
 

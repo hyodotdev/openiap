@@ -87,6 +87,16 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/restore-purchases',
   },
   {
+    id: 'verify-app-ownership',
+    title: 'verifyAppOwnership',
+    category: 'Purchase',
+    description:
+      'Verify app acquisition with AppTransaction or collect Play Integrity evidence for backend licensing checks',
+    parameters: 'VerifyAppOwnershipProps?',
+    returns: 'AppOwnershipVerificationResult',
+    path: '/docs/apis/verify-app-ownership',
+  },
+  {
     id: 'open-redeem-offer-code',
     title: 'openRedeemOfferCode',
     category: 'Purchase',

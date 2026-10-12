@@ -188,6 +188,8 @@ dependencies {
         testImplementation("io.github.hyochan.openiap:openiap-conformance:$suiteVersion")
     }
     val playBillingVersion = "9.1.0"
+    val playIntegrityVersion = "1.6.0"
+    val playCoreCommonVersion = "2.0.4"
     val coroutinesVersion = "1.11.0"
     val horizonBillingCompatibilityVersion = "2.0.0"
     val horizonPlatformKotlinVersion = "0.2.2"
@@ -212,6 +214,8 @@ dependencies {
     // consumers to match the Kotlin metadata version used to publish billing-ktx.
     add("playCompileOnly", "com.android.billingclient:billing:$playBillingVersion")
     add("playApi", "com.android.billingclient:billing:$playBillingVersion")
+    add("playImplementation", "com.google.android.play:integrity:$playIntegrityVersion")
+    add("playImplementation", "com.google.android.play:core-common:$playCoreCommonVersion")
 
     // Horizon flavor: Meta Billing Compatibility 2.x uses the current Kotlin
     // platform SDK modules transitively; do not also ship the legacy OVR SDK.

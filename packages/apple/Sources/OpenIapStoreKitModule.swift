@@ -1142,6 +1142,30 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
+    public func verifyAppOwnership(_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult {
+        guard #available(iOS 16.0, watchOS 9.0, *) else {
+            return AppOwnershipVerificationResult(reason: .unsupported, status: .unknown, storeId: StoreIds.Apple)
+        }
+        do {
+            let verification = try await StoreKit.AppTransaction.shared
+            switch verification {
+            case .verified(let transaction):
+                #if compiler(>=6.4)
+                let revocationChecked = true
+                #else
+                let revocationChecked = false
+                #endif
+                return appOwnershipResultIOS(mapAppTransaction(transaction), jws: verification.jwsRepresentation, revocationChecked: revocationChecked)
+            case .unverified:
+                return AppOwnershipVerificationResult(reason: .verificationFailed, status: .unknown, storeId: StoreIds.Apple)
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return AppOwnershipVerificationResult(reason: appOwnershipFailureReasonIOS(error), status: .unknown, storeId: StoreIds.Apple)
+        }
+    }
+
     // MARK: - Subscription Management
 
     /// Get details of all currently active subscriptions.
@@ -2676,15 +2700,12 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         let appVersion = transaction.appVersion
         let appId = transaction.appID.map(Double.init) ?? 0
 
-        // iOS 18.4+ properties - only compile with Xcode 16.4+ (Swift 6.1 compiler+)
-        // This prevents build failures on Xcode 16.3 and below
         var appTransactionId: String? = nil
         var originalPlatformValue: String? = nil
         var revocationDateValue: Double? = nil
         var storeTypeValue: String? = nil
 
-        // Swift 6.1 compiler+ (Xcode 16.4+): appTransactionID is back-deployed
-        // to the AppTransaction baseline; originalPlatform itself starts at 18.4.
+        // appTransactionID is back-deployed; originalPlatform starts at 18.4.
         #if compiler(>=6.1)
         appTransactionId = transaction.appTransactionID
         if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
@@ -2695,8 +2716,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         #endif // compiler(>=6.1)
 
         #if compiler(>=6.4)
-        // Xcode 27 first publishes this property, but StoreKit declares it
-        // back-deployed to the AppTransaction baseline runtimes.
+        // Xcode 27 exposes revocationDate on AppTransaction baseline runtimes.
         revocationDateValue = transaction.revocationDate?.milliseconds
 
         if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *) {

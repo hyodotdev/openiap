@@ -323,6 +323,14 @@ import re
 import sys
 
 path, store_path, play_billing, amazon_appstore_sdk, horizon_billing_compatibility, horizon_platform_kotlin, gson = sys.argv[1:]
+google_build = open("packages/google/openiap/build.gradle.kts", encoding="utf-8").read()
+def play_dependency_version(name):
+    match = re.search(fr'val\s+{name}\s*=\s*"([^"]+)"', google_build)
+    if not match:
+        raise SystemExit(f"missing {name}")
+    return match.group(1)
+play_integrity = play_dependency_version("playIntegrityVersion")
+play_core_common = play_dependency_version("playCoreCommonVersion")
 import json
 core_version = json.load(open("openiap-versions.json", encoding="utf-8"))["google"]
 text = open(path, encoding="utf-8").read()
@@ -386,6 +394,8 @@ store_content = f"""<Project>
     <_OpenIapMauiPropsImported>true</_OpenIapMauiPropsImported>
     <MauiOpenIapCoreVersion>{core_version}</MauiOpenIapCoreVersion>
     <MauiPlayBillingVersion>{play_billing}</MauiPlayBillingVersion>
+    <MauiPlayIntegrityVersion>{play_integrity}</MauiPlayIntegrityVersion>
+    <MauiPlayCoreCommonVersion>{play_core_common}</MauiPlayCoreCommonVersion>
     <MauiAmazonAppstoreSdkVersion>{amazon_appstore_sdk}</MauiAmazonAppstoreSdkVersion>
     <MauiHorizonBillingCompatibilityVersion>{horizon_billing_compatibility}</MauiHorizonBillingCompatibilityVersion>
     <MauiHorizonPlatformKotlinVersion>{horizon_platform_kotlin}</MauiHorizonPlatformKotlinVersion>

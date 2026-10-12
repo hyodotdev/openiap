@@ -586,8 +586,8 @@ const invokeNativeWithPurchaseError = async <T>(
       typeof nativeError?.message === 'string'
         ? nativeError.message
         : typeof error === 'string'
-          ? error
-          : '';
+        ? error
+        : '';
     const hasCanonicalFields =
       nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
       nativeError?.code !== undefined ||
@@ -928,6 +928,34 @@ function validateAndroidPurchaseBranchOptions(
     });
   }
 }
+
+/** Verify app acquisition; send Android integrity tokens to your backend. */
+export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
+  options,
+) => {
+  if (
+    isVegaOS() ||
+    ExpoIapModule.USING_ONSIDE_SDK ||
+    (Platform.OS !== 'ios' && Platform.OS !== 'android')
+  ) {
+    return {
+      status: 'unknown',
+      reason: 'unsupported',
+      storeId: isVegaOS()
+        ? 'amazon'
+        : ExpoIapModule.USING_ONSIDE_SDK
+        ? 'onside'
+        : 'unknown',
+    };
+  }
+  return invokeNativeWithPurchaseError(
+    () => ExpoIapModule.verifyAppOwnership(options ?? {}),
+    Platform.OS === 'ios' ? 'ios' : 'android',
+    {
+      code: ErrorCode.ServiceError,
+    },
+  );
+};
 
 /**
  * Initiate a purchase or subscription flow. The result arrives through
@@ -1379,8 +1407,9 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result =
-    await ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
+  const result = await ExpoIapModule.verifyPurchaseWithProvider(
+    resolvedOptions,
+  );
   if (result.iapkit == null) {
     return result;
   }

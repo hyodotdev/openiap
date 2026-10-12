@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-// The godot-iap addon ships native frameworks that are committed to the
-// repository, and the release does not rebuild them, so nothing in the release
-// pipeline otherwise records or verifies the bytes users execute. This audit
-// pins them, plus the committed Android archives an export embeds as-is.
+// Pin native payloads used by local exports and immutable release recovery.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

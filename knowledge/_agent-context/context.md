@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-11T17:55:55.799Z
+> Last updated: 2026-10-12T00:42:05.920Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -371,6 +371,22 @@ binding; `official` entries live in this monorepo. Provider conformance suites
 `ProviderConformanceSuite`) assert the provider profile behaviors while the JS
 runner covers the client behaviors; a report passes only when every required
 behavior passes with a matching verdict.
+
+## Cross-Platform Capability Contracts
+
+When Apple and Android support the same user task, expose one unsuffixed
+operation and shared result contract in `specs/client`. Native provider adapters
+own the store calls and map their outcomes; framework SDKs forward the generated
+contract so apps use one call and one result-handling flow.
+
+- Share status, failure reasons, and options where their meaning matches. Keep
+  necessary platform evidence in explicit suffixed fields instead of inventing
+  a second public API or duplicating decision logic in each framework.
+- Preserve differences in trust and availability. For example,
+  `verifyAppOwnership` can verify an Apple acquisition locally, while a Play
+  Integrity token remains `unknown` until the developer's backend verifies it.
+- Keep unsupported capabilities and inconclusive results explicit. A common
+  interface must not manufacture a successful verdict for a weaker store check.
 
 ## Directory Ownership Guardrail
 
@@ -1155,21 +1171,11 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
-set the manifest, run `bun install --lockfile-only --ignore-scripts` and then
-`./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
-files, when the in-tree code needs the new Client Protocol version
-(`sync-versions.sh` alone skips the conformance behavior ids, which embed the
-protocol version); do not edit the mirror by hand.
-`"google"` and `"apple"` are CI-managed native package versions and do not
-constrain it. Release-state, docs, and parity audits reject drift between the
-mirror and the publishing manifest.
-
-**To bump Apple package version:**
-
-```bash
-./scripts/bump-version.sh [major|minor|patch|x.x.x]
-```
+`"clientProtocol"` mirrors `specs/client/package.json`; `"google"` and `"apple"`
+track the independent native releases. All version upgrades and generated
+version metadata are CI-only. Follow
+[Version File Management](./06-git-deployment.md#version-file-management);
+feature work changes the schema and release card, not package versions.
 
 ### Testing
 
@@ -1238,6 +1244,10 @@ swift build  # Verifies ObjC bridge compiles
 ---
 
 ## SDK Parity Checklist (CRITICAL — prevents "declared but not implemented")
+
+Design equivalent Apple and Android capabilities using the
+[shared contract rule](./02-architecture.md#cross-platform-capability-contracts)
+before wiring the SDKs below.
 
 ### API version annotations
 
@@ -1683,10 +1693,9 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A contract change may bump the Client Protocol
-   in `specs/client/package.json`; refresh `bun.lock` and run
-   `./scripts/sync-release-generated.sh` to mirror it (the audits reject
-   drift), then release with `version=current`.
+1. Update the canonical schema and record the intended Client Protocol version
+   in the release card. The CI release workflow owns the version upgrade and
+   generated version metadata.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -2898,9 +2907,11 @@ the tag; a matching tag name alone is not reviewed-branch provenance.
 
 When `current` must create a missing tag for a version that is not yet published,
 the workflow creates an empty provenance-recovery commit and atomically pushes
-that real branch update with a tag targeting the verified dispatch SHA. A no-op
-branch refspec is not a compare-and-swap guard because Git omits up-to-date refs
-from the push transaction.
+that real branch update with a tag targeting the verified dispatch SHA. Godot
+instead synchronizes metadata, rebuilds its committed native payloads, and tags
+the CI artifact commit; both paths require the release-head guard and atomic
+push. Existing tags remain immutable. A no-op branch refspec is not a
+compare-and-swap guard because Git omits up-to-date refs from the push transaction.
 
 For npm trusted publishing, the release workflow's branch-ref phase creates and
 pushes the immutable tag, then dispatches the same trusted-publisher workflow on
@@ -3117,45 +3128,30 @@ automatically, including metadata and cards ahead of package publication.
 
 ### openiap-versions.json
 
-**CRITICAL: NEVER manually edit the `google` or `apple` fields in
-`openiap-versions.json`.**
+**All package version upgrades are CI-only.** Feature work must not change
+package version fields, `openiap-versions.json`, or generated version metadata.
+This includes Client Protocol versions in `specs/client/package.json`; there is
+no feature-PR exception.
 
 Version ownership is split:
 
-- Apple releases update `apple` version
-- Google releases update `google` version
-- `clientProtocol` mirrors `specs/client/package.json`; a feature PR or a Client
-  Protocol release sets that manifest and the sync writes the mirror into
-  `openiap-versions.json` and its copies
-- Native releases never move `clientProtocol`, and a Client Protocol release
-  never moves `google` or `apple`
-- The docs site has no version: it deploys whatever `main` holds
+- The Client Protocol release workflow updates `specs/client/package.json` and
+  regenerates the `clientProtocol` mirror and its copies.
+- Apple and Google release workflows update only their own native version.
+- Framework, Commerce Protocol, and CLI release workflows own their package
+  version fields.
+- The docs site has no version: it deploys whatever `main` holds.
 
-Release workflows write stable and prerelease values on `main`. Manual edits
-are not a substitute for selecting the correct workflow lane.
+Record the intended next versions in the release card and select the matching
+GitHub Actions release inputs. Release workflows refresh the lockfile and run
+`./scripts/sync-release-generated.sh` in the same version-bump commit. Use
+`version=current` only to publish or retry a version already established by CI.
+Do not run a local bump as a substitute for a release dispatch.
 
-The manifest is only for the Client Protocol and the native platform packages:
-`clientProtocol`, `google`, and `apple`. Framework library package versions
-(`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
-`kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
-release workflow, not as extra keys in `openiap-versions.json`.
-
-Manual edits to any of the three keys cause version conflicts and deployment
-issues. Use the GitHub Actions release workflows and repository sync automation.
-
-**Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
-
-**Rule:** Feature PRs must never touch `google` or `apple`. A feature PR may set
-`specs/client/package.json`, run `bun install --lockfile-only --ignore-scripts`
-and then `./scripts/sync-release-generated.sh`, and commit `bun.lock` with the
-staged files, when the in-tree code needs the new Client Protocol version;
-never hand-edit the `clientProtocol` mirror. Stable version changes happen via:
-
-1. Release workflows (Apple Release, Google Release, and Client Protocol
-   releases with `version=patch`, `minor`, or `major`)
-2. A feature PR setting `specs/client/package.json`, published by a Client
-   Protocol release with `version=current`
-3. CI auto-bump after merge where configured
+`openiap-versions.json` contains only `clientProtocol`, `google`, and `apple`.
+The Client Protocol publishing manifest remains its version SSOT; the mirror
+must match it. Framework library versions stay in their own package metadata.
+Never add framework keys to the native/protocol mirror.
 
 
 ---

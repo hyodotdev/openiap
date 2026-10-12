@@ -31,6 +31,10 @@ struct PurchaseFlowScreen: View {
     @State private var isVerifying = false
     @State private var processedPurchaseIds: Set<String> = []
     @State private var pendingPurchases: [String: OpenIapPurchase] = [:]
+    @State private var ownershipCloudProjectNumber = ""
+    @State private var ownershipRequestHash = ""
+    @State private var ownershipResultMessage: String?
+    @State private var isCheckingOwnership = false
 
     // IAPKit API Key from environment (set in scheme or Info.plist)
     private var iapkitApiKey: String? {
@@ -67,6 +71,8 @@ struct PurchaseFlowScreen: View {
                         PurchaseResultSection()
                     }
                 }
+
+                AppOwnershipCard()
 
                 InstructionsCard()
 
@@ -134,7 +140,7 @@ struct PurchaseFlowScreen: View {
                 Spacer()
             }
             
-            Text("Purchase consumable and non-consumable iapStore.products. Events are handled through OpenIapStore callbacks.")
+            Text("Purchase consumable and non-consumable products. Events are handled through OpenIapStore callbacks.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -161,8 +167,70 @@ struct PurchaseFlowScreen: View {
         .padding(.horizontal)
     }
     
-    // moved ProductCard to Screens/uis/ProductCard.swift
-    
+    @ViewBuilder
+    private func AppOwnershipCard() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("App ownership").font(.headline)
+            Text("Google Play requires a linked Cloud project number and a request hash from your backend. Unknown is inconclusive; send evidence to your backend for verification.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            TextField("Google Cloud project number", text: $ownershipCloudProjectNumber)
+                .textFieldStyle(.roundedBorder)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .disabled(isCheckingOwnership)
+            TextField("Request hash", text: $ownershipRequestHash)
+                .textFieldStyle(.roundedBorder)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .disabled(isCheckingOwnership)
+            Button(isCheckingOwnership ? "Checking..." : "Check app ownership") {
+                Task { await checkAppOwnership() }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isCheckingOwnership || isInitialLoading)
+            if let ownershipResultMessage {
+                Text(ownershipResultMessage)
+                    .font(.system(.caption, design: .monospaced))
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .cornerRadius(12)
+        .shadow(radius: 2)
+        .padding(.horizontal)
+    }
+
+    @MainActor
+    private func checkAppOwnership() async {
+        let projectNumber = ownershipCloudProjectNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestHash = ownershipRequestHash.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard projectNumber.isEmpty == requestHash.isEmpty else {
+            ownershipResultMessage = "Error: \(ErrorCode.developerError.rawValue)\nEnter both Google Cloud project number and Request hash, or leave both empty."
+            return
+        }
+        let google = projectNumber.isEmpty ? nil : PlayIntegrityParamsAndroid(
+            cloudProjectNumber: projectNumber, requestHash: requestHash
+        )
+        isCheckingOwnership = true
+        ownershipResultMessage = nil
+        defer { isCheckingOwnership = false }
+        do {
+            let result = try await iapStore.verifyAppOwnership(VerifyAppOwnershipProps(google: google))
+            ownershipResultMessage = """
+            Status: \(result.status.rawValue)
+            Store ID: \(result.storeId)
+            Reason: \(result.reason?.rawValue ?? "none")
+            Signed AppTransaction length: \(result.signedAppTransactionIOS?.count ?? 0)
+            Integrity token length: \(result.integrityTokenAndroid?.count ?? 0)
+            """
+        } catch let error as OpenIapError {
+            ownershipResultMessage = "Error: \(error.code.rawValue)\n\(error.message)"
+        } catch {
+            ownershipResultMessage = "App ownership failed: \(error.localizedDescription)"
+        }
+    }
+
     @ViewBuilder
     private func PurchaseResultSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {

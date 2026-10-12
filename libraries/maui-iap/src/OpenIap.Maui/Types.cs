@@ -156,6 +156,134 @@ internal static class StoreIdentity
 // Enums
 // ============================================================================
 
+/// <summary>App acquisition verdict; unknown means no trustworthy decision is available.</summary>
+[JsonConverter(typeof(AppOwnershipStatusJsonConverter))]
+public enum AppOwnershipStatus
+{
+    Licensed,
+    Unlicensed,
+    Unknown
+}
+
+public sealed class AppOwnershipStatusJsonConverter : JsonConverter<AppOwnershipStatus>, IOpenIapEnumJsonConverter<AppOwnershipStatus>
+{
+    private static readonly Dictionary<string, AppOwnershipStatus> _fromString = new()
+    {
+        ["licensed"] = AppOwnershipStatus.Licensed,
+        ["LICENSED"] = AppOwnershipStatus.Licensed,
+        ["Licensed"] = AppOwnershipStatus.Licensed,
+        ["unlicensed"] = AppOwnershipStatus.Unlicensed,
+        ["UNLICENSED"] = AppOwnershipStatus.Unlicensed,
+        ["Unlicensed"] = AppOwnershipStatus.Unlicensed,
+        ["unknown"] = AppOwnershipStatus.Unknown,
+        ["UNKNOWN"] = AppOwnershipStatus.Unknown,
+        ["Unknown"] = AppOwnershipStatus.Unknown,
+    };
+
+    private static readonly Dictionary<AppOwnershipStatus, string> _toString = new()
+    {
+        [AppOwnershipStatus.Licensed] = "licensed",
+        [AppOwnershipStatus.Unlicensed] = "unlicensed",
+        [AppOwnershipStatus.Unknown] = "unknown",
+    };
+
+    public override AppOwnershipStatus Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        return AppOwnershipStatus.Unknown;
+    }
+
+    public override void Write(Utf8JsonWriter writer, AppOwnershipStatus value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(AppOwnershipStatus value) => _toString[value];
+    internal static AppOwnershipStatus FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : AppOwnershipStatus.Unknown;
+
+    public bool TryReadRaw(string value, out AppOwnershipStatus result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(AppOwnershipStatus value) => _toString[value];
+}
+
+public static class AppOwnershipStatusExtensions
+{
+    public static string ToJson(this AppOwnershipStatus value) => AppOwnershipStatusJsonConverter.ToRawString(value);
+    public static AppOwnershipStatus FromJson(string value) => AppOwnershipStatusJsonConverter.FromRawString(value);
+}
+
+/// <summary>Why the ownership check is inconclusive.</summary>
+[JsonConverter(typeof(AppOwnershipVerificationReasonJsonConverter))]
+public enum AppOwnershipVerificationReason
+{
+    BackendVerificationRequired,
+    VerificationFailed,
+    NetworkError,
+    ServiceError,
+    Unsupported
+}
+
+public sealed class AppOwnershipVerificationReasonJsonConverter : JsonConverter<AppOwnershipVerificationReason>, IOpenIapEnumJsonConverter<AppOwnershipVerificationReason>
+{
+    private static readonly Dictionary<string, AppOwnershipVerificationReason> _fromString = new()
+    {
+        ["backend-verification-required"] = AppOwnershipVerificationReason.BackendVerificationRequired,
+        ["BACKEND_VERIFICATION_REQUIRED"] = AppOwnershipVerificationReason.BackendVerificationRequired,
+        ["BackendVerificationRequired"] = AppOwnershipVerificationReason.BackendVerificationRequired,
+        ["verification-failed"] = AppOwnershipVerificationReason.VerificationFailed,
+        ["VERIFICATION_FAILED"] = AppOwnershipVerificationReason.VerificationFailed,
+        ["VerificationFailed"] = AppOwnershipVerificationReason.VerificationFailed,
+        ["network-error"] = AppOwnershipVerificationReason.NetworkError,
+        ["NETWORK_ERROR"] = AppOwnershipVerificationReason.NetworkError,
+        ["NetworkError"] = AppOwnershipVerificationReason.NetworkError,
+        ["service-error"] = AppOwnershipVerificationReason.ServiceError,
+        ["SERVICE_ERROR"] = AppOwnershipVerificationReason.ServiceError,
+        ["ServiceError"] = AppOwnershipVerificationReason.ServiceError,
+        ["unsupported"] = AppOwnershipVerificationReason.Unsupported,
+        ["UNSUPPORTED"] = AppOwnershipVerificationReason.Unsupported,
+        ["Unsupported"] = AppOwnershipVerificationReason.Unsupported,
+    };
+
+    private static readonly Dictionary<AppOwnershipVerificationReason, string> _toString = new()
+    {
+        [AppOwnershipVerificationReason.BackendVerificationRequired] = "backend-verification-required",
+        [AppOwnershipVerificationReason.VerificationFailed] = "verification-failed",
+        [AppOwnershipVerificationReason.NetworkError] = "network-error",
+        [AppOwnershipVerificationReason.ServiceError] = "service-error",
+        [AppOwnershipVerificationReason.Unsupported] = "unsupported",
+    };
+
+    public override AppOwnershipVerificationReason Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
+        throw new JsonException($"Unknown AppOwnershipVerificationReason value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, AppOwnershipVerificationReason value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(_toString[value]);
+    }
+
+    internal static string ToRawString(AppOwnershipVerificationReason value) => _toString[value];
+    internal static AppOwnershipVerificationReason FromRawString(string value) =>
+        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown AppOwnershipVerificationReason value: {value}");
+
+    public bool TryReadRaw(string value, out AppOwnershipVerificationReason result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(AppOwnershipVerificationReason value) => _toString[value];
+}
+
+public static class AppOwnershipVerificationReasonExtensions
+{
+    public static string ToJson(this AppOwnershipVerificationReason value) => AppOwnershipVerificationReasonJsonConverter.ToRawString(value);
+    public static AppOwnershipVerificationReason FromJson(string value) => AppOwnershipVerificationReasonJsonConverter.FromRawString(value);
+}
+
 /// <summary>
 /// Play Billing choice image layout (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
@@ -2735,6 +2863,25 @@ public sealed record AdvancedCommerceRefundIOS
     public string? JsonRepresentation { get; init; }
 }
 
+/// <summary>App acquisition evidence; unknown must never be treated as unlicensed.</summary>
+public sealed record AppOwnershipVerificationResult
+{
+    [JsonPropertyName("appTransactionIOS")]
+    public AppTransaction? AppTransactionIOS { get; init; }
+    /// <summary>Encrypted Play Integrity evidence; collecting it does not grant a license.</summary>
+    [JsonPropertyName("integrityTokenAndroid")]
+    public string? IntegrityTokenAndroid { get; init; }
+    [JsonPropertyName("reason")]
+    public AppOwnershipVerificationReason? Reason { get; init; }
+    /// <summary>Signed AppTransaction evidence for Apple backend verification.</summary>
+    [JsonPropertyName("signedAppTransactionIOS")]
+    public string? SignedAppTransactionIOS { get; init; }
+    [JsonPropertyName("status")]
+    public required AppOwnershipStatus Status { get; init; }
+    [JsonPropertyName("storeId")]
+    public required string StoreId { get; init; }
+}
+
 public sealed record AppTransaction
 {
     [JsonPropertyName("appId")]
@@ -4606,6 +4753,17 @@ public sealed record LaunchExternalLinkParamsAndroid
     public string? ExternalTransactionToken { get; init; }
 }
 
+/// <summary>Standard Play Integrity request bound to a backend challenge.</summary>
+public sealed record PlayIntegrityParamsAndroid
+{
+    /// <summary>Google Cloud project number as decimal text, not the project ID.</summary>
+    [JsonPropertyName("cloudProjectNumber")]
+    public required string CloudProjectNumber { get; init; }
+    /// <summary>Hash of the server challenge and request data; at most 500 UTF-8 bytes.</summary>
+    [JsonPropertyName("requestHash")]
+    public required string RequestHash { get; init; }
+}
+
 public sealed record ProductRequest
 {
     [JsonPropertyName("skus")]
@@ -5000,6 +5158,12 @@ public sealed record SubscriptionProductReplacementParamsAndroid
     [JsonPropertyName("replacementMode")]
     [JsonConverter(typeof(StrictEnumJsonConverter<SubscriptionReplacementModeAndroid, SubscriptionReplacementModeAndroidJsonConverter>))]
     public required SubscriptionReplacementModeAndroid ReplacementMode { get; init; }
+}
+
+public sealed record VerifyAppOwnershipProps
+{
+    [JsonPropertyName("google")]
+    public PlayIntegrityParamsAndroid? Google { get; init; }
 }
 
 /// <summary>
@@ -5441,6 +5605,14 @@ public interface QueryResolver
     /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
     /// </summary>
     Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku);
+
+    /// <summary>
+    /// Verify app acquisition independently of in-app purchases.
+    /// An integrity token requires backend verification; it is not a license verdict.
+    /// Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+    /// See: https://openiap.dev/docs/apis/verify-app-ownership
+    /// </summary>
+    Task<AppOwnershipVerificationResult> VerifyAppOwnershipAsync(VerifyAppOwnershipProps? options = null) => Task.FromException<AppOwnershipVerificationResult>(new NotSupportedException("verifyAppOwnership is not supported by this resolver"));
 }
 
 /// <summary>GraphQL root subscription operations.</summary>

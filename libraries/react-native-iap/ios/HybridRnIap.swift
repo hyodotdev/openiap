@@ -746,6 +746,24 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
+    func verifyAppOwnership(optionsJson: String) throws -> Promise<String> {
+        Promise.async {
+            do {
+                let options = try JSONDecoder().decode(VerifyAppOwnershipProps.self, from: Data(optionsJson.utf8))
+                let result = try await OpenIapModule.shared.verifyAppOwnership(options)
+                return String(decoding: try JSONEncoder().encode(result), as: UTF8.self)
+            } catch let error as CancellationError {
+                throw error
+            } catch is DecodingError {
+                throw OpenIapException.make(code: .developerError, message: "Invalid app ownership options")
+            } catch let purchaseError as PurchaseError {
+                throw OpenIapException.from(purchaseError)
+            } catch {
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
+            }
+        }
+    }
+
     // MARK: - iOS-specific Public Methods
     func getAppTransactionIOS() throws -> Promise<Variant_NullType_String> {
         return Promise.async {

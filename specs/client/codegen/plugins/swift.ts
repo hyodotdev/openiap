@@ -11,6 +11,7 @@ import {
 } from "../core/store-ids.js";
 import { CodegenPlugin, type CodegenPluginConfig } from "./base-plugin.js";
 import { generatedFileHeader } from "../core/generated-header.js";
+import { ADDITIONAL_OPERATION_FIELDS } from "../core/operation-compatibility.js";
 import type {
   IRSchema,
   IREnum,
@@ -787,35 +788,33 @@ export class SwiftPlugin extends CodegenPlugin {
 
     for (const field of sortedFields) {
       this.generateDocComment(this.operationFieldDescription(field), "    ");
-      const returnType = this.getOperationReturnType(field);
-
-      if (field.args.length === 0) {
-        this.emit(
-          `    func ${this.escapeKeyword(field.name)}() async throws -> ${returnType}`,
-        );
-      } else if (field.args.length === 1) {
-        const arg = field.args[0];
-        const argType = this.getPropertyType(arg.type);
-        const argName = this.escapeKeyword(arg.name);
-        this.emit(
-          `    func ${this.escapeKeyword(field.name)}(_ ${argName}: ${argType}) async throws -> ${returnType}`,
-        );
-      } else {
-        const params = field.args
-          .map((arg) => {
-            const argType = this.getPropertyType(arg.type);
-            const argName = this.escapeKeyword(arg.name);
-            return `${argName}: ${argType}`;
-          })
-          .join(", ");
-        this.emit(
-          `    func ${this.escapeKeyword(field.name)}(${params}) async throws -> ${returnType}`,
-        );
-      }
+      this.emit(`    ${this.operationMethodSignature(field)}`);
     }
 
     this.emit("}");
     this.emit("");
+
+    const additionalFields = sortedFields.filter((field) =>
+      ADDITIONAL_OPERATION_FIELDS[irOperation.name]?.includes(field.name),
+    );
+    if (additionalFields.length > 0) {
+      this.emit(`public extension ${protocolName} {`);
+      for (const field of additionalFields) {
+        this.emit(`    ${this.operationMethodSignature(field)} {`);
+        this.emit('        throw CocoaError(.featureUnsupported)');
+        this.emit("    }");
+      }
+      this.emit("}");
+      this.emit("");
+    }
+  }
+
+  private operationMethodSignature(field: IROperationField): string {
+    const params = field.args.map((arg) => {
+      const label = field.args.length === 1 ? "_ " : "";
+      return `${label}${this.escapeKeyword(arg.name)}: ${this.getPropertyType(arg.type)}`;
+    }).join(", ");
+    return `func ${this.escapeKeyword(field.name)}(${params}) async throws -> ${this.getOperationReturnType(field)}`;
   }
 
   private generateOperationHelpers(irOperation: IROperation): void {

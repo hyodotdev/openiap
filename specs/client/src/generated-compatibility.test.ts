@@ -141,7 +141,7 @@ function topLevelDeclarationName(file: GeneratedFileName, line: string): string 
   const patterns: Record<GeneratedFileName, RegExp> = {
     'types.ts': /^export (?:interface|type|enum) ([A-Za-z_$][\w$]*)\b/,
     'Types.swift': /^public (?:struct|enum|protocol|typealias) ([A-Za-z_]\w*)\b/,
-    'Types.kt': /^public (?:data class|enum class|sealed interface|interface|typealias) ([A-Za-z_]\w*)\b/,
+    'Types.kt': /^public (?:data class|class|enum class|sealed interface|interface|typealias) ([A-Za-z_]\w*)\b/,
     'types.dart': /^(?:(?:abstract|sealed) )?class ([A-Za-z_]\w*)\b|^enum ([A-Za-z_]\w*)\b|^typedef ([A-Za-z_]\w*)\b/,
     'types.gd': /^class ([A-Za-z_]\w*):|^enum ([A-Za-z_]\w*)\b/,
     'Types.cs': /^public (?:(?:sealed|abstract) )?(?:record(?: class)?|class|interface|enum) ([A-Za-z_]\w*)\b/,
@@ -593,5 +593,18 @@ export interface WrongOwner {
     }
     expect(dart).toContain('Per-platform purchase request props');
     expect(dart).toContain('Per-platform subscription request props');
+  });
+});
+
+
+describe('app ownership handler compatibility', () => {
+  it('preserves the legacy Kotlin handler constructor and supplies a resolver default', () => {
+    const kotlin = generated('Types.kt');
+    const handlers = kotlin.slice(kotlin.indexOf('public class QueryHandlers('), kotlin.indexOf('// MARK: - Subscription Helpers', kotlin.indexOf('public class QueryHandlers(')));
+    const primary = handlers.slice(0, handlers.indexOf(') {'));
+    expect(primary).not.toContain('verifyAppOwnership');
+    expect(handlers).toContain('var verifyAppOwnership: QueryVerifyAppOwnershipHandler? = null');
+    expect(handlers).toContain('verifyAppOwnership: QueryVerifyAppOwnershipHandler?,');
+    expect(kotlin).toContain('AppOwnershipVerificationResult = throw UnsupportedOperationException("verifyAppOwnership is not supported by this resolver")');
   });
 });

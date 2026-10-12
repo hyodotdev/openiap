@@ -612,30 +612,33 @@ test("the registry note keeps a major's profile while any entry cites it", () =>
   );
 });
 
-test("the Client Protocol feature-PR rule refreshes the lockfile", () => {
-  for (const file of [
-    "knowledge/internal/04-platform-packages.md",
-    "knowledge/internal/06-git-deployment.md",
-    ".claude/commands/release.md",
-  ]) {
-    const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
-    assert.ok(
-      source.includes("bun install --lockfile-only --ignore-scripts"),
-      `${file} is missing the lockfile refresh`,
-    );
-  }
-  const guide = fs.readFileSync(
-    path.join(repoRoot, "knowledge/internal/04-platform-packages.md"),
+test("package version upgrades are CI-only across agent guidance", () => {
+  const canonical = fs.readFileSync(
+    path.join(repoRoot, "knowledge/internal/06-git-deployment.md"),
     "utf8",
   );
-  assert.ok(
-    guide.includes("refresh `bun.lock` and run"),
-    "the Client Protocol update steps skip the lockfile refresh",
-  );
-  assert.ok(
-    !guide.includes("mirrors it into `openiap-versions.json`"),
-    "stale sync-mirror claim is still present",
-  );
+  assert.ok(canonical.includes("All package version upgrades are CI-only"));
+  assert.ok(canonical.includes("no feature-PR exception"));
+  assert.ok(canonical.includes("specs/client/package.json"));
+  for (const file of [
+    "AGENTS.md",
+    "libraries/godot-iap/AGENTS.md",
+    "libraries/maui-iap/AGENTS.md",
+    "knowledge/internal/04-platform-packages.md",
+    ".claude/commands/release.md",
+    ".claude/commands/audit-code.md",
+    ".codex/skills/generate-doc/SKILL.md",
+    ".codex/skills/ship-release/SKILL.md",
+  ]) {
+    const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
+    assert.ok(source.includes("CI-only"), `${file} must preserve CI ownership`);
+    assert.ok(
+      !/feature PR may|contract change may bump|feature PR setting/.test(
+        source,
+      ),
+      `${file} still permits local version upgrades`,
+    );
+  }
 });
 
 test("the Expo restore JSDoc names the provider restore first", () => {
@@ -678,4 +681,36 @@ test("hosted changes update their own weekly history independently of package ca
     ]),
     [],
   );
+});
+
+test("Godot documents the SDK-dependent behavior shipped in its Apple frameworks", () => {
+  const releases = fs.readFileSync(path.join(repoRoot, RELEASE_NOTES), "utf8");
+  const start = releases.indexOf("id: 'app-ownership-2026-10-12'");
+  const end = releases.indexOf("id: '", start + 1);
+  assert.notEqual(start, -1, "the app ownership release card is missing");
+  const card = releases.slice(start, end === -1 ? undefined : end);
+  assert.match(card, /to="\/docs\/apis\/open-redeem-offer-code"/);
+  assert.match(card, /to="\/docs\/types\/ios\/subscription-status-ios"/);
+
+  const setup = fs.readFileSync(
+    path.join(repoRoot, "packages/docs/src/pages/docs/setup/godot.tsx"),
+    "utf8",
+  );
+  const toolchainStart = setup.indexOf('<h3 id="xcode-version"');
+  const toolchainEnd = setup.indexOf(
+    '<h3 id="macos-gatekeeper"',
+    toolchainStart,
+  );
+  assert.ok(toolchainStart !== -1 && toolchainEnd > toolchainStart);
+  const page = normalize(stripTags(setup.slice(toolchainStart, toolchainEnd)));
+  assert.match(setup, /to="\/docs\/apis\/verify-app-ownership"/);
+  assert.match(
+    page,
+    /earlier Xcode return unknown with backend-verification-required and signed evidence/,
+  );
+  assert.match(
+    page,
+    /Older runtimes use the non-result system sheet; earlier Xcode builds also use that path/,
+  );
+  assert.match(page, /make ios; it builds and installs the matched pair/);
 });

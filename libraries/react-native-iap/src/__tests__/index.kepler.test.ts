@@ -28,6 +28,9 @@ describe('Amazon Vega public API', () => {
     removePurchaseErrorListener: jest.fn(),
     getStorefront: jest.fn().mockResolvedValue('US'),
     verifyPurchaseWithProvider: jest.fn().mockResolvedValue({ok: true}),
+    verifyAppOwnership: jest.fn().mockResolvedValue(
+      JSON.stringify({status: 'unknown', reason: 'unsupported', storeId: 'amazon'}),
+    ),
     acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(true),
     consumePurchaseAndroid: jest.fn().mockResolvedValue(true),
   };
@@ -39,6 +42,15 @@ describe('Amazon Vega public API', () => {
 
   it('resolves null from the unified openRedeemOfferCode API', async () => {
     await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+  });
+
+  it('exposes inconclusive app ownership through the Vega entry', async () => {
+    await expect(IAP.verifyAppOwnership()).resolves.toEqual({
+      status: 'unknown',
+      reason: 'unsupported',
+      storeId: 'amazon',
+    });
+    expect(vegaModule.verifyAppOwnership).toHaveBeenCalledWith('{}');
   });
 
   it("uses the canonical 'in-app' product type", async () => {

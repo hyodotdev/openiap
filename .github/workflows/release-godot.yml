@@ -158,7 +158,8 @@ jobs:
       attestations: write # bind the published ZIP to this workflow run
       contents: write
       id-token: write
-    runs-on: macos-26
+    runs-on: xcode-27
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: libraries/godot-iap
@@ -174,12 +175,6 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "17"
-
-      - name: Setup Bun
-        if: ${{ inputs.version != 'current' }}
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.3.13
 
       - name: Configure Git
         run: |
@@ -264,12 +259,6 @@ jobs:
             echo "✓ Tag $RELEASE_TAG does not exist"
           fi
 
-      - name: Stage Godot dependency download helper
-        run: |
-          cp "$GITHUB_WORKSPACE/scripts/fetch-godot-lib.sh" \
-            "$RUNNER_TEMP/fetch-godot-lib.sh"
-          chmod +x "$RUNNER_TEMP/fetch-godot-lib.sh"
-
       - name: Verify current release tag provenance
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
         env:
@@ -290,28 +279,48 @@ jobs:
       - name: Verify selected iOS framework toolchain
         run: bash scripts/verify-ios-toolchain.sh
 
+      - name: Setup Bun
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
       - name: Update version in plugin.cfg
         if: ${{ inputs.version != 'current' }}
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: perl -0pi -e 's/^version=.*/version="$ENV{VERSION}"/m' addons/godot-iap/plugin.cfg
 
+      - name: Sync generated release metadata
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        run: '"$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"'
+
       - name: Sync OpenIAP versions
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
         run: |
           chmod +x scripts/sync-versions.sh
           ./scripts/sync-versions.sh
 
-      - name: Download godot-lib.aar
-        run: |
-          mkdir -p android/libs
-          bash "$RUNNER_TEMP/fetch-godot-lib.sh" \
-            4.3-stable android/libs/godot-lib.aar
-
       - name: Build Android AAR
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        run: make android GODOT_VERSION=4.3
+
+      - name: Build iOS and macOS frameworks
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        run: make ios macos GODOT_VERSION=4.3
+
+      - name: Verify rebuilt iOS framework toolchain
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        run: bash scripts/verify-ios-toolchain.sh
+
+      - name: Refresh prebuilt binary digests
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
+        working-directory: .
+        run: node scripts/audit-godot-binary-digests.mjs --write
+
+      - name: Verify selected prebuilt binary digests
+        working-directory: .
+        run: node scripts/audit-godot-binary-digests.mjs
 
       - name: Import Developer ID certificate
         if: ${{ inputs.notarize_macos }}
@@ -373,8 +382,8 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/generate-third-party-notices.mjs" \
             godot dist/addons/godot-iap/THIRD_PARTY_NOTICES.md
 
-          cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
-          cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.debug.aar
+          cp addons/godot-iap/android/GodotIap.release.aar dist/addons/godot-iap/android/
+          cp addons/godot-iap/android/GodotIap.debug.aar dist/addons/godot-iap/android/
 
           ./scripts/write-gdap.sh dist/addons/godot-iap/android/GodotIap.gdap
 
@@ -529,32 +538,18 @@ jobs:
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP"/AuthKey_*.p8
 
       - name: Commit version update and tag
-        if: ${{ inputs.version != 'current' }}
+        if: ${{ steps.check_tag.outputs.exists != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           gh auth setup-git
-          git add addons/godot-iap/plugin.cfg
-          "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(release): godot-iap@$VERSION"
-          fi
-          node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
-          git tag -a "godot-iap-$VERSION" -m "Release godot-iap-$VERSION"
-          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
-
-      - name: Create tag (current version)
-        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          gh auth setup-git
+          git add addons/godot-iap/plugin.cfg addons/godot-iap/android \
+            addons/godot-iap/bin prebuilt-binaries.sha256
+          git commit -m "chore(release): godot-iap@$VERSION" --allow-empty
           node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           RELEASE_TAG="godot-iap-$VERSION"
-          git commit --allow-empty -m "chore: recover release ref"
-          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Release $RELEASE_TAG"
+          git tag -a "$RELEASE_TAG" HEAD -m "Release $RELEASE_TAG"
           git push --atomic origin \
             "HEAD:refs/heads/$RELEASE_BRANCH" \
             "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"

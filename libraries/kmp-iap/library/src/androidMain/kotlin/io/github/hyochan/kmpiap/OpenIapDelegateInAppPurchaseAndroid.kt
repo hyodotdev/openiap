@@ -14,6 +14,8 @@ import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
+import io.github.hyochan.kmpiap.openiap.AppOwnershipVerificationResult
+import io.github.hyochan.kmpiap.openiap.VerifyAppOwnershipProps
 import io.github.hyochan.kmpiap.openiap.AppTransaction
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResultAndroid
@@ -351,6 +353,12 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     override suspend fun promotedProductIOS(): String = ""
     override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = null
     override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> = emptyList()
+    override suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps?): AppOwnershipVerificationResult =
+        withMappedOpenIapError {
+            val props = options?.let { dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(it.toJson()) }
+            AppOwnershipVerificationResult.fromJson(requireModule().verifyAppOwnership(props).toJson())
+        }
+
     override suspend fun getAppTransactionIOS(): AppTransaction? = null
     override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun getReceiptDataIOS(): String? = null

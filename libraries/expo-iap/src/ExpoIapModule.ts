@@ -50,6 +50,7 @@ export type ExpoIapNativeModule = NativeEventModule &
     | 'currentEntitlementIOS'
     | 'getActiveSubscriptions'
     | 'getAppTransactionIOS'
+    | 'verifyAppOwnership'
     | 'getBillingChoiceInfoAndroid'
     | 'getExternalPurchaseCustomLinkTokenIOS'
     | 'getPromotedProductIOS'

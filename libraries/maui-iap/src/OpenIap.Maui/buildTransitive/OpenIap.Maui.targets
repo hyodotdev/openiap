@@ -172,6 +172,8 @@
     </ItemGroup>
     <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'play'">
       <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
+      <AndroidMavenLibrary Include="com.google.android.play:integrity" Version="$(MauiPlayIntegrityVersion)" Repository="Google" Bind="false" />
+      <AndroidMavenLibrary Include="com.google.android.play:core-common" Version="$(MauiPlayCoreCommonVersion)" Repository="Google" Bind="false" />
       <!-- billing:9.1.0's POM dependencies. The package's own NuGet dependencies
            provide them, but the verifier only credits an app's direct references.
            When MauiPlayBillingVersion in OpenIap.Maui.props moves, re-pin this

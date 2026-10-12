@@ -38,21 +38,11 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"clientProtocol"` is a mirror of `specs/client/package.json`. A feature PR may
-set the manifest, run `bun install --lockfile-only --ignore-scripts` and then
-`./scripts/sync-release-generated.sh`, and commit `bun.lock` with the staged
-files, when the in-tree code needs the new Client Protocol version
-(`sync-versions.sh` alone skips the conformance behavior ids, which embed the
-protocol version); do not edit the mirror by hand.
-`"google"` and `"apple"` are CI-managed native package versions and do not
-constrain it. Release-state, docs, and parity audits reject drift between the
-mirror and the publishing manifest.
-
-**To bump Apple package version:**
-
-```bash
-./scripts/bump-version.sh [major|minor|patch|x.x.x]
-```
+`"clientProtocol"` mirrors `specs/client/package.json`; `"google"` and `"apple"`
+track the independent native releases. All version upgrades and generated
+version metadata are CI-only. Follow
+[Version File Management](./06-git-deployment.md#version-file-management);
+feature work changes the schema and release card, not package versions.
 
 ### Testing
 
@@ -121,6 +111,10 @@ swift build  # Verifies ObjC bridge compiles
 ---
 
 ## SDK Parity Checklist (CRITICAL — prevents "declared but not implemented")
+
+Design equivalent Apple and Android capabilities using the
+[shared contract rule](./02-architecture.md#cross-platform-capability-contracts)
+before wiring the SDKs below.
 
 ### API version annotations
 
@@ -566,10 +560,9 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema. A contract change may bump the Client Protocol
-   in `specs/client/package.json`; refresh `bun.lock` and run
-   `./scripts/sync-release-generated.sh` to mirror it (the audits reject
-   drift), then release with `version=current`.
+1. Update the canonical schema and record the intended Client Protocol version
+   in the release card. The CI release workflow owns the version upgrade and
+   generated version metadata.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash

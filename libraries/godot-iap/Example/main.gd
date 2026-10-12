@@ -1,5 +1,7 @@
 extends Node2D
 
+const Types = preload("res://addons/godot-iap/types.gd")
+
 @export var obstacle_scene: PackedScene
 
 var score: int = 0
@@ -21,10 +23,16 @@ var difficulty_timer: float = 0.0
 @onready var store_button: Button = $UI/StoreButton
 @onready var store_overlay: ColorRect = $UI/StoreOverlay
 @onready var store_panel: Panel = $UI/StorePanel
+@onready var store_contents: VBoxContainer = $UI/StorePanel/ScrollContainer/VBoxContainer
 @onready var loading_label: Label = $UI/LoadingLabel
 @onready var status_label: Label = $UI/StatusLabel
 
 var verification_picker: OptionButton
+var ownership_project_number: LineEdit
+var ownership_request_hash: LineEdit
+var ownership_result_label: Label
+var ownership_check_button: Button
+var ownership_checking: bool = false
 
 const VIEWPORT_WIDTH := 720
 const VIEWPORT_HEIGHT := 1280
@@ -57,7 +65,7 @@ func _ready() -> void:
 	store_panel.visible = false
 	loading_label.visible = IapManager.is_loading
 	status_label.text = "Connecting..." if IapManager.is_loading else "Not connected"
-	store_button.disabled = true
+	store_button.disabled = false
 	if IapManager.store_connected:
 		_on_connection_changed(true)
 
@@ -70,35 +78,37 @@ func _setup_store_panel() -> void:
 	if close_btn:
 		close_btn.pressed.connect(_on_store_close_pressed)
 
-	var buy_10_btn = store_panel.get_node_or_null("VBoxContainer/Buy10BulbsButton")
+	var buy_10_btn = store_contents.get_node_or_null("Buy10BulbsButton")
 	if buy_10_btn:
 		buy_10_btn.pressed.connect(_on_buy_10_bulbs_pressed)
 
-	var buy_30_btn = store_panel.get_node_or_null("VBoxContainer/Buy30BulbsButton")
+	var buy_30_btn = store_contents.get_node_or_null("Buy30BulbsButton")
 	if buy_30_btn:
 		buy_30_btn.pressed.connect(_on_buy_30_bulbs_pressed)
 
-	var buy_certified_btn = store_panel.get_node_or_null("VBoxContainer/BuyCertifiedButton")
+	var buy_certified_btn = store_contents.get_node_or_null("BuyCertifiedButton")
 	if buy_certified_btn:
 		buy_certified_btn.pressed.connect(_on_buy_certified_pressed)
 
-	var buy_premium_btn = store_panel.get_node_or_null("VBoxContainer/BuyPremiumButton")
+	var buy_premium_btn = store_contents.get_node_or_null("BuyPremiumButton")
 	if buy_premium_btn:
 		buy_premium_btn.pressed.connect(_on_buy_premium_pressed)
 
-	var buy_premium_year_btn = store_panel.get_node_or_null("VBoxContainer/BuyPremiumYearButton")
+	var buy_premium_year_btn = store_contents.get_node_or_null("BuyPremiumYearButton")
 	if buy_premium_year_btn:
 		buy_premium_year_btn.pressed.connect(_on_buy_premium_year_pressed)
 
-	var restore_btn = store_panel.get_node_or_null("VBoxContainer/RestoreButton")
+	var restore_btn = store_contents.get_node_or_null("RestoreButton")
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
 
 	_setup_verification_picker()
+	_setup_ownership_check()
+	_update_store_panel_buttons()
 
 
 func _setup_verification_picker() -> void:
-	var container = store_panel.get_node_or_null("VBoxContainer")
+	var container = store_contents
 	if container == null:
 		return
 
@@ -114,6 +124,77 @@ func _setup_verification_picker() -> void:
 
 	IapManager.verification_changed.connect(_on_verification_changed)
 	IapManager.verification_result.connect(_on_verification_result)
+
+
+func _setup_ownership_check() -> void:
+	store_contents.add_child(HSeparator.new())
+	var title := Label.new()
+	title.text = "App ownership"
+	title.add_theme_font_size_override("font_size", 24)
+	store_contents.add_child(title)
+	var description := Label.new()
+	description.text = "Google Play requires a linked Cloud project number and a request hash from your backend. Unknown is inconclusive; send evidence to your backend for verification."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	store_contents.add_child(description)
+	var project_label := Label.new()
+	project_label.text = "Google Cloud project number"
+	store_contents.add_child(project_label)
+	ownership_project_number = LineEdit.new()
+	ownership_project_number.custom_minimum_size.y = 40
+	store_contents.add_child(ownership_project_number)
+	var hash_label := Label.new()
+	hash_label.text = "Request hash"
+	store_contents.add_child(hash_label)
+	ownership_request_hash = LineEdit.new()
+	ownership_request_hash.custom_minimum_size.y = 40
+	store_contents.add_child(ownership_request_hash)
+	ownership_check_button = Button.new()
+	ownership_check_button.text = "Check app ownership"
+	ownership_check_button.custom_minimum_size.y = 50
+	ownership_check_button.pressed.connect(_on_check_ownership_pressed)
+	store_contents.add_child(ownership_check_button)
+	ownership_result_label = Label.new()
+	ownership_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	store_contents.add_child(ownership_result_label)
+	GodotIapPlugin.purchase_error.connect(_on_ownership_error)
+
+
+func _on_check_ownership_pressed() -> void:
+	var project_number := ownership_project_number.text.strip_edges()
+	var request_hash := ownership_request_hash.text.strip_edges()
+	if project_number.is_empty() != request_hash.is_empty():
+		ownership_result_label.text = "%s: Provide both Google inputs or leave both empty." % Types.ERROR_CODE_VALUES[Types.ErrorCode.DEVELOPER_ERROR]
+		return
+	var options := Types.VerifyAppOwnershipProps.new()
+	if not project_number.is_empty():
+		options.google = Types.PlayIntegrityParamsAndroid.new()
+		options.google.cloud_project_number = project_number
+		options.google.request_hash = request_hash
+	ownership_checking = true
+	ownership_check_button.disabled = true
+	ownership_project_number.editable = false
+	ownership_request_hash.editable = false
+	ownership_result_label.text = "Checking…"
+	var result: Types.AppOwnershipVerificationResult = await GodotIapPlugin.verify_app_ownership(options)
+	ownership_checking = false
+	ownership_check_button.disabled = false
+	ownership_project_number.editable = true
+	ownership_request_hash.editable = true
+	if result == null:
+		if ownership_result_label.text == "Checking…":
+			ownership_result_label.text = "App ownership verification failed"
+		return
+	var reason := "none" if result.reason == null else String(Types.APP_OWNERSHIP_VERIFICATION_REASON_VALUES.get(result.reason, "unknown"))
+	var signed_length := 0 if result.signed_app_transaction_ios == null else String(result.signed_app_transaction_ios).length()
+	var integrity_length := 0 if result.integrity_token_android == null else String(result.integrity_token_android).length()
+	ownership_result_label.text = "Status: %s\nStore ID: %s\nReason: %s\nSigned AppTransaction length: %d\nIntegrity token length: %d" % [
+		Types.APP_OWNERSHIP_STATUS_VALUES[result.status], result.store_id, reason, signed_length, integrity_length
+	]
+
+
+func _on_ownership_error(error: Dictionary) -> void:
+	if ownership_checking and error.get("method") == "verifyAppOwnership":
+		ownership_result_label.text = "%s: %s" % [error.get("code", "service-error"), error.get("message", "App ownership verification failed")]
 
 
 func _on_verification_selected(index: int) -> void:
@@ -203,9 +284,6 @@ func _on_restart_pressed() -> void:
 
 
 func _on_store_button_pressed() -> void:
-	if not IapManager.store_connected:
-		status_label.text = "Store not connected"
-		return
 	store_overlay.visible = true
 	store_panel.visible = true
 	player.ui_blocking = true
@@ -277,11 +355,10 @@ func _on_products_loaded() -> void:
 func _on_connection_changed(connected: bool) -> void:
 	if connected:
 		status_label.text = "Connected"
-		store_button.disabled = false
 		IapManager.reconcile_subscription_entitlements()
 	else:
 		status_label.text = "Not connected"
-		store_button.disabled = true
+	_update_store_panel_buttons()
 
 
 func _on_loading_changed(loading: bool) -> void:
@@ -314,17 +391,20 @@ func update_ui() -> void:
 
 
 func _update_store_panel_buttons() -> void:
-	_update_button_text("VBoxContainer/Buy10BulbsButton", IapManager.PRODUCT_10_BULBS, "10 Bulbs")
-	_update_button_text("VBoxContainer/Buy30BulbsButton", IapManager.PRODUCT_30_BULBS, "30 Bulbs")
-	_update_button_text("VBoxContainer/BuyCertifiedButton", IapManager.PRODUCT_CERTIFIED, "Certified")
-	_update_button_text("VBoxContainer/BuyPremiumButton", IapManager.PRODUCT_PREMIUM, "Premium")
-	_update_button_text("VBoxContainer/BuyPremiumYearButton", IapManager.PRODUCT_PREMIUM_YEAR, "Premium Year")
+	_update_button_text("Buy10BulbsButton", IapManager.PRODUCT_10_BULBS, "10 Bulbs")
+	_update_button_text("Buy30BulbsButton", IapManager.PRODUCT_30_BULBS, "30 Bulbs")
+	_update_button_text("BuyCertifiedButton", IapManager.PRODUCT_CERTIFIED, "Certified")
+	_update_button_text("BuyPremiumButton", IapManager.PRODUCT_PREMIUM, "Premium")
+	_update_button_text("BuyPremiumYearButton", IapManager.PRODUCT_PREMIUM_YEAR, "Premium Year")
+	store_contents.get_node("RestoreButton").disabled = not IapManager.store_connected
+	verification_picker.disabled = not IapManager.store_connected
 
 
 func _update_button_text(button_path: String, product_id: String, fallback: String) -> void:
-	var button = store_panel.get_node_or_null(button_path)
+	var button = store_contents.get_node_or_null(button_path)
 	if button == null:
 		return
+	button.disabled = not IapManager.store_connected
 	if IapManager.products.has(product_id):
 		var product = IapManager.products[product_id]
 		var title = product.get("title", fallback) if product is Dictionary else product.title

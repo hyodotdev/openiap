@@ -504,6 +504,14 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return InvokeBool(cb => _module.CanPresentExternalPurchaseNoticeIOS(cb));
     }
 
+    public Task<AppOwnershipVerificationResult> VerifyAppOwnershipAsync(VerifyAppOwnershipProps? options = null)
+    {
+        var node = JsonSerializer.SerializeToNode(options ?? new VerifyAppOwnershipProps(), JsonOptions.Default) as JsonObject
+            ?? throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "Invalid app ownership verification options");
+        var payload = NSObjectJsonBridge.JsonObjectToDictionary(node);
+        return InvokeDict<AppOwnershipVerificationResult>(cb => _module.VerifyAppOwnership(payload, cb), required: true)!;
+    }
+
     public Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku) => InvokeDict<PurchaseIOS>(cb => _module.CurrentEntitlementIOS(sku, cb));
     public Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.GetAllTransactionsIOS(cb), required: true, operation: "getAllTransactionsIOS");
 

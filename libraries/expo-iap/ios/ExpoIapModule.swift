@@ -223,6 +223,22 @@ public final class ExpoIapModule: Module {
             return receipt
         }
 
+        AsyncFunction("verifyAppOwnership") { (params: [String: Any]) async throws -> [String: Any] in
+            do {
+                let options = try OpenIapSerialization.decode(object: params, as: VerifyAppOwnershipProps.self)
+                let result = try await OpenIapModule.shared.verifyAppOwnership(options)
+                return ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
+            } catch let error as CancellationError {
+                throw error
+            } catch is DecodingError {
+                throw IapException.from(PurchaseError.make(code: .developerError, message: "Invalid app ownership options"))
+            } catch let error as PurchaseError {
+                throw IapException.from(error)
+            } catch {
+                throw IapException.from(PurchaseError.make(code: .serviceError, message: error.localizedDescription))
+            }
+        }
+
         AsyncFunction("verifyPurchase") { (params: [String: Any]) async throws -> [String: Any] in
             ExpoIapLog.payload(
                 "verifyPurchase",

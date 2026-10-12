@@ -30,6 +30,22 @@ private func resolveStoreId(_ store: IapStore, _ value: String?) -> String? {
 
 // MARK: - Enums
 
+/// App acquisition verdict; unknown means no trustworthy decision is available.
+public enum AppOwnershipStatus: String, Codable, CaseIterable {
+    case licensed = "licensed"
+    case unlicensed = "unlicensed"
+    case unknown = "unknown"
+}
+
+/// Why the ownership check is inconclusive.
+public enum AppOwnershipVerificationReason: String, Codable, CaseIterable {
+    case backendVerificationRequired = "backend-verification-required"
+    case verificationFailed = "verification-failed"
+    case networkError = "network-error"
+    case serviceError = "service-error"
+    case unsupported = "unsupported"
+}
+
 /// Play Billing choice image layout (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public enum BillingChoiceImageLayoutAndroid: String, Codable, CaseIterable {
@@ -700,6 +716,34 @@ public struct AdvancedCommerceRefundIOS: Codable {
         jsonRepresentation: String? = nil
     ) {
         self.jsonRepresentation = jsonRepresentation
+    }
+}
+
+/// App acquisition evidence; unknown must never be treated as unlicensed.
+public struct AppOwnershipVerificationResult: Codable {
+    public var appTransactionIOS: AppTransaction? = nil
+    /// Encrypted Play Integrity evidence; collecting it does not grant a license.
+    public var integrityTokenAndroid: String? = nil
+    public var reason: AppOwnershipVerificationReason? = nil
+    /// Signed AppTransaction evidence for Apple backend verification.
+    public var signedAppTransactionIOS: String? = nil
+    public var status: AppOwnershipStatus
+    public var storeId: String
+
+    public init(
+        appTransactionIOS: AppTransaction? = nil,
+        integrityTokenAndroid: String? = nil,
+        reason: AppOwnershipVerificationReason? = nil,
+        signedAppTransactionIOS: String? = nil,
+        status: AppOwnershipStatus,
+        storeId: String
+    ) {
+        self.appTransactionIOS = appTransactionIOS
+        self.integrityTokenAndroid = integrityTokenAndroid
+        self.reason = reason
+        self.signedAppTransactionIOS = signedAppTransactionIOS
+        self.status = status
+        self.storeId = storeId
     }
 }
 
@@ -2825,6 +2869,22 @@ public struct LaunchExternalLinkParamsAndroid: Codable {
     }
 }
 
+/// Standard Play Integrity request bound to a backend challenge.
+public struct PlayIntegrityParamsAndroid: Codable {
+    /// Google Cloud project number as decimal text, not the project ID.
+    public var cloudProjectNumber: String
+    /// Hash of the server challenge and request data; at most 500 UTF-8 bytes.
+    public var requestHash: String
+
+    public init(
+        cloudProjectNumber: String,
+        requestHash: String
+    ) {
+        self.cloudProjectNumber = cloudProjectNumber
+        self.requestHash = requestHash
+    }
+}
+
 public struct ProductRequest: Codable {
     public var skus: [String]
     public var type: ProductQueryType?
@@ -3312,6 +3372,16 @@ public struct SubscriptionProductReplacementParamsAndroid: Codable {
     ) {
         self.oldProductId = oldProductId
         self.replacementMode = replacementMode
+    }
+}
+
+public struct VerifyAppOwnershipProps: Codable {
+    public var google: PlayIntegrityParamsAndroid?
+
+    public init(
+        google: PlayIntegrityParamsAndroid? = nil
+    ) {
+        self.google = google
     }
 }
 
@@ -3967,6 +4037,17 @@ public protocol QueryResolver {
     /// Get subscription status objects from StoreKit 2 (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
     func subscriptionStatusIOS(_ sku: String) async throws -> [SubscriptionStatusIOS]
+    /// Verify app acquisition independently of in-app purchases.
+    /// An integrity token requires backend verification; it is not a license verdict.
+    /// Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+    /// See: https://openiap.dev/docs/apis/verify-app-ownership
+    func verifyAppOwnership(_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult
+}
+
+public extension QueryResolver {
+    func verifyAppOwnership(_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult {
+        throw CocoaError(.featureUnsupported)
+    }
 }
 
 /// GraphQL root subscription operations.
@@ -4135,6 +4216,7 @@ public typealias QueryIsEligibleForIntroOfferIOSHandler = (_ groupID: String) as
 public typealias QueryIsTransactionVerifiedIOSHandler = (_ sku: String) async throws -> Bool
 public typealias QueryLatestTransactionIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = (_ sku: String) async throws -> [SubscriptionStatusIOS]
+public typealias QueryVerifyAppOwnershipHandler = (_ options: VerifyAppOwnershipProps?) async throws -> AppOwnershipVerificationResult
 
 public struct QueryHandlers {
     public var canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler?
@@ -4157,6 +4239,7 @@ public struct QueryHandlers {
     public var isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler?
     public var latestTransactionIOS: QueryLatestTransactionIOSHandler?
     public var subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler?
+    public var verifyAppOwnership: QueryVerifyAppOwnershipHandler?
 
     public init(
         canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = nil,
@@ -4178,7 +4261,8 @@ public struct QueryHandlers {
         isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = nil,
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = nil,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = nil,
-        subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil
+        subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil,
+        verifyAppOwnership: QueryVerifyAppOwnershipHandler? = nil
     ) {
         self.canPresentExternalPurchaseNoticeIOS = canPresentExternalPurchaseNoticeIOS
         self.currentEntitlementIOS = currentEntitlementIOS
@@ -4200,6 +4284,7 @@ public struct QueryHandlers {
         self.isTransactionVerifiedIOS = isTransactionVerifiedIOS
         self.latestTransactionIOS = latestTransactionIOS
         self.subscriptionStatusIOS = subscriptionStatusIOS
+        self.verifyAppOwnership = verifyAppOwnership
     }
 }
 

@@ -35,6 +35,8 @@ import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.PlayIntegrityParamsAndroid
+import io.github.hyochan.kmpiap.openiap.VerifyAppOwnershipProps
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -79,6 +81,10 @@ fun PurchaseFlowScreen(navController: NavController) {
     var purchaseResult by remember { mutableStateOf<String?>(null) }
     var catalogResult by remember { mutableStateOf<String?>(null) }
     var initError by remember { mutableStateOf<String?>(null) }
+    var ownershipCloudProjectNumber by remember { mutableStateOf("") }
+    var ownershipRequestHash by remember { mutableStateOf("") }
+    var ownershipResult by remember { mutableStateOf<String?>(null) }
+    var isCheckingOwnership by remember { mutableStateOf(false) }
 
     var connected by remember { mutableStateOf(false) }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
@@ -563,6 +569,83 @@ fun PurchaseFlowScreen(navController: NavController) {
                 }
             }
             
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("App ownership", fontWeight = FontWeight.Bold, color = AppColors.OnSurface)
+                    Text(
+                        "Google Play requires a linked Cloud project number and a request hash from your backend. Unknown is inconclusive; send evidence to your backend for verification.",
+                        fontSize = 12.sp,
+                        color = AppColors.Secondary
+                    )
+                    OutlinedTextField(
+                        value = ownershipCloudProjectNumber,
+                        onValueChange = { ownershipCloudProjectNumber = it },
+                        enabled = !isCheckingOwnership,
+                        label = { Text("Google Cloud project number") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = ownershipRequestHash,
+                        onValueChange = { ownershipRequestHash = it },
+                        enabled = !isCheckingOwnership,
+                        label = { Text("Request hash") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        enabled = connected && !isCheckingOwnership,
+                        onClick = {
+                            val projectNumber = ownershipCloudProjectNumber.trim()
+                            val requestHash = ownershipRequestHash.trim()
+                            if (projectNumber.isEmpty() != requestHash.isEmpty()) {
+                                ownershipResult = "Error: ${ErrorCode.DeveloperError.rawValue}\nEnter both Google Cloud project number and Request hash, or leave both empty."
+                            } else {
+                                val google = if (projectNumber.isEmpty()) null else PlayIntegrityParamsAndroid(
+                                    cloudProjectNumber = projectNumber,
+                                    requestHash = requestHash
+                                )
+                                isCheckingOwnership = true
+                                ownershipResult = null
+                                scope.launch {
+                                    try {
+                                        val result = kmpIapInstance.verifyAppOwnership(VerifyAppOwnershipProps(google = google))
+                                        ownershipResult = """
+                                            Status: ${result.status.rawValue}
+                                            Store ID: ${result.storeId}
+                                            Reason: ${result.reason?.rawValue ?: "none"}
+                                            Signed AppTransaction length: ${result.signedAppTransactionIOS?.length ?: 0}
+                                            Integrity token length: ${result.integrityTokenAndroid?.length ?: 0}
+                                        """.trimIndent()
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: PurchaseException) {
+                                        ownershipResult = "Error: ${error.error.code.rawValue}\n${error.message}"
+                                    } catch (error: Exception) {
+                                        ownershipResult = "App ownership failed: ${error.message}"
+                                    } finally {
+                                        isCheckingOwnership = false
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Text(if (isCheckingOwnership) "Checking..." else "Check app ownership")
+                    }
+                    ownershipResult?.let {
+                        Text(it, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = AppColors.OnSurface)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Purchase Result
             purchaseResult?.let { result ->
                 Spacer(modifier = Modifier.height(20.dp))

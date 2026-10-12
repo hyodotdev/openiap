@@ -65,7 +65,7 @@ with_device() {
     export "FAKE_ADB_${serial}_MANUFACTURER=$manufacturer"
 }
 
-play="play:billing"
+play="play:billing,core-common,integrity"
 horizon="horizon:core-kotlin,horizon-billing-compatibility,iap-kotlin,user-age-category-kotlin"
 amazon="amazon:amazon-appstore-sdk"
 link=_OpenIapLinkAndroidStore

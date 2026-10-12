@@ -265,6 +265,17 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
+                <Link to="/docs/apis/verify-app-ownership">
+                  <code>verifyAppOwnership</code>
+                </Link>
+              </td>
+              <td>
+                Verify ownership of the app download separately from in-app
+                purchases.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <Link to="/docs/apis/get-storefront">
                   <code>getStorefront</code>
                 </Link>

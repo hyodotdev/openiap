@@ -73,6 +73,8 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResult
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchase
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
+import io.github.hyochan.kmpiap.openiap.AppOwnershipVerificationResult
+import io.github.hyochan.kmpiap.openiap.VerifyAppOwnershipProps
 import io.github.hyochan.kmpiap.openiap.AppTransaction
 import io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseInput
@@ -1539,6 +1541,18 @@ internal class InAppPurchaseAndroid(
      */
     override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = null
 
+    override suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps?): AppOwnershipVerificationResult {
+        val ctx = context ?: applicationContextProvider()?.applicationContext
+            ?: throw PurchaseException(PurchaseError(code = ErrorCode.NotPrepared, message = "Initialize the Android application context before verifying app ownership"))
+        try {
+            val provider = dev.hyo.openiap.OpenIapProvider.create(ctx)
+            val props = options?.let { dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(it.toJson()) }
+            return AppOwnershipVerificationResult.fromJson(provider.verifyAppOwnership(props).toJson())
+        } catch (error: dev.hyo.openiap.OpenIapError) {
+            throw PurchaseException(PurchaseError(code = ErrorCode.fromJson(error.code), message = error.message))
+        }
+    }
+
     /**
      * Fetch the app transaction (iOS 16+).
      *
@@ -1964,6 +1978,7 @@ internal class InAppPurchaseAndroid(
     // ---------------------------------------------------------------------
     val queryHandlers: QueryHandlers by lazy {
         QueryHandlers(
+            verifyAppOwnership = { options -> verifyAppOwnership(options) },
             fetchProducts = fetchProductsHandler,
             getAvailablePurchases = getAvailablePurchasesHandler,
             getActiveSubscriptions = getActiveSubscriptionsHandler,

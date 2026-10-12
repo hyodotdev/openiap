@@ -28,6 +28,12 @@ interface OpenIapProtocol {
     val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler
 
     val queryHandlers: QueryHandlers
+
+    val verifyAppOwnership: QueryVerifyAppOwnershipHandler
+        get() = { options ->
+            queryHandlers.verifyAppOwnership?.invoke(options)
+                ?: throw OpenIapError.FeatureNotSupported("App ownership verification is unavailable for this provider")
+        }
     val mutationHandlers: MutationHandlers
     val subscriptionHandlers: SubscriptionHandlers
 

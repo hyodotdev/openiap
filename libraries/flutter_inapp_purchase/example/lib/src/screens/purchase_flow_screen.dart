@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import '../widgets/product_detail_modal.dart';
+import '../widgets/app_ownership_card.dart';
 import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
@@ -1105,6 +1106,8 @@ ${purchases.map((p) => '- ${p.productId}: credential ${p.purchaseToken?.isNotEmp
                       ),
                     ),
                   ),
+                const SizedBox(height: 16),
+                AppOwnershipCard(iap: _iap, connected: _connected),
               ],
             ),
     );

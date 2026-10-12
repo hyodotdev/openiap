@@ -35,6 +35,30 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const APP_OWNERSHIP_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.0.1',
+    tag: 'openiap-client-protocol-1.0.1',
+  },
+  { name: 'openiap-apple', version: '4.0.1', tag: '4.0.1' },
+  { name: 'openiap-google', version: '4.0.1', tag: 'google-4.0.1' },
+  {
+    name: 'react-native-iap',
+    version: '17.0.1',
+    tag: 'react-native-iap-17.0.1',
+  },
+  { name: 'expo-iap', version: '6.0.1', tag: 'expo-iap-6.0.1' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.1',
+    tag: 'flutter-iap-11.0.1',
+  },
+  { name: 'godot-iap', version: '4.0.1', tag: 'godot-iap-4.0.1' },
+  { name: 'kmp-iap', version: '4.0.1', tag: 'kmp-iap-4.0.1' },
+  { name: 'OpenIap.Maui', version: '3.0.1', tag: 'maui-iap-3.0.1' },
+];
+
 const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   {
     name: '@hyodotdev/openiap',
@@ -71,10 +95,6 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'react-native-iap-16.6.2',
   },
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
-];
-
-const GODOT_VERIFIED_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
-  { name: 'godot-iap', version: '4.0.1', tag: 'godot-iap-4.0.1' },
 ];
 
 const GODOT_RESTORE_EXPORT_NOTE_ID = 'godot-restore-export-2026-10-08';
@@ -521,57 +541,138 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-      id: 'godot-verified-recovery-2026-10-10',
-      aliases: GODOT_VERIFIED_RECOVERY_RELEASES.map((release) => release.tag),
-      date: new Date('2026-10-10'),
+      id: 'app-ownership-2026-10-12',
+      aliases: APP_OWNERSHIP_RELEASES.map((release) => release.tag).concat(
+        'godot-verified-recovery-2026-10-10'
+      ),
+      date: new Date('2026-10-12'),
       element: (
-        <div key="godot-verified-recovery-2026-10-10" style={noteCardStyle}>
-          {GODOT_VERIFIED_RECOVERY_RELEASES.map((release) => (
+        <div key="app-ownership-2026-10-12" style={noteCardStyle}>
+          <span id="godot-verified-recovery-2026-10-10" aria-hidden="true" />
+          {APP_OWNERSHIP_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
-          <AnchorLink id="godot-verified-recovery-2026-10-10" level="h4">
-            October 10, 2026 - Verified purchase recovery on macOS
+          <AnchorLink id="app-ownership-2026-10-12" level="h4">
+            October 12, 2026 - App ownership and verified purchase recovery
           </AnchorLink>
           <p>
-            <strong>godot-iap 4.0.1</strong> returns verified unfinished Apple
-            transactions on macOS through{' '}
-            <code>get_pending_transactions_ios()</code>, so apps can match
-            receipts before finishing. Godot projects preserve configured
-            autoloads during import, and the Martie examples retain receipts
-            until verification succeeds and show unavailable subscription
-            products.
+            Verify app acquisition separately from in-app purchases through{' '}
+            <Link to="/docs/apis/verify-app-ownership">verifyAppOwnership</Link>
+            .
+          </p>
+          <h5>Common changes</h5>
+          <p>
+            All six SDKs expose one acquisition contract. Inconclusive checks
+            remain unknown. The eight native and framework examples share an app
+            ownership check and safe result summary.
+          </p>
+          <ul>
+            <li>
+              Martie examples retain receipts until verification succeeds and
+              show unavailable subscription products.
+            </li>
+            <li>
+              IAPKit returns Apple's verified transaction environment for
+              matching receipts before finishing them. See the{' '}
+              <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-05">
+                hosted history
+              </a>
+              .
+            </li>
+          </ul>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.0.1</strong> adds the common ownership
+              status and platform evidence contract.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.1</strong> verifies AppTransaction and
+              returns signed evidence. Local revocation checks require an Xcode
+              27 build.
+            </li>
+            <li>
+              <strong>openiap-google 4.0.1</strong> collects a Play Integrity
+              token; your backend decides whether the acquisition is licensed.
+            </li>
+          </ul>
+          <h5>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>godot-iap 4.0.1</strong>
+              <ul>
+                <li>
+                  Ships Xcode 27 frameworks with verified iOS 27{' '}
+                  <Link to="/docs/apis/open-redeem-offer-code">
+                    offer-code purchase results
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/docs/types/ios/subscription-status-ios">
+                    StoreKit subscription metadata
+                  </Link>
+                  .
+                </li>
+                <li>
+                  Returns verified unfinished Apple transactions on macOS
+                  through{' '}
+                  <Link to="/docs/apis/ios/get-pending-transactions-ios">
+                    get_pending_transactions_ios
+                  </Link>{' '}
+                  and preserves configured autoloads during import.
+                </li>
+                <li>
+                  Retries unfinished purchases when you reselect the
+                  verification method, keeps results visible during refreshes,
+                  and wraps long messages.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>kmp-iap 4.0.1</strong> retries received receipts when
+              purchase queries omit them and keeps results visible while
+              products load.
+            </li>
+            <li>
+              <strong>maui-iap 3.0.1</strong> retries unfinished purchases when
+              you reselect the verification method.
+            </li>
+            <li>
+              <strong>react-native-iap 17.0.1</strong> and{' '}
+              <strong>expo-iap 6.0.1</strong> Vega example builds include their
+              Amazon tester catalog.
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
+          <p>
+            Rebuild the native app after upgrading. For Google Play, enable Play
+            Integrity on the linked Cloud project and bind requests to a backend
+            challenge. Verify evidence on your authenticated server and define
+            an offline grace policy.
           </p>
           <p>
-            IAPKit returns Apple's verified transaction environment so examples
-            can check it alongside the product and purchase state before
-            finishing a receipt.
+            <strong>Breaking change:</strong> Custom Dart classes using{' '}
+            <code>implements QueryResolver</code> must add{' '}
+            <code>verifyAppOwnership</code>; classes extending it inherit an
+            unsupported default.
           </p>
           <p>
-            KMP purchase and subscription examples retry received receipts when
-            ownership queries omit them and keep purchase results visible while
-            products load. Select the verification method again to retry while
-            the screen remains open.
-          </p>
-          <p>
-            Godot and MAUI examples let you choose the verification method
-            directly and select it again to retry unfinished purchases. Godot
-            keeps verification results visible while subscriptions refresh and
-            wraps long messages within the screen.
-          </p>
-          <p>
-            See the{' '}
-            <Link to="/docs/apis/ios/get-pending-transactions-ios">
-              pending transaction guide
-            </Link>{' '}
-            and{' '}
+            See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/524"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #524
+            </a>{' '}
+            for app ownership and{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/520"
               target="_blank"
               rel="noopener noreferrer"
             >
               PR #520
-            </a>
-            .
+            </a>{' '}
+            for the purchase recovery changes.
           </p>
           <div
             style={{
@@ -582,15 +683,17 @@ function Releases() {
           >
             <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-              <li>
-                <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-4.0.1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  godot-iap v4.0.1
-                </a>
-              </li>
+              {APP_OWNERSHIP_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

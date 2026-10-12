@@ -31,6 +31,86 @@ String _resolveStoreId(IapStore store, dynamic value) {
 
 // MARK: - Enums
 
+/// App acquisition verdict; unknown means no trustworthy decision is available.
+enum AppOwnershipStatus {
+  Licensed('licensed'),
+  Unlicensed('unlicensed'),
+  Unknown('unknown');
+
+  const AppOwnershipStatus(this.value);
+  final String value;
+
+  static AppOwnershipStatus? _fromKnownJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'licensed':
+        return AppOwnershipStatus.Licensed;
+      case 'unlicensed':
+        return AppOwnershipStatus.Unlicensed;
+      case 'unknown':
+        return AppOwnershipStatus.Unknown;
+    }
+    return null;
+  }
+
+  factory AppOwnershipStatus.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return AppOwnershipStatus.Unknown;
+  }
+
+  factory AppOwnershipStatus.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown AppOwnershipStatus input value: $value');
+  }
+
+  String toJson() => value;
+}
+
+/// Why the ownership check is inconclusive.
+enum AppOwnershipVerificationReason {
+  BackendVerificationRequired('backend-verification-required'),
+  VerificationFailed('verification-failed'),
+  NetworkError('network-error'),
+  ServiceError('service-error'),
+  Unsupported('unsupported');
+
+  const AppOwnershipVerificationReason(this.value);
+  final String value;
+
+  static AppOwnershipVerificationReason? _fromKnownJson(String value) {
+    final normalized = value.toLowerCase().replaceAll('_', '-');
+    switch (normalized) {
+      case 'backend-verification-required':
+        return AppOwnershipVerificationReason.BackendVerificationRequired;
+      case 'verification-failed':
+        return AppOwnershipVerificationReason.VerificationFailed;
+      case 'network-error':
+        return AppOwnershipVerificationReason.NetworkError;
+      case 'service-error':
+        return AppOwnershipVerificationReason.ServiceError;
+      case 'unsupported':
+        return AppOwnershipVerificationReason.Unsupported;
+    }
+    return null;
+  }
+
+  factory AppOwnershipVerificationReason.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown AppOwnershipVerificationReason value: $value');
+  }
+
+  factory AppOwnershipVerificationReason.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown AppOwnershipVerificationReason input value: $value');
+  }
+
+  String toJson() => value;
+}
+
 /// Play Billing choice image layout (Android)
 /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceImageLayoutAndroid {
@@ -1787,6 +1867,50 @@ class AdvancedCommerceRefundIOS {
     return {
       '__typename': 'AdvancedCommerceRefundIOS',
       'jsonRepresentation': jsonRepresentation,
+    };
+  }
+}
+
+/// App acquisition evidence; unknown must never be treated as unlicensed.
+class AppOwnershipVerificationResult {
+  const AppOwnershipVerificationResult({
+    this.appTransactionIOS,
+    this.integrityTokenAndroid,
+    this.reason,
+    this.signedAppTransactionIOS,
+    required this.status,
+    required this.storeId,
+  });
+
+  final AppTransaction? appTransactionIOS;
+  /// Encrypted Play Integrity evidence; collecting it does not grant a license.
+  final String? integrityTokenAndroid;
+  final AppOwnershipVerificationReason? reason;
+  /// Signed AppTransaction evidence for Apple backend verification.
+  final String? signedAppTransactionIOS;
+  final AppOwnershipStatus status;
+  final String storeId;
+
+  factory AppOwnershipVerificationResult.fromJson(Map<String, dynamic> json) {
+    return AppOwnershipVerificationResult(
+      appTransactionIOS: json['appTransactionIOS'] != null ? AppTransaction.fromJson(json['appTransactionIOS'] as Map<String, dynamic>) : null,
+      integrityTokenAndroid: json['integrityTokenAndroid'] as String?,
+      reason: json['reason'] != null ? AppOwnershipVerificationReason.fromJson(json['reason'] as String) : null,
+      signedAppTransactionIOS: json['signedAppTransactionIOS'] as String?,
+      status: AppOwnershipStatus.fromJson(json['status'] as String),
+      storeId: json['storeId'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'AppOwnershipVerificationResult',
+      'appTransactionIOS': appTransactionIOS?.toJson(),
+      'integrityTokenAndroid': integrityTokenAndroid,
+      'reason': reason?.toJson(),
+      'signedAppTransactionIOS': signedAppTransactionIOS,
+      'status': status.toJson(),
+      'storeId': storeId,
     };
   }
 }
@@ -4814,6 +4938,33 @@ class LaunchExternalLinkParamsAndroid {
   }
 }
 
+/// Standard Play Integrity request bound to a backend challenge.
+class PlayIntegrityParamsAndroid {
+  const PlayIntegrityParamsAndroid({
+    required this.cloudProjectNumber,
+    required this.requestHash,
+  });
+
+  /// Google Cloud project number as decimal text, not the project ID.
+  final String cloudProjectNumber;
+  /// Hash of the server challenge and request data; at most 500 UTF-8 bytes.
+  final String requestHash;
+
+  factory PlayIntegrityParamsAndroid.fromJson(Map<String, dynamic> json) {
+    return PlayIntegrityParamsAndroid(
+      cloudProjectNumber: json['cloudProjectNumber'] as String,
+      requestHash: json['requestHash'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'cloudProjectNumber': cloudProjectNumber,
+      'requestHash': requestHash,
+    };
+  }
+}
+
 class ProductRequest {
   const ProductRequest({
     required this.skus,
@@ -5491,6 +5642,26 @@ class SubscriptionProductReplacementParamsAndroid {
   }
 }
 
+class VerifyAppOwnershipProps {
+  const VerifyAppOwnershipProps({
+    this.google,
+  });
+
+  final PlayIntegrityParamsAndroid? google;
+
+  factory VerifyAppOwnershipProps.fromJson(Map<String, dynamic> json) {
+    return VerifyAppOwnershipProps(
+      google: json['google'] != null ? PlayIntegrityParamsAndroid.fromJson(json['google'] as Map<String, dynamic>) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'google': google?.toJson(),
+    };
+  }
+}
+
 /// Apple App Store verification parameters.
 /// Used for server-side receipt validation via App Store Server API.
 class VerifyPurchaseAppleOptions {
@@ -6112,6 +6283,13 @@ abstract class QueryResolver {
   /// Get subscription status objects from StoreKit 2 (iOS 15+).
   /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
   Future<List<SubscriptionStatusIOS>> subscriptionStatusIOS(String sku);
+  /// Verify app acquisition independently of in-app purchases.
+  /// An integrity token requires backend verification; it is not a license verdict.
+  /// Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+  /// See: https://openiap.dev/docs/apis/verify-app-ownership
+  Future<AppOwnershipVerificationResult> verifyAppOwnership({
+    PlayIntegrityParamsAndroid? google,
+  }) => Future.error(UnsupportedError('verifyAppOwnership is not supported by this resolver'));
 }
 
 /// GraphQL root subscription operations.
@@ -6299,6 +6477,9 @@ typedef QueryIsEligibleForIntroOfferIOSHandler = Future<bool> Function(String gr
 typedef QueryIsTransactionVerifiedIOSHandler = Future<bool> Function(String sku);
 typedef QueryLatestTransactionIOSHandler = Future<PurchaseIOS?> Function(String sku);
 typedef QuerySubscriptionStatusIOSHandler = Future<List<SubscriptionStatusIOS>> Function(String sku);
+typedef QueryVerifyAppOwnershipHandler = Future<AppOwnershipVerificationResult> Function({
+  PlayIntegrityParamsAndroid? google,
+});
 
 class QueryHandlers {
   const QueryHandlers({
@@ -6322,6 +6503,7 @@ class QueryHandlers {
     this.isTransactionVerifiedIOS,
     this.latestTransactionIOS,
     this.subscriptionStatusIOS,
+    this.verifyAppOwnership,
   });
 
   final QueryCanPresentExternalPurchaseNoticeIOSHandler? canPresentExternalPurchaseNoticeIOS;
@@ -6344,6 +6526,7 @@ class QueryHandlers {
   final QueryIsTransactionVerifiedIOSHandler? isTransactionVerifiedIOS;
   final QueryLatestTransactionIOSHandler? latestTransactionIOS;
   final QuerySubscriptionStatusIOSHandler? subscriptionStatusIOS;
+  final QueryVerifyAppOwnershipHandler? verifyAppOwnership;
 }
 
 // MARK: - Subscription Helpers

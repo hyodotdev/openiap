@@ -53,9 +53,7 @@ else
     exit 1
 fi
 
-# Keep the checked-in plist when rebuilding an existing framework. Xcode writes
-# machine- and SDK-specific metadata into generated plists even when the bundle
-# contract is unchanged, which otherwise creates unrelated binary churn.
+# Preserve the bundle contract while refreshing actual build provenance.
 PRESERVED_INFO_PLIST=""
 cleanup() {
     if [ -n "$PRESERVED_INFO_PLIST" ]; then
@@ -82,6 +80,23 @@ else
     cp "$SOURCE_INFO_PLIST" "$DESTINATION_FRAMEWORK/Info.plist"
     plutil -convert xml1 "$DESTINATION_FRAMEWORK/Info.plist"
 fi
+
+python3 - "$SOURCE_INFO_PLIST" "$DESTINATION_FRAMEWORK/Info.plist" <<'PY'
+import plistlib
+import sys
+from pathlib import Path
+
+source_path, destination_path = map(Path, sys.argv[1:])
+source = plistlib.loads(source_path.read_bytes())
+destination = plistlib.loads(destination_path.read_bytes())
+
+def build_key(key):
+    return key == "BuildMachineOSBuild" or key.startswith("DT")
+
+destination = {key: value for key, value in destination.items() if not build_key(key)}
+destination.update({key: value for key, value in source.items() if build_key(key)})
+destination_path.write_bytes(plistlib.dumps(destination))
+PY
 
 if [ "$PLATFORM" = "macos" ]; then
     DESTINATION_BINARY="$DESTINATION_FRAMEWORK/$FRAMEWORK_NAME"

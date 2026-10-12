@@ -160,6 +160,71 @@ public final class dev/hyo/openiap/AndroidSubscriptionOfferInput$Companion {
 	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/AndroidSubscriptionOfferInput;
 }
 
+public final class dev/hyo/openiap/AppOwnershipStatus : java/lang/Enum {
+	public static final field Companion Ldev/hyo/openiap/AppOwnershipStatus$Companion;
+	public static final field Licensed Ldev/hyo/openiap/AppOwnershipStatus;
+	public static final field Unknown Ldev/hyo/openiap/AppOwnershipStatus;
+	public static final field Unlicensed Ldev/hyo/openiap/AppOwnershipStatus;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getRawValue ()Ljava/lang/String;
+	public final fun toJson ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipStatus;
+	public static fun values ()[Ldev/hyo/openiap/AppOwnershipStatus;
+}
+
+public final class dev/hyo/openiap/AppOwnershipStatus$Companion {
+	public final fun fromJson (Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipStatus;
+	public final fun fromJsonStrict (Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipStatus;
+}
+
+public final class dev/hyo/openiap/AppOwnershipVerificationReason : java/lang/Enum {
+	public static final field BackendVerificationRequired Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public static final field Companion Ldev/hyo/openiap/AppOwnershipVerificationReason$Companion;
+	public static final field NetworkError Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public static final field ServiceError Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public static final field Unsupported Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public static final field VerificationFailed Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getRawValue ()Ljava/lang/String;
+	public final fun toJson ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public static fun values ()[Ldev/hyo/openiap/AppOwnershipVerificationReason;
+}
+
+public final class dev/hyo/openiap/AppOwnershipVerificationReason$Companion {
+	public final fun fromJson (Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public final fun fromJsonStrict (Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipVerificationReason;
+}
+
+public final class dev/hyo/openiap/AppOwnershipVerificationResult {
+	public static final field $stable I
+	public static final field Companion Ldev/hyo/openiap/AppOwnershipVerificationResult$Companion;
+	public fun <init> (Ldev/hyo/openiap/AppTransaction;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipVerificationReason;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipStatus;Ljava/lang/String;)V
+	public synthetic fun <init> (Ldev/hyo/openiap/AppTransaction;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipVerificationReason;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipStatus;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/hyo/openiap/AppTransaction;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ldev/hyo/openiap/AppOwnershipStatus;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ldev/hyo/openiap/AppTransaction;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipVerificationReason;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipStatus;Ljava/lang/String;)Ldev/hyo/openiap/AppOwnershipVerificationResult;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/AppOwnershipVerificationResult;Ldev/hyo/openiap/AppTransaction;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipVerificationReason;Ljava/lang/String;Ldev/hyo/openiap/AppOwnershipStatus;Ljava/lang/String;ILjava/lang/Object;)Ldev/hyo/openiap/AppOwnershipVerificationResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAppTransactionIOS ()Ldev/hyo/openiap/AppTransaction;
+	public final fun getIntegrityTokenAndroid ()Ljava/lang/String;
+	public final fun getReason ()Ldev/hyo/openiap/AppOwnershipVerificationReason;
+	public final fun getSignedAppTransactionIOS ()Ljava/lang/String;
+	public final fun getStatus ()Ldev/hyo/openiap/AppOwnershipStatus;
+	public final fun getStoreId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun toJson ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/hyo/openiap/AppOwnershipVerificationResult$Companion {
+	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/AppOwnershipVerificationResult;
+}
+
 public final class dev/hyo/openiap/AppTransaction {
 	public static final field $stable I
 	public static final field Companion Ldev/hyo/openiap/AppTransaction$Companion;
@@ -1964,6 +2029,7 @@ public abstract interface class dev/hyo/openiap/OpenIapProtocol {
 	public abstract fun getRestorePurchases ()Lkotlin/jvm/functions/Function1;
 	public fun getStorefront (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getSubscriptionHandlers ()Ldev/hyo/openiap/SubscriptionHandlers;
+	public fun getVerifyAppOwnership ()Lkotlin/jvm/functions/Function2;
 	public abstract fun getVerifyPurchase ()Lkotlin/jvm/functions/Function2;
 	public abstract fun getVerifyPurchaseWithProvider ()Lkotlin/jvm/functions/Function2;
 	public abstract fun isBillingProgramAvailable (Ldev/hyo/openiap/BillingProgramAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1986,6 +2052,7 @@ public final class dev/hyo/openiap/OpenIapProtocol$DefaultImpls {
 	public static fun enableBillingProgram (Ldev/hyo/openiap/OpenIapProtocol;Ldev/hyo/openiap/BillingProgramAndroid;)V
 	public static fun getAvailableItems (Ldev/hyo/openiap/OpenIapProtocol;Ldev/hyo/openiap/ProductQueryType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static fun getStorefront (Ldev/hyo/openiap/OpenIapProtocol;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static fun getVerifyAppOwnership (Ldev/hyo/openiap/OpenIapProtocol;)Lkotlin/jvm/functions/Function2;
 	public static synthetic fun showInAppMessages$default (Ldev/hyo/openiap/OpenIapProtocol;Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
@@ -2090,6 +2157,26 @@ public final class dev/hyo/openiap/PendingPurchaseUpdateAndroid {
 
 public final class dev/hyo/openiap/PendingPurchaseUpdateAndroid$Companion {
 	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/PendingPurchaseUpdateAndroid;
+}
+
+public final class dev/hyo/openiap/PlayIntegrityParamsAndroid {
+	public static final field $stable I
+	public static final field Companion Ldev/hyo/openiap/PlayIntegrityParamsAndroid$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCloudProjectNumber ()Ljava/lang/String;
+	public final fun getRequestHash ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun toJson ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/hyo/openiap/PlayIntegrityParamsAndroid$Companion {
+	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
 }
 
 public final class dev/hyo/openiap/PreorderDetailsAndroid {
@@ -2870,6 +2957,8 @@ public final class dev/hyo/openiap/QueryHandlers {
 	public fun <init> ()V
 	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lkotlin/jvm/functions/Function1;
 	public final fun component10 ()Lkotlin/jvm/functions/Function1;
 	public final fun component11 ()Lkotlin/jvm/functions/Function1;
@@ -2910,6 +2999,7 @@ public final class dev/hyo/openiap/QueryHandlers {
 	public final fun getHasActiveSubscriptions ()Lkotlin/jvm/functions/Function2;
 	public final fun getLatestTransactionIOS ()Lkotlin/jvm/functions/Function2;
 	public final fun getSubscriptionStatusIOS ()Lkotlin/jvm/functions/Function2;
+	public final fun getVerifyAppOwnership ()Lkotlin/jvm/functions/Function2;
 	public fun hashCode ()I
 	public final fun isEligibleForExternalPurchaseCustomLinkIOS ()Lkotlin/jvm/functions/Function1;
 	public final fun isEligibleForIntroOfferIOS ()Lkotlin/jvm/functions/Function2;
@@ -2941,12 +3031,16 @@ public abstract interface class dev/hyo/openiap/QueryResolver {
 	public abstract fun isTransactionVerifiedIOS (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun latestTransactionIOS (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun subscriptionStatusIOS (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun verifyAppOwnership (Ldev/hyo/openiap/VerifyAppOwnershipProps;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun verifyAppOwnership$default (Ldev/hyo/openiap/QueryResolver;Ldev/hyo/openiap/VerifyAppOwnershipProps;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class dev/hyo/openiap/QueryResolver$DefaultImpls {
 	public static synthetic fun getActiveSubscriptions$default (Ldev/hyo/openiap/QueryResolver;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun getAvailablePurchases$default (Ldev/hyo/openiap/QueryResolver;Ldev/hyo/openiap/PurchaseOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun hasActiveSubscriptions$default (Ldev/hyo/openiap/QueryResolver;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static fun verifyAppOwnership (Ldev/hyo/openiap/QueryResolver;Ldev/hyo/openiap/VerifyAppOwnershipProps;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun verifyAppOwnership$default (Ldev/hyo/openiap/QueryResolver;Ldev/hyo/openiap/VerifyAppOwnershipProps;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class dev/hyo/openiap/RefundResultIOS {
@@ -3903,6 +3997,26 @@ public final class dev/hyo/openiap/ValidTimeWindowAndroid$Companion {
 	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/ValidTimeWindowAndroid;
 }
 
+public final class dev/hyo/openiap/VerifyAppOwnershipProps {
+	public static final field $stable I
+	public static final field Companion Ldev/hyo/openiap/VerifyAppOwnershipProps$Companion;
+	public fun <init> ()V
+	public fun <init> (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;)V
+	public synthetic fun <init> (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
+	public final fun copy (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;)Ldev/hyo/openiap/VerifyAppOwnershipProps;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/VerifyAppOwnershipProps;Ldev/hyo/openiap/PlayIntegrityParamsAndroid;ILjava/lang/Object;)Ldev/hyo/openiap/VerifyAppOwnershipProps;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGoogle ()Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
+	public fun hashCode ()I
+	public final fun toJson ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/hyo/openiap/VerifyAppOwnershipProps$Companion {
+	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/VerifyAppOwnershipProps;
+}
+
 public final class dev/hyo/openiap/VerifyPurchaseAppleOptions {
 	public static final field $stable I
 	public static final field Companion Ldev/hyo/openiap/VerifyPurchaseAppleOptions$Companion;
@@ -4509,6 +4623,8 @@ public final class dev/hyo/openiap/store/OpenIapStore {
 	public final fun showBillingProgramInformationDialog (Landroid/app/Activity;Ldev/hyo/openiap/BillingProgramInformationDialogParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun showInAppMessages (Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun showInAppMessages$default (Ldev/hyo/openiap/store/OpenIapStore;Landroid/app/Activity;Ldev/hyo/openiap/InAppMessageParamsAndroid;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun verifyAppOwnership (Ldev/hyo/openiap/VerifyAppOwnershipProps;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun verifyAppOwnership$default (Ldev/hyo/openiap/store/OpenIapStore;Ldev/hyo/openiap/VerifyAppOwnershipProps;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun verifyPurchaseWithProvider (Ldev/hyo/openiap/VerifyPurchaseWithProviderProps;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

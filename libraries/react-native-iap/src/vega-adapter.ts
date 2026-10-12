@@ -1630,6 +1630,9 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     },
     addPromotedProductListenerIOS(): void {},
     removePromotedProductListenerIOS(): void {},
+    async verifyAppOwnership(): Promise<string> {
+      return JSON.stringify({status: 'unknown', reason: 'unsupported', storeId: 'amazon'});
+    },
     async getAppTransactionIOS(): Promise<null> {
       return throwUnsupportedFeature('getAppTransactionIOS');
     },

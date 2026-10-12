@@ -52,6 +52,7 @@ import APIsGetActiveSubscriptions from './apis/get-active-subscriptions';
 import APIsHasActiveSubscriptions from './apis/has-active-subscriptions';
 import APIsDeepLinkToSubscriptions from './apis/deep-link-to-subscriptions';
 import APIsOpenRedeemOfferCode from './apis/open-redeem-offer-code';
+import APIsVerifyAppOwnership from './apis/verify-app-ownership';
 import APIsClearTransactionIOS from './apis/ios/clear-transaction-ios';
 import APIsGetPendingTransactionsIOS from './apis/ios/get-pending-transactions-ios';
 import APIsGetAllTransactionsIOS from './apis/ios/get-all-transactions-ios';
@@ -354,6 +355,10 @@ function Docs() {
                 {
                   to: '/docs/apis/deep-link-to-subscriptions',
                   label: 'deepLinkToSubscriptions',
+                },
+                {
+                  to: '/docs/apis/verify-app-ownership',
+                  label: 'verifyAppOwnership',
                 },
                 {
                   to: '/docs/apis/open-redeem-offer-code',
@@ -959,6 +964,10 @@ function Docs() {
         <Route
           path="apis/deep-link-to-subscriptions"
           element={<APIsDeepLinkToSubscriptions />}
+        />
+        <Route
+          path="apis/verify-app-ownership"
+          element={<APIsVerifyAppOwnership />}
         />
         <Route
           path="apis/open-redeem-offer-code"

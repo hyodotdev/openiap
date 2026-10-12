@@ -1,6 +1,7 @@
 import {getVegaIapModule as getVegaAdapter} from './vega';
 import {ErrorCode} from './types';
 import type {
+  AppOwnershipVerificationResult,
   MutationField,
   Product,
   ProductQueryType,
@@ -270,6 +271,12 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async () =>
   unsupported('verifyPurchase');
 export const syncIOS: MutationField<'syncIOS'> = async () =>
   unsupported('syncIOS');
+export const verifyAppOwnership: QueryField<'verifyAppOwnership'> = async (
+  options,
+) =>
+  JSON.parse(
+    await getModule().verifyAppOwnership(JSON.stringify(options ?? {})),
+  ) as AppOwnershipVerificationResult;
 export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
 > = async () => null;

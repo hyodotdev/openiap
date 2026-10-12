@@ -1,7 +1,15 @@
 # openiap.dev GraphQL API operations (common)
 
-# Product management
+# Queries
 extend type Query {
+  """
+  Verify app acquisition independently of in-app purchases.
+  An integrity token requires backend verification; it is not a license verdict.
+  Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
+  See: https://openiap.dev/docs/apis/verify-app-ownership
+  """
+  # Future
+  verifyAppOwnership(options: VerifyAppOwnershipProps): AppOwnershipVerificationResult!
   """
   Fetch products or subscriptions from the store.
   See: https://openiap.dev/docs/apis/fetch-products
