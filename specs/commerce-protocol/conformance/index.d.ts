@@ -35,11 +35,12 @@ export interface GraphqlErrorOutcome {
   status: number;
   /** Normalized first code (INVALID_REQUEST when the envelope is codeless). */
   code: string;
-  /** The whole envelope, entry by entry, in order; `extensions` is scanned for leaks too. */
+  /** The whole envelope, entry by entry, in order; every string in an entry is scanned for leaks. */
   errors: Array<{
     message: string;
     code?: string;
-    extensions?: Record<string, unknown>;
+    /** The error as served — path, locations, extensions, and any other member. */
+    raw?: unknown;
   }>;
   /** Whether the response carried a `data` member (SPEC.md §7 pre-execution rule). */
   hasData: boolean;

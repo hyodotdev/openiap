@@ -160,7 +160,7 @@ test("Ruby dependencies are locked and installed frozen", () => {
     ["ci.yml", "Verify Ruby locks", example],
     ["ci-react-native-iap.yml", "Install Ruby dependencies", example],
     ["release-react-native.yml", "Install Ruby dependencies", example],
-    ["release-apple.yml", "Install CocoaPods", "packages/apple"],
+    ["release-apple.yml", "Install CocoaPods", null],
     ["codeql.yml", "Build React Native Swift wrapper", example],
   ]) {
     const workflow = readWorkflow(filename);
@@ -171,7 +171,9 @@ test("Ruby dependencies are locked and installed frozen", () => {
       /ruby\/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1/u,
     );
     assert.match(setup, /ruby-version: "3\.3"/u);
-    assert.ok(setup.includes(`working-directory: ${directory}`), filename);
+    if (directory) {
+      assert.ok(setup.includes(`working-directory: ${directory}`), filename);
+    }
     assert.match(install, /BUNDLE_FROZEN=true bundle install/u);
   }
 
@@ -2196,6 +2198,25 @@ test("release pushes expose credentials only in their owning step", () => {
       assert.match(step, /gh auth setup-git/u, `${filename}:${index + 1}`);
     }
   }
+});
+
+test("Apple release keeps its Bundler files across a current tag checkout", () => {
+  const workflow = readWorkflow("release-apple.yml");
+  const preserve = extractNamedStep(workflow, "Preserve Bundler files").source;
+  assert.ok(
+    preserve.includes("cp packages/apple/Gemfile packages/apple/Gemfile.lock"),
+  );
+  assert.ok(
+    preserve.includes(
+      'echo "BUNDLE_GEMFILE=$TOOLING/Gemfile" >> "$GITHUB_ENV"',
+    ),
+  );
+  assert.ok(
+    workflow.indexOf("- name: Preserve Bundler files") <
+      workflow.indexOf("- name: Checkout release tag (current version)"),
+  );
+  // Tags cut before the Gemfile existed delete a workspace path on checkout.
+  assert.doesNotMatch(workflow, /BUNDLE_GEMFILE: \$\{\{ github\.workspace/u);
 });
 
 test("Apple release preflights CocoaPods before repository mutation", () => {

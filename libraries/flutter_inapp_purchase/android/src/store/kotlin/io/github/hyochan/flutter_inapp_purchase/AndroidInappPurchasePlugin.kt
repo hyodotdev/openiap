@@ -1128,10 +1128,14 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
         emit("subscription-billing-issue") { JSONObject(purchase.toJson()) }
     }
 
-    // The billing service dropped; every engine's Dart must call initConnection again.
+    // The service dropped, so every engine's Dart must reconnect; locked so an in-flight initConnection cannot undo it.
     private val connectionStateListener = OpenIapConnectionStateListener {
-        providerReady = false
-        emitConnectionUpdated(false)
+        scope.launch {
+            lifecycle.withLock {
+                providerReady = false
+                emitConnectionUpdated(false)
+            }
+        }
     }
 
     private fun emit(method: String, payload: () -> JSONObject) {
@@ -1177,7 +1181,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
         private var providerUsers = 0
         // Engines whose Dart side connected and has not ended the connection.
         private val connectedEngines = mutableSetOf<AndroidInappPurchasePlugin>()
-        @Volatile
         private var providerReady = false
         private var activityOwner: AndroidInappPurchasePlugin? = null
 

@@ -3917,47 +3917,62 @@ describe("the runner judges what a binding could otherwise hide", () => {
     );
   });
 
-  it("fails a GraphQL error whose extensions echo the credential or the evidence", async () => {
-    const provider = createMockProvider();
-    const leaky = rewriting(
-      provider,
-      (url) => url.endsWith("/graphql"),
-      (body, options) => {
-        if (!Array.isArray(body.errors)) return body;
-        const debug = {
-          authorization: options.headers.Authorization ?? null,
-          variables: JSON.parse(options.body).variables,
-        };
-        return {
-          ...body,
-          errors: body.errors.map((error) => ({
-            ...error,
-            extensions: { ...error.extensions, debug },
-          })),
-        };
-      },
-    );
-    const report = await runConformance({
-      adapters: [
-        createGraphqlAdapter({
-          url: GRAPHQL_URL,
-          fetch: leaky,
-          credentials: provider.credentials,
-        }),
-      ],
-      Ajv,
-      credentials: provider.credentials,
-    });
-    for (const id of [
-      "verifyPurchase.auth.unknown-credential",
-      "bindPurchase.auth.verification-role-refused",
-      "graphql.executor-probe",
-    ]) {
-      const result = report.results.find((r) => r.id === id);
-      expect(result.ok, id).toBe(false);
-      expect(result.failures.join(" "), id).toContain("echoes submitted");
-    }
-  });
+  it.each([
+    [
+      "extensions",
+      (error, debug) => ({ extensions: { ...error.extensions, debug } }),
+    ],
+    [
+      "path",
+      (_error, debug) => ({
+        path: [debug.authorization, JSON.stringify(debug.variables)],
+      }),
+    ],
+    ["a non-standard member", (_error, debug) => ({ debug })],
+  ])(
+    "fails a GraphQL error that echoes the credential or the evidence in %s",
+    async (_where, leak) => {
+      const provider = createMockProvider();
+      const leaky = rewriting(
+        provider,
+        (url) => url.endsWith("/graphql"),
+        (body, options) => {
+          if (!Array.isArray(body.errors)) return body;
+          const debug = {
+            authorization: options.headers.Authorization ?? null,
+            variables: JSON.parse(options.body).variables,
+          };
+          return {
+            ...body,
+            errors: body.errors.map((error) => ({
+              ...error,
+              ...leak(error, debug),
+            })),
+          };
+        },
+      );
+      const report = await runConformance({
+        adapters: [
+          createGraphqlAdapter({
+            url: GRAPHQL_URL,
+            fetch: leaky,
+            credentials: provider.credentials,
+          }),
+        ],
+        Ajv,
+        credentials: provider.credentials,
+      });
+      for (const id of [
+        "verifyPurchase.auth.unknown-credential",
+        "bindPurchase.auth.verification-role-refused",
+        "graphql.executor-probe",
+      ]) {
+        const result = report.results.find((r) => r.id === id);
+        expect(result.ok, id).toBe(false);
+        expect(result.failures.join(" "), id).toContain("echoes submitted");
+      }
+    },
+  );
 
   it("rejects an adapter whose binding the manifest does not define", async () => {
     const provider = createMockProvider();

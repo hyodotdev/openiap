@@ -90,8 +90,6 @@ jobs:
       actions: write
       contents: write
     runs-on: macos-26
-    env:
-      BUNDLE_GEMFILE: ${{ github.workspace }}/packages/apple/Gemfile
 
     steps:
       - name: Checkout
@@ -194,6 +192,14 @@ jobs:
             echo "✓ Tag $VERSION does not exist, proceeding with release"
           fi
 
+      - name: Preserve Bundler files
+        run: |
+          # A current retry checks out a tag that may predate these files.
+          TOOLING="$RUNNER_TEMP/apple-tooling"
+          mkdir -p "$TOOLING"
+          cp packages/apple/Gemfile packages/apple/Gemfile.lock "$TOOLING/"
+          echo "BUNDLE_GEMFILE=$TOOLING/Gemfile" >> "$GITHUB_ENV"
+
       - name: Checkout release tag (current version)
         if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
         env:
@@ -214,10 +220,8 @@ jobs:
         uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
         with:
           ruby-version: "3.3"
-          working-directory: packages/apple
 
       - name: Install CocoaPods
-        working-directory: packages/apple
         run: BUNDLE_FROZEN=true bundle install
 
       - name: Check CocoaPods publication state

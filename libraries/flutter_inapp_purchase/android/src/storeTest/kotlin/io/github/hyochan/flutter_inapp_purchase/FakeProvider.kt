@@ -135,7 +135,7 @@ class FakeProviderFactory : OpenIapProviderFactory {
 }
 
 /** A plugin with a channel that records what it sends to Dart. */
-fun fakeEngine(sent: MutableList<MethodCall> = mutableListOf()): AndroidInappPurchasePlugin {
+fun fakeEngine(sent: MutableList<in MethodCall> = mutableListOf()): AndroidInappPurchasePlugin {
     val messenger =
         Proxy.newProxyInstance(BinaryMessenger::class.java.classLoader, arrayOf(BinaryMessenger::class.java)) { _, method, args ->
             // The engine reads a message up to its position, so decode from the start.

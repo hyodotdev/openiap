@@ -4,6 +4,7 @@ package io.github.hyochan.flutter_inapp_purchase
 
 import android.app.Activity
 import dev.hyo.openiap.ErrorCode
+import dev.hyo.openiap.MutationInitConnectionHandler
 import io.flutter.plugin.common.MethodCall
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -149,5 +150,23 @@ class SharedProviderTest {
         assertEquals(false, JSONObject(update.arguments as String).getBoolean("connected"))
         dispose(engine)
         assertTrue(FakeProviderFactory.connectionListeners.isEmpty())
+    }
+
+    @Test fun `a drop before initConnection resumes leaves it not ready`() {
+        val log = mutableListOf<Any?>()
+        val engine = fakeEngine(log)
+        val dropAfterSetup: MutationInitConnectionHandler = {
+            FakeProviderFactory.dropService()
+            true
+        }
+        FakeProviderFactory.handlers["getInitConnection"] = dropAfterSetup
+        engine.start("initConnection", replies = log)
+        settle()
+
+        assertEquals(false, engine.call("isReady"))
+        // Dart must see the success before the drop, or it records a dead connection as live.
+        val dartView = log.map { if (it is MethodCall) JSONObject(it.arguments as String).getBoolean("connected") else it }
+        assertEquals(listOf(true, "Billing client ready", false), dartView)
+        dispose(engine)
     }
 }

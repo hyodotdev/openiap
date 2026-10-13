@@ -491,15 +491,14 @@ export function createGraphqlAdapter({ url, fetch: fetchFn, credentials }) {
           // ONE structure for the whole envelope — message and code travel
           // together per entry, so a code cannot be dropped while its message
           // is kept (or vice versa) to dodge half the checks. The runner
-          // derives everything it needs from this.
+          // derives everything it needs from this; `raw` keeps the served
+          // error whole so the SPEC.md 8 leak scan sees every member.
           errors: body.errors.map((error) => ({
             message: error.message,
             ...(typeof error.extensions?.code === "string"
               ? { code: error.extensions.code }
               : {}),
-            ...(error.extensions === undefined
-              ? {}
-              : { extensions: error.extensions }),
+            raw: error,
           })),
           // SPEC.md 7: a pre-execution refusal omits data; vectors for
           // server-role auth negatives assert on this.

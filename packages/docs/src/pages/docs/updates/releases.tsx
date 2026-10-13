@@ -672,14 +672,14 @@ function Releases() {
                   .
                 </li>
                 <li>
-                  It checks every string in an error, GraphQL{' '}
-                  <code>extensions</code> included, for leaked evidence or
-                  credentials, as the specification now states.
+                  It checks every string in an error, including{' '}
+                  <code>path</code> and <code>extensions</code>, for leaked
+                  evidence or credentials, as the specification now states.
                 </li>
                 <li>
-                  For adapter authors, <code>GraphqlErrorOutcome</code> errors
-                  carry <code>extensions</code>, and REST result data is no
-                  longer null-stripped; compare it through{' '}
+                  For adapter authors, each <code>GraphqlErrorOutcome</code>{' '}
+                  error carries the served error as <code>raw</code>, and REST
+                  result data is no longer null-stripped; compare it through{' '}
                   <code>normalizeResultData</code>.
                 </li>
                 <li>

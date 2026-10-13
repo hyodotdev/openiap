@@ -5613,7 +5613,7 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/release-apple.yml",
     [
-      "BUNDLE_GEMFILE: ${{ github.workspace }}/packages/apple/Gemfile",
+      'echo "BUNDLE_GEMFILE=$TOOLING/Gemfile" >> "$GITHUB_ENV"',
       "bundle exec pod trunk push openiap.podspec",
       "bare_exists=true",
       "bare_exists=false",

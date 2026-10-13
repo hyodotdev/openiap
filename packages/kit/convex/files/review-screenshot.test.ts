@@ -1226,7 +1226,7 @@ describe("Apple .p8 keys", () => {
     expect(admin.storage.delete).toHaveBeenCalledWith("storage_old_key");
   });
 
-  it("shares another project's key only when it is configured with the same key ID", async () => {
+  it("prefers another project's key configured with the same key ID", async () => {
     const key = (
       _id: string,
       organizationId: string,
@@ -1310,7 +1310,7 @@ describe("Apple .p8 keys", () => {
     await expect(lookup("projects_c")).resolves.toMatchObject({
       _id: "a_old",
     });
-    // An organization-level key records no key ID, so it comes last.
+    // An organization-level key records no key ID, so it follows a key ID match.
     files.push(key("org_key", "organizations_a"));
     await expect(lookup("projects_c", "K1")).resolves.toMatchObject({
       _id: "k1_key",
