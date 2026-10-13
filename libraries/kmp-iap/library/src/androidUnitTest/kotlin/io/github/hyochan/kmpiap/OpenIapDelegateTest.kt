@@ -333,6 +333,26 @@ class OpenIapDelegateTest {
     }
 
     @Test
+    fun `a Play request throws its own failure, not an earlier request's published while it waited`() = runBlocking {
+        val play = FakePlay()
+        val delegate = delegateFor(Store.PLAY_STORE, play.module, registerListeners = true)
+        val earlier = async(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { delegate.requestPurchase(purchaseRequest()) }
+        }
+        val queryFailure = CompletableDeferred<OpenIapError?>()
+        play.ownershipQuery = { queryFailure.await() }
+        val waiting = async(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { delegate.requestPurchase(purchaseRequest()) }
+        }
+
+        play.fail(OpenIapError.UserCancelled("cancelled").withProductId("premium"))
+        queryFailure.complete(OpenIapError.ServiceDisconnected("owned-purchase query failed"))
+
+        assertEquals(ErrorCode.UserCancelled, assertIs<PurchaseException>(earlier.await().exceptionOrNull()).error.code)
+        assertEquals(ErrorCode.ServiceDisconnected, assertIs<PurchaseException>(waiting.await().exceptionOrNull()).error.code)
+    }
+
+    @Test
     fun `Play billing programs reach openiap-google`() = runBlocking {
         val module = fakeModule { method, _ ->
             check(method == "isBillingProgramAvailable") { "Unexpected call: $method" }
@@ -497,8 +517,14 @@ class OpenIapDelegateTest {
         private val choices = CopyOnWriteArraySet<OpenIapUserChoiceBillingListener>()
         private var pending: CompletableDeferred<List<dev.hyo.openiap.Purchase>>? = null
         val isPending get() = pending != null
+        // The owned-purchase query each request runs before Play admits it; an error ends the request.
+        var ownershipQuery: suspend () -> OpenIapError? = { null }
 
-        private val request: MutationRequestPurchaseHandler = {
+        private val request: MutationRequestPurchaseHandler = request@{
+            ownershipQuery()?.let { failure ->
+                errors.forEach { it.onPurchaseError(failure) }
+                return@request dev.hyo.openiap.RequestPurchaseResultPurchases(emptyList())
+            }
             if (pending != null) {
                 val busy = OpenIapError.DeveloperError("Another purchase is already in progress")
                 errors.forEach { it.onPurchaseError(busy) }

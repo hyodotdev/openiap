@@ -3995,6 +3995,74 @@ describe("the runner judges what a binding could otherwise hide", () => {
     },
   );
 
+  const graphqlReport = async (rewrite) => {
+    const provider = createMockProvider();
+    const fetch = rewriting(
+      provider,
+      (url) => url.endsWith("/graphql"),
+      (body) =>
+        Array.isArray(body.errors)
+          ? { ...body, errors: body.errors.map(rewrite) }
+          : body,
+    );
+    return runConformance({
+      adapters: [
+        createGraphqlAdapter({
+          url: GRAPHQL_URL,
+          fetch,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+  };
+
+  it.each([
+    [
+      "a nested V8 stack in extensions",
+      (error) => ({
+        ...error,
+        extensions: {
+          ...error.extensions,
+          exception: {
+            stacktrace: [
+              "Error: boom",
+              "    at loadCredentials (/app/convex/secrets.ts:12:4)",
+            ],
+          },
+        },
+      }),
+    ],
+    [
+      "a JVM frame in the message",
+      (error) => ({
+        ...error,
+        message: `${error.message} at dev.example.Billing.verify(Billing.kt:42)`,
+      }),
+    ],
+  ])("fails a GraphQL error that discloses %s", async (_where, rewrite) => {
+    const report = await graphqlReport(rewrite);
+    for (const id of [
+      "verifyPurchase.auth.unknown-credential",
+      "bindPurchase.auth.verification-role-refused",
+      "graphql.executor-probe",
+    ]) {
+      const result = report.results.find((r) => r.id === id);
+      expect(result.ok, id).toBe(false);
+      expect(result.failures.join(" "), id).toContain("stack trace");
+    }
+  });
+
+  it("accepts error text with colons, URLs, ports, and timestamps", async () => {
+    const report = await graphqlReport((error) => ({
+      ...error,
+      message: `${error.message} (retry at 12:30:45 or after 2026-10-14T01:02:03.123Z; see https://api.example.com:8443/docs/errors.html#auth)`,
+      extensions: { ...error.extensions, hint: "ratio 3:2, see RFC 9110:15.5" },
+    }));
+    expect(report.ok).toBe(true);
+  });
+
   it("rejects an adapter whose binding the manifest does not define", async () => {
     const provider = createMockProvider();
     const [rest] = adaptersFor(provider);

@@ -645,12 +645,16 @@ function entitlementsInvariants(data, input) {
   return failures;
 }
 
+/** A stack frame's source location: `secrets.ts:12:4`, `Billing.kt:42`, `File "app.py", line 7`. */
+const SOURCE_LOCATION =
+  /\.(?:[cm]?[jt]sx?|kts?|java|scala|swift|go|rb|cs|rs|php|dart):(?:line )?\d+|\.py", line \d+/u;
+
 /**
  * SPEC.md 8 hygiene, shared by the vector envelope checks AND the executor
  * probes so neither becomes a side door: every error has a non-empty message,
  * and no string anywhere in the error — member names and GraphQL
  * `extensions` included — echoes the submitted evidence or a configured
- * credential.
+ * credential, or discloses a stack trace's source location.
  */
 function errorHygieneFailures(errors, forbidden, context) {
   const failures = [];
@@ -660,13 +664,17 @@ function errorHygieneFailures(errors, forbidden, context) {
         `${context}: an error message must be a non-empty string (SPEC.md 8)`,
       );
     }
+    const leaves = stringLeaves(error, [], true);
     if (
-      stringLeaves(error, [], true).some((leaf) =>
-        forbidden.some((token) => leaf.includes(token)),
-      )
+      leaves.some((leaf) => forbidden.some((token) => leaf.includes(token)))
     ) {
       failures.push(
         `${context}: an error echoes submitted evidence or a credential (SPEC.md 8)`,
+      );
+    }
+    if (leaves.some((leaf) => SOURCE_LOCATION.test(leaf))) {
+      failures.push(
+        `${context}: an error discloses a stack trace or source path (SPEC.md 8)`,
       );
     }
   }

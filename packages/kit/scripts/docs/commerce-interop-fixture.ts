@@ -97,8 +97,13 @@ export const seed = internalMutation({
   },
 });
 export const setup = internalAction({
-  args: { secret: v.string(), key: v.string(), publishable: v.string() },
-  handler: async (ctx, args) => {
+  args: {
+    secret: v.string(),
+    key: v.string(),
+    publishable: v.string(),
+    appleKey: v.string(),
+  },
+  handler: async (ctx, { appleKey, ...args }) => {
     const storageId = await ctx.storage.store(
       new Blob(
         [
@@ -114,7 +119,7 @@ export const setup = internalAction({
       ),
     );
     const appleKeyStorageId = await ctx.storage.store(
-      new Blob(["local-fixture-key"], { type: "application/x-pem-file" }),
+      new Blob([appleKey], { type: "application/x-pem-file" }),
     );
     return ctx.runMutation(internal.interopFixture.seed, {
       ...args,

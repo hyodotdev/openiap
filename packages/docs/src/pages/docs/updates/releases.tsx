@@ -674,7 +674,8 @@ function Releases() {
                 <li>
                   It checks every string and member name in an error, including{' '}
                   <code>path</code> and <code>extensions</code>, for leaked
-                  evidence or credentials, as the specification now states.
+                  evidence, credentials, or stack-trace source locations, as the
+                  specification now states.
                 </li>
                 <li>
                   For adapter authors, each <code>GraphqlErrorOutcome</code>{' '}

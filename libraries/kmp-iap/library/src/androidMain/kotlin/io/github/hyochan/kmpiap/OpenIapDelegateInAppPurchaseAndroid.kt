@@ -236,11 +236,12 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         val failure = AtomicReference<AndroidOpenIapError?>()
         // The module tags request failures with the requested SKU, or none when it cannot pick one.
         // One published inside another call, such as its rejection while this one is open, is not ours.
+        // The last one wins: the module publishes this request's failure right before it returns.
         val captureFailure = OpenIapPurchaseErrorListener { error ->
             val productId = error.toKmpPurchaseError().productId
             val publisher = runningPlayCall.get()
             if ((publisher == null || publisher === call) && (productId == null || productId in requestedSkus)) {
-                failure.compareAndSet(null, error)
+                failure.set(error)
             }
         }
         openModule.addPurchaseErrorListener(captureFailure)
