@@ -313,7 +313,7 @@ class HorizonPurchaseFlowTest {
     }
 
     @Test
-    fun `polling leaves a delivered owned purchase to already-owned recovery`() {
+    fun `polling redelivers a delivered owned purchase it resolves`() {
         val client = FlowBillingClient(owned = listOf(horizonPurchase(1L, token = "token-a")))
         val module = module(client)
         val updates = CopyOnWriteArrayList<Purchase>()
@@ -323,15 +323,16 @@ class HorizonPurchaseFlowTest {
 
         // Offline, the prelaunch query returns Meta's durable cache, which never holds consumables.
         client.durableCacheOnce.set(listOf(horizonPurchase(1L, "durable-id", "token-d")))
+        // Horizon may never send ITEM_ALREADY_OWNED, so polling settles and redelivers.
         val retry = startPurchase(module)
-        awaitCondition { retry.get() != null || client.queries.get() >= 3 }
+        awaitCondition { retry.get() != null }
+        // A late ITEM_ALREADY_OWNED finds the request settled and delivers nothing more.
         module.onPurchasesUpdated(
             client,
             0L,
             billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
             emptyList(),
         )
-        awaitCondition { retry.get() != null }
 
         assertEquals(listOf("token-a"), purchasesOf(retry).map { it.purchaseToken })
         assertEquals(listOf("token-a", "token-a"), updates.map { it.purchaseToken })

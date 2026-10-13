@@ -917,8 +917,8 @@ function isOlderVerifiedSnapshot(
   if (incoming.verifiedPurchaseDate !== stored.verifiedPurchaseDate) {
     return incoming.verifiedPurchaseDate < stored.verifiedPurchaseDate;
   }
-  // A same-transaction verify without a signing date cannot prove it is newer.
   if (stored.verifiedSignedDate === undefined) return false;
+  // A same-transaction verify without a signing date cannot prove it is newer.
   return (
     incoming.verifiedSignedDate === undefined ||
     incoming.verifiedSignedDate < stored.verifiedSignedDate

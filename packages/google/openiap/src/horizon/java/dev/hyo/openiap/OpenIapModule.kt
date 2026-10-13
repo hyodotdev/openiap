@@ -1206,9 +1206,7 @@ class OpenIapModule(
                                                 purchaseToken = purchase.purchaseToken,
                                                 requestedSkus = requestedSkus,
                                                 tokensBeforeLaunch = tokensBeforeLaunch,
-                                            ) &&
-                                                // Already delivered means owned: already-owned recovery redelivers it.
-                                                !purchaseDeliveryClaims.hasDelivered(purchase)
+                                            )
                                         },
                                         onQueryFailure = { error ->
                                             OpenIapLog.warn(
@@ -1224,7 +1222,15 @@ class OpenIapModule(
                                         ).withProductId(androidArgs.skus.singleOrNull())
                                         finishPurchaseCallback(client, callback, timeoutError)
                                     } else if (
-                                        completePurchaseRequest(client, callback, matched, selectedBasePlanIds)
+                                        completePurchaseRequest(
+                                            client,
+                                            callback,
+                                            matched,
+                                            selectedBasePlanIds,
+                                            // Delivered before means owned: redeliver it as already-owned recovery does,
+                                            // since Horizon may never send that callback.
+                                            redeliver = matched.any(purchaseDeliveryClaims::hasDelivered),
+                                        )
                                     ) {
                                         OpenIapLog.debug("Purchase polling found ${matched.size} purchases", TAG)
                                     }
