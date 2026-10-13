@@ -3917,21 +3917,46 @@ describe("the runner judges what a binding could otherwise hide", () => {
     );
   });
 
+  const leakingVectors = [
+    "verifyPurchase.auth.unknown-credential",
+    "bindPurchase.auth.verification-role-refused",
+  ];
+  const leakingAll = [...leakingVectors, "graphql.executor-probe"];
+  // The probe submits no evidence, so an evidence-only leak fails the vectors alone.
   it.each([
     [
       "extensions",
       (error, debug) => ({ extensions: { ...error.extensions, debug } }),
+      leakingAll,
     ],
     [
       "path",
       (_error, debug) => ({
         path: [debug.authorization, JSON.stringify(debug.variables)],
       }),
+      leakingAll,
     ],
-    ["a non-standard member", (_error, debug) => ({ debug })],
+    ["a non-standard member", (_error, debug) => ({ debug }), leakingAll],
+    [
+      "an extensions key (credential)",
+      (error, debug) => ({
+        extensions: { ...error.extensions, [debug.authorization]: true },
+      }),
+      leakingAll,
+    ],
+    [
+      "an extensions key (evidence)",
+      (error, debug) => ({
+        extensions: {
+          ...error.extensions,
+          debug: { [JSON.stringify(debug.variables)]: true },
+        },
+      }),
+      leakingVectors,
+    ],
   ])(
     "fails a GraphQL error that echoes the credential or the evidence in %s",
-    async (_where, leak) => {
+    async (_where, leak, failingIds) => {
       const provider = createMockProvider();
       const leaky = rewriting(
         provider,
@@ -3962,11 +3987,7 @@ describe("the runner judges what a binding could otherwise hide", () => {
         Ajv,
         credentials: provider.credentials,
       });
-      for (const id of [
-        "verifyPurchase.auth.unknown-credential",
-        "bindPurchase.auth.verification-role-refused",
-        "graphql.executor-probe",
-      ]) {
+      for (const id of failingIds) {
         const result = report.results.find((r) => r.id === id);
         expect(result.ok, id).toBe(false);
         expect(result.failures.join(" "), id).toContain("echoes submitted");

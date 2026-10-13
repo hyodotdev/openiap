@@ -326,16 +326,40 @@ class HorizonPurchaseFlowTest {
         // Horizon may never send ITEM_ALREADY_OWNED, so polling settles and redelivers.
         val retry = startPurchase(module)
         awaitCondition { retry.get() != null }
-        // A late ITEM_ALREADY_OWNED finds the request settled and delivers nothing more.
+
+        assertEquals(listOf("token-a"), purchasesOf(retry).map { it.purchaseToken })
+        assertEquals(listOf("token-a", "token-a"), updates.map { it.purchaseToken })
+    }
+
+    @Test
+    fun `a completed request resumes only after its purchase is recorded as delivered`() {
+        val client = FlowBillingClient(owned = listOf(horizonPurchase(1L, token = "token-a")))
+        val module = module(client)
+        val first = CopyOnWriteArrayList<Result<List<Purchase>>>()
+        val second = CopyOnWriteArrayList<Result<List<Purchase>>>()
+        installLaunchedPurchase(module, client) { result ->
+            first += result
+            // Once resumed, the app consumes A and buys the same SKU; A's callback then arrives late.
+            client.owned = emptyList()
+            installLaunchedPurchase(module, client) { second += it }
+            module.onPurchasesUpdated(
+                client,
+                0L,
+                billingResult(BillingClient.BillingResponseCode.OK),
+                listOf(horizonPurchase(1L, token = "token-a")),
+            )
+        }
+
         module.onPurchasesUpdated(
             client,
             0L,
             billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
             emptyList(),
         )
+        awaitCondition { first.isNotEmpty() }
 
-        assertEquals(listOf("token-a"), purchasesOf(retry).map { it.purchaseToken })
-        assertEquals(listOf("token-a", "token-a"), updates.map { it.purchaseToken })
+        assertEquals(listOf("token-a"), first.single().getOrThrow().map { it.purchaseToken })
+        assertTrue("A's late callback must not complete B: $second", second.isEmpty())
     }
 
     private fun requestPurchase(module: OpenIapModule): List<Purchase> {

@@ -414,6 +414,8 @@ class OpenIapModule(
     /**
      * Resolves the request with [purchases] and delivers each purchase state to listeners once.
      * Already-owned recovery passes [redeliver]: the user asked again for what they own.
+     * Delivery is recorded before the caller resumes, so a late store callback for these
+     * purchases cannot complete the caller's next request.
      */
     private fun completePurchaseRequest(
         client: BillingClient,
@@ -426,13 +428,14 @@ class OpenIapModule(
             (purchase as? PurchaseAndroid)?.let { correlateSelectedBasePlan(it, selectedBasePlanIds) }
                 ?: purchase
         }
-        if (!consumePurchaseCallback(callback, Result.success(correlated), client)) return false
+        val taken = takePurchaseCallback(callback, client) ?: return false
         correlated.forEach { purchase ->
             if (!purchaseDeliveryClaims.claim(purchase) && !redeliver) return@forEach
             for (listener in purchaseUpdateListeners) {
                 runCatching { listener.onPurchaseUpdated(purchase) }
             }
         }
+        taken(Result.success(correlated))
         return true
     }
 

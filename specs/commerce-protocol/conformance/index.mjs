@@ -55,9 +55,10 @@ const operationsByName = new Map(
 /** A bearer this map does not name; a conforming provider must reject it. */
 const INVALID_CREDENTIAL = "openiap-conformance-invalid-credential";
 
-function stringLeaves(value, found = []) {
+/** `withKeys` adds member names: a secret used as a key still leaks. */
+function stringLeaves(value, found = [], withKeys = false) {
   if (Array.isArray(value)) {
-    for (const item of value) stringLeaves(item, found);
+    for (const item of value) stringLeaves(item, found, withKeys);
     return found;
   }
   if (typeof value === "string") {
@@ -65,8 +66,9 @@ function stringLeaves(value, found = []) {
     return found;
   }
   if (value === null || typeof value !== "object") return found;
-  for (const member of Object.values(value)) {
-    stringLeaves(member, found);
+  for (const [key, member] of Object.entries(value)) {
+    if (withKeys) found.push(key);
+    stringLeaves(member, found, withKeys);
   }
   return found;
 }
@@ -646,8 +648,9 @@ function entitlementsInvariants(data, input) {
 /**
  * SPEC.md 8 hygiene, shared by the vector envelope checks AND the executor
  * probes so neither becomes a side door: every error has a non-empty message,
- * and no string anywhere in the error — GraphQL `extensions` included —
- * echoes the submitted evidence or a configured credential.
+ * and no string anywhere in the error — member names and GraphQL
+ * `extensions` included — echoes the submitted evidence or a configured
+ * credential.
  */
 function errorHygieneFailures(errors, forbidden, context) {
   const failures = [];
@@ -658,7 +661,7 @@ function errorHygieneFailures(errors, forbidden, context) {
       );
     }
     if (
-      stringLeaves(error).some((leaf) =>
+      stringLeaves(error, [], true).some((leaf) =>
         forbidden.some((token) => leaf.includes(token)),
       )
     ) {

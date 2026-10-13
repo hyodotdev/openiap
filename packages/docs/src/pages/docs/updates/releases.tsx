@@ -672,7 +672,7 @@ function Releases() {
                   .
                 </li>
                 <li>
-                  It checks every string in an error, including{' '}
+                  It checks every string and member name in an error, including{' '}
                   <code>path</code> and <code>extensions</code>, for leaked
                   evidence or credentials, as the specification now states.
                 </li>
