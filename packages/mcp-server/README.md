@@ -37,6 +37,12 @@ IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run start:http
 `IAPKIT_PUBLIC_BASE_URL` keeps generated webhook URLs public when API calls use
 a loopback address.
 
+## Sites hosting trial
+
+The [private Sites pilot](pilots/sites/README.md) exercises three existing tools
+on synthetic data with a stateless Worker transport. It is separate from the
+hosted deployment and accepts no credentials or upstream overrides.
+
 ## Client configuration
 
 Codex (`~/.codex/config.toml`):
