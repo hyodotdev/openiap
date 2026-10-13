@@ -559,6 +559,28 @@ void main() {
       expect(calls.where((m) => m == 'initConnection'), hasLength(4));
     });
 
+    test('ending the connection on one instance resets the others', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        return true;
+      });
+      final first = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final second = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await first.initConnection();
+      await second.initConnection();
+
+      expect(await first.endConnection(), isTrue);
+      expect(await second.endConnection(), isFalse);
+      await second.initConnection();
+      expect(calls.where((m) => m == 'initConnection'), hasLength(3));
+    });
+
     test('an unused instance does not take events from the one in use',
         () async {
       final inUse = FlutterInappPurchase.private(

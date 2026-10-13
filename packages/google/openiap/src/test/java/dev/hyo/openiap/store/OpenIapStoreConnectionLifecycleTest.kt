@@ -209,9 +209,12 @@ internal class FakeOpenIapProtocol {
     private val fetchProducts: QueryFetchProductsHandler = { fetchProductsResult }
     var finishDelayMillis = 0L
     var finishError: Exception? = null
+    // A finish waits here while set, so tests can hold an attempt in flight.
+    var finishGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
     private val finishTransaction: MutationFinishTransactionHandler = { _, _ ->
         finishTransactionCalls.incrementAndGet()
         kotlinx.coroutines.delay(finishDelayMillis)
+        finishGate?.await()
         finishError?.let { throw it }
     }
     private val acknowledgePurchase: MutationAcknowledgePurchaseAndroidHandler = { token ->

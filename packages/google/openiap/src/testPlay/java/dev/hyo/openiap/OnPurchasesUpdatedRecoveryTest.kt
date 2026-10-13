@@ -837,6 +837,32 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `already owned reported by both the listener and the launch result is delivered once`() {
+        val owned = billingPurchase("product-id", "owned-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(owned),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+        )
+        val module = module()
+        // Play also posts the refusal to the purchases listener.
+        client.onLaunch = {
+            module.onPurchasesUpdated(
+                billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
+                null,
+            )
+        }
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        val outcome = startPurchase(module, client)
+        pumpMainLooperUntil { outcome.get() != null }
+
+        assertEquals(listOf("owned-token"), purchasesOf(outcome).map { it.purchaseToken })
+        assertEquals(listOf("owned-token"), updates.map { it.purchaseToken })
+    }
+
+    @Test
     fun `late callback of a previous request after a new request starts is not re-delivered`() {
         val purchase = billingPurchase("product-id", "delivered-token")
         val client = RecordingBillingClient(
@@ -1365,6 +1391,7 @@ class OnPurchasesUpdatedRecoveryTest {
     ) : BillingClient() {
         val queryPurchasesCalls = AtomicInteger(0)
         val launchCalls = AtomicInteger(0)
+        var onLaunch: (() -> Unit)? = null
         var beforeQueryPurchasesResponse: (() -> Unit)? = null
         private val purchaseResponseCodes =
             java.util.concurrent.ConcurrentLinkedQueue(purchaseResponseCodes)
@@ -1398,6 +1425,7 @@ class OnPurchasesUpdatedRecoveryTest {
             params: BillingFlowParams
         ): BillingResult {
             launchCalls.incrementAndGet()
+            onLaunch?.invoke()
             return BillingResult.newBuilder().setResponseCode(launchResponseCode).build()
         }
 

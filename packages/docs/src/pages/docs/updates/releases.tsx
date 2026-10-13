@@ -1142,11 +1142,11 @@ function Releases() {
           <p>
             See{' '}
             <a
-              href="PR_LINK_PLACEHOLDER"
+              href="https://github.com/hyodotdev/openiap/pull/528"
               target="_blank"
               rel="noopener noreferrer"
             >
-              the pull request
+              PR #528
             </a>
             .
           </p>

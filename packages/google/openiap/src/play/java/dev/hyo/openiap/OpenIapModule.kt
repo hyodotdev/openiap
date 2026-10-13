@@ -1914,7 +1914,7 @@ class OpenIapModule(
                                         val delivered = deliverPurchasesIfActive(
                                             recovered,
                                             recoveryOwner,
-                                            redeliver = true,
+                                            redeliver = pending != null,
                                         )
                                         if (pending != null) {
                                             pending.callback(Result.success(recovered))
@@ -2372,7 +2372,8 @@ class OpenIapModule(
 
     /**
      * Delivers purchases only while their originating connection is active, each purchase state
-     * once. Already-owned recovery passes [redeliver]: the user asked again for what they own.
+     * once. Already-owned recovery that resolves a request passes [redeliver]: the user asked
+     * again for what they own.
      */
     private fun deliverPurchasesIfActive(
         purchases: List<Purchase>,
@@ -2447,8 +2448,13 @@ class OpenIapModule(
             )
             OpenIapLog.debug("Recovered ${recovered.size} owned purchase(s) after $reason", TAG)
             val delivered = if (pending != null || deliverIfRequestCompletedElsewhere) {
-                // Without a launch snapshot this recovers ownership, which is re-delivered.
-                deliverPurchasesIfActive(recovered, owner, redeliver = tokensBeforeLaunch == null)
+                // Without a launch snapshot this recovers ownership; the path that resolves the
+                // request re-delivers it, and claims dedupe the other already-owned report.
+                deliverPurchasesIfActive(
+                    recovered,
+                    owner,
+                    redeliver = pending != null && tokensBeforeLaunch == null,
+                )
             } else {
                 false
             }

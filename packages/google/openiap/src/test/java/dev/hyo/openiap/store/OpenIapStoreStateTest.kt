@@ -12,9 +12,11 @@ import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -99,29 +101,34 @@ class OpenIapStoreStateTest {
     }
 
     @Test
-    fun `concurrent finishes of one token share the in-flight failure`() {
-        module.finishDelayMillis = 100
+    fun `concurrent finishes of one token share the in-flight failure`() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        module.finishGate = gate
         module.finishError = IllegalStateException("store unavailable")
-        val failures = java.util.concurrent.atomic.AtomicInteger(0)
-
-        hammer(iterations = 1) { _, _ ->
-            runCatching { store.finishTransaction(purchase("shared-token"), false) }
-                .onFailure { failures.incrementAndGet() }
+        // UNDISPATCHED runs each caller until it waits: the first in the store, the rest on it.
+        val callers = (0 until WORKERS).map {
+            async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { store.finishTransaction(purchase("shared-token"), false) }
+            }
         }
 
+        gate.complete(Unit)
+
         assertEquals(1, module.finishTransactionCalls.get())
-        assertEquals("every caller sees the store's failure", WORKERS, failures.get())
+        assertTrue("every caller sees the store's failure", callers.awaitAll().all { it.isFailure })
     }
 
     @Test
     fun `a cancelled finish does not cancel a concurrent finish of the same token`() = runBlocking {
-        module.finishDelayMillis = 200
-        val first = launch(Dispatchers.Default) { store.finishTransaction(purchase("shared-token"), false) }
-        delay(50)
-        val second = async(Dispatchers.Default) {
+        module.finishGate = CompletableDeferred()
+        val first = launch(start = CoroutineStart.UNDISPATCHED) {
+            store.finishTransaction(purchase("shared-token"), false)
+        }
+        val second = async(start = CoroutineStart.UNDISPATCHED) {
             runCatching { store.finishTransaction(purchase("shared-token"), false) }
         }
-        delay(50)
+        module.finishGate = null
+
         first.cancelAndJoin()
 
         assertTrue("the waiter must finish on its own: ${second.await()}", second.await().isSuccess)

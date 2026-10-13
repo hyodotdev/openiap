@@ -2672,6 +2672,38 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
+  it("applies an upgrade on an iOS row stored without a purchase date and stamps it", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    };
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "basic_yearly",
+      expiresAt: now + 300 * day,
+    });
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      expiresAt: now + 30 * day,
+      verifiedPurchaseDate: now,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        productId: "pro_monthly",
+        expiresAt: now + 30 * day,
+        verifiedPurchaseDate: now,
+      },
+    ]);
+  });
+
   it("applies an immediate iOS upgrade that ends sooner than the plan it replaced", async () => {
     const db = new MemDb();
     const day = 86_400_000;

@@ -114,7 +114,7 @@ describe("handleConvexError", () => {
     const internal = handleConvexError(
       new PlayStoreVerificationError(
         new Error(
-          "Uncaught Error: OCC conflict in internal.purchases.internal.saveReceiptInternal",
+          'Documents read from or written to the "purchases" table changed while this mutation was being run and on every subsequent retry. A call to "purchases/internal:saveReceiptInternal" changed the document with ID "k57abc".',
         ),
       ),
     );
@@ -131,18 +131,23 @@ describe("handleConvexError", () => {
       expect(error?.message).not.toMatch(/TOKEN123|googleapis|internal\.|OCC/);
     }
     expect(outage?.retryAfterSec).toBe(5);
-    // A Convex system failure (here, write conflicts retried out) is temporary.
+    // A Convex write conflict retried out is temporary.
     expect(internal?.retryAfterSec).toBe(5);
-    // An application ConvexError (project being deleted) and a bug stay
-    // permanent.
-    expect(
-      handleConvexError(
-        new PlayStoreVerificationError(new ConvexError("Project not found")),
+    // Everything else stays permanent, or every verify would 503 forever.
+    for (const permanent of [
+      new ConvexError("Project not found"),
+      new TypeError("x"),
+      Object.assign(new Error("error:1E08010C:DECODER routines::unsupported"), {
+        code: "ERR_OSSL_UNSUPPORTED",
+      }),
+      new Error(
+        "ArgumentValidationError: Object is missing the required field `projectId`.",
       ),
-    ).not.toHaveProperty("retryAfterSec");
-    expect(
-      handleConvexError(new PlayStoreVerificationError(new TypeError("x"))),
-    ).not.toHaveProperty("retryAfterSec");
+    ]) {
+      expect(
+        handleConvexError(new PlayStoreVerificationError(permanent)),
+      ).not.toHaveProperty("retryAfterSec");
+    }
     expect(rejected).not.toHaveProperty("retryAfterSec");
     expect(rejected?.message).toContain("HTTP 400");
   });

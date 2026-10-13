@@ -272,14 +272,17 @@ export function isPlayStorePackageNameMismatchError(
   );
 }
 
-// A Convex call that fails without application data (write conflicts retried
-// out, overload, timeout) surfaces as an exact Error: no verdict, so temporary.
-// Application failures on this path are ConvexErrors; a TypeError is a bug.
-function isConvexSystemError(error: unknown): boolean {
-  return error instanceof Error && error.constructor === Error;
+// Convex retries its own internal errors; the one transient failure it surfaces
+// is a write conflict retried out (docs.convex.dev/error, "Write conflict").
+// Other plain errors (a bad private key, a validator mismatch) are permanent.
+function isConvexWriteConflict(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes("changed while this mutation was being run")
+  );
 }
 
-// Only curated messages reach `/v1`. Store outages and Convex system failures
+// Only curated messages reach `/v1`. Store outages and Convex write conflicts
 // are temporary; anything else stays permanent.
 export class PlayStoreVerificationError extends ReceiptVerificationError {
   constructor(originalError: unknown) {
@@ -298,7 +301,7 @@ export class PlayStoreVerificationError extends ReceiptVerificationError {
       },
       inner
         ? inner.retryAfterSec
-        : isStoreOutage(originalError) || isConvexSystemError(originalError)
+        : isStoreOutage(originalError) || isConvexWriteConflict(originalError)
           ? STORE_OUTAGE_RETRY_AFTER_SEC
           : undefined,
     );
