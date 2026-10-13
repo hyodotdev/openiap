@@ -233,15 +233,18 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         // openiap-google admits one purchase at a time and frees it before emitting the outcome.
         val call = Any()
         val requestedSkus = params.androidSkus()
-        val failure = AtomicReference<AndroidOpenIapError?>()
+        // Published inside this call: its own. From a Play callback: the latest may still be an earlier
+        // request's, so it counts only without an own failure. Published inside another call: not ours.
+        val ownFailure = AtomicReference<AndroidOpenIapError?>()
+        val callbackFailure = AtomicReference<AndroidOpenIapError?>()
         // The module tags request failures with the requested SKU, or none when it cannot pick one.
-        // One published inside another call, such as its rejection while this one is open, is not ours.
-        // The last one wins: the module publishes this request's failure right before it returns.
         val captureFailure = OpenIapPurchaseErrorListener { error ->
             val productId = error.toKmpPurchaseError().productId
-            val publisher = runningPlayCall.get()
-            if ((publisher == null || publisher === call) && (productId == null || productId in requestedSkus)) {
-                failure.set(error)
+            if (productId == null || productId in requestedSkus) {
+                when (runningPlayCall.get()) {
+                    call -> ownFailure.set(error)
+                    null -> callbackFailure.set(error)
+                }
             }
         }
         openModule.addPurchaseErrorListener(captureFailure)
@@ -250,7 +253,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 openModule.requestPurchase(params.toOpenIap())
             }
             // The module already published this failure to the error listeners.
-            failure.get()?.takeIf { result.isEmpty() }?.let { throw it }
+            (ownFailure.get() ?: callbackFailure.get())?.takeIf { result.isEmpty() }?.let { throw it }
             return result?.toKmp()
         } finally {
             openModule.removePurchaseErrorListener(captureFailure)

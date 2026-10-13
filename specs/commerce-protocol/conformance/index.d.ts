@@ -39,7 +39,10 @@ export interface GraphqlErrorOutcome {
   errors: Array<{
     message: string;
     code?: string;
-    /** The error as served — path, locations, extensions, and any other member. */
+    /**
+     * The error as served — path, locations, extensions, and any other member.
+     * Pass it: the SPEC.md §8 leak scan covers only what an entry carries.
+     */
     raw?: unknown;
   }>;
   /** Whether the response carried a `data` member (SPEC.md §7 pre-execution rule). */

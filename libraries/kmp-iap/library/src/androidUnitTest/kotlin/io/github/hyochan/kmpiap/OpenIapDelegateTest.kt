@@ -333,23 +333,41 @@ class OpenIapDelegateTest {
     }
 
     @Test
-    fun `a Play request throws its own failure, not an earlier request's published while it waited`() = runBlocking {
-        val play = FakePlay()
-        val delegate = delegateFor(Store.PLAY_STORE, play.module, registerListeners = true)
-        val earlier = async(start = CoroutineStart.UNDISPATCHED) {
-            runCatching { delegate.requestPurchase(purchaseRequest()) }
-        }
-        val queryFailure = CompletableDeferred<OpenIapError?>()
-        play.ownershipQuery = { queryFailure.await() }
-        val waiting = async(start = CoroutineStart.UNDISPATCHED) {
-            runCatching { delegate.requestPurchase(purchaseRequest()) }
-        }
+    fun `a Play request throws its own failure, not an earlier request's published around it`() = runBlocking {
+        val queryFailed = OpenIapError.ServiceDisconnected("owned-purchase query failed")
+        for (order in listOf("cancel, then own query failure", "own query failure, then cancel", "cancel, then own Play failure")) {
+            val play = FakePlay()
+            val delegate = delegateFor(Store.PLAY_STORE, play.module, registerListeners = true)
+            val earlier = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { delegate.requestPurchase(purchaseRequest()) }
+            }
+            val gate = CompletableDeferred<Unit>()
+            when (order) {
+                "cancel, then own query failure" -> play.ownershipQuery = { gate.await(); queryFailed }
+                "own query failure, then cancel" -> {
+                    play.ownershipQuery = { queryFailed }
+                    play.returnHop = { gate.await() }
+                }
+                else -> play.ownershipQuery = { gate.await(); null }
+            }
+            val waiting = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { delegate.requestPurchase(purchaseRequest()) }
+            }
 
-        play.fail(OpenIapError.UserCancelled("cancelled").withProductId("premium"))
-        queryFailure.complete(OpenIapError.ServiceDisconnected("owned-purchase query failed"))
+            // The earlier same-product request is cancelled while the second one is still in its call.
+            play.fail(OpenIapError.UserCancelled("cancelled").withProductId("premium"))
+            gate.complete(Unit)
+            if (order == "cancel, then own Play failure") {
+                yield()
+                assertTrue(play.isPending, order)
+                play.fail(OpenIapError.ItemUnavailable("unavailable").withProductId("premium"))
+            }
 
-        assertEquals(ErrorCode.UserCancelled, assertIs<PurchaseException>(earlier.await().exceptionOrNull()).error.code)
-        assertEquals(ErrorCode.ServiceDisconnected, assertIs<PurchaseException>(waiting.await().exceptionOrNull()).error.code)
+            val earlierFailure = assertIs<PurchaseException>(earlier.await().exceptionOrNull())
+            assertEquals(ErrorCode.UserCancelled, earlierFailure.error.code, order)
+            val expected = if (order == "cancel, then own Play failure") ErrorCode.ItemUnavailable else ErrorCode.ServiceDisconnected
+            assertEquals(expected, assertIs<PurchaseException>(waiting.await().exceptionOrNull()).error.code, order)
+        }
     }
 
     @Test
@@ -519,10 +537,13 @@ class OpenIapDelegateTest {
         val isPending get() = pending != null
         // The owned-purchase query each request runs before Play admits it; an error ends the request.
         var ownershipQuery: suspend () -> OpenIapError? = { null }
+        // The module's IO-to-caller hop after it published that error.
+        var returnHop: suspend () -> Unit = {}
 
         private val request: MutationRequestPurchaseHandler = request@{
             ownershipQuery()?.let { failure ->
                 errors.forEach { it.onPurchaseError(failure) }
+                returnHop()
                 return@request dev.hyo.openiap.RequestPurchaseResultPurchases(emptyList())
             }
             if (pending != null) {

@@ -645,16 +645,23 @@ function entitlementsInvariants(data, input) {
   return failures;
 }
 
-/** A stack frame's source location: `secrets.ts:12:4`, `Billing.kt:42`, `File "app.py", line 7`. */
-const SOURCE_LOCATION =
-  /\.(?:[cm]?[jt]sx?|kts?|java|scala|swift|go|rb|cs|rs|php|dart):(?:line )?\d+|\.py", line \d+/u;
+const SOURCE_EXT = String.raw`\.(?:[cm]?[jt]sx?|kts?|java|scala|swift|go|rb|cs|rs|php|dart|py)`;
+// A source path after a separator (`/app/secrets.ts`, `C:\src\Main.cs`), or a
+// bare source file in a stack frame (`verify(Billing.kt:42)`, `at app.js:3:9`,
+// `X.cs:line 12`, `File "app.py", line 7`). No quantifiers overlap: linear.
+const SOURCE_LOCATION = new RegExp(
+  String.raw`[/\\][\w$.-]+${SOURCE_EXT}\b|(?:[\w$]\(|\bat |File ")[\w$.-]+${SOURCE_EXT}(?::\d|", line \d)|${SOURCE_EXT}:line \d`,
+  "u",
+);
+// A URL's path is not an implementation path; a hostless `file:///` one is.
+const URL_WITH_HOST = /\b[a-z][a-z\d+.-]{0,30}:\/\/[^\s/]\S*/giu;
 
 /**
  * SPEC.md 8 hygiene, shared by the vector envelope checks AND the executor
  * probes so neither becomes a side door: every error has a non-empty message,
  * and no string anywhere in the error — member names and GraphQL
  * `extensions` included — echoes the submitted evidence or a configured
- * credential, or discloses a stack trace's source location.
+ * credential, or discloses a source path or stack frame.
  */
 function errorHygieneFailures(errors, forbidden, context) {
   const failures = [];
@@ -672,7 +679,11 @@ function errorHygieneFailures(errors, forbidden, context) {
         `${context}: an error echoes submitted evidence or a credential (SPEC.md 8)`,
       );
     }
-    if (leaves.some((leaf) => SOURCE_LOCATION.test(leaf))) {
+    if (
+      leaves.some((leaf) =>
+        SOURCE_LOCATION.test(leaf.replace(URL_WITH_HOST, " ")),
+      )
+    ) {
       failures.push(
         `${context}: an error discloses a stack trace or source path (SPEC.md 8)`,
       );

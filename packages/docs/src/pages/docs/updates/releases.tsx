@@ -674,7 +674,7 @@ function Releases() {
                 <li>
                   It checks every string and member name in an error, including{' '}
                   <code>path</code> and <code>extensions</code>, for leaked
-                  evidence, credentials, or stack-trace source locations, as the
+                  evidence, credentials, source paths, or stack frames, as the
                   specification now states.
                 </li>
                 <li>

@@ -4041,6 +4041,30 @@ describe("the runner judges what a binding could otherwise hide", () => {
         message: `${error.message} at dev.example.Billing.verify(Billing.kt:42)`,
       }),
     ],
+    [
+      "a source path without a line",
+      (error) => ({
+        ...error,
+        extensions: {
+          ...error.extensions,
+          debug: { source: "/app/convex/secrets.ts" },
+        },
+      }),
+    ],
+    [
+      "a Windows source path",
+      (error) => ({
+        ...error,
+        message: `${error.message} (C:\\src\\app\\Main.cs)`,
+      }),
+    ],
+    [
+      "a pytest location",
+      (error) => ({
+        ...error,
+        message: `${error.message} tests/test_verify.py:42`,
+      }),
+    ],
   ])("fails a GraphQL error that discloses %s", async (_where, rewrite) => {
     const report = await graphqlReport(rewrite);
     for (const id of [
@@ -4054,13 +4078,45 @@ describe("the runner judges what a binding could otherwise hide", () => {
     }
   });
 
-  it("accepts error text with colons, URLs, ports, and timestamps", async () => {
+  it("accepts error text with colons, URLs, versions, and bare file names", async () => {
     const report = await graphqlReport((error) => ({
       ...error,
       message: `${error.message} (retry at 12:30:45 or after 2026-10-14T01:02:03.123Z; see https://api.example.com:8443/docs/errors.html#auth)`,
-      extensions: { ...error.extensions, hint: "ratio 3:2, see RFC 9110:15.5" },
+      extensions: {
+        ...error.extensions,
+        hints: [
+          "ratio 3:2, see RFC 9110:15.5",
+          "Unsupported runtime: requires Node.js:18 or later",
+          "status: https://status.example.rs:8443",
+          "load https://cdn.example.com/sdk/v1.2.3/app.js",
+          "openiap-apple 4.0.2; see /v1/purchases/verify",
+          "upload the AuthKey.p8 file",
+        ],
+      },
     }));
     expect(report.ok).toBe(true);
+  });
+
+  it("scans a 600 KB error string in linear time", async () => {
+    const huge = [
+      `/${"a.".repeat(50_000)}`,
+      `a(${"b.".repeat(50_000)}`,
+      `at ${"c-".repeat(50_000)}`,
+      "d.".repeat(50_000),
+      "/e".repeat(50_000),
+      "f+".repeat(50_000),
+    ].join(" ");
+    expect(huge.length).toBeGreaterThan(600_000);
+    let sent = false;
+    const started = performance.now();
+    const report = await graphqlReport((error) => {
+      if (sent) return error;
+      sent = true;
+      return { ...error, extensions: { ...error.extensions, huge } };
+    });
+    expect(performance.now() - started).toBeLessThan(5_000);
+    expect(sent).toBe(true);
+    expect(report.results.some((result) => !result.ok)).toBe(false);
   });
 
   it("rejects an adapter whose binding the manifest does not define", async () => {
