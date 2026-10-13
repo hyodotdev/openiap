@@ -186,7 +186,7 @@ Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @param
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — throws on iOS)
 kmpIAP.launchExternalLinkAndroid(
     LaunchExternalLinkParamsAndroid(
         billingProgram = BillingProgramAndroid.BillingChoice,

@@ -3,6 +3,7 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.AcknowledgePurchaseResponseListener
@@ -31,17 +32,24 @@ import com.android.billingclient.api.InAppMessageParams
 import com.android.billingclient.api.InAppMessageResponseListener
 import com.android.billingclient.api.LaunchExternalLinkParams
 import com.android.billingclient.api.LaunchExternalLinkResponseListener
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetailsResponseListener
 import com.android.billingclient.api.Purchase as BillingPurchase
 import com.android.billingclient.api.PurchasesResponseListener
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
+import dev.hyo.openiap.helpers.finishPurchaseToken
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import java.lang.reflect.Field
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -52,6 +60,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowLooper
 
 /**
@@ -286,9 +295,7 @@ class OnPurchasesUpdatedRecoveryTest {
     @Test
     fun `listener NETWORK_ERROR does not recover pre-existing ownership`() {
         val client = RecordingBillingClient(
-            ownedPurchases = listOf(
-                billingPurchase("subscription-id", "old-token", purchaseTime = 999)
-            )
+            ownedPurchases = listOf(billingPurchase("subscription-id", "old-token", purchaseTime = 1_001))
         )
         val module = module()
         setBillingClient(module, client)
@@ -300,6 +307,7 @@ class OnPurchasesUpdatedRecoveryTest {
             skus = setOf("subscription-id"),
             productType = BillingClient.ProductType.SUBS,
             launchStartedAtMillis = 1_000.0,
+            tokensBeforeLaunch = setOf("old-token"),
         )
         val updates = mutableListOf<Purchase>()
         val errors = mutableListOf<OpenIapError>()
@@ -656,7 +664,300 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
-    fun `connection replacement during callback install publishes one terminal error`() {
+    fun `a matching purchase stamped before the launch still resolves the request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 10_000.0,
+        )
+
+        // The device clock runs ahead of Play, which stamps purchaseTime.
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "purchase-token", purchaseTime = 5_000)),
+        )
+
+        assertEquals(1, results.size)
+        assertEquals(listOf("purchase-token"), results.single().getOrThrow().map { it.purchaseToken })
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `a purchase Play reported before the launch does not resolve the request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+            tokensBeforeLaunch = setOf("stale-token"),
+        )
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        // An unconsumed purchase from a crashed session, stamped after the launch.
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "stale-token", purchaseTime = 5_000)),
+        )
+
+        assertEquals(listOf("stale-token"), updates.map { it.purchaseToken })
+        assertTrue("an earlier purchase must not resolve the request: $results", results.isEmpty())
+    }
+
+    @Test
+    fun `a new pending purchase resolves the request`() {
+        val client = RecordingBillingClient()
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "pending-token", pending = true)),
+        )
+
+        assertEquals(listOf(PurchaseState.Pending), updates.map { it.purchaseState })
+        assertEquals(
+            listOf(PurchaseState.Pending),
+            results.single().getOrThrow().map { it.purchaseState },
+        )
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `a launched purchase Play never resolves frees the slot after the flow timeout`() {
+        // Earlier purchases Play still reports: a pending one and an unconsumed one.
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase("product-id", "stale-pending-token", pending = true),
+                billingPurchase("product-id", "stale-unconsumed-token"),
+            ),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        val purchases = requestPurchaseUntilFlowTimeout(module, client)
+
+        assertEquals(emptyList<Purchase>(), purchases)
+        assertEquals("ownership is read at launch and at the timeout", 2, client.queryPurchasesCalls.get())
+        assertTrue("timeout must be published: $errors", errors.single() is OpenIapError.ServiceTimeout)
+        assertNull("the slot must be free for the next purchase", pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `a flow timeout resolves with a new purchase Play never reported`() {
+        val stale = billingPurchase("product-id", "stale-unconsumed-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(stale),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+        val errors = mutableListOf<OpenIapError>()
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        val missed = billingPurchase("product-id", "missed-token")
+
+        val purchases = requestPurchaseUntilFlowTimeout(module, client) {
+            client.ownedPurchases = listOf(stale, missed)
+        }
+        // Play reports the same purchase after recovery resolved it.
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(missed))
+
+        assertEquals(listOf("missed-token"), purchases.map { it.purchaseToken })
+        assertEquals("listeners get the recovered purchase once", listOf("missed-token"), updates.map { it.purchaseToken })
+        assertTrue("recovery must not publish an error: $errors", errors.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `a refused consume surfaces Play's mapped error through finishPurchaseToken`() {
+        val client = RecordingBillingClient(
+            consumeResponseCode = BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
+        )
+        val module = module()
+        setBillingClient(module, client)
+
+        val thrown = runCatching {
+            runBlocking { (module as OpenIapProtocol).finishPurchaseToken("token", isConsumable = true) }
+        }.exceptionOrNull()
+
+        assertTrue("$thrown", thrown is OpenIapError.ItemNotOwned)
+        assertEquals("refused", (thrown as OpenIapError).debugMessage)
+        assertEquals(false, runBlocking { module.consumePurchaseAndroid("token") })
+    }
+
+    @Test
+    fun `delivered once, then already-owned recovery re-delivers`() {
+        val owned = billingPurchase("product-id", "owned-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(owned),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(owned))
+
+        // The app failed to validate it and the user taps buy again.
+        val outcome = startPurchase(module, client)
+        pumpMainLooperUntil { outcome.get() != null }
+
+        assertEquals(listOf("owned-token"), purchasesOf(outcome).map { it.purchaseToken })
+        assertEquals(listOf("owned-token", "owned-token"), updates.map { it.purchaseToken })
+    }
+
+    @Test
+    fun `already owned reported by both the listener and the launch result is delivered once`() {
+        val owned = billingPurchase("product-id", "owned-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(owned),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+        )
+        val module = module()
+        // Play also posts the refusal to the purchases listener.
+        client.onLaunch = {
+            module.onPurchasesUpdated(
+                billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
+                null,
+            )
+        }
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        val outcome = startPurchase(module, client)
+        pumpMainLooperUntil { outcome.get() != null }
+
+        assertEquals(listOf("owned-token"), purchasesOf(outcome).map { it.purchaseToken })
+        assertEquals(listOf("owned-token"), updates.map { it.purchaseToken })
+    }
+
+    @Test
+    fun `late callback of a previous request after a new request starts is not re-delivered`() {
+        val purchase = billingPurchase("product-id", "delivered-token")
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(purchase),
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(purchase))
+
+        val outcome = startPurchase(module, client)
+        pumpMainLooperUntil { outcome.get() != null }
+        module.onPurchasesUpdated(billingResult(BillingClient.BillingResponseCode.OK), listOf(purchase))
+
+        assertEquals(listOf("delivered-token"), updates.map { it.purchaseToken })
+    }
+
+    @Test
+    fun `a resolved purchase leaves no flow timeout scheduled`() {
+        val client = RecordingBillingClient(
+            productDetails = listOf(inAppProductDetails("product-id")),
+            launchResponseCode = BillingClient.BillingResponseCode.OK,
+        )
+        val module = module()
+
+        val outcome = startPurchase(module, client)
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(billingPurchase("product-id", "new-token")),
+        )
+        pumpMainLooperUntil { outcome.get() != null }
+
+        assertEquals(listOf("new-token"), purchasesOf(outcome).map { it.purchaseToken })
+        assertEquals(Duration.ZERO, shadowOf(Looper.getMainLooper()).nextScheduledTaskTime)
+    }
+
+    /** Launches a purchase Play never answers and runs the main looper past the flow timeout. */
+    private fun requestPurchaseUntilFlowTimeout(
+        module: OpenIapModule,
+        client: RecordingBillingClient,
+        afterLaunch: () -> Unit = {},
+    ): List<Purchase> {
+        val outcome = startPurchase(module, client)
+        afterLaunch()
+        ShadowLooper.idleMainLooper(14, TimeUnit.MINUTES)
+        assertNull("the request waits for Play inside the window", outcome.get())
+
+        ShadowLooper.idleMainLooper(1, TimeUnit.MINUTES)
+        pumpMainLooperUntil { outcome.get() != null }
+        return purchasesOf(outcome)
+    }
+
+    /** Starts requestPurchase on a worker and runs main-looper work until Play launches it. */
+    private fun startPurchase(
+        module: OpenIapModule,
+        client: RecordingBillingClient,
+    ): AtomicReference<Result<RequestPurchaseResult?>> {
+        setBillingClient(module, client)
+        module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
+        val outcome = AtomicReference<Result<RequestPurchaseResult?>>()
+        thread(isDaemon = true) {
+            outcome.set(runCatching { runBlocking { module.requestPurchase(purchaseProps()) } })
+        }
+        pumpMainLooperUntil { client.launchCalls.get() > 0 }
+        assertEquals("the purchase flow must launch", 1, client.launchCalls.get())
+        return outcome
+    }
+
+    private fun pumpMainLooperUntil(condition: () -> Boolean) {
+        var attempts = 0
+        while (!condition() && attempts++ < 500) {
+            ShadowLooper.idleMainLooper()
+            Thread.sleep(10)
+        }
+    }
+
+    private fun purchasesOf(outcome: AtomicReference<Result<RequestPurchaseResult?>>): List<Purchase> {
+        val result = checkNotNull(outcome.get()) { "the request never completed" }
+        return (result.getOrThrow() as RequestPurchaseResultPurchases).value.orEmpty()
+    }
+
+    private fun purchaseProps() = RequestPurchaseProps(
+        request = RequestPurchaseProps.Request.Purchase(
+            RequestPurchasePropsByPlatforms(
+                google = RequestPurchaseAndroidProps(skus = listOf("product-id")),
+            ),
+        ),
+        type = ProductQueryType.InApp,
+    )
+
+    @Test
+    fun `a connection replaced before launch resolves empty with one terminal error`() {
         val module = module()
         val invalidated = AtomicBoolean(false)
         val client = RecordingBillingClient(
@@ -670,23 +971,14 @@ class OnPurchasesUpdatedRecoveryTest {
         module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
         val errors = mutableListOf<OpenIapError>()
         module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
-        val props = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Purchase(
-                RequestPurchasePropsByPlatforms(
-                    google = RequestPurchaseAndroidProps(skus = listOf("product-id")),
-                ),
-            ),
-            type = ProductQueryType.InApp,
-        )
 
-        val thrown = runCatching {
-            runBlocking { module.requestPurchase(props) }
-        }.exceptionOrNull()
+        val result = runBlocking { module.requestPurchase(purchaseProps()) }
 
         assertTrue("readiness hook must replace the client", invalidated.get())
-        assertTrue("install race must reject with ServiceDisconnected: $thrown", thrown is OpenIapError.ServiceDisconnected)
-        assertEquals("the install path and outer catch must share one event gate", 1, errors.size)
+        assertEquals(emptyList<Purchase>(), (result as RequestPurchaseResultPurchases).value)
+        assertEquals("the ownership read and outer catch share one event gate", 1, errors.size)
         assertTrue(errors.single() is OpenIapError.ServiceDisconnected)
+        assertEquals("nothing launches without the ownership read", 0, client.launchCalls.get())
     }
 
     @Test
@@ -1006,6 +1298,7 @@ class OnPurchasesUpdatedRecoveryTest {
         launchStartedAtMillis: Double?,
         selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
         generation: Long = 0L,
+        tokensBeforeLaunch: Set<String> = emptySet(),
     ) {
         val snapshotClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PendingPurchaseSnapshot")
         val gateClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PurchaseErrorEventGate")
@@ -1033,9 +1326,32 @@ class OnPurchasesUpdatedRecoveryTest {
             productType,
             selectedBasePlanIdsBySku,
             launchStartedAtMillis,
+            tokensBeforeLaunch,
         )
         pendingPurchaseField().set(module, snapshot)
     }
+
+    private fun inAppProductDetails(productId: String): ProductDetails =
+        ProductDetails::class.java.getDeclaredConstructor(String::class.java).apply {
+            isAccessible = true
+        }.newInstance(
+            """
+            {
+              "productId": "$productId",
+              "type": "inapp",
+              "title": "Title",
+              "name": "Name",
+              "description": "Description",
+              "skuDetailsToken": "sku-details-token",
+              "oneTimePurchaseOfferDetails": {
+                "priceAmountMicros": 1000000,
+                "priceCurrencyCode": "USD",
+                "formattedPrice": "${'$'}1.00",
+                "offerIdToken": "offer-token"
+              }
+            }
+            """.trimIndent()
+        )
 
     private fun billingResult(responseCode: Int, debugMessage: String = ""): BillingResult =
         BillingResult.newBuilder()
@@ -1047,6 +1363,7 @@ class OnPurchasesUpdatedRecoveryTest {
         productId: String,
         token: String,
         purchaseTime: Long = 1,
+        pending: Boolean = false,
     ): BillingPurchase = BillingPurchase(
         """
         {
@@ -1055,7 +1372,7 @@ class OnPurchasesUpdatedRecoveryTest {
           "productId": "$productId",
           "productIds": ["$productId"],
           "purchaseTime": $purchaseTime,
-          "purchaseState": 0,
+          "purchaseState": ${if (pending) 4 else 0},
           "purchaseToken": "$token",
           "quantity": 1,
           "acknowledged": false
@@ -1065,11 +1382,16 @@ class OnPurchasesUpdatedRecoveryTest {
     )
 
     private class RecordingBillingClient(
-        private val ownedPurchases: List<BillingPurchase> = emptyList(),
+        var ownedPurchases: List<BillingPurchase> = emptyList(),
         purchaseResponseCodes: List<Int> = emptyList(),
         private val onReadyCheck: (() -> Unit)? = null,
+        private val productDetails: List<ProductDetails> = emptyList(),
+        private val launchResponseCode: Int = BillingResponseCode.FEATURE_NOT_SUPPORTED,
+        private val consumeResponseCode: Int? = null,
     ) : BillingClient() {
         val queryPurchasesCalls = AtomicInteger(0)
+        val launchCalls = AtomicInteger(0)
+        var onLaunch: (() -> Unit)? = null
         var beforeQueryPurchasesResponse: (() -> Unit)? = null
         private val purchaseResponseCodes =
             java.util.concurrent.ConcurrentLinkedQueue(purchaseResponseCodes)
@@ -1101,12 +1423,22 @@ class OnPurchasesUpdatedRecoveryTest {
         override fun launchBillingFlow(
             activity: Activity,
             params: BillingFlowParams
-        ): BillingResult = unsupported()
+        ): BillingResult {
+            launchCalls.incrementAndGet()
+            onLaunch?.invoke()
+            return BillingResult.newBuilder().setResponseCode(launchResponseCode).build()
+        }
 
         override fun queryProductDetailsAsync(
             params: QueryProductDetailsParams,
             listener: ProductDetailsResponseListener
-        ) = unsupportedUnit()
+        ) {
+            if (productDetails.isEmpty()) return
+            listener.onProductDetailsResponse(
+                BillingResult.newBuilder().setResponseCode(BillingResponseCode.OK).build(),
+                QueryProductDetailsResult.create(productDetails, emptyList()),
+            )
+        }
 
         override fun showAlternativeBillingOnlyInformationDialog(
             activity: Activity,
@@ -1138,7 +1470,13 @@ class OnPurchasesUpdatedRecoveryTest {
         override fun consumeAsync(
             params: ConsumeParams,
             listener: ConsumeResponseListener
-        ) = unsupportedUnit()
+        ) {
+            val code = consumeResponseCode ?: return
+            listener.onConsumeResponse(
+                BillingResult.newBuilder().setResponseCode(code).setDebugMessage("refused").build(),
+                params.purchaseToken,
+            )
+        }
 
         override fun createAlternativeBillingOnlyReportingDetailsAsync(
             listener: AlternativeBillingOnlyReportingDetailsListener

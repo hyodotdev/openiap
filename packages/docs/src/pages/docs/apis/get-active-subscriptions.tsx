@@ -79,7 +79,7 @@ function GetActiveSubscriptions() {
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[ActiveSubscription]
+            <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array # of ActiveSubscription
 
 # Godot failure-aware variant:
 func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Dictionary

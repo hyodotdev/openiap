@@ -127,8 +127,10 @@ function RenewalInfoIOS() {
                 <code>renewalOfferType</code>
               </td>
               <td>
-                Offer type: <code>"PROMOTIONAL"</code>,{' '}
-                <code>"SUBSCRIPTION_OFFER_CODE"</code>, <code>"WIN_BACK"</code>.
+                Offer type: <code>"INTRODUCTORY"</code>,{' '}
+                <code>"PROMOTIONAL"</code>,{' '}
+                <code>"SUBSCRIPTION_OFFER_CODE"</code>, <code>"WIN_BACK"</code>,
+                or <code>"UNKNOWN"</code> for a type this SDK does not know.
               </td>
             </tr>
             <tr>

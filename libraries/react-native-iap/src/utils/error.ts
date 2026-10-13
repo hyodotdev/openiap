@@ -3,6 +3,7 @@
  */
 
 import {ErrorCode} from '../types';
+import {isUserCancelledError as isUserCancelledCode} from './errorMapping';
 
 export interface IapError {
   code: string;
@@ -212,11 +213,8 @@ export function isUserCancelledError(
       ? (error as IapError)
       : parseErrorStringToJsonObj(error);
 
-  return (
-    errorObj.code === ErrorCode.UserCancelled ||
-    errorObj.code === 'E_USER_CANCELED' || // Alternative spelling
-    errorObj.responseCode === 1
-  ); // Android BillingClient.BillingResponseCode.USER_CANCELED
+  // responseCode 1 is Android BillingResponseCode.USER_CANCELED.
+  return isUserCancelledCode(errorObj) || errorObj.responseCode === 1;
 }
 
 // Re-export from errorMapping for public API convenience

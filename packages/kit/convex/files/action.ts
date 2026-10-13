@@ -6,10 +6,14 @@ import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import sharp from "sharp";
 import type { Id } from "../_generated/dataModel";
+import type { AppleP8SaveResult } from "./mutation";
+import { es256KeyProblem } from "../products/jwt";
 import {
+  appleP8PurposeValidator,
   validateAppleReviewScreenshotContent,
   validateFileUpload,
   validateGoogleServiceAccountContent,
+  validateP8Content,
 } from "./validation";
 
 const SCREENSHOT_FETCH_TIMEOUT_MS = 30_000;
@@ -26,6 +30,76 @@ export function validateGoogleServiceAccountPrivateKey(
     );
   }
 }
+
+/** Apple signs ES256 only, so a .p8 must parse as a P-256 EC private key. */
+export function validateAppleP8KeyContent(content: string): void {
+  validateP8Content(content);
+  const problem = es256KeyProblem(content);
+  if (problem === "unreadable") {
+    throw new ConvexError(
+      "The .p8 file does not contain a readable private key",
+    );
+  }
+  if (problem === "not-p256") {
+    throw new ConvexError(
+      "The .p8 file is not an Apple key: expected a P-256 EC private key",
+    );
+  }
+}
+
+// A .p8 is a few hundred bytes, so it travels as text and is checked before
+// it reaches storage; the upload-URL flow cannot read the blob in a mutation.
+export const saveAppleP8Key = action({
+  args: {
+    organizationId: v.id("organizations"),
+    projectId: v.id("projects"),
+    purpose: appleP8PurposeValidator,
+    fileName: v.string(),
+    fileType: v.string(),
+    content: v.string(),
+  },
+  handler: async (ctx, args): Promise<AppleP8SaveResult> => {
+    if (!(await getAuthUserId(ctx))) {
+      throw new ConvexError("Not authenticated");
+    }
+    const fileSize = new TextEncoder().encode(args.content).byteLength;
+    try {
+      validateFileUpload(
+        args.fileName,
+        args.fileType,
+        fileSize,
+        "apple_p8_key",
+      );
+      validateAppleP8KeyContent(args.content);
+    } catch (error) {
+      return {
+        success: false,
+        code: "INVALID_FILE",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+    const storageId = await ctx.storage.store(
+      new Blob([args.content], { type: "application/x-pem-file" }),
+    );
+    let result: AppleP8SaveResult;
+    try {
+      result = await ctx.runMutation(internal.files.mutation.insertAppleP8Key, {
+        organizationId: args.organizationId,
+        projectId: args.projectId,
+        purpose: args.purpose,
+        fileName: args.fileName,
+        fileType: args.fileType,
+        fileSize,
+        storageId,
+      });
+    } catch (error) {
+      await ctx.storage.delete(storageId);
+      throw error;
+    }
+    if (!result.success) await ctx.storage.delete(storageId);
+    return result;
+  },
+});
 
 /** Force a real image decode before a blob can receive the validation marker. */
 export async function decodeAppleReviewScreenshot(

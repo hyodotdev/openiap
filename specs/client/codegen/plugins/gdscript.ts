@@ -329,10 +329,10 @@ export class GDScriptPlugin extends CodegenPlugin {
 
   private generateEnumReverseLookup(irEnum: IREnum): void {
     this.emit(`const ${toConstantCase(irEnum.name)}_FROM_STRING = {`);
-    irEnum.values.forEach((value, index) => {
-      const comma = index < irEnum.values.length - 1 ? ',' : '';
-      this.emit(`\t"${value.rawValue}": ${irEnum.name}.${this.enumValueCase(value.name)}${comma}`);
-    });
+    const entries = irEnum.values.flatMap((value) =>
+      this.enumSpellings(value).map((spelling) => `\t"${spelling}": ${irEnum.name}.${this.enumValueCase(value.name)}`),
+    );
+    this.emit(entries.join(',\n'));
     this.emit('}');
     this.emit('');
   }

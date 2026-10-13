@@ -346,7 +346,8 @@ export interface NitroInAppMessageParamsAndroid {
  * Subscription status information (iOS only)
  */
 export interface NitroSubscriptionStatus {
-  state: number;
+  /** StoreKit renewal-state name, e.g. "subscribed" or "inGracePeriod". */
+  state: string;
   platform: string;
   renewalInfo?: NitroRenewalInfoIOS | null;
 }

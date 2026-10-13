@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import type { Context } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import * as crypto from "node:crypto";
 
 import { IAPKIT_MCP_LOOPBACK_HEADER } from "@hyodotdev/openiap-mcp-server/kit-client";
@@ -107,6 +107,55 @@ function evictIfNeeded(
   }
 }
 
+interface BucketDecision extends ConsumeResult {
+  tokens: number;
+}
+
+// Pure: what charging `cost` would do to the bucket at `nowMs`.
+function decideBucket(
+  bucket: Bucket | undefined,
+  capacity: number,
+  refillPerSecond: number,
+  nowMs: number,
+  cost: number,
+): BucketDecision {
+  const elapsedSec = bucket
+    ? Math.max(0, (nowMs - bucket.lastRefillMs) / 1000)
+    : 0;
+  const available = bucket
+    ? Math.min(capacity, bucket.tokens + elapsedSec * refillPerSecond)
+    : capacity;
+  if (available >= cost) {
+    const tokens = available - cost;
+    return {
+      allowed: true,
+      remaining: Math.floor(tokens),
+      retryAfterSec: 0,
+      tokens,
+    };
+  }
+  return {
+    allowed: false,
+    remaining: bucket ? 0 : Math.floor(available),
+    retryAfterSec: Math.max(1, Math.ceil((cost - available) / refillPerSecond)),
+    tokens: available,
+  };
+}
+
+function commitBucket(
+  store: Map<string, Bucket>,
+  keyHash: string,
+  tokens: number,
+  nowMs: number,
+  maxStoreSize: number,
+  ttlMs: number,
+): void {
+  // Delete then set moves the key to the LRU tail.
+  store.delete(keyHash);
+  store.set(keyHash, { tokens, lastRefillMs: nowMs });
+  evictIfNeeded(store, maxStoreSize, nowMs, ttlMs);
+}
+
 export function tryConsume(
   store: Map<string, Bucket>,
   keyHash: string,
@@ -121,47 +170,15 @@ export function tryConsume(
   if (cost <= 0) {
     return { allowed: true, remaining: capacity, retryAfterSec: 0 };
   }
-  const bucket = store.get(keyHash);
-
-  if (!bucket) {
-    const allowed = cost <= capacity;
-    const remaining = allowed ? capacity - cost : capacity;
-    store.set(keyHash, { tokens: remaining, lastRefillMs: nowMs });
-    evictIfNeeded(store, maxStoreSize, nowMs, ttlMs);
-    return {
-      allowed,
-      remaining: Math.floor(remaining),
-      retryAfterSec: allowed
-        ? 0
-        : Math.max(1, Math.ceil((cost - capacity) / refillPerSecond)),
-    };
-  }
-
-  // LRU bump: re-insert to move the key to the tail.
-  store.delete(keyHash);
-  store.set(keyHash, bucket);
-
-  const elapsedSec = Math.max(0, (nowMs - bucket.lastRefillMs) / 1000);
-  const refilled = Math.min(
+  const { tokens, ...result } = decideBucket(
+    store.get(keyHash),
     capacity,
-    bucket.tokens + elapsedSec * refillPerSecond,
+    refillPerSecond,
+    nowMs,
+    cost,
   );
-
-  if (refilled >= cost) {
-    bucket.tokens = refilled - cost;
-    bucket.lastRefillMs = nowMs;
-    return {
-      allowed: true,
-      remaining: Math.floor(bucket.tokens),
-      retryAfterSec: 0,
-    };
-  }
-
-  bucket.tokens = refilled;
-  bucket.lastRefillMs = nowMs;
-  const missing = cost - refilled;
-  const retryAfterSec = Math.max(1, Math.ceil(missing / refillPerSecond));
-  return { allowed: false, remaining: 0, retryAfterSec };
+  commitBucket(store, keyHash, tokens, nowMs, maxStoreSize, ttlMs);
+  return result;
 }
 
 // A 600-token burst absorbs push-driven startup storms and 5xx retries; a
@@ -224,7 +241,7 @@ const DEFAULT_IP_MAX_STORE_SIZE = parsePositiveNumber(
 // `apiKeyHash` is set here so the request logger doesn't re-hash the key on
 // the verify hot path.
 type RateLimitVars = {
-  apiKey: string;
+  apiKey?: string;
   apiKeyHash?: string;
 };
 
@@ -362,31 +379,51 @@ async function applyRateLimitAxes(
     return;
   }
 
-  let primaryResult: ConsumeResult | null = null;
-  for (const axis of axes) {
-    const result = tryConsume(
-      axis.store,
-      axis.identifier,
+  // Decide every axis before charging any, so a request one axis rejects
+  // (say, a flooding IP) does not drain the shared key or global bucket.
+  const decisions = axes.map((axis) => {
+    evictIfNeeded(axis.store, axis.maxStoreSize, nowMs, axis.ttlMs);
+    return decideBucket(
+      axis.store.get(axis.identifier),
       axis.capacity,
       axis.refillPerSecond,
       nowMs,
-      axis.maxStoreSize,
-      axis.ttlMs,
       axis.cost,
     );
-    if (axis.scope === primaryScope) primaryResult = result;
-    if (!result.allowed) {
-      c.header("X-RateLimit-Limit", String(axis.capacity));
-      c.header("X-RateLimit-Remaining", String(result.remaining));
-      c.header("X-RateLimit-Scope", axis.scope);
-      c.header("Retry-After", String(result.retryAfterSec));
-      return respond(c, result);
-    }
+  });
+  const deniedIndex = decisions.findIndex(
+    (decision, index) => axes[index].cost > 0 && !decision.allowed,
+  );
+  if (deniedIndex !== -1) {
+    const axis = axes[deniedIndex];
+    const result = decisions[deniedIndex];
+    c.header("X-RateLimit-Limit", String(axis.capacity));
+    c.header("X-RateLimit-Remaining", String(result.remaining));
+    c.header("X-RateLimit-Scope", axis.scope);
+    c.header("Retry-After", String(result.retryAfterSec));
+    return respond(c, result);
   }
 
-  const primaryAxis = axes.find((axis) => axis.scope === primaryScope);
+  axes.forEach((axis, index) => {
+    if (axis.cost <= 0) return;
+    commitBucket(
+      axis.store,
+      axis.identifier,
+      decisions[index].tokens,
+      nowMs,
+      axis.maxStoreSize,
+      axis.ttlMs,
+    );
+  });
+
+  const primaryIndex = axes.findIndex((axis) => axis.scope === primaryScope);
+  const primaryAxis = axes[primaryIndex];
+  const primaryRemaining =
+    primaryAxis && primaryAxis.cost > 0
+      ? decisions[primaryIndex].remaining
+      : (primaryAxis?.capacity ?? 0);
   c.header("X-RateLimit-Limit", String(primaryAxis?.capacity ?? 0));
-  c.header("X-RateLimit-Remaining", String(primaryResult?.remaining ?? 0));
+  c.header("X-RateLimit-Remaining", String(primaryRemaining));
   await next();
 }
 
@@ -506,7 +543,7 @@ function isTrustedMcpLoopback(c: Context): boolean {
 /** Protects unauthenticated transport surfaces by source IP and process. */
 export function sourceRateLimitMiddleware(
   config: SourceRateLimitConfig = {},
-): ReturnType<typeof createMiddleware> {
+): MiddlewareHandler {
   const clock = config.now ?? (() => Date.now());
   const getIp = config.getIp ?? getRequestIp;
 

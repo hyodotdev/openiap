@@ -9,9 +9,6 @@ import dev.hyo.openiap.toOpenIapError
 import dev.hyo.openiap.utils.BillingConverters.toPurchase
 import java.util.concurrent.atomic.AtomicBoolean
 
-// Common helpers (onPurchaseUpdated, onPurchaseError, AndroidPurchaseArgs,
-// toAndroidPurchaseArgs, toPurchaseError) are in main/helpers/CommonHelpers.kt
-
 private fun isRetriablePurchaseQueryResponse(responseCode: Int): Boolean = when (responseCode) {
     BillingClient.BillingResponseCode.NETWORK_ERROR,
     BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
@@ -72,19 +69,20 @@ internal suspend fun queryPurchases(
 }
 
 /**
- * Queries Play Billing for currently owned purchases that match an in-flight
- * request. When [purchasedSinceMillis] is set, older ownership is excluded so
- * a transient purchase-flow error cannot turn a pre-existing purchase into a
- * false success. [maxAttempts] applies only when the ownership query itself
- * fails; eligible retries run through [scheduleRetry] after [retryDelayMillis].
- * A successful empty response is authoritative.
+ * Queries Play Billing for currently owned purchases of the requested SKUs.
+ * With [tokensBeforeLaunch], only one Play did not report before the launch
+ * counts (see [isPurchaseForPendingRequest]), so a transient purchase-flow error
+ * or timeout cannot turn an earlier purchase into a success.
+ * [maxAttempts] applies only when the ownership query itself fails; eligible
+ * retries run through [scheduleRetry] after [retryDelayMillis]. A successful
+ * empty response is authoritative.
  */
 internal fun queryAlreadyOwnedPurchases(
     client: BillingClient?,
     productType: String,
     skus: List<String>,
     basePlanIdsBySku: Map<String, String?> = emptyMap(),
-    purchasedSinceMillis: Double? = null,
+    tokensBeforeLaunch: Set<String>? = null,
     maxAttempts: Int = 1,
     retryDelayMillis: Long = 0,
     scheduleRetry: (Long, () -> Unit) -> Boolean = { _, retry ->
@@ -125,8 +123,13 @@ internal fun queryAlreadyOwnedPurchases(
                 }
 
                 val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
-                    if (purchasedSinceMillis != null &&
-                        billingPurchase.purchaseTime.toDouble() < purchasedSinceMillis
+                    if (tokensBeforeLaunch != null &&
+                        !isPurchaseForPendingRequest(
+                            productIds = billingPurchase.products,
+                            purchaseToken = billingPurchase.purchaseToken,
+                            requestedSkus = requestedSkus,
+                            tokensBeforeLaunch = tokensBeforeLaunch,
+                        )
                     ) {
                         return@mapNotNull null
                     }

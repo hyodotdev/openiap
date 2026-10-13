@@ -14,15 +14,12 @@
 // projection of that contract, generated from the GraphQL schema in
 // `specs/client`.
 //
-// QueryResolver / MutationResolver / SubscriptionResolver in the generated
-// Types.cs declare the full operation surface. Concrete `IOpenIap`
-// implementations should also implement the resolver interfaces from
-// `OpenIap` so the entire OpenIAP API is callable through one object.
+// Every `IOpenIap` implementation, including the unsupported-platform
+// fallback, also implements the generated QueryResolver and MutationResolver.
 
 #nullable enable
 
 using System;
-using System.Threading.Tasks;
 using OpenIap;
 
 namespace OpenIap.Maui;
@@ -86,41 +83,46 @@ public interface IOpenIap
 }
 
 /// <summary>
-/// Static convenience facade. Resolves the platform implementation lazily so
-/// host apps can write <c>await OpenIapClient.Instance.FetchProductsAsync(...)</c>
-/// once the platform impl also implements <c>QueryResolver</c>.
+/// Static convenience facade. Cast <see cref="Instance"/> to a generated
+/// resolver to call an operation, for example
+/// <c>await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(request)</c>.
 /// </summary>
 public static class OpenIapClient
 {
+    // One store client per process: Meta Horizon ends the app when a second billing client
+    // queries purchases. Creation and replacement share this lock so neither can overlap.
+    private static readonly object InstanceLock = new();
     private static IOpenIap? _instance;
 
     /// <summary>
-    /// Returns the platform-resolved <see cref="IOpenIap"/> instance. The
-    /// resolver is set by the platform-specific partial in
-    /// <c>Platforms/&lt;Platform&gt;/OpenIapPlatform.cs</c>.
+    /// The platform implementation, created on first use. A failed creation is
+    /// not cached, so the next read tries again.
     /// </summary>
     public static IOpenIap Instance
     {
         get
         {
-            _instance ??= OpenIapPlatform.Create();
-            return _instance;
+            lock (InstanceLock) return _instance ??= OpenIapPlatform.Create();
         }
     }
 
     /// <summary>
-    /// Override the resolved instance — primarily for tests / DI containers
-    /// that want to inject a fake.
+    /// Replace the instance with a test or DI fake. The replaced instance is
+    /// disposed, and on Android its store connection ends asynchronously, so
+    /// never pass an instance that opens a store connection of its own.
     /// </summary>
     public static void OverrideInstance(IOpenIap instance)
     {
-        var next = instance ?? throw new ArgumentNullException(nameof(instance));
-        var previous = _instance;
-        if (!ReferenceEquals(previous, next) && previous is IDisposable disposable)
+        ArgumentNullException.ThrowIfNull(instance);
+        lock (InstanceLock)
         {
-            disposable.Dispose();
+            var previous = _instance;
+            _instance = instance;
+            if (!ReferenceEquals(previous, instance) && previous is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
-        _instance = next;
     }
 
     /// <summary>

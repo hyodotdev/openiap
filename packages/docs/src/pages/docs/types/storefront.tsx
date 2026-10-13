@@ -84,8 +84,8 @@ function Storefront() {
               </td>
               <td>
                 StoreKit returns ISO 3166-1 alpha-3 (for example{' '}
-                <code>"USA"</code>, <code>"KOR"</code>); Google Play Billing and
-                Horizon return alpha-2 country codes, and Amazon returns its
+                <code>"USA"</code>, <code>"KOR"</code>); Google Play Billing
+                returns an alpha-2 country code, and Amazon returns its
                 alpha-2-like <code>UserData.marketplace</code> value (for
                 example <code>"US"</code>, <code>"DE"</code>). If the store
                 lookup fails, the API rejects or throws a platform-mapped
@@ -99,9 +99,12 @@ function Storefront() {
         <blockquote className="info-note">
           <p>
             iOS sources the value from the active StoreKit storefront. Google
-            Play and Horizon query billing configuration; Amazon uses the
-            signed-in user&apos;s marketplace. All paths are store-authoritative
-            and fail closed when no storefront value is available.
+            Play queries billing configuration; Amazon uses the signed-in
+            user&apos;s marketplace. Horizon&apos;s billing client answers that
+            query with <code>FEATURE_NOT_SUPPORTED</code>, so the call rejects
+            there (see <Link to="/docs/apis/get-storefront">getStorefront</Link>
+            ). All paths are store-authoritative and fail closed when no
+            storefront value is available.
           </p>
         </blockquote>
       </section>

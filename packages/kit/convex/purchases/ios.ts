@@ -34,21 +34,15 @@ import {
   AppStoreBundleIdMismatchError,
   AppStoreServerCredentialsMissingError,
   AppStoreServerCredentialField,
+  isStoreOutage,
+  STORE_OUTAGE_RETRY_AFTER_SEC,
 } from "./errors";
 import { retryOnTransient } from "./retry";
+import { readAppleP8Key } from "../files/internal";
+import { es256KeyProblem } from "../products/jwt";
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
-}
-
-function isAppStoreSubscriptionType(type: string | undefined): boolean {
-  if (
-    type === AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION ||
-    type === AppStoreProductType.NON_RENEWING_SUBSCRIPTION
-  ) {
-    return true;
-  }
-  return type?.toLowerCase().includes("subscription") ?? false;
 }
 
 function appStorePriceToMicros(price: number | undefined): number | undefined {
@@ -109,46 +103,31 @@ export const verifyAppStoreReceiptInternalV1 = action({
       );
     }
 
-    let transactionData: AppStoreReceiptData;
+    // A failed check stores nothing: a signature failure would let forged bytes
+    // grow the table, and a Server API error is no verdict on a transaction
+    // Apple already signed. Verdicts come from the store-verified path below.
+    const serverCredentials = await getAppStoreServerCredentials(ctx, project);
 
-    try {
-      const serverCredentials = await getAppStoreServerCredentials(
-        ctx,
-        project,
-      );
+    // Prove the caller holds an Apple-signed transaction before asking the
+    // App Store about it. Without this, `decodeJwsPayload` above accepts any
+    // base64 the caller assembles, and every downstream check compares
+    // Apple's answer to the caller's own request — so knowing a
+    // transactionId would be enough to obtain a verified verdict.
+    await verifyJWSTransaction(
+      args.jws,
+      project.iosBundleId,
+      environment,
+      project.iosAppAppleId,
+    );
 
-      // Prove the caller holds an Apple-signed transaction before asking the
-      // App Store about it. Without this, `decodeJwsPayload` above accepts any
-      // base64 the caller assembles, and every downstream check compares
-      // Apple's answer to the caller's own request — so knowing a
-      // transactionId would be enough to obtain a verified verdict.
-      await verifyJWSTransaction(
-        args.jws,
-        project.iosBundleId,
-        environment,
-        project.iosAppAppleId,
-      );
-
-      transactionData = await verifyTransactionWithServerApi({
-        ctx,
-        decodedJwsPayload: decodedPayload,
-        bundleId: project.iosBundleId,
-        environment,
-        appAppleId: project.iosAppAppleId,
-        credentials: serverCredentials,
-      });
-    } catch (error) {
-      await persistFailedAppStoreReceipt(ctx, {
-        projectId: project._id,
-        bundleId: project.iosBundleId,
-        jws: args.jws,
-        requestData,
-        requestIp: args.requestIp,
-        error,
-        verificationDurationMs: Date.now() - verificationStart,
-      });
-      throw error;
-    }
+    const transactionData = await verifyTransactionWithServerApi({
+      ctx,
+      decodedJwsPayload: decodedPayload,
+      bundleId: project.iosBundleId,
+      environment,
+      appAppleId: project.iosAppAppleId,
+      credentials: serverCredentials,
+    });
 
     assertVerifiedTransactionBinding({
       requestedTransactionId: decodedPayload.transactionId,
@@ -203,7 +182,14 @@ export async function recordAppStoreVerifiedSubscription(
     purchaseState: HarmonizedPurchaseState;
   },
 ): Promise<void> {
-  if (!isAppStoreSubscriptionType(params.transactionData.type)) return;
+  // Non-renewing passes carry no expiry, so a subscription row would stay
+  // entitled forever; they remain purchases, as on the webhook path.
+  if (
+    params.transactionData.type !==
+    AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION
+  ) {
+    return;
+  }
 
   await ctx.runMutation(
     internal.subscriptions.internal.recordVerifiedSubscription,
@@ -217,6 +203,8 @@ export async function recordAppStoreVerifiedSubscription(
       currency: params.transactionData.currency,
       priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
       revocationReasonIOS: params.transactionData.revocationReason,
+      verifiedPurchaseDate: params.transactionData.purchaseDate,
+      verifiedSignedDate: params.transactionData.signedDate,
     },
   );
 }
@@ -275,7 +263,9 @@ export async function verifyJWSTransaction(
       gracePeriodExpiresDate?: number;
       deviceVerification?: string;
       deviceVerificationNonce?: string;
-    } = await retryOnTransient(() => verifier.verifyAndDecodeTransaction(jws));
+    } = await retryOnTransient(() => verifier.verifyAndDecodeTransaction(jws), {
+      shouldRetry: isVerifierOutage,
+    });
 
     const transactionData = {
       transactionId: verifiedTransaction.transactionId,
@@ -311,8 +301,27 @@ export async function verifyJWSTransaction(
     console.error("Error verifying JWS transaction:", describeError(error));
     throw new AppStoreTransactionVerificationFailedError(
       getVerificationErrorMessage(error),
+      isVerifierOutage(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
     );
   }
+}
+
+// The verifier's only network call is the OCSP check, made after the chain
+// verified against Apple's roots, so a failed request (node-fetch FetchError)
+// or an unreadable reply such as a 503 page (raised in checkOCSPStatus) is an
+// outage. A forged signature fails elsewhere and stays a verdict.
+export function isVerifierOutage(error: unknown): boolean {
+  if (!(error instanceof VerificationException)) return false;
+  const cause = error.cause;
+  return (
+    isFetchFailure(cause) ||
+    (cause instanceof Error && (cause.stack ?? "").includes("checkOCSPStatus"))
+  );
+}
+
+// node-fetch raises FetchError when a request gets no usable answer.
+function isFetchFailure(error: unknown): boolean {
+  return error instanceof Error && error.name === "FetchError";
 }
 
 type AppStoreServerCredentials = {
@@ -335,32 +344,25 @@ export async function getAppStoreServerCredentials(
     missingFields.push("keyId");
   }
 
-  let privateKey: string | undefined;
+  let privateKey: string | null = null;
   try {
-    const keyResponse = await ctx.runAction(
-      internal.files.internal.getAppleP8Key,
-      {
-        organizationId: project.organizationId,
-        projectId: project._id,
-      },
+    privateKey = await readAppleP8Key(
+      ctx,
+      project._id,
+      "apple_p8_key",
+      project.iosAppStoreKeyId,
     );
-    privateKey = keyResponse.keyContent;
   } catch (error) {
     console.error("Failed to load Apple P8 key:", describeError(error));
+  }
+  // The Server API client signs before any request, so a key that cannot sign
+  // ES256 is a configuration error, never an outage.
+  if (!privateKey || es256KeyProblem(privateKey)) {
     missingFields.push("privateKey");
   }
 
-  if (!privateKey && !missingFields.includes("privateKey")) {
-    missingFields.push("privateKey");
-  }
-
-  if (missingFields.length > 0) {
+  if (missingFields.length > 0 || !privateKey) {
     throw new AppStoreServerCredentialsMissingError(missingFields);
-  }
-
-  if (!privateKey) {
-    // Should not happen because we track missingFields, but guard defensively.
-    throw new AppStoreServerCredentialsMissingError(["privateKey"]);
   }
 
   return {
@@ -451,11 +453,18 @@ async function verifyTransactionWithServerApi(params: {
     if (error instanceof APIException) {
       throw new AppStoreTransactionVerificationFailedError(
         formatAppStoreServerApiError(error),
+        isStoreOutage(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
       );
     }
 
+    // Only a failed request is an outage; any other error would repeat. Neither
+    // text is ours to return.
+    const outage = isFetchFailure(error);
     throw new AppStoreTransactionVerificationFailedError(
-      error instanceof Error ? error.message : String(error),
+      outage
+        ? "App Store Server API did not respond"
+        : "App Store Server API request failed",
+      outage ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
     );
   }
 }
@@ -519,111 +528,6 @@ function getVerificationErrorMessage(error: unknown): string {
   }
 
   return "Unknown verification error";
-}
-
-async function persistFailedAppStoreReceipt(
-  ctx: ActionCtx,
-  params: {
-    projectId: Id<"projects">;
-    bundleId: string;
-    jws: string;
-    requestData: {
-      store: "apple";
-      jws: string;
-      expectedProductId?: string;
-    };
-    requestIp?: string;
-    error: unknown;
-    verificationDurationMs?: number;
-  },
-) {
-  if (!shouldPersistFailedAppStoreReceipt(params.error)) {
-    return;
-  }
-
-  const receiptData = buildFailedAppStoreReceiptData(
-    params.jws,
-    params.bundleId,
-    params.error,
-  );
-  const remoteId =
-    receiptData.originalTransactionId ||
-    receiptData.transactionId ||
-    hashJws(params.jws);
-
-  await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-    projectId: params.projectId,
-    store: "apple",
-    applicationId: params.bundleId,
-    remoteId,
-    requestData: params.requestData,
-    remoteResponse: JSON.stringify(receiptData),
-    state: HarmonizedPurchaseState.INAUTHENTIC,
-    isValid: false,
-    requestIp: params.requestIp,
-    verificationDurationMs: params.verificationDurationMs,
-  });
-}
-
-function shouldPersistFailedAppStoreReceipt(
-  error: unknown,
-): error is AppStoreTransactionVerificationFailedError {
-  return error instanceof AppStoreTransactionVerificationFailedError;
-}
-
-function buildFailedAppStoreReceiptData(
-  jws: string,
-  fallbackBundleId: string,
-  error: AppStoreTransactionVerificationFailedError,
-): AppStoreReceiptData & {
-  failureReason: {
-    code: string;
-    message: string;
-    details?: Record<string, any>;
-  };
-} {
-  const payload = decodeJwsPayload(jws) ?? {};
-  const now = Date.now();
-  const transactionId =
-    payload.transactionId || payload.originalTransactionId || hashJws(jws);
-  const originalTransactionId = payload.originalTransactionId || transactionId;
-
-  return {
-    transactionId,
-    originalTransactionId,
-    bundleId: payload.bundleId ?? fallbackBundleId,
-    productId: payload.productId ?? "unknown",
-    purchaseDate:
-      typeof payload.purchaseDate === "number" ? payload.purchaseDate : now,
-    originalPurchaseDate:
-      typeof payload.originalPurchaseDate === "number"
-        ? payload.originalPurchaseDate
-        : now,
-    quantity:
-      typeof payload.quantity === "number" && payload.quantity > 0
-        ? payload.quantity
-        : 1,
-    type: payload.type,
-    price: payload.price,
-    currency: payload.currency,
-    storefront: payload.storefront,
-    storefrontId: payload.storefrontId,
-    environment: narrowAppleEnvironment(payload.environment),
-    webOrderLineItemId: payload.webOrderLineItemId,
-    subscriptionGroupIdentifier: payload.subscriptionGroupIdentifier,
-    expiresDate: payload.expiresDate,
-    revocationDate: payload.revocationDate,
-    revocationReason: payload.revocationReason,
-    inAppOwnershipType: payload.inAppOwnershipType,
-    signedDate: payload.signedDate,
-    transactionReason: payload.transactionReason,
-    appTransactionId: payload.appTransactionId,
-    failureReason: {
-      code: error.errorCode,
-      message: error.errorMessage,
-      details: error.errorDetails,
-    },
-  };
 }
 
 function hashJws(jws: string): string {

@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
+const authMocks = vi.hoisted(() => ({ getAuthUserId: vi.fn() }));
+vi.mock("@convex-dev/auth/server", () => ({
+  getAuthUserId: authMocks.getAuthUserId,
+}));
+
+import type { Id } from "../_generated/dataModel";
 import {
+  cancelProductSync as registeredCancelProductSync,
+  enqueueProductSync as registeredEnqueueProductSync,
   getSyncJobById as registeredGetSyncJobById,
   PRODUCT_SYNC_FAILURES_CAP,
   PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
@@ -12,6 +20,7 @@ import {
   isCancelRequested as registeredIsCancelRequested,
   markJobRunning as registeredMarkJobRunning,
   markJobSucceeded as registeredMarkJobSucceeded,
+  reapStaleProductSyncJobs as registeredReapStaleProductSyncJobs,
   truncateFailures,
   truncateManualActions,
 } from "./jobs";
@@ -27,6 +36,161 @@ const getJobForWorker = testableFunction(registeredGetJobForWorker);
 const isCancelRequested = testableFunction(registeredIsCancelRequested);
 const markJobRunning = testableFunction(registeredMarkJobRunning);
 const markJobSucceeded = testableFunction(registeredMarkJobSucceeded);
+const cancelProductSync = testableFunction(registeredCancelProductSync);
+const enqueueProductSync = testableFunction(registeredEnqueueProductSync);
+const reapStaleProductSyncJobs = testableFunction(
+  registeredReapStaleProductSyncJobs,
+);
+
+describe("queued jobs never hold the platform slot forever", () => {
+  function makeCtx(job: Record<string, unknown>) {
+    const rows = new Map<string, Record<string, unknown>>([
+      [
+        "job_a",
+        { _id: "job_a", projectId: "project_a", platform: "IOS", ...job },
+      ],
+      [
+        "project_a",
+        {
+          _id: "project_a",
+          organizationId: "organization_a",
+          activeSyncJobIds: { IOS: "job_a" },
+        },
+      ],
+      ["organization_a", { _id: "organization_a" }],
+    ]);
+    const db = {
+      get: vi.fn(async (id: string) => rows.get(id) ?? null),
+      normalizeId: (_table: string, id: string) => id,
+      patch: vi.fn(async (id: string, value: Record<string, unknown>) => {
+        Object.assign(rows.get(id) ?? {}, value);
+      }),
+      query: (table: string) => ({
+        withIndex: (
+          _name: string,
+          build: (q: {
+            eq: (field: string, value: unknown) => unknown;
+            lt: (field: string, value: number) => unknown;
+          }) => unknown,
+        ) => {
+          const filters: Array<(row: Record<string, unknown>) => boolean> = [];
+          const q = {
+            eq: (field: string, value: unknown) => {
+              filters.push((row) => row[field] === value);
+              return q;
+            },
+            // Convex sorts a missing field before every number.
+            lt: (field: string, value: number) => {
+              filters.push(
+                (row) =>
+                  row[field] === undefined ||
+                  (typeof row[field] === "number" && row[field] < value),
+              );
+              return q;
+            },
+          };
+          build(q);
+          const matches = () =>
+            [...rows.values()].filter(
+              (row) =>
+                (table !== "productSyncJobs" || row._id === "job_a") &&
+                filters.every((filter) => filter(row)),
+            );
+          return {
+            take: async (count: number) => matches().slice(0, count),
+            first: async () =>
+              table === "organizationMembers"
+                ? { role: "admin", userId: "user_a" }
+                : (matches()[0] ?? null),
+          };
+        },
+      }),
+    };
+    return { ctx: { db }, rows };
+  }
+
+  it("reaps a queued job whose worker never started", async () => {
+    const { ctx, rows } = makeCtx({
+      status: "queued",
+      expectedDeadline: Date.now() - PRODUCT_SYNC_REAPER_GRACE_MS - 1,
+    });
+
+    await expect(reapStaleProductSyncJobs._handler(ctx, {})).resolves.toEqual({
+      reaped: 1,
+    });
+    expect(rows.get("job_a")).toMatchObject({ status: "failed" });
+    expect(rows.get("project_a")?.activeSyncJobIds).toEqual({
+      IOS: undefined,
+    });
+  });
+
+  it("gives a job queued before deadlines existed the default deadline", async () => {
+    const fresh = makeCtx({ status: "queued", createdAt: Date.now() });
+    await expect(
+      reapStaleProductSyncJobs._handler(fresh.ctx, {}),
+    ).resolves.toEqual({ reaped: 0 });
+    expect(fresh.rows.get("job_a")).toMatchObject({ status: "queued" });
+
+    const old = makeCtx({
+      status: "queued",
+      createdAt:
+        Date.now() -
+        PRODUCT_SYNC_JOB_DEADLINE_MS -
+        PRODUCT_SYNC_REAPER_GRACE_MS -
+        1,
+    });
+    await expect(
+      reapStaleProductSyncJobs._handler(old.ctx, {}),
+    ).resolves.toEqual({ reaped: 1 });
+  });
+
+  it("gives a newly queued job a deadline", async () => {
+    authMocks.getAuthUserId.mockResolvedValue("user_a");
+    const { ctx, rows } = makeCtx({ status: "succeeded" });
+    const inserted: Record<string, unknown>[] = [];
+    const queueCtx = {
+      ...ctx,
+      db: {
+        ...ctx.db,
+        insert: vi.fn(
+          async (_table: string, value: Record<string, unknown>) => {
+            inserted.push(value);
+            rows.set("job_new", { _id: "job_new", ...value });
+            return "job_new";
+          },
+        ),
+      },
+      scheduler: { runAfter: vi.fn() },
+    };
+
+    await enqueueProductSync._handler(queueCtx, {
+      projectId: "project_a" as Id<"projects">,
+      platform: "IOS",
+    });
+
+    expect(inserted[0]).toMatchObject({ status: "queued" });
+    expect(inserted[0]?.expectedDeadline).toBeGreaterThan(Date.now());
+  });
+
+  it("releases the slot when an operator cancels a queued job", async () => {
+    authMocks.getAuthUserId.mockResolvedValue("user_a");
+    const { ctx, rows } = makeCtx({ status: "queued" });
+
+    await expect(
+      cancelProductSync._handler(ctx, {
+        projectId: "project_a" as Id<"projects">,
+        jobId: "job_a",
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(rows.get("job_a")).toMatchObject({
+      status: "failed",
+      error: "Cancelled by operator",
+    });
+    expect(rows.get("project_a")?.activeSyncJobIds).toEqual({
+      IOS: undefined,
+    });
+  });
+});
 
 describe("truncateFailures", () => {
   it("returns the original array unchanged when under the cap", () => {

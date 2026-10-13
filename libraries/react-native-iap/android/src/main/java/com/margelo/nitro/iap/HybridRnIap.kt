@@ -38,6 +38,7 @@ import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseResultAndroid
 import dev.hyo.openiap.VerifyPurchaseResultHorizon
 import dev.hyo.openiap.InitConnectionConfig as OpenIapInitConnectionConfig
+import dev.hyo.openiap.helpers.finishPurchaseToken
 import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -981,10 +982,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 if (purchaseJson != null) {
                     val purchase = PurchaseAndroid.fromJson(JSONObject(purchaseJson).toPurchaseMap())
                     openIap.finishTransaction(purchase, isConsumable)
-                } else if (isConsumable) {
-                    openIap.consumePurchaseAndroid(purchaseToken)
                 } else {
-                    openIap.acknowledgePurchaseAndroid(purchaseToken)
+                    openIap.finishPurchaseToken(purchaseToken, isConsumable)
                 }
                 val result = Variant_Boolean_NitroPurchaseResult.Second(
                     NitroPurchaseResult(
@@ -1009,7 +1008,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 Variant_Boolean_NitroPurchaseResult.Second(
                     NitroPurchaseResult(
                         responseCode = -1.0,
-                        debugMessage = e.message,
+                        debugMessage = e.debugMessage ?: e.message,
                         code = OpenIapError.toCode(e),
                         message = e.message,
                         purchaseToken = purchaseToken,

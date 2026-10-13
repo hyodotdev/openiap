@@ -15,15 +15,7 @@ actor ProductManager {
         return products[productID]
     }
     
-    func getAllProducts() -> [StoreKit.Product] {
-        return Array(products.values)
-    }
-    
     func removeAll() {
         products.removeAll()
-    }
-    
-    func remove(productID: String) {
-        products.removeValue(forKey: productID)
     }
 }

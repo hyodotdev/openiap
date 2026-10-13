@@ -16,6 +16,18 @@ import {
 let remote: RemoteMcpHttpServer | null = null;
 let kitApi: Server | null = null;
 
+const TEST_SECRET_KEY = "openiap-kit_sk_test";
+const INITIALIZE_REQUEST = {
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "vitest", version: "0.0.0" },
+  },
+};
+
 interface SetupToolPayload {
   framework: string;
   snippet: string;
@@ -53,11 +65,24 @@ describe("remote MCP HTTP server", () => {
         mcp: "/mcp",
         health: "/health",
       },
-      authentication: [
-        "Authorization: Bearer <IAPKit secret admin key>",
-        "IAPKIT_API_KEY environment variable (secret admin key)",
-      ],
+      authentication: ["Authorization: Bearer <IAPKit secret admin key>"],
     });
+  });
+
+  it("binds to loopback unless a host is configured", async () => {
+    const previousHost = process.env.HOST;
+    delete process.env.HOST;
+    try {
+      remote = await startRemoteMcpHttpServer({
+        port: 0,
+        logger: { error: () => undefined, info: () => undefined },
+      });
+      expect((remote.server.address() as AddressInfo).address).toBe(
+        "127.0.0.1",
+      );
+    } finally {
+      if (previousHost !== undefined) process.env.HOST = previousHost;
+    }
   });
 
   it("rejects when the configured listener cannot bind", async () => {
@@ -234,22 +259,57 @@ describe("remote MCP HTTP server", () => {
     },
   );
 
-  it("rejects a legacy key supplied through IAPKIT_API_KEY", async () => {
+  it("requires a bearer instead of spending the operator's IAPKIT_API_KEY", async () => {
     const previousApiKey = process.env.IAPKIT_API_KEY;
-    process.env.IAPKIT_API_KEY = "openiap-kit_legacy";
+    process.env.IAPKIT_API_KEY = "openiap-kit_sk_operator";
     try {
-      const { baseUrl, sessionId } = await initializeMcpSession();
-      const payload = await callTool<{
-        ok: false;
-        error: { message: string };
-      }>(baseUrl, sessionId, "iapkit_list_products", {});
+      const baseUrl = await startServer();
+      const response = await fetch(`${baseUrl}/mcp`, {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(INITIALIZE_REQUEST),
+      });
 
-      expect(payload.ok).toBe(false);
-      expect(payload.error.message).toContain("openiap-kit_sk_");
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe("Bearer");
+      expect(response.headers.get("mcp-session-id")).toBeNull();
     } finally {
       if (previousApiKey === undefined) delete process.env.IAPKIT_API_KEY;
       else process.env.IAPKIT_API_KEY = previousApiKey;
     }
+  });
+
+  it("rejects a Host header outside the allow-list (DNS rebinding)", async () => {
+    const baseUrl = await startServer();
+    const { request } = await import("node:http");
+    const { port } = new URL(baseUrl);
+
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request(
+        {
+          host: "127.0.0.1",
+          port,
+          path: "/mcp",
+          method: "POST",
+          headers: {
+            host: "attacker.example",
+            authorization: `Bearer ${TEST_SECRET_KEY}`,
+            "content-type": "application/json",
+          },
+        },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      req.on("error", reject);
+      req.end(JSON.stringify(INITIALIZE_REQUEST));
+    });
+
+    expect(status).toBe(403);
   });
 
   it("paginates the product catalog through MCP", async () => {
@@ -869,6 +929,7 @@ describe("remote MCP HTTP server", () => {
         method,
         headers: {
           accept: "application/json, text/event-stream",
+          authorization: `Bearer ${TEST_SECRET_KEY}`,
           "mcp-session-id": foreignSession,
         },
       });
@@ -884,6 +945,7 @@ describe("remote MCP HTTP server", () => {
         method,
         headers: {
           accept: "application/json, text/event-stream",
+          authorization: `Bearer ${TEST_SECRET_KEY}`,
           "mcp-session-id": "self42.7e33e2b1-9a45-4c8e-b1de-000000000000",
         },
       });
@@ -1086,10 +1148,10 @@ async function startKitApi(
 }
 
 async function initializeMcpSession(
-  apiKey?: string,
+  apiKey = TEST_SECRET_KEY,
 ): Promise<{ baseUrl: string; sessionId: string }> {
   const baseUrl = await startServer();
-  const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
+  const headers = { authorization: `Bearer ${apiKey}` };
   const initResponse = await postMcp(
     baseUrl,
     {
@@ -1161,6 +1223,7 @@ async function postMcp(
     headers: {
       accept: "application/json, text/event-stream",
       "content-type": "application/json",
+      authorization: `Bearer ${TEST_SECRET_KEY}`,
       ...headers,
       ...(sessionId ? { "mcp-session-id": sessionId } : {}),
     },
@@ -1174,6 +1237,7 @@ function rawPostMcp(baseUrl: string, body: string): Promise<Response> {
     headers: {
       accept: "application/json, text/event-stream",
       "content-type": "application/json",
+      authorization: `Bearer ${TEST_SECRET_KEY}`,
     },
     body,
   });

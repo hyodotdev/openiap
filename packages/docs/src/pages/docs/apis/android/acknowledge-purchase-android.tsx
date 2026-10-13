@@ -43,15 +43,13 @@ function AcknowledgePurchaseAndroid() {
         .
       </p>
 
-      <Callout kind="warning">
-        <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong>{' '}
-        Direct acknowledge / consume calls are being phased out — use the
-        cross-platform{' '}
+      <Callout kind="tip">
+        Prefer{' '}
         <Link to="/docs/apis/finish-transaction">
           <code>finishTransaction</code>
-        </Link>{' '}
-        API instead, which handles acknowledgment automatically and is the
-        recommended path for new code.
+        </Link>
+        : it acknowledges the purchase on every Android store and works the same
+        on iOS.
       </Callout>
 
       <StoreConnectionCallout />
@@ -60,7 +58,8 @@ function AcknowledgePurchaseAndroid() {
       <LanguageTabs>
         {{
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun acknowledgePurchase(purchaseToken: String): Boolean`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// OpenIapModule (OpenIapProtocol); OpenIapStore does not expose it
+val acknowledgePurchaseAndroid: suspend (purchaseToken: String) -> Boolean`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean`}</CodeBlock>
@@ -98,42 +97,50 @@ function AcknowledgePurchaseAndroid() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
-        purchase has been acknowledged.
+        purchase has been acknowledged. When the store refuses the token, React
+        Native, Expo, and KMP reject with the store&apos;s error code; Kotlin,
+        Flutter, Godot, and MAUI return <code>false</code>. In Kotlin,{' '}
+        <code>finishPurchaseToken(token, isConsumable = false)</code> throws
+        instead.
       </p>
 
       <h2>Example</h2>
       <LanguageTabs>
         {{
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.acknowledgePurchase(purchase.purchaseToken)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// Share one module with OpenIapStore(module) instead of creating a second client.
+val module = OpenIapModule(context)
+
+val token = requireNotNull(purchase.purchaseToken)
+module.acknowledgePurchaseAndroid(token)`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
-kmpIAP.acknowledgePurchaseAndroid(purchase.purchaseToken)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — throws on iOS)
+purchase.purchaseToken?.let { token -> kmpIAP.acknowledgePurchaseAndroid(token) }`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
 import { acknowledgePurchaseAndroid } from 'expo-iap';
 
-if (Platform.OS === 'android') {
+if (Platform.OS === 'android' && purchase.purchaseToken) {
   await acknowledgePurchaseAndroid(purchase.purchaseToken);
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isAndroid) {
-  await FlutterInappPurchase.instance.acknowledgePurchaseAndroid(
-    purchase.purchaseToken,
-  );
+            <CodeBlock language="dart">{`final token = purchase.purchaseToken;
+if (Platform.isAndroid && token != null) {
+  await FlutterInappPurchase.instance.acknowledgePurchaseAndroid(token);
 }`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIapClient.Instance).AcknowledgePurchaseAndroidAsync(purchase.PurchaseToken);`}</CodeBlock>
+if (purchase.PurchaseToken is { } token)
+    await ((MutationResolver)OpenIapClient.Instance).AcknowledgePurchaseAndroidAsync(token);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android" and purchase.purchase_token != null:
     await iap.acknowledge_purchase_android(purchase.purchase_token)`}</CodeBlock>
           ),
         }}

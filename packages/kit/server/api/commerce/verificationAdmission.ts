@@ -4,12 +4,15 @@
 // stable-failure cooldown apply identically on both bindings — they were a
 // REST-only middleware before, which the GraphQL binding bypassed entirely.
 
+import { handleConvexError } from "../../convex";
 import { hashApiKey } from "../v1/rate-limit";
 import { acquireInFlightSlot } from "../v1/in-flight-limit";
 import {
   hashPayload,
   isStableRejection,
+  isStoreOutageError,
   markPayloadFailure,
+  refundReplayToken,
   REPLAY_GUARD,
   tryConsumeReplay,
   type ReplayPayload,
@@ -107,9 +110,7 @@ export function admitVerification({
 
   const slot = acquireInFlightSlot({ apiKeyHash, ipHash });
   if (slot.scope !== null) {
-    // The replay token was spent on an attempt that never got a slot; refund it
-    // so backoff retries are not miscounted as duplicate-payload rejections.
-    refundReplayToken(bucketKey);
+    refundReplayToken(REPLAY_GUARD.store, bucketKey, REPLAY_GUARD.capacity);
     return { admitted: false, code: "RATE_LIMITED", retryAfterSec: 1 };
   }
 
@@ -136,17 +137,19 @@ export function admitVerification({
           );
         }
         return verdict;
+      } catch (error) {
+        // As on /v1, a store outage gave no verdict, so it costs no token.
+        if (isStoreOutageError(handleConvexError(error))) {
+          refundReplayToken(
+            REPLAY_GUARD.store,
+            bucketKey,
+            REPLAY_GUARD.capacity,
+          );
+        }
+        throw error;
       } finally {
         slot.release();
       }
     },
   };
-}
-
-function refundReplayToken(bucketKey: string): void {
-  const bucket = REPLAY_GUARD.store.get(bucketKey);
-  if (!bucket) return;
-  REPLAY_GUARD.store.delete(bucketKey);
-  bucket.tokens = Math.min(REPLAY_GUARD.capacity, bucket.tokens + 1);
-  REPLAY_GUARD.store.set(bucketKey, bucket);
 }

@@ -6,6 +6,9 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
+// ObjC dictionary parameters bridge as Map<Any?, *>.
+internal fun Map<String, Any?>.toBridgeMapIOS(): Map<Any?, Any?> = buildMap { putAll(this@toBridgeMapIOS) }
+
 internal fun Map<String, Any?>.toJsonStringIOS(): String =
     JsonObject(mapValues { it.value.toJsonElementIOS() }).toString()
 

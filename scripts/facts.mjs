@@ -39,6 +39,13 @@ export const FACTS = Object.freeze([
     scanners: [{ files: [WORKFLOWS], pattern: /java-version:\s*["']?(\d+)/g }],
   },
   {
+    key: "toolchain.ruby",
+    values: { pinned: "3.3" },
+    scanners: [
+      { files: [WORKFLOWS], pattern: /ruby-version:\s*["']?([\d.]+)/g },
+    ],
+  },
+  {
     key: "toolchain.bun",
     // `pinned` is the toolchain CI installs and tests against. `runtimeImage`
     // is the Bun inside the IAPKit container, which compiles the binary that

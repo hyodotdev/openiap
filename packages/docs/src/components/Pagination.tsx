@@ -1,22 +1,33 @@
-import { useState, ReactNode, Children } from 'react';
+import { useState, useEffect, ReactNode, Children } from 'react';
+import { useLocation } from 'react-router-dom';
+import { declaresId } from '../lib/elementIds';
 import '../styles/pagination.css';
 
 interface PaginationProps {
   children: ReactNode;
   itemsPerPage?: number;
   showPageNumbers?: boolean;
-  initialPage?: number;
 }
 
 function Pagination({
   children,
   itemsPerPage = 5,
   showPageNumbers = true,
-  initialPage = 1,
 }: PaginationProps) {
-  const [currentPage, setCurrentPage] = useState(initialPage);
+  const location = useLocation();
   const childArray = Children.toArray(children);
   const totalPages = Math.ceil(childArray.length / itemsPerPage);
+  // Open the page holding the linked anchor.
+  const hashIndex = childArray.findIndex((child) =>
+    declaresId(child, location.hash.slice(1))
+  );
+  const targetPage =
+    hashIndex === -1 ? 1 : Math.floor(hashIndex / itemsPerPage) + 1;
+  const [currentPage, setCurrentPage] = useState(targetPage);
+
+  useEffect(() => {
+    setCurrentPage(targetPage);
+  }, [location.key, targetPage]);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;

@@ -26,8 +26,9 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
     date: "2026-10-12",
-    pullRequests: [523],
-    tagline: "Amazon subscription lifecycle beta.",
+    pullRequests: [523, 528],
+    tagline:
+      "Amazon subscription lifecycle beta and a security hardening pass.",
     items: [
       {
         kind: "feature",
@@ -49,19 +50,79 @@ const RELEASES: ReleaseEntry[] = [
         topic: "Release history",
         text: "Updates deployed in the same week share one release entry, with related changes grouped by topic.",
       },
+      {
+        kind: "fix",
+        topic: "Apple subscriptions",
+        text: "Non-renewing passes no longer count as active subscriptions, including rows recorded before this fix; dashboard subscriber counts and MRR drop them once the daily stats recompute completes for the project. Grace periods are unaffected. Verifying an older renewal no longer rolls a subscription back to that period, and a verification fetched before a refund no longer undoes it. Verify responses are unchanged.",
+      },
+      {
+        kind: "fix",
+        topic: "Verification",
+        text: "A Google Play, App Store (including its certificate checks) or Meta Horizon outage returns 503 with Retry-After and keeps the last confirmed purchase result instead of recording an invalid one.",
+      },
+      {
+        kind: "security",
+        topic: "Verification",
+        text: "Failed App Store verifications are no longer stored as invalid purchases, so a forged JWS cannot overwrite or flood purchase records. Google Play errors no longer echo upstream or internal text.",
+      },
+      {
+        kind: "fix",
+        topic: "Rate limits",
+        text: "One flooding IP no longer drains an app's per-key budget. Secret-key admin routes now share the limits of their URL-key forms.",
+      },
+      {
+        kind: "security",
+        topic: "Dashboard",
+        text: "Only owners and admins can upload .p8 keys or change bundle and package IDs, App Store keys, and Amazon or Horizon secrets. Admins can no longer remove an owner.",
+      },
+      {
+        kind: "fix",
+        topic: "Dashboard",
+        text: "A .p8 upload must be a P-256 private key and replaces the project's previous key. Verification signs with the key Settings shows, then with an organization key, preferring one with the same key ID, never another organization's. Cancelling a queued product sync frees the platform at once, and a sync that never starts expires.",
+      },
+      {
+        kind: "security",
+        topic: "Sign-in",
+        text: "GitHub sign-in matches an existing account only by an email GitHub has verified. Profile records can no longer be written from the client.",
+      },
+      {
+        kind: "security",
+        topic: "MCP",
+        text: "The hosted endpoint confirms the secret key before opening a session, always calls IAPKit itself, refuses redirects and bounds request and response sizes. One project holds at most 16 sessions, and a full table closes its least recently used session instead of refusing new ones.",
+      },
+      {
+        kind: "security",
+        topic: "MCP",
+        text: "Local iapkit-mcp-http binds 127.0.0.1, rejects unknown Host headers, and requires a bearer on every request instead of using IAPKIT_API_KEY.",
+      },
+      {
+        kind: "fix",
+        topic: "MCP",
+        text: "iapkit_manage_product rejects action disable with guidance. It previously marked the product Removed, which the next push sync deletes from the store.",
+      },
+      {
+        kind: "ops",
+        topic: "Commerce Protocol",
+        text: "IAPKit passes the stricter conformance run: unknown store evidence is never bound for any store, and error extensions carry no evidence or internals.",
+      },
     ],
   },
   {
     id: "week-2026-10-05",
     weekStart: "2026-10-05",
     date: "2026-10-11",
-    pullRequests: [520],
+    pullRequests: [515, 520],
     tagline: "Verified Apple environments and clearer Amazon testing limits.",
     items: [
       {
         kind: "fix",
         topic: "Apple verification",
         text: "Apple receipt verification returns its verified Sandbox or Production environment, allowing apps to check provenance before finishing a transaction.",
+      },
+      {
+        kind: "security",
+        topic: "Sign-in",
+        text: "Rejects invalid refresh-token and OAuth verifier IDs and redacts sensitive OAuth debug logs.",
       },
       {
         kind: "docs",

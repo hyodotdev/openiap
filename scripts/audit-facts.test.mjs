@@ -109,6 +109,16 @@ test("catches a runner image left behind on a bump", () => {
   );
 });
 
+test("catches a release lane left on an old Ruby", () => {
+  const failures = auditFacts(
+    overlaying(".github/workflows/release-apple.yml", (text) =>
+      text.replace('ruby-version: "3.3"', 'ruby-version: "3.0"'),
+    ),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /toolchain\.ruby: .*release-apple.*"3\.0"/u);
+});
+
 test("catches a stale Xcode pin", () => {
   const failures = auditFacts(
     overlaying(".github/workflows/codeql.yml", (text) =>

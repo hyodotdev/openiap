@@ -37,7 +37,7 @@ describe("BoundedSessionStore", () => {
     );
   });
 
-  it("rejects admission at the cap without evicting active sessions", () => {
+  it("evicts the least recently used session at the cap instead of refusing", async () => {
     let now = 0;
     const dispose = vi.fn(async () => undefined);
     const store = new BoundedSessionStore<string>({
@@ -53,11 +53,35 @@ describe("BoundedSessionStore", () => {
     now = 2;
     expect(store.get("oldest")).toBe("oldest-transport");
     now = 3;
-    expect(store.reserve()).toBeNull();
+    addSession(store, "newcomer", "newcomer-transport");
 
-    expect(store.get("recent")).toBe("recent-transport");
+    expect(store.get("recent")).toBeUndefined();
     expect(store.get("oldest")).toBe("oldest-transport");
-    expect(dispose).not.toHaveBeenCalled();
+    expect(store.get("newcomer")).toBe("newcomer-transport");
+    await vi.waitFor(() =>
+      expect(dispose).toHaveBeenCalledWith("recent-transport"),
+    );
+  });
+
+  it("counts a key's in-flight reservations against its share", () => {
+    const store = new BoundedSessionStore<string>({
+      maxSize: 4,
+      maxPerOwner: 2,
+      idleTtlMs: 1_000,
+      dispose: vi.fn(),
+    });
+    const victim = store.reserve("victim");
+    victim?.commit("victim-session", "victim-transport");
+
+    const first = store.reserve("attacker");
+    const second = store.reserve("attacker");
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(store.reserve("attacker")).toBeNull();
+
+    second?.release();
+    expect(store.reserve("attacker")).not.toBeNull();
+    expect(store.get("victim-session")).toBe("victim-transport");
   });
 
   it("counts pending reservations and releases unused capacity", () => {

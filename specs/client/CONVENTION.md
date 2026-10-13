@@ -51,23 +51,34 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
 - Fields and arguments: camelCase.
 - iOS/Android fields should follow the same suffix rules as types
   (e.g., `displayNameIOS`, `offerTokenAndroid`).
-- Enum values in SDL are written in PascalCase. Generated client libraries map
-  these to kebab-case strings (e.g., `PurchaseUpdated` → `purchase-updated`) so
-  the serialized values remain consistent across TypeScript, Swift, Kotlin,
-  Dart, GDScript, and C# outputs.
+- Enum values: see [Enums](#enums). Generated clients serialize every value
+  as kebab-case (e.g., `PurchaseUpdated` → `purchase-updated`).
 
 ## Enums
 
 - Enum names: PascalCase (e.g., `ProductType`).
-- Enum values: PascalCase to keep them visually distinct from type names.
-  - Examples: `Consumable`, `FreeTrial`, `PayAsYouGo`, `Ios`, `Android`.
-- Runtime values (generated code) use kebab-case. Consumers should compare
-  against the emitted kebab-case strings rather than the SDL identifiers.
+- Enum values: PascalCase (`Consumable`, `FreeTrial`, `PayAsYouGo`). Enums that
+  mirror Play Billing constants use CONSTANT_CASE (`BILLING_CHOICE`,
+  `TRANSACTIONAL`). Renaming an existing value is a breaking schema change, so
+  keep the spelling an enum already uses.
+- The wire value is kebab-case in every language (`FreeTrial` and `FREE_TRIAL`
+  both become `free-trial`). Compare against that string, not the SDL name.
+- Decoders also accept each value's SDL name and its CONSTANT_CASE spelling.
+  The transformer records that set as `legacyAliases` in the IR, and every
+  plugin renders exactly it.
+- Output decoding maps an unrecognized value to the enum's `Unknown*` case when
+  it has one; input decoding always rejects unrecognized values.
 
 ## Defaults
 
 - Prefer explicit defaults for input fields and arguments using `=` in SDL.
-  - Example: `type: ProductQueryType = inApp`.
+  - Example: `type: ProductQueryType = InApp`.
+- The transformer coerces every default against its declared type and fails
+  generation on an invalid one.
+- When decoding JSON, an omitted key means the default in every language.
+  Swift, Kotlin, Dart, and GDScript treat an explicit `null` the same way; C#
+  keeps it as `null` (or rejects it for a non-null field), since C# apps build
+  inputs in code rather than decode them.
 - Document defaults in the field description if behavior matters.
 
 ## Field and Operation Descriptions
@@ -78,7 +89,7 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
   availability line, and the `See:` link.
 - Do not restate the docs page's per-platform behavior matrix here. Link to it.
   Full rule and examples:
-  [`knowledge/internal/03-coding-style.md`](../../../knowledge/internal/03-coding-style.md#doc-comments-are-not-the-docs-site).
+  [`knowledge/internal/03-coding-style.md`](../../knowledge/internal/03-coding-style.md#doc-comments-are-not-the-docs-site).
 - Existing operation descriptions in `api.graphql` run two lines at the median.
   A description several times that length is a signal that it belongs on the
   docs page instead.
@@ -197,20 +208,25 @@ GraphQL Schema (src/*.graphql)
 
 ```text
 codegen/
-├── index.ts              # Main entry point
+├── index.ts                     # Entry point and language registry
 ├── core/
-│   ├── types.ts          # IR type definitions
-│   ├── parser.ts         # GraphQL schema parser
-│   ├── transformer.ts    # AST → IR transformer
-│   ├── generated-header.ts # Shared generated-file banner
-│   └── utils.ts          # Case conversion, keyword escaping
+│   ├── parser.ts                # Schema inventory → GraphQLSchema + SDL metadata
+│   ├── schema-linter.ts         # Naming and marker conventions
+│   ├── transformer.ts           # GraphQLSchema → IR (aliases, defaults, deprecations)
+│   ├── types.ts                 # IR type definitions
+│   ├── utils.ts                 # Case conversion, keywords, scalar mappings
+│   ├── store-ids.ts             # StoreIds constants and store identity resolver
+│   ├── operation-compatibility.ts # Operations added after a published resolver
+│   ├── generated-header.ts      # Shared generated-file banner
+│   └── dart-keywords.mjs        # Dart reserved words
+├── fixtures/                    # Runtime fixtures for generated-code tests
 └── plugins/
-    ├── base-plugin.ts    # Abstract base class
-    ├── swift.ts          # Swift plugin
-    ├── kotlin.ts         # Kotlin plugin
-    ├── dart.ts           # Dart plugin
-    ├── gdscript.ts       # GDScript plugin
-    └── csharp.ts         # C# plugin
+    ├── base-plugin.ts           # Shared rendering rules (enum spellings, deprecations)
+    ├── swift.ts
+    ├── kotlin.ts
+    ├── dart.ts
+    ├── gdscript.ts
+    └── csharp.ts
 ```
 
 ### IR Types
@@ -226,19 +242,36 @@ codegen/
 
 ### Language Plugin Features
 
-| Plugin       | Key Features                                                      |
-| ------------ | ----------------------------------------------------------------- |
-| **Swift**    | Codable protocol, ErrorCode custom initializer, platform defaults |
-| **Kotlin**   | sealed interface, fromJson/toJson, nullable patterns              |
-| **Dart**     | sealed class, factory constructors, extends/implements            |
-| **GDScript** | \_init() pattern, from_json/to_json, Variant type                 |
-| **C#**       | records, JsonConverter, [JsonPolymorphic] unions                  |
+| Plugin       | Key Features                                                    |
+| ------------ | --------------------------------------------------------------- |
+| **Swift**    | Codable structs, flat `__typename` union coding, input defaults |
+| **Kotlin**   | sealed interface, fromJson/toJson, nullable patterns            |
+| **Dart**     | sealed class, factory constructors, extends/implements          |
+| **GDScript** | \_init() pattern, from_json/to_json, Variant type               |
+| **C#**       | records, JsonConverter, [JsonPolymorphic] unions                |
+
+Swift, Kotlin, Dart, and C# encode a union value flat: the member's own fields
+plus `__typename` set to the member's GraphQL type name (`PurchaseIOS`), and
+decode by dispatching on that name. A nested union (`ProductOrSubscription`)
+dispatches on the leaf name. GDScript has no union classes: a union-typed field
+holds the dictionary it received as a `Variant`, so it keeps whatever
+`__typename` the native bridge sent but never adds or checks one.
+`src/generated-wire.test.ts` round-trips one payload through every installed
+Swift, Dart, and .NET toolchain; CI's `test-gql` job, which installs all three,
+sets `OPENIAP_WIRE_TOOLCHAINS=required` to fail when one is missing.
 
 ### Scripts
 
 ```bash
 # Generate all platform types
 bun run generate
+
+# Typecheck (strict) and run the test suite
+bun run test
+
+# Regenerate only the TypeScript lane, or only re-copy outputs to platforms
+bun run generate:ts
+bun run sync
 
 # Diagnostic single-plugin generation (always finish with `bun run generate`
 # before committing so every manifest target is synchronized)

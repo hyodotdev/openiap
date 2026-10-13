@@ -33,6 +33,36 @@ import OpenIAP
 /// Helper utilities for GodotIap plugin.
 /// Provides parsing functions for request parameters and sanitization utilities.
 /// Mirrors ExpoIapHelper for consistency across platforms.
+/// Connection generations of the shared native plugin. Every wrapper drives the
+/// same plugin, so an init while connected keeps the live generation and its listeners.
+struct GodotIapConnectionGenerations {
+    private(set) var generation: UInt64 = 0
+    private(set) var isConnected = false
+
+    /// Starts an init: a fresh generation, or nil when a connection is already live.
+    mutating func beginInit() -> UInt64? {
+        isConnected ? nil : invalidate()
+    }
+
+    /// Ends the current generation; its listeners stop emitting.
+    mutating func invalidate() -> UInt64 {
+        generation &+= 1
+        isConnected = false
+        return generation
+    }
+
+    /// Marks [generation] connected unless a newer one replaced it.
+    mutating func markConnected(_ generation: UInt64) -> Bool {
+        guard generation == self.generation else { return false }
+        isConnected = true
+        return true
+    }
+
+    func isActive(_ generation: UInt64) -> Bool {
+        generation == self.generation && isConnected
+    }
+}
+
 enum GodotIapHelper {
     @TaskLocal static var completionErrorOwner: CompletionErrorOwner?
 
@@ -189,6 +219,12 @@ enum GodotIapHelper {
             )
         }
         return try encodeRequired(value)
+    }
+
+    /// JSON text for a Foundation payload, or nil when it cannot be serialized.
+    static func jsonString(_ object: Any) -> String? {
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     static func purchasesRequired(_ purchases: [Purchase]) throws -> [[String: Any]] {

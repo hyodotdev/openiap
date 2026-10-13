@@ -88,13 +88,15 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
                 "updatedAt": 1,
             ])
         )
-        XCTAssertNil(
+        // Generated enums accept the CONSTANT_CASE spelling, as Kotlin, C#, and Dart do.
+        XCTAssertEqual(
             OpenIapStoreKitModule.iapkitClientPayload(from: [
                 "format": "TOML",
-                "body": "invalid format",
+                "body": "tier = \"gold\"",
                 "version": 1,
                 "updatedAt": 1,
-            ])
+            ])?.format,
+            .toml
         )
         XCTAssertNil(
             OpenIapStoreKitModule.iapkitClientPayload(from: [

@@ -1,4 +1,10 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
+
+export const appleP8PurposeValidator = v.union(
+  v.literal("apple_p8_key"),
+  v.literal("apple_p8_asc_api_key"),
+);
+export type AppleP8Purpose = Infer<typeof appleP8PurposeValidator>;
 
 // File extension and MIME type mappings for each purpose
 const FILE_VALIDATIONS = {

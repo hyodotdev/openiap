@@ -4,6 +4,12 @@ export const TYPE_LINKS: Record<string, string> = {
   // Cross-platform
   ActiveSubscription: '/docs/types/active-subscription',
   AlternativeBillingTypes: '/docs/types/alternative-billing-types',
+  AppOwnershipStatus:
+    '/docs/types/app-ownership-verification#app-ownership-status',
+  AppOwnershipVerificationReason:
+    '/docs/types/app-ownership-verification#app-ownership-verification-reason',
+  AppOwnershipVerificationResult:
+    '/docs/types/app-ownership-verification#app-ownership-verification-result',
   BillingChoiceImageLayoutAndroid: '/docs/types/billing-programs',
   BillingChoiceInfoAndroid: '/docs/types/billing-programs',
   BillingChoiceScreenTypeAndroid: '/docs/types/billing-programs',
@@ -36,6 +42,8 @@ export const TYPE_LINKS: Record<string, string> = {
   IapkitProductClientPayload:
     '/docs/types/verify-purchase-with-provider-result#iapkit-product-client-payload',
   LaunchExternalLinkParamsAndroid: '/docs/types/billing-programs',
+  PlayIntegrityParamsAndroid:
+    '/docs/types/app-ownership-verification#play-integrity-params-android',
   Product: '/docs/types/product',
   ProductAndroid: '/docs/types/product',
   ProductIOS: '/docs/types/product',
@@ -65,6 +73,8 @@ export const TYPE_LINKS: Record<string, string> = {
   Storefront: '/docs/types/storefront',
   SubscriptionOffer: '/docs/types/subscription-offer',
   SubscriptionProduct: '/docs/types/subscription-product',
+  VerifyAppOwnershipProps:
+    '/docs/types/app-ownership-verification#verify-app-ownership-props',
   VerifyPurchase: '/docs/types/verify-purchase',
   VerifyPurchaseProps: '/docs/types/verify-purchase',
   VerifyPurchaseResult: '/docs/types/verify-purchase',

@@ -183,11 +183,10 @@ const schema = defineSchema({
     // Set once scoped keys are issued. The legacy `apiKey` then stays rejected,
     // even after the last scoped key is deleted.
     legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
-    // Persistent admission backstop for public receipt-verification actions.
+    // Unused: admission buckets live in `verificationAdmissionBuckets`. Kept
+    // so existing documents validate until a migration clears them.
     verificationAdmissionTokens: v.optional(v.number()),
     verificationAdmissionRefilledAt: v.optional(v.number()),
-    // Separate bucket for entitlement rechecks (one store call per bound
-    // purchase), so access reads cannot starve receipt verification.
     entitlementRecheckTokens: v.optional(v.number()),
     entitlementRecheckRefilledAt: v.optional(v.number()),
     // Keyed user-erasure lookup without retaining a dictionary-testable hash.
@@ -500,6 +499,16 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_organization", ["organizationId"]),
 
+  // Persistent per-project admission backstop for public verification and
+  // entitlement rechecks. Off the `projects` row so every verification does
+  // not rewrite the document its own mutations and the dashboard read.
+  verificationAdmissionBuckets: defineTable({
+    projectId: v.id("projects"),
+    bucket: v.union(v.literal("verification"), v.literal("entitlementRecheck")),
+    tokens: v.number(),
+    refilledAt: v.number(),
+  }).index("by_project_and_bucket", ["projectId", "bucket"]),
+
   stripeEvents: defineTable({
     eventId: v.string(),
     type: v.string(),
@@ -637,35 +646,6 @@ const schema = defineSchema({
       "sourceNotificationId",
     ]),
 
-  // Webhook dedup on (projectId, source, sourceNotificationId). The project is
-  // in the key because a Pub/Sub messageId is unique only within its topic
-  // (Apple's UUID is global; one key shape keeps lookups simple). A duplicate
-  // reuses the stored event and reapplies its transition idempotently, so a
-  // retry repairs a half-finished first attempt. `projectId` is optional only
-  // so older rows validate; new inserts always set it.
-  webhookIdempotencyKeys: defineTable({
-    projectId: v.optional(v.id("projects")),
-    source: v.union(
-      v.literal("apple"),
-      v.literal("google"),
-      v.literal("amazon"),
-      v.literal("amazon-rvs"),
-    ),
-    sourceNotificationId: v.string(),
-    eventId: v.optional(v.id("webhookEvents")),
-    firstSeenAt: v.number(),
-  })
-    .index("by_project", ["projectId"])
-    .index("by_event", ["eventId"])
-    .index("by_source_and_id", ["source", "sourceNotificationId"])
-    .index("by_project_and_source_and_id", [
-      "projectId",
-      "source",
-      "sourceNotificationId",
-    ])
-    // Lets `pruneWebhookEvents` age out dedup rows without a full-table scan.
-    .index("by_first_seen_at", ["firstSeenAt"]),
-
   // One row per store purchase id: `originalTransactionId` (Apple) or
   // `purchaseToken` (Google), not per (userId, productId), because one user
   // can hold several entitlements over time (resubscribe, cross-grade, family
@@ -704,6 +684,10 @@ const schema = defineSchema({
     priceAmountMicros: v.optional(v.number()),
     startedAt: v.number(),
     updatedAt: v.number(),
+    // Apple purchaseDate and signedDate of the transaction a verify last
+    // applied; order verifies for rows no store event governs yet.
+    verifiedPurchaseDate: v.optional(v.number()),
+    verifiedSignedDate: v.optional(v.number()),
     lastEventId: v.optional(v.id("webhookEvents")),
     lastEventOccurredAt: v.optional(v.number()),
     lastEventCreationTime: v.optional(v.number()),
@@ -806,8 +790,7 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_currency", ["projectId", "currency"])
-    // `recomputeAllSubscriptionStats` takes the stalest rows first without
-    // sorting the whole table.
+    // `pickRevenueMetricsProjects` finds recently active projects.
     .index("by_updated_at", ["updatedAt"]),
 
   // Daily revenue rollup per (projectId, day, productId, currency), so the
@@ -847,8 +830,8 @@ const schema = defineSchema({
     ]),
 
   // Rotation state for the `recomputeAllRevenueMetrics` cron, which picks the
-  // oldest `lastRunAt` first. Separate from `subscriptionStats.updatedAt` so
-  // the revenue and subscription-stats crons rotate independently.
+  // oldest `lastRunAt` first. Separate from the subscription-stats rotation so
+  // the two crons rotate independently.
   //
   // At most one row per project. Convex has no unique constraint, so upsert
   // through `by_project` as `markRevenueMetricsRun` does; a duplicate gets its

@@ -113,7 +113,7 @@ function Tutorials() {
         </div>
       </header>
 
-      <main className="xp-shell xp-main">
+      <div className="xp-shell xp-main">
         <section
           id="journey"
           className="xp-section"
@@ -232,7 +232,7 @@ function Tutorials() {
             ))}
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

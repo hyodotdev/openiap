@@ -157,7 +157,7 @@ await requestPurchase({
 });`}</CodeBlock>
               ),
               swift: (
-                <CodeBlock language="swift">{`import OpenIap
+                <CodeBlock language="swift">{`import OpenIAP
 
 let store = OpenIapModule.shared
 
@@ -221,7 +221,7 @@ val products = store.fetchProducts(
 val purchaseListener = OpenIapPurchaseUpdateListener { purchase ->
     scope.launch {
         // Verify on your backend, grant entitlement, then finish.
-        store.finishTransaction(purchase, isConsumable = false)
+        store.finishTransaction(purchase, false) // false: non-consumable
     }
 }
 store.addPurchaseUpdateListener(purchaseListener)

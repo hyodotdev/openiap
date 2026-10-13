@@ -762,6 +762,9 @@ function findTopLevelMemberBoundary(
     if (language === "dart" && source[i] === ";") return i;
     if (language === "kotlin" && /^companion\s+object\b/.test(source.slice(i)))
       return i;
+    // Generated Swift enums list their cases before the raw-value initializers.
+    if (language === "swift" && /^(?:public\s+)?init\b/.test(source.slice(i)))
+      return i;
   }
   return source.length;
 }
@@ -1449,11 +1452,10 @@ function formatQuotedList(values: string[]): string {
 }
 
 // Release workflows link a version's own anchor, e.g.
-// /docs/updates/releases#godot-iap-3.5.1. The page paginates and resolves a
-// hash only against a note's id or aliases, so a card that lists package
-// releases without registering their tags leaves those links pointing at the
-// top of page one — a dead link that looks alive. These cards predate the
-// scheme; every new one must register its tags.
+// /docs/updates/releases#godot-iap-3.5.1. The page paginates and opens the page
+// whose card declares that id, so a card that lists package releases without
+// a hidden span per tag leaves those links on page one — a dead link that looks
+// alive. These cards predate the scheme; every new one must render its tags.
 const RELEASE_CARDS_WITHOUT_VERSION_ANCHORS = new Set<string>([
   "commerce-protocol-0-3-0-2026-09-16",
   "android-gradle-compatibility-2026-09-07",
@@ -1508,6 +1510,9 @@ const RELEASE_CARDS_WITHOUT_VERSION_ANCHORS = new Set<string>([
   "releases-2026-04-16",
 ]);
 
+const TAG_ANCHOR_SPANS_RE =
+  /\.map\(\(release\) => \(\s*<span key=\{release\.tag\} id=\{release\.tag\}/;
+
 export function auditReleaseNoteVersionAnchors(
   filePath: string,
   source?: string,
@@ -1521,17 +1526,16 @@ export function auditReleaseNoteVersionAnchors(
     const [, id, body] = match;
     if (!body.includes("Package Releases")) continue;
     if (grandfathered.has(id)) continue;
-    if (/aliases:[^\n]*\.map\(\(release\) => release\.tag\)/.test(body))
-      continue;
+    if (TAG_ANCHOR_SPANS_RE.test(body)) continue;
     drifts.push({
       rule: "R1",
       file: filePath,
       line: src.slice(0, match.index).split("\n").length,
       message:
-        `release card '${id}' lists Package Releases but does not register its ` +
-        "tags as aliases, so #<tag> links land on page one instead of the card. " +
-        "Add `aliases: <ARRAY>.map((release) => release.tag)` and render the " +
-        "hidden anchors beside it.",
+        `release card '${id}' lists Package Releases but renders no hidden ` +
+        "anchor per tag, so #<tag> links land on page one instead of the card. " +
+        "Render `{<ARRAY>.map((release) => (<span key={release.tag} " +
+        'id={release.tag} aria-hidden="true" />))}` first in the card.',
     });
   }
   return drifts;

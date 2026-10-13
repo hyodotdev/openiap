@@ -393,16 +393,23 @@ describe("kit reproduces the specification's lifecycle vectors", () => {
   it.each(vectors.entitlement.cases.map((c) => [c.name, c] as const))(
     "entitlement: %s",
     (_name, testCase) => {
-      const sub = {
-        state: testCase.state,
-        productId: "premium.monthly",
-        ...(testCase.expiresAt === undefined
-          ? {}
-          : { expiresAt: testCase.expiresAt }),
-      } as never;
+      const sub = { state: testCase.state, expiresAt: testCase.expiresAt };
       expect(entitlementActive(sub, testCase.processedAt)).toBe(
         testCase.entitled,
       );
+      // The one kit-side exception (isMisrecordedApplePass): an Active iOS row
+      // with no expiry is a legacy non-renewing pass, not a subscription.
+      const kitException =
+        testCase.state === "Active" && testCase.expiresAt === undefined;
+      expect(
+        entitlementActive({ ...sub, platform: "IOS" }, testCase.processedAt),
+      ).toBe(kitException ? false : testCase.entitled);
+      expect(
+        entitlementActive(
+          { ...sub, platform: "Android" },
+          testCase.processedAt,
+        ),
+      ).toBe(testCase.entitled);
     },
   );
 

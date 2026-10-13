@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenIap;
 // The AAR binding emits `Dev.Hyo.Openiap.Maui.OpenIapMauiModule` from the
@@ -21,9 +22,11 @@ using OpenIapMauiModule = global::Dev.Hyo.Openiap.Maui.OpenIapMauiModule;
 
 namespace OpenIap.Maui.Platforms.Android;
 
-internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, MutationResolver
+internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, MutationResolver, IDisposable
 {
     private readonly OpenIapMauiModule _module;
+    private readonly long[] _listenerTokens;
+    private int _disposed;
     private readonly FirstPurchaseNotice _firstPurchaseNotice;
     private readonly Subject<Purchase> _purchaseUpdated = new();
     private readonly Subject<PurchaseError> _purchaseError = new();
@@ -34,12 +37,7 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
 
     public OpenIapAndroid()
     {
-        // Application.Context is the process-scoped singleton context owned by
-        // the Android framework — its lifetime IS the process lifetime, so
-        // capturing it here cannot leak (unlike capturing an Activity context,
-        // which is the actual context-leak antipattern). This is the
-        // recommended Android pattern for app-scoped singletons that need a
-        // Context but no Activity-bound APIs.
+        // The application context lives as long as the process, so holding it cannot leak an Activity.
         var ctx = global::Android.App.Application.Context
             ?? throw new InvalidOperationException("Android.App.Application.Context is null; OpenIapAndroid requires an initialised app context.");
         _module = new OpenIapMauiModule(ctx);
@@ -48,7 +46,31 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
             isHostDebuggable: () => ctx.ApplicationInfo is { } info
                 && info.Flags.HasFlag(global::Android.Content.PM.ApplicationInfoFlags.Debuggable),
             claim: _module.ClaimFirstPurchaseNotice);
-        WireListeners();
+        _listenerTokens = WireListeners();
+    }
+
+    /// <summary>
+    /// Removes this instance's listeners, completes its streams, and starts
+    /// ending its billing connection. Calls still in flight fail with the
+    /// store's error once the connection ends.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        foreach (var token in _listenerTokens)
+        {
+            try { _module.RemoveListener(token); }
+            catch (Exception ex) { Console.WriteLine($"[OpenIapAndroid] failed to remove listener {token}: {ex.Message}"); }
+        }
+        _purchaseUpdated.OnCompleted();
+        _purchaseError.OnCompleted();
+        _promotedProductIOS.OnCompleted();
+        _subscriptionBillingIssue.OnCompleted();
+        _userChoiceBillingAndroid.OnCompleted();
+        _developerProvidedBillingAndroid.OnCompleted();
+        _ = EndConnectionAsync().ContinueWith(
+            ended => Console.WriteLine($"[OpenIapAndroid] endConnection on dispose failed: {ended.Exception!.GetBaseException().Message}"),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     /// <summary>
@@ -76,41 +98,37 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     public IObservable<UserChoiceBillingDetails> UserChoiceBillingAndroid => _userChoiceBillingAndroid;
     public IObservable<DeveloperProvidedBillingDetailsAndroid> DeveloperProvidedBillingAndroid => _developerProvidedBillingAndroid;
 
-    private void WireListeners()
-    {
+    private long[] WireListeners() =>
+    [
         _module.AddPurchaseUpdatedListener(new EventBridge(json =>
         {
             var purchase = DeserializeListenerPayload<Purchase>(json, "purchaseUpdated");
             if (purchase is not null) _purchaseUpdated.OnNext(purchase);
-        }));
-
+        })),
         _module.AddPurchaseErrorListener(new EventBridge(json =>
         {
             _purchaseError.OnNext(OpenIapErrorMapper.FromJson(json));
-        }));
-
+        })),
         _module.AddSubscriptionBillingIssueListener(new EventBridge(json =>
         {
             var purchase = DeserializeListenerPayload<Purchase>(json, "subscriptionBillingIssue");
             if (purchase is not null) _subscriptionBillingIssue.OnNext(purchase);
-        }));
-
+        })),
         _module.AddUserChoiceBillingAndroidListener(new EventBridge(json =>
         {
             var details = DeserializeListenerPayload<UserChoiceBillingDetails>(
                 json,
                 "userChoiceBillingAndroid");
             if (details is not null) _userChoiceBillingAndroid.OnNext(details);
-        }));
-
+        })),
         _module.AddDeveloperProvidedBillingAndroidListener(new EventBridge(json =>
         {
             var details = DeserializeListenerPayload<DeveloperProvidedBillingDetailsAndroid>(
                 json,
                 "developerProvidedBillingAndroid");
             if (details is not null) _developerProvidedBillingAndroid.OnNext(details);
-        }));
-    }
+        })),
+    ];
 
     private static T? DeserializeListenerPayload<T>(string json, string listenerName)
         where T : class

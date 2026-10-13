@@ -83,12 +83,16 @@ enum AppOwnershipVerificationReason {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'backend-verification-required':
+      case 'backendverificationrequired':
         return AppOwnershipVerificationReason.BackendVerificationRequired;
       case 'verification-failed':
+      case 'verificationfailed':
         return AppOwnershipVerificationReason.VerificationFailed;
       case 'network-error':
+      case 'networkerror':
         return AppOwnershipVerificationReason.NetworkError;
       case 'service-error':
+      case 'serviceerror':
         return AppOwnershipVerificationReason.ServiceError;
       case 'unsupported':
         return AppOwnershipVerificationReason.Unsupported;
@@ -366,6 +370,7 @@ enum DiscountOfferType {
       case 'promotional':
         return DiscountOfferType.Promotional;
       case 'one-time':
+      case 'onetime':
         return DiscountOfferType.OneTime;
     }
     return null;
@@ -433,74 +438,107 @@ enum ErrorCode {
       case 'unknown':
         return ErrorCode.Unknown;
       case 'user-cancelled':
+      case 'usercancelled':
         return ErrorCode.UserCancelled;
       case 'user-error':
+      case 'usererror':
         return ErrorCode.UserError;
       case 'item-unavailable':
+      case 'itemunavailable':
         return ErrorCode.ItemUnavailable;
       case 'remote-error':
+      case 'remoteerror':
         return ErrorCode.RemoteError;
       case 'network-error':
+      case 'networkerror':
         return ErrorCode.NetworkError;
       case 'service-error':
+      case 'serviceerror':
         return ErrorCode.ServiceError;
       case 'purchase-verification-failed':
+      case 'purchaseverificationfailed':
         return ErrorCode.PurchaseVerificationFailed;
       case 'purchase-verification-finished':
+      case 'purchaseverificationfinished':
         return ErrorCode.PurchaseVerificationFinished;
       case 'purchase-verification-finish-failed':
+      case 'purchaseverificationfinishfailed':
         return ErrorCode.PurchaseVerificationFinishFailed;
       case 'not-prepared':
+      case 'notprepared':
         return ErrorCode.NotPrepared;
       case 'not-ended':
+      case 'notended':
         return ErrorCode.NotEnded;
       case 'already-owned':
+      case 'alreadyowned':
         return ErrorCode.AlreadyOwned;
       case 'developer-error':
+      case 'developererror':
         return ErrorCode.DeveloperError;
       case 'billing-response-json-parse-error':
+      case 'billingresponsejsonparseerror':
         return ErrorCode.BillingResponseJsonParseError;
       case 'deferred-payment':
+      case 'deferredpayment':
         return ErrorCode.DeferredPayment;
       case 'interrupted':
         return ErrorCode.Interrupted;
       case 'iap-not-available':
+      case 'iapnotavailable':
         return ErrorCode.IapNotAvailable;
       case 'purchase-error':
+      case 'purchaseerror':
         return ErrorCode.PurchaseError;
       case 'sync-error':
+      case 'syncerror':
         return ErrorCode.SyncError;
       case 'transaction-validation-failed':
+      case 'transactionvalidationfailed':
         return ErrorCode.TransactionValidationFailed;
       case 'activity-unavailable':
+      case 'activityunavailable':
         return ErrorCode.ActivityUnavailable;
       case 'already-prepared':
+      case 'alreadyprepared':
         return ErrorCode.AlreadyPrepared;
       case 'pending':
         return ErrorCode.Pending;
       case 'connection-closed':
+      case 'connectionclosed':
         return ErrorCode.ConnectionClosed;
       case 'init-connection':
+      case 'initconnection':
         return ErrorCode.InitConnection;
       case 'service-disconnected':
+      case 'servicedisconnected':
         return ErrorCode.ServiceDisconnected;
       case 'service-timeout':
+      case 'servicetimeout':
         return ErrorCode.ServiceTimeout;
       case 'query-product':
+      case 'queryproduct':
         return ErrorCode.QueryProduct;
       case 'sku-not-found':
+      case 'skunotfound':
         return ErrorCode.SkuNotFound;
       case 'sku-offer-mismatch':
+      case 'skuoffermismatch':
         return ErrorCode.SkuOfferMismatch;
       case 'item-not-owned':
+      case 'itemnotowned':
         return ErrorCode.ItemNotOwned;
       case 'billing-unavailable':
+      case 'billingunavailable':
         return ErrorCode.BillingUnavailable;
       case 'feature-not-supported':
+      case 'featurenotsupported':
         return ErrorCode.FeatureNotSupported;
       case 'empty-sku-list':
+      case 'emptyskulist':
         return ErrorCode.EmptySkuList;
       case 'duplicate-purchase':
+      case 'duplicatepurchase':
         return ErrorCode.DuplicatePurchase;
     }
     return null;
@@ -741,16 +779,22 @@ enum IapEvent {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'purchase-updated':
+      case 'purchaseupdated':
         return IapEvent.PurchaseUpdated;
       case 'purchase-error':
+      case 'purchaseerror':
         return IapEvent.PurchaseError;
       case 'promoted-product-ios':
+      case 'promotedproductios':
         return IapEvent.PromotedProductIOS;
       case 'user-choice-billing-android':
+      case 'userchoicebillingandroid':
         return IapEvent.UserChoiceBillingAndroid;
       case 'developer-provided-billing-android':
+      case 'developerprovidedbillingandroid':
         return IapEvent.DeveloperProvidedBillingAndroid;
       case 'subscription-billing-issue':
+      case 'subscriptionbillingissue':
         return IapEvent.SubscriptionBillingIssue;
     }
     return null;
@@ -1043,10 +1087,13 @@ enum PaymentMode {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'free-trial':
+      case 'freetrial':
         return PaymentMode.FreeTrial;
       case 'pay-as-you-go':
+      case 'payasyougo':
         return PaymentMode.PayAsYouGo;
       case 'pay-up-front':
+      case 'payupfront':
         return PaymentMode.PayUpFront;
       case 'unknown':
         return PaymentMode.Unknown;
@@ -1084,10 +1131,13 @@ enum PaymentModeIOS {
       case 'empty':
         return PaymentModeIOS.Empty;
       case 'free-trial':
+      case 'freetrial':
         return PaymentModeIOS.FreeTrial;
       case 'pay-as-you-go':
+      case 'payasyougo':
         return PaymentModeIOS.PayAsYouGo;
       case 'pay-up-front':
+      case 'payupfront':
         return PaymentModeIOS.PayUpFront;
     }
     return null;
@@ -1120,6 +1170,7 @@ enum ProductQueryType {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'in-app':
+      case 'inapp':
         return ProductQueryType.InApp;
       case 'subs':
         return ProductQueryType.Subs;
@@ -1202,6 +1253,7 @@ enum ProductType {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'in-app':
+      case 'inapp':
         return ProductType.InApp;
       case 'subs':
         return ProductType.Subs;
@@ -1243,14 +1295,19 @@ enum ProductTypeIOS {
       case 'consumable':
         return ProductTypeIOS.Consumable;
       case 'non-consumable':
+      case 'nonconsumable':
         return ProductTypeIOS.NonConsumable;
       case 'auto-renewable-subscription':
+      case 'autorenewablesubscription':
         return ProductTypeIOS.AutoRenewableSubscription;
       case 'non-renewing-subscription':
+      case 'nonrenewingsubscription':
         return ProductTypeIOS.NonRenewingSubscription;
       case 'subscription-bundle':
+      case 'subscriptionbundle':
         return ProductTypeIOS.SubscriptionBundle;
       case 'subscription-suite':
+      case 'subscriptionsuite':
         return ProductTypeIOS.SubscriptionSuite;
     }
     return null;
@@ -1397,6 +1454,7 @@ enum SubscriptionBillingPlanTypeIOS {
       case 'monthly':
         return SubscriptionBillingPlanTypeIOS.Monthly;
       case 'up-front':
+      case 'upfront':
         return SubscriptionBillingPlanTypeIOS.UpFront;
     }
     return null;
@@ -1435,6 +1493,7 @@ enum SubscriptionOfferTypeIOS {
       case 'promotional':
         return SubscriptionOfferTypeIOS.Promotional;
       case 'win-back':
+      case 'winback':
         return SubscriptionOfferTypeIOS.WinBack;
     }
     return null;
@@ -3330,6 +3389,7 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   /// Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
   /// for example "US" or "FR". Only populated on the Amazon flavor.
   final String? userMarketplaceAmazon;
+  @Deprecated('Not part of the OpenIAP schema and never set by native code. It will be removed in the next major release.')
   final bool? isAlternativeBilling;
 
   factory PurchaseAndroid.fromJson(Map<String, dynamic> json) {
@@ -3560,6 +3620,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final String transactionId;
   final String? transactionReasonIOS;
   final String? webOrderLineItemIdIOS;
+  @Deprecated('Not part of the OpenIAP schema and never set by native code. It will be removed in the next major release.')
   final bool? isAlternativeBilling;
 
   factory PurchaseIOS.fromJson(Map<String, dynamic> json) {

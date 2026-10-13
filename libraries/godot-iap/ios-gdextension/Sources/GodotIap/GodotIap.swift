@@ -62,8 +62,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private let openIap = OpenIapModule.shared
     private let lifecycleLock = NSLock()
     private var lifecycleTail: Task<Void, Never>?
-    private var lifecycleGeneration: UInt64 = 0
-    private var isConnected: Bool = false
+    private var connection = GodotIapConnectionGenerations()
     private var purchaseUpdateSubscription: Subscription?
     private var purchaseErrorSubscription: Subscription?
     private var promotedProductSubscription: Subscription?
@@ -88,8 +87,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func initConnection() -> String {
         GodotIapLog.payload("initConnection", payload: nil)
         let requestId = UUID().uuidString
-        enqueueLifecycleOperation { [weak self] generation in
+        enqueueLifecycleOperation(startsConnection: true) { [weak self] generation in
             guard let self else { return }
+            // Every wrapper shares this plugin; a live connection keeps its listeners.
+            if self.isConnectionActive(generation: generation) {
+                await self.emitInitConnectionSuccess(generation: generation, requestId: requestId)
+                return
+            }
             do {
                 let result = try await self.openIap.initConnection()
 
@@ -147,7 +151,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func endConnection() -> String {
         GodotIapLog.payload("endConnection", payload: nil)
         let requestId = UUID().uuidString
-        enqueueLifecycleOperation(invalidateConnection: false) { [weak self] generation in
+        enqueueLifecycleOperation(startsConnection: false) { [weak self] generation in
             guard let self else { return }
             do {
                 let disconnected = try await self.openIap.endConnection()
@@ -328,13 +332,10 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
                 try await self.openIap.finishTransaction(purchase: purchaseInput, isConsumable: isConsumable)
                 GodotIapLog.result("finishTransaction", value: true)
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "finishTransaction",
-                        requestId: requestId
-                    )
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "finishTransaction",
+                    requestId: requestId
+                )
             } catch {
                 GodotIapLog.failure("finishTransaction", error: error)
                 await self.emitAsyncFailure(
@@ -375,13 +376,10 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 }
 
                 GodotIapLog.debug("[GodotIap] Restore completed with \(purchases.count) purchases")
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "restorePurchases",
-                        requestId: requestId
-                    )
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "restorePurchases",
+                    requestId: requestId
+                )
             } catch {
                 let restoreError = GodotIapHelper.restoreError(error)
                 await self.emitAsyncFailure(
@@ -418,16 +416,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let purchases = try await self.openIap.getAvailablePurchases(options)
                 let purchaseDicts = try GodotIapHelper.purchasesRequired(purchases)
 
-                if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDicts),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "getAvailablePurchases",
-                            requestId: requestId
-                        )
-                        dict["purchasesJson"] = Variant(jsonString)
-                        self.productsFetched.emit(dict)
-                    }
+                if let jsonString = GodotIapHelper.jsonString(purchaseDicts) {
+                    await self.emitAsyncResult(
+                        method: "getAvailablePurchases",
+                        requestId: requestId,
+                        ["purchasesJson": jsonString]
+                    )
                 } else {
                     await self.emitAsyncFailure(
                         method: "getAvailablePurchases",
@@ -479,16 +473,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     try GodotIapHelper.encodeRequired($0)
                 }
 
-                if let jsonData = try? JSONSerialization.data(withJSONObject: subDicts),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "getActiveSubscriptions",
-                            requestId: requestId
-                        )
-                        dict["subscriptionsJson"] = Variant(jsonString)
-                        self.productsFetched.emit(dict)
-                    }
+                if let jsonString = GodotIapHelper.jsonString(subDicts) {
+                    await self.emitAsyncResult(
+                        method: "getActiveSubscriptions",
+                        requestId: requestId,
+                        ["subscriptionsJson": jsonString]
+                    )
                 } else {
                     await self.emitAsyncFailure(
                         method: "getActiveSubscriptions",
@@ -535,14 +525,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
                 let hasActive = try await self.openIap.hasActiveSubscriptions(subscriptionIds)
 
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "hasActiveSubscriptions",
-                        requestId: requestId
-                    )
-                    dict["hasActive"] = Variant(hasActive)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "hasActiveSubscriptions",
+                    requestId: requestId,
+                    ["hasActive": hasActive]
+                )
             } catch let error as PurchaseError {
                 GodotIapLog.debug("[GodotIap] hasActiveSubscriptions error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -574,14 +561,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let countryCode = try await self.openIap.getStorefront()
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "getStorefront",
-                        requestId: requestId
-                    )
-                    dict["countryCode"] = Variant(countryCode)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "getStorefront",
+                    requestId: requestId,
+                    ["countryCode": countryCode]
+                )
             } catch {
                 await self.emitAsyncFailure(
                     method: "getStorefront",
@@ -609,25 +593,20 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let result = try await self.openIap.syncIOS()
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("syncIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(result)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "syncIOS",
+                    requestId: requestId,
+                    success: result
+                )
                 GodotIapLog.debug("[GodotIap] Sync completed: \(result)")
             } catch {
                 GodotIapLog.debug("[GodotIap] syncIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("syncIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "syncIOS",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -643,25 +622,20 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let result = try await self.openIap.clearTransactionIOS()
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("clearTransactionIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(result)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "clearTransactionIOS",
+                    requestId: requestId,
+                    success: result
+                )
                 GodotIapLog.debug("[GodotIap] Clear transactions completed: \(result)")
             } catch {
                 GodotIapLog.debug("[GodotIap] clearTransactionIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("clearTransactionIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "clearTransactionIOS",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -681,37 +655,27 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     try GodotIapHelper.encodeRequired($0)
                 }
 
-                if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDicts),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("getPendingTransactionsIOS")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(true)
-                        dict["transactionsJson"] = Variant(jsonString)
-                        self.productsFetched.emit(dict)
-                    }
+                if let jsonString = GodotIapHelper.jsonString(transactionDicts) {
+                    await self.emitAsyncResult(
+                        method: "getPendingTransactionsIOS",
+                        requestId: requestId,
+                        ["transactionsJson": jsonString]
+                    )
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("getPendingTransactionsIOS")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(false)
-                        dict["error"] = Variant("Failed to serialize pending transactions")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncFailure(
+                        method: "getPendingTransactionsIOS",
+                        requestId: requestId,
+                        message: "Failed to serialize pending transactions"
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] getPendingTransactionsIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("getPendingTransactionsIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "getPendingTransactionsIOS",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -731,37 +695,27 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     try GodotIapHelper.encodeRequired($0)
                 }
 
-                if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDicts),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("getAllTransactionsIOS")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(true)
-                        dict["transactionsJson"] = Variant(jsonString)
-                        self.productsFetched.emit(dict)
-                    }
+                if let jsonString = GodotIapHelper.jsonString(transactionDicts) {
+                    await self.emitAsyncResult(
+                        method: "getAllTransactionsIOS",
+                        requestId: requestId,
+                        ["transactionsJson": jsonString]
+                    )
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("getAllTransactionsIOS")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(false)
-                        dict["error"] = Variant("Failed to serialize all transactions")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncFailure(
+                        method: "getAllTransactionsIOS",
+                        requestId: requestId,
+                        message: "Failed to serialize all transactions"
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] getAllTransactionsIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("getAllTransactionsIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "getAllTransactionsIOS",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -779,31 +733,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let purchase = try await GodotIapHelper.withCompletionErrors {
                     try await self.openIap.openRedeemOfferCode()
                 }
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("openRedeemOfferCode")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    if let purchase,
-                       let jsonData = try? JSONSerialization.data(
-                           withJSONObject: self.purchaseIOSToDictionary(purchase)
-                       ),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        dict["purchaseJson"] = Variant(jsonString)
-                    }
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "openRedeemOfferCode",
+                    requestId: requestId,
+                    ["purchaseJson": purchase.flatMap { GodotIapHelper.jsonString(self.purchaseIOSToDictionary($0)) }]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] openRedeemOfferCode error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("openRedeemOfferCode")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "openRedeemOfferCode",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -823,37 +765,27 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     try GodotIapHelper.encodeRequired($0)
                 }
 
-                if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDicts),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("showManageSubscriptionsIOS")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(true)
-                        dict["purchasesJson"] = Variant(jsonString)
-                        self.productsFetched.emit(dict)
-                    }
+                if let jsonString = GodotIapHelper.jsonString(purchaseDicts) {
+                    await self.emitAsyncResult(
+                        method: "showManageSubscriptionsIOS",
+                        requestId: requestId,
+                        ["purchasesJson": jsonString]
+                    )
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("showManageSubscriptionsIOS")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(false)
-                        dict["error"] = Variant("Failed to serialize changed purchases")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncFailure(
+                        method: "showManageSubscriptionsIOS",
+                        requestId: requestId,
+                        message: "Failed to serialize changed purchases"
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] showManageSubscriptionsIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("showManageSubscriptionsIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "showManageSubscriptionsIOS",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -869,25 +801,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let result = try await self.openIap.beginRefundRequestIOS(sku: sku)
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("beginRefundRequestIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    dict["status"] = Variant(result ?? "unknown")
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "beginRefundRequestIOS",
+                    requestId: requestId,
+                    ["status": result ?? "unknown"]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] beginRefundRequestIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("beginRefundRequestIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "beginRefundRequestIOS",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -905,16 +831,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let purchase = try await self.openIap.currentEntitlementIOS(sku: sku)
                 if let purchase = purchase {
                     let purchaseDict = self.purchaseIOSToDictionary(purchase)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        await MainActor.run { [self] in
-                            let dict = self.asyncResultDictionary(
-                                method: "currentEntitlementIOS",
-                                requestId: requestId
-                            )
-                            dict["purchaseJson"] = Variant(jsonString)
-                            self.productsFetched.emit(dict)
-                        }
+                    if let jsonString = GodotIapHelper.jsonString(purchaseDict) {
+                        await self.emitAsyncResult(
+                            method: "currentEntitlementIOS",
+                            requestId: requestId,
+                            ["purchaseJson": jsonString]
+                        )
                     } else {
                         await self.emitAsyncFailure(
                             method: "currentEntitlementIOS",
@@ -923,14 +845,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         )
                     }
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "currentEntitlementIOS",
-                            requestId: requestId
-                        )
-                        dict["purchaseJson"] = Variant("null")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "currentEntitlementIOS",
+                        requestId: requestId,
+                        ["purchaseJson": "null"]
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] currentEntitlementIOS error: \(error.localizedDescription)")
@@ -957,16 +876,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let purchase = try await self.openIap.latestTransactionIOS(sku: sku)
                 if let purchase = purchase {
                     let purchaseDict = self.purchaseIOSToDictionary(purchase)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        await MainActor.run { [self] in
-                            let dict = self.asyncResultDictionary(
-                                method: "latestTransactionIOS",
-                                requestId: requestId
-                            )
-                            dict["purchaseJson"] = Variant(jsonString)
-                            self.productsFetched.emit(dict)
-                        }
+                    if let jsonString = GodotIapHelper.jsonString(purchaseDict) {
+                        await self.emitAsyncResult(
+                            method: "latestTransactionIOS",
+                            requestId: requestId,
+                            ["purchaseJson": jsonString]
+                        )
                     } else {
                         await self.emitAsyncFailure(
                             method: "latestTransactionIOS",
@@ -975,14 +890,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         )
                     }
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "latestTransactionIOS",
-                            requestId: requestId
-                        )
-                        dict["purchaseJson"] = Variant("null")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "latestTransactionIOS",
+                        requestId: requestId,
+                        ["purchaseJson": "null"]
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] latestTransactionIOS error: \(error.localizedDescription)")
@@ -1007,11 +919,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let options = try JSONDecoder().decode(VerifyAppOwnershipProps.self, from: Data(optionsJson.utf8))
                 let result = try await self.openIap.verifyAppOwnership(options)
                 let json = String(decoding: try JSONEncoder().encode(result), as: UTF8.self)
-                await MainActor.run {
-                    let dict = self.asyncResultDictionary(method: "verifyAppOwnership", requestId: requestId)
-                    dict["ownershipJson"] = Variant(json)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "verifyAppOwnership",
+                    requestId: requestId,
+                    ["ownershipJson": json]
+                )
             } catch is DecodingError {
                 await self.emitAsyncFailure(method: "verifyAppOwnership", requestId: requestId, message: "Invalid app ownership options", code: ErrorCode.developerError.rawValue)
             } catch {
@@ -1032,16 +944,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let appTransaction = try await self.openIap.getAppTransactionIOS()
                 if let appTransaction = appTransaction {
                     let transactionDict = OpenIapSerialization.encode(appTransaction)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        await MainActor.run { [self] in
-                            let dict = self.asyncResultDictionary(
-                                method: "getAppTransactionIOS",
-                                requestId: requestId
-                            )
-                            dict["appTransactionJson"] = Variant(jsonString)
-                            self.productsFetched.emit(dict)
-                        }
+                    if let jsonString = GodotIapHelper.jsonString(transactionDict) {
+                        await self.emitAsyncResult(
+                            method: "getAppTransactionIOS",
+                            requestId: requestId,
+                            ["appTransactionJson": jsonString]
+                        )
                     } else {
                         await self.emitAsyncFailure(
                             method: "getAppTransactionIOS",
@@ -1050,14 +958,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         )
                     }
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "getAppTransactionIOS",
-                            requestId: requestId
-                        )
-                        dict["appTransactionJson"] = Variant("null")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "getAppTransactionIOS",
+                        requestId: requestId,
+                        ["appTransactionJson": "null"]
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] getAppTransactionIOS error: \(error.localizedDescription)")
@@ -1086,16 +991,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     return OpenIapSerialization.encode(status)
                 }
 
-                if let jsonData = try? JSONSerialization.data(withJSONObject: statusDicts),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "subscriptionStatusIOS",
-                            requestId: requestId
-                        )
-                        dict["statusesJson"] = Variant(jsonString)
-                        self.productsFetched.emit(dict)
-                    }
+                if let jsonString = GodotIapHelper.jsonString(statusDicts) {
+                    await self.emitAsyncResult(
+                        method: "subscriptionStatusIOS",
+                        requestId: requestId,
+                        ["statusesJson": jsonString]
+                    )
                 } else {
                     await self.emitAsyncFailure(
                         method: "subscriptionStatusIOS",
@@ -1126,14 +1027,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let isEligible = try await self.openIap.isEligibleForIntroOfferIOS(groupID: groupId)
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "isEligibleForIntroOfferIOS",
-                        requestId: requestId
-                    )
-                    dict["isEligible"] = Variant(isEligible)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "isEligibleForIntroOfferIOS",
+                    requestId: requestId,
+                    ["isEligible": isEligible]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] isEligibleForIntroOfferIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1159,16 +1057,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let product = try await self.openIap.getPromotedProductIOS()
                 if let product = product {
                     let productDict = self.productIOSToDictionary(product)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: productDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        await MainActor.run { [self] in
-                            let dict = self.asyncResultDictionary(
-                                method: "getPromotedProductIOS",
-                                requestId: requestId
-                            )
-                            dict["productJson"] = Variant(jsonString)
-                            self.productsFetched.emit(dict)
-                        }
+                    if let jsonString = GodotIapHelper.jsonString(productDict) {
+                        await self.emitAsyncResult(
+                            method: "getPromotedProductIOS",
+                            requestId: requestId,
+                            ["productJson": jsonString]
+                        )
                     } else {
                         await self.emitAsyncFailure(
                             method: "getPromotedProductIOS",
@@ -1177,14 +1071,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         )
                     }
                 } else {
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "getPromotedProductIOS",
-                            requestId: requestId
-                        )
-                        dict["productJson"] = Variant("null")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "getPromotedProductIOS",
+                        requestId: requestId,
+                        ["productJson": "null"]
+                    )
                 }
             } catch {
                 GodotIapLog.debug("[GodotIap] getPromotedProductIOS error: \(error.localizedDescription)")
@@ -1209,14 +1100,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let canPresent = try await self.openIap.canPresentExternalPurchaseNoticeIOS()
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "canPresentExternalPurchaseNoticeIOS",
-                        requestId: requestId
-                    )
-                    dict["canPresent"] = Variant(canPresent)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "canPresentExternalPurchaseNoticeIOS",
+                    requestId: requestId,
+                    ["canPresent": canPresent]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] canPresentExternalPurchaseNoticeIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1240,18 +1128,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let result = try await self.openIap.presentExternalPurchaseNoticeSheetIOS()
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "presentExternalPurchaseNoticeSheetIOS",
-                        requestId: requestId
-                    )
-                    if let jsonData = try? JSONSerialization.data(
-                        withJSONObject: OpenIapSerialization.encode(result)
-                    ), let jsonString = String(data: jsonData, encoding: .utf8) {
-                        dict["resultJson"] = Variant(jsonString)
-                    }
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "presentExternalPurchaseNoticeSheetIOS",
+                    requestId: requestId,
+                    ["resultJson": GodotIapHelper.jsonString(OpenIapSerialization.encode(result))]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] presentExternalPurchaseNoticeSheetIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1275,17 +1156,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let result = try await self.openIap.presentExternalPurchaseLinkIOS(url)
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "presentExternalPurchaseLinkIOS",
-                        requestId: requestId
-                    )
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: OpenIapSerialization.encode(result)),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        dict["resultJson"] = Variant(jsonString)
-                    }
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "presentExternalPurchaseLinkIOS",
+                    requestId: requestId,
+                    ["resultJson": GodotIapHelper.jsonString(OpenIapSerialization.encode(result))]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] presentExternalPurchaseLinkIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1319,24 +1194,18 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 }
 
                 try await self.openIap.deepLinkToSubscriptions(options)
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("deepLinkToSubscriptions")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "deepLinkToSubscriptions",
+                    requestId: requestId
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] deepLinkToSubscriptions error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("deepLinkToSubscriptions")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "deepLinkToSubscriptions",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error)
+                )
             }
         }
 
@@ -1355,14 +1224,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             do {
                 guard let data = propsJson.data(using: .utf8),
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("verifyPurchase")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(false)
-                        dict["error"] = Variant("Invalid arguments")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncFailure(
+                        method: "verifyPurchase",
+                        requestId: requestId,
+                        message: "Invalid arguments",
+                        code: ErrorCode.purchaseVerificationFailed.rawValue
+                    )
                     return
                 }
 
@@ -1373,28 +1240,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 }
                 let resultDict = try GodotIapHelper.encodeRequired(result)
 
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("verifyPurchase")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        dict["resultJson"] = Variant(jsonString)
-                    }
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "verifyPurchase",
+                    requestId: requestId,
+                    ["resultJson": GodotIapHelper.jsonString(resultDict)]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] verifyPurchase error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("verifyPurchase")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error, fallback: .purchaseVerificationFailed))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "verifyPurchase",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error, fallback: .purchaseVerificationFailed)
+                )
             }
         }
 
@@ -1410,14 +1268,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let receiptData = try await self.openIap.getReceiptDataIOS()
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "getReceiptDataIOS",
-                        requestId: requestId
-                    )
-                    dict["receiptData"] = Variant(receiptData ?? "")
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "getReceiptDataIOS",
+                    requestId: requestId,
+                    ["receiptData": receiptData ?? ""]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] getReceiptDataIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1441,14 +1296,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let isVerified = try await self.openIap.isTransactionVerifiedIOS(sku: sku)
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "isTransactionVerifiedIOS",
-                        requestId: requestId
-                    )
-                    dict["isVerified"] = Variant(isVerified)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "isTransactionVerifiedIOS",
+                    requestId: requestId,
+                    ["isVerified": isVerified]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] isTransactionVerifiedIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1472,14 +1324,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let jws = try await self.openIap.getTransactionJwsIOS(sku: sku)
-                await MainActor.run { [self] in
-                    let dict = self.asyncResultDictionary(
-                        method: "getTransactionJwsIOS",
-                        requestId: requestId
-                    )
-                    dict["jws"] = Variant(jws ?? "")
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "getTransactionJwsIOS",
+                    requestId: requestId,
+                    ["jws": jws ?? ""]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] getTransactionJwsIOS error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -1504,14 +1353,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             do {
                 guard let data = propsJson.data(using: .utf8),
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    await MainActor.run { [self] in
-                        let dict = VariantDictionary()
-                        dict["method"] = Variant("verifyPurchaseWithProvider")
-                        dict["requestId"] = Variant(requestId)
-                        dict["success"] = Variant(false)
-                        dict["error"] = Variant("Invalid arguments")
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncFailure(
+                        method: "verifyPurchaseWithProvider",
+                        requestId: requestId,
+                        message: "Invalid arguments",
+                        code: ErrorCode.purchaseVerificationFailed.rawValue
+                    )
                     return
                 }
 
@@ -1520,29 +1367,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let props = try JSONDecoder().decode(VerifyPurchaseWithProviderProps.self, from: jsonData)
                 let result = try await self.openIap.verifyPurchaseWithProvider(props)
 
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("verifyPurchaseWithProvider")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    let resultDict = OpenIapSerialization.encode(result)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        dict["resultJson"] = Variant(jsonString)
-                    }
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncResult(
+                    method: "verifyPurchaseWithProvider",
+                    requestId: requestId,
+                    ["resultJson": GodotIapHelper.jsonString(OpenIapSerialization.encode(result))]
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] verifyPurchaseWithProvider error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("verifyPurchaseWithProvider")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["code"] = Variant(GodotIapHelper.errorCode(error, fallback: .purchaseVerificationFailed))
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
+                await self.emitAsyncFailure(
+                    method: "verifyPurchaseWithProvider",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: GodotIapHelper.errorCode(error, fallback: .purchaseVerificationFailed)
+                )
             }
         }
 
@@ -1565,14 +1402,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 guard let self = self else { return }
                 do {
                     let eligible = try await self.openIap.isEligibleForExternalPurchaseCustomLinkIOS()
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "isEligibleForExternalPurchaseCustomLinkIOS",
-                            requestId: requestId
-                        )
-                        dict["eligible"] = Variant(eligible)
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "isEligibleForExternalPurchaseCustomLinkIOS",
+                        requestId: requestId,
+                        ["eligible": eligible]
+                    )
                 } catch {
                     GodotIapLog.debug("[GodotIap] isEligibleForExternalPurchaseCustomLinkIOS error: \(error.localizedDescription)")
                     await self.emitAsyncFailure(
@@ -1610,17 +1444,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                     let result = try await self.openIap.getExternalPurchaseCustomLinkTokenIOS(type)
                     let resultDict = OpenIapSerialization.encode(result)
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "getExternalPurchaseCustomLinkTokenIOS",
-                            requestId: requestId
-                        )
-                        if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
-                           let jsonString = String(data: jsonData, encoding: .utf8) {
-                            dict["resultJson"] = Variant(jsonString)
-                        }
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "getExternalPurchaseCustomLinkTokenIOS",
+                        requestId: requestId,
+                        ["resultJson": GodotIapHelper.jsonString(resultDict)]
+                    )
                 } catch {
                     GodotIapLog.debug("[GodotIap] getExternalPurchaseCustomLinkTokenIOS error: \(error.localizedDescription)")
                     await self.emitAsyncFailure(
@@ -1656,17 +1484,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                     let result = try await self.openIap.showExternalPurchaseCustomLinkNoticeIOS(type)
                     let resultDict = OpenIapSerialization.encode(result)
-                    await MainActor.run { [self] in
-                        let dict = self.asyncResultDictionary(
-                            method: "showExternalPurchaseCustomLinkNoticeIOS",
-                            requestId: requestId
-                        )
-                        if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
-                           let jsonString = String(data: jsonData, encoding: .utf8) {
-                            dict["resultJson"] = Variant(jsonString)
-                        }
-                        self.productsFetched.emit(dict)
-                    }
+                    await self.emitAsyncResult(
+                        method: "showExternalPurchaseCustomLinkNoticeIOS",
+                        requestId: requestId,
+                        ["resultJson": GodotIapHelper.jsonString(resultDict)]
+                    )
                 } catch {
                     GodotIapLog.debug("[GodotIap] showExternalPurchaseCustomLinkNoticeIOS error: \(error.localizedDescription)")
                     await self.emitAsyncFailure(
@@ -1704,6 +1526,25 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return dict
     }
 
+    /// Completes a pending call on products_fetched; GDScript matches it by method and requestId.
+    @MainActor
+    private func emitAsyncResult(
+        method: String,
+        requestId: String,
+        success: Bool = true,
+        _ values: [String: (any VariantConvertible)?] = [:]
+    ) {
+        let dict = asyncResultDictionary(
+            method: method,
+            requestId: requestId,
+            success: success
+        )
+        for (key, value) in values {
+            if let value { dict[key] = value.toVariant() }
+        }
+        productsFetched.emit(dict)
+    }
+
     @MainActor
     private func emitAsyncFailure(
         method: String,
@@ -1711,14 +1552,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         message: String,
         code: String = ErrorCode.serviceError.rawValue
     ) {
-        let dict = asyncResultDictionary(
+        emitAsyncResult(
             method: method,
             requestId: requestId,
-            success: false
+            success: false,
+            ["code": code, "error": message]
         )
-        dict["code"] = Variant(code)
-        dict["error"] = Variant(message)
-        self.productsFetched.emit(dict)
     }
 
     private func withLifecycleLock<T>(_ operation: () -> T) -> T {
@@ -1738,13 +1577,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         generation: UInt64,
         listeners: [Subscription]
     ) {
-        lifecycleGeneration &+= 1
-        isConnected = false
-        return (lifecycleGeneration, takeListenersLocked())
+        (connection.invalidate(), takeListenersLocked())
     }
 
+    /// Runs lifecycle operations in order. One that starts a connection gets a new
+    /// generation unless a connection is already live.
     private func enqueueLifecycleOperation(
-        invalidateConnection: Bool = true,
+        startsConnection: Bool,
         _ operation: @escaping (UInt64) async -> Void
     ) {
         withLifecycleLock {
@@ -1754,13 +1593,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await predecessor.value
                 }
                 guard let self else { return }
-                let generation: UInt64
-                if invalidateConnection {
-                    let lifecycle = self.advanceConnectionGeneration()
-                    self.removeListeners(lifecycle.listeners)
-                    generation = lifecycle.generation
-                } else {
-                    generation = self.withLifecycleLock { self.lifecycleGeneration }
+                // Listeners exist only while connected, so a fresh generation has none to drop.
+                let generation = self.withLifecycleLock {
+                    (startsConnection ? self.connection.beginInit() : nil) ?? self.connection.generation
                 }
                 await operation(generation)
             }
@@ -1790,7 +1625,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     private func installListenersIfOwned(generation: UInt64) -> Bool {
         withLifecycleLock {
-            guard lifecycleGeneration == generation else { return false }
+            guard connection.generation == generation else { return false }
 
             purchaseUpdateSubscription = makePurchaseUpdatedListener(
                 generation: generation,
@@ -1824,8 +1659,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.emitSubscriptionBillingIssue(purchase: purchase)
                 }
             }
-            isConnected = true
-            return true
+            return connection.markConnected(generation)
         }
     }
 
@@ -1834,11 +1668,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     ) -> Subscription? {
         withLifecycleLock {
             self.dedupeTransactionIOS = dedupeTransactionIOS
-            guard isConnected else { return nil }
+            guard connection.isConnected else { return nil }
 
             let previousSubscription = purchaseUpdateSubscription
             purchaseUpdateSubscription = makePurchaseUpdatedListener(
-                generation: lifecycleGeneration,
+                generation: connection.generation,
                 dedupeTransactionIOS: dedupeTransactionIOS
             )
             return previousSubscription
@@ -1862,13 +1696,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func isConnectionGenerationCurrent(_ generation: UInt64) -> Bool {
-        withLifecycleLock { lifecycleGeneration == generation }
+        withLifecycleLock { connection.generation == generation }
     }
 
     private func isConnectionActive(generation: UInt64) -> Bool {
-        withLifecycleLock {
-            lifecycleGeneration == generation && isConnected
-        }
+        withLifecycleLock { connection.isActive(generation) }
     }
 
     @MainActor
@@ -1972,8 +1804,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         dict["quantity"] = Variant(quantity)
         dict["isAutoRenewing"] = Variant(isAutoRenewing)
 
-        if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseToDictionary(purchase)),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
+        if let jsonString = GodotIapHelper.jsonString(purchaseToDictionary(purchase)) {
             dict["purchaseJson"] = Variant(jsonString)
         }
 
@@ -1998,8 +1829,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             dict["transactionDate"] = Variant(p.transactionDate)
             dict["store"] = Variant(p.store.rawValue)
         }
-        if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseToDictionary(purchase)),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
+        if let jsonString = GodotIapHelper.jsonString(purchaseToDictionary(purchase)) {
             dict["purchaseJson"] = Variant(jsonString)
         }
         self.subscriptionBillingIssue.emit(dict)
@@ -2079,9 +1909,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             success: success
         )
 
-        if let products = products,
-           let jsonData = try? JSONSerialization.data(withJSONObject: products),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
+        if let products, let jsonString = GodotIapHelper.jsonString(products) {
             dict["productsJson"] = Variant(jsonString)
         }
 
@@ -2111,11 +1939,8 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func jsonString(_ object: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: object),
-              let string = String(data: data, encoding: .utf8) else {
-            return "{\"success\": false, \"code\": \"unknown\", \"error\": \"JSON serialization failed\"}"
-        }
-        return string
+        GodotIapHelper.jsonString(object)
+            ?? "{\"success\": false, \"code\": \"unknown\", \"error\": \"JSON serialization failed\"}"
     }
 
     private func purchaseToDictionary(_ purchase: Purchase) -> [String: Any] {

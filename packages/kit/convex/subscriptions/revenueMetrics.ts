@@ -23,6 +23,7 @@ import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getWritableProject } from "../projects/writable";
+import { isMisrecordedApplePass } from "./stateMachine";
 
 // Raising this past ~7 days reads more events for almost no gain: later events
 // are vanishingly rare (the stores route them to manual reconciliation).
@@ -902,7 +903,7 @@ async function productTypesForRows(
 }
 
 export function isActiveAt(sub: Doc<"subscriptions">, dayEnd: number): boolean {
-  if (sub.startedAt > dayEnd) return false;
+  if (sub.startedAt > dayEnd || isMisrecordedApplePass(sub)) return false;
   if (!COUNTED_STATES.has(sub.state as "Active")) return false;
   // `expiresAt` wins over state: an Active sub past it does not count, an
   // Expired sub before it does.

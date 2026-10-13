@@ -75,6 +75,13 @@ echo "🔎 IAPKit spec contract audit — running CI mirror…"
 node --test scripts/audit-kit-spec-contract.test.mjs
 node scripts/audit-kit-spec-contract.mjs
 
+# A skills edit must bump both plugin manifests, or installs never see it.
+if git diff --cached --name-only --diff-filter=ACMRD \
+  | grep -qE '^(plugins/openiap/|scripts/audit-plugin-manifests(\.test)?\.mjs$)'; then
+  echo "🧩 plugin manifest audit…"
+  bun run audit:plugins
+fi
+
 # Codex, Claude, and Grok must stay pointed at the same workflows.
 if git diff --cached --name-only --diff-filter=ACMRD \
   | grep -qE '^(\.claude/|\.codex/|AGENTS\.md$|CLAUDE\.md$|GEMINI\.md$|scripts/audit-agent-surfaces(\.test)?\.mjs$)'; then

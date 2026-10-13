@@ -65,12 +65,17 @@ function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
 
   return (
     <div className="language-tabs">
-      <div className="language-tabs-header">
+      <div
+        className="language-tabs-header"
+        role="group"
+        aria-label="Code language"
+      >
         {availableLanguages.map((lang) => (
           <button
             key={lang}
             type="button"
             className={`language-tab ${activeTab === lang ? 'active' : ''}`}
+            aria-pressed={activeTab === lang}
             onClick={() => setCodeLanguage(lang)}
           >
             {LANGUAGE_LABELS[lang]}

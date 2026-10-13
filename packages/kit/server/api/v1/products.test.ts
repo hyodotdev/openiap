@@ -1057,6 +1057,39 @@ describe("productsRoutes", () => {
     });
   });
 
+  it("rate-limits every Bearer admin route like its key-in-path alias", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_sk_admin",
+      "content-type": "application/json",
+    };
+    mocks.query.mockResolvedValue(null);
+    mocks.mutation.mockResolvedValue({ ok: true });
+    const routes: Array<[string, string]> = [
+      ["POST", "/products"],
+      ["POST", "/products/state"],
+      ["POST", "/products/sync/ios"],
+      ["GET", "/products/sync/jobs/job_1"],
+      ["POST", "/products/sync/jobs/job_1/cancel"],
+      ["GET", "/products/client-payload/premium?platform=IOS"],
+      ["PUT", "/products/client-payload/premium?platform=IOS"],
+      ["DELETE", "/products/client-payload/premium?platform=IOS"],
+      ["DELETE", "/products/premium?platform=IOS"],
+    ];
+
+    for (const [method, path] of routes) {
+      const response = await app.request(path, {
+        method,
+        headers,
+        ...(method === "GET" || method === "DELETE" ? {} : { body: "{}" }),
+      });
+      expect(
+        response.headers.get("x-ratelimit-limit"),
+        `${method} ${path}`,
+      ).toBe("600");
+    }
+  });
+
   it("serves the product client-payload read endpoint", async () => {
     const app = buildApp();
     const clientPayload = {

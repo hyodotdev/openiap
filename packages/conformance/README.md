@@ -164,8 +164,9 @@ export const myAdapter = {
 - **Capability gating comes from the matrix, not the adapter.** An
   implementation cannot excuse itself from its own store's requirements. A
   behavior gated on a capability your store must support is required; one gated
-  on a capability your store cannot support becomes an absence check. An
-  optional capability is checked when implemented and otherwise reported as
+  on a capability your store cannot support is reported as not applicable
+  unless you opt in with an `absenceChecks` entry, which the runner then runs.
+  An optional capability is checked when implemented and otherwise reported as
   not applicable.
 - **Unknown stores fail closed.** If `store` is not in the capability matrix,
   the runner rejects the adapter instead of silently treating gated behaviors
@@ -250,6 +251,7 @@ Run `node scripts/coverage-report.mjs` for the current matrix.
 | Android stores (Play, Horizon, Amazon) | subscriptions, errors, identifiers                                         | Real flavor code, one suite for all three                                          |
 | Apple client                           | errors, identifiers, verification, capabilities                            | Purchase flows need a live StoreKit session (StoreKitTest), unavailable to SwiftPM |
 | IAPKit webhooks (Apple, Google)        | `lifecycle.*`                                                              | Real normalizers + state machine                                                   |
+| Provider suites (Android, Apple)       | provider profile, including `provider.*` and the capability checks         | Run by the community fixture providers                                             |
 | Reference (fake store)                 | all client-side behaviors                                                  | Proves the suite runs; **not a shipped SDK**                                       |
 | Flutter, KMP, MAUI, Godot              | —                                                                          | Adapters not yet written                                                           |
 

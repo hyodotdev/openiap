@@ -186,40 +186,11 @@ agents have no hook, so this section is their guard.
 
 ### Rules
 
-- **50 characters max** for the subject line (tag + scope + message combined)
+- Keep the subject line short: aim for about 50 characters and stay within 72,
+  not counting the `(#123)` suffix a squash merge adds. No hook enforces it.
 - Everything after the tag MUST be lowercase
 - No trailing period
 - Use imperative mood ("add" not "added")
-
-## Pull Request Preview Recordings
-
-Create a preview video only when it materially helps a reviewer understand the
-change. Use judgment: a device interaction, animation, or sequence of UI states
-may benefit from a recording; text, screenshots, or test evidence usually cover
-API, dependency, and documentation changes. A video is optional and its absence
-does not block review, merge, or release. No waiver or PR note is required.
-
-When a recording is useful:
-
-- Record the actual changed surface after the implementation is complete. Use
-  the Codex Chrome Extension for web/docs/dashboard previews whenever a browser
-  can render the change.
-- Compress the final video to **under 10 MB** so GitHub accepts it reliably.
-  Prefer H.264 MP4 with a modest resolution / frame rate when the raw capture is
-  too large.
-- Upload the compressed recording to the GitHub PR as a PR body attachment or a
-  clearly labeled attached `Preview` comment.
-- Never commit one-off PR preview recordings, including under
-  `.github/pr-previews/`. Create them in a temporary or ignored local path,
-  upload them as GitHub attachments, verify the attachment, then delete the
-  local files. Only commit media that is itself a product documentation or
-  example asset intended to ship with the repository.
-- If uploads are blocked, skip the video or ask the maintainer; never force-add
-  it to Git. Continue review and release without the optional video.
-- Link or embed the uploaded preview in the PR body or a clearly labeled
-  `Preview` PR comment.
-- Do not upload secrets, private customer data, unreleased credentials, or local
-  browser profile details in previews. Redact or use test fixtures.
 
 ### With Tag and Scope
 
@@ -256,17 +227,22 @@ Fix purchase validation error
 
 ### Scope Reference
 
-| Scope     | Package/Library                    |
-| --------- | ---------------------------------- |
-| `apple`   | `packages/apple`                   |
-| `google`  | `packages/google`                  |
-| `spec`    | `specs/client`                     |
-| `docs`    | `packages/docs`                    |
-| `rn`      | `libraries/react-native-iap`       |
-| `expo`    | `libraries/expo-iap`               |
-| `flutter` | `libraries/flutter_inapp_purchase` |
-| `kmp`     | `libraries/kmp-iap`                |
-| `godot`   | `libraries/godot-iap`              |
+| Scope               | Package/Library                      |
+| ------------------- | ------------------------------------ |
+| `apple`             | `packages/apple`                     |
+| `google`            | `packages/google`                    |
+| `spec`              | `specs/client`                       |
+| `docs`              | `packages/docs`                      |
+| `rn`                | `libraries/react-native-iap`         |
+| `expo`              | `libraries/expo-iap`                 |
+| `flutter`           | `libraries/flutter_inapp_purchase`   |
+| `kmp`               | `libraries/kmp-iap`                  |
+| `godot`             | `libraries/godot-iap`                |
+| `maui`              | `libraries/maui-iap`                 |
+| `kit`               | `packages/kit`                       |
+| `cli`               | `packages/cli`                       |
+| `commerce-protocol` | `specs/commerce-protocol`            |
+| `release`           | Version commits from release CI only |
 
 ### Common Tags
 
@@ -279,6 +255,36 @@ Fix purchase validation error
 | `refactor:` | Code refactoring                |
 | `test:`     | Adding or updating tests        |
 | `chore:`    | Maintenance tasks               |
+
+## Pull Request Preview Recordings
+
+Create a preview video only when it materially helps a reviewer understand the
+change. Use judgment: a device interaction, animation, or sequence of UI states
+may benefit from a recording; text, screenshots, or test evidence usually cover
+API, dependency, and documentation changes. A video is optional and its absence
+does not block review, merge, or release. No waiver or PR note is required.
+
+When a recording is useful:
+
+- Record the actual changed surface after the implementation is complete. Use
+  the Codex Chrome Extension for web/docs/dashboard previews whenever a browser
+  can render the change.
+- Compress the final video to **under 10 MB** so GitHub accepts it reliably.
+  Prefer H.264 MP4 with a modest resolution / frame rate when the raw capture is
+  too large.
+- Upload the compressed recording to the GitHub PR as a PR body attachment or a
+  clearly labeled attached `Preview` comment.
+- Never commit one-off PR preview recordings, including under
+  `.github/pr-previews/`. Create them in a temporary or ignored local path,
+  upload them as GitHub attachments, verify the attachment, then delete the
+  local files. Only commit media that is itself a product documentation or
+  example asset intended to ship with the repository.
+- If uploads are blocked, skip the video or ask the maintainer; never force-add
+  it to Git. Continue review and release without the optional video.
+- Link or embed the uploaded preview in the PR body or a clearly labeled
+  `Preview` PR comment.
+- Do not upload secrets, private customer data, unreleased credentials, or local
+  browser profile details in previews. Redact or use test fixtures.
 
 ---
 
@@ -333,6 +339,11 @@ command from a local terminal.
   that run checks out a tag.
 - Local registry-facing commands in a release workflow are limited to read-only
   verification; local build and test commands remain allowed.
+- Jobs that read a stored publishing or deploy secret run in a GitHub
+  environment limited to `main`: `release` for package publishing and
+  `kit-production` for the kit deploy. Keep those secrets in the environment,
+  not at repository level. `audit-security.mjs workflows` rejects a job that
+  reads a secret without `environment:`; OIDC-only publish jobs stay ungated.
 
 Exact-version `npm deprecate` and retraction through the signed-in pub.dev Admin
 UI are authenticated lifecycle-maintenance exceptions, not package publishing.

@@ -50,7 +50,7 @@ function Sponsors() {
         keywords="OpenIAP sponsors, GitHub Sponsors, IAP infrastructure, in-app purchase open source, vendor sponsorship"
       />
 
-      <main className="xp-shell xp-sponsors-sheet">
+      <div className="xp-shell xp-sponsors-sheet">
         <section
           className="xp-sponsors-opening"
           aria-labelledby="sponsors-title"
@@ -317,7 +317,7 @@ function Sponsors() {
             ))}
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { OAuth2Client } from "google-auth-library";
 import { google, type androidpublisher_v3 } from "googleapis";
 
-import { action } from "../_generated/server";
+import { action, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { moneyToMicros } from "../products/play";
@@ -48,15 +48,14 @@ function trimPlayClientCacheLru(): void {
   }
 }
 
-type GoogleActionContext = {
-  runAction: any;
-  runMutation: any;
-  runQuery: any;
-};
+type GoogleActionContext = Pick<
+  ActionCtx,
+  "runAction" | "runMutation" | "runQuery"
+>;
 
 async function getPlayProjectAuth(
   ctx: Pick<GoogleActionContext, "runAction" | "runQuery">,
-  projectId: unknown,
+  projectId: Id<"projects">,
 ): Promise<{
   client: androidpublisher_v3.Androidpublisher;
   principal: string;
@@ -546,8 +545,8 @@ export function selectSubscriptionMoney<T>(
 // account (the caller then admits only terminal events). Transient Play
 // failures throw so Pub/Sub retries before an incomplete event is recorded.
 async function maybeFetchSubscriptionInfo(
-  ctx: { runAction: any; runQuery: any },
-  projectId: unknown,
+  ctx: Pick<ActionCtx, "runAction" | "runQuery">,
+  projectId: Id<"projects">,
   packageName: string | undefined,
   payload: GoogleRtdnPayload,
   authenticatedPlayAuth?: PlayProjectAuth,
@@ -716,7 +715,9 @@ async function maybeFetchSubscriptionInfo(
       expiryTimeMillis: parseEpochMs(expiry),
       autoRenewingPlanRenewsTimeMillis: parseEpochMs(renews),
       willRenew,
-      currency: usesStorePrice ? price?.currencyCode : catalogPrice?.currency,
+      currency: usesStorePrice
+        ? (price?.currencyCode ?? undefined)
+        : catalogPrice?.currency,
       priceAmountMicros: usesStorePrice
         ? storePriceAmountMicros
         : catalogPrice?.priceAmountMicros,

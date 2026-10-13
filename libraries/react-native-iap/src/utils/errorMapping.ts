@@ -1,7 +1,7 @@
 /**
- * Error mapping utilities for react-native-iap.
- * Provides helpers for working with platform-specific error codes
- * and constructing structured purchase errors.
+ * Error-code helpers shared by react-native-iap and expo-iap.
+ * Edit libraries/react-native-iap/src/utils/errorMapping.ts first and copy it to
+ * expo-iap; errorMapping.shared.test.ts keeps the copies identical.
  */
 
 import {
@@ -9,45 +9,7 @@ import {
   type IapPlatform,
   type SubResponseCodeAndroid,
 } from '../types';
-
-/** Error code for duplicate purchase events detected on iOS. */
-export const DUPLICATE_PURCHASE_CODE = ErrorCode.DuplicatePurchase;
-
-const ERROR_CODE_ALIASES: Record<string, ErrorCode> = {
-  E_USER_CANCELED: ErrorCode.UserCancelled,
-  USER_CANCELED: ErrorCode.UserCancelled,
-  E_USER_CANCELLED: ErrorCode.UserCancelled,
-  USER_CANCELLED: ErrorCode.UserCancelled,
-  RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
-  E_RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
-  RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
-  E_RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
-  RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
-  E_RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
-};
-
-const errorAlias = (code: string): ErrorCode | undefined =>
-  ERROR_CODE_ALIASES[
-    code
-      .trim()
-      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-      .replace(/-/g, '_')
-      .toUpperCase()
-  ];
-
-const toKebabCase = (str: string): string => {
-  if (str.includes('_')) {
-    return str
-      .split('_')
-      .map((word) => word.toLowerCase())
-      .join('-');
-  } else {
-    return str
-      .replace(/([A-Z])/g, '-$1')
-      .toLowerCase()
-      .replace(/^-/, '');
-  }
-};
+import {PACKAGE_NAME} from './packageName';
 
 export interface PurchaseErrorProps {
   message?: string;
@@ -74,77 +36,110 @@ export interface PurchaseError extends Error {
   platform?: IapPlatform;
 }
 
+/** Error code for duplicate purchase events. */
+export const DUPLICATE_PURCHASE_CODE = ErrorCode.DuplicatePurchase;
+
+const OPENIAP_ERROR_CODES: ReadonlySet<string> = new Set(
+  Object.values(ErrorCode),
+);
+
+// Legacy spellings, keyed in upper snake case without the `E_` prefix.
+const ERROR_CODE_ALIASES: Readonly<Partial<Record<string, ErrorCode>>> = {
+  USER_CANCELED: ErrorCode.UserCancelled,
+  USER_CANCEL: ErrorCode.UserCancelled,
+  CANCELED: ErrorCode.UserCancelled,
+  CANCELLED: ErrorCode.UserCancelled,
+  RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
+  RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
+  RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
+};
+
+// Google Play BillingResponseCode values that older call sites pass as codes.
+const ANDROID_RESPONSE_CODES: ReadonlyMap<number, ErrorCode> = new Map([
+  [-3, ErrorCode.ServiceTimeout],
+  [-2, ErrorCode.FeatureNotSupported],
+  [-1, ErrorCode.ServiceDisconnected],
+  [1, ErrorCode.UserCancelled],
+  [2, ErrorCode.ServiceError],
+  [3, ErrorCode.BillingUnavailable],
+  [4, ErrorCode.ItemUnavailable],
+  [5, ErrorCode.DeveloperError],
+  [6, ErrorCode.ServiceError],
+  [7, ErrorCode.AlreadyOwned],
+  [8, ErrorCode.ItemNotOwned],
+  [12, ErrorCode.NetworkError],
+]);
+
+/** Maps any code spelling (`user-cancelled`, `E_USER_CANCELED`, `UserCancelled`) to an ErrorCode. */
+export const normalizeErrorCodeFromNative = (code: unknown): ErrorCode => {
+  if (typeof code !== 'string') {
+    return ErrorCode.Unknown;
+  }
+  const key = code
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/-/g, '_')
+    .toUpperCase()
+    .replace(/^E_/, '');
+  const alias = ERROR_CODE_ALIASES[key];
+  if (alias) {
+    return alias;
+  }
+  const kebab = key.toLowerCase().replace(/_/g, '-');
+  return OPENIAP_ERROR_CODES.has(kebab)
+    ? (kebab as ErrorCode)
+    : ErrorCode.Unknown;
+};
+
 const normalizePlatform = (platform: IapPlatform): 'ios' | 'android' =>
   typeof platform === 'string' && platform.toLowerCase() === 'ios'
     ? 'ios'
     : 'android';
 
-const COMMON_ERROR_CODE_MAP: Record<ErrorCode, string> = {
-  [ErrorCode.Unknown]: ErrorCode.Unknown,
-  [ErrorCode.UserCancelled]: ErrorCode.UserCancelled,
-  [ErrorCode.UserError]: ErrorCode.UserError,
-  [ErrorCode.ItemUnavailable]: ErrorCode.ItemUnavailable,
-  [ErrorCode.RemoteError]: ErrorCode.RemoteError,
-  [ErrorCode.NetworkError]: ErrorCode.NetworkError,
-  [ErrorCode.ServiceError]: ErrorCode.ServiceError,
-  [ErrorCode.NotPrepared]: ErrorCode.NotPrepared,
-  [ErrorCode.NotEnded]: ErrorCode.NotEnded,
-  [ErrorCode.AlreadyOwned]: ErrorCode.AlreadyOwned,
-  [ErrorCode.DeveloperError]: ErrorCode.DeveloperError,
-  [ErrorCode.BillingResponseJsonParseError]:
-    ErrorCode.BillingResponseJsonParseError,
-  [ErrorCode.DeferredPayment]: ErrorCode.DeferredPayment,
-  [ErrorCode.Interrupted]: ErrorCode.Interrupted,
-  [ErrorCode.IapNotAvailable]: ErrorCode.IapNotAvailable,
-  [ErrorCode.PurchaseError]: ErrorCode.PurchaseError,
-  [ErrorCode.SyncError]: ErrorCode.SyncError,
-  [ErrorCode.TransactionValidationFailed]:
-    ErrorCode.TransactionValidationFailed,
-  [ErrorCode.ActivityUnavailable]: ErrorCode.ActivityUnavailable,
-  [ErrorCode.AlreadyPrepared]: ErrorCode.AlreadyPrepared,
-  [ErrorCode.Pending]: ErrorCode.Pending,
-  [ErrorCode.ConnectionClosed]: ErrorCode.ConnectionClosed,
-  [ErrorCode.InitConnection]: ErrorCode.InitConnection,
-  [ErrorCode.ServiceDisconnected]: ErrorCode.ServiceDisconnected,
-  [ErrorCode.QueryProduct]: ErrorCode.QueryProduct,
-  [ErrorCode.SkuNotFound]: ErrorCode.SkuNotFound,
-  [ErrorCode.SkuOfferMismatch]: ErrorCode.SkuOfferMismatch,
-  [ErrorCode.ItemNotOwned]: ErrorCode.ItemNotOwned,
-  [ErrorCode.BillingUnavailable]: ErrorCode.BillingUnavailable,
-  [ErrorCode.FeatureNotSupported]: ErrorCode.FeatureNotSupported,
-  [ErrorCode.DuplicatePurchase]: ErrorCode.DuplicatePurchase,
-  [ErrorCode.ServiceTimeout]: ErrorCode.ServiceTimeout,
-  [ErrorCode.EmptySkuList]: ErrorCode.EmptySkuList,
-  [ErrorCode.PurchaseVerificationFailed]: ErrorCode.PurchaseVerificationFailed,
-  [ErrorCode.PurchaseVerificationFinishFailed]:
-    ErrorCode.PurchaseVerificationFinishFailed,
-  [ErrorCode.PurchaseVerificationFinished]:
-    ErrorCode.PurchaseVerificationFinished,
-};
+const ERROR_CODE_MAP = Object.fromEntries(
+  Object.values(ErrorCode).map((code) => [code, code]),
+) as Record<ErrorCode, string>;
 
 export const ErrorCodeMapping = {
-  ios: COMMON_ERROR_CODE_MAP,
-  android: COMMON_ERROR_CODE_MAP,
+  ios: ERROR_CODE_MAP,
+  android: ERROR_CODE_MAP,
 } as const;
 
-const OPENIAP_ERROR_CODE_SET: Set<string> = new Set(Object.values(ErrorCode));
+export const ErrorCodeUtils = {
+  // OpenIAP native bridges already exchange canonical error-code strings.
+  getNativeErrorCode: (errorCode: ErrorCode): string => errorCode,
+  fromPlatformCode: (
+    platformCode: string | number | null | undefined,
+    platform: IapPlatform,
+  ): ErrorCode => {
+    if (typeof platformCode !== 'number') {
+      return normalizeErrorCodeFromNative(platformCode);
+    }
+    if (normalizePlatform(platform) !== 'android') {
+      return ErrorCode.Unknown;
+    }
+    return ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown;
+  },
+  toPlatformCode: (
+    errorCode: ErrorCode,
+    _platform: IapPlatform,
+  ): string | number => errorCode,
+  isValidForPlatform: (errorCode: ErrorCode, _platform: IapPlatform): boolean =>
+    OPENIAP_ERROR_CODES.has(errorCode),
+};
 
 export const createPurchaseError = (
   props: PurchaseErrorProps,
 ): PurchaseError => {
-  const errorCode = props.code
-    ? typeof props.code === 'string' || typeof props.code === 'number'
-      ? ErrorCodeUtils.fromPlatformCode(props.code, props.platform || 'ios')
-      : props.code
-    : undefined;
-
   const error = new Error(
     props.message ?? 'Unknown error occurred',
   ) as PurchaseError;
-  error.name = '[react-native-iap]: PurchaseError';
+  error.name = `[${PACKAGE_NAME}]: PurchaseError`;
   error.responseCode = props.responseCode;
   error.debugMessage = props.debugMessage;
-  error.code = errorCode;
+  error.code = props.code
+    ? ErrorCodeUtils.fromPlatformCode(props.code, props.platform ?? 'ios')
+    : undefined;
   error.productId = props.productId;
   error.productIds = props.productIds;
   error.productType = props.productType;
@@ -157,84 +152,18 @@ export const createPurchaseError = (
 export const createPurchaseErrorFromPlatform = (
   errorData: PurchaseErrorProps,
   platform: IapPlatform,
-): PurchaseError => {
-  const normalizedPlatform = normalizePlatform(platform);
-  const errorCode = errorData.code
-    ? typeof errorData.code === 'string' || typeof errorData.code === 'number'
-      ? ErrorCodeUtils.fromPlatformCode(errorData.code, normalizedPlatform)
-      : errorData.code
-    : ErrorCode.Unknown;
-
-  return createPurchaseError({
+): PurchaseError =>
+  createPurchaseError({
+    ...errorData,
     message: errorData.message ?? 'Unknown error occurred',
-    responseCode: errorData.responseCode,
-    debugMessage: errorData.debugMessage,
-    code: errorCode,
-    productId: errorData.productId,
-    productIds: errorData.productIds,
-    productType: errorData.productType,
-    isEmptyProductList: errorData.isEmptyProductList,
-    subResponseCodeAndroid: errorData.subResponseCodeAndroid,
+    code: errorData.code
+      ? ErrorCodeUtils.fromPlatformCode(
+          errorData.code,
+          normalizePlatform(platform),
+        )
+      : ErrorCode.Unknown,
     platform,
   });
-};
-
-export const ErrorCodeUtils = {
-  getNativeErrorCode: (errorCode: ErrorCode): string => {
-    return errorCode;
-  },
-  fromPlatformCode: (
-    platformCode: string | number,
-    _platform: IapPlatform,
-  ): ErrorCode => {
-    if (typeof platformCode === 'string') {
-      const alias = errorAlias(platformCode);
-      if (alias) {
-        return alias;
-      }
-
-      // Handle direct ErrorCode enum values
-      if (OPENIAP_ERROR_CODE_SET.has(platformCode)) {
-        return platformCode as ErrorCode;
-      }
-
-      // Handle E_ prefixed codes
-      if (platformCode.startsWith('E_')) {
-        const withoutE = platformCode.substring(2);
-        const kebabCase = toKebabCase(withoutE);
-        if (OPENIAP_ERROR_CODE_SET.has(kebabCase)) {
-          return kebabCase as ErrorCode;
-        }
-      }
-
-      // Handle kebab-case codes
-      const kebabCase = toKebabCase(platformCode);
-      if (OPENIAP_ERROR_CODE_SET.has(kebabCase)) {
-        return kebabCase as ErrorCode;
-      }
-
-      // Handle legacy formats like USER_CANCELED
-      const upperCase = platformCode.toUpperCase();
-      if (upperCase === 'USER_CANCELED' || upperCase === 'E_USER_CANCELED') {
-        return ErrorCode.UserCancelled;
-      }
-    }
-
-    return ErrorCode.Unknown;
-  },
-  toPlatformCode: (
-    errorCode: ErrorCode,
-    _platform: IapPlatform,
-  ): string | number => {
-    return COMMON_ERROR_CODE_MAP[errorCode] ?? 'E_UNKNOWN';
-  },
-  isValidForPlatform: (
-    errorCode: ErrorCode,
-    platform: IapPlatform,
-  ): boolean => {
-    return errorCode in ErrorCodeMapping[normalizePlatform(platform)];
-  },
-};
 
 // ---------------------------------------------------------------------------
 // Convenience helpers for interpreting error objects
@@ -242,65 +171,37 @@ export const ErrorCodeUtils = {
 
 type ErrorLike = string | {code?: ErrorCode | string; message?: string};
 
-const ERROR_CODES = new Set<string>(Object.values(ErrorCode));
-
-const normalizeErrorCode = (
-  code?: string | ErrorCode | null,
-): string | undefined => {
-  if (!code) {
-    return undefined;
+const extractCode = (error: unknown): ErrorCode | undefined => {
+  if (typeof error === 'string') {
+    return normalizeErrorCodeFromNative(error);
   }
-
-  // If it's already an ErrorCode enum value, return it as string
-  if (typeof code !== 'string' && ERROR_CODES.has(code as string)) {
-    return code as string;
+  if (error && typeof error === 'object' && 'code' in error) {
+    return normalizeErrorCodeFromNative(error.code);
   }
-
-  if (ERROR_CODES.has(code as string)) {
-    return code as string;
-  }
-
-  const alias = errorAlias(code as string);
-  if (alias) {
-    return alias;
-  }
-
-  const camelCased = toKebabCase(code as string);
-  if (ERROR_CODES.has(camelCased)) {
-    return camelCased;
-  }
-
-  if (typeof code === 'string' && code.startsWith('E_')) {
-    const trimmed = code.substring(2);
-    if (ERROR_CODES.has(trimmed)) {
-      return trimmed;
-    }
-    const camelTrimmed = toKebabCase(trimmed);
-    if (ERROR_CODES.has(camelTrimmed)) {
-      return camelTrimmed;
-    }
-  }
-
-  // Handle legacy formats
-  if (code === 'E_USER_CANCELED') {
-    return ErrorCode.UserCancelled;
-  }
-
-  return code as string;
+  return undefined;
 };
 
-function extractCode(error: unknown): string | undefined {
-  if (typeof error === 'string') {
-    return normalizeErrorCode(error);
-  }
+const NETWORK_ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
+  ErrorCode.NetworkError,
+  ErrorCode.RemoteError,
+  ErrorCode.ServiceError,
+  ErrorCode.ServiceDisconnected,
+  ErrorCode.BillingUnavailable,
+]);
 
-  if (error && typeof error === 'object' && 'code' in error) {
-    const code = (error as {code?: string | ErrorCode}).code;
-    return normalizeErrorCode(typeof code === 'string' ? code : code);
-  }
-
-  return undefined;
-}
+// Codes whose documented action is to retry or reconnect (openiap.dev/docs/errors).
+const RECOVERABLE_ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
+  ErrorCode.NetworkError,
+  ErrorCode.RemoteError,
+  ErrorCode.ServiceError,
+  ErrorCode.ServiceDisconnected,
+  ErrorCode.ServiceTimeout,
+  ErrorCode.ConnectionClosed,
+  ErrorCode.InitConnection,
+  ErrorCode.SyncError,
+  ErrorCode.Interrupted,
+  ErrorCode.QueryProduct,
+]);
 
 export function isUserCancelledError(error: unknown): boolean {
   return extractCode(error) === ErrorCode.UserCancelled;
@@ -311,35 +212,13 @@ export function isDuplicatePurchaseError(error: unknown): boolean {
 }
 
 export function isNetworkError(error: unknown): boolean {
-  const networkErrors: ErrorCode[] = [
-    ErrorCode.NetworkError,
-    ErrorCode.RemoteError,
-    ErrorCode.ServiceError,
-    ErrorCode.ServiceDisconnected,
-    ErrorCode.BillingUnavailable,
-  ];
-
   const code = extractCode(error);
-  return !!code && (networkErrors as string[]).includes(code);
+  return code !== undefined && NETWORK_ERROR_CODES.has(code);
 }
 
 export function isRecoverableError(error: unknown): boolean {
-  const recoverableErrors: string[] = [
-    ErrorCode.NetworkError,
-    ErrorCode.RemoteError,
-    ErrorCode.ServiceError,
-    ErrorCode.Interrupted,
-    ErrorCode.ServiceDisconnected,
-    ErrorCode.BillingUnavailable,
-    ErrorCode.QueryProduct,
-    ErrorCode.InitConnection,
-    ErrorCode.SyncError,
-    ErrorCode.ConnectionClosed,
-    ErrorCode.DuplicatePurchase,
-  ];
-
   const code = extractCode(error);
-  return !!code && recoverableErrors.includes(code);
+  return code !== undefined && RECOVERABLE_ERROR_CODES.has(code);
 }
 
 /**
@@ -348,9 +227,7 @@ export function isRecoverableError(error: unknown): boolean {
  * Developers get that diagnostic as `error.message`.
  */
 export function getUserFriendlyErrorMessage(error: ErrorLike): string {
-  const errorCode = extractCode(error);
-
-  switch (errorCode) {
+  switch (extractCode(error)) {
     case ErrorCode.UserCancelled:
       return 'Purchase cancelled';
     case ErrorCode.NetworkError:
@@ -384,7 +261,7 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
     case ErrorCode.PurchaseVerificationFailed:
       return 'Purchase verification failed';
     case ErrorCode.PurchaseVerificationFinished:
-      return 'Purchase verification completed';
+      return 'Purchase verification already finished';
     case ErrorCode.PurchaseVerificationFinishFailed:
       return 'Failed to complete purchase verification';
     case ErrorCode.EmptySkuList:
@@ -395,81 +272,9 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'In-app purchases are not available on this device';
     case ErrorCode.QueryProduct:
       return 'Failed to query products. Please try again later.';
-    default: {
-      if (error && typeof error === 'object' && 'message' in error) {
-        return (
-          (error as {message?: string}).message ??
-          'An unexpected error occurred'
-        );
-      }
-      return 'An unexpected error occurred';
-    }
+    default:
+      return typeof error === 'object' && error?.message
+        ? error.message
+        : 'An unexpected error occurred';
   }
 }
-
-export const normalizeErrorCodeFromNative = (code: unknown): ErrorCode => {
-  if (typeof code === 'string') {
-    const upper = code.toUpperCase();
-
-    // Check platform spelling aliases first.
-    const alias = errorAlias(code);
-    if (alias) {
-      return alias;
-    }
-
-    // Handle various user cancelled formats
-    if (
-      upper === 'USER_CANCELLED' ||
-      upper === 'USER_CANCELED' ||
-      upper === 'E_USER_CANCELLED' ||
-      upper === 'E_USER_CANCELED' ||
-      upper === 'USER_CANCEL' ||
-      upper === 'CANCELLED' ||
-      upper === 'CANCELED' ||
-      code === 'user-cancelled' ||
-      code === 'user-canceled'
-    ) {
-      return ErrorCode.UserCancelled;
-    }
-
-    // Handle E_ prefixed codes
-    if (upper.startsWith('E_')) {
-      const trimmed = upper.slice(2);
-
-      // Try kebab-case conversion (most common format)
-      const kebab = trimmed.toLowerCase().replace(/_/g, '-');
-      if (OPENIAP_ERROR_CODE_SET.has(kebab)) {
-        return kebab as ErrorCode;
-      }
-    }
-
-    // Handle direct kebab-case codes (check against enum values, not keys)
-    if (code.includes('-')) {
-      // Check if the code is already a valid ErrorCode value
-      if (OPENIAP_ERROR_CODE_SET.has(code)) {
-        return code as ErrorCode;
-      }
-    }
-
-    // Handle snake_case codes
-    if (code.includes('_')) {
-      const kebab = code.toLowerCase().replace(/_/g, '-');
-      if (OPENIAP_ERROR_CODE_SET.has(kebab)) {
-        return kebab as ErrorCode;
-      }
-    }
-
-    // Try direct match with ErrorCode enum values
-    if (OPENIAP_ERROR_CODE_SET.has(code)) {
-      return code as ErrorCode;
-    }
-
-    // Try lowercase match
-    const lower = code.toLowerCase();
-    if (OPENIAP_ERROR_CODE_SET.has(lower)) {
-      return lower as ErrorCode;
-    }
-  }
-
-  return ErrorCode.Unknown;
-};

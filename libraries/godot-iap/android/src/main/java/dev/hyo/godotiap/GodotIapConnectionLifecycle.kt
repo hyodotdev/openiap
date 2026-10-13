@@ -6,7 +6,10 @@ package dev.hyo.godotiap
  * connect/disconnect operation: endConnection cannot return and then have an
  * older initConnection publish a replacement BillingClient behind it.
  */
-internal class GodotIapConnectionLifecycle {
+internal class GodotIapConnectionLifecycle(
+    /** Runs under the lock, so a drop's `disconnected` cannot overtake its `connected`. */
+    private val onConnectionChanged: (connected: Boolean) -> Unit = {},
+) {
     internal data class InitResult(
         val success: Boolean,
         val didConnect: Boolean,
@@ -25,13 +28,17 @@ internal class GodotIapConnectionLifecycle {
     private var state = State.Disconnected
     private var activeConfig: Map<String, Any?>? = null
 
+    /** Numbers connection attempts, so a late teardown can tell it targets an older one. */
+    private var generation = 0L
+
     val isConnected: Boolean
         get() = state == State.Connected
 
+    /** [connect] receives this attempt's generation, for a teardown that must end only this connection. */
     fun init(
         config: Map<String, Any?>,
         onConfigMismatch: () -> Unit,
-        connect: () -> Boolean,
+        connect: (generation: Long) -> Boolean,
     ): InitResult = synchronized(lock) {
         when (state) {
             State.Connected -> {
@@ -50,8 +57,10 @@ internal class GodotIapConnectionLifecycle {
         }
 
         state = State.Initializing
-        try {
-            val connected = connect()
+        // Allocated before connecting, so a drop reported before connect returns targets this attempt.
+        generation++
+        val result = try {
+            val connected = connect(generation)
             if (connected) {
                 activeConfig = config.toMap()
                 state = State.Connected
@@ -65,13 +74,17 @@ internal class GodotIapConnectionLifecycle {
             state = State.Disconnected
             throw error
         }
+        if (result.didConnect) onConnectionChanged(true)
+        result
     }
 
+    /** With [onlyGeneration], ends only that connection and leaves a newer one alone. */
     fun end(
         disconnect: () -> Boolean,
         cleanupListeners: () -> Unit,
+        onlyGeneration: Long? = null,
     ): EndResult = synchronized(lock) {
-        if (state == State.Disconnected) {
+        if (state == State.Disconnected || (onlyGeneration != null && onlyGeneration != generation)) {
             return@synchronized EndResult(success = true, didEnd = false)
         }
         if (state != State.Connected) {
@@ -94,6 +107,7 @@ internal class GodotIapConnectionLifecycle {
                 state = State.Disconnected
             }
         }
+        onConnectionChanged(false)
         EndResult(success = success, didEnd = true)
     }
 }

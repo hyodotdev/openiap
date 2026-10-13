@@ -89,7 +89,7 @@ const subscription = purchaseErrorListener((error) => {
 subscription.remove();`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`import OpenIap
+            <CodeBlock language="swift">{`import OpenIAP
 
 let subscription = OpenIapModule.shared.purchaseErrorListener { error in
     Task {

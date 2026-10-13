@@ -1,41 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { savePreference } from '../lib/storage';
+
+// index.html applies the saved or system theme before the first paint.
+const isDarkTheme = (): boolean =>
+  typeof document !== 'undefined' &&
+  document.documentElement.classList.contains('dark');
 
 export function DarkModeToggle() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    // Check localStorage and system preference
-    const stored = localStorage.getItem('theme');
-    if (stored) {
-      setIsDark(stored === 'dark');
-      applyTheme(stored === 'dark');
-    } else {
-      const prefersDark = window.matchMedia(
-        '(prefers-color-scheme: dark)'
-      ).matches;
-      setIsDark(prefersDark);
-      applyTheme(prefersDark);
-    }
-  }, []);
-
-  const applyTheme = (dark: boolean) => {
-    if (dark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.backgroundColor = '#09090b';
-      document.body.style.backgroundColor = '#09090b';
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.backgroundColor = '#fefefe';
-      document.body.style.backgroundColor = '#fefefe';
-    }
-  };
+  const [isDark, setIsDark] = useState(isDarkTheme);
 
   const toggleDarkMode = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-    applyTheme(newTheme);
+    const dark = !isDark;
+    setIsDark(dark);
+    document.documentElement.classList.toggle('dark', dark);
+    savePreference('theme', dark ? 'dark' : 'light');
   };
 
   return (

@@ -124,16 +124,49 @@ enum StoreKitTypesBridge {
         )
     }
 
-    static func purchase(from transaction: StoreKit.Transaction, jwsRepresentation: String?) async -> Purchase {
-        .purchaseIos(await purchaseIOS(from: transaction, jwsRepresentation: jwsRepresentation))
+    /// Memoizes `SubscriptionInfo.status(for:)` per subscription group, so one read
+    /// over many transactions makes one StoreKit call per group.
+    final class SubscriptionStatusCache {
+        typealias Status = StoreKit.Product.SubscriptionInfo.Status
+        private let load: (String) async throws -> [Status]
+        private var statusesByGroup: [String: [Status]] = [:]
+
+        init(load: @escaping (String) async throws -> [Status] = StoreKit.Product.SubscriptionInfo.status(for:)) {
+            self.load = load
+        }
+
+        func statuses(for groupId: String) async -> [Status] {
+            if let cached = statusesByGroup[groupId] { return cached }
+            do {
+                let statuses = try await load(groupId)
+                statusesByGroup[groupId] = statuses
+                return statuses
+            } catch {
+                // Not cached: one transient failure must not blank the group for the rest of the read.
+                OpenIapLog.debug("⚠️ Failed to fetch renewalInfo: \(error.localizedDescription)")
+                return []
+            }
+        }
     }
 
-    static func purchaseIOS(from transaction: StoreKit.Transaction, jwsRepresentation: String?) async -> PurchaseIOS {
+    static func purchase(
+        from transaction: StoreKit.Transaction,
+        jwsRepresentation: String?,
+        statusCache: SubscriptionStatusCache = SubscriptionStatusCache()
+    ) async -> Purchase {
+        .purchaseIos(await purchaseIOS(from: transaction, jwsRepresentation: jwsRepresentation, statusCache: statusCache))
+    }
+
+    static func purchaseIOS(
+        from transaction: StoreKit.Transaction,
+        jwsRepresentation: String?,
+        statusCache: SubscriptionStatusCache = SubscriptionStatusCache()
+    ) async -> PurchaseIOS {
         let transactionId = String(transaction.id)
         let purchaseState: PurchaseState = .purchased
         let expirationDate = transaction.expirationDate?.milliseconds
         let revocationDate = transaction.revocationDate?.milliseconds
-        let renewalInfoIOS = await subscriptionRenewalInfoIOS(for: transaction)
+        let renewalInfoIOS = await subscriptionRenewalInfoIOS(for: transaction, statusCache: statusCache)
         let bundleMetadata = bundleTransactionMetadataIOS(from: transaction)
         // Default to false if renewalInfo unavailable - safer to underreport than falsely claim auto-renewal
         let autoRenewing = renewalInfoIOS?.willAutoRenew ?? false
@@ -219,165 +252,71 @@ enum StoreKitTypesBridge {
         )
     }
 
-    private static func determineAutoRenewStatus(for transaction: StoreKit.Transaction) async -> Bool {
-        guard isAutoRenewingSubscriptionProductType(transaction.productType) else { return false }
-
-        if let resolved = await subscriptionAutoRenewState(for: transaction) {
-            return resolved
-        }
-
-        return true
-    }
-
-    private static func subscriptionAutoRenewState(for transaction: StoreKit.Transaction) async -> Bool? {
-        guard let groupId = transaction.subscriptionGroupID else { return nil }
-
-        do {
-            let statuses = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
-            for status in statuses {
-                guard case .verified(let statusTransaction) = status.transaction else { continue }
-                guard statusTransaction.productID == transaction.productID else { continue }
-
-                switch status.renewalInfo {
-                case .verified(let info):
-                    return info.willAutoRenew
-                case .unverified(let info, _):
-                    return info.willAutoRenew
-                }
-            }
-        } catch {
+    static func subscriptionRenewalInfoIOS(
+        for transaction: StoreKit.Transaction,
+        statusCache: SubscriptionStatusCache = SubscriptionStatusCache()
+    ) async -> RenewalInfoIOS? {
+        guard isAutoRenewingSubscriptionProductType(transaction.productType),
+              let groupId = transaction.subscriptionGroupID else {
             return nil
         }
-
+        // Only this product's status: another product in the group renews on its own terms.
+        for status in await statusCache.statuses(for: groupId) {
+            guard case .verified(let statusTransaction) = status.transaction,
+                  statusTransaction.productID == transaction.productID else { continue }
+            return renewalInfoIOS(from: status.renewalInfo.unsafePayloadValue)
+        }
         return nil
     }
 
-    static func subscriptionRenewalInfoIOS(for transaction: StoreKit.Transaction) async -> RenewalInfoIOS? {
-        guard isAutoRenewingSubscriptionProductType(transaction.productType) else {
-            return nil
+    static func renewalInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> RenewalInfoIOS {
+        let offerInfo = renewalOfferInfoIOS(from: info)
+        let bundleMetadata = renewalBundleMetadataIOS(from: info)
+        // A cancelled subscription has no pending plan change.
+        let pendingProductId = info.willAutoRenew && info.autoRenewPreference != info.currentProductID
+            ? info.autoRenewPreference
+            : nil
+        return RenewalInfoIOS(
+            autoRenewPreference: info.autoRenewPreference,
+            bundleOriginalTransactionId: bundleMetadata.originalTransactionId,
+            bundleProductId: bundleMetadata.productId,
+            bundleSubscriptionGroupId: bundleMetadata.subscriptionGroupId,
+            commitmentInfo: renewalCommitmentInfoIOS(from: info),
+            expirationReason: info.expirationReason?.rawValue.description,
+            gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
+            isInBillingRetry: info.isInBillingRetry,
+            jsonRepresentation: nil,
+            pendingUpgradeProductId: pendingProductId,
+            priceIncreaseStatus: priceIncreaseStatusIOS(from: info.priceIncreaseStatus),
+            renewalBillingPlanType: renewalBillingPlanTypeIOS(from: info),
+            renewalDate: info.renewalDate?.milliseconds,
+            renewalOfferId: offerInfo?.id,
+            renewalOfferType: offerInfo?.type,
+            willAutoRenew: info.willAutoRenew,
+            willUnbundle: bundleMetadata.willUnbundle
+        )
+    }
+
+    /// `SubscriptionStatusIOS.state` uses StoreKit's case names; a state added later reads "unknown".
+    static func subscriptionStateIOS(from state: StoreKit.Product.SubscriptionInfo.RenewalState) -> String {
+        switch state {
+        case .subscribed: return "subscribed"
+        case .expired: return "expired"
+        case .inBillingRetryPeriod: return "inBillingRetryPeriod"
+        case .inGracePeriod: return "inGracePeriod"
+        case .revoked: return "revoked"
+        default: return "unknown"
         }
-        guard let groupId = transaction.subscriptionGroupID else {
-            return nil
-        }
+    }
 
-        do {
-            let statuses = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
-
-            // First, try to find exact product match
-            var targetStatus: StoreKit.Product.SubscriptionInfo.Status?
-            for status in statuses {
-                guard case .verified(let statusTransaction) = status.transaction else { continue }
-
-                if statusTransaction.productID == transaction.productID {
-                    targetStatus = status
-                    break
-                }
-            }
-
-            // If no exact match, use the first status from the same group
-            // This handles cases where a subscription is cancelled but still active
-            if targetStatus == nil, let firstStatus = statuses.first {
-                targetStatus = firstStatus
-            }
-
-            guard let status = targetStatus else {
-                return nil
-            }
-
-            // Process the found status (exact match or fallback)
-            switch status.renewalInfo {
-            case .verified(let info):
-                    // Only set pendingUpgradeProductId if it's different from current product
-                    // autoRenewPreference = product that will renew next
-                    // If different from current, it means upgrade/downgrade is pending
-                    let currentProductId: String? = {
-                        guard case .verified(let txn) = status.transaction else { return nil }
-                        return txn.productID
-                    }()
-
-                    let pendingProductId: String? = {
-                        // If subscription is cancelled, there's no pending change
-                        guard info.willAutoRenew else { return nil }
-                        guard let current = currentProductId else { return nil }
-                        // Only return pendingUpgradeProductId if it's different from current
-                        return info.autoRenewPreference != current ? info.autoRenewPreference : nil
-                    }()
-                    let offerInfo = renewalOfferInfoIOS(from: info)
-                    let bundleMetadata = renewalBundleMetadataIOS(from: info)
-                    // priceIncreaseStatus only available on iOS 15.0+
-                    let priceIncrease: String? = {
-                        if #available(iOS 15.0, macOS 12.0, *) {
-                            return String(describing: info.priceIncreaseStatus)
-                        }
-                        return nil
-                    }()
-                    let renewalInfo = RenewalInfoIOS(
-                        autoRenewPreference: info.autoRenewPreference,
-                        bundleOriginalTransactionId: bundleMetadata.originalTransactionId,
-                        bundleProductId: bundleMetadata.productId,
-                        bundleSubscriptionGroupId: bundleMetadata.subscriptionGroupId,
-                        commitmentInfo: renewalCommitmentInfoIOS(from: info),
-                        expirationReason: info.expirationReason?.rawValue.description,
-                        gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
-                        isInBillingRetry: info.isInBillingRetry,
-                        jsonRepresentation: nil,
-                        pendingUpgradeProductId: pendingProductId,
-                        priceIncreaseStatus: priceIncrease,
-                        renewalBillingPlanType: renewalBillingPlanTypeIOS(from: info),
-                        renewalDate: info.renewalDate?.milliseconds,
-                        renewalOfferId: offerInfo?.id,
-                        renewalOfferType: offerInfo?.type,
-                        willAutoRenew: info.willAutoRenew,
-                        willUnbundle: bundleMetadata.willUnbundle
-                    )
-                    return renewalInfo
-                case .unverified(let info, _):
-                    // Only set pendingUpgradeProductId if it's different from current product
-                    let currentProductId: String? = {
-                        guard case .verified(let txn) = status.transaction else { return nil }
-                        return txn.productID
-                    }()
-
-                    let pendingProductId: String? = {
-                        // If subscription is cancelled, there's no pending change
-                        guard info.willAutoRenew else { return nil }
-                        guard let current = currentProductId else { return nil }
-                        return info.autoRenewPreference != current ? info.autoRenewPreference : nil
-                    }()
-                    let offerInfo = renewalOfferInfoIOS(from: info)
-                    let bundleMetadata = renewalBundleMetadataIOS(from: info)
-                    // priceIncreaseStatus only available on iOS 15.0+
-                    let priceIncrease: String? = {
-                        if #available(iOS 15.0, macOS 12.0, *) {
-                            return String(describing: info.priceIncreaseStatus)
-                        }
-                        return nil
-                    }()
-                    let renewalInfo = RenewalInfoIOS(
-                        autoRenewPreference: info.autoRenewPreference,
-                        bundleOriginalTransactionId: bundleMetadata.originalTransactionId,
-                        bundleProductId: bundleMetadata.productId,
-                        bundleSubscriptionGroupId: bundleMetadata.subscriptionGroupId,
-                        commitmentInfo: renewalCommitmentInfoIOS(from: info),
-                        expirationReason: info.expirationReason?.rawValue.description,
-                        gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
-                        isInBillingRetry: info.isInBillingRetry,
-                        jsonRepresentation: nil,
-                        pendingUpgradeProductId: pendingProductId,
-                        priceIncreaseStatus: priceIncrease,
-                        renewalBillingPlanType: renewalBillingPlanTypeIOS(from: info),
-                        renewalDate: info.renewalDate?.milliseconds,
-                        renewalOfferId: offerInfo?.id,
-                        renewalOfferType: offerInfo?.type,
-                        willAutoRenew: info.willAutoRenew,
-                        willUnbundle: bundleMetadata.willUnbundle
-                    )
-                    return renewalInfo
-            }
-
-        } catch {
-            OpenIapLog.debug("⚠️ Failed to fetch renewalInfo: \(error.localizedDescription)")
-            return nil
+    /// `RenewalInfoIOS.priceIncreaseStatus`: "AGREED", "PENDING", or nil when no increase is pending.
+    static func priceIncreaseStatusIOS(
+        from status: StoreKit.Product.SubscriptionInfo.RenewalInfo.PriceIncreaseStatus
+    ) -> String? {
+        switch status {
+        case .agreed: return "AGREED"
+        case .pending: return "PENDING"
+        case .noIncreasePending: return nil
         }
     }
 
@@ -691,17 +630,15 @@ enum StoreKitTypesBridge {
         #if compiler(>=6.1)
         if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
             if let offer = info.offer {
-                return (id: offer.id, type: String(describing: offer.type))
+                return (id: offer.id, type: offerTypeNameIOS(from: offer.type))
             }
         }
         #endif
 
-        #if compiler(>=5.9)
-        let offerTypeString = info.offerType.map { String(describing: $0) }
+        let offerTypeString = info.offerType.map(offerTypeNameIOS(from:))
         if info.offerID != nil || offerTypeString != nil {
             return (id: info.offerID, type: offerTypeString)
         }
-        #endif
         return nil
     }
 
@@ -780,19 +717,24 @@ enum StoreKitTypesBridge {
         return nil
     }
 
-    static func purchaseOfferTypeStringIOS(from type: StoreKit.Transaction.OfferType) -> String {
+    /// App Store offer-type name, the spelling `RenewalInfoIOS.renewalOfferType` documents.
+    static func offerTypeNameIOS(from type: StoreKit.Transaction.OfferType) -> String {
         #if compiler(>=6.1)
         if type == .winBack {
-            return SubscriptionOfferTypeIOS.winBack.rawValue
+            return "WIN_BACK"
         }
         #endif
-        if type == .introductory {
-            return SubscriptionOfferTypeIOS.introductory.rawValue
+        switch type {
+        case .introductory: return "INTRODUCTORY"
+        case .promotional: return "PROMOTIONAL"
+        case .code: return "SUBSCRIPTION_OFFER_CODE"
+        default: return "UNKNOWN"
         }
-        if type == .promotional {
-            return SubscriptionOfferTypeIOS.promotional.rawValue
-        }
-        return String(describing: type)
+    }
+
+    /// `PurchaseOfferIOS.type`: the same name in kebab case ("promotional", "win-back").
+    static func purchaseOfferTypeStringIOS(from type: StoreKit.Transaction.OfferType) -> String {
+        offerTypeNameIOS(from: type).lowercased().replacingOccurrences(of: "_", with: "-")
     }
 }
 

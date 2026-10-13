@@ -40,14 +40,13 @@ function ConsumePurchaseAndroid() {
         .
       </p>
 
-      <Callout kind="warning">
-        <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong> Use{' '}
+      <Callout kind="tip">
+        Prefer{' '}
         <Link to="/docs/apis/finish-transaction">
           <code>finishTransaction</code>
         </Link>{' '}
-        with <code>isConsumable: true</code> instead — the unified path consumes
-        (or acknowledges) the purchase automatically and stays
-        forward-compatible with the new Billing Programs API.
+        with <code>isConsumable: true</code>: it consumes the purchase on every
+        Android store and works the same on iOS.
       </Callout>
 
       <StoreConnectionCallout />
@@ -56,7 +55,8 @@ function ConsumePurchaseAndroid() {
       <LanguageTabs>
         {{
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun consumePurchase(purchaseToken: String): Boolean`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// OpenIapModule (OpenIapProtocol); OpenIapStore does not expose it
+val consumePurchaseAndroid: suspend (purchaseToken: String) -> Boolean`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean`}</CodeBlock>
@@ -94,42 +94,50 @@ function ConsumePurchaseAndroid() {
       </AnchorLink>
       <p>
         <code>Promise&lt;boolean&gt;</code> — <code>true</code> once the
-        purchase has been consumed.
+        purchase has been consumed. When the store refuses the token, React
+        Native, Expo, and KMP reject with the store&apos;s error code; Kotlin,
+        Flutter, Godot, and MAUI return <code>false</code>. In Kotlin,{' '}
+        <code>finishPurchaseToken(token, isConsumable = true)</code> throws
+        instead.
       </p>
 
       <h2>Example</h2>
       <LanguageTabs>
         {{
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.consumePurchase(purchase.purchaseToken)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// Share one module with OpenIapStore(module) instead of creating a second client.
+val module = OpenIapModule(context)
+
+val token = requireNotNull(purchase.purchaseToken)
+module.consumePurchaseAndroid(token)`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
-kmpIAP.consumePurchaseAndroid(purchase.purchaseToken)`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — throws on iOS)
+purchase.purchaseToken?.let { token -> kmpIAP.consumePurchaseAndroid(token) }`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
 import { consumePurchaseAndroid } from 'expo-iap';
 
-if (Platform.OS === 'android') {
+if (Platform.OS === 'android' && purchase.purchaseToken) {
   await consumePurchaseAndroid(purchase.purchaseToken);
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isAndroid) {
-  await FlutterInappPurchase.instance.consumePurchaseAndroid(
-    purchase.purchaseToken,
-  );
+            <CodeBlock language="dart">{`final token = purchase.purchaseToken;
+if (Platform.isAndroid && token != null) {
+  await FlutterInappPurchase.instance.consumePurchaseAndroid(token);
 }`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIapClient.Instance).ConsumePurchaseAndroidAsync(purchase.PurchaseToken);`}</CodeBlock>
+if (purchase.PurchaseToken is { } token)
+    await ((MutationResolver)OpenIapClient.Instance).ConsumePurchaseAndroidAsync(token);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
+            <CodeBlock language="gdscript">{`if iap.get_platform() == "Android" and purchase.purchase_token != null:
     await iap.consume_purchase_android(purchase.purchase_token)`}</CodeBlock>
           ),
         }}

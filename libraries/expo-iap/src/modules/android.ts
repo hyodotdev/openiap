@@ -3,6 +3,7 @@ import {Linking, Platform} from 'react-native';
 
 // Internal modules
 import ExpoIapModule from '../ExpoIapModule';
+import {invokeNativeWithPurchaseError} from '../utils/nativeError';
 import {isVegaOS} from '../vega';
 
 // Types
@@ -99,7 +100,10 @@ export const consumePurchaseAndroid: MutationField<
   'consumePurchaseAndroid'
 > = async (purchaseToken) => {
   requireAndroidPlatform('consumePurchaseAndroid');
-  const result = await ExpoIapModule.consumePurchaseAndroid(purchaseToken);
+  const result = await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.consumePurchaseAndroid(purchaseToken),
+    'android',
+  );
 
   if (typeof result === 'boolean') {
     return result;
@@ -135,7 +139,10 @@ export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
 > = async (purchaseToken) => {
   requireAndroidPlatform('acknowledgePurchaseAndroid');
-  const result = await ExpoIapModule.acknowledgePurchaseAndroid(purchaseToken);
+  const result = await invokeNativeWithPurchaseError(
+    () => ExpoIapModule.acknowledgePurchaseAndroid(purchaseToken),
+    'android',
+  );
 
   if (typeof result === 'boolean') {
     return result;

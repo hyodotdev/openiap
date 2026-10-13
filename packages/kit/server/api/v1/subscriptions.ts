@@ -31,6 +31,7 @@ import {
   isValidSubscriptionUserId,
   MAX_SUBSCRIPTION_USER_ID_LENGTH,
 } from "../../../convex/subscriptions/limits";
+import { entitlementActive } from "../../../convex/subscriptions/stateMachine";
 
 // Subscription state, entitlements, metrics, and user-binding routes.
 // Mirrors the role of onesub's `/onesub/status`, `/onesub/admin/...`
@@ -227,8 +228,12 @@ async function handleListSubscriptions(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/list", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
-  handleListSubscriptions(c, c.var.apiKey),
+subscriptions.get(
+  "/list",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  (c) => handleListSubscriptions(c, c.var.apiKey),
 );
 subscriptions.get("/list/:apiKey", secretAdminApiKeyMiddleware, (c) =>
   handleListSubscriptions(c, c.req.param("apiKey")),
@@ -254,6 +259,7 @@ subscriptions.get(
   "/metrics",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   (c) => handleMetrics(c, c.var.apiKey),
 );
 subscriptions.get("/metrics/:apiKey", secretAdminApiKeyMiddleware, (c) =>
@@ -302,6 +308,7 @@ subscriptions.get(
   "/revenue",
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
   (c) => handleRevenueMetrics(c, c.var.apiKey),
 );
 subscriptions.get("/revenue/:apiKey", secretAdminApiKeyMiddleware, (c) =>
@@ -525,6 +532,18 @@ function conditionalSubscriptionSnapshot(
   return c.json(args.result);
 }
 
+// Convex already dropped legacy non-renewing rows from the candidates; that
+// guard needs lastEventId, which the snapshot omits.
+function isEntitledAt(
+  subscription: SubscriptionSnapshotRow,
+  now: number,
+): boolean {
+  return entitlementActive(
+    { state: subscription.state, expiresAt: subscription.expiresAt },
+    now,
+  );
+}
+
 function evaluateSubscriptionStatus(
   snapshot: SubscriptionEvaluationSnapshot,
   now: number,
@@ -533,7 +552,7 @@ function evaluateSubscriptionStatus(
   subscription: PublicSubscriptionSnapshotRow | null;
 } {
   const activeSubscriptions = snapshot.candidates.filter((subscription) =>
-    isActiveSubscription(subscription, now),
+    isEntitledAt(subscription, now),
   );
   const selected = selectMostRecentlyUpdatedSnapshot(activeSubscriptions);
   return {
@@ -552,7 +571,7 @@ function evaluateEntitlements(
   subscriptions: PublicSubscriptionSnapshotRow[];
 } {
   const active = subscriptions.filter((subscription) =>
-    isActiveSubscription(subscription, now),
+    isEntitledAt(subscription, now),
   );
   return {
     userId,
@@ -602,16 +621,6 @@ function toPublicSubscriptionRow(
   if (subscription === null) return null;
   const { createdAt: _createdAt, ...publicSubscription } = subscription;
   return publicSubscription;
-}
-
-function isActiveSubscription(
-  subscription: SubscriptionSnapshotRow,
-  now: number,
-): boolean {
-  const entitled =
-    subscription.state === "Active" || subscription.state === "InGracePeriod";
-  if (!entitled) return false;
-  return subscription.expiresAt == null || subscription.expiresAt > now;
 }
 
 function subscriptionSnapshotEtag(args: {

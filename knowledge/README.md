@@ -49,9 +49,11 @@ knowledge/
 │   ├── 02-architecture.md          # Monorepo structure, module patterns
 │   ├── 03-coding-style.md          # TypeScript/Swift/Kotlin style rules
 │   ├── 04-platform-packages.md     # Apple/Google/GQL package workflows
-│   ├── 05-docs-patterns.md         # React modal patterns, components
+│   ├── 05-docs-patterns.md         # Docs writing standard, page patterns, release notes
 │   ├── 06-git-deployment.md        # Git conventions, deployment
 │   ├── 07-docs-consistency.md      # Documentation SSOT audits
+│   ├── 08-fact-graph.md            # Declared-fact registry and drift audit
+│   ├── 09-community-touchpoints.md # First-purchase notice, assistant note, README section
 │   └── sandbox-subscription-billing-issue.md
 ├── external/                        # REFERENCE - External APIs
 │   ├── amazon-iap-api.md           # Amazon Appstore SDK reference

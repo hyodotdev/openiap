@@ -3,15 +3,21 @@ package io.github.hyochan.kmpiap
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import dev.hyo.openiap.OpenIapError as AndroidOpenIapError
 import dev.hyo.openiap.OpenIapProvider
 import dev.hyo.openiap.OpenIapProtocol as AndroidOpenIapProtocol
+import dev.hyo.openiap.helpers.PLAY_REDEEM_OFFER_CODE_URL
+import dev.hyo.openiap.helpers.finishPurchaseToken
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
+import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay as verifyPurchaseWithGooglePlayAndroid
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitAndroid
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.AppOwnershipVerificationResult
@@ -61,17 +67,21 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
 import io.github.hyochan.kmpiap.openiap.UserChoiceBillingDetails
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResult
-import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderResult
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -85,6 +95,7 @@ internal suspend fun endDelegatedConnectionWithCleanup(
     cleanup()
 }
 
+/** Every Android flavor: KMP's API over the openiap-google module of the linked store. */
 internal class OpenIapDelegateInAppPurchaseAndroid(
     private val storeName: String,
     private val store: Store,
@@ -97,42 +108,60 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     @Volatile
     private var module: AndroidOpenIapProtocol? = null
     private val connectionMutex = Mutex()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    // Cleared when the store drops the billing service so the next initConnection reconnects.
+    @Volatile
     private var isConnected = false
+    // The program the live connection enabled; null when none or disconnected.
+    @Volatile
+    private var enabledBillingProgram: BillingProgramAndroid? = null
+    // The Play requestPurchase call running on this thread, so each call keeps only its own errors.
+    private val runningPlayCall = ThreadLocal<Any?>()
 
-    private val _purchaseUpdatedListener = MutableSharedFlow<Purchase>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    // Horizon and Amazon have no Play billing programs, choice events, or billing-issue signal.
+    private val hasPlayBillingApis = store == Store.PLAY_STORE || store == Store.UNKNOWN
+    // Keeps the contract of KMP's former in-house Play implementation: request failures throw
+    // (openiap-google reports them as an event), programs gate their APIs, and redeem works without an Activity.
+    private val isPlay = store == Store.PLAY_STORE
+
+    private val _purchaseUpdatedListener = eventFlow<Purchase>()
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedListener.asSharedFlow()
     override fun purchaseUpdatedListener(options: PurchaseUpdatedListenerOptions?): Flow<Purchase> = purchaseUpdatedListener
 
-    private val _purchaseErrorListener = MutableSharedFlow<PurchaseError>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val _purchaseErrorListener = eventFlow<PurchaseError>()
     override val purchaseErrorListener: Flow<PurchaseError> = _purchaseErrorListener.asSharedFlow()
 
-    override val promotedProductListener: Flow<String?> =
-        MutableSharedFlow<String?>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST).asSharedFlow()
+    override val promotedProductListener: Flow<String?> = eventFlow<String?>().asSharedFlow()
 
-    private val billingIssues = MutableSharedFlow<Purchase>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val billingIssues = eventFlow<Purchase>()
     override val subscriptionBillingIssueListener: Flow<Purchase> =
-        if (store == Store.UNKNOWN) billingIssues.asSharedFlow() else emptyFlow()
+        if (hasPlayBillingApis) billingIssues.asSharedFlow() else emptyFlow()
 
-    private val userChoices = MutableSharedFlow<UserChoiceBillingDetails>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    private val developerChoices = MutableSharedFlow<DeveloperProvidedBillingDetailsAndroid>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val userChoices = eventFlow<UserChoiceBillingDetails>()
+    override val userChoiceBillingListenerAndroid: Flow<UserChoiceBillingDetails> =
+        if (hasPlayBillingApis) userChoices.asSharedFlow() else emptyFlow()
+
+    private val developerChoices = eventFlow<DeveloperProvidedBillingDetailsAndroid>()
+    override val developerProvidedBillingListenerAndroid: Flow<DeveloperProvidedBillingDetailsAndroid> =
+        if (hasPlayBillingApis) developerChoices.asSharedFlow() else emptyFlow()
+
     private var userChoiceListener: OpenIapUserChoiceBillingListener? = null
     private var developerChoiceListener: OpenIapDeveloperProvidedBillingListener? = null
     private var updateListener: OpenIapPurchaseUpdateListener? = null
     private var errorListener: OpenIapPurchaseErrorListener? = null
     private var billingIssueListener: OpenIapSubscriptionBillingIssueListener? = null
+    private var connectionStateListener: OpenIapConnectionStateListener? = null
 
     override suspend fun initConnection(config: InitConnectionConfig?): Boolean = withContext(Dispatchers.Main) {
         connectionMutex.withLock {
             if (isConnected) return@withLock true
             withMappedOpenIapError {
-                val ctx = ensureContext()
-                val openModule = module ?: buildOpenIapModule(ctx).also { created ->
-                    module = created
-                    registerListeners(created)
-                }
+                val openModule = ensureModuleLocked()
                 openModule.setActivity(currentActivity)
                 openModule.initConnection(config?.toOpenIap()).also { connected ->
                     isConnected = connected
+                    enabledBillingProgram = config?.enableBillingProgramAndroid
+                        ?.takeIf { connected && it != BillingProgramAndroid.Unspecified }
                 }
             }
         }
@@ -150,6 +179,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                             unregisterListeners(openModule)
                         } finally {
                             isConnected = false
+                            enabledBillingProgram = null
                             module = null
                             val disposer = activityCallbacksDisposer
                             activityCallbacksDisposer = null
@@ -181,7 +211,56 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         withMappedOpenIapError { requireModule().fetchProducts(params.toOpenIap()).toKmp() }
 
     override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? =
-        withMappedOpenIapError { requireModule().requestPurchase(params.toOpenIap())?.toKmp() }
+        withMappedOpenIapError {
+            val openModule = requireModule()
+            if (isPlay) requestPlayPurchase(openModule, params) else openModule.requestPurchase(params.toOpenIap())?.toKmp()
+        }
+
+    private suspend fun requestPlayPurchase(
+        openModule: AndroidOpenIapProtocol,
+        params: RequestPurchaseProps,
+    ): RequestPurchaseResult? {
+        if (enabledBillingProgram == BillingProgramAndroid.ExternalOffer) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.FeatureNotSupported,
+                    message = "requestPurchase cannot run the external-offer program automatically. " +
+                        "Use isBillingProgramAvailableAndroid, launchExternalLinkAndroid, " +
+                        "and createBillingProgramReportingDetailsAndroid.",
+                )
+            )
+        }
+        // openiap-google admits one purchase at a time and frees it before emitting the outcome.
+        val call = Any()
+        val requestedSkus = params.androidSkus()
+        // Published inside this call: its own. From a Play callback: the latest may still be an earlier
+        // request's, so it counts only without an own failure. Published inside another call: not ours.
+        // Known limit: overlapping requests can still swap callback errors; exact pairing needs request
+        // ids on openiap-google's error events.
+        val ownFailure = AtomicReference<AndroidOpenIapError?>()
+        val callbackFailure = AtomicReference<AndroidOpenIapError?>()
+        // The module tags request failures with the requested SKU, or none when it cannot pick one.
+        val captureFailure = OpenIapPurchaseErrorListener { error ->
+            val productId = error.toKmpPurchaseError().productId
+            if (productId == null || productId in requestedSkus) {
+                when (runningPlayCall.get()) {
+                    call -> ownFailure.set(error)
+                    null -> callbackFailure.set(error)
+                }
+            }
+        }
+        openModule.addPurchaseErrorListener(captureFailure)
+        try {
+            val result = withContext(runningPlayCall.asContextElement(call)) {
+                openModule.requestPurchase(params.toOpenIap())
+            }
+            // The module already published this failure to the error listeners.
+            (ownFailure.get() ?: callbackFailure.get())?.takeIf { result.isEmpty() }?.let { throw it }
+            return result?.toKmp()
+        } finally {
+            openModule.removePurchaseErrorListener(captureFailure)
+        }
+    }
 
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         withMappedOpenIapError {
@@ -211,17 +290,13 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     }
 
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean =
-        withMappedOpenIapError { requireModule().acknowledgePurchaseAndroid(purchaseToken) }
+        finishToken(purchaseToken, isConsumable = false)
 
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean =
-        withMappedOpenIapError { requireModule().consumePurchaseAndroid(purchaseToken) }
+        finishToken(purchaseToken, isConsumable = true)
 
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
-        withMappedOpenIapError {
-            if (options != null || store == Store.UNKNOWN) {
-                requireModule().deepLinkToSubscriptions(options?.toOpenIap())
-            }
-        }
+        withMappedOpenIapError { requireModule().deepLinkToSubscriptions(options?.toOpenIap()) }
     }
 
     override suspend fun getStorefront(): String =
@@ -262,42 +337,38 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 )
             )
         }
-        // Validation can throw an untyped error for malformed options.
-        return try {
+        return verifyOrFail {
             val androidResult =
                 verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
             VerifyPurchaseWithProviderResult(
                 iapkit = androidResult.toKmpIapkitResult(),
                 provider = options.provider
             )
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            failWith(
-                PurchaseError(
-                    code = ErrorCode.PurchaseVerificationFailed,
-                    message = error.message ?: "Purchase verification failed"
-                )
-            )
         }
     }
 
-    override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
-            VerifyPurchaseResult.fromJson(requireModule().verifyPurchase(
-                dev.hyo.openiap.VerifyPurchaseProps.fromJson(options.toJson())
-            ).toJson())
-        } else failUnsupported("verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit.")
+    override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult = when (store) {
+        Store.UNKNOWN -> withMappedOpenIapError {
+            VerifyPurchaseResult.fromJson(requireModule().verifyPurchase(options.toOpenIap()).toJson())
+        }
+        // Calls the Play Developer API directly, so it needs no billing connection.
+        Store.PLAY_STORE -> verifyOrFail {
+            VerifyPurchaseResultAndroid.fromJson(
+                verifyPurchaseWithGooglePlayAndroid(options.toOpenIap(), "kmp-iap-android-$storeName").toJson()
+            )
+        }
+        else -> failUnsupported("verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit.")
+    }
 
     override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
+        if (hasPlayBillingApis) withMappedOpenIapError {
             BillingProgramAvailabilityResultAndroid.fromJson(requireModule().isBillingProgramAvailable(
                 dev.hyo.openiap.BillingProgramAndroid.fromJson(program.rawValue)
             ).toJson())
         } else BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = false)
 
     override suspend fun getBillingChoiceInfoAndroid(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
+        if (hasPlayBillingApis) withMappedOpenIapError {
             BillingChoiceInfoAndroid.fromJson(requireModule().getBillingChoiceInfo(
                 requireNotNull(dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid.fromJson(params.toJson()))
             ).toJson())
@@ -307,7 +378,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         program: BillingProgramAndroid,
         developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
+        if (hasPlayBillingApis) withMappedOpenIapError {
             BillingProgramReportingDetailsAndroid.fromJson(requireModule().createBillingProgramReportingDetails(
                 dev.hyo.openiap.BillingProgramAndroid.fromJson(program.rawValue),
                 developerBillingType?.let { dev.hyo.openiap.DeveloperBillingTypeAndroid.fromJson(it.rawValue) }
@@ -315,7 +386,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         } else failUnsupported("Google Play billing programs are unavailable on $storeName.")
 
     override suspend fun showBillingProgramInformationDialogAndroid(params: BillingProgramInformationDialogParamsAndroid): BillingResultAndroid =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
+        if (hasPlayBillingApis) withMappedOpenIapError {
             BillingResultAndroid.fromJson(requireModule().showBillingProgramInformationDialog(
                 requireActivity(),
                 requireNotNull(dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid.fromJson(params.toJson()))
@@ -323,40 +394,54 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         } else failUnsupported("Google Play Billing Choice is unavailable on $storeName.")
 
     override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
+        if (hasPlayBillingApis) withMappedOpenIapError {
             InAppMessageResultAndroid.fromJson(requireModule().showInAppMessages(
                 requireActivity(), params?.let { dev.hyo.openiap.InAppMessageParamsAndroid.fromJson(it.toJson()) }
             ).toJson())
         } else failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
+        if (hasPlayBillingApis) withMappedOpenIapError {
             requireModule().launchExternalLink(
                 requireActivity(), requireNotNull(dev.hyo.openiap.LaunchExternalLinkParamsAndroid.fromJson(params.toJson()))
             )
         } else false
-    override suspend fun openRedeemOfferCode(): Purchase? =
-        if (store == Store.UNKNOWN) withMappedOpenIapError {
-            dev.hyo.openiap.utils.redeemOfferCode(requireModule(), requireActivity())?.toKmp()
-        } else null
+
+    // Opens the store's redeem page, which needs no billing connection.
+    override suspend fun openRedeemOfferCode(): Purchase? = when {
+        !hasPlayBillingApis -> null
+        isPlay && currentActivity == null -> openPlayRedeemPageFromAppContext()
+        else -> withMappedOpenIapError {
+            dev.hyo.openiap.utils.redeemOfferCode(ensureModule(), requireActivity())?.toKmp()
+        }
+    }
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails =
-        if (store == Store.UNKNOWN) userChoices.first()
-        else failUnsupported("User Choice Billing is unavailable on $storeName.")
+        if (hasPlayBillingApis) {
+            requireEnabledProgram("userChoiceBillingAndroid", BillingProgramAndroid.UserChoiceBilling)
+            userChoices.first()
+        } else failUnsupported("User Choice Billing is unavailable on $storeName.")
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid =
-        if (store == Store.UNKNOWN) developerChoices.first()
-        else failUnsupported("Developer-provided billing is unavailable on $storeName.")
+        if (hasPlayBillingApis) {
+            requireEnabledProgram(
+                "developerProvidedBillingAndroid",
+                BillingProgramAndroid.ExternalPayments,
+                BillingProgramAndroid.BillingChoice,
+            )
+            developerChoices.first()
+        } else failUnsupported("Developer-provided billing is unavailable on $storeName.")
     override suspend fun subscriptionBillingIssue(): Purchase =
-        if (store == Store.UNKNOWN) subscriptionBillingIssueListener.first()
+        if (hasPlayBillingApis) billingIssues.first()
         else failUnsupported("Subscription billing-issue events are unavailable on $storeName.")
     override suspend fun purchaseUpdated(options: PurchaseUpdatedListenerOptions?): Purchase = purchaseUpdatedListener(options).first()
     override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
     override suspend fun promotedProductIOS(): String = ""
     override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = null
     override suspend fun getAllTransactionsIOS(): List<PurchaseIOS> = emptyList()
+    // Play Integrity and store checks need no billing connection.
     override suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps?): AppOwnershipVerificationResult =
         withMappedOpenIapError {
             val props = options?.let { dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(it.toJson()) }
-            AppOwnershipVerificationResult.fromJson(requireModule().verifyAppOwnership(props).toJson())
+            AppOwnershipVerificationResult.fromJson(ensureModule().verifyAppOwnership(props).toJson())
         }
 
     override suspend fun getAppTransactionIOS(): AppTransaction? = null
@@ -427,7 +512,15 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     private fun requireModule(): AndroidOpenIapProtocol =
         module ?: failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "$storeName billing module not initialized"))
 
-    private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol = OpenIapProvider.create(ctx)
+    /** The module without a billing connection, for operations that never need one. */
+    private suspend fun ensureModule(): AndroidOpenIapProtocol =
+        module ?: connectionMutex.withLock { ensureModuleLocked() }
+
+    private fun ensureModuleLocked(): AndroidOpenIapProtocol =
+        module ?: OpenIapProvider.create(ensureContext()).also { created ->
+            module = created
+            registerListeners(created)
+        }
 
     private fun registerListeners(openModule: AndroidOpenIapProtocol) {
         val purchaseUpdate = OpenIapPurchaseUpdateListener { purchase ->
@@ -436,9 +529,19 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         val purchaseError = OpenIapPurchaseErrorListener { error ->
             _purchaseErrorListener.tryEmit(error.toKmpPurchaseError())
         }
+        // Locked so an in-flight initConnection cannot overwrite the drop; runs inline when uncontended.
+        val connectionState = OpenIapConnectionStateListener {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                connectionMutex.withLock {
+                    isConnected = false
+                    enabledBillingProgram = null
+                }
+            }
+        }
         openModule.addPurchaseUpdateListener(purchaseUpdate)
         openModule.addPurchaseErrorListener(purchaseError)
-        if (store == Store.UNKNOWN) {
+        openModule.addConnectionStateListener(connectionState)
+        if (hasPlayBillingApis) {
             val issue = OpenIapSubscriptionBillingIssueListener { purchase -> billingIssues.tryEmit(purchase.toKmp()) }
             openModule.addSubscriptionBillingIssueListener(issue)
             billingIssueListener = issue
@@ -456,11 +559,13 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
         updateListener = purchaseUpdate
         errorListener = purchaseError
+        connectionStateListener = connectionState
     }
 
     private fun unregisterListeners(openModule: AndroidOpenIapProtocol) {
         updateListener?.let(openModule::removePurchaseUpdateListener)
         errorListener?.let(openModule::removePurchaseErrorListener)
+        connectionStateListener?.let(openModule::removeConnectionStateListener)
         billingIssueListener?.let(openModule::removeSubscriptionBillingIssueListener)
         userChoiceListener?.let(openModule::removeUserChoiceBillingListener)
         developerChoiceListener?.let(openModule::removeDeveloperProvidedBillingListener)
@@ -468,6 +573,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         developerChoiceListener = null
         updateListener = null
         errorListener = null
+        connectionStateListener = null
         billingIssueListener = null
     }
 
@@ -477,6 +583,59 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         } catch (error: AndroidOpenIapError) {
             throw PurchaseException(error.toKmpPurchaseError())
         }
+
+    // Play only delivers a choice when initConnection enabled its program; fail fast instead of waiting forever.
+    private fun requireEnabledProgram(api: String, vararg programs: BillingProgramAndroid) {
+        if (isPlay && enabledBillingProgram !in programs) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "$api requires enableBillingProgramAndroid = ${programs.joinToString(" or ")} in initConnection",
+                )
+            )
+        }
+    }
+
+    private fun openPlayRedeemPageFromAppContext(): Purchase? {
+        val appContext = ensureContext()
+        val redeemPage = Intent(Intent.ACTION_VIEW, Uri.parse(PLAY_REDEEM_OFFER_CODE_URL))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            appContext.startActivity(redeemPage)
+        } catch (error: Exception) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.Unknown,
+                    debugMessage = error.message,
+                    message = "Failed to open the Play Store redeem page",
+                )
+            )
+        }
+        return null
+    }
+
+    /** Reports any failure other than our own as PurchaseVerificationFailed. */
+    private suspend fun <T> verifyOrFail(block: suspend () -> T): T =
+        try {
+            block()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: PurchaseException) {
+            throw error
+        } catch (error: Exception) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = error.message ?: "Purchase verification failed"
+                )
+            )
+        }
+
+    // A refused token throws instead of returning false, which callers tend to ignore.
+    private suspend fun finishToken(purchaseToken: String, isConsumable: Boolean): Boolean {
+        withMappedOpenIapError { requireModule().finishPurchaseToken(purchaseToken, isConsumable) }
+        return true
+    }
 
     private fun failWith(error: PurchaseError): Nothing {
         _purchaseErrorListener.tryEmit(error)
@@ -494,6 +653,17 @@ internal fun AndroidOpenIapError.toKmpPurchaseError(): PurchaseError {
     )
     return PurchaseError.fromJson(payload)
 }
+
+private fun dev.hyo.openiap.RequestPurchaseResult?.isEmpty(): Boolean = when (this) {
+    null -> true
+    is dev.hyo.openiap.RequestPurchaseResultPurchase -> value == null
+    is dev.hyo.openiap.RequestPurchaseResultPurchases -> value.isNullOrEmpty()
+}
+
+private fun RequestPurchaseProps.androidSkus(): List<String> = when (val request = request) {
+    is RequestPurchaseProps.Request.Purchase -> request.value.google?.skus
+    is RequestPurchaseProps.Request.Subscription -> request.value.google?.skus
+}.orEmpty()
 
 private fun InitConnectionConfig.toOpenIap(): dev.hyo.openiap.InitConnectionConfig =
     dev.hyo.openiap.InitConnectionConfig.fromJson(toJson())
@@ -513,6 +683,9 @@ private fun Purchase.toOpenIap(): dev.hyo.openiap.Purchase =
 
 private fun DeepLinkOptions.toOpenIap(): dev.hyo.openiap.DeepLinkOptions =
     dev.hyo.openiap.DeepLinkOptions.fromJson(toJson())
+
+private fun VerifyPurchaseProps.toOpenIap(): dev.hyo.openiap.VerifyPurchaseProps =
+    dev.hyo.openiap.VerifyPurchaseProps.fromJson(toJson())
 
 private fun dev.hyo.openiap.Purchase.toKmp(): Purchase =
     Purchase.fromJson(toJson())

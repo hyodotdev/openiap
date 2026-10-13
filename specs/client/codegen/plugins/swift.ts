@@ -32,6 +32,42 @@ import {
   capitalize,
 } from "../core/utils.js";
 
+const SWIFT_CODING_HELPERS = `/// Union JSON is flat and names its member type in \`__typename\`.
+private enum UnionTypenameKey: String, CodingKey {
+    case typename = "__typename"
+}
+
+/// Reads the wrapped \`{"purchaseIos":{"_0":{...}}}\` union JSON older releases wrote; remove in the next major.
+private struct LegacyUnionKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+    init(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+}
+
+private extension KeyedDecodingContainer where Key == LegacyUnionKey {
+    func payload<Value: Decodable>(_ type: Value.Type, forCase name: String) throws -> Value? {
+        let key = LegacyUnionKey(stringValue: name)
+        guard contains(key) else { return nil }
+        return try nestedContainer(keyedBy: LegacyUnionKey.self, forKey: key).decode(type, forKey: LegacyUnionKey(stringValue: "_0"))
+    }
+}
+
+/// Input enums reject unrecognized values; only output decoding falls back to \`.unknown\`.
+private struct StrictInputEnum<Value: RawRepresentable>: Decodable where Value.RawValue == String {
+    let value: Value
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        guard let value = Value(rawValue: rawValue) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown \\(Value.self) input value: \\(rawValue)")
+        }
+        self.value = value
+    }
+}
+`;
+
 export class SwiftPlugin extends CodegenPlugin {
   readonly name = "swift";
   readonly fileExtension = ".swift";
@@ -98,67 +134,40 @@ export class SwiftPlugin extends CodegenPlugin {
 
     for (const value of irEnum.values) {
       this.generateDocComment(value.description, "    ");
-      const caseName = this.escapeKeyword(this.enumValueCase(value.name));
-      this.emit(`    case ${caseName} = "${value.rawValue}"`);
+      this.emit(`    case ${this.enumCaseName(value.name)} = "${value.rawValue}"`);
     }
 
-    // Add custom initializer for ErrorCode to handle legacy aliases
-    if (irEnum.isErrorCode) {
-      // The transformer owns legacy alias mapping in the IR. Build the reverse
-      // lookup here so this emitter never duplicates compatibility literals.
-      const legacyAliases = new Map(
-        irEnum.values.flatMap((value) => {
-          const targetCase = this.escapeKeyword(this.enumValueCase(value.name));
-          return value.legacyAliases.map(
-            (alias) => [alias, targetCase] as const,
-          );
-        }),
-      );
+    this.emit("");
+    this.emit("    public init?(rawValue: String) {");
+    this.emit("        switch rawValue {");
+    for (const value of irEnum.values) {
+      const spellings = this.enumSpellings(value).map((spelling) => `"${spelling}"`);
+      this.emit(`        case ${spellings.join(", ")}:`);
+      this.emit(`            self = .${this.enumCaseName(value.name)}`);
+    }
+    this.emit("        default:");
+    this.emit("            return nil");
+    this.emit("        }");
+    this.emit("    }");
 
+    const unknownValue = this.enumUnknownValue(irEnum);
+    if (unknownValue) {
+      const unknownCase = this.enumCaseName(unknownValue.name);
       this.emit("");
+      this.emit(`    /// Unrecognized wire values decode as \`.${unknownCase}\`.`);
+      this.emit("    public init(from decoder: Decoder) throws {");
       this.emit(
-        "    /// Custom initializer to handle both kebab-case and camelCase error codes",
+        `        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .${unknownCase}`,
       );
-      this.emit(
-        "    /// This ensures compatibility with react-native-iap and other libraries that may send camelCase",
-      );
-      this.emit("    public init?(rawValue: String) {");
-      this.emit("        // Try direct match first (kebab-case)");
-      this.emit("        switch rawValue {");
-
-      for (const value of irEnum.values) {
-        const caseName = this.escapeKeyword(this.enumValueCase(value.name));
-        const rawValue = value.rawValue;
-        const camelCaseName =
-          value.name.charAt(0).toUpperCase() + value.name.slice(1);
-
-        // Check if this case is a legacy alias that should map to another case
-        const aliasTarget =
-          legacyAliases.get(rawValue) ?? legacyAliases.get(camelCaseName);
-
-        if (aliasTarget && aliasTarget === caseName) {
-          // This case IS the target - just use normal handling
-          this.emit(`        case "${rawValue}", "${camelCaseName}":`);
-          this.emit(`            self = .${caseName}`);
-        } else if (aliasTarget) {
-          // This is a legacy alias - map to the new case
-          this.emit(`        case "${rawValue}", "${camelCaseName}":`);
-          this.emit(`            self = .${aliasTarget} // Legacy alias`);
-        } else {
-          // Normal case
-          this.emit(`        case "${rawValue}", "${camelCaseName}":`);
-          this.emit(`            self = .${caseName}`);
-        }
-      }
-
-      this.emit("        default:");
-      this.emit("            return nil");
-      this.emit("        }");
       this.emit("    }");
     }
 
     this.emit("}");
     this.emit("");
+  }
+
+  private enumCaseName(valueName: string): string {
+    return this.escapeKeyword(this.enumValueCase(valueName));
   }
 
   // ============================================================================
@@ -175,7 +184,6 @@ export class SwiftPlugin extends CodegenPlugin {
     );
     for (const field of sortedFields) {
       this.generateDocComment(field.description, "    ");
-      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    var ${propertyName}: ${propertyType} { get }`);
@@ -216,7 +224,6 @@ export class SwiftPlugin extends CodegenPlugin {
     // Properties
     for (const field of sortedFields) {
       this.generateDocComment(field.description, "    ");
-      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
 
@@ -292,7 +299,7 @@ export class SwiftPlugin extends CodegenPlugin {
     );
     for (const entry of sortedEntries) {
       this.generateDocComment(entry.description, "    ");
-      const caseName = this.escapeKeyword(this.enumValueCase(entry.fieldName));
+      const caseName = this.enumCaseName(entry.fieldName);
       const payloadType = this.getPropertyType(entry.type);
       this.emit(`    case ${caseName}(${payloadType})`);
     }
@@ -323,7 +330,6 @@ export class SwiftPlugin extends CodegenPlugin {
     // Properties
     for (const field of sortedFields) {
       this.generateDocComment(field.description, "    ");
-      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    public var ${propertyName}: ${propertyType}`);
@@ -333,6 +339,52 @@ export class SwiftPlugin extends CodegenPlugin {
 
     this.emit("}");
     this.emit("");
+    this.generateInputDecoder(irInput.name, sortedFields);
+  }
+
+  /** Apply SDL defaults to missing keys and keep input enums strict, matching the other languages. */
+  private generateInputDecoder(typeName: string, sortedFields: IRField[]): void {
+    const decoded = sortedFields.map((field) => ({
+      field,
+      schemaDefault: this.buildDefaultValueExpression(field),
+      strict: this.strictInputEnumDecoding(field.type),
+    }));
+    if (!decoded.some(({ schemaDefault, strict }) => schemaDefault || strict)) return;
+
+    this.emit(`extension ${typeName} {`);
+    this.emit("    public init(from decoder: Decoder) throws {");
+    this.emit("        let container = try decoder.container(keyedBy: CodingKeys.self)");
+    for (const { field, schemaDefault, strict } of decoded) {
+      const name = this.escapeKeyword(this.fieldNameCase(field.name));
+      const optional = field.type.nullable || schemaDefault !== null;
+      const decodedType = strict?.decodedType ?? this.mapType(field.type);
+      let expression = `try container.${optional ? "decodeIfPresent" : "decode"}(${decodedType}.self, forKey: .${name})`;
+      if (strict) expression += `${optional ? "?" : ""}${strict.unwrap}`;
+      if (schemaDefault) expression += ` ?? ${schemaDefault}`;
+      this.emit(`        self.${name} = ${expression}`);
+    }
+    this.emit("    }");
+    this.emit("}");
+    this.emit("");
+  }
+
+  /** How to decode an input field whose enum falls back to `.unknown` for outputs. */
+  private strictInputEnumDecoding(type: IRType): { decodedType: string; unwrap: string } | null {
+    const isTolerantEnum = (candidate: IRType): boolean => {
+      if (candidate.kind !== "enum") return false;
+      const irEnum = this.schema.enums.find((item) => item.name === candidate.name);
+      return irEnum !== undefined && this.enumUnknownValue(irEnum) !== null;
+    };
+    if (isTolerantEnum(type)) {
+      return { decodedType: `StrictInputEnum<${type.name}>`, unwrap: ".value" };
+    }
+    const element = type.elementType;
+    if (type.kind === "list" && element && isTolerantEnum(element)) {
+      return element.nullable
+        ? { decodedType: `[StrictInputEnum<${element.name}>?]`, unwrap: ".map { $0?.value }" }
+        : { decodedType: `[StrictInputEnum<${element.name}>]`, unwrap: ".map(\\.value)" };
+    }
+    return null;
   }
 
   private generatePublicInitializer(sortedFields: IRField[]): void {
@@ -402,7 +454,7 @@ export class SwiftPlugin extends CodegenPlugin {
       return `[${items.join(", ")}]`;
     }
     if (type.kind === "enum" && typeof defaultValue === "string") {
-      return `.${this.escapeKeyword(this.enumValueCase(defaultValue))}`;
+      return `.${this.enumCaseName(defaultValue)}`;
     }
     if (type.kind === "scalar") {
       if (typeof defaultValue === "string") return `"${defaultValue}"`;
@@ -624,9 +676,11 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public enum ${irUnion.name}${conformanceClause} {`);
 
     for (const member of irUnion.members) {
-      const caseName = this.escapeKeyword(this.enumValueCase(member.name));
+      const caseName = this.enumCaseName(member.name);
       this.emit(`    case ${caseName}(${member.name})`);
     }
+
+    this.generateUnionCoding(irUnion);
 
     // Generate shared interface property accessors
     if (irUnion.sharedInterfaces.length > 0) {
@@ -635,6 +689,61 @@ export class SwiftPlugin extends CodegenPlugin {
 
     this.emit("}");
     this.emit("");
+  }
+
+  /** Flat JSON: the member's own fields plus `__typename`, dispatched on the leaf type name like every other language. */
+  private generateUnionCoding(irUnion: IRUnion): void {
+    const leafTypenames = (member: IRUnion["members"][number]): string[] => {
+      if (!member.isNestedUnion) return [member.name];
+      const nested = this.schema.unions.find((candidate) => candidate.name === member.name);
+      if (!nested) throw new Error(`${irUnion.name} member ${member.name} is not a known union.`);
+      return nested.members.flatMap(leafTypenames);
+    };
+
+    this.emit("");
+    this.emit("    public init(from decoder: Decoder) throws {");
+    this.emit("        let container = try decoder.container(keyedBy: UnionTypenameKey.self)");
+    this.emit("        let typename = try container.decodeIfPresent(String.self, forKey: .typename) ?? \"\"");
+    this.emit("        switch typename {");
+    for (const member of irUnion.members) {
+      const caseName = this.enumCaseName(member.name);
+      const labels = leafTypenames(member).map((name) => `"${name}"`);
+      this.emit(`        case ${labels.join(", ")}:`);
+      this.emit(`            self = .${caseName}(try ${member.name}(from: decoder))`);
+    }
+    // Anything else may be the legacy wrapped shape (see LegacyUnionKey).
+    this.emit("        default:");
+    this.emit("            let legacy = try decoder.container(keyedBy: LegacyUnionKey.self)");
+    irUnion.members.forEach((member, index) => {
+      const caseName = this.enumCaseName(member.name);
+      const keyword = index === 0 ? "if" : "} else if";
+      this.emit(
+        `            ${keyword} let value = try legacy.payload(${member.name}.self, forCase: "${this.enumValueCase(member.name)}") {`,
+      );
+      this.emit(`                self = .${caseName}(value)`);
+    });
+    this.emit("            } else {");
+    this.emit(
+      `                throw DecodingError.dataCorruptedError(forKey: .typename, in: container, debugDescription: "Unknown __typename for ${irUnion.name}: \\(typename)")`,
+    );
+    this.emit("            }");
+    this.emit("        }");
+    this.emit("    }");
+    this.emit("");
+    this.emit("    public func encode(to encoder: Encoder) throws {");
+    this.emit("        switch self {");
+    for (const member of irUnion.members) {
+      const caseName = this.enumCaseName(member.name);
+      this.emit(`        case let .${caseName}(value):`);
+      this.emit("            try value.encode(to: encoder)");
+      if (!member.isNestedUnion) {
+        // A nested union already wrote its leaf member's __typename.
+        this.emit("            var container = encoder.container(keyedBy: UnionTypenameKey.self)");
+        this.emit(`            try container.encode("${member.name}", forKey: .typename)`);
+      }
+    }
+    this.emit("        }");
+    this.emit("    }");
   }
 
   private generateUnionInterfaceAccessors(irUnion: IRUnion): void {
@@ -666,7 +775,6 @@ export class SwiftPlugin extends CodegenPlugin {
     );
     interfaceFieldsArray.forEach(([fieldName, field], index) => {
       this.generateDocComment(field.description, "    ");
-      this.generateDeprecationAnnotation(field.description, "    ");
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(fieldName));
 
@@ -674,7 +782,7 @@ export class SwiftPlugin extends CodegenPlugin {
       this.emit("        switch self {");
 
       for (const member of irUnion.members) {
-        const caseName = this.escapeKeyword(this.enumValueCase(member.name));
+        const caseName = this.enumCaseName(member.name);
         this.emit(`        case let .${caseName}(value):`);
         this.emit(`            return value.${propertyName}`);
       }
@@ -712,6 +820,7 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(renderStoreIds("swift"));
     if (schema.enums.some((item) => item.name === "IapStore"))
       this.emit(renderStoreIdentityResolver("swift"));
+    this.emit(SWIFT_CODING_HELPERS);
 
     // Enums
     if (schema.enums.length > 0) {
@@ -857,6 +966,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
     for (const field of sortedFields) {
       const aliasName = `${irOperation.name}${capitalize(field.name)}Handler`;
+      this.generateDeprecationAnnotation(this.operationFieldDescription(field), "    ");
       this.emit(
         `    public var ${this.escapeKeyword(field.name)}: ${aliasName}?`,
       );
@@ -901,6 +1011,7 @@ export class SwiftPlugin extends CodegenPlugin {
     return this.getPropertyType(resolved);
   }
 
+  /** Doc lines, then the canonical deprecation so Swift callers get a compiler warning. */
   protected generateDocComment(
     description: string | undefined,
     indent: string = "",
@@ -909,15 +1020,14 @@ export class SwiftPlugin extends CodegenPlugin {
     for (const line of description.split(/\r?\n/)) {
       this.emit(line ? `${indent}/// ${line}` : `${indent}///`);
     }
+    this.generateDeprecationAnnotation(description, indent);
   }
 
   private generateDeprecationAnnotation(
     description: string | undefined,
     indent: string = "",
   ): void {
-    const reason = description
-      ?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]
-      ?.trim();
+    const reason = this.deprecationReason(description);
     if (!reason) return;
     const escapedReason = reason
       .replaceAll("\\", "\\\\")

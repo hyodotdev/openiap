@@ -205,6 +205,7 @@ jobs:
     name: Deploy Convex + openiap-kit
     needs: verify
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: kit-production
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-kit-${{ github.ref }}

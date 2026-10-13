@@ -52,7 +52,8 @@
     "sync": "node scripts/sync-to-platforms.mjs",
     "verify:generated-staged": "node scripts/assert-generated-staged.mjs",
     "audit:schema-semver": "node --test scripts/audit-schema-semver.test.mjs && node scripts/audit-schema-semver.mjs",
-    "test": "vitest run src"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "bun run typecheck && vitest run src"
   },
   "keywords": [
     "graphql",
@@ -84,9 +85,10 @@
     }
   ],
   "devDependencies": {
-    "@graphql-codegen/add": "^6.0.0",
-    "@graphql-codegen/cli": "^6.0.0",
-    "@graphql-codegen/typescript": "^5.0.0",
+    "@graphql-codegen/add": "^7.1.1",
+    "@graphql-codegen/cli": "^7.4.6",
+    "@graphql-codegen/typescript": "^6.1.2",
+    "@types/bun": "^1.2.0",
     "graphql": "^16.11.0",
     "typescript": "^5.9.2",
     "vitest": "^4.1.5"

@@ -171,7 +171,7 @@ val details = openIapStore.createBillingProgramReportingDetails(
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — throws on iOS)
 // External Offer: create immediately before each launch; never cache.
 val details = kmpIAP.createBillingProgramReportingDetailsAndroid(
     BillingProgramAndroid.ExternalOffer

@@ -140,3 +140,133 @@ test("rejects instruction files that stop resolving to AGENTS.md", () => {
     },
   );
 });
+
+const THIN_REVIEW = [
+  "# Review",
+  "",
+  "Follow [/review-pr](../../../../.claude/commands/review-pr.md).",
+  "",
+].join("\n");
+
+function writeLibraryCommit(root, body, review = THIN_REVIEW) {
+  const library = path.join(root, "libraries/demo");
+  fs.mkdirSync(path.join(library, ".claude/commands"), { recursive: true });
+  fs.writeFileSync(
+    path.join(library, "AGENTS.md"),
+    "# Demo\n\n## Pre-Commit Checks\n\n```sh\n# Not a heading\n```\n\n## Notes\n\n## Notes\n",
+  );
+  fs.writeFileSync(path.join(library, ".claude/commands/commit.md"), body);
+  if (review !== null) {
+    fs.writeFileSync(
+      path.join(library, ".claude/commands/review-pr.md"),
+      review,
+    );
+  }
+}
+
+test("a library commit command routes to the root command", () => {
+  withMirroredRepository(
+    (root) =>
+      writeLibraryCommit(
+        root,
+        "# Commit\n\nSee [checks](../../AGENTS.md#pre-commit-checks).\n",
+      ),
+    (root) => {
+      assert.ok(
+        auditAgentSurfaces(root).includes(
+          "libraries/demo/.claude/commands/commit.md must link to the root .claude/commands/commit.md",
+        ),
+      );
+    },
+  );
+});
+
+test("a library with its own .claude/ must carry every adapter command", () => {
+  withMirroredRepository(
+    (root) =>
+      writeLibraryCommit(
+        root,
+        "# Commit\n\nFollow [/commit](../../../../.claude/commands/commit.md).\n",
+        null,
+      ),
+    (root) => {
+      assert.ok(
+        auditAgentSurfaces(root).includes(
+          "libraries/demo/.claude/commands/review-pr.md is missing; route it to the root /review-pr",
+        ),
+      );
+    },
+  );
+});
+
+test("a library adapter cannot grow into the workflow or link to nothing", () => {
+  withMirroredRepository(
+    (root) =>
+      writeLibraryCommit(
+        root,
+        [
+          "# Commit",
+          "",
+          "Follow [/commit](../../../../.claude/commands/commit.md).",
+          "Run [checks](../../AGENTS.md#checks).",
+          "See [this](#nowhere).",
+          ...Array.from({ length: 20 }, (_, index) => `${index + 1}. step`),
+          "",
+        ].join("\n"),
+      ),
+    (root) => {
+      const findings = auditAgentSurfaces(root);
+      for (const finding of [
+        "libraries/demo/.claude/commands/commit.md links to missing heading ../../AGENTS.md#checks",
+        "libraries/demo/.claude/commands/commit.md links to missing heading #nowhere",
+        "libraries/demo/.claude/commands/commit.md has 25 lines; an adapter stays within 20 and leaves the workflow to the root command",
+      ]) {
+        assert.ok(findings.includes(finding), finding);
+      }
+    },
+  );
+});
+
+test("a thin library adapter passes", () => {
+  withMirroredRepository(
+    (root) =>
+      writeLibraryCommit(
+        root,
+        [
+          "# Commit",
+          "",
+          "Follow [/commit](../../../../.claude/commands/commit.md).",
+          "Run [checks](../../AGENTS.md#pre-commit-checks) first.",
+          // GitHub numbers a repeated heading; code fences hold none.
+          "See [notes](../../AGENTS.md#notes-1) and [spec](https://openiap.dev/docs).",
+          "",
+        ].join("\n"),
+      ),
+    (root) => {
+      assert.deepEqual(auditAgentSurfaces(root), []);
+    },
+  );
+});
+
+test("a heading inside a code fence is not a link target", () => {
+  withMirroredRepository(
+    (root) =>
+      writeLibraryCommit(
+        root,
+        [
+          "# Commit",
+          "",
+          "Follow [/commit](../../../../.claude/commands/commit.md).",
+          "Run [checks](../../AGENTS.md#not-a-heading).",
+          "",
+        ].join("\n"),
+      ),
+    (root) => {
+      assert.ok(
+        auditAgentSurfaces(root).includes(
+          "libraries/demo/.claude/commands/commit.md links to missing heading ../../AGENTS.md#not-a-heading",
+        ),
+      );
+    },
+  );
+});

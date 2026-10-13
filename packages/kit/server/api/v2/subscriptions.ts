@@ -31,7 +31,7 @@ const subscriptions = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const rateLimit = multiAxisRateLimitMiddleware();
-const sourceRateLimit = sourceRateLimitMiddleware() as never;
+const sourceRateLimit = sourceRateLimitMiddleware();
 const USER_ID_LIMIT_MESSAGE = `userId must be ≤ ${MAX_SUBSCRIPTION_USER_ID_LENGTH} chars`;
 const MAX_USER_ERASURE_BODY_BYTES = 4 * 1024;
 const secretAdminSecurity = [{ apiKey: [] }];

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ConvexError } from "convex/values";
 import { ErrorCode, createError } from "../convex/utils/errors";
+import {
+  PlayStoreVerificationError,
+  createPlayStoreError,
+} from "../convex/purchases/errors";
 
 process.env.VITE_KIT_CONVEX_URL ??= "https://placeholder.convex.cloud";
 
@@ -95,6 +99,57 @@ describe("handleConvexError", () => {
       expectedVersion: 0,
       actualVersion: 4,
     });
+  });
+
+  it("never returns Play upstream or Convex internals, and marks only outages temporary", () => {
+    const socketHangUp = Object.assign(
+      new Error(
+        "request to https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.acme/purchases/products/x/tokens/TOKEN123 failed, reason: socket hang up",
+      ),
+      { code: "ECONNRESET" },
+    );
+    const outage = handleConvexError(
+      new PlayStoreVerificationError(createPlayStoreError(socketHangUp)),
+    );
+    const internal = handleConvexError(
+      new PlayStoreVerificationError(
+        new Error(
+          'Documents read from or written to the "purchases" table changed while this mutation was being run and on every subsequent retry. A call to "purchases/internal:saveReceiptInternal" changed the document with ID "k57abc".',
+        ),
+      ),
+    );
+    const rejected = handleConvexError(
+      new PlayStoreVerificationError(
+        createPlayStoreError(
+          Object.assign(new Error("Invalid Value"), { code: 400 }),
+        ),
+      ),
+    );
+
+    for (const error of [outage, internal, rejected]) {
+      expect(error?.code).toBe("PLAY_STORE_VERIFICATION_ERROR");
+      expect(error?.message).not.toMatch(/TOKEN123|googleapis|internal\.|OCC/);
+    }
+    expect(outage?.retryAfterSec).toBe(5);
+    // A Convex write conflict retried out is temporary.
+    expect(internal?.retryAfterSec).toBe(5);
+    // Everything else stays permanent, or every verify would 503 forever.
+    for (const permanent of [
+      new ConvexError("Project not found"),
+      new TypeError("x"),
+      Object.assign(new Error("error:1E08010C:DECODER routines::unsupported"), {
+        code: "ERR_OSSL_UNSUPPORTED",
+      }),
+      new Error(
+        "ArgumentValidationError: Object is missing the required field `projectId`.",
+      ),
+    ]) {
+      expect(
+        handleConvexError(new PlayStoreVerificationError(permanent)),
+      ).not.toHaveProperty("retryAfterSec");
+    }
+    expect(rejected).not.toHaveProperty("retryAfterSec");
+    expect(rejected?.message).toContain("HTTP 400");
   });
 
   it("does not expose unstructured ConvexError strings", () => {

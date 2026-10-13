@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-12T00:42:05.920Z
+> Last updated: 2026-10-12T19:03:26.335Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1535,20 +1535,21 @@ covers pins and their aliases, the store flags and their conflicts, the
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.
 
-`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
-store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
-a KMP library module, and a module with its own `platform` flavors (which the
-plugin leaves alone). It needs an Android SDK and the network.
+`packages/google/scripts/verify-store-plugin.sh` covers what the plugin adds:
+that the resolved store reaches the published `openiap-google` and `kmp-iap`
+artifacts in an app, a KMP library module, and a module with its own `platform`
+flavors (which the plugin leaves alone). It needs an Android SDK and the
+network.
 
-`scripts/verify-release-consumer.sh` runs R8 as an app's release build does,
-and kmp CI does the same for its example app. It builds a minified release app
-per store from the locally published artifacts and asserts that each links only
-its store's SDK and that R8 keeps what runs by name: every Play Billing class
-and method the Play module looks up by reflection (read from its source), and
-every Amazon SDK class, because that SDK fills its own classes by reflection. It
-also needs an Android SDK and the network. A store SDK that needs R8 rules gets
-them in its flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so
-apps never add them by hand.
+`packages/google/scripts/verify-release-consumer.sh` runs R8 as an app's release
+build does, and kmp CI does the same for its example app. It builds a minified
+release app per store from the locally published artifacts and asserts that each
+links only its store's SDK and that R8 keeps what runs by name: every Play
+Billing class and method the Play module looks up by reflection (read from its
+source), and every Amazon SDK class, because that SDK fills its own classes by
+reflection. It also needs an Android SDK and the network. A store SDK that needs
+R8 rules gets them in its flavor's consumer file
+(`openiap/consumer-rules-<store>.pro`), so apps never add them by hand.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that
@@ -1821,134 +1822,13 @@ Before writing or editing anything, **ALWAYS** review:
 
 - [`specs/client/CONVENTION.md`](../../specs/client/CONVENTION.md)
 
-### Code Generation Architecture
+### Code Generation
 
-The `@hyodotdev/openiap-client-protocol` package uses two guarded generation lanes over one
-authored schema inventory:
-
-```text
-GraphQL Schema (src/*.graphql)
-         ├──► graphql-codegen + guarded TypeScript AST post-processing
-         │                         └──► src/generated/types.ts
-         └──► Parser → Transformer → IR → Language Plugins
-                                      └──► Swift/Kotlin/Dart/GDScript/C#
-                                                     ↓
-                                          generated-sync-manifest.mjs
-```
-
-#### Directory Structure
-
-```text
-specs/client/codegen/
-├── index.ts              # Main entry point
-├── core/
-│   ├── types.ts          # IR type definitions
-│   ├── parser.ts         # GraphQL schema parser
-│   ├── transformer.ts    # AST → IR transformer
-│   └── utils.ts          # Common utilities (case conversion, keywords)
-├── plugins/
-│   ├── base-plugin.ts    # Abstract base class
-│   ├── swift.ts          # Swift plugin (Codable, ErrorCode handling)
-│   ├── kotlin.ts         # Kotlin plugin (sealed interface, fromJson/toJson)
-│   ├── dart.ts           # Dart plugin (sealed class, factory constructors)
-│   ├── gdscript.ts       # GDScript plugin (Godot engine)
-│   └── csharp.ts         # C# plugin (.NET MAUI)
-```
-
-#### IR (Intermediate Representation)
-
-The IR is a language-agnostic representation of the GraphQL schema:
-
-| IR Type       | Description                                     |
-| ------------- | ----------------------------------------------- |
-| `IREnum`      | Enum with values, raw values, legacy aliases    |
-| `IRInterface` | Protocol/Interface with fields                  |
-| `IRObject`    | Struct/Class with fields, implements, unions    |
-| `IRInput`     | Input type with fields, required field tracking |
-| `IRUnion`     | Union with members, nested union handling       |
-| `IROperation` | Query/Mutation/Subscription with fields         |
-
-#### Language Plugins
-
-Each plugin handles language-specific requirements:
-
-| Plugin       | Features                                                          |
-| ------------ | ----------------------------------------------------------------- |
-| **Swift**    | Codable protocol, ErrorCode custom initializer, platform defaults |
-| **Kotlin**   | sealed interface, fromJson/toJson with nullable patterns          |
-| **Dart**     | extends/implements, factory constructors, sealed class            |
-| **GDScript** | \_init(), from_json/to_json, Variant type                         |
-| **C#**       | records, JsonConverter, [JsonPolymorphic] unions                  |
-
-### Scripts
-
-| Script              | Description                                   |
-| ------------------- | --------------------------------------------- |
-| `generate:ts`       | Generate TypeScript types (graphql-codegen)   |
-| `generate:swift`    | Generate Swift types (IR-based plugin)        |
-| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)       |
-| `generate:dart`     | Generate Dart types (IR-based plugin)         |
-| `generate:gdscript` | Generate GDScript types (IR-based plugin)     |
-| `generate:csharp`   | Generate C# / MAUI types (IR-based plugin)    |
-| `generate`          | Generate every type and sync manifest targets |
-| `sync`              | Replay manifest-owned synchronized copies     |
-
-### Generating Types
-
-```bash
-cd specs/client
-
-# Generate all platform types
-bun run generate
-
-# Diagnostic single-plugin generation (always finish with `bun run generate`
-# before committing so every manifest target is synchronized)
-bun run generate:swift
-bun run generate:kotlin
-bun run generate:dart
-bun run generate:gdscript
-bun run generate:csharp
-```
-
-### Generated Files
-
-| File                        | Platform   | Description                      |
-| --------------------------- | ---------- | -------------------------------- |
-| `src/generated/types.ts`    | TypeScript | Type definitions                 |
-| `src/generated/Types.swift` | iOS/macOS  | Codable structs & enums          |
-| `src/generated/Types.kt`    | Android    | Data classes & sealed interfaces |
-| `src/generated/types.dart`  | Flutter    | Classes & sealed classes         |
-| `src/generated/types.gd`    | Godot      | GDScript classes                 |
-| `src/generated/Types.cs`    | .NET MAUI  | C# records & JSON converters     |
-
-### Adding a New Language
-
-1. Create `codegen/plugins/<language>.ts` extending `CodegenPlugin`
-2. Implement abstract methods:
-   - `mapScalar()` - Map GraphQL scalars to language types
-   - `mapType()` - Map IR types to language type strings
-   - `generateEnum()`, `generateObject()`, etc.
-3. Register in `codegen/index.ts`
-4. Add script to `package.json`
-
-### Schema Markers
-
-Special comments in GraphQL SDL trigger codegen behavior:
-
-| Marker       | Effect                                                       |
-| ------------ | ------------------------------------------------------------ |
-| `# => Union` | Generates result union wrapper (e.g., `FetchProductsResult`) |
-| `# Future`   | Wraps return type in Promise/async                           |
-
-Example:
-
-```graphql
-# => Union
-type RequestPurchaseResult {
-  purchase: Purchase
-  purchases: [Purchase!]
-}
-```
+The generation lanes, IR types, language plugins, scripts, schema markers, and
+the steps for adding a language are documented once in
+[`specs/client/CONVENTION.md`](../../specs/client/CONVENTION.md#code-generation-architecture).
+Run `bun run generate` from `specs/client` before committing; single-plugin
+scripts are diagnostic only.
 
 ---
 
@@ -2395,8 +2275,8 @@ release-plan change expands the affected packages or behavior.
    package entry.
 3. Compare that inventory with the train's card in
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
-   versioned package needs its expected version, GitHub Release link, and tag
-   alias/anchor. Every user-visible change needs a concise behavior or migration
+   versioned package needs its expected version, GitHub Release link, and
+   hidden tag anchor. Every user-visible change needs a concise behavior or migration
    note; packages that only pick up shared behavior need only a linked release
    entry. Hosted behavior needs a concise note in the Kit weekly entry;
    a train that also publishes packages links to that entry from its card.
@@ -2473,40 +2353,53 @@ from issue #206 without duplicating release history across package-local files:
 - Keep package-local changelogs as pointers to this page and GitHub Releases,
   except where a package registry requires generated inline history.
 
-### Adding New Release Notes
+### Card Format
 
-1. Add new entry at the **top** of the `allNotes` array
-2. Follow the existing pattern with `id`, `date`, and `element`
-3. Use semantic IDs like `google-3-5-2-apple-3-4-0`
-4. Verify every package version against its source of truth before writing it
-   (see "Release package version verification" below)
+Follow the existing card pattern:
 
-```tsx
-const allNotes: Note[] = [
-  // Google 3.5.2 / Apple 3.4.0 - Jan 26, 2026
-  {
-    id: "google-3-5-2-apple-3-4-0",
-    date: new Date("2026-01-26"),
-    element: (
-      <div key="google-3-5-2-apple-3-4-0" style={noteCardStyle}>
-        <AnchorLink id="google-3-5-2-apple-3-4-0" level="h4">
-          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature Description
-        </AnchorLink>
-        {/* Content here */}
-      </div>
-    ),
-  },
-  // ... older notes
-];
-```
+- Add the newest note near the top of `allNotes`.
+- Use a stable kebab-case `id` with the date.
+- Use `new Date('YYYY-MM-DD')`.
+- Use `AnchorLink` for the heading.
+- Keep package links in a `Package Releases` list.
+- Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
+  is produced by `./scripts/sync-versions.sh`.
+- Render a hidden anchor per package tag, first thing inside the card's
+  `<div>`:
 
-### Required Elements
+  ```tsx
+  {MY_RELEASES.map((release) => (
+    <span key={release.tag} id={release.tag} aria-hidden="true" />
+  ))}
+  ```
 
-- **AnchorLink**: For deep linking to specific release
-- **Version info**: Package names and versions in title
-- **Date**: In format `new Date('YYYY-MM-DD')`
-- **References**: Links to Apple/Google documentation when applicable
-- **Issue links**: Reference GitHub issues when fixing bugs
+  Release workflows link a version's own anchor
+  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and opens the
+  page whose card declares the hash as an element id, so a card without these
+  spans leaves those links on page one — a dead link that still looks alive.
+  Keep a span for each retired card id too. `bun run audit:docs` fails when a
+  card lists `Package Releases` without them.
+
+Card section layout (mandatory for multi-package cards):
+
+- Use only the sections that contain distinct user-visible behavior or
+  information readers must act on. When present, keep this order:
+  1. `Common changes`
+  2. `Protocols and native packages`
+  3. `Framework libraries`
+  4. `Integration notes` (or migration notes)
+  5. The bordered `Package Releases` block
+- Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
+  `React Native`, `Expo`, ... headings). Use one parent `<li>` per package,
+  following the package-specific grouping rule above: put `<strong>package version</strong>`
+  once, then one inline change or a nested `<ul>` for multiple changes.
+  Never repeat the package/version label on each nested change.
+- `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
+  `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
+  framework SDK bullets. Omit the section when it would be empty.
+- The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
+  August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
+  reference implementations of this layout.
 
 ### Release Package Version Verification
 
@@ -2738,40 +2631,11 @@ agents have no hook, so this section is their guard.
 
 ### Rules
 
-- **50 characters max** for the subject line (tag + scope + message combined)
+- Keep the subject line short: aim for about 50 characters and stay within 72,
+  not counting the `(#123)` suffix a squash merge adds. No hook enforces it.
 - Everything after the tag MUST be lowercase
 - No trailing period
 - Use imperative mood ("add" not "added")
-
-## Pull Request Preview Recordings
-
-Create a preview video only when it materially helps a reviewer understand the
-change. Use judgment: a device interaction, animation, or sequence of UI states
-may benefit from a recording; text, screenshots, or test evidence usually cover
-API, dependency, and documentation changes. A video is optional and its absence
-does not block review, merge, or release. No waiver or PR note is required.
-
-When a recording is useful:
-
-- Record the actual changed surface after the implementation is complete. Use
-  the Codex Chrome Extension for web/docs/dashboard previews whenever a browser
-  can render the change.
-- Compress the final video to **under 10 MB** so GitHub accepts it reliably.
-  Prefer H.264 MP4 with a modest resolution / frame rate when the raw capture is
-  too large.
-- Upload the compressed recording to the GitHub PR as a PR body attachment or a
-  clearly labeled attached `Preview` comment.
-- Never commit one-off PR preview recordings, including under
-  `.github/pr-previews/`. Create them in a temporary or ignored local path,
-  upload them as GitHub attachments, verify the attachment, then delete the
-  local files. Only commit media that is itself a product documentation or
-  example asset intended to ship with the repository.
-- If uploads are blocked, skip the video or ask the maintainer; never force-add
-  it to Git. Continue review and release without the optional video.
-- Link or embed the uploaded preview in the PR body or a clearly labeled
-  `Preview` PR comment.
-- Do not upload secrets, private customer data, unreleased credentials, or local
-  browser profile details in previews. Redact or use test fixtures.
 
 ### With Tag and Scope
 
@@ -2808,17 +2672,22 @@ Fix purchase validation error
 
 ### Scope Reference
 
-| Scope     | Package/Library                    |
-| --------- | ---------------------------------- |
-| `apple`   | `packages/apple`                   |
-| `google`  | `packages/google`                  |
-| `spec`    | `specs/client`                     |
-| `docs`    | `packages/docs`                    |
-| `rn`      | `libraries/react-native-iap`       |
-| `expo`    | `libraries/expo-iap`               |
-| `flutter` | `libraries/flutter_inapp_purchase` |
-| `kmp`     | `libraries/kmp-iap`                |
-| `godot`   | `libraries/godot-iap`              |
+| Scope               | Package/Library                      |
+| ------------------- | ------------------------------------ |
+| `apple`             | `packages/apple`                     |
+| `google`            | `packages/google`                    |
+| `spec`              | `specs/client`                       |
+| `docs`              | `packages/docs`                      |
+| `rn`                | `libraries/react-native-iap`         |
+| `expo`              | `libraries/expo-iap`                 |
+| `flutter`           | `libraries/flutter_inapp_purchase`   |
+| `kmp`               | `libraries/kmp-iap`                  |
+| `godot`             | `libraries/godot-iap`                |
+| `maui`              | `libraries/maui-iap`                 |
+| `kit`               | `packages/kit`                       |
+| `cli`               | `packages/cli`                       |
+| `commerce-protocol` | `specs/commerce-protocol`            |
+| `release`           | Version commits from release CI only |
 
 ### Common Tags
 
@@ -2831,6 +2700,36 @@ Fix purchase validation error
 | `refactor:` | Code refactoring                |
 | `test:`     | Adding or updating tests        |
 | `chore:`    | Maintenance tasks               |
+
+## Pull Request Preview Recordings
+
+Create a preview video only when it materially helps a reviewer understand the
+change. Use judgment: a device interaction, animation, or sequence of UI states
+may benefit from a recording; text, screenshots, or test evidence usually cover
+API, dependency, and documentation changes. A video is optional and its absence
+does not block review, merge, or release. No waiver or PR note is required.
+
+When a recording is useful:
+
+- Record the actual changed surface after the implementation is complete. Use
+  the Codex Chrome Extension for web/docs/dashboard previews whenever a browser
+  can render the change.
+- Compress the final video to **under 10 MB** so GitHub accepts it reliably.
+  Prefer H.264 MP4 with a modest resolution / frame rate when the raw capture is
+  too large.
+- Upload the compressed recording to the GitHub PR as a PR body attachment or a
+  clearly labeled attached `Preview` comment.
+- Never commit one-off PR preview recordings, including under
+  `.github/pr-previews/`. Create them in a temporary or ignored local path,
+  upload them as GitHub attachments, verify the attachment, then delete the
+  local files. Only commit media that is itself a product documentation or
+  example asset intended to ship with the repository.
+- If uploads are blocked, skip the video or ask the maintainer; never force-add
+  it to Git. Continue review and release without the optional video.
+- Link or embed the uploaded preview in the PR body or a clearly labeled
+  `Preview` PR comment.
+- Do not upload secrets, private customer data, unreleased credentials, or local
+  browser profile details in previews. Redact or use test fixtures.
 
 ---
 
@@ -2885,6 +2784,11 @@ command from a local terminal.
   that run checks out a tag.
 - Local registry-facing commands in a release workflow are limited to read-only
   verification; local build and test commands remain allowed.
+- Jobs that read a stored publishing or deploy secret run in a GitHub
+  environment limited to `main`: `release` for package publishing and
+  `kit-production` for the kit deploy. Keep those secrets in the environment,
+  not at repository level. `audit-security.mjs workflows` rejects a job that
+  reads a secret without `environment:`; OIDC-only publish jobs stay ungated.
 
 Exact-version `npm deprecate` and retraction through the signed-in pub.dev Admin
 UI are authenticated lifecycle-maintenance exceptions, not package publishing.
@@ -3434,10 +3338,13 @@ an invalid parser look green.
 
 ### R13 — Major removals leave one canonical contract
 
-The coordinated major train removes the OpenIAP-owned compatibility surface
-from OpenIAP 3.0, `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
+Each coordinated major train removes the OpenIAP-owned compatibility surface
+scheduled for it: OpenIAP 3.0, `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
 `flutter_inapp_purchase` 10.0.0, `godot-iap` 3.0.0, `kmp-iap` 3.0.0, and
-`OpenIap.Maui` 2.0.0.
+`OpenIap.Maui` 2.0.0; then Client Protocol 1.0.0 with `openiap-apple` and
+`openiap-google` 4.0.0, `react-native-iap` 17.0.0, `expo-iap` 6.0.0,
+`flutter_inapp_purchase` 11.0.0, `godot-iap` 4.0.0, `kmp-iap` 4.0.0, and
+`OpenIap.Maui` 3.0.0.
 
 - The GraphQL schema and generated Swift, Kotlin, TypeScript, Dart, GDScript,
   and C# declarations contain no member from the completed removal catalog.
@@ -3476,9 +3383,8 @@ is not user-authored legacy input.
 Every store-specific `VerifyPurchaseResult` documentation table must list all
 required fields from the generated TypeScript `VerifyPurchaseResultCommon`
 interface. The audit derives this field set from the generated type instead of
-maintaining a second list. While Horizon's `success` compatibility property
-exists, its table must also mark that property as a deprecated alias for
-`isValid`.
+maintaining a second list. Horizon tables must omit `success`; Client Protocol
+1.0.0 removed that alias in favor of `isValid`.
 
 ### R15 — Subscription query failures stay observable
 
@@ -3526,7 +3432,7 @@ parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
 - published release entries and docs-local version metadata
 - focused recurring phantom shapes from active fenced code examples
 - canonical offer semantics, generated enum snippets, and search entries
-- shared purchase-verification fields and the Horizon compatibility alias
+- shared purchase-verification fields and the removed Horizon `success` alias
 - subscription-query rejection semantics and the Godot compatibility fallback
 
 Field mentions are cross-referenced against generated TypeScript shapes.
@@ -3601,12 +3507,12 @@ unless the stray file is the intended new value.
 
 ## Boundaries (do not absorb these)
 
-| Domain                              | Owner                                         |
-| ----------------------------------- | --------------------------------------------- |
-| Generated type files source→targets | `specs/client/generated-sync-manifest.mjs`    |
+| Domain                               | Owner                                         |
+| ------------------------------------ | --------------------------------------------- |
+| Generated type files source→targets  | `specs/client/generated-sync-manifest.mjs`    |
 | Protocol and native package versions | `openiap-versions.json` + release-state audit |
-| API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
-| Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |
+| API surface parity across languages  | `scripts/audit-non-godot-parity.mjs`          |
+| Change→job routing                   | `scripts/audit-ci-path-filters.mjs`           |
 
 The fact graph holds scalar declarations only, and it is deliberately
 **additive**: it changes no existing guard. Where a parity-audit needle pins
@@ -3640,7 +3546,7 @@ scanner in the same change.
 
 ## Roadmap
 
-1. **Done** — toolchain facts (Xcode, macOS image, JDK, Bun, Godot) plus the
+1. **Done** — toolchain facts (Xcode, macOS image, JDK, Bun, Godot, Ruby) plus the
    Example-project derivation.
 2. Consolidate: move parity-audit needles that assert scalar pins into the
    registry, shrinking `audit-non-godot-parity.mjs` toward behavior-only
@@ -3767,7 +3673,7 @@ cd ../flutter_inapp_purchase && flutter analyze
 
 1. Sign the device out of its production Apple ID. Sign the sandbox tester into **Settings → App Store → Sandbox Account**.
 2. Open the Example app:
-   - `packages/apple/Example/OpenIapExample.xcodeproj` — run the `OpenIapExample` scheme.
+   - `packages/apple/Example/Martie.xcodeproj` — run the `OpenIapExample` scheme.
 3. In-app: navigate to the **Subscription Flow** screen and subscribe to `dev.hyo.martie.premium`.
 4. Force a billing issue on the **device** (requires iOS 16+ / iPadOS 16+):
    - Go to **Settings → Developer → Sandbox Account → Manage → Account Settings**.
@@ -6440,6 +6346,9 @@ offline bundle.
   `Content-Type: application/json`.
 - Success is exactly the operation's `successStatus`. Every failure returns
   the status §8 assigns to its code, with a `ProtocolErrorResponse` body.
+- A result member the provider omits (§4) is absent from the JSON body; it
+  MUST NOT be sent as `null`. Unlike GraphQL (§7), REST can tell the two
+  apart, and the result schemas reject a `null` member.
 - A request whose method and path under `/commerce/v1` match no operation
   fails with `NOT_FOUND`.
 - An unrecognised input member is ignored (§4), and a caller MUST ignore
@@ -6518,7 +6427,8 @@ meaning MUST NOT. REST wraps a failure as
 `{ "error": { "code", "message" } }` with the mapped status; GraphQL carries
 the code in `errors[*].extensions.code` (§7). A message is human-readable
 and MUST NOT contain credentials, store evidence, signed payloads, stack
-traces, or implementation source paths.
+traces, or implementation source paths. The same holds for every other member
+of an error, GraphQL `extensions` included.
 
 | Code                  | HTTP | Meaning                                                                      |
 | --------------------- | ---- | ---------------------------------------------------------------------------- |

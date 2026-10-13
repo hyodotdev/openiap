@@ -159,7 +159,7 @@ Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAs
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — no-op on iOS)
+            <CodeBlock language="kotlin">{`// kmp-iap (Android targets only — throws on iOS)
 val result = kmpIAP.isBillingProgramAvailableAndroid(
     BillingProgramAndroid.ExternalOffer
 )`}</CodeBlock>

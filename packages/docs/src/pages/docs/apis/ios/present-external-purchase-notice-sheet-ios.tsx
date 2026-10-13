@@ -99,6 +99,10 @@ struct ExternalPurchaseNoticeResultIOS {
           — Populated when the sheet failed to present.
         </li>
       </ul>
+      <p>
+        When the sheet fails, Godot returns <code>DISMISSED</code> with{' '}
+        <code>error</code> set and emits <code>purchase_error</code>.
+      </p>
 
       <h2>Example</h2>
       <LanguageTabs>
@@ -128,7 +132,7 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
+// Throws FeatureNotSupported on Android
 var result = await ((MutationResolver)OpenIapClient.Instance).PresentExternalPurchaseNoticeSheetIOSAsync();`}</CodeBlock>
           ),
           gdscript: (

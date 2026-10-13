@@ -1,7 +1,10 @@
 package dev.hyo.openiap.helpers
 
 import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
+import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.PurchaseAndroid
+import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.UserChoiceBillingDetails
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
@@ -64,13 +67,51 @@ class CommonHelpersBillingEventsTest {
     }
 
     @Test
-    fun `pending purchase matching rejects old and unrelated updates`() {
+    fun `only a requested sku with a token unseen at launch belongs to the request`() {
         val requestedSkus = setOf("monthly")
+        val tokensBeforeLaunch = setOf("stale-token")
 
-        assertFalse(isPurchaseForPendingRequest(999.0, listOf("monthly"), requestedSkus, 1_000.0))
-        assertFalse(isPurchaseForPendingRequest(1_001.0, listOf("yearly"), requestedSkus, 1_000.0))
-        assertTrue(isPurchaseForPendingRequest(1_001.0, listOf("monthly"), requestedSkus, 1_000.0))
+        assertTrue(isPurchaseForPendingRequest(listOf("monthly"), "new-token", requestedSkus, tokensBeforeLaunch))
+        assertFalse(isPurchaseForPendingRequest(listOf("monthly"), "stale-token", requestedSkus, tokensBeforeLaunch))
+        assertFalse(isPurchaseForPendingRequest(listOf("yearly"), "new-token", requestedSkus, tokensBeforeLaunch))
+        assertFalse(isPurchaseForPendingRequest(listOf("monthly"), null, requestedSkus, tokensBeforeLaunch))
     }
+
+    @Test
+    fun `each purchase state is delivered once within the claim window`() {
+        val claims = PurchaseDeliveryClaims(maximumSize = 2)
+        val pending = purchase("token-1", PurchaseState.Pending)
+
+        assertTrue(claims.claim(pending))
+        assertFalse(claims.claim(pending))
+        assertTrue("a pending purchase that completes is new", claims.claim(purchase("token-1", PurchaseState.Purchased)))
+        assertTrue(claims.claim(purchase("token-2", PurchaseState.Purchased)))
+        assertTrue("the oldest claim is evicted", claims.claim(pending))
+    }
+
+    @Test
+    fun `a purchase claimed in one state has been delivered in every state`() {
+        val claims = PurchaseDeliveryClaims()
+        assertFalse(claims.hasDelivered(purchase("token-1", PurchaseState.Pending)))
+
+        claims.claim(purchase("token-1", PurchaseState.Pending))
+
+        assertTrue(claims.hasDelivered(purchase("token-1", PurchaseState.Purchased)))
+        assertFalse(claims.hasDelivered(purchase("token-2", PurchaseState.Pending)))
+        assertTrue("reading must not claim", claims.claim(purchase("token-1", PurchaseState.Purchased)))
+    }
+
+    private fun purchase(token: String, state: PurchaseState) = PurchaseAndroid(
+        id = token,
+        isAutoRenewing = false,
+        productId = "monthly",
+        purchaseState = state,
+        purchaseToken = token,
+        quantity = 1,
+        store = IapStore.Google,
+        storeId = "play",
+        transactionDate = 1.0,
+    )
 
     @Test
     fun `user choice billing waits for one event and removes its listener`() = runTest {

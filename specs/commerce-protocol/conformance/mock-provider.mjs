@@ -76,7 +76,12 @@ const CREDENTIALS = Object.freeze({
   verification: "mock-verification-credential",
   server: "mock-server-credential",
 });
-const KNOWN_STORES = new Set(["apple", "google", "horizon", "amazon"]);
+// The stores whose evidence the operation schema defines.
+const KNOWN_STORES = new Set(
+  operationsSchema.$defs.VerifyPurchaseInput.allOf.map(
+    (rule) => rule.if.properties.store.const,
+  ),
+);
 
 const fullSupport = () => ({ provider: true, implementation: true });
 const mockedSupport = () => ({

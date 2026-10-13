@@ -16,8 +16,10 @@ Every transport authenticates with an **IAPKit secret admin key**
 (`openiap-kit_sk_…`) — not a mobile publishable key and not an OpenAI,
 ChatGPT, Anthropic, or Claude API key. The key is resolved from, in order:
 a tool's explicit `apiKey` argument, then the MCP `Authorization: Bearer`
-token, then the `IAPKIT_API_KEY` environment variable. Keep it out of app
-bundles; generated mobile snippets use a separate publishable key placeholder.
+token. The HTTP transports require the bearer on every request; only stdio
+falls back to the `IAPKIT_API_KEY` environment variable. Keep the key out of
+app bundles; generated mobile snippets use a separate publishable key
+placeholder.
 When MCP calls IAPKit's administrative REST surface, it forwards the secret in
 the `Authorization` header and never places it in the request URL.
 
@@ -27,15 +29,19 @@ the `Authorization` header and never places it in the request URL.
 # stdio (bin: iapkit-mcp / openiap-mcp)
 IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run start
 
-# Streamable HTTP on http://127.0.0.1:3939/mcp (bin: iapkit-mcp-http)
-IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run start:http
+# Streamable HTTP on http://127.0.0.1:3939/mcp (bin: iapkit-mcp-http);
+# clients send Authorization: Bearer <secret key>
+bun run start:http
 ```
 
-`PORT` / `IAPKIT_MCP_PORT` override the HTTP port and
-`IAPKIT_MCP_ALLOWED_ORIGINS` overrides the CORS allow-list.
+`HOST` changes the bind address (default `127.0.0.1`); when you bind
+elsewhere, list the names clients use in `IAPKIT_MCP_ALLOWED_HOSTS`, because
+other `Host` headers are rejected. `PORT` / `IAPKIT_MCP_PORT` override the HTTP
+port and `IAPKIT_MCP_ALLOWED_ORIGINS` overrides the CORS allow-list.
 `IAPKIT_BASE_URL` selects the Kit API endpoint, while
 `IAPKIT_PUBLIC_BASE_URL` keeps generated webhook URLs public when API calls use
-a loopback address.
+a loopback address. The hosted endpoint always calls its own kit and ignores
+a tool's `baseUrl` argument.
 
 ## Client configuration
 

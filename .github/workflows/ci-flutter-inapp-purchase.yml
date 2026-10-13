@@ -8,8 +8,13 @@ on:
       - "specs/client/src/generated/types.dart"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
+      - "packages/apple/openiap.podspec"
       - "openiap-versions.json"
       - "packages/google/gradle/openiap-store.gradle"
+      - "packages/google/build.gradle.kts"
+      - "packages/google/openiap/**"
+      - "packages/google/core/**"
+      - "packages/conformance/android/**"
       - "libraries-versions.jsonc"
       - "codecov.yml"
       - "scripts/install-security-tool.sh"
@@ -18,6 +23,7 @@ on:
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
       - "scripts/ci/retry-gradle.sh"
+      - "scripts/verify-horizon-merged-manifest.mjs"
       - "!**/*.md"
   push:
     branches: [main, next]
@@ -26,8 +32,13 @@ on:
       - "specs/client/src/generated/types.dart"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
+      - "packages/apple/openiap.podspec"
       - "openiap-versions.json"
       - "packages/google/gradle/openiap-store.gradle"
+      - "packages/google/build.gradle.kts"
+      - "packages/google/openiap/**"
+      - "packages/google/core/**"
+      - "packages/conformance/android/**"
       - "libraries-versions.jsonc"
       - "codecov.yml"
       - "scripts/install-security-tool.sh"
@@ -36,6 +47,7 @@ on:
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
       - "scripts/ci/retry-gradle.sh"
+      - "scripts/verify-horizon-merged-manifest.mjs"
       - "!**/*.md"
 
 permissions:

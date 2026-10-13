@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   auditCiPathFilters,
   cases,
+  coverageFindings,
   findPolicyViolations,
   matchesFilter,
   selectJobs,
@@ -107,6 +108,139 @@ test("rejects moving the kit Docker build context below the monorepo root", () =
       assert.ok(
         findPolicyViolations(root).includes(
           "deploy-kit.yml: Deploy must run from github.workspace so the monorepo Docker context contains root manifests and nested specifications",
+        ),
+      );
+    },
+  );
+});
+
+function dropPathEntry(workflows, name, entry) {
+  const file = path.join(workflows, name);
+  const source = fs.readFileSync(file, "utf8");
+  const mutated = source.replaceAll(`      - "${entry}"\n`, "");
+  assert.notEqual(mutated, source, `${name} has no '${entry}' entry`);
+  fs.writeFileSync(file, mutated);
+}
+
+for (const [name, entry, finding] of [
+  // A module a wrapper's Gradle settings include compiles with it.
+  [
+    "ci-flutter-inapp-purchase.yml",
+    "packages/google/core/**",
+    "ci-flutter-inapp-purchase.yml: paths miss packages/google/core/**, which libraries/flutter_inapp_purchase/android/settings.gradle reads",
+  ],
+  // An included build brings its own settings' projects.
+  [
+    "ci-kmp-iap.yml",
+    "packages/conformance/android/**",
+    "ci-kmp-iap.yml: paths miss packages/conformance/android/**, which packages/google/settings.gradle.kts reads",
+  ],
+  // A file a Gradle script reads by path.
+  [
+    "ci-react-native-iap.yml",
+    "packages/google/build.gradle.kts",
+    "ci-react-native-iap.yml: paths miss packages/google/build.gradle.kts, which libraries/react-native-iap/android/build.gradle reads",
+  ],
+  // A script a step runs from the workspace root.
+  [
+    "ci-maui-iap.yml",
+    "scripts/install-xcodegen.sh",
+    "ci-maui-iap.yml: paths miss scripts/install-xcodegen.sh, which ci-maui-iap.yml reads",
+  ],
+  // A script a local composite action runs.
+  [
+    "ci-expo-iap.yml",
+    "scripts/install-security-tool.sh",
+    "ci-expo-iap.yml: paths miss scripts/install-security-tool.sh, which .github/actions/coverage-report/action.yml reads",
+  ],
+]) {
+  test(`derives that ${name} reads ${entry}`, () => {
+    withPatchedWorkflows(
+      (workflows) => dropPathEntry(workflows, name, entry),
+      (root) => {
+        assert.ok(findPolicyViolations(root).includes(finding));
+      },
+    );
+  });
+}
+
+// Replaces (or with `to` null, drops) one entry of a ci.yml dorny filter.
+function patchCiFilter(workflows, filter, from, to) {
+  const file = path.join(workflows, "ci.yml");
+  const source = fs.readFileSync(file, "utf8");
+  const entry = `              - '${from}'\n`;
+  const start = source.indexOf(`\n            ${filter}:\n`);
+  const at = source.indexOf(entry, start);
+  assert.ok(start >= 0 && at > start, `ci.yml ${filter} has no '${from}'`);
+  fs.writeFileSync(
+    file,
+    source.slice(0, at) +
+      (to === null ? "" : `              - '${to}'\n`) +
+      source.slice(at + entry.length),
+  );
+}
+
+for (const [filter, from, to, finding] of [
+  [
+    "cli",
+    ".github/workflows/ci.yml",
+    null,
+    "ci.yml cli: paths miss .github/workflows/ci.yml, which the workflow reads",
+  ],
+  // The job runs in specs/client, so the whole package is its input.
+  [
+    "gql",
+    "specs/client/**",
+    null,
+    "ci.yml gql: paths miss specs/client/**, which ci.yml test-gql reads",
+  ],
+  [
+    "ios",
+    "packages/apple/**",
+    "packages/apple/Sources/**",
+    "ci.yml ios: paths miss packages/apple/**, which ci.yml test-ios reads",
+  ],
+  // openiap-google's Gradle settings include the Android conformance module.
+  [
+    "android",
+    "packages/conformance/**",
+    "packages/conformance/apple/**",
+    "ci.yml android: paths miss packages/conformance/android/**, which packages/google/settings.gradle.kts reads",
+  ],
+]) {
+  test(`derives that ci.yml ${filter} reads ${from}`, () => {
+    withPatchedWorkflows(
+      (workflows) => patchCiFilter(workflows, filter, from, to),
+      (root) => {
+        assert.ok(findPolicyViolations(root).includes(finding));
+      },
+    );
+  });
+}
+
+test("an input no tracked file backs is reported, not passed", () => {
+  assert.deepEqual(
+    coverageFindings("ci-x.yml", ["**/*"], new Map([["gone/file", "a test"]])),
+    ["ci-x.yml: a test reads gone/file, which no tracked file backs"],
+  );
+});
+
+test("a ci.yml filter must cover the workspace packages its job builds against", () => {
+  withPatchedWorkflows(
+    (workflows) => {
+      const file = path.join(workflows, "ci.yml");
+      const source = fs.readFileSync(file, "utf8");
+      const mutated = source.replace(
+        /(\n {12}docs:\n(?: {14}.*\n)*?) {14}- 'packages\/mcp-server\/\*\*'\n/u,
+        "$1",
+      );
+      assert.notEqual(mutated, source, "docs filter fixture did not match");
+      fs.writeFileSync(file, mutated);
+    },
+    (root) => {
+      assert.ok(
+        findPolicyViolations(root).includes(
+          "ci.yml docs: paths miss packages/mcp-server/**, which packages/docs/package.json reads",
         ),
       );
     },

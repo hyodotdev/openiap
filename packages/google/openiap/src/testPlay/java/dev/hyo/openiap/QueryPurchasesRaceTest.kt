@@ -120,11 +120,12 @@ class QueryPurchasesRaceTest {
     }
 
     @Test
-    fun `queryAlreadyOwnedPurchases excludes ownership older than the purchase flow`() {
+    fun `queryAlreadyOwnedPurchases keeps only tokens new since the launch`() {
         val client = DuplicateBillingClient(
             purchases = listOf(
-                billingPurchase("requested-product", "old-token", purchaseTime = 999),
-                billingPurchase("requested-product", "new-token", purchaseTime = 1_001),
+                billingPurchase("requested-product", "old-token", purchaseTime = 1_001),
+                billingPurchase("requested-product", "new-pending-token", pending = true),
+                billingPurchase("requested-product", "new-token", purchaseTime = 999),
             )
         )
         val recoveredTokens = mutableListOf<String>()
@@ -133,12 +134,12 @@ class QueryPurchasesRaceTest {
             client,
             BillingClient.ProductType.SUBS,
             listOf("requested-product"),
-            purchasedSinceMillis = 1_000.0,
+            tokensBeforeLaunch = setOf("old-token"),
         ) { purchases ->
             recoveredTokens += purchases.mapNotNull { it.purchaseToken }
         }
 
-        assertEquals(listOf("new-token"), recoveredTokens)
+        assertEquals(listOf("new-pending-token", "new-token"), recoveredTokens)
     }
 
     @Test
@@ -328,6 +329,7 @@ class QueryPurchasesRaceTest {
         productId: String,
         token: String,
         purchaseTime: Long = 1,
+        pending: Boolean = false,
     ): Purchase = Purchase(
         """
         {
@@ -336,7 +338,7 @@ class QueryPurchasesRaceTest {
           "productId": "$productId",
           "productIds": ["$productId"],
           "purchaseTime": $purchaseTime,
-          "purchaseState": 0,
+          "purchaseState": ${if (pending) 4 else 0},
           "purchaseToken": "$token",
           "quantity": 1,
           "acknowledged": false

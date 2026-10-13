@@ -35,6 +35,11 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 2. Extract and copy `addons/godot-iap/` to your project's `addons/` folder
 3. Enable the plugin in **Project → Project Settings → Plugins**
 
+Enabling the plugin adds the `GodotIapPlugin` autoload. Connect purchase
+signals on one wrapper only, either that autoload or your own
+`GodotIapWrapper` node: every wrapper re-emits each store event, so listening
+on two would finish a purchase twice.
+
 Android exports require **AGP 8.9.1+**, **Gradle 8.11.1+**, **Android SDK 36+**, and **JDK 17**.
 Install the Android build template and enable **Use Gradle Build**.
 Update any wrapper older than Gradle 8.11.1 before exporting; Godot 4.3's

@@ -7,16 +7,18 @@ function Layout() {
   const location = useLocation();
   // Both documentation sections lay out their own full-height sidebar, so
   // the site footer would sit under an empty column.
-  const hasSidebar =
-    location.pathname.startsWith('/docs') ||
-    location.pathname.startsWith('/commerce-protocol');
+  const hasSidebar = /^\/(?:docs|commerce-protocol)(?:\/|$)/.test(
+    location.pathname
+  );
+  // DocsShell marks its content column as the page's one main landmark.
+  const Content = hasSidebar ? 'div' : 'main';
 
   return (
     <div className="layout">
       <Navigation />
-      <main className="main-content">
+      <Content className="main-content">
         <Outlet />
-      </main>
+      </Content>
       {!hasSidebar && <Footer />}
     </div>
   );

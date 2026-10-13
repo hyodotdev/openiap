@@ -27,6 +27,10 @@ export interface ReplayBucket {
   lastFailureMs?: number;
 }
 
+// Runs after the JSON validator; its parsed body is the default payload.
+type ReplayGuardEnv = { Variables: ReplayGuardVars };
+type ReplayGuardInput = { out: { json: ReplayPayload } };
+
 export interface ReplayGuardConfig {
   capacity: number;
   refillPerSecond: number;
@@ -40,7 +44,9 @@ export interface ReplayGuardConfig {
    * validator's parsed body (`c.req.valid("json")`); the commerce binding,
    * which parses and validates its own body, injects it here instead.
    */
-  getPayload?: (c: Context) => ReplayPayload;
+  getPayload?: (
+    c: Context<ReplayGuardEnv, string, ReplayGuardInput>,
+  ) => ReplayPayload;
   /** Renders the 429 body; defaults to the /v1 error envelope. */
   respond?: (
     c: Context,
@@ -210,6 +216,36 @@ export function tryConsumeReplay(
 }
 
 /**
+ * Gives back the token an attempt without a verdict spent (capacity full, store
+ * outage), so honest backoff retries are not counted as duplicates.
+ */
+export function refundReplayToken(
+  store: Map<string, ReplayBucket>,
+  bucketKey: string,
+  capacity: number,
+): void {
+  const bucket = store.get(bucketKey);
+  // LRU churn can evict an in-flight request's bucket. Its absence already
+  // gives the next request a fresh bucket, so recreating it is unnecessary.
+  if (!bucket) return;
+  store.delete(bucketKey);
+  bucket.tokens = Math.min(capacity, bucket.tokens + 1);
+  store.set(bucketKey, bucket);
+}
+
+// Verification marks "the store did not answer" with retryAfterSec. RATE_LIMITED
+// carries one too, but it is a verdict on the caller, so it stays charged.
+export function isStoreOutageError<
+  T extends { code: string; retryAfterSec?: number },
+>(error: T | null): error is T & { retryAfterSec: number } {
+  return (
+    error !== null &&
+    error.code !== "RATE_LIMITED" &&
+    error.retryAfterSec !== undefined
+  );
+}
+
+/**
  * Starts the failure cooldown after the store definitively rejects a payload.
  * Thrown handler errors (network, config, missing project) never get here:
  * they aren't a store verdict, and a retry may succeed. Creates the bucket,
@@ -286,7 +322,9 @@ type ReplayGuardVars = {
 
 export function replayGuardMiddleware(
   config: Partial<ReplayGuardConfig> = {},
-): ReturnType<typeof createMiddleware<{ Variables: ReplayGuardVars }>> {
+): ReturnType<
+  typeof createMiddleware<ReplayGuardEnv, string, ReplayGuardInput>
+> {
   const capacity = config.capacity ?? DEFAULT_CAPACITY;
   const refillPerSecond = config.refillPerSecond ?? DEFAULT_REFILL_PER_SEC;
   const maxStoreSize = config.maxStoreSize ?? DEFAULT_MAX_STORE_SIZE;
@@ -294,100 +332,96 @@ export function replayGuardMiddleware(
     config.failureCooldownMs ?? DEFAULT_FAILURE_COOLDOWN_MS;
   const store = config.store ?? sharedStore;
   const clock = config.now ?? (() => Date.now());
-  const getPayload = config.getPayload ?? ((c) => c.req.valid("json" as never));
+  const getPayload = config.getPayload ?? ((c) => c.req.valid("json"));
 
-  function refundCapacityRejectedAttempt(bucketKey: string): void {
-    const bucket = store.get(bucketKey);
-    if (!bucket) {
-      // LRU churn can evict an in-flight request's bucket. Its absence already
-      // gives the next request a fresh bucket, so recreating it is unnecessary.
-      return;
-    }
-    store.delete(bucketKey);
-    bucket.tokens = Math.min(capacity, bucket.tokens + 1);
-    store.set(bucketKey, bucket);
-  }
+  return createMiddleware<ReplayGuardEnv, string, ReplayGuardInput>(
+    async (c, next) => {
+      const apiKeyHash = c.var.apiKeyHash;
 
-  return createMiddleware<{ Variables: ReplayGuardVars }>(async (c, next) => {
-    const apiKeyHash = c.var.apiKeyHash;
-
-    // `rateLimitMiddleware` sets this. Missing means the chain is misordered;
-    // a 500 beats silently letting replay traffic through.
-    if (!apiKeyHash) {
-      return c.json(
-        {
-          errors: [
-            {
-              code: "INTERNAL_MISCONFIGURATION",
-              message:
-                "Replay guard ran before the API key hash was populated.",
-            },
-          ],
-        },
-        500,
-      );
-    }
-
-    // Already schema-validated (valibot for /v1, JSON Schema for commerce).
-    const body = getPayload(c);
-
-    const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;
-    const result = tryConsumeReplay(
-      store,
-      bucketKey,
-      capacity,
-      refillPerSecond,
-      clock(),
-      maxStoreSize,
-      failureCooldownMs,
-    );
-
-    if (!result.allowed) {
-      c.header("Retry-After", String(result.retryAfterSec));
-      if (config.respond && result.reason) {
-        return config.respond(c, {
-          reason: result.reason,
-          retryAfterSec: result.retryAfterSec,
-        });
+      // `rateLimitMiddleware` sets this. Missing means the chain is misordered;
+      // a 500 beats silently letting replay traffic through.
+      if (!apiKeyHash) {
+        return c.json(
+          {
+            errors: [
+              {
+                code: "INTERNAL_MISCONFIGURATION",
+                message:
+                  "Replay guard ran before the API key hash was populated.",
+              },
+            ],
+          },
+          500,
+        );
       }
-      const code =
-        result.reason === "repeated_failure"
-          ? "REPEATED_FAILURE"
-          : "DUPLICATE_PAYLOAD";
-      const message =
-        result.reason === "repeated_failure"
-          ? `This receipt payload was just rejected; the same payload won't be re-verified for ${result.retryAfterSec}s. If you believe this is wrong, wait the cooldown then retry — store verdicts and product-match guard results almost never change within seconds.`
-          : `Too many verifications for the same payload from this API key. Legitimate clients re-verify a receipt at most a handful of times per minute. Retry after ${result.retryAfterSec}s, or cache the previous result on your side.`;
-      return c.json(
-        {
-          errors: [{ code, message }],
-        },
-        429,
-      );
-    }
 
-    try {
-      await next();
-    } finally {
-      if (c.get("verifyCapacityRejected") === true) {
-        // SERVICE_BUSY returns before the store is called; charging it would
-        // turn honest backoff retries into DUPLICATE_PAYLOAD.
-        refundCapacityRejectedAttempt(bucketKey);
-      } else {
-        // In `finally` so a handler exception can't skip marking a stable
-        // rejection. Horizon is exempt: it checks current ownership of
-        // (userId, sku), and the user can buy right after `success: false`.
-        // The token bucket still limits Horizon bursts.
-        const outcome = c.get("verifyOutcome");
-        if (
-          body.store !== "horizon" &&
-          outcome &&
-          outcome.isValid === false &&
-          isStableRejection(outcome.state, outcome.stableRejection === true)
-        ) {
-          markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
+      // Already schema-validated (valibot for /v1, JSON Schema for commerce).
+      const body = getPayload(c);
+
+      const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;
+      const result = tryConsumeReplay(
+        store,
+        bucketKey,
+        capacity,
+        refillPerSecond,
+        clock(),
+        maxStoreSize,
+        failureCooldownMs,
+      );
+
+      if (!result.allowed) {
+        c.header("Retry-After", String(result.retryAfterSec));
+        if (config.respond && result.reason) {
+          return config.respond(c, {
+            reason: result.reason,
+            retryAfterSec: result.retryAfterSec,
+          });
+        }
+        const code =
+          result.reason === "repeated_failure"
+            ? "REPEATED_FAILURE"
+            : "DUPLICATE_PAYLOAD";
+        const message =
+          result.reason === "repeated_failure"
+            ? `This receipt payload was just rejected; the same payload won't be re-verified for ${result.retryAfterSec}s. If you believe this is wrong, wait the cooldown then retry — store verdicts and product-match guard results almost never change within seconds.`
+            : `Too many verifications for the same payload from this API key. Legitimate clients re-verify a receipt at most a handful of times per minute. Retry after ${result.retryAfterSec}s, or cache the previous result on your side.`;
+        return c.json(
+          {
+            errors: [{ code, message }],
+          },
+          429,
+        );
+      }
+
+      try {
+        await next();
+      } finally {
+        if (c.get("verifyCapacityRejected") === true) {
+          // SERVICE_BUSY and a store outage carry no verdict; charging them
+          // would turn honest backoff retries into DUPLICATE_PAYLOAD.
+          refundReplayToken(store, bucketKey, capacity);
+        } else {
+          // In `finally` so a handler exception can't skip marking a stable
+          // rejection. Horizon is exempt: it checks current ownership of
+          // (userId, sku), and the user can buy right after `success: false`.
+          // The token bucket still limits Horizon bursts.
+          const outcome = c.get("verifyOutcome");
+          if (
+            body.store !== "horizon" &&
+            outcome &&
+            outcome.isValid === false &&
+            isStableRejection(outcome.state, outcome.stableRejection === true)
+          ) {
+            markPayloadFailure(
+              store,
+              bucketKey,
+              capacity,
+              clock(),
+              maxStoreSize,
+            );
+          }
         }
       }
-    }
-  });
+    },
+  );
 }

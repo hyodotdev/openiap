@@ -104,7 +104,7 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
+// Returns an empty list on Android
 var txs = await ((QueryResolver)OpenIapClient.Instance).GetAllTransactionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (

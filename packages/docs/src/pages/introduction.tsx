@@ -180,7 +180,7 @@ function Introduction() {
         </div>
       </header>
 
-      <main className="in-shell in-main">
+      <div className="in-shell in-main">
         <section className="in-section" aria-labelledby="rewrite-tax">
           <div className="in-section-heading">
             <div>
@@ -521,7 +521,7 @@ function Introduction() {
             </a>
           </div>
         </aside>
-      </main>
+      </div>
     </div>
   );
 }

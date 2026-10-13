@@ -7,6 +7,10 @@ import {
   getWritableOrganization,
   getWritableProject,
 } from "../projects/writable";
+import {
+  getGooglePlayFileByProjectFromDb,
+  getProjectAppleP8File,
+} from "./internal";
 
 async function getPendingProjectIdsForOrganization(
   ctx: QueryCtx,
@@ -292,14 +296,11 @@ export const getAppStoreFileByProject = query({
       return null;
     }
 
-    // by_project, not by_organization: read only this project's files.
-    const projectFiles = await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-
-    const appStoreFile = projectFiles.find((f) => f.purpose === "apple_p8_key");
-
+    const appStoreFile = await getProjectAppleP8File(
+      ctx,
+      args.projectId,
+      "apple_p8_key",
+    );
     if (!appStoreFile) {
       return null;
     }
@@ -315,8 +316,7 @@ export const getAppStoreFileByProject = query({
 });
 
 // The App Store Connect API key: a different .p8 than
-// `getAppStoreFileByProject` returns (see schema.ts). Used by `products/asc.ts`
-// push-sync.
+// `getAppStoreFileByProject` returns (see schema.ts).
 export const getAscApiKeyFileByProject = query({
   args: {
     projectId: v.id("projects"),
@@ -339,12 +339,10 @@ export const getAscApiKeyFileByProject = query({
     if (!membership) {
       return null;
     }
-    const projectFiles = await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-    const ascFile = projectFiles.find(
-      (f) => f.purpose === "apple_p8_asc_api_key",
+    const ascFile = await getProjectAppleP8File(
+      ctx,
+      args.projectId,
+      "apple_p8_asc_api_key",
     );
     if (!ascFile) {
       return null;
@@ -386,14 +384,7 @@ export const getGooglePlayFileByProject = query({
       return null;
     }
 
-    const projectFiles = await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-
-    const googlePlayFile = projectFiles.find(
-      (f) => f.purpose === "android_service_account",
-    );
+    const googlePlayFile = await getGooglePlayFileByProjectFromDb(ctx, project);
 
     if (!googlePlayFile) {
       return null;

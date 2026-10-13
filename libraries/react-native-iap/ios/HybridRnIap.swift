@@ -901,14 +901,8 @@ class HybridRnIap: HybridRnIapSpec {
                 let payloads = statuses.map { RnIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
                 RnIapLog.result("subscriptionStatusIOS", payloads)
                 let result: [NitroSubscriptionStatus] = payloads.map { payload in
-                    let stateValue: Double
-                    if let numeric = RnIapHelper.doubleValue(payload["state"]) {
-                        stateValue = numeric
-                    } else if let stateString = payload["state"] as? String {
-                        stateValue = stateString.lowercased() == "subscribed" ? 1 : 0
-                    } else {
-                        stateValue = 0
-                    }
+                    // OpenIAP emits StoreKit's renewal-state names, such as "subscribed".
+                    let state = payload["state"] as? String ?? "unknown"
                     let platform = payload["platform"] as? String ?? "ios"
                     var renewalInfo: Variant_NullType_NitroRenewalInfoIOS? = nil
                     if let renewalPayload = payload["renewalInfo"] as? [String: Any?] {
@@ -918,7 +912,7 @@ class HybridRnIap: HybridRnIapSpec {
                             )
                         )
                     }
-                    return NitroSubscriptionStatus(state: stateValue, platform: platform, renewalInfo: renewalInfo)
+                    return NitroSubscriptionStatus(state: state, platform: platform, renewalInfo: renewalInfo)
                 }
                 return .second(result)
             } catch let purchaseError as PurchaseError {

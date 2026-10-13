@@ -38,7 +38,6 @@ import type {
 import {
   toPascalCasePreserveIOS,
   toCamelCasePreserveIOS,
-  toConstantCase,
   capitalize,
   GRAPHQL_TO_CSHARP,
   requireGraphQLScalarMapping,
@@ -416,8 +415,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('    {');
     for (const value of irEnum.values) {
       const caseName = this.enumValueCase(value.name);
-      const aliases = new Set<string>([value.rawValue, toConstantCase(value.name), value.name]);
-      for (const alias of aliases) {
+      for (const alias of this.enumSpellings(value)) {
         this.emit(`        ["${alias}"] = ${irEnum.name}.${caseName},`);
       }
     }
@@ -748,10 +746,6 @@ export class CSharpPlugin extends CodegenPlugin {
     const reason = this.deprecationReason(description);
     if (!reason) return;
     this.emit(`${indent}[Obsolete(${this.csharpStringLiteral(reason)})]`);
-  }
-
-  private deprecationReason(description: string | undefined): string | null {
-    return description?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]?.trim() || null;
   }
 
   private generateResultUnionObject(irObject: IRObject): void {

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { StaticRouter } from 'react-router-dom';
 import { archiveDownloads } from '../vite.config.ts';
 import { canonicalPaths, pageHtml, sitemapXml } from './prerender.mjs';
 
@@ -79,6 +80,7 @@ test('includes every language and platform without nesting noscript fallbacks', 
     root: fileURLToPath(new URL('..', import.meta.url)),
     server: { middlewareMode: true },
     appType: 'custom',
+    ssr: { resolve: { externalConditions: ['node', 'module-sync'] } },
   });
   try {
     const { default: LanguageTabs } = await vite.ssrLoadModule(
@@ -98,25 +100,29 @@ test('includes every language and platform without nesting noscript fallbacks', 
     ];
     const platforms = ['ios', 'android', 'amazon', 'horizon'];
     const html = renderToStaticMarkup(
-      createElement(PlatformTabs, {
-        children: Object.fromEntries(
-          platforms.map((platform) => [
-            platform,
-            createElement(LanguageTabs, {
-              children: Object.fromEntries(
-                languages.map((language) => [
-                  language,
-                  createElement(
-                    'code',
-                    null,
-                    `example-${platform}-${language}`
-                  ),
-                ])
-              ),
-            }),
-          ])
-        ),
-      })
+      createElement(
+        StaticRouter,
+        { location: '/' },
+        createElement(PlatformTabs, {
+          children: Object.fromEntries(
+            platforms.map((platform) => [
+              platform,
+              createElement(LanguageTabs, {
+                children: Object.fromEntries(
+                  languages.map((language) => [
+                    language,
+                    createElement(
+                      'code',
+                      null,
+                      `example-${platform}-${language}`
+                    ),
+                  ])
+                ),
+              }),
+            ])
+          ),
+        })
+      )
     );
     for (const platform of platforms) {
       for (const language of languages) {

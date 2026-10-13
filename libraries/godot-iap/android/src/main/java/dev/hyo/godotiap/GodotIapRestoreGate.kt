@@ -1,7 +1,5 @@
 package dev.hyo.godotiap
 
-import dev.hyo.openiap.ErrorCode
-import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.StoreIds
 import org.json.JSONObject
 
@@ -26,14 +24,6 @@ internal class GodotIapRestoreGate {
         }
     }
 }
-
-/** Restore before connecting reports not-prepared, like the purchase queries. */
-internal fun restoreNotInitialized(): String =
-    JSONObject().apply {
-        put("success", false)
-        put("code", "not-prepared")
-        put("error", "IAP connection is not initialized")
-    }.toString()
 
 /**
  * Only the Horizon restore notifies purchase listeners, so only it runs
@@ -67,10 +57,6 @@ internal suspend fun runSilentRestore(
         }.toString()
     } catch (error: Exception) {
         onFailure(error)
-        JSONObject().apply {
-            put("success", false)
-            put("code", (error as? OpenIapError)?.code ?: ErrorCode.ServiceError.toJson())
-            put("error", error.message)
-        }.toString()
+        failureJson(error)
     }
 }

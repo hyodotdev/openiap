@@ -56,7 +56,11 @@ function UserChoiceBillingListenerAndroid() {
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val userChoiceBillingListenerAndroid: Flow<UserChoiceBillingDetails>
+
+// Next selection only. On Play it throws unless initConnection enabled
+// UserChoiceBilling.
+suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails`}</CodeBlock>
           ),
           dart: (
             <CodeBlock language="dart">{`Stream<UserChoiceBillingDetails> get userChoiceBillingAndroid;
@@ -142,21 +146,22 @@ openIapStore.removeUserChoiceBillingListener(userChoiceListener)`}</CodeBlock>
 
 val kmpIAP = KmpIAP()
 
-// Start this before requestPurchase; it suspends until the next selection.
+// Collect before initConnection so no selection is missed.
 lifecycleScope.launch {
-    val details = kmpIAP.userChoiceBillingAndroid()
-    println("User chose alternative billing")
-    println("Products: \${details.products}")
-    println("External transaction token received; send it to your backend without logging it.")
+    kmpIAP.userChoiceBillingListenerAndroid.collect { details ->
+        println("User chose alternative billing")
+        println("Products: \${details.products}")
+        println("External transaction token received; send it to your backend without logging it.")
 
-    val paymentResult = processPaymentWithBackend(
-        products = details.products,
-        token = details.externalTransactionToken
-    )
+        val paymentResult = processPaymentWithBackend(
+            products = details.products,
+            token = details.externalTransactionToken
+        )
 
-    if (paymentResult.success) {
-        // Backend should report token to Google Play within 24 hours
-        grantUserAccess(details.products)
+        if (paymentResult.success) {
+            // Backend should report token to Google Play within 24 hours
+            grantUserAccess(details.products)
+        }
     }
 }`}</CodeBlock>
           ),

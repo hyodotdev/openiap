@@ -6,7 +6,10 @@ vi.mock("@convex-dev/auth/server", () => ({
   getAuthUserId: authMocks.getAuthUserId,
 }));
 
+import { generateKeyPairSync } from "node:crypto";
+
 import {
+  getAppleP8KeyFile as registeredGetAppleP8KeyFile,
   getAppleReviewScreenshotByProjectInternal as registeredGetScreenshot,
   getGooglePlayFileByProjectInternal as registeredGetGooglePlayFile,
   readFileAsBase64 as registeredReadFileAsBase64,
@@ -15,6 +18,7 @@ import {
   drainGoogleServiceAccountFiles as registeredDrainGoogleServiceAccountFiles,
   GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE,
   GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE,
+  insertAppleP8Key as registeredInsertAppleP8Key,
   resumeGoogleServiceAccountCleanup as registeredResumeGoogleServiceAccountCleanup,
   rejectAppleReviewScreenshotValidation as registeredRejectValidation,
   remove as registeredRemove,
@@ -22,10 +26,17 @@ import {
 } from "./mutation";
 import {
   decodeAppleReviewScreenshot,
+  validateAppleP8KeyContent,
   validateGoogleServiceAccountPrivateKey,
   validateAppleReviewScreenshotUpload as registeredValidateUpload,
 } from "./action";
+import {
+  getAppStoreFileByProject as registeredGetAppStoreFileByProject,
+  getAscApiKeyFileByProject as registeredGetAscApiKeyFileByProject,
+  list as registeredListFiles,
+} from "./query";
 import { validateGoogleServiceAccountContent } from "./validation";
+import type { Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
 
 const getScreenshot = testableFunction(registeredGetScreenshot);
@@ -36,6 +47,15 @@ const readFileAsBase64 = testableFunction(
   _handler: (ctx: unknown, args: unknown) => Promise<Record<string, unknown>>;
 };
 const saveFile = testableFunction(registeredSaveFile);
+const insertAppleP8Key = testableFunction(registeredInsertAppleP8Key);
+const getAppleP8KeyFile = testableFunction(registeredGetAppleP8KeyFile);
+const getAppStoreFileByProject = testableFunction(
+  registeredGetAppStoreFileByProject,
+);
+const getAscApiKeyFileByProject = testableFunction(
+  registeredGetAscApiKeyFileByProject,
+);
+const listFiles = testableFunction(registeredListFiles);
 const drainGoogleServiceAccountFiles = testableFunction(
   registeredDrainGoogleServiceAccountFiles,
 );
@@ -134,6 +154,10 @@ class TestQuery {
 
   async take(count: number): Promise<Row[]> {
     return this.rows.slice(0, count);
+  }
+
+  async *[Symbol.asyncIterator](): AsyncGenerator<Row> {
+    yield* this.rows;
   }
 }
 
@@ -1114,5 +1138,241 @@ describe("App Review screenshot private storage", () => {
     });
     expect(result).not.toHaveProperty("storageId");
     expect(result).not.toHaveProperty("url");
+  });
+});
+
+describe("Apple .p8 keys", () => {
+  const pem = (type: "ec" | "rsa"): string =>
+    (type === "ec"
+      ? generateKeyPairSync("ec", { namedCurve: "prime256v1" })
+      : generateKeyPairSync("rsa", { modulusLength: 2048 })
+    ).privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  beforeEach(() => {
+    authMocks.getAuthUserId.mockReset();
+    authMocks.getAuthUserId.mockResolvedValue("users_a");
+  });
+
+  it("accepts only a parseable P-256 private key", () => {
+    expect(() => validateAppleP8KeyContent(pem("ec"))).not.toThrow();
+    expect(() =>
+      validateAppleP8KeyContent(
+        "-----BEGIN PRIVATE KEY-----\na\nb\nc\n-----END PRIVATE KEY-----",
+      ),
+    ).toThrow("does not contain a readable private key");
+    expect(() => validateAppleP8KeyContent(pem("rsa"))).toThrow("P-256");
+    expect(() => validateAppleP8KeyContent("not a key")).toThrow();
+  });
+
+  it("never registers a .p8 through the unvalidated upload-URL path", async () => {
+    const { ctx, storage, tables, saveArgs } = makeSaveCtx({});
+
+    await expect(
+      saveFile._handler(ctx, {
+        ...saveArgs,
+        organizationId: saveArgs.organizationId as Id<"organizations">,
+        projectId: saveArgs.projectId as Id<"projects">,
+        uploadReservationId:
+          saveArgs.uploadReservationId as Id<"fileUploadReservations">,
+        storageId: saveArgs.storageId as Id<"_storage">,
+        purpose: "apple_p8_key",
+        fileName: "AuthKey.p8",
+      }),
+    ).resolves.toMatchObject({ success: false, code: "INVALID_FILE" });
+    expect(tables.files?.map((file) => file._id)).toEqual(["files_old"]);
+    expect(storage.delete).toHaveBeenCalledWith("storage_new");
+    expect(tables.fileUploadReservations).toHaveLength(0);
+  });
+
+  function p8Ctx(role: "admin" | "member") {
+    const tables: Record<string, Row[]> = {
+      organizations: [{ _id: "organizations_a" }],
+      projects: [{ _id: "projects_a", organizationId: "organizations_a" }],
+      organizationMembers: [
+        {
+          _id: "members_a",
+          organizationId: "organizations_a",
+          userId: "users_a",
+          role,
+        },
+      ],
+      files: [
+        {
+          _id: "files_old_key",
+          projectId: "projects_a",
+          purpose: "apple_p8_key",
+          storageId: "storage_old_key",
+        },
+      ],
+    };
+    const db = new TestDb(tables, { storage_old_key: 200, storage_new: 200 });
+    const storage = { delete: vi.fn(async () => undefined) };
+    const args = {
+      organizationId: "organizations_a" as Id<"organizations">,
+      projectId: "projects_a" as Id<"projects">,
+      purpose: "apple_p8_key" as const,
+      fileName: "AuthKey.p8",
+      fileType: "",
+      fileSize: 200,
+      storageId: "storage_new" as Id<"_storage">,
+    };
+    return { ctx: { db, storage }, tables, storage, args };
+  }
+
+  it("lets only admins replace a project's .p8 slot", async () => {
+    const member = p8Ctx("member");
+    await expect(
+      insertAppleP8Key._handler(member.ctx, member.args),
+    ).resolves.toEqual({ success: false, code: "INSUFFICIENT_PERMISSIONS" });
+    expect(member.tables.files?.map((file) => file._id)).toEqual([
+      "files_old_key",
+    ]);
+
+    const admin = p8Ctx("admin");
+    await expect(
+      insertAppleP8Key._handler(admin.ctx, admin.args),
+    ).resolves.toMatchObject({ success: true, purpose: "apple_p8_key" });
+    expect(admin.tables.files).toMatchObject([
+      { projectId: "projects_a", storageId: "storage_new", isInternal: true },
+    ]);
+    expect(admin.storage.delete).toHaveBeenCalledWith("storage_old_key");
+  });
+
+  it("signs with the legacy duplicate the dashboard shows", async () => {
+    const { ctx } = p8Ctx("admin");
+    const row = (_id: string, purpose: string) => ({
+      _id,
+      organizationId: "organizations_a",
+      projectId: "projects_a",
+      uploadedBy: "users_a",
+      purpose,
+    });
+    ctx.db.tables.files = [
+      row("server_a", "apple_p8_key"),
+      row("asc_a", "apple_p8_asc_api_key"),
+      row("server_b", "apple_p8_key"),
+      row("asc_b", "apple_p8_asc_api_key"),
+    ];
+    const projectId = "projects_a" as Id<"projects">;
+    const listed = await listFiles._handler(ctx, {
+      organizationId: "organizations_a" as Id<"organizations">,
+    });
+    for (const [purpose, dashboardQuery] of [
+      ["apple_p8_key", getAppStoreFileByProject],
+      ["apple_p8_asc_api_key", getAscApiKeyFileByProject],
+    ] as const) {
+      const signing = await getAppleP8KeyFile._handler(ctx, {
+        projectId,
+        purpose,
+        keyId: "A",
+      });
+      const oldest = purpose === "apple_p8_key" ? "server_a" : "asc_a";
+      expect(signing?._id).toBe(oldest);
+      await expect(
+        dashboardQuery._handler(ctx, { projectId }),
+      ).resolves.toMatchObject({ _id: oldest });
+      // The settings page shows the first matching row of `list`.
+      expect(
+        listed.find(
+          (file) => file.purpose === purpose && file.projectId === projectId,
+        )?._id,
+      ).toBe(oldest);
+    }
+  });
+
+  it("prefers another project's key configured with the same key ID", async () => {
+    const key = (
+      _id: string,
+      organizationId: string,
+      projectId?: string,
+      purpose = "apple_p8_key",
+    ) => ({
+      _id,
+      organizationId,
+      ...(projectId ? { projectId } : {}),
+      purpose,
+    });
+    const files = [
+      key("a_old", "organizations_a", "projects_a"),
+      key("a_new", "organizations_a", "projects_a"),
+      key("k1_key", "organizations_a", "projects_k1"),
+      key(
+        "k1_asc_key",
+        "organizations_a",
+        "projects_k1",
+        "apple_p8_asc_api_key",
+      ),
+      key("k2_newer_key", "organizations_a", "projects_k2"),
+      // A legacy duplicate: projects_k1 still signs with its oldest row.
+      key("k1_newer_duplicate", "organizations_a", "projects_k1"),
+      key("other_org_key", "organizations_f", "projects_f"),
+    ];
+    const db = new TestDb(
+      {
+        projects: [
+          { _id: "projects_a", organizationId: "organizations_a" },
+          { _id: "projects_c", organizationId: "organizations_a" },
+          {
+            _id: "projects_k1",
+            organizationId: "organizations_a",
+            iosAppStoreKeyId: "K1",
+            iosAscKeyId: "ASC1",
+          },
+          {
+            _id: "projects_k2",
+            organizationId: "organizations_a",
+            iosAppStoreKeyId: "K2",
+          },
+          {
+            _id: "projects_f",
+            organizationId: "organizations_f",
+            iosAppStoreKeyId: "K3",
+          },
+        ],
+        files,
+      },
+      {},
+    );
+    const lookup = (
+      projectId: string,
+      keyId?: string,
+      purpose: "apple_p8_key" | "apple_p8_asc_api_key" = "apple_p8_key",
+    ) =>
+      getAppleP8KeyFile._handler(
+        { db },
+        { projectId: projectId as Id<"projects">, purpose, keyId },
+      );
+
+    await expect(lookup("projects_a", "K2")).resolves.toMatchObject({
+      _id: "a_old",
+    });
+    // The older K1 key, not the newer sibling's K2 key.
+    await expect(lookup("projects_c", "K1")).resolves.toMatchObject({
+      _id: "k1_key",
+    });
+    await expect(lookup("projects_c", "K2")).resolves.toMatchObject({
+      _id: "k2_newer_key",
+    });
+    await expect(
+      lookup("projects_c", "ASC1", "apple_p8_asc_api_key"),
+    ).resolves.toMatchObject({ _id: "k1_asc_key" });
+    // No key ID match: the organization's oldest key, as before key IDs were checked.
+    await expect(lookup("projects_c", "ASC1")).resolves.toMatchObject({
+      _id: "a_old",
+    });
+    await expect(lookup("projects_c", "K3")).resolves.toMatchObject({
+      _id: "a_old",
+    });
+    await expect(lookup("projects_c")).resolves.toMatchObject({
+      _id: "a_old",
+    });
+    // An organization-level key records no key ID, so it follows a key ID match.
+    files.push(key("org_key", "organizations_a"));
+    await expect(lookup("projects_c", "K1")).resolves.toMatchObject({
+      _id: "k1_key",
+    });
+    await expect(lookup("projects_c", "K9")).resolves.toMatchObject({
+      _id: "org_key",
+    });
   });
 });

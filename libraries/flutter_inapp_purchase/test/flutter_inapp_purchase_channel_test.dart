@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -2125,6 +2126,103 @@ void main() {
           <String, dynamic>{'dedupeTransactionIOS': false},
           <String, dynamic>{'dedupeTransactionIOS': true},
         ]);
+      },
+    );
+
+    test(
+      'keeps native dedupe off until the last opt-out across instances cancels',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call);
+          return call.method == 'initConnection' ? true : null;
+        });
+
+        Object? optionArguments() => calls
+            .where((call) => call.method == 'setPurchaseUpdatedListenerOptions')
+            .map((call) => call.arguments)
+            .toList();
+        StreamSubscription<types.Purchase> optOut(FlutterInappPurchase iap) =>
+            iap
+                .purchaseUpdatedListenerWithOptions(
+                  const types.PurchaseUpdatedListenerOptions(
+                    dedupeTransactionIOS: false,
+                  ),
+                )
+                .listen((_) {});
+        Future<void> settle() async {
+          await Future<void>.delayed(Duration.zero);
+          await Future<void>.delayed(Duration.zero);
+        }
+
+        final first = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+        final second = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+        await first.initConnection();
+        await second.initConnection();
+        final firstSub = optOut(first);
+        final secondSub = optOut(second);
+        await settle();
+
+        await firstSub.cancel();
+        await settle();
+        expect(optionArguments(), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+        ]);
+
+        await secondSub.cancel();
+        await settle();
+        expect(optionArguments(), <Object?>[
+          <String, dynamic>{'dedupeTransactionIOS': false},
+          <String, dynamic>{'dedupeTransactionIOS': true},
+        ]);
+      },
+    );
+
+    test(
+      'initConnection on any instance waits for pending listener options',
+      () async {
+        final calls = <String>[];
+        final optionsApplied = Completer<void>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          calls.add(call.method);
+          if (call.method == 'setPurchaseUpdatedListenerOptions') {
+            await optionsApplied.future;
+          }
+          return call.method == 'initConnection' ? true : null;
+        });
+
+        final first = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+        final second = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: 'ios'),
+        );
+        final sub = first
+            .purchaseUpdatedListenerWithOptions(
+              const types.PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: false,
+              ),
+            )
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+
+        final connected = second.initConnection();
+        await Future<void>.delayed(Duration.zero);
+        expect(calls, <String>['setPurchaseUpdatedListenerOptions']);
+
+        optionsApplied.complete();
+        expect(await connected, isTrue);
+        expect(calls, <String>[
+          'setPurchaseUpdatedListenerOptions',
+          'initConnection',
+        ]);
+        await sub.cancel();
       },
     );
 

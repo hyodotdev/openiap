@@ -23,7 +23,7 @@ export const apiData: ApiItem[] = [
     title: 'initConnection',
     category: 'Connection',
     description: 'Initialize connection to the store service',
-    parameters: '',
+    parameters: 'config: InitConnectionConfig',
     returns: 'Boolean!',
     path: '/docs/apis/init-connection',
   },
@@ -43,8 +43,8 @@ export const apiData: ApiItem[] = [
     title: 'fetchProducts',
     category: 'Products',
     description: 'Retrieve products or subscriptions from the store',
-    parameters: 'ProductRequest',
-    returns: '[Product!]!',
+    parameters: 'params: ProductRequest!',
+    returns: 'FetchProductsResult!',
     path: '/docs/apis/fetch-products',
   },
   {
@@ -52,7 +52,7 @@ export const apiData: ApiItem[] = [
     title: 'getAvailablePurchases',
     category: 'Products',
     description: 'Get all available purchases for the current user',
-    parameters: 'PurchaseOptions?',
+    parameters: 'options: PurchaseOptions',
     returns: '[Purchase!]!',
     path: '/docs/apis/get-available-purchases',
   },
@@ -63,8 +63,8 @@ export const apiData: ApiItem[] = [
     title: 'requestPurchase',
     category: 'Purchase',
     description: 'Request a purchase (one-time or subscription)',
-    parameters: 'RequestPurchaseProps',
-    returns: 'Purchase!',
+    parameters: 'params: RequestPurchaseProps!',
+    returns: 'RequestPurchaseResult',
     path: '/docs/apis/request-purchase',
   },
   {
@@ -73,8 +73,8 @@ export const apiData: ApiItem[] = [
     category: 'Purchase',
     description:
       'Complete a purchase transaction. Must be called after successful verification',
-    parameters: 'Purchase!, isConsumable: Boolean?',
-    returns: 'Void',
+    parameters: 'purchase: PurchaseInput!, isConsumable: Boolean',
+    returns: 'VoidResult!',
     path: '/docs/apis/finish-transaction',
   },
   {
@@ -83,7 +83,7 @@ export const apiData: ApiItem[] = [
     category: 'Purchase',
     description: 'Restore completed transactions (cross-platform)',
     parameters: '',
-    returns: 'Void',
+    returns: 'VoidResult!',
     path: '/docs/apis/restore-purchases',
   },
   {
@@ -92,8 +92,8 @@ export const apiData: ApiItem[] = [
     category: 'Purchase',
     description:
       'Verify app acquisition with AppTransaction or collect Play Integrity evidence for backend licensing checks',
-    parameters: 'VerifyAppOwnershipProps?',
-    returns: 'AppOwnershipVerificationResult',
+    parameters: 'options: VerifyAppOwnershipProps',
+    returns: 'AppOwnershipVerificationResult!',
     path: '/docs/apis/verify-app-ownership',
   },
   {
@@ -103,7 +103,7 @@ export const apiData: ApiItem[] = [
     description:
       'Open the platform offer/promo code redemption flow; resolves the verified purchase only on Apple 27+ from Xcode 27+ builds, otherwise null',
     parameters: '',
-    returns: 'Purchase | null',
+    returns: 'Purchase',
     path: '/docs/apis/open-redeem-offer-code',
   },
   {
@@ -122,7 +122,7 @@ export const apiData: ApiItem[] = [
     title: 'getActiveSubscriptions',
     category: 'Subscription',
     description: 'Get all active subscriptions with detailed information',
-    parameters: 'subscriptionIds: [String]?',
+    parameters: 'subscriptionIds: [String!]',
     returns: '[ActiveSubscription!]!',
     path: '/docs/apis/get-active-subscriptions',
   },
@@ -131,7 +131,7 @@ export const apiData: ApiItem[] = [
     title: 'hasActiveSubscriptions',
     category: 'Subscription',
     description: 'Check if the user has any active subscriptions',
-    parameters: 'subscriptionIds: [String]?',
+    parameters: 'subscriptionIds: [String!]',
     returns: 'Boolean!',
     path: '/docs/apis/has-active-subscriptions',
   },
@@ -140,8 +140,8 @@ export const apiData: ApiItem[] = [
     title: 'deepLinkToSubscriptions',
     category: 'Subscription',
     description: 'Open native subscription management interface',
-    parameters: 'DeepLinkOptions',
-    returns: 'Void',
+    parameters: 'options: DeepLinkOptions',
+    returns: 'VoidResult!',
     path: '/docs/apis/deep-link-to-subscriptions',
   },
 
@@ -151,8 +151,8 @@ export const apiData: ApiItem[] = [
     title: 'verifyPurchase',
     category: 'Validation',
     description: 'Verify purchases with your server or platform providers',
-    parameters: 'PurchaseVerificationProps!',
-    returns: 'PurchaseVerificationResult!',
+    parameters: 'options: VerifyPurchaseProps!',
+    returns: 'VerifyPurchaseResult!',
     path: '/docs/features/validation#verify-purchase',
   },
   {
@@ -161,7 +161,7 @@ export const apiData: ApiItem[] = [
     category: 'Validation',
     description:
       'Verify purchases with IAPKit and optionally retrieve a public product client payload',
-    parameters: 'VerifyPurchaseWithProviderProps!',
+    parameters: 'options: VerifyPurchaseWithProviderProps!',
     returns: 'VerifyPurchaseWithProviderResult!',
     path: '/docs/features/validation#verify-purchase-with-provider',
   },
@@ -290,7 +290,7 @@ export const apiData: ApiItem[] = [
     category: 'iOS Specific',
     description: 'Fetch the current app transaction (iOS 16+)',
     parameters: '',
-    returns: 'AppTransactionIOS',
+    returns: 'AppTransaction',
     path: '/docs/apis/ios/get-app-transaction-ios',
   },
   {
@@ -356,8 +356,8 @@ export const apiData: ApiItem[] = [
     category: 'iOS Specific',
     description:
       'Get the iOS 18.1+ ExternalPurchaseCustomLink token for reporting transactions to Apple',
-    parameters: '',
-    returns: 'String',
+    parameters: 'tokenType: ExternalPurchaseCustomLinkTokenTypeIOS!',
+    returns: 'ExternalPurchaseCustomLinkTokenResultIOS!',
     path: '/docs/apis/ios/get-external-purchase-custom-link-token-ios',
   },
   {
@@ -366,8 +366,8 @@ export const apiData: ApiItem[] = [
     category: 'iOS Specific',
     description:
       'Show the iOS 18.1+ ExternalPurchaseCustomLink notice sheet before linking out to external purchases',
-    parameters: '',
-    returns: 'Boolean!',
+    parameters: 'noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS!',
+    returns: 'ExternalPurchaseCustomLinkNoticeResultIOS!',
     path: '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
   },
 
@@ -406,7 +406,7 @@ export const apiData: ApiItem[] = [
     category: 'Android Specific',
     description:
       'Step 1 of Billing Programs API. Check if a billing program is available for the current user',
-    parameters: 'programId: String!',
+    parameters: 'program: BillingProgramAndroid!',
     returns: 'BillingProgramAvailabilityResultAndroid!',
     path: '/docs/apis/android/is-billing-program-available-android',
   },
@@ -427,7 +427,7 @@ export const apiData: ApiItem[] = [
     description:
       'Step 2 of Billing Programs API. Launch external link flow — shows Play Store dialog and optionally launches external URL',
     parameters: 'params: LaunchExternalLinkParamsAndroid!',
-    returns: 'LaunchExternalLinkResultAndroid!',
+    returns: 'Boolean!',
     path: '/docs/apis/android/launch-external-link-android',
   },
   {
@@ -436,7 +436,8 @@ export const apiData: ApiItem[] = [
     category: 'Android Specific',
     description:
       'Step 3 of Billing Programs API. Create reporting details with external transaction token after successful payment',
-    parameters: '',
+    parameters:
+      'program: BillingProgramAndroid!, developerBillingType: DeveloperBillingTypeAndroid',
     returns: 'BillingProgramReportingDetailsAndroid!',
     path: '/docs/apis/android/create-billing-program-reporting-details-android',
   },
@@ -687,6 +688,14 @@ export const apiData: ApiItem[] = [
     path: '/docs/types/alternative-billing-types',
   },
   {
+    id: 'types-app-ownership',
+    title: 'App Ownership Verification Types',
+    category: 'Types',
+    description:
+      'VerifyAppOwnershipProps, PlayIntegrityParamsAndroid, AppOwnershipVerificationResult, AppOwnershipStatus, AppOwnershipVerificationReason',
+    path: '/docs/types/app-ownership-verification',
+  },
+  {
     id: 'discount-offer',
     title: 'DiscountOffer',
     category: 'Types',
@@ -709,8 +718,8 @@ export const apiData: ApiItem[] = [
     title: 'Discount',
     category: 'Types (iOS)',
     description:
-      'iOS discount info: identifier, type, numberOfPeriods, price, paymentMode, subscriptionPeriod',
-    path: '/docs/types/ios#discount',
+      'Legacy iOS discount info, now standardized as SubscriptionOffer',
+    path: '/docs/types/subscription-offer',
   },
   {
     id: 'subscription-period-ios',

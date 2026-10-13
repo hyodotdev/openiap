@@ -25,10 +25,11 @@ function VerifyPurchase() {
         </p>
         <p>
           Input/output shape for <code>verifyPurchase</code>.{' '}
-          <strong>iOS:</strong> validates the JWS from{' '}
-          <code>Transaction.jsonRepresentation</code> (
+          <strong>iOS:</strong> StoreKit verifies the{' '}
+          <code>jwsRepresentation</code> of the SKU&apos;s{' '}
+          <code>Product.latestTransaction</code> on the device (
           <a
-            href="https://developer.apple.com/documentation/storekit/transaction/jsonrepresentation"
+            href="https://developer.apple.com/documentation/storekit/product/latesttransaction"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -273,12 +274,6 @@ function VerifyPurchase() {
                         <code>quantity</code>
                       </td>
                       <td>Purchase quantity</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>transactionId</code>
-                      </td>
-                      <td>Transaction identifier</td>
                     </tr>
                     <tr>
                       <td>

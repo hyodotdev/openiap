@@ -2471,8 +2471,8 @@ function checkFlutter() {
     "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Package.swift",
   ];
 
-  // Oldest openiap-apple with OpenIapFirstPurchaseNotice and the storeId/StoreIds identity API.
-  const flutterSwiftPackageFloor = "4.0.0";
+  // Oldest openiap-apple with VerifyAppOwnershipProps.
+  const flutterSwiftPackageFloor = "4.0.1";
   for (const flutterSwiftPackage of flutterSwiftPackagePaths) {
     expectFile(flutterSwiftPackage);
     if (!exists(flutterSwiftPackage)) continue;
@@ -2490,7 +2490,7 @@ function checkFlutter() {
       fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
     } else if (openIapDependencyVersion !== flutterSwiftPackageFloor) {
       fail(
-        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with OpenIapFirstPurchaseNotice and the storeId/StoreIds identity API`,
+        `${flutterSwiftPackage} OpenIAP dependency floor must be ${flutterSwiftPackageFloor}, the first openiap-apple with VerifyAppOwnershipProps`,
       );
     }
     if (
@@ -2606,13 +2606,43 @@ function checkFlutter() {
   expectIncludes(
     "libraries/expo-iap/ios/ExpoIapModule.swift",
     [
-      "throw IapException.from(error)",
-      "code: .purchaseVerificationFailed",
+      'IapException.bridging("verifyPurchase", fallback: .purchaseVerificationFailed)',
       "try await OpenIapModule.shared.getStorefront()",
       'AsyncFunction("claimFirstPurchaseNotice")',
     ],
     "Expo iOS error/storefront bridge",
   );
+  expectIncludes(
+    "libraries/expo-iap/ios/ExpoIapHelper.swift",
+    [
+      "static func bridging<T>(",
+      "PurchaseError.wrap(error, fallback: fallback, productId: productId)",
+      "throw from(purchaseError)",
+    ],
+    "Expo iOS error envelope bridge",
+  );
+  // Every Expo iOS AsyncFunction that can fail rejects with the OpenIAP
+  // envelope; otherwise JavaScript sees Expo's generic ERR_UNEXPECTED.
+  const expoIosModule = read("libraries/expo-iap/ios/ExpoIapModule.swift");
+  const expoIosFunctionStarts = [
+    ...expoIosModule.matchAll(/AsyncFunction\("(\w+)"\)/gu),
+  ];
+  if (expoIosFunctionStarts.length === 0) {
+    fail("Expo iOS module declares no AsyncFunction to audit");
+  }
+  for (const [index, match] of expoIosFunctionStarts.entries()) {
+    const name = match[1];
+    const body = expoIosModule.slice(
+      match.index,
+      expoIosFunctionStarts[index + 1]?.index ?? expoIosModule.length,
+    );
+    if (!/\btry\b|\bthrow\b/u.test(body)) continue;
+    if (!body.includes(`IapException.bridging("${name}"`)) {
+      fail(
+        `Expo iOS ${name} must convert its errors through IapException.bridging("${name}")`,
+      );
+    }
+  }
   expectIncludes(
     "libraries/expo-iap/ios/onside/OnsideIapModule.swift",
     [
@@ -2875,20 +2905,15 @@ function checkKmp() {
     [`${TODO_MARKER}: iOS 15+/18+ options`, "For now, return a basic result"],
     "KMP iOS requestPurchase bridge",
   );
-  expectNotIncludes(
+  // Play delegates to openiap-google like every other Android store.
+  expectMissingFile(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
-    ["requestPurchaseOnPromotedProductIOS(): Boolean = false"],
-    "KMP Android promoted product bridge",
+    "KMP Play must not keep a second Play Billing implementation",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
-    [
-      "val requestedProductIds = params.skus.distinct()",
-      "return awaitBillingQuery(",
-      "client.queryProductDetailsAsync(queryParams)",
-      "complete(Result.failure(PurchaseException(error)))",
-    ],
-    "KMP fresh, fail-closed product query",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/KmpIAP.android.kt",
+    ["store = Store.PLAY_STORE"],
+    "KMP Play delegates to openiap-google",
   );
   expectIncludes(
     "libraries/kmp-iap/example/gradle.properties",
@@ -3001,14 +3026,6 @@ function checkIapkitAmazonContractWiring() {
       `${file} must preserve exact Amazon product ids`,
     );
   }
-  expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
-    [
-      "expectedProductId = amazon.expectedProductId",
-      "androidResult.toKmpIapkitResult()",
-    ],
-    "KMP Android IAPKit Amazon contract",
-  );
   expectIncludes(
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["androidResult.toKmpIapkitResult()"],
@@ -3905,45 +3922,8 @@ function checkBillingChoiceFieldBindings() {
   }
 
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
-    [
-      "val requestedBillingChoiceScreenType = config?.billingChoiceScreenTypeAndroid",
-      "includeDeveloperListener =",
-      "setOriginalExternalTransactionId",
-      "params.externalTransactionToken",
-      'invokeOptionalStringGetter("getExternalTransactionToken")',
-      'invokeOptionalStringGetter("getLinkUri")',
-      'invokeOptionalStringGetter("getOriginalExternalTransactionId")',
-      'invokeOptionalListGetter("getProducts")',
-      "private fun com.android.billingclient.api.UserChoiceDetails.toOpenIapDetails()",
-      "originalExternalTransactionId = originalExternalTransactionId",
-      "productDetailsAndroid = productDetails",
-      "runCatching { javaClass.getMethod(methodName)",
-      "?.takeIf { it.isNotBlank() }",
-      "subResponseCode = onPurchasesUpdatedSubResponseCode.toOpenIapSubResponseCode()",
-      "BillingClient.BillingProgram.BILLING_CHOICE",
-      "BillingProgramReportingDetailsParams.DeveloperBillingType.IN_APP",
-      "InAppMessageParams.InAppMessageCategoryId.TRANSACTIONAL",
-      "hasProductLevelReplacementParams = subscriptionProductReplacementParams != null",
-      "toBillingOperationError(",
-    ],
-    "KMP Billing Choice Android bindings",
-  );
-  expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
-    [
-      "OnPurchasesUpdatedSubResponseCode.NO_APPLICABLE_SUB_RESPONSE_CODE",
-      "OnPurchasesUpdatedSubResponseCode.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS",
-      "OnPurchasesUpdatedSubResponseCode.USER_INELIGIBLE",
-    ],
-    "KMP BillingResult sub-response mapping",
-  );
-  expectIncludes(
-    "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/BillingResultMappingTest.kt",
-    [
-      "maps every Play Billing 9_1 sub-response code",
-      "unknown sub-response code remains absent",
-    ],
+    "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateTest.kt",
+    ["Play sub-response codes reach KMP errors"],
     "KMP BillingResult sub-response tests",
   );
   expectIncludes(
@@ -3965,11 +3945,6 @@ function checkBillingChoiceFieldBindings() {
       "ErrorCode.FeatureNotSupported",
     ],
     "KMP non-Play in-app message tests",
-  );
-  expectIncludes(
-    "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/SubscriptionReplacementResolutionTest.kt",
-    ["hasProductLevelReplacementParams = true"],
-    "KMP subscription replacement precedence tests",
   );
   expectIncludes(
     "packages/docs/src/pages/docs/updates/releases.tsx",
@@ -4059,11 +4034,6 @@ function checkBillingChoiceFieldBindings() {
       "Horizon setup must not recommend legacy metadata keys",
     );
   }
-  expectNotIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
-    ["Full implementation uses Google Play Billing Library 8.2.1"],
-    "KMP Play Billing runtime documentation",
-  );
   expectIncludes(
     "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/dsl/PurchaseDsl.kt",
     [
@@ -4140,10 +4110,8 @@ function checkBillingChoiceFieldBindings() {
       ["errorData['subResponseCodeAndroid']"],
     ],
     [
-      "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
-      [
-        "subResponseCodeAndroid = onPurchasesUpdatedSubResponseCode.toOpenIapSubResponseCode()",
-      ],
+      "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
+      ["val payload = toJSON() + mapOf("],
     ],
     [
       "libraries/maui-iap/android/openiap/src/main/java/dev/hyo/openiap/maui/OpenIapMauiModule.kt",
@@ -4506,7 +4474,7 @@ function checkFrameworkDependencyHygiene() {
     "libraries/react-native-iap/src/hooks/useIAP.ts",
     "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
     "libraries/godot-iap/addons/godot-iap/godot_iap.gd",
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
     "packages/apple/Sources/OpenIapModule.swift",
     "packages/apple/Sources/OpenIapStoreKitModule.swift",
@@ -5645,8 +5613,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/release-apple.yml",
     [
-      "COCOAPODS_VERSION: 1.15.2",
-      'gem install cocoapods -v "$COCOAPODS_VERSION"',
+      'echo "BUNDLE_GEMFILE=$TOOLING/Gemfile" >> "$GITHUB_ENV"',
+      "bundle exec pod trunk push openiap.podspec",
       "bare_exists=true",
       "bare_exists=false",
       "Checkout release tag (current version)",
@@ -5667,9 +5635,13 @@ function checkFrameworkDependencyHygiene() {
   }
   expectNotIncludes(
     ".github/workflows/release-apple.yml",
-    ["gem install cocoapods\n"],
-    "Apple release workflow must pin CocoaPods",
+    ["gem install cocoapods"],
+    "Apple release workflow must take CocoaPods from the locked Gemfile",
   );
+  // Only command positions count; log messages quote the same words.
+  if (/^[^"'#\n]*(?<!bundle exec )\bpod\s+[a-z]/mu.test(appleWorkflow)) {
+    fail("Apple release workflow must run CocoaPods through bundle exec");
+  }
   expectIncludes(
     ".github/workflows/release-google.yml",
     [
@@ -6717,14 +6689,20 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "scripts/install-xcodegen.sh",
     [
-      "XCODEGEN_VERSION",
-      "XCODEGEN_SHA256",
+      "VERSION=2.45.4",
+      "SHA256=090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef",
       "https://github.com/yonaskolb/XcodeGen/releases/download/${VERSION}/xcodegen.zip",
-      "shasum -a 256 -c -",
+      '\necho "${SHA256}  ${TMP_DIR}/xcodegen.zip" | shasum -a 256 -c -\n',
       "install -m 0755",
       "GITHUB_PATH",
     ],
-    "XcodeGen installer must pin release artifacts",
+    "XcodeGen installer must pin and always verify its release artifact",
+  );
+  // A caller-supplied version or checksum would make verification optional again.
+  expectNotIncludes(
+    "scripts/install-xcodegen.sh",
+    ["XCODEGEN_VERSION", "XCODEGEN_SHA256", "${1"],
+    "XcodeGen installer must not take its pin from the caller",
   );
   for (const xcodegenWorkflow of [
     ".github/workflows/ci-maui-iap.yml",
@@ -6732,22 +6710,18 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       xcodegenWorkflow,
-      [
-        "XCODEGEN_VERSION: 2.45.4",
-        "XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef",
-        'bash scripts/install-xcodegen.sh "$XCODEGEN_VERSION"',
-      ],
-      `${xcodegenWorkflow} must pin XcodeGen`,
+      ["run: bash scripts/install-xcodegen.sh\n"],
+      `${xcodegenWorkflow} must install XcodeGen through the pinned installer`,
     );
     expectNotIncludes(
       xcodegenWorkflow,
-      ["brew install xcodegen"],
-      `${xcodegenWorkflow} must not float XcodeGen via Homebrew`,
+      ["brew install xcodegen", "XCODEGEN_"],
+      `${xcodegenWorkflow} must not float or re-pin XcodeGen`,
     );
   }
   expectIncludes(
     "packages/apple/scripts/build-xcframework.sh",
-    ["scripts/install-xcodegen.sh <version>"],
+    ["scripts/install-xcodegen.sh"],
     "Apple xcframework script must point to pinned XcodeGen installer",
   );
   expectIncludes(
@@ -7079,8 +7053,10 @@ function checkFrameworkDependencyHygiene() {
     "KMP Gradle native dependency versions must not silently fallback",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
-    ['override fun getVersion(): String = kmpIapVersionString("Android")'],
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
+    [
+      "override fun getVersion(): String = kmpIapVersionString(versionPlatform)",
+    ],
     "KMP Android runtime version",
   );
   expectIncludes(
@@ -8051,7 +8027,7 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
-      ["val payload = JSONObject(serializeOpenIapError(e))"],
+      ['emit("purchase-error") { JSONObject(serializeOpenIapError(error)) }'],
       "Flutter Android plugin error serialization",
     );
     expectNotIncludes(

@@ -13,7 +13,7 @@ Use the executable contracts and reports below for the current state.
 
 | Surface                       | Contract and verification                                                                                                                                                                                           |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| JavaScript behavior inventory | `src/spec/behaviors.mjs`; `scripts/coverage-report.mjs --check` rejects MUST behaviors without a non-reference implementation                                                                                       |
+| JavaScript behavior inventory | `src/spec/behaviors.mjs`; `scripts/coverage-report.mjs --check` rejects any behavior without a non-reference implementation                                                                                         |
 | Android provider              | `android/.../ProviderConformanceSuite.kt`; public core plus provider factory, production mappers, lifecycle, identity, errors, and declared capabilities                                                            |
 | Apple provider                | `apple/Sources/ProviderConformance.swift`; the public `OpenIapConformance` product and matching provider requirements                                                                                               |
 | Type and API parity           | `specs/client` schema generation and `bun audit:parity`; these check the public shape and bindings rather than purchase behavior                                                                                    |
@@ -21,9 +21,10 @@ Use the executable contracts and reports below for the current state.
 | Hardware                      | [Device results](../google/compatibility/community-provider/E2E_RESULTS.md), with executed revisions, sandbox evidence, and purchase limits                                                                         |
 | Server lifecycle              | Commerce Protocol conformance and IAPKit tests; separate from native provider profiles                                                                                                                              |
 
-The current source coverage report binds 37 of 43 behavior ids to non-reference
-implementations. Six SHOULD-level provider/capability ids have no non-reference
-implementation in that report; this is not a claim of complete runtime coverage.
+The source coverage report binds every behavior id to at least one
+non-reference implementation, reading the store suites, both provider suites,
+IAPKit, and the React Native and Expo adapters; `--check` fails when one loses
+its last. This is not a claim of complete runtime coverage.
 
 The native provider profiles cover 15 common required behaviors, a separate
 Android native-redemption check, and up to three declared capability checks

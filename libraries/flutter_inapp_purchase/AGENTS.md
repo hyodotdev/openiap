@@ -186,29 +186,11 @@ For new feature proposals:
 
 ### /commit
 
-Complete workflow for committing changes: branch check, pre-commit checks, commit, push, and PR creation.
-
-**Arguments**: `[options]`
-
-- `--push` or `-p`: Push to remote after commit
-- `--pr`: Create PR after push
-- `--all` or `-a`: Commit all changes at once
-- `<path>`: Commit only specific path (e.g., `lib/`)
-
-**Workflow**:
-
-1. Check current branch (create feature branch if on main)
-2. Run pre-commit checks (format, analyze, test)
-3. Stage and commit changes with conventional commit message
-4. Optionally push and create PR
-
-**Examples**:
-
-- `/commit lib/ --pr` - Commit lib changes and create PR
-- `/commit --all --push` - Commit all and push
-- `/commit android/` - Commit only android changes
-
-See [.claude/commands/commit.md](.claude/commands/commit.md) for full documentation.
+Follow the monorepo [`/commit` workflow](../../.claude/commands/commit.md),
+which owns branching, staging, the commit message, the release-note gate, PR
+scope, and labels. Run this library's [pre-commit checks](#pre-commit-checks)
+before staging; [.claude/commands/commit.md](.claude/commands/commit.md) points
+to the same two places.
 
 ### /review-pr
 
@@ -232,20 +214,24 @@ See [.claude/commands/review-pr.md](.claude/commands/review-pr.md) for full docu
 
 ### /release
 
-Deploy a new release via GitHub Actions CI.
-
-Releases are automated via the **Deploy (manual)** workflow (`.github/workflows/deploy.yml`). The workflow handles version bumping, CHANGELOG.md generation, pub.dev publishing, and GitHub Release creation.
+Releases run from the **A5. Release: flutter_inapp_purchase** workflow
+(`.github/workflows/release-flutter.yml`). The root
+[`/release`](../../.claude/commands/release.md) workflow owns the preflight and
+verification steps.
 
 **How to trigger**:
 
-1. Go to GitHub Actions > "Deploy (manual)" > "Run workflow"
-2. Select version bump type (patch/minor/major)
-3. Optionally create a GitHub Release
+1. Go to GitHub Actions > "A5. Release: flutter_inapp_purchase" > "Run workflow" on `main`
+2. Choose `version`: `patch`, `minor`, or `major`; `rc-bump` for a later RC;
+   `current` only to republish a version CI already set
+3. Set `prerelease` for a first RC (`-rc.1`). Leave `allow_unreleased_native`
+   off unless openiap-google or openiap-apple changes are deliberately shipping
+   ahead of their own release
 
 The workflow will:
 
 - Bump version in `pubspec.yaml`
-- Auto-generate `CHANGELOG.md` from merged PRs and commits
-- Commit, tag, and push
-- Publish to pub.dev via OIDC trusted publishing
-- Create a GitHub Release with release notes
+- Generate the `CHANGELOG.md` entry (stable releases)
+- Commit, tag (`flutter-iap-<version>`), and push
+- Publish to pub.dev from `publish-flutter.yml`, which the tag push triggers (OIDC trusted publishing)
+- Create the GitHub Release with release notes

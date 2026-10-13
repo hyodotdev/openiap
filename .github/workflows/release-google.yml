@@ -93,6 +93,7 @@ jobs:
 
   release:
     needs: [validate-android]
+    environment: release
     permissions:
       actions: write
       contents: write

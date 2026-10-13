@@ -410,8 +410,8 @@ release-plan change expands the affected packages or behavior.
    package entry.
 3. Compare that inventory with the train's card in
    `packages/docs/src/pages/docs/updates/releases.tsx`. Every selected
-   versioned package needs its expected version, GitHub Release link, and tag
-   alias/anchor. Every user-visible change needs a concise behavior or migration
+   versioned package needs its expected version, GitHub Release link, and
+   hidden tag anchor. Every user-visible change needs a concise behavior or migration
    note; packages that only pick up shared behavior need only a linked release
    entry. Hosted behavior needs a concise note in the Kit weekly entry;
    a train that also publishes packages links to that entry from its card.
@@ -488,40 +488,53 @@ from issue #206 without duplicating release history across package-local files:
 - Keep package-local changelogs as pointers to this page and GitHub Releases,
   except where a package registry requires generated inline history.
 
-### Adding New Release Notes
+### Card Format
 
-1. Add new entry at the **top** of the `allNotes` array
-2. Follow the existing pattern with `id`, `date`, and `element`
-3. Use semantic IDs like `google-3-5-2-apple-3-4-0`
-4. Verify every package version against its source of truth before writing it
-   (see "Release package version verification" below)
+Follow the existing card pattern:
 
-```tsx
-const allNotes: Note[] = [
-  // Google 3.5.2 / Apple 3.4.0 - Jan 26, 2026
-  {
-    id: "google-3-5-2-apple-3-4-0",
-    date: new Date("2026-01-26"),
-    element: (
-      <div key="google-3-5-2-apple-3-4-0" style={noteCardStyle}>
-        <AnchorLink id="google-3-5-2-apple-3-4-0" level="h4">
-          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature Description
-        </AnchorLink>
-        {/* Content here */}
-      </div>
-    ),
-  },
-  // ... older notes
-];
-```
+- Add the newest note near the top of `allNotes`.
+- Use a stable kebab-case `id` with the date.
+- Use `new Date('YYYY-MM-DD')`.
+- Use `AnchorLink` for the heading.
+- Keep package links in a `Package Releases` list.
+- Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
+  is produced by `./scripts/sync-versions.sh`.
+- Render a hidden anchor per package tag, first thing inside the card's
+  `<div>`:
 
-### Required Elements
+  ```tsx
+  {MY_RELEASES.map((release) => (
+    <span key={release.tag} id={release.tag} aria-hidden="true" />
+  ))}
+  ```
 
-- **AnchorLink**: For deep linking to specific release
-- **Version info**: Package names and versions in title
-- **Date**: In format `new Date('YYYY-MM-DD')`
-- **References**: Links to Apple/Google documentation when applicable
-- **Issue links**: Reference GitHub issues when fixing bugs
+  Release workflows link a version's own anchor
+  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and opens the
+  page whose card declares the hash as an element id, so a card without these
+  spans leaves those links on page one — a dead link that still looks alive.
+  Keep a span for each retired card id too. `bun run audit:docs` fails when a
+  card lists `Package Releases` without them.
+
+Card section layout (mandatory for multi-package cards):
+
+- Use only the sections that contain distinct user-visible behavior or
+  information readers must act on. When present, keep this order:
+  1. `Common changes`
+  2. `Protocols and native packages`
+  3. `Framework libraries`
+  4. `Integration notes` (or migration notes)
+  5. The bordered `Package Releases` block
+- Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
+  `React Native`, `Expo`, ... headings). Use one parent `<li>` per package,
+  following the package-specific grouping rule above: put `<strong>package version</strong>`
+  once, then one inline change or a nested `<ul>` for multiple changes.
+  Never repeat the package/version label on each nested change.
+- `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
+  `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
+  framework SDK bullets. Omit the section when it would be empty.
+- The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
+  August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
+  reference implementations of this layout.
 
 ### Release Package Version Verification
 

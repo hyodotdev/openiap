@@ -1,7 +1,10 @@
+/** The bindings the runner judges; runConformance rejects any other `binding`. */
+export type ConformanceBinding = "rest" | "graphql";
+
 export interface ResultOutcome {
   kind: "result";
   status: number;
-  /** Normalized shape: null members stripped, binding-neutral. */
+  /** REST: the body as served. GraphQL: null members stripped (SPEC.md §7). */
   data: unknown;
   /**
    * REQUIRED on a GraphQL result: the pre-normalization shape. The runner
@@ -32,8 +35,16 @@ export interface GraphqlErrorOutcome {
   status: number;
   /** Normalized first code (INVALID_REQUEST when the envelope is codeless). */
   code: string;
-  /** The whole envelope, entry by entry, in order. */
-  errors: Array<{ message: string; code?: string }>;
+  /** The whole envelope, entry by entry, in order; every string in an entry is scanned for leaks. */
+  errors: Array<{
+    message: string;
+    code?: string;
+    /**
+     * The error as served — path, locations, extensions, and any other member.
+     * Pass it: the SPEC.md §8 leak scan covers only what an entry carries.
+     */
+    raw?: unknown;
+  }>;
   /** Whether the response carried a `data` member (SPEC.md §7 pre-execution rule). */
   hasData: boolean;
 }

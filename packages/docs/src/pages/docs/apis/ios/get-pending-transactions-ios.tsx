@@ -35,10 +35,10 @@ function GetPendingTransactionsIOS() {
       </p>
 
       <p>
-        Godot supports this query on both iOS and macOS. Match the returned
-        transaction ID, product, store identity, and known environment to the
-        receipt being handled. Reject revoked, upgraded, or expired receipts
-        before granting access or finishing a purchase.
+        Swift, Flutter, and Godot also run this query on macOS. Match the
+        returned transaction ID, product, store identity, and known environment
+        to the receipt being handled. Reject revoked, upgraded, or expired
+        receipts before granting access or finishing a purchase.
       </p>
 
       <h2>Signature</h2>
@@ -60,7 +60,7 @@ function GetPendingTransactionsIOS() {
             <CodeBlock language="csharp">{`Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_pending_transactions_ios() -> Variant`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func get_pending_transactions_ios() -> Array # of PurchaseIOS`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -98,7 +98,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`if (Platform.isIOS) {
+            <CodeBlock language="dart">{`if (Platform.isIOS || Platform.isMacOS) {
   final txs = await FlutterInappPurchase.instance.getPendingTransactionsIOS();
 }`}</CodeBlock>
           ),
@@ -106,11 +106,11 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
+// Returns an empty list on Android
 var txs = await ((QueryResolver)OpenIapClient.Instance).GetPendingTransactionsIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+            <CodeBlock language="gdscript">{`if iap.get_platform() in ["iOS", "macOS"]:
     var txs = await iap.get_pending_transactions_ios()`}</CodeBlock>
           ),
         }}

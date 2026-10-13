@@ -169,7 +169,7 @@ function AppWithHook() {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 import SwiftUI
 
 @MainActor
@@ -517,7 +517,7 @@ function BuyButton({ productId }: { productId: string }) {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 @MainActor
 func purchaseProduct(productId: String) async {
@@ -716,7 +716,7 @@ function PurchaseScreen() {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 func verifyOnServer(_ purchase: PurchaseIOS) async -> Bool {
     do {
@@ -811,7 +811,10 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
         <Callout kind="note" title="Server-Side Implementation">
           For detailed server-side verification implementation (JWS verification
           for iOS, Google Play API for Android), see the{' '}
-          <a href="/tutorials#verify-purchase">Verify Purchase tutorials</a>.
+          <Link to="/tutorials#verification-guides">
+            server verification references
+          </Link>
+          .
         </Callout>
 
         <Callout kind="warning" title="Security Best Practices">
@@ -984,7 +987,7 @@ function PurchaseScreen() {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 func verifyWithIapkit(_ purchase: PurchaseIOS) async -> Bool {
     do {
@@ -1311,7 +1314,7 @@ function PurchaseScreen() {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 // Complete purchase flow
 @MainActor
@@ -1631,7 +1634,7 @@ function PurchaseProviderWithHook({ children }: { children: React.ReactNode }) {
 }`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 import SwiftUI
 
 @MainActor

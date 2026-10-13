@@ -5,6 +5,7 @@ package dev.hyo.openiap.maui
 import android.app.Activity
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.JsonParseException
 import dev.hyo.openiap.BillingProgramInformationDialogParamsAndroid
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeepLinkOptions
@@ -88,7 +89,7 @@ class OpenIapMauiModule(private val context: Context) {
     // -----------------------------------------------------------------
 
     fun initConnection(configJson: String?, callback: ResultCallback) = run(callback) {
-        val cfg = configJson?.let { InitConnectionConfig.fromJson(parseMap(it)) }
+        val cfg = configJson?.let { decode("InitConnectionConfig") { InitConnectionConfig.fromJson(parseMap(it)) } }
         val ok = module.initConnection(cfg)
         wrapBool(ok)
     }
@@ -102,24 +103,24 @@ class OpenIapMauiModule(private val context: Context) {
     // -----------------------------------------------------------------
 
     fun fetchProducts(paramsJson: String, callback: ResultCallback) = run(callback) {
-        val params = ProductRequest.fromJson(parseMap(paramsJson)) ?: throw badInput("ProductRequest")
+        val params = decode("ProductRequest") { ProductRequest.fromJson(parseMap(paramsJson)) }
         encodeFetchProductsResult(module.fetchProducts(params))
     }
 
     fun getAvailablePurchases(optionsJson: String?, callback: ResultCallback) = run(callback) {
-        val options = optionsJson?.let { PurchaseOptions.fromJson(parseMap(it)) }
+        val options = optionsJson?.let { decode("PurchaseOptions") { PurchaseOptions.fromJson(parseMap(it)) } }
         val purchases = module.getAvailablePurchases(options)
         encodePurchases(purchases)
     }
 
     fun getActiveSubscriptions(subscriptionIdsJson: String?, callback: ResultCallback) = run(callback) {
-        val ids = subscriptionIdsJson?.let { parseStringList(it) }
+        val ids = subscriptionIdsJson?.let { decode("subscription ids") { parseStringList(it) } }
         val list = module.getActiveSubscriptions(ids)
         encodeMapList(list.map { it.toJson() })
     }
 
     fun hasActiveSubscriptions(subscriptionIdsJson: String?, callback: ResultCallback) = run(callback) {
-        val ids = subscriptionIdsJson?.let { parseStringList(it) }
+        val ids = subscriptionIdsJson?.let { decode("subscription ids") { parseStringList(it) } }
         wrapBool(module.hasActiveSubscriptions(ids))
     }
 
@@ -132,13 +133,13 @@ class OpenIapMauiModule(private val context: Context) {
     // -----------------------------------------------------------------
 
     fun requestPurchase(paramsJson: String, callback: ResultCallback) = run(callback) {
-        val props = RequestPurchaseProps.fromJson(parseMap(paramsJson))
+        val props = decode("RequestPurchaseProps") { RequestPurchaseProps.fromJson(parseMap(paramsJson)) }
         encodeRequestPurchaseResult(module.requestPurchase(props))
     }
 
     fun finishTransaction(purchaseJson: String, isConsumable: Boolean?, callback: ResultCallback) = run(callback) {
         // PurchaseInput is `typealias PurchaseInput = Purchase`; reuse the union dispatcher
-        val purchase: PurchaseInput = dev.hyo.openiap.Purchase.fromJson(parseMap(purchaseJson))
+        val purchase: PurchaseInput = decode("Purchase") { dev.hyo.openiap.Purchase.fromJson(parseMap(purchaseJson)) }
         module.finishTransaction(purchase, isConsumable)
         // Consumers expect a string token-ish result on iOS; Android side has no token,
         // surface an empty string so the C# Task<string> resolves cleanly.
@@ -151,28 +152,23 @@ class OpenIapMauiModule(private val context: Context) {
     }
 
     fun deepLinkToSubscriptions(optionsJson: String?, callback: ResultCallback) = run(callback) {
-        val options = optionsJson?.let { DeepLinkOptions.fromJson(parseMap(it)) }
+        val options = optionsJson?.let { decode("DeepLinkOptions") { DeepLinkOptions.fromJson(parseMap(it)) } }
         module.deepLinkToSubscriptions(options)
         wrapString("")
     }
 
     fun verifyAppOwnership(propsJson: String, callback: ResultCallback) = run(callback) {
-        val options = try {
-            dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(parseMap(propsJson))
-        } catch (error: Exception) {
-            throw OpenIapError.DeveloperError(error.message)
-        }
+        val options = decode("VerifyAppOwnershipProps") { dev.hyo.openiap.VerifyAppOwnershipProps.fromJson(parseMap(propsJson)) }
         gson.toJson(module.verifyAppOwnership(options).toJson())
     }
 
     fun verifyPurchase(propsJson: String, callback: ResultCallback) = run(callback) {
-        val props = VerifyPurchaseProps.fromJson(parseMap(propsJson))
+        val props = decode("VerifyPurchaseProps") { VerifyPurchaseProps.fromJson(parseMap(propsJson)) }
         encodeVerifyPurchaseResult(module.verifyPurchase(props))
     }
 
     fun verifyPurchaseWithProvider(propsJson: String, callback: ResultCallback) = run(callback) {
-        val props = VerifyPurchaseWithProviderProps.fromJson(parseMap(propsJson))
-            ?: throw badInput("VerifyPurchaseWithProviderProps")
+        val props = decode("VerifyPurchaseWithProviderProps") { VerifyPurchaseWithProviderProps.fromJson(parseMap(propsJson)) }
         gson.toJson(module.verifyPurchaseWithProvider(props).toJson())
     }
 
@@ -189,12 +185,12 @@ class OpenIapMauiModule(private val context: Context) {
     }
 
     fun isBillingProgramAvailableAndroid(programJson: String, callback: ResultCallback) = run(callback) {
-        val program = parseProgram(programJson)
+        val program = decode("BillingProgramAndroid") { parseProgram(programJson) }
         gson.toJson(module.isBillingProgramAvailable(program).toJson())
     }
 
     fun getBillingChoiceInfoAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
-        val params = GetBillingChoiceInfoParamsAndroid.fromJson(parseMap(paramsJson))
+        val params = decode("GetBillingChoiceInfoParamsAndroid") { GetBillingChoiceInfoParamsAndroid.fromJson(parseMap(paramsJson)) }
         gson.toJson(module.getBillingChoiceInfo(params).toJson())
     }
 
@@ -206,28 +202,28 @@ class OpenIapMauiModule(private val context: Context) {
         developerBillingTypeJson: String?,
         callback: ResultCallback
     ) = run(callback) {
-        val program = parseProgram(programJson)
+        val program = decode("BillingProgramAndroid") { parseProgram(programJson) }
         val developerBillingType =
-            developerBillingTypeJson?.let { DeveloperBillingTypeAndroid.fromJson(it) }
+            developerBillingTypeJson?.let { decode("DeveloperBillingTypeAndroid") { DeveloperBillingTypeAndroid.fromJson(it) } }
         gson.toJson(module.createBillingProgramReportingDetails(program, developerBillingType).toJson())
     }
 
     fun showBillingProgramInformationDialogAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
-        val params = BillingProgramInformationDialogParamsAndroid.fromJson(parseMap(paramsJson))
-            ?: throw badInput("BillingProgramInformationDialogParamsAndroid")
+        val params = decode("BillingProgramInformationDialogParamsAndroid") {
+            BillingProgramInformationDialogParamsAndroid.fromJson(parseMap(paramsJson))
+        }
         val activity = currentActivityOrThrow()
         gson.toJson(module.showBillingProgramInformationDialog(activity, params).toJson())
     }
 
     fun showInAppMessagesAndroid(paramsJson: String?, callback: ResultCallback) = run(callback) {
-        val params = paramsJson?.let { InAppMessageParamsAndroid.fromJson(parseMap(it)) }
+        val params = paramsJson?.let { decode("InAppMessageParamsAndroid") { InAppMessageParamsAndroid.fromJson(parseMap(it)) } }
         val activity = currentActivityOrThrow()
         gson.toJson(module.showInAppMessages(activity, params).toJson())
     }
 
     fun launchExternalLinkAndroid(paramsJson: String, callback: ResultCallback) = run(callback) {
-        val params = LaunchExternalLinkParamsAndroid.fromJson(parseMap(paramsJson))
-            ?: throw badInput("LaunchExternalLinkParamsAndroid")
+        val params = decode("LaunchExternalLinkParamsAndroid") { LaunchExternalLinkParamsAndroid.fromJson(parseMap(paramsJson)) }
         val activity = currentActivityOrThrow()
         wrapBool(module.launchExternalLink(activity, params))
     }
@@ -433,9 +429,21 @@ class OpenIapMauiModule(private val context: Context) {
         return gson.toJson(payload)
     }
 
-    private fun badInput(typeName: String): IllegalArgumentException {
-        // The generated `Type.fromJson(Map)` returns null when required fields are missing.
-        // Surface this as a typed error so the C# side can map it to OpenIapError.DeveloperError.
-        return IllegalArgumentException("Could not decode $typeName from JSON")
+    /**
+     * Decodes caller input. Malformed JSON, a wrong JSON type, or a missing field
+     * (a null from a generated `fromJson`) is a developer error; failures in the
+     * store call itself keep their own code.
+     */
+    private inline fun <T : Any> decode(typeName: String, block: () -> T?): T {
+        val value = try {
+            block()
+        } catch (e: RuntimeException) {
+            when (e) {
+                is IllegalArgumentException, is JsonParseException, is ClassCastException, is NullPointerException ->
+                    throw OpenIapError.DeveloperError(e.message)
+                else -> throw e
+            }
+        }
+        return value ?: throw OpenIapError.DeveloperError("Could not decode $typeName from JSON")
     }
 }

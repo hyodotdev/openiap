@@ -32,8 +32,11 @@ type StoreIdLanguage =
   | "gdscript"
   | "csharp";
 /** Registry ids are additive constants; they never extend IapStore. */
-export function renderStoreIds(language: StoreIdLanguage): string {
-  const rows = registry.stores
+export function renderStoreIds(
+  language: StoreIdLanguage,
+  stores: readonly { id: string }[] = registry.stores,
+): string {
+  const rows = stores
     .map(({ id }) => {
       const name = storeConstantName(id);
       switch (language) {

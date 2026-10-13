@@ -9,7 +9,9 @@ import {
   mapSubscriptionResponseToReceiptData,
   parseTimeToMillis,
   recordGooglePlayVerifiedSubscription,
+  shouldPersistFailedGoogleReceipt,
 } from "./android";
+import { createPlayStoreError } from "./errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { mapToGooglePlayReceiptResponse } from "./shared";
 
@@ -620,6 +622,24 @@ describe("recordGooglePlayVerifiedSubscription", () => {
     });
 
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("shouldPersistFailedGoogleReceipt", () => {
+  it("records only Google's definite not-found verdict", () => {
+    expect(
+      shouldPersistFailedGoogleReceipt(createPlayStoreError({ code: 404 })),
+    ).toBe(true);
+  });
+
+  it.each([
+    Object.assign(new Error("Backend Error"), { code: 503 }),
+    Object.assign(new Error("Quota exceeded"), { code: 429 }),
+    Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }),
+  ])("keeps the last confirmed row through an outage: %s", (upstream) => {
+    expect(
+      shouldPersistFailedGoogleReceipt(createPlayStoreError(upstream)),
+    ).toBe(false);
   });
 });
 

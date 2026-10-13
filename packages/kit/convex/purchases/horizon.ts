@@ -12,6 +12,7 @@ import {
   ProjectMetaHorizonAppIdNotConfiguredError,
   ProjectMetaHorizonAppSecretNotConfiguredError,
   ProjectMetaHorizonNotEnabledError,
+  STORE_OUTAGE_RETRY_AFTER_SEC,
   ReceiptVerificationError,
 } from "./errors";
 import {
@@ -211,7 +212,10 @@ export async function verifyHorizonReceipt(
     // An HTTP error, timeout, network failure, or malformed body is not a
     // negative entitlement verdict. Preserve the last confirmed result
     // instead of replacing it with INAUTHENTIC.
-    throw new MetaHorizonVerificationError(describeError(error));
+    throw new MetaHorizonVerificationError(
+      describeError(error),
+      shouldRetryHorizonError(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
+    );
   }
 
   const state = verified.success

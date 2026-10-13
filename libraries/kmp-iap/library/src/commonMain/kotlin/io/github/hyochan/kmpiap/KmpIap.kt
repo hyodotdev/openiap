@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.dsl.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * KMP IAP Library
@@ -150,13 +151,21 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
      */
     val subscriptionBillingIssueListener: Flow<Purchase>
 
-
-    // ===== Connection Management =====
-    
     /**
-     * Initialize connection to the store service
-     * @return True if successful
+     * Android User Choice Billing selections, one per choice; empty on other platforms.
+     * Requires `enableBillingProgramAndroid = UserChoiceBilling`.
      */
+    val userChoiceBillingListenerAndroid: Flow<UserChoiceBillingDetails>
+        get() = emptyFlow()
+
+    /**
+     * Android developer-provided billing selections (External Payments, Billing Choice),
+     * one per choice; empty on other platforms. Collect it before `initConnection`.
+     */
+    val developerProvidedBillingListenerAndroid: Flow<DeveloperProvidedBillingDetailsAndroid>
+        get() = emptyFlow()
+
+    /** The store this build talks to. */
     fun getStore(): Store
 
     suspend fun canMakePayments(): Boolean

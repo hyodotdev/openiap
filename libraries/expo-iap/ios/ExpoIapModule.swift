@@ -47,17 +47,21 @@ public final class ExpoIapModule: Module {
         }
 
         AsyncFunction("initConnection") { (config: [String: Any]?) async throws -> Bool in
-            // iOS ignores the config; it has no alternative billing parameter.
-            await ExpoIapHelper.waitForStoreCleanup()
-            let isConnected = try await OpenIapModule.shared.initConnection()
-            await MainActor.run { self.isInitialized = isConnected }
-            return isConnected
+            try await IapException.bridging("initConnection", fallback: .initConnection) {
+                // iOS ignores the config; it has no alternative billing parameter.
+                await ExpoIapHelper.waitForStoreCleanup()
+                let isConnected = try await OpenIapModule.shared.initConnection()
+                await MainActor.run { self.isInitialized = isConnected }
+                return isConnected
+            }
         }
 
         AsyncFunction("endConnection") { () async throws -> Bool in
-            let succeeded = try await OpenIapModule.shared.endConnection()
-            await MainActor.run { self.isInitialized = false }
-            return succeeded
+            try await IapException.bridging("endConnection") {
+                let succeeded = try await OpenIapModule.shared.endConnection()
+                await MainActor.run { self.isInitialized = false }
+                return succeeded
+            }
         }
 
         AsyncFunction("setPurchaseUpdatedListenerOptions") { (options: [String: Any]?) async throws -> Void in
@@ -69,32 +73,19 @@ public final class ExpoIapModule: Module {
         }
 
         AsyncFunction("fetchProducts") { (params: [String: Any]) async throws -> [[String: Any]] in
-            ExpoIapLog.payload("fetchProducts", payload: params)
-            do {
+            try await IapException.bridging("fetchProducts", fallback: .queryProduct) {
+                ExpoIapLog.payload("fetchProducts", payload: params)
                 let request = try ExpoIapHelper.decodeProductRequest(from: params)
                 let result = try await OpenIapModule.shared.fetchProducts(request)
                 let products = ExpoIapHelper.sanitizeArray(OpenIapSerialization.products(result))
                 ExpoIapLog.result("fetchProducts", value: products)
                 return products
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("fetchProducts", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("fetchProducts", error: error)
-                throw IapException.from(
-                    PurchaseError.make(
-                        code: .queryProduct,
-                        message: "Failed to query products",
-                        debugMessage: error.localizedDescription
-                    )
-                )
             }
         }
 
         AsyncFunction("requestPurchase") { (payload: [String: Any]) async throws -> Any? in
-            ExpoIapLog.payload("requestPurchase", payload: payload)
-
-            do {
+            try await IapException.bridging("requestPurchase", fallback: .purchaseError) {
+                ExpoIapLog.payload("requestPurchase", payload: payload)
                 let props = try ExpoIapHelper.decodeRequestPurchaseProps(from: payload)
                 guard let result = try await OpenIapModule.shared.requestPurchase(props) else {
                     ExpoIapLog.result("requestPurchase", value: nil)
@@ -113,37 +104,27 @@ public final class ExpoIapModule: Module {
                     ExpoIapLog.result("requestPurchase", value: sanitized)
                     return sanitized
                 }
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("requestPurchase", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("requestPurchase", error: error)
-                throw IapException.from(
-                    PurchaseError.make(
-                        code: .purchaseError,
-                        message: "Failed to request purchase",
-                        debugMessage: error.localizedDescription
-                    )
-                )
             }
         }
 
         AsyncFunction("finishTransaction") {
             (purchasePayload: [String: Any], isConsumable: Bool?) async throws -> Bool in
-            ExpoIapLog.payload(
-                "finishTransaction",
-                payload: [
-                    "purchase": purchasePayload,
-                    "isConsumable": isConsumable as Any,
-                ]
-            )
-            let purchaseInput = try OpenIapSerialization.purchaseInput(from: purchasePayload)
-            try await OpenIapModule.shared.finishTransaction(
-                purchase: purchaseInput,
-                isConsumable: isConsumable
-            )
-            ExpoIapLog.result("finishTransaction", value: true)
-            return true
+            try await IapException.bridging("finishTransaction") {
+                ExpoIapLog.payload(
+                    "finishTransaction",
+                    payload: [
+                        "purchase": purchasePayload,
+                        "isConsumable": isConsumable as Any,
+                    ]
+                )
+                let purchaseInput = try OpenIapSerialization.purchaseInput(from: purchasePayload)
+                try await OpenIapModule.shared.finishTransaction(
+                    purchase: purchaseInput,
+                    isConsumable: isConsumable
+                )
+                ExpoIapLog.result("finishTransaction", value: true)
+                return true
+            }
         }
 
         // Internal: backs the JS first-purchase notice; not app API.
@@ -151,154 +132,127 @@ public final class ExpoIapModule: Module {
             OpenIapFirstPurchaseNotice.claim()
         }
 
-        AsyncFunction("getAvailablePurchases") {
-            (options: [String: Any]?) async throws -> [[String: Any]] in
-            ExpoIapLog.payload("getAvailablePurchases", payload: options ?? [:])
-            let purchaseOptions = try options.map { try OpenIapSerialization.purchaseOptions(from: $0) }
-            let purchases = try await OpenIapModule.shared.getAvailablePurchases(purchaseOptions)
-            let sanitized = ExpoIapHelper.sanitizeArray(try ExpoIapHelper.purchasesRequired(purchases))
-            ExpoIapLog.result("getAvailablePurchases", value: sanitized)
-            return sanitized
-        }
-
         AsyncFunction("getAvailableItems") {
             (alsoPublish: Bool, onlyIncludeActive: Bool) async throws -> [[String: Any]] in
-            ExpoIapLog.payload(
-                "getAvailableItems",
-                payload: [
+            try await IapException.bridging("getAvailableItems") {
+                ExpoIapLog.payload(
+                    "getAvailableItems",
+                    payload: [
+                        "alsoPublishToEventListenerIOS": alsoPublish,
+                        "onlyIncludeActiveItemsIOS": onlyIncludeActive,
+                    ]
+                )
+                let optionsDictionary: [String: Any] = [
                     "alsoPublishToEventListenerIOS": alsoPublish,
-                    "onlyIncludeActiveItemsIOS": onlyIncludeActive,
+                    "onlyIncludeActiveItemsIOS": onlyIncludeActive
                 ]
-            )
-            let optionsDictionary: [String: Any] = [
-                "alsoPublishToEventListenerIOS": alsoPublish,
-                "onlyIncludeActiveItemsIOS": onlyIncludeActive
-            ]
-            let options = try OpenIapSerialization.purchaseOptions(from: optionsDictionary)
-            let purchases = try await OpenIapModule.shared.getAvailablePurchases(options)
-            let sanitized = ExpoIapHelper.sanitizeArray(try ExpoIapHelper.purchasesRequired(purchases))
-            ExpoIapLog.result("getAvailableItems", value: sanitized)
-            return sanitized
+                let options = try OpenIapSerialization.purchaseOptions(from: optionsDictionary)
+                let purchases = try await OpenIapModule.shared.getAvailablePurchases(options)
+                let sanitized = ExpoIapHelper.sanitizeArray(try ExpoIapHelper.purchasesRequired(purchases))
+                ExpoIapLog.result("getAvailableItems", value: sanitized)
+                return sanitized
+            }
         }
 
         AsyncFunction("getPendingTransactionsIOS") { () async throws -> [[String: Any]] in
-            ExpoIapLog.payload("getPendingTransactionsIOS", payload: nil)
-            let pending = try await OpenIapModule.shared.getPendingTransactionsIOS()
-            let sanitized = try pending.map {
-                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            try await IapException.bridging("getPendingTransactionsIOS") {
+                ExpoIapLog.payload("getPendingTransactionsIOS", payload: nil)
+                let pending = try await OpenIapModule.shared.getPendingTransactionsIOS()
+                let sanitized = try pending.map {
+                    ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+                }
+                ExpoIapLog.result("getPendingTransactionsIOS", value: sanitized)
+                return sanitized
             }
-            ExpoIapLog.result("getPendingTransactionsIOS", value: sanitized)
-            return sanitized
         }
 
         AsyncFunction("getAllTransactionsIOS") { () async throws -> [[String: Any]] in
-            ExpoIapLog.payload("getAllTransactionsIOS", payload: nil)
-            let all = try await OpenIapModule.shared.getAllTransactionsIOS()
-            let sanitized = try all.map {
-                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            try await IapException.bridging("getAllTransactionsIOS") {
+                ExpoIapLog.payload("getAllTransactionsIOS", payload: nil)
+                let all = try await OpenIapModule.shared.getAllTransactionsIOS()
+                let sanitized = try all.map {
+                    ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+                }
+                ExpoIapLog.result("getAllTransactionsIOS", value: sanitized)
+                return sanitized
             }
-            ExpoIapLog.result("getAllTransactionsIOS", value: sanitized)
-            return sanitized
         }
 
         AsyncFunction("clearTransactionIOS") { () async throws -> Bool in
-            ExpoIapLog.payload("clearTransactionIOS", payload: nil)
-            let success = try await OpenIapModule.shared.clearTransactionIOS()
-            ExpoIapLog.result("clearTransactionIOS", value: success)
-            return success
+            try await IapException.bridging("clearTransactionIOS") {
+                ExpoIapLog.payload("clearTransactionIOS", payload: nil)
+                let success = try await OpenIapModule.shared.clearTransactionIOS()
+                ExpoIapLog.result("clearTransactionIOS", value: success)
+                return success
+            }
         }
 
         AsyncFunction("getReceiptDataIOS") { () async throws -> String in
-            ExpoIapLog.payload("getReceiptDataIOS", payload: nil)
-            let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
-            ExpoIapLog.result("getReceiptDataIOS", value: "<receipt>")
-            return receipt
+            try await IapException.bridging("getReceiptDataIOS") {
+                ExpoIapLog.payload("getReceiptDataIOS", payload: nil)
+                let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
+                ExpoIapLog.result("getReceiptDataIOS", value: "<receipt>")
+                return receipt
+            }
         }
 
         AsyncFunction("requestReceiptRefreshIOS") { () async throws -> String in
-            ExpoIapLog.payload("requestReceiptRefreshIOS", payload: nil)
-            _ = try await OpenIapModule.shared.syncIOS()
-            let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
-            ExpoIapLog.result("requestReceiptRefreshIOS", value: "<receipt>")
-            return receipt
+            try await IapException.bridging("requestReceiptRefreshIOS", fallback: .syncError) {
+                ExpoIapLog.payload("requestReceiptRefreshIOS", payload: nil)
+                _ = try await OpenIapModule.shared.syncIOS()
+                let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
+                ExpoIapLog.result("requestReceiptRefreshIOS", value: "<receipt>")
+                return receipt
+            }
         }
 
         AsyncFunction("verifyAppOwnership") { (params: [String: Any]) async throws -> [String: Any] in
-            do {
+            try await IapException.bridging("verifyAppOwnership") {
                 let options = try OpenIapSerialization.decode(object: params, as: VerifyAppOwnershipProps.self)
                 let result = try await OpenIapModule.shared.verifyAppOwnership(options)
                 return ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
-            } catch let error as CancellationError {
-                throw error
-            } catch is DecodingError {
-                throw IapException.from(PurchaseError.make(code: .developerError, message: "Invalid app ownership options"))
-            } catch let error as PurchaseError {
-                throw IapException.from(error)
-            } catch {
-                throw IapException.from(PurchaseError.make(code: .serviceError, message: error.localizedDescription))
             }
         }
 
         AsyncFunction("verifyPurchase") { (params: [String: Any]) async throws -> [String: Any] in
-            ExpoIapLog.payload(
-                "verifyPurchase",
-                payload: [
-                    "hasApple": params["apple"] != nil,
-                    "hasGoogle": params["google"] != nil,
-                    "hasHorizon": params["horizon"] != nil,
-                ]
-            )
-            do {
+            try await IapException.bridging("verifyPurchase", fallback: .purchaseVerificationFailed) {
+                ExpoIapLog.payload(
+                    "verifyPurchase",
+                    payload: [
+                        "hasApple": params["apple"] != nil,
+                        "hasGoogle": params["google"] != nil,
+                        "hasHorizon": params["horizon"] != nil,
+                    ]
+                )
                 let props = try OpenIapSerialization.verifyPurchaseProps(from: params)
                 let result = try await OpenIapModule.shared.verifyPurchase(props)
+                // The VerifyPurchaseResult union encodes flat, with `__typename`.
                 let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
                 ExpoIapLog.result("verifyPurchase", value: sanitized)
                 return sanitized
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("verifyPurchase", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("verifyPurchase", error: error)
-                throw IapException.from(
-                    PurchaseError.make(
-                        code: .purchaseVerificationFailed,
-                        message: error.localizedDescription
-                    )
-                )
             }
         }
 
         AsyncFunction("verifyPurchaseWithProvider") { (params: [String: Any]) async throws -> [String: Any] in
-            ExpoIapLog.payload(
-                "verifyPurchaseWithProvider",
-                payload: [
-                    "provider": params["provider"] ?? "unknown",
-                    "hasIapkit": params["iapkit"] != nil
-                ]
-            )
-            do {
+            try await IapException.bridging("verifyPurchaseWithProvider", fallback: .purchaseVerificationFailed) {
+                ExpoIapLog.payload(
+                    "verifyPurchaseWithProvider",
+                    payload: [
+                        "provider": params["provider"] ?? "unknown",
+                        "hasIapkit": params["iapkit"] != nil
+                    ]
+                )
                 let jsonData = try JSONSerialization.data(withJSONObject: params)
                 let props = try JSONDecoder().decode(VerifyPurchaseWithProviderProps.self, from: jsonData)
                 let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(props)
                 let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
                 ExpoIapLog.result("verifyPurchaseWithProvider", value: sanitized)
                 return sanitized
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("verifyPurchaseWithProvider", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("verifyPurchaseWithProvider", error: error)
-                throw IapException.from(
-                    PurchaseError.make(
-                        code: .purchaseVerificationFailed,
-                        message: error.localizedDescription
-                    )
-                )
             }
         }
 
         AsyncFunction("openRedeemOfferCode") { () async throws -> [String: Any]? in
-            do {
+            try await IapException.bridging("openRedeemOfferCode", fallback: .purchaseError) {
                 ExpoIapLog.payload("openRedeemOfferCode", payload: nil)
                 guard let purchase = try await OpenIapModule.shared.openRedeemOfferCode() else {
                     ExpoIapLog.result("openRedeemOfferCode", value: nil)
@@ -307,98 +261,117 @@ public final class ExpoIapModule: Module {
                 let payload = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
                 ExpoIapLog.result("openRedeemOfferCode", value: payload)
                 return payload
-            } catch {
-                ExpoIapLog.failure("openRedeemOfferCode", error: error)
-                throw IapException.from(PurchaseError.wrap(error, fallback: .purchaseError))
             }
         }
 
         AsyncFunction("showManageSubscriptionsIOS") { () async throws -> [[String: Any]] in
-            ExpoIapLog.payload("showManageSubscriptionsIOS", payload: nil)
-            let purchases = try await OpenIapModule.shared.showManageSubscriptionsIOS()
-            let sanitized = try purchases.map {
-                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            try await IapException.bridging("showManageSubscriptionsIOS") {
+                ExpoIapLog.payload("showManageSubscriptionsIOS", payload: nil)
+                let purchases = try await OpenIapModule.shared.showManageSubscriptionsIOS()
+                let sanitized = try purchases.map {
+                    ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+                }
+                ExpoIapLog.result("showManageSubscriptionsIOS", value: sanitized)
+                return sanitized
             }
-            ExpoIapLog.result("showManageSubscriptionsIOS", value: sanitized)
-            return sanitized
         }
 
         AsyncFunction("deepLinkToSubscriptionsIOS") { () async throws -> Bool in
-            ExpoIapLog.payload("deepLinkToSubscriptionsIOS", payload: nil)
-            try await OpenIapModule.shared.deepLinkToSubscriptions(nil)
-            ExpoIapLog.result("deepLinkToSubscriptionsIOS", value: true)
-            return true
+            try await IapException.bridging("deepLinkToSubscriptionsIOS") {
+                ExpoIapLog.payload("deepLinkToSubscriptionsIOS", payload: nil)
+                try await OpenIapModule.shared.deepLinkToSubscriptions(nil)
+                ExpoIapLog.result("deepLinkToSubscriptionsIOS", value: true)
+                return true
+            }
         }
 
         AsyncFunction("beginRefundRequestIOS") { (sku: String) async throws -> String? in
-            ExpoIapLog.payload("beginRefundRequestIOS", payload: ["sku": sku])
-            let result = try await OpenIapModule.shared.beginRefundRequestIOS(sku: sku)
-            ExpoIapLog.result("beginRefundRequestIOS", value: result)
-            return result
+            try await IapException.bridging("beginRefundRequestIOS") {
+                ExpoIapLog.payload("beginRefundRequestIOS", payload: ["sku": sku])
+                let result = try await OpenIapModule.shared.beginRefundRequestIOS(sku: sku)
+                ExpoIapLog.result("beginRefundRequestIOS", value: result)
+                return result
+            }
         }
 
         AsyncFunction("getPromotedProductIOS") { () async throws -> [String: Any]? in
-            ExpoIapLog.payload("getPromotedProductIOS", payload: nil)
-            if let product = try await OpenIapModule.shared.getPromotedProductIOS() {
-                let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(product))
-                ExpoIapLog.result("getPromotedProductIOS", value: sanitized)
-                return sanitized
+            try await IapException.bridging("getPromotedProductIOS") {
+                ExpoIapLog.payload("getPromotedProductIOS", payload: nil)
+                if let product = try await OpenIapModule.shared.getPromotedProductIOS() {
+                    let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(product))
+                    ExpoIapLog.result("getPromotedProductIOS", value: sanitized)
+                    return sanitized
+                }
+                ExpoIapLog.result("getPromotedProductIOS", value: nil)
+                return nil
             }
-            ExpoIapLog.result("getPromotedProductIOS", value: nil)
-            return nil
         }
 
         AsyncFunction("getStorefront") { () async throws -> String in
-            ExpoIapLog.payload("getStorefront", payload: nil)
-            let storefront = try await OpenIapModule.shared.getStorefront()
-            ExpoIapLog.result("getStorefront", value: storefront)
-            return storefront
+            try await IapException.bridging("getStorefront") {
+                ExpoIapLog.payload("getStorefront", payload: nil)
+                let storefront = try await OpenIapModule.shared.getStorefront()
+                ExpoIapLog.result("getStorefront", value: storefront)
+                return storefront
+            }
         }
 
         AsyncFunction("restorePurchases") { () async throws -> Bool in
-            try await OpenIapModule.shared.restorePurchases()
-            return true
+            try await IapException.bridging("restorePurchases", fallback: .syncError) {
+                try await OpenIapModule.shared.restorePurchases()
+                return true
+            }
         }
 
         AsyncFunction("syncIOS") { () async throws -> Bool in
-            ExpoIapLog.payload("syncIOS", payload: nil)
-            let success = try await OpenIapModule.shared.syncIOS()
-            ExpoIapLog.result("syncIOS", value: success)
-            return success
+            try await IapException.bridging("syncIOS", fallback: .syncError) {
+                ExpoIapLog.payload("syncIOS", payload: nil)
+                let success = try await OpenIapModule.shared.syncIOS()
+                ExpoIapLog.result("syncIOS", value: success)
+                return success
+            }
         }
 
         AsyncFunction("isTransactionVerifiedIOS") { (sku: String) async throws -> Bool in
-            ExpoIapLog.payload("isTransactionVerifiedIOS", payload: ["sku": sku])
-            let verified = try await OpenIapModule.shared.isTransactionVerifiedIOS(sku: sku)
-            ExpoIapLog.result("isTransactionVerifiedIOS", value: verified)
-            return verified
+            try await IapException.bridging("isTransactionVerifiedIOS") {
+                ExpoIapLog.payload("isTransactionVerifiedIOS", payload: ["sku": sku])
+                let verified = try await OpenIapModule.shared.isTransactionVerifiedIOS(sku: sku)
+                ExpoIapLog.result("isTransactionVerifiedIOS", value: verified)
+                return verified
+            }
         }
 
         AsyncFunction("getTransactionJwsIOS") { (sku: String) async throws -> String? in
-            ExpoIapLog.payload("getTransactionJwsIOS", payload: ["sku": sku])
-            let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
-            ExpoIapLog.result("getTransactionJwsIOS", value: jws == nil ? nil : "<jws>")
-            return jws
+            try await IapException.bridging("getTransactionJwsIOS") {
+                ExpoIapLog.payload("getTransactionJwsIOS", payload: ["sku": sku])
+                let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
+                ExpoIapLog.result("getTransactionJwsIOS", value: jws == nil ? nil : "<jws>")
+                return jws
+            }
         }
 
         AsyncFunction("isEligibleForIntroOfferIOS") { (groupID: String) async throws -> Bool in
-            ExpoIapLog.payload("isEligibleForIntroOfferIOS", payload: ["groupID": groupID])
-            let eligible = try await OpenIapModule.shared.isEligibleForIntroOfferIOS(groupID: groupID)
-            ExpoIapLog.result("isEligibleForIntroOfferIOS", value: eligible)
-            return eligible
+            try await IapException.bridging("isEligibleForIntroOfferIOS") {
+                ExpoIapLog.payload("isEligibleForIntroOfferIOS", payload: ["groupID": groupID])
+                let eligible = try await OpenIapModule.shared.isEligibleForIntroOfferIOS(groupID: groupID)
+                ExpoIapLog.result("isEligibleForIntroOfferIOS", value: eligible)
+                return eligible
+            }
         }
 
         AsyncFunction("subscriptionStatusIOS") { (sku: String) async throws -> [[String: Any]]? in
-            ExpoIapLog.payload("subscriptionStatusIOS", payload: ["sku": sku])
-            let statuses = try await OpenIapModule.shared.subscriptionStatusIOS(sku: sku)
-            let sanitized = statuses.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
-            ExpoIapLog.result("subscriptionStatusIOS", value: sanitized)
-            return sanitized
+            try await IapException.bridging("subscriptionStatusIOS") {
+                ExpoIapLog.payload("subscriptionStatusIOS", payload: ["sku": sku])
+                let statuses = try await OpenIapModule.shared.subscriptionStatusIOS(sku: sku)
+                let sanitized = statuses.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
+                ExpoIapLog.result("subscriptionStatusIOS", value: sanitized)
+                return sanitized
+            }
         }
 
         AsyncFunction("currentEntitlementIOS") { (sku: String) async throws -> [String: Any]? in
-            ExpoIapLog.payload("currentEntitlementIOS", payload: ["sku": sku])
-            do {
+            try await IapException.bridging("currentEntitlementIOS", fallback: .skuNotFound, productId: sku) {
+                ExpoIapLog.payload("currentEntitlementIOS", payload: ["sku": sku])
                 if let entitlement = try await OpenIapModule.shared.currentEntitlementIOS(sku: sku) {
                     let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(entitlement))
                     ExpoIapLog.result("currentEntitlementIOS", value: sanitized)
@@ -406,18 +379,12 @@ public final class ExpoIapModule: Module {
                 }
                 ExpoIapLog.result("currentEntitlementIOS", value: nil)
                 return nil
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("currentEntitlementIOS", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("currentEntitlementIOS", error: error)
-                throw IapException.from(PurchaseError.make(code: .skuNotFound, productId: sku))
             }
         }
 
         AsyncFunction("latestTransactionIOS") { (sku: String) async throws -> [String: Any]? in
-            ExpoIapLog.payload("latestTransactionIOS", payload: ["sku": sku])
-            do {
+            try await IapException.bridging("latestTransactionIOS", fallback: .skuNotFound, productId: sku) {
+                ExpoIapLog.payload("latestTransactionIOS", payload: ["sku": sku])
                 if let transaction = try await OpenIapModule.shared.latestTransactionIOS(sku: sku) {
                     let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(transaction))
                     ExpoIapLog.result("latestTransactionIOS", value: sanitized)
@@ -425,107 +392,119 @@ public final class ExpoIapModule: Module {
                 }
                 ExpoIapLog.result("latestTransactionIOS", value: nil)
                 return nil
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("latestTransactionIOS", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("latestTransactionIOS", error: error)
-                throw IapException.from(PurchaseError.make(code: .skuNotFound, productId: sku))
             }
         }
 
         AsyncFunction("getActiveSubscriptions") { (subscriptionIds: [String]?) async throws -> [[String: Any]] in
-            ExpoIapLog.payload("getActiveSubscriptions", payload: subscriptionIds.map { ["subscriptionIds": $0] } ?? [:])
-            let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(subscriptionIds)
-            let sanitized = try subscriptions.map {
-                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            try await IapException.bridging("getActiveSubscriptions") {
+                ExpoIapLog.payload("getActiveSubscriptions", payload: subscriptionIds.map { ["subscriptionIds": $0] } ?? [:])
+                let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(subscriptionIds)
+                let sanitized = try subscriptions.map {
+                    ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+                }
+                ExpoIapLog.result("getActiveSubscriptions", value: sanitized)
+                return sanitized
             }
-            ExpoIapLog.result("getActiveSubscriptions", value: sanitized)
-            return sanitized
         }
 
         AsyncFunction("hasActiveSubscriptions") { (subscriptionIds: [String]?) async throws -> Bool in
-            ExpoIapLog.payload("hasActiveSubscriptions", payload: subscriptionIds.map { ["subscriptionIds": $0] } ?? [:])
-            let hasActive = try await OpenIapModule.shared.hasActiveSubscriptions(subscriptionIds)
-            ExpoIapLog.result("hasActiveSubscriptions", value: hasActive)
-            return hasActive
+            try await IapException.bridging("hasActiveSubscriptions") {
+                ExpoIapLog.payload("hasActiveSubscriptions", payload: subscriptionIds.map { ["subscriptionIds": $0] } ?? [:])
+                let hasActive = try await OpenIapModule.shared.hasActiveSubscriptions(subscriptionIds)
+                ExpoIapLog.result("hasActiveSubscriptions", value: hasActive)
+                return hasActive
+            }
         }
 
         // MARK: - External Purchase
 
         AsyncFunction("canPresentExternalPurchaseNoticeIOS") { () async throws -> Bool in
-            ExpoIapLog.payload("canPresentExternalPurchaseNoticeIOS", payload: nil)
-            let canPresent = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
-            ExpoIapLog.result("canPresentExternalPurchaseNoticeIOS", value: canPresent)
-            return canPresent
+            try await IapException.bridging("canPresentExternalPurchaseNoticeIOS") {
+                ExpoIapLog.payload("canPresentExternalPurchaseNoticeIOS", payload: nil)
+                let canPresent = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
+                ExpoIapLog.result("canPresentExternalPurchaseNoticeIOS", value: canPresent)
+                return canPresent
+            }
         }
 
         AsyncFunction("presentExternalPurchaseNoticeSheetIOS") { () async throws -> [String: Any] in
-            ExpoIapLog.payload("presentExternalPurchaseNoticeSheetIOS", payload: nil)
-            let result = try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
-            let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
-            ExpoIapLog.result("presentExternalPurchaseNoticeSheetIOS", value: sanitized)
-            return sanitized
+            try await IapException.bridging("presentExternalPurchaseNoticeSheetIOS") {
+                ExpoIapLog.payload("presentExternalPurchaseNoticeSheetIOS", payload: nil)
+                let result = try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
+                let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
+                ExpoIapLog.result("presentExternalPurchaseNoticeSheetIOS", value: sanitized)
+                return sanitized
+            }
         }
 
         AsyncFunction("presentExternalPurchaseLinkIOS") { (url: String) async throws -> [String: Any] in
-            ExpoIapLog.payload("presentExternalPurchaseLinkIOS", payload: ["url": url])
-            let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(url)
-            let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
-            ExpoIapLog.result("presentExternalPurchaseLinkIOS", value: sanitized)
-            return sanitized
+            try await IapException.bridging("presentExternalPurchaseLinkIOS") {
+                ExpoIapLog.payload("presentExternalPurchaseLinkIOS", payload: ["url": url])
+                let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(url)
+                let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
+                ExpoIapLog.result("presentExternalPurchaseLinkIOS", value: sanitized)
+                return sanitized
+            }
         }
 
         // MARK: - App Transaction (iOS 16.0+)
 
         AsyncFunction("getAppTransactionIOS") { () async throws -> [String: Any]? in
-            ExpoIapLog.payload("getAppTransactionIOS", payload: nil)
-            if #available(iOS 16.0, tvOS 16.0, *) {
-                if let transaction = try await OpenIapModule.shared.getAppTransactionIOS() {
-                    let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(transaction))
-                    ExpoIapLog.result("getAppTransactionIOS", value: sanitized)
-                    return sanitized
+            try await IapException.bridging("getAppTransactionIOS") {
+                ExpoIapLog.payload("getAppTransactionIOS", payload: nil)
+                if #available(iOS 16.0, tvOS 16.0, *) {
+                    if let transaction = try await OpenIapModule.shared.getAppTransactionIOS() {
+                        let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(transaction))
+                        ExpoIapLog.result("getAppTransactionIOS", value: sanitized)
+                        return sanitized
+                    }
                 }
+                ExpoIapLog.result("getAppTransactionIOS", value: nil)
+                return nil
             }
-            ExpoIapLog.result("getAppTransactionIOS", value: nil)
-            return nil
         }
 
         // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
 
         AsyncFunction("isEligibleForExternalPurchaseCustomLinkIOS") { () async throws -> Bool in
-            ExpoIapLog.payload("isEligibleForExternalPurchaseCustomLinkIOS", payload: nil)
-            let isEligible = try await OpenIapModule.shared.isEligibleForExternalPurchaseCustomLinkIOS()
-            ExpoIapLog.result("isEligibleForExternalPurchaseCustomLinkIOS", value: isEligible)
-            return isEligible
+            try await IapException.bridging("isEligibleForExternalPurchaseCustomLinkIOS") {
+                ExpoIapLog.payload("isEligibleForExternalPurchaseCustomLinkIOS", payload: nil)
+                let isEligible = try await OpenIapModule.shared.isEligibleForExternalPurchaseCustomLinkIOS()
+                ExpoIapLog.result("isEligibleForExternalPurchaseCustomLinkIOS", value: isEligible)
+                return isEligible
+            }
         }
 
         AsyncFunction("getExternalPurchaseCustomLinkTokenIOS") { (tokenType: String) async throws -> [String: Any] in
-            ExpoIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: ["tokenType": tokenType])
-            guard let type = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenType) else {
-                throw IapException.from(PurchaseError.make(
-                    code: .developerError,
-                    message: "Invalid token type: \(tokenType). Must be 'acquisition' or 'services'"
-                ))
+            try await IapException.bridging("getExternalPurchaseCustomLinkTokenIOS") {
+                ExpoIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: ["tokenType": tokenType])
+                guard let type = ExternalPurchaseCustomLinkTokenTypeIOS(rawValue: tokenType) else {
+                    throw PurchaseError.make(
+                        code: .developerError,
+                        message: "Invalid token type: \(tokenType). Must be 'acquisition' or 'services'"
+                    )
+                }
+                let result = try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(type)
+                let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
+                ExpoIapLog.result("getExternalPurchaseCustomLinkTokenIOS", value: sanitized)
+                return sanitized
             }
-            let result = try await OpenIapModule.shared.getExternalPurchaseCustomLinkTokenIOS(type)
-            let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
-            ExpoIapLog.result("getExternalPurchaseCustomLinkTokenIOS", value: sanitized)
-            return sanitized
         }
 
         AsyncFunction("showExternalPurchaseCustomLinkNoticeIOS") { (noticeType: String) async throws -> [String: Any] in
-            ExpoIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: ["noticeType": noticeType])
-            guard let type = ExternalPurchaseCustomLinkNoticeTypeIOS(rawValue: noticeType) else {
-                throw IapException.from(PurchaseError.make(
-                    code: .developerError,
-                    message: "Invalid notice type: \(noticeType). Must be 'browser'"
-                ))
+            try await IapException.bridging("showExternalPurchaseCustomLinkNoticeIOS") {
+                ExpoIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: ["noticeType": noticeType])
+                guard let type = ExternalPurchaseCustomLinkNoticeTypeIOS(rawValue: noticeType) else {
+                    throw PurchaseError.make(
+                        code: .developerError,
+                        message: "Invalid notice type: \(noticeType). Must be 'browser'"
+                    )
+                }
+                let result = try await OpenIapModule.shared.showExternalPurchaseCustomLinkNoticeIOS(type)
+                let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
+                ExpoIapLog.result("showExternalPurchaseCustomLinkNoticeIOS", value: sanitized)
+                return sanitized
             }
-            let result = try await OpenIapModule.shared.showExternalPurchaseCustomLinkNoticeIOS(type)
-            let sanitized = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(result))
-            ExpoIapLog.result("showExternalPurchaseCustomLinkNoticeIOS", value: sanitized)
-            return sanitized
         }
     }
 }

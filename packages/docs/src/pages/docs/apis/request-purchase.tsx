@@ -90,7 +90,7 @@ function RequestPurchase() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`requestPurchase(props: RequestPurchaseProps): Promise<Purchase | void>
+            <CodeBlock language="typescript">{`requestPurchase(props: RequestPurchaseProps): Promise<Purchase | Purchase[] | null>
 
 type RequestPurchaseProps =
   | { request: RequestPurchasePropsByPlatforms; type: 'in-app' }
@@ -109,7 +109,7 @@ type RequestPurchaseProps =
             <CodeBlock language="dart">{`Future<RequestPurchaseResult?> requestPurchase(RequestPurchaseProps params);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func request_purchase(props: RequestPurchaseProps) -> Purchase`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func request_purchase(props) -> Variant # Purchase or null`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params);
@@ -188,11 +188,12 @@ type RequestPurchaseProps =
         <li>
           <code>request.google.subscriptionOffers</code>{' '}
           <em>
-            (required for <code>'subs'</code>,{' '}
+            (optional, recommended for <code>'subs'</code>,{' '}
             <code>{`{ sku: string; offerToken: string }[]`}</code>)
           </em>{' '}
-          — <strong>Android.</strong> Required for subscription requests; pair
-          each SKU with its offerToken from <code>fetchProducts</code>.
+          — <strong>Android.</strong> Pair each SKU with an offerToken from{' '}
+          <code>fetchProducts</code>. When omitted, Play uses the first offer
+          returned for the SKU, which may not be the base plan you intend.
         </li>
         <li>
           <code>request.google.obfuscatedAccountId</code>{' '}
@@ -216,9 +217,9 @@ type RequestPurchaseProps =
         Returns
       </AnchorLink>
       <p>
-        <code>Promise&lt;Purchase | void&gt;</code> — dispatched purchase
-        payload. <strong>Do not rely on this for the actual outcome</strong> —
-        listen via{' '}
+        <code>Promise&lt;Purchase | Purchase[] | null&gt;</code> — dispatched
+        purchase payload.{' '}
+        <strong>Do not rely on this for the actual outcome</strong> — listen via{' '}
         <Link to="/docs/events/purchase-updated-listener">
           <code>purchaseUpdatedListener</code>
         </Link>{' '}

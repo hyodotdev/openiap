@@ -199,6 +199,15 @@ public extension PurchaseError {
             )
         }
 
+        if let productError = error as? StoreKit.Product.PurchaseError {
+            return make(
+                code: errorCode(forPurchaseError: productError) ?? fallback,
+                productId: productId,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
+        }
+
         // StoreKit 1 conditions reach `wrap` through promoted purchases,
         // offer-code redemption, and the legacy payment queue.
         if let skErrorCode = skErrorCode(from: error) {
@@ -257,6 +266,25 @@ public extension PurchaseError {
             return .transactionValidationFailed
         case .unknown:
             return .unknown
+        default:
+            return nil
+        }
+    }
+
+    /// Normative StoreKit 2 purchase-error mapping, matching the StoreKit 1
+    /// table above. Returns `nil` for cases without a faithful OpenIAP code.
+    internal static func errorCode(forPurchaseError error: StoreKit.Product.PurchaseError) -> ErrorCode? {
+        switch error {
+        case .purchaseNotAllowed:
+            return .iapNotAvailable
+        case .productUnavailable:
+            return .itemUnavailable
+        case .invalidQuantity:
+            return .developerError
+        case .ineligibleForOffer, .invalidOfferIdentifier, .invalidOfferPrice, .missingOfferParameters:
+            return .skuOfferMismatch
+        case .invalidOfferSignature:
+            return .transactionValidationFailed
         default:
             return nil
         }

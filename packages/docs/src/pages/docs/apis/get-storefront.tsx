@@ -62,7 +62,8 @@ function GetStorefront() {
             <CodeBlock language="swift">{`func getStorefront() async throws -> String`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// OpenIapModule (OpenIapProtocol); OpenIapStore does not expose it
+suspend fun getStorefront(): String`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`suspend fun getStorefront(): String`}</CodeBlock>
@@ -89,8 +90,12 @@ function GetStorefront() {
         Horizon return alpha-2 country codes, while Amazon returns its
         alpha-2-like <code>UserData.marketplace</code> value (for example{' '}
         <code>"US"</code> or <code>"DE"</code>). This is not the device locale.
-        A failed store lookup rejects or throws a platform-mapped purchase
-        error.
+        A failed store lookup rejects or throws a platform-mapped purchase error
+        without firing <code>purchaseError</code> listeners. The exceptions are
+        an automatic iOS connection that fails with <code>init-connection</code>
+        , KMP on Android before the store connects (<code>not-prepared</code>),
+        and Godot, which cannot throw, so it returns an empty string and emits{' '}
+        <code>purchase_error</code>.
       </p>
 
       <h2>Example</h2>
@@ -138,7 +143,10 @@ function StorefrontBadge() {
             <CodeBlock language="swift">{`let countryCode = try await OpenIapModule.shared.getStorefront()`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`val countryCode = openIapStore.getStorefront()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`// Share one module with OpenIapStore(module) instead of creating a second client.
+val module = OpenIapModule(context)
+
+val countryCode = module.getStorefront()`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`val countryCode = kmpIAP.getStorefront()`}</CodeBlock>

@@ -45,6 +45,15 @@ object ExpoIapHelper {
 
     internal fun serializeErrorEnvelope(payload: Map<String, Any?>): String = ERROR_ENVELOPE_PREFIX + JSONObject(payload).toString()
 
+    /** Rejects with the canonical error envelope that the JS bridge parses. */
+    internal fun rejectWithErrorEnvelope(
+        promise: Promise,
+        error: Exception,
+    ) {
+        val openIapError = error as? OpenIapError ?: OpenIapError.ServiceUnavailable(error.message)
+        promise.reject(openIapError.code, serializeErrorEnvelope(serializeOpenIapError(openIapError)), null)
+    }
+
     fun emitOrQueue(
         module: Module,
         scope: CoroutineScope,
@@ -282,7 +291,6 @@ object ExpoIapHelper {
         eventName: String,
         payload: Map<String, Any?>,
         eventPurchaseError: String,
-        fallbackErrorCode: String,
         fallbackErrorPrefix: String,
         logTag: String,
     ) {
@@ -292,7 +300,7 @@ object ExpoIapHelper {
             ExpoIapLog.failure("buffer/send $logTag", error)
             val errorPayload =
                 mapOf(
-                    "code" to fallbackErrorCode,
+                    "code" to OpenIapError.UnknownError.CODE,
                     "message" to "$fallbackErrorPrefix: ${error.message}",
                 )
             runCatching {
@@ -397,7 +405,6 @@ object ExpoIapHelper {
                     eventUserChoiceBilling,
                     details.toJson(),
                     eventPurchaseError,
-                    "alternative-billing-not-available",
                     "Failed to process user choice billing",
                     "USER_CHOICE_BILLING",
                 )
@@ -415,7 +422,6 @@ object ExpoIapHelper {
                     eventDeveloperProvidedBilling,
                     details.toJson(),
                     eventPurchaseError,
-                    "developer-billing-error",
                     "Failed to process developer provided billing",
                     "DEVELOPER_PROVIDED_BILLING",
                 )
@@ -433,7 +439,6 @@ object ExpoIapHelper {
                     eventSubscriptionBillingIssue,
                     purchase.toJson(),
                     eventPurchaseError,
-                    "subscription-billing-issue-error",
                     "Failed to process subscription billing issue",
                     "SUBSCRIPTION_BILLING_ISSUE",
                 )

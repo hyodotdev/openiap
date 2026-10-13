@@ -20,7 +20,7 @@ jest.mock('../../ExpoIapModule', () => ({
     getPendingTransactionsIOS: jest.fn(),
     getAllTransactionsIOS: jest.fn(),
     clearTransactionIOS: jest.fn(),
-    HAS_EXPLICIT_STORE_PROVIDER: false,
+    USING_ONSIDE_SDK: false,
     deepLinkToSubscriptionsIOS: jest.fn(),
     canPresentExternalPurchaseNoticeIOS: jest.fn(),
     presentExternalPurchaseNoticeSheetIOS: jest.fn(),
@@ -48,7 +48,8 @@ jest.mock('react-native', () => ({
 
 /* eslint-disable import/first */
 import ExpoIapModule from '../../ExpoIapModule';
-import {Linking} from 'react-native';
+import {Linking, Platform} from 'react-native';
+import {ErrorCode} from '../../types';
 import {
   isEligibleForIntroOfferIOS,
   syncIOS,
@@ -273,25 +274,60 @@ describe('iOS Module Functions', () => {
   });
 
   describe('Deep Link Functions', () => {
-    it('opens the explicit provider management flow', async () => {
-      Object.assign(ExpoIapModule, {HAS_EXPLICIT_STORE_PROVIDER: true});
+    it('opens the native subscription management sheet', async () => {
       (ExpoIapModule.deepLinkToSubscriptionsIOS as jest.Mock).mockResolvedValue(
         true,
       );
-      try {
-        await deepLinkToSubscriptionsIOS();
-        expect(ExpoIapModule.deepLinkToSubscriptionsIOS).toHaveBeenCalled();
-        expect(Linking.openURL).not.toHaveBeenCalled();
-      } finally {
-        Object.assign(ExpoIapModule, {HAS_EXPLICIT_STORE_PROVIDER: false});
-      }
-    });
-    it('should open subscriptions management URL', async () => {
+
       await deepLinkToSubscriptionsIOS();
 
+      expect(ExpoIapModule.deepLinkToSubscriptionsIOS).toHaveBeenCalledTimes(1);
+      expect(Linking.openURL).not.toHaveBeenCalled();
+    });
+
+    it('opens the App Store web page through the Onside module', async () => {
+      Object.assign(ExpoIapModule, {USING_ONSIDE_SDK: true});
+      try {
+        await deepLinkToSubscriptionsIOS();
+      } finally {
+        Object.assign(ExpoIapModule, {USING_ONSIDE_SDK: false});
+      }
+
+      expect(ExpoIapModule.deepLinkToSubscriptionsIOS).not.toHaveBeenCalled();
       expect(Linking.openURL).toHaveBeenCalledWith(
         'https://apps.apple.com/account/subscriptions',
       );
+    });
+
+    it('rejects on Android instead of opening an Apple URL', async () => {
+      Object.assign(Platform, {OS: 'android'});
+      try {
+        await expect(deepLinkToSubscriptionsIOS()).rejects.toThrow(
+          'deepLinkToSubscriptionsIOS is only available on iOS',
+        );
+      } finally {
+        Object.assign(Platform, {OS: 'ios'});
+      }
+
+      expect(Linking.openURL).not.toHaveBeenCalled();
+      expect(ExpoIapModule.deepLinkToSubscriptionsIOS).not.toHaveBeenCalled();
+    });
+
+    it('rethrows a native envelope rejection as a PurchaseError', async () => {
+      (ExpoIapModule.deepLinkToSubscriptionsIOS as jest.Mock).mockRejectedValue(
+        {
+          code: 'not-prepared',
+          message:
+            'IapException: OPENIAP_ERROR_JSON:{"code":"not-prepared","message":"Billing is not prepared","platform":"ios"} (at ExpoIap/ExpoIapHelper.swift:21)',
+        },
+      );
+
+      await expect(deepLinkToSubscriptionsIOS()).rejects.toMatchObject({
+        name: '[expo-iap]: PurchaseError',
+        code: ErrorCode.NotPrepared,
+        message: 'Billing is not prepared',
+        platform: 'ios',
+      });
     });
   });
 
@@ -750,8 +786,9 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result =
-          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
+        const result = await getExternalPurchaseCustomLinkTokenIOS(
+          'acquisition',
+        );
 
         expect(
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
@@ -781,8 +818,9 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result =
-          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
+        const result = await getExternalPurchaseCustomLinkTokenIOS(
+          'acquisition',
+        );
 
         expect(result.error).toBe('App not eligible');
         expect(result.token).toBeUndefined();

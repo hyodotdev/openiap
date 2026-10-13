@@ -1,4 +1,5 @@
-# The self-hosted Mac runner's label, so actionlint does not report it as unknown.
+# Custom runner labels actionlint cannot know. xcode-27 is a GitHub-hosted
+# larger runner; the self-hosted Mac (self-mac) is only chosen at run time.
 self-hosted-runner:
   labels:
     - xcode-27

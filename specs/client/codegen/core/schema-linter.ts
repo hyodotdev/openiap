@@ -75,7 +75,7 @@ function namedTypeName(type: TypeNode): string {
 }
 
 function platformTypeName(definition: DefinitionNode): string | null {
-  return 'name' in definition && definition.kind.includes('Type') ? definition.name.value : null;
+  return 'name' in definition && definition.kind.includes('Type') ? (definition.name?.value ?? null) : null;
 }
 
 function referencedPlatform(typeName: string): 'ios' | 'android' | null {

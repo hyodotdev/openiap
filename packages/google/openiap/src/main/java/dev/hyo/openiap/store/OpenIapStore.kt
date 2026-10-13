@@ -61,6 +61,10 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
 import dev.hyo.openiap.utils.findActivity
 import dev.hyo.openiap.utils.OwnerScopedValueBinding
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,6 +72,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 internal object OpenIapStorePurchaseRequestResolver {
     fun sku(props: RequestPurchaseProps): String? =
@@ -125,11 +130,12 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val _status = MutableStateFlow(IapStatus())
     val status: StateFlow<IapStatus> = _status.asStateFlow()
 
-    // Prevent duplicate finishing/consuming of the same purchase token
-    private val processedPurchaseTokens = mutableSetOf<String>()
+    // Finish attempt per purchase token; see finishOncePerToken.
+    private val finishesByToken =
+        java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Unit>>()
 
-    // Keep listener references to support proper removal
-    private var pendingRequestProductId: String? = null
+    // SKU of the request whose outcome the next purchase event reports.
+    private val pendingRequestProductId = java.util.concurrent.atomic.AtomicReference<String?>(null)
     private var purchaseListenersAttached = false
 
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
@@ -138,10 +144,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             message = "Purchase successful",
             status = PurchaseResultStatus.Success,
             productId = purchase.productId,
-            transactionId = purchase.id
+            transactionId = purchase.id,
+            lastError = null,
         )
-        _status.value = _status.value.copy(lastError = null)
-        pendingRequestProductId = null
+        pendingRequestProductId.set(null)
 
         storeScope.launch {
             try {
@@ -173,34 +179,26 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val connectionStateListener = OpenIapConnectionStateListener { _isConnected.value = false }
 
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
+        val productId = pendingRequestProductId.getAndSet(null)
+        val code = OpenIapError.toCode(error)
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
-            val code = OpenIapError.toCode(error)
-            val message = OpenIapError.defaultMessage(code)
             setStatusMessage(
-                message = message,
+                message = OpenIapError.defaultMessage(code),
                 status = PurchaseResultStatus.Info,
-                productId = pendingRequestProductId,
-                code = code
+                productId = productId,
+                code = code,
+                lastError = null,
             )
-            _status.value = _status.value.copy(lastError = null)
-            pendingRequestProductId = null
             return@OpenIapPurchaseErrorListener
         }
-        val code = OpenIapError.toCode(error)
         val message = error.message.takeIf { it.isNotBlank() } ?: OpenIapError.defaultMessage(code)
         setStatusMessage(
             message = message,
             status = PurchaseResultStatus.Error,
-            productId = pendingRequestProductId,
-            code = code
+            productId = productId,
+            code = code,
+            lastError = ErrorData(code = code, message = message),
         )
-        _status.value = _status.value.copy(
-            lastError = ErrorData(
-                code = code,
-                message = message
-            )
-        )
-        pendingRequestProductId = null
     }
 
     // Expose a way to set the current Activity for purchase flows
@@ -246,8 +244,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     fun clear() {
         detachPurchaseListeners()
         activityBindings.clear()
-        processedPurchaseTokens.clear()
-        pendingRequestProductId = null
+        finishesByToken.clear()
+        pendingRequestProductId.set(null)
         storeScope.cancel()
     }
 
@@ -314,7 +312,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             val ok = module.endConnection()
             detachPurchaseListeners()
             _isConnected.value = false
-            pendingRequestProductId = null
+            pendingRequestProductId.set(null)
             ok
         } catch (e: Exception) {
             setError(e.message)
@@ -345,65 +343,25 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             OpenIapLog.info("Calling module.fetchProducts", "OpenIapStore")
             val result = module.fetchProducts(request)
             OpenIapLog.info("module.fetchProducts returned: $result", "OpenIapStore")
-            when (result) {
-                is FetchProductsResultProducts -> {
-                    // Merge new products with existing ones
-                    val newProducts = result.value.orEmpty()
-                    val existingProductIds = _products.value.map { it.id }.toSet()
-                    val productsToAdd = newProducts.filter { it.id !in existingProductIds }
-                    _products.value = _products.value + productsToAdd
-                }
-                is FetchProductsResultSubscriptions -> {
-                    // Merge new subscriptions with existing ones
-                    val subs = result.value.orEmpty()
-                    val existingSubIds = _subscriptions.value.map { it.id }.toSet()
-                    val subsToAdd = subs.filter { it.id !in existingSubIds }
-                    _subscriptions.value = _subscriptions.value + subsToAdd
-
-                    // Also add subscription products to products list
-                    val subProducts = subs
-                        .filterIsInstance<ProductSubscriptionAndroid>()
-                        .map { it.toProduct() }
-                    val existingProductIds = _products.value.map { it.id }.toSet()
-                    val productsToAdd = subProducts.filter { it.id !in existingProductIds }
-                    _products.value = _products.value + productsToAdd
-                }
+            val (products, subscriptions) = when (result) {
+                is FetchProductsResultProducts ->
+                    result.value.orEmpty() to emptyList<ProductSubscription>()
+                is FetchProductsResultSubscriptions ->
+                    emptyList<Product>() to result.value.orEmpty()
                 is FetchProductsResultAll -> {
-                    // Handle the all case - merge both products and subscriptions
-                    // The result.value is List<ProductOrSubscription>? containing union wrappers
-                    val items = result.value ?: emptyList()
-
-                    // Extract Android-specific products and subscriptions from wrapper classes
-                    val allProducts = items.mapNotNull {
-                        (it as? ProductOrSubscription.ProductItem)?.value?.let { product ->
-                            if (product is ProductAndroid) product else null
+                    val items = result.value.orEmpty()
+                    items.mapNotNull { (it as? ProductOrSubscription.ProductItem)?.value as? ProductAndroid } to
+                        items.mapNotNull {
+                            (it as? ProductOrSubscription.ProductSubscriptionItem)?.value as? ProductSubscriptionAndroid
                         }
-                    }
-                    val allSubs = items.mapNotNull {
-                        (it as? ProductOrSubscription.ProductSubscriptionItem)?.value?.let { subscription ->
-                            if (subscription is ProductSubscriptionAndroid) subscription else null
-                        }
-                    }
-
-                    // Merge products
-                    val existingProductIds = _products.value.map { it.id }.toSet()
-                    val productsToAdd = allProducts.filter { it.id !in existingProductIds }
-                    _products.value = _products.value + productsToAdd
-
-                    // Merge subscriptions
-                    val existingSubIds = _subscriptions.value.map { it.id }.toSet()
-                    val subsToAdd = allSubs.filter { it.id !in existingSubIds }
-                    _subscriptions.value = _subscriptions.value + subsToAdd
-
-                    // Also add subscription products to products list
-                    val subProducts = allSubs
-                        .filterIsInstance<ProductSubscriptionAndroid>()
-                        .map { it.toProduct() }
-                    val existingSubProductIds = _products.value.map { it.id }.toSet()
-                    val subProductsToAdd = subProducts.filter { it.id !in existingSubProductIds }
-                    _products.value = _products.value + subProductsToAdd
                 }
             }
+            // A re-fetch replaces entries by id so prices and offers stay current.
+            _subscriptions.update { it.upsertById(subscriptions) { sub -> sub.id } }
+            val subscriptionProducts = subscriptions
+                .filterIsInstance<ProductSubscriptionAndroid>()
+                .map { it.toProduct() }
+            _products.update { it.upsertById(products + subscriptionProducts) { product -> product.id } }
             result
         } catch (e: Exception) {
             setError(e.message)
@@ -475,15 +433,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
         if (skuForStatus != null) {
             addPurchasing(skuForStatus)
-            pendingRequestProductId = skuForStatus
+            pendingRequestProductId.set(skuForStatus)
         }
 
         try {
             module.requestPurchase(props).also { result ->
-                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true &&
-                    pendingRequestProductId == skuForStatus
-                ) {
-                    pendingRequestProductId = null
+                if (result is RequestPurchaseResultPurchases && result.value?.isEmpty() == true) {
+                    pendingRequestProductId.compareAndSet(skuForStatus, null)
                 }
             }
         } finally {
@@ -505,13 +461,39 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/finish-transaction">finish-transaction</a>
      */
     val finishTransaction: MutationFinishTransactionHandler = { purchaseInput, isConsumable ->
-        val token = purchaseInput.purchaseToken
-        // Check if already processed - but we can't check isAcknowledgedAndroid on PurchaseInput
-        if (token == null || !processedPurchaseTokens.contains(token)) {
+        finishOncePerToken(purchaseInput, isConsumable)
+    }
+
+    /**
+     * Finishes each purchase token once: concurrent callers share one attempt and its failure,
+     * and a failure allows a retry. A cancelled attempt is no result, so its waiters run their own.
+     */
+    private suspend fun finishOncePerToken(purchase: PurchaseInput, isConsumable: Boolean?) {
+        val token = purchase.purchaseToken
+        while (true) {
+            val attempt = CompletableDeferred<Unit>()
+            val shared = token?.let { finishesByToken.putIfAbsent(it, attempt) }
+            if (shared != null) {
+                try {
+                    shared.await()
+                    return
+                } catch (e: CancellationException) {
+                    if (!shared.isCancelled) throw e
+                    currentCoroutineContext().ensureActive()
+                    continue
+                }
+            }
             try {
-                module.finishTransaction(purchaseInput, isConsumable)
-                if (token != null) processedPurchaseTokens.add(token)
+                module.finishTransaction(purchase, isConsumable)
+                attempt.complete(Unit)
+                return
+            } catch (e: CancellationException) {
+                token?.let { finishesByToken.remove(it, attempt) }
+                attempt.cancel()
+                throw e
             } catch (e: Exception) {
+                token?.let { finishesByToken.remove(it, attempt) }
+                attempt.completeExceptionally(e)
                 setError(e.message)
                 throw e
             }
@@ -653,17 +635,15 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Status helpers
     // -------------------------------------------------------------------------
     private fun setLoading(block: (LoadingStates) -> Unit) {
-        val current = _status.value
-        val loading = current.loadings.copy().apply { block(this) }
-        _status.value = current.copy(loadings = loading)
+        _status.update { it.copy(loadings = it.loadings.copy().also(block)) }
     }
 
     private fun setError(message: String?) {
-        val msg = message ?: "Operation failed"
-        setStatusMessage(msg, PurchaseResultStatus.Error)
-        _status.value = _status.value.copy(lastError = message?.let {
-            ErrorData(code = "ERROR", message = it)
-        })
+        setStatusMessage(
+            message = message ?: "Operation failed",
+            status = PurchaseResultStatus.Error,
+            lastError = message?.let { ErrorData(code = "ERROR", message = it) },
+        )
     }
 
     private fun setStatusMessage(
@@ -671,17 +651,17 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         status: PurchaseResultStatus,
         productId: String? = null,
         transactionId: String? = null,
-        code: String? = null
+        code: String? = null,
+        lastError: ErrorData?,
     ) {
-        _status.value = _status.value.copy(
-            lastPurchaseResult = PurchaseResultData(
-                productId = productId,
-                transactionId = transactionId,
-                message = message,
-                status = status,
-                code = code
-            )
+        val result = PurchaseResultData(
+            productId = productId,
+            transactionId = transactionId,
+            message = message,
+            status = status,
+            code = code
         )
+        _status.update { it.copy(lastPurchaseResult = result, lastError = lastError) }
     }
 
     fun postStatusMessage(
@@ -689,44 +669,51 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         status: PurchaseResultStatus,
         productId: String? = null
     ) {
-        setStatusMessage(message, status, productId)
-        _status.value = _status.value.copy(
+        setStatusMessage(
+            message = message,
+            status = status,
+            productId = productId,
             lastError = if (status == PurchaseResultStatus.Error) {
                 ErrorData(code = "ERROR", message = message)
             } else {
                 null
-            }
+            },
         )
     }
 
     fun clearStatusMessage() {
-        _status.value = _status.value.copy(lastPurchaseResult = null)
+        _status.update { it.copy(lastPurchaseResult = null) }
     }
 
-    private fun addPurchasing(productId: String) {
-        val current = _status.value
-        val set = current.loadings.purchasing.toMutableSet()
-        set.add(productId)
-        _status.value = current.copy(loadings = current.loadings.copy(purchasing = set))
+    private fun addPurchasing(productId: String) = setLoading {
+        it.purchasing = it.purchasing + productId
     }
 
-    private fun removePurchasing(productId: String) {
-        val current = _status.value
-        val set = current.loadings.purchasing.toMutableSet()
-        set.remove(productId)
-        _status.value = current.copy(loadings = current.loadings.copy(purchasing = set))
+    private fun removePurchasing(productId: String) = setLoading {
+        it.purchasing = it.purchasing - productId
     }
 
+}
+
+/** Replaces entries whose id is in [updates] and appends the rest; the update wins. */
+private fun <T> List<T>.upsertById(updates: List<T>, id: (T) -> String): List<T> {
+    val updatesById = updates.associateBy(id)
+    val kept = map { updatesById[id(it)] ?: it }
+    val existingIds = mapTo(HashSet(), id)
+    return kept + updatesById.values.filter { id(it) !in existingIds }
 }
 
 // -----------------------------------------------------------------------------
 // Status types (aligned with openiap-apple)
 // -----------------------------------------------------------------------------
+@Suppress("DEPRECATION")
 data class IapStatus(
     val loadings: LoadingStates = LoadingStates(),
     val lastPurchaseResult: PurchaseResultData? = null,
     val lastError: ErrorData? = null,
+    @Deprecated(NEVER_SET_STATUS_FIELD)
     val currentOperation: IapOperation? = null,
+    @Deprecated(NEVER_SET_STATUS_FIELD)
     val operationHistory: List<IapOperation> = emptyList()
 ) {
     fun isPurchasing(productId: String) = loadings.purchasing.contains(productId)
@@ -759,6 +746,11 @@ data class ErrorData(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+private const val NEVER_SET_STATUS_FIELD =
+    "OpenIapStore never sets this; it will be removed in the next major release."
+
+@Deprecated(NEVER_SET_STATUS_FIELD)
+@Suppress("DEPRECATION")
 data class IapOperation(
     val type: IapOperationType,
     val productId: String? = null,
@@ -766,6 +758,7 @@ data class IapOperation(
     val result: IapOperationResult? = null
 )
 
+@Deprecated(NEVER_SET_STATUS_FIELD)
 enum class IapOperationType {
     InitConnection,
     EndConnection,
@@ -775,6 +768,8 @@ enum class IapOperationType {
     RestorePurchases,
     ValidateReceipt,
 }
+
+@Deprecated(NEVER_SET_STATUS_FIELD)
 sealed class IapOperationResult {
     object Success : IapOperationResult()
     data class Failure(val message: String) : IapOperationResult()

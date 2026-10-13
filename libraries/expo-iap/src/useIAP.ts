@@ -68,19 +68,16 @@ import {
   isRecoverableError,
 } from './utils/errorMapping';
 
-const PURCHASE_DELIVERY_DEDUP_WINDOW_MS = 30_000;
+// Hooks share one native connection; the last mounted hook ends it.
+let connectionOwnerCount = 0;
 
-function getPurchaseDeliveryKey(purchase: Purchase): string {
-  return [
-    purchase.store ?? '',
-    purchase.productId ?? '',
-    purchase.purchaseToken ??
-      purchase.transactionId ??
-      purchase.id ??
-      purchase.transactionDate ??
-      '',
-  ].join(':');
-}
+const releaseConnection = (): void => {
+  connectionOwnerCount = Math.max(0, connectionOwnerCount - 1);
+  if (connectionOwnerCount > 0) return;
+  endConnection().catch((error: unknown) => {
+    ExpoIapConsole.warn('[useIAP] endConnection failed:', error);
+  });
+};
 
 type UseIap = {
   connected: boolean;
@@ -132,9 +129,9 @@ export interface UseIAPOptions {
   onPurchaseSuccess?: (purchase: Purchase) => void;
   onPurchaseError?: (error: PurchaseError) => void;
   /**
-   * iOS only. When enabled, the purchase success listener also receives
-   * StoreKit replay events for a transaction ID already delivered during the
-   * current connection session. Defaults to false.
+   * Options for the purchase success listener. iOS defaults to suppressing
+   * StoreKit replay events for the same transaction ID; set
+   * `dedupeTransactionIOS` to false only for diagnostics.
    */
   purchaseUpdatedListenerOptions?: PurchaseUpdatedListenerOptions | null;
   /**
@@ -168,7 +165,8 @@ export interface UseIAPOptions {
 }
 
 /**
- * React Hook for managing In-App Purchases.
+ * React Hook for managing In-App Purchases. Mounted hooks share one store
+ * connection, which ends when the last of them unmounts.
  * See documentation at https://openiap.dev/docs/setup/expo#useIAP-hook
  */
 export function useIAP(options?: UseIAPOptions): UseIap {
@@ -187,7 +185,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
   const startedInitializationGenerationRef = useRef(0);
-  const deliveredPurchaseKeysRef = useRef(new Set<string>());
 
   const mergeWithDuplicateCheck = useCallback(
     <T>(
@@ -261,19 +258,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     }),
     [],
   );
-
-  const markPurchaseDelivered = useCallback((purchase: Purchase): boolean => {
-    const key = getPurchaseDeliveryKey(purchase);
-    if (deliveredPurchaseKeysRef.current.has(key)) {
-      return false;
-    }
-
-    deliveredPurchaseKeysRef.current.add(key);
-    setTimeout(() => {
-      deliveredPurchaseKeysRef.current.delete(key);
-    }, PURCHASE_DELIVERY_DEDUP_WINDOW_MS);
-    return true;
-  }, []);
 
   const invokeOnError = useCallback((error: unknown) => {
     if (optionsRef.current?.onError) {
@@ -512,57 +496,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * Initiate a purchase or subscription flow. The result arrives through
-   * `purchaseUpdatedListener` / `purchaseErrorListener`, not the return value.
-   *
-   * @param props `RequestPurchaseProps`, discriminated by `type`:
-   *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
-   *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
-   * @returns Promise that resolves when the request is dispatched; the actual purchase
-   *   outcome lands in the hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
-   * @throws Synchronous rejection from the store (e.g. `ErrorCode.NotPrepared`, validation failure).
-   *
-   * @example
-   * ```ts
-   * await requestPurchase({
-   *   request: {
-   *     apple: { sku: 'com.app.premium' },
-   *     google: { skus: ['com.app.premium'] },
-   *   },
-   *   type: 'in-app',
-   * });
-   * ```
-   *
-   * @see {@link https://openiap.dev/docs/apis/request-purchase}
-   */
-  const requestPurchaseWithReset = useCallback(
-    async (requestObj: MutationRequestPurchaseArgs) => {
-      const purchaseResult = await requestPurchaseInternal(requestObj);
-      const purchases = Array.isArray(purchaseResult)
-        ? purchaseResult
-        : purchaseResult
-          ? [purchaseResult]
-          : [];
-
-      for (const purchase of purchases ?? []) {
-        if (!markPurchaseDelivered(purchase)) {
-          continue;
-        }
-
-        if (purchase.productId) {
-          await refreshSubscriptionStatus(purchase.productId);
-        }
-        if (optionsRef.current?.onPurchaseSuccess) {
-          optionsRef.current.onPurchaseSuccess(purchase);
-        }
-      }
-
-      return purchaseResult;
-    },
-    [markPurchaseDelivered, refreshSubscriptionStatus],
-  );
-
-  /**
    * Restore non-consumable and active subscription purchases.
    *
    * @see {@link https://openiap.dev/docs/apis/restore-purchases}
@@ -628,6 +561,142 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     return undefined;
   }, []);
 
+  const handlePurchaseUpdate = useCallback(
+    async (purchase: Purchase): Promise<void> => {
+      // Deliver first so a store refresh cannot delay finishing the transaction.
+      try {
+        const callbackResult: unknown =
+          optionsRef.current?.onPurchaseSuccess?.(purchase);
+        Promise.resolve(callbackResult).catch((error: unknown) => {
+          ExpoIapConsole.error('[useIAP] onPurchaseSuccess failed:', error);
+        });
+      } catch (error) {
+        ExpoIapConsole.error('[useIAP] onPurchaseSuccess failed:', error);
+      }
+
+      // Safe for any purchase: it skips products that are not known subscriptions.
+      await refreshSubscriptionStatus(purchase.productId);
+    },
+    [refreshSubscriptionStatus],
+  );
+
+  // Registers only missing listeners, so reconnect can restore removed ones.
+  const registerListeners = useCallback(() => {
+    const current = subscriptionsRef.current;
+    if (!current.purchaseUpdate) {
+      current.purchaseUpdate = purchaseUpdatedListener(
+        handlePurchaseUpdate,
+        optionsRef.current?.purchaseUpdatedListenerOptions,
+      );
+    }
+
+    if (!current.purchaseError) {
+      current.purchaseError = purchaseErrorListener((error: PurchaseError) => {
+        if (!connectedRef.current && error.code === ErrorCode.InitConnection) {
+          return; // Ignore initialization error before connected
+        }
+        if (
+          error.code !== ErrorCode.AlreadyOwned &&
+          !isUserCancelledError(error) &&
+          !isRecoverableError(error)
+        ) {
+          ExpoIapConsole.warn(
+            '[useIAP] Purchase error:',
+            getUserFriendlyErrorMessage(error),
+          );
+        }
+        optionsRef.current?.onPurchaseError?.(error);
+      });
+    }
+
+    // Android billing callbacks are read at event time, so they may be set after mount.
+    if (Platform.OS === 'android' && !current.userChoiceBillingAndroid) {
+      current.userChoiceBillingAndroid = userChoiceBillingListenerAndroid(
+        (details) => {
+          optionsRef.current?.onUserChoiceBillingAndroid?.(details);
+        },
+      );
+    }
+
+    if (Platform.OS === 'android' && !current.developerProvidedBillingAndroid) {
+      current.developerProvidedBillingAndroid =
+        developerProvidedBillingListenerAndroid((details) => {
+          optionsRef.current?.onDeveloperProvidedBillingAndroid?.(details);
+        });
+    }
+
+    if (!current.subscriptionBillingIssue) {
+      current.subscriptionBillingIssue = subscriptionBillingIssueListener(
+        (purchase) => {
+          optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
+        },
+      );
+    }
+
+    if (Platform.OS === 'ios' && !current.promotedProductIOS) {
+      current.promotedProductIOS = promotedProductListenerIOS(
+        (product: Product) => {
+          setPromotedProductIOS(product);
+          optionsRef.current?.onPromotedProductIOS?.(product);
+        },
+      );
+    }
+  }, [handlePurchaseUpdate]);
+
+  /**
+   * Initiate a purchase or subscription flow. The result arrives through
+   * `purchaseUpdatedListener` / `purchaseErrorListener`, not the return value.
+   *
+   * @param props `RequestPurchaseProps`, discriminated by `type`:
+   *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
+   *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
+   * @returns Promise that resolves when the request is dispatched; the actual purchase
+   *   outcome lands in the hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
+   * @throws Synchronous rejection from the store (e.g. `ErrorCode.NotPrepared`, validation failure).
+   *
+   * @example
+   * ```ts
+   * await requestPurchase({
+   *   request: {
+   *     apple: { sku: 'com.app.premium' },
+   *     google: { skus: ['com.app.premium'] },
+   *   },
+   *   type: 'in-app',
+   * });
+   * ```
+   *
+   * @see {@link https://openiap.dev/docs/apis/request-purchase}
+   */
+  const requestPurchase = useCallback(
+    (requestObj: MutationRequestPurchaseArgs) => {
+      // A failed hook init removes the purchase listener; restore it before buying.
+      if (isMountedRef.current) {
+        registerListeners();
+      }
+      return requestPurchaseInternal(requestObj);
+    },
+    [registerListeners],
+  );
+
+  // Purchase-error listening stays on so later retries still report errors.
+  const removePurchaseListeners = useCallback(() => {
+    subscriptionsRef.current.purchaseUpdate?.remove();
+    subscriptionsRef.current.promotedProductIOS?.remove();
+    subscriptionsRef.current.purchaseUpdate = undefined;
+    subscriptionsRef.current.promotedProductIOS = undefined;
+  }, []);
+
+  const cleanupListeners = useCallback(() => {
+    const current = subscriptionsRef.current;
+    current.purchaseUpdate?.remove();
+    current.purchaseError?.remove();
+    current.promotedProductIOS?.remove();
+    current.userChoiceBillingAndroid?.remove();
+    current.developerProvidedBillingAndroid?.remove();
+    current.subscriptionBillingIssue?.remove();
+    subscriptionsRef.current = {};
+  }, []);
+
   const initIapWithSubscriptions = useCallback(
     async (generation: number): Promise<void> => {
       if (
@@ -637,83 +706,10 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         return;
       }
       startedInitializationGenerationRef.current = generation;
+      connectionOwnerCount += 1;
 
       // Register listeners before initConnection; events can fire as soon as it connects.
-      subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
-        async (purchase: Purchase) => {
-          if (!markPurchaseDelivered(purchase)) {
-            return;
-          }
-
-          // Safe for any purchase: it skips products that are not known subscriptions.
-          await refreshSubscriptionStatus(purchase.productId);
-
-          if (optionsRef.current?.onPurchaseSuccess) {
-            optionsRef.current.onPurchaseSuccess(purchase);
-          }
-        },
-        optionsRef.current?.purchaseUpdatedListenerOptions,
-      );
-
-      subscriptionsRef.current.purchaseError = purchaseErrorListener(
-        (error: PurchaseError) => {
-          if (
-            !connectedRef.current &&
-            error.code === ErrorCode.InitConnection
-          ) {
-            return; // Ignore initialization error before connected
-          }
-          const friendly = getUserFriendlyErrorMessage(error);
-          if (
-            error?.code !== ErrorCode.AlreadyOwned &&
-            error?.code !== ErrorCode.ServiceTimeout &&
-            !isUserCancelledError(error) &&
-            !isRecoverableError(error)
-          ) {
-            ExpoIapConsole.warn('[useIAP] Purchase error:', friendly);
-          }
-
-          if (optionsRef.current?.onPurchaseError) {
-            optionsRef.current.onPurchaseError(error);
-          }
-        },
-      );
-
-      if (
-        Platform.OS === 'android' &&
-        optionsRef.current?.onUserChoiceBillingAndroid
-      ) {
-        subscriptionsRef.current.userChoiceBillingAndroid =
-          userChoiceBillingListenerAndroid((details) => {
-            optionsRef.current?.onUserChoiceBillingAndroid?.(details);
-          });
-      }
-
-      if (
-        Platform.OS === 'android' &&
-        optionsRef.current?.onDeveloperProvidedBillingAndroid
-      ) {
-        subscriptionsRef.current.developerProvidedBillingAndroid =
-          developerProvidedBillingListenerAndroid((details) => {
-            optionsRef.current?.onDeveloperProvidedBillingAndroid?.(details);
-          });
-      }
-
-      subscriptionsRef.current.subscriptionBillingIssue =
-        subscriptionBillingIssueListener((purchase) => {
-          optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
-        });
-
-      if (Platform.OS === 'ios') {
-        subscriptionsRef.current.promotedProductIOS =
-          promotedProductListenerIOS((product: Product) => {
-            setPromotedProductIOS(product);
-
-            if (optionsRef.current?.onPromotedProductIOS) {
-              optionsRef.current.onPromotedProductIOS(product);
-            }
-          });
-      }
+      registerListeners();
 
       const config = buildConnectionConfig();
 
@@ -725,7 +721,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         ) {
           if (startedInitializationGenerationRef.current === generation) {
             startedInitializationGenerationRef.current = 0;
-            await endConnection();
+            releaseConnection();
           }
           return;
         }
@@ -734,11 +730,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           ExpoIapConsole.warn(
             '[useIAP] Connection failed, cleaning up listeners...',
           );
-          subscriptionsRef.current.purchaseUpdate?.remove();
-          subscriptionsRef.current.promotedProductIOS?.remove();
-          subscriptionsRef.current.purchaseUpdate = undefined;
-          subscriptionsRef.current.promotedProductIOS = undefined;
-          // Keep purchaseError listener registered to capture subsequent retries
+          removePurchaseListeners();
         }
       } catch (error) {
         if (
@@ -749,16 +741,13 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         }
         ExpoIapConsole.error('initConnection failed:', error);
         invokeOnError(error);
-        subscriptionsRef.current.purchaseUpdate?.remove();
-        subscriptionsRef.current.promotedProductIOS?.remove();
-        subscriptionsRef.current.purchaseUpdate = undefined;
-        subscriptionsRef.current.promotedProductIOS = undefined;
+        removePurchaseListeners();
       }
     },
     [
       buildConnectionConfig,
-      markPurchaseDelivered,
-      refreshSubscriptionStatus,
+      registerListeners,
+      removePurchaseListeners,
       invokeOnError,
     ],
   );
@@ -771,37 +760,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       setConnected(result);
 
       if (result) {
-        // Re-register listeners if they were cleaned up during a previous failure
-        if (!subscriptionsRef.current.purchaseUpdate) {
-          subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
-            async (purchase: Purchase) => {
-              if (!markPurchaseDelivered(purchase)) {
-                return;
-              }
-
-              await refreshSubscriptionStatus(purchase.productId);
-
-              if (optionsRef.current?.onPurchaseSuccess) {
-                optionsRef.current.onPurchaseSuccess(purchase);
-              }
-            },
-            optionsRef.current?.purchaseUpdatedListenerOptions,
-          );
-        }
-
-        if (
-          Platform.OS === 'ios' &&
-          !subscriptionsRef.current.promotedProductIOS
-        ) {
-          subscriptionsRef.current.promotedProductIOS =
-            promotedProductListenerIOS((product: Product) => {
-              setPromotedProductIOS(product);
-
-              if (optionsRef.current?.onPromotedProductIOS) {
-                optionsRef.current.onPromotedProductIOS(product);
-              }
-            });
-        }
+        registerListeners();
       }
 
       return result;
@@ -810,34 +769,23 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       invokeOnError(error);
       return false;
     }
-  }, [
-    buildConnectionConfig,
-    markPurchaseDelivered,
-    refreshSubscriptionStatus,
-    invokeOnError,
-  ]);
+  }, [buildConnectionConfig, registerListeners, invokeOnError]);
 
   useEffect(() => {
     const generation = ++initializationGenerationRef.current;
     isMountedRef.current = true;
     void Promise.resolve().then(() => initIapWithSubscriptions(generation));
-    const currentSubscriptions = subscriptionsRef.current;
 
     return () => {
       isMountedRef.current = false;
-      currentSubscriptions.purchaseUpdate?.remove();
-      currentSubscriptions.purchaseError?.remove();
-      currentSubscriptions.promotedProductIOS?.remove();
-      currentSubscriptions.userChoiceBillingAndroid?.remove();
-      currentSubscriptions.developerProvidedBillingAndroid?.remove();
-      currentSubscriptions.subscriptionBillingIssue?.remove();
+      cleanupListeners();
       if (startedInitializationGenerationRef.current === generation) {
         startedInitializationGenerationRef.current = 0;
-        void endConnection();
+        releaseConnection();
       }
       setConnected(false);
     };
-  }, [initIapWithSubscriptions]);
+  }, [initIapWithSubscriptions, cleanupListeners]);
 
   return {
     connected,
@@ -849,7 +797,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     activeSubscriptions,
     getAvailablePurchases: getAvailablePurchasesInternal,
     fetchProducts: fetchProductsInternal,
-    requestPurchase: requestPurchaseWithReset,
+    requestPurchase,
     verifyPurchase,
     verifyPurchaseWithProvider,
     restorePurchases: restorePurchasesInternal,

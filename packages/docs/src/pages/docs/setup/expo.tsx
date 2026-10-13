@@ -399,7 +399,8 @@ cd ios && pod install`}
         <p>
           expo-iap provides the same <code>useIAP</code> hook as
           react-native-iap. It manages connection, state, and errors
-          automatically.
+          automatically. Mounted hooks share one store connection, which closes
+          when the last of them unmounts.
         </p>
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';

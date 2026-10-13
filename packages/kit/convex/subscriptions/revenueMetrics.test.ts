@@ -370,11 +370,22 @@ describe("isActiveAt", () => {
 
   it("undefined expiresAt + Active counted state → still active (matches steady-state semantics)", () => {
     const sub = makeSub({
+      platform: "Android",
       state: "Active",
       startedAt: Date.UTC(2026, 2, 1),
       expiresAt: undefined,
     });
     expect(isActiveAt(sub, dayEnd)).toBe(true);
+  });
+
+  it("never counts an iOS row without an expiry (a non-renewing pass)", () => {
+    const sub = makeSub({
+      platform: "IOS",
+      state: "Active",
+      startedAt: Date.UTC(2026, 2, 1),
+      expiresAt: undefined,
+    });
+    expect(isActiveAt(sub, dayEnd)).toBe(false);
   });
 });
 

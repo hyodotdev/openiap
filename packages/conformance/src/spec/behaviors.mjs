@@ -15,8 +15,9 @@
  *
  * `capability` names an entry in specs/client/src/capability-matrix.mjs. A
  * behavior gated on a capability is only required of stores whose level for it
- * is `required`; for `unsupported` stores the runner asserts the documented
- * absence instead. Ungated behaviors apply to every implementation.
+ * is `required`; for `unsupported` stores it is not applicable unless the
+ * adapter supplies an absence check. Ungated behaviors apply to every
+ * implementation.
  */
 
 export const BEHAVIOR_CATEGORIES = Object.freeze([
@@ -37,7 +38,6 @@ export const BEHAVIOR_CATEGORIES = Object.freeze([
 
 export const BEHAVIOR_LEVELS = Object.freeze(['MUST', 'SHOULD']);
 
-/** @type {ReadonlyArray<import('./types.mjs').Behavior>} */
 export const BEHAVIORS = Object.freeze([
   // --- products ----------------------------------------------------------
   {

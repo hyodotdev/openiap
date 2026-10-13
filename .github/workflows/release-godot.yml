@@ -153,6 +153,7 @@ jobs:
 
   deploy:
     needs: [validate-android, validate-ios]
+    environment: release
     permissions:
       actions: write
       attestations: write # bind the published ZIP to this workflow run

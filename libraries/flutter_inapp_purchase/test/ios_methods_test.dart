@@ -545,10 +545,6 @@ void main() {
         throwsA(isA<PurchaseError>()),
       );
       await expectLater(
-        macIap.beginRefundRequestIOS('sku'),
-        throwsA(isA<PlatformException>()),
-      );
-      await expectLater(
         macIap.showManageSubscriptionsIOS(),
         throwsA(isA<PlatformException>()),
       );
@@ -646,6 +642,15 @@ void main() {
         calls.last.arguments,
         <String, dynamic>{'sku': 'com.example.prod1'},
       );
+    });
+
+    test('beginRefundRequestIOS reaches the macOS refund page fallback',
+        () async {
+      final macIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'macos'),
+      );
+      await macIap.beginRefundRequestIOS('com.example.prod1');
+      expect(calls.last.method, 'beginRefundRequestIOS');
     });
 
     test('beginRefundRequestIOS throws PlatformException on non-iOS', () async {

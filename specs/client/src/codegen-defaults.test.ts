@@ -296,27 +296,21 @@ describe('codegen defaults', () => {
     expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(product)).toContain('var platform: _Types.IapPlatform = IapPlatform.IOS');
   });
 
-  it('derives Swift ErrorCode compatibility cases from IR aliases', () => {
+  it('renders exactly the IR spellings in the Swift raw-value initializer', () => {
     const errorCode: IREnum = {
       name: 'ErrorCode',
       isErrorCode: true,
       values: [
-        {
-          name: 'LegacyFailure',
-          rawValue: 'legacy-failure',
-          legacyAliases: [],
-        },
-        {
-          name: 'CanonicalFailure',
-          rawValue: 'canonical-failure',
-          legacyAliases: ['legacy-failure', 'LegacyFailure'],
-        },
+        { name: 'Unknown', rawValue: 'unknown', legacyAliases: ['UNKNOWN', 'Unknown'] },
+        { name: 'CanonicalFailure', rawValue: 'canonical-failure', legacyAliases: ['CANONICAL_FAILURE', 'CanonicalFailure'] },
       ],
     };
 
     const output = new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema([], [errorCode]));
 
-    expect(output).toContain('case "legacy-failure", "LegacyFailure":\n            self = .canonicalFailure // Legacy alias');
-    expect(output).toContain('case "canonical-failure", "CanonicalFailure":\n            self = .canonicalFailure');
+    expect(output).toContain(
+      'case "canonical-failure", "CANONICAL_FAILURE", "CanonicalFailure":\n            self = .canonicalFailure',
+    );
+    expect(output).not.toContain('Legacy alias');
   });
 });

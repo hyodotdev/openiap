@@ -1,0 +1,7 @@
+source 'https://rubygems.org'
+
+ruby '>= 3.3.0'
+
+# The Apple release lints and publishes the podspec with this. Pinned so a
+# CocoaPods upgrade is a deliberate change verified by a release lint.
+gem 'cocoapods', '1.15.2'

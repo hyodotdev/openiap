@@ -101,24 +101,22 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       await signIn(getOtpProvider(), formData);
       setIsOtpSent(true);
       setView("emailVerify");
-    } catch (err: any) {
-      if (
-        err.message?.includes("service") ||
-        err.message?.includes("trouble sending")
-      ) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("service") || message.includes("trouble sending")) {
         setError(
           "Our email service is temporarily unavailable. Please try again later or use GitHub sign in.",
         );
       } else if (
-        err.message?.includes("too many") ||
-        err.message?.includes("rate limit")
+        message.includes("too many") ||
+        message.includes("rate limit")
       ) {
         setError(
           "Too many attempts. Please wait a few minutes before trying again.",
         );
       } else {
         setError(
-          err.message ||
+          message ||
             "Unable to send verification code. Please try again in a moment.",
         );
       }
@@ -142,12 +140,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         void navigate("/");
         handleClose();
       }, 500);
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
       setIsAuthenticating(false);
-      if (err.message?.includes("Invalid code")) {
+      if (message.includes("Invalid code")) {
         setError("Invalid verification code. Please check and try again.");
       } else {
-        setError(err.message || "Verification failed. Please try again.");
+        setError(message || "Verification failed. Please try again.");
       }
       setIsLoading(false);
     }
@@ -161,19 +160,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       sessionStorage.setItem("github_auth_pending", "true");
       await signIn("github");
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
       sessionStorage.removeItem("github_auth_pending");
       setIsAuthenticating(false);
-      if (
-        err.message?.includes("service") ||
-        err.message?.includes("unavailable")
-      ) {
+      if (message.includes("service") || message.includes("unavailable")) {
         setError(
           "Our email service is temporarily unavailable. Please try again later or use GitHub sign in.",
         );
       } else {
         setError(
-          err.message ||
+          message ||
             "GitHub sign in is temporarily unavailable. Please try again later.",
         );
       }

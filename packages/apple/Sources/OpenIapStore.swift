@@ -822,7 +822,9 @@ public extension OpenIapStore {
         public var loadings: LoadingStates = LoadingStates()
         public var lastPurchaseResult: PurchaseResultData?
         public var lastError: ErrorData?
+        @available(*, deprecated, message: "OpenIapStore never sets this; it will be removed in the next major release.")
         public var currentOperation: IapOperation?
+        @available(*, deprecated, message: "OpenIapStore never sets this; it will be removed in the next major release.")
         public var operationHistory: [IapOperation] = []
 
         public init() {}
@@ -835,6 +837,7 @@ public extension OpenIapStore {
             loadings.initConnection || loadings.fetchProducts || loadings.restorePurchases || !loadings.purchasing.isEmpty
         }
 
+        @available(*, deprecated, message: "OpenIapStore never sets this; it will be removed in the next major release.")
         public mutating func addToHistory(_ operation: IapOperation) {
             operationHistory.insert(operation, at: 0)
             if operationHistory.count > 10 {
@@ -843,11 +846,7 @@ public extension OpenIapStore {
         }
 
         public mutating func reset() {
-            loadings = LoadingStates()
-            lastPurchaseResult = nil
-            lastError = nil
-            currentOperation = nil
-            operationHistory.removeAll()
+            self = IapStatus()
         }
     }
 
@@ -886,6 +885,7 @@ public extension OpenIapStore {
         }
     }
 
+    @available(*, deprecated, message: "OpenIapStore never sets this; it will be removed in the next major release.")
     enum IapOperation: String {
         case initConnection
         case fetchProducts

@@ -48,12 +48,3 @@ export function useScrollToHash(offset = 80) {
     }
   }, [location, offset]);
 }
-
-/**
- * Get the hash from the URL without the #
- */
-export function getHashId(): string | null {
-  if (typeof window === 'undefined') return null;
-  const hash = window.location.hash;
-  return hash ? hash.slice(1) : null;
-}

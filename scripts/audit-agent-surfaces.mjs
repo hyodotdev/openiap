@@ -23,6 +23,13 @@ const INSTRUCTIONS = "AGENTS.md";
 // Grok, Codex, and Muse read AGENTS.md directly; these must resolve to it.
 export const instructionSymlinks = Object.freeze(["CLAUDE.md", "GEMINI.md"]);
 
+// Every library with its own .claude/ is a separate Claude project, so it
+// carries these commands, each a thin pointer to the root command.
+export const libraryAdapterCommands = Object.freeze(["commit", "review-pr"]);
+
+// Long enough for a pointer and the library's checks; a restated workflow is not.
+export const ADAPTER_MAX_LINES = 20;
+
 function read(root, relative) {
   return fs.readFileSync(path.join(root, relative), "utf8");
 }
@@ -60,6 +67,91 @@ export function listSkills(root = repositoryRoot) {
     codex: listDirectories(root, CODEX_SKILLS_DIR),
     claude: listDirectories(root, CLAUDE_SKILLS_DIR),
   };
+}
+
+// GitHub's heading anchors: lowercase, punctuation dropped, spaces to
+// hyphens, and -1, -2, ... on repeats. Fenced code holds no headings.
+function headingAnchors(markdown) {
+  const anchors = new Set();
+  const seen = new Map();
+
+  for (const [, heading] of markdown
+    .replace(/^```[\s\S]*?^```/gmu, "")
+    .matchAll(/^#{1,6}\s+(.+?)\s*$/gmu)) {
+    const slug = heading
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+      .replace(/\s/gu, "-");
+    const count = seen.get(slug) ?? 0;
+    anchors.add(count === 0 ? slug : `${slug}-${count}`);
+    seen.set(slug, count + 1);
+  }
+
+  return anchors;
+}
+
+/**
+ * Each library command in libraryAdapterCommands must exist, link to the root
+ * command, link only to things that exist, and stay short, so it cannot drift
+ * into a second copy of the root workflow.
+ */
+function findLibraryAdapterFindings(root) {
+  const findings = [];
+
+  for (const library of listDirectories(root, "libraries")) {
+    if (!fs.existsSync(path.join(root, "libraries", library, ".claude"))) {
+      continue;
+    }
+
+    for (const command of libraryAdapterCommands) {
+      const file = `libraries/${library}/${COMMANDS_DIR}/${command}.md`;
+      const target = path.join(root, file);
+
+      if (!fs.existsSync(target)) {
+        findings.push(`${file} is missing; route it to the root /${command}`);
+        continue;
+      }
+
+      const text = read(root, file);
+      const links = [...text.matchAll(/\]\(([^)#\s]*)(?:#([^)\s]+))?\)/gu)]
+        // External links are not ours to check.
+        .filter(([, href]) => !/^[a-z][a-z0-9+.-]*:/iu.test(href));
+      const rootCommand = path.join(root, COMMANDS_DIR, `${command}.md`);
+
+      if (
+        !links.some(
+          ([, href]) =>
+            href && path.resolve(path.dirname(target), href) === rootCommand,
+        )
+      ) {
+        findings.push(
+          `${file} must link to the root ${COMMANDS_DIR}/${command}.md`,
+        );
+      }
+
+      for (const [, href, anchor] of links) {
+        const linked = href ? path.resolve(path.dirname(target), href) : target;
+
+        if (!fs.existsSync(linked)) {
+          findings.push(`${file} links to missing ${href}`);
+        } else if (
+          anchor &&
+          !headingAnchors(fs.readFileSync(linked, "utf8")).has(anchor)
+        ) {
+          findings.push(`${file} links to missing heading ${href}#${anchor}`);
+        }
+      }
+
+      const lines = text.trimEnd().split("\n").length;
+      if (lines > ADAPTER_MAX_LINES) {
+        findings.push(
+          `${file} has ${lines} lines; an adapter stays within ${ADAPTER_MAX_LINES} and leaves the workflow to the root command`,
+        );
+      }
+    }
+  }
+
+  return findings;
 }
 
 export function auditAgentSurfaces(root = repositoryRoot) {
@@ -141,6 +233,8 @@ export function auditAgentSurfaces(root = repositoryRoot) {
       findings.push(`${link} must be a symlink to ${INSTRUCTIONS}`);
     }
   }
+
+  findings.push(...findLibraryAdapterFindings(root));
 
   return findings.sort();
 }

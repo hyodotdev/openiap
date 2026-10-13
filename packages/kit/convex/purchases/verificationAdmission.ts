@@ -1,6 +1,5 @@
 import { ConvexError, v } from "convex/values";
 
-import type { Doc } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
 
 export const VERIFICATION_ADMISSION_CAPACITY = 600;
@@ -64,18 +63,6 @@ export function evaluateVerificationAdmission(args: {
   return { admitted: true, tokens: available - cost };
 }
 
-function bucketState(project: Doc<"projects">, bucket: AdmissionBucket) {
-  return bucket === "verification"
-    ? {
-        tokens: project.verificationAdmissionTokens,
-        refilledAt: project.verificationAdmissionRefilledAt,
-      }
-    : {
-        tokens: project.entitlementRecheckTokens,
-        refilledAt: project.entitlementRecheckRefilledAt,
-      };
-}
-
 export const consume = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -89,12 +76,20 @@ export const consume = internalMutation({
     const cost = args.cost ?? 1;
     if (!Number.isInteger(cost) || cost < 1 || cost > capacity)
       throw new Error("Admission cost is outside the bucket capacity");
-    const project = await ctx.db.get(args.projectId);
-    if (!project) throw new Error("Project not found");
+    if (!(await ctx.db.get(args.projectId))) {
+      throw new Error("Project not found");
+    }
+    const state = await ctx.db
+      .query("verificationAdmissionBuckets")
+      .withIndex("by_project_and_bucket", (q) =>
+        q.eq("projectId", args.projectId).eq("bucket", bucket),
+      )
+      .unique();
 
     const now = Date.now();
     const result = evaluateVerificationAdmission({
-      ...bucketState(project, bucket),
+      tokens: state?.tokens,
+      refilledAt: state?.refilledAt,
       now,
       cost,
       capacity,
@@ -108,18 +103,16 @@ export const consume = internalMutation({
       });
     }
 
-    await ctx.db.patch(
-      args.projectId,
-      bucket === "verification"
-        ? {
-            verificationAdmissionTokens: result.tokens,
-            verificationAdmissionRefilledAt: now,
-          }
-        : {
-            entitlementRecheckTokens: result.tokens,
-            entitlementRecheckRefilledAt: now,
-          },
-    );
+    if (state) {
+      await ctx.db.patch(state._id, { tokens: result.tokens, refilledAt: now });
+    } else {
+      await ctx.db.insert("verificationAdmissionBuckets", {
+        projectId: args.projectId,
+        bucket,
+        tokens: result.tokens,
+        refilledAt: now,
+      });
+    }
     return null;
   },
 });

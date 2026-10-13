@@ -50,12 +50,12 @@ unless the stray file is the intended new value.
 
 ## Boundaries (do not absorb these)
 
-| Domain                              | Owner                                         |
-| ----------------------------------- | --------------------------------------------- |
-| Generated type files source→targets | `specs/client/generated-sync-manifest.mjs`    |
+| Domain                               | Owner                                         |
+| ------------------------------------ | --------------------------------------------- |
+| Generated type files source→targets  | `specs/client/generated-sync-manifest.mjs`    |
 | Protocol and native package versions | `openiap-versions.json` + release-state audit |
-| API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
-| Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |
+| API surface parity across languages  | `scripts/audit-non-godot-parity.mjs`          |
+| Change→job routing                   | `scripts/audit-ci-path-filters.mjs`           |
 
 The fact graph holds scalar declarations only, and it is deliberately
 **additive**: it changes no existing guard. Where a parity-audit needle pins
@@ -89,7 +89,7 @@ scanner in the same change.
 
 ## Roadmap
 
-1. **Done** — toolchain facts (Xcode, macOS image, JDK, Bun, Godot) plus the
+1. **Done** — toolchain facts (Xcode, macOS image, JDK, Bun, Godot, Ruby) plus the
    Example-project derivation.
 2. Consolidate: move parity-audit needles that assert scalar pins into the
    registry, shrinking `audit-non-godot-parity.mjs` toward behavior-only

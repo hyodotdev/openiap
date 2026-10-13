@@ -303,14 +303,14 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/fetch-products
     public func fetchProducts(_ params: ProductRequest) async throws -> FetchProductsResult {
         guard !params.skus.isEmpty else {
-            let error = makePurchaseError(code: .emptySkuList)
+            let error = PurchaseError.make(code: .emptySkuList)
             emitPurchaseError(error)
             throw error
         }
 
         try await ensureConnection()
         guard let productManager = connection.currentProductManager() else {
-            let error = makePurchaseError(code: .notPrepared)
+            let error = PurchaseError.make(code: .notPrepared)
             emitPurchaseError(error)
             throw error
         }
@@ -324,7 +324,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            let purchaseError = makePurchaseError(
+            let purchaseError = PurchaseError.make(
                 code: .queryProduct,
                 message: error.localizedDescription,
                 debugMessage: error.localizedDescription
@@ -390,32 +390,17 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         let sku = await state.promotedProductIdentifier()
         guard let sku else { return nil }
 
-        do {
-            try await ensureConnection()
-        } catch let purchaseError as PurchaseError {
-            throw purchaseError
-        }
-
+        try await ensureConnection()
         await state.setPromotedProductId(sku)
 
         do {
-            let product = try await storeProduct(for: sku)
+            let product = try await storeProduct(for: sku, emitsLookupFailure: true)
             return await StoreKitTypesBridge.productIOS(from: product)
         } catch is CancellationError {
             throw CancellationError()
-        } catch let purchaseError as PurchaseError {
-            await state.setPromotedProductId(nil)
-            throw purchaseError
         } catch {
-            let wrapped = makePurchaseError(
-                code: .queryProduct,
-                productId: sku,
-                message: error.localizedDescription,
-                debugMessage: error.localizedDescription
-            )
-            emitPurchaseError(wrapped)
             await state.setPromotedProductId(nil)
-            throw wrapped
+            throw error
         }
         #else
         return nil
@@ -464,8 +449,12 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// suppressed. `requestPurchase` emits the final canonical error exactly once.
     private func performRequestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
         let iosProps = try resolveIOSPurchaseProps(from: params)
-        try await ensureConnection()
         let sku = iosProps.sku
+        // Screen Time and MDM restrict buying only; reads and restore stay available.
+        guard AppStore.canMakePayments else {
+            throw PurchaseError.make(code: .iapNotAvailable, productId: sku)
+        }
+        try await ensureConnection()
         let product = try await storeProduct(for: sku)
         #if os(iOS)
         let canUsePurchaseIntentOffer: Bool
@@ -524,7 +513,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     NSApplication.shared.windows.first
                 }
                 guard let window else {
-                    let error = makePurchaseError(code: .purchaseError, message: "Could not find window")
+                    let error = PurchaseError.make(code: .purchaseError, message: "Could not find window")
                     throw error
                 }
                 result = try await product.purchase(confirmIn: window, options: options)
@@ -547,30 +536,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             if error is CancellationError {
                 throw CancellationError()
             }
-            // Enhanced error handling for promotional offers
-            if iosProps.withOffer != nil {
-                OpenIapLog.error("Purchase with promotional offer failed: \(error.localizedDescription)")
-                let enhancedMessage = """
-                    Promotional offer purchase failed: \(error.localizedDescription)
-
-                    Common causes:
-                    1. Invalid signature - verify server generates correct signature with exact parameter order
-                    2. Empty appAccountToken - ensure empty string ('') is used in signature, not null
-                    3. Sandbox testing - ensure current subscription has expired before testing offers
-                    4. Offer eligibility - user may not be eligible for this promotional offer
-                    """
-                let purchaseError = makePurchaseError(
-                    code: .purchaseError,
-                    productId: sku,
-                    message: enhancedMessage,
-                    debugMessage: error.localizedDescription
-                )
-                throw purchaseError
-            }
-
-            // Use PurchaseError.wrap to automatically map errors (including StoreKitError.userCancelled)
-            let purchaseError = PurchaseError.wrap(error, fallback: .purchaseError, productId: sku)
-            throw purchaseError
+            throw Self.purchaseFailure(error, sku: sku, hasPromotionalOffer: iosProps.withOffer != nil)
         }
 
         // Keep the intent offer available across local validation and
@@ -600,7 +566,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     - Revoked: \(transaction.revocationDate?.description ?? "none")
                     - Upgraded: \(transaction.isUpgraded)
                     """)
-                let error = makePurchaseError(
+                let error = PurchaseError.make(
                     code: .purchaseError,
                     productId: sku,
                     message: "Finished an inactive subscription transaction. Please retry the purchase."
@@ -648,15 +614,15 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             return .purchase(purchase)
 
         case .userCancelled:
-            let error = makePurchaseError(code: .userCancelled, productId: sku)
+            let error = PurchaseError.make(code: .userCancelled, productId: sku)
             throw error
 
         case .pending:
-            let error = makePurchaseError(code: .deferredPayment, productId: sku)
+            let error = PurchaseError.make(code: .deferredPayment, productId: sku)
             throw error
 
         @unknown default:
-            let error = makePurchaseError(code: .unknown, productId: sku)
+            let error = PurchaseError.make(code: .unknown, productId: sku)
             throw error
         }
     }
@@ -683,6 +649,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         try await ensureConnection()
         let onlyActive = options?.onlyIncludeActiveItemsIOS ?? false
         let shouldPublish = options?.alsoPublishToEventListenerIOS ?? false
+        let statusCache = StoreKitTypesBridge.SubscriptionStatusCache()
         var purchasedItems: [Purchase] = []
 
         for await verification in (onlyActive ? Transaction.currentEntitlements : Transaction.all) {
@@ -694,7 +661,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
 
             let purchase = await StoreKitTypesBridge.purchase(
                 from: transaction,
-                jwsRepresentation: verification.jwsRepresentation
+                jwsRepresentation: verification.jwsRepresentation,
+                statusCache: statusCache
             )
             purchasedItems.append(purchase)
         }
@@ -719,13 +687,15 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
     public func getAllTransactionsIOS() async throws -> [PurchaseIOS] {
         try await ensureConnection()
+        let statusCache = StoreKitTypesBridge.SubscriptionStatusCache()
         var transactions: [PurchaseIOS] = []
 
         for await verification in Transaction.all {
             let transaction = try checkVerified(verification)
             let purchase = await StoreKitTypesBridge.purchaseIOS(
                 from: transaction,
-                jwsRepresentation: verification.jwsRepresentation
+                jwsRepresentation: verification.jwsRepresentation,
+                statusCache: statusCache
             )
             transactions.append(purchase)
         }
@@ -760,7 +730,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
 
         guard let numericId = UInt64(identifier) else {
-            let error = makePurchaseError(code: .purchaseError, message: "Invalid transaction identifier")
+            let error = PurchaseError.make(code: .purchaseError, message: "Invalid transaction identifier")
             emitPurchaseError(error)
             throw error
         }
@@ -798,6 +768,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
     public func getPendingTransactionsIOS() async throws -> [PurchaseIOS] {
         try await ensureConnection()
+        let statusCache = StoreKitTypesBridge.SubscriptionStatusCache()
         var purchases: [PurchaseIOS] = []
         for await verification in Transaction.unfinished {
             let transaction = try checkVerified(verification)
@@ -805,7 +776,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             purchases.append(
                 await StoreKitTypesBridge.purchaseIOS(
                     from: transaction,
-                    jwsRepresentation: verification.jwsRepresentation
+                    jwsRepresentation: verification.jwsRepresentation,
+                    statusCache: statusCache
                 )
             )
         }
@@ -848,7 +820,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let result = await product.latestTransaction else {
-            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            let error = PurchaseError.make(code: .skuNotFound, productId: sku)
             emitPurchaseError(error)
             throw error
         }
@@ -869,35 +841,26 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func performVerifyPurchaseIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
-        let receiptData = (try? await getReceiptDataIOS()) ?? ""
-        var latestPurchase: Purchase? = nil
-        var jws: String = ""
-        var isValid = false
-
-        // Apple options with sku is required
         guard let appleOptions = props.apple, !appleOptions.sku.isEmpty else {
-            throw makePurchaseError(
+            throw PurchaseError.make(
                 code: .developerError,
                 message: "Apple verification requires apple options with sku"
             )
         }
+        let receiptData = (try? await getReceiptDataIOS()) ?? ""
 
-        do {
-            let product = try await storeProduct(for: appleOptions.sku)
-            if let result = await product.latestTransaction {
-                jws = result.jwsRepresentation
-                let transaction = try checkVerified(result)
-                latestPurchase = .purchaseIos(await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation))
-                isValid = true
-            }
-        } catch {
-            isValid = false
+        // Reads the on-device transaction store, so no network failure can pose as a verdict.
+        guard let result = await Transaction.latest(for: appleOptions.sku) else {
+            return VerifyPurchaseResultIOS(isValid: false, jwsRepresentation: "", receiptData: receiptData)
         }
-
+        guard case .verified(let transaction) = result else {
+            return VerifyPurchaseResultIOS(isValid: false, jwsRepresentation: result.jwsRepresentation, receiptData: receiptData)
+        }
+        let purchase = await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation)
         return VerifyPurchaseResultIOS(
-            isValid: isValid,
-            jwsRepresentation: jws,
-            latestTransaction: latestPurchase,
+            isValid: true,
+            jwsRepresentation: result.jwsRepresentation,
+            latestTransaction: .purchaseIos(purchase),
             receiptData: receiptData
         )
     }
@@ -963,13 +926,13 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 props.amazon != nil,
             ].filter { $0 }.count
             guard payloadCount == 1 else {
-                throw makePurchaseError(code: .developerError, message: "IAPKit verification requires exactly one store payload")
+                throw PurchaseError.make(code: .developerError, message: "IAPKit verification requires exactly one store payload")
             }
 
             if let apple = props.apple {
                 let jws = apple.jws.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard jws.isEmpty == false else {
-                    throw makePurchaseError(code: .developerError, message: "JWS is required")
+                    throw PurchaseError.make(code: .developerError, message: "JWS is required")
                 }
                 let payload = IapkitApplePayload(
                     store: .apple,
@@ -982,7 +945,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             if let google = props.google {
                 let purchaseToken = google.purchaseToken.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard purchaseToken.isEmpty == false else {
-                    throw makePurchaseError(code: .developerError, message: "Google purchase token is required")
+                    throw PurchaseError.make(code: .developerError, message: "Google purchase token is required")
                 }
                 let payload = IapkitGooglePayload(
                     store: .google,
@@ -1008,7 +971,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 return (.amazon, try encoder.encode(payload))
             }
 
-            throw makePurchaseError(code: .developerError, message: "IAPKit verification payload is required")
+            throw PurchaseError.make(code: .developerError, message: "IAPKit verification payload is required")
         }
 
         func verifyPurchaseWithIapkit(props: RequestVerifyPurchaseWithIapkitProps) async throws -> RequestVerifyPurchaseWithIapkitResult {
@@ -1034,10 +997,10 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     throw CancellationError()
                 }
                 OpenIapLog.warn("IAPKit verification network error: \(error.localizedDescription)")
-                throw makePurchaseError(code: .networkError, message: error.localizedDescription)
+                throw PurchaseError.make(code: .networkError, message: error.localizedDescription)
             }
             guard let httpResponse = response as? HTTPURLResponse else {
-                throw makePurchaseError(code: .networkError, message: "Invalid response")
+                throw PurchaseError.make(code: .networkError, message: "Invalid response")
             }
             guard (200...299).contains(httpResponse.statusCode) else {
                 let responseBody = String(data: data, encoding: .utf8) ?? ""
@@ -1047,21 +1010,21 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                    let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
                     errorMessage = extractIapkitErrorMessage(from: json) ?? errorMessage
                 }
-                throw makePurchaseError(code: .purchaseVerificationFailed, message: errorMessage)
+                throw PurchaseError.make(code: .purchaseVerificationFailed, message: errorMessage)
             }
 
             OpenIapLog.debug("IAPKit verification response received: bytes=\(data.count)")
 
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 OpenIapLog.warn("Failed to parse IAPKit verification response")
-                throw makePurchaseError(code: .purchaseVerificationFailed, message: "Unable to parse verification response")
+                throw PurchaseError.make(code: .purchaseVerificationFailed, message: "Unable to parse verification response")
             }
 
             if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
                 let errorMessage = extractIapkitErrorMessage(from: firstError) ?? "Unknown error"
                 let errorCode = firstError["code"] as? String ?? "unknown"
                 OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
-                throw makePurchaseError(code: .purchaseVerificationFailed, message: errorMessage)
+                throw PurchaseError.make(code: .purchaseVerificationFailed, message: errorMessage)
             }
 
             let isValid = try Self.iapkitBoolean(from: json["isValid"])
@@ -1070,15 +1033,14 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                   let parsedStore = IapStore(rawValue: storeString),
                   parsedStore == store else {
                 OpenIapLog.warn("IAPKit verification response missing required fields")
-                throw makePurchaseError(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
+                throw PurchaseError.make(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
             }
-            let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
-            let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
+            let parsedState = IapkitPurchaseState(rawValue: stateString) ?? .unknown
             let productId: String?
             if let rawProductId = json["productId"], !(rawProductId is NSNull) {
                 guard let value = rawProductId as? String else {
                     OpenIapLog.warn("IAPKit verification response contains a non-string productId")
-                    throw makePurchaseError(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
+                    throw PurchaseError.make(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
                 }
                 productId = value
             } else {
@@ -1099,10 +1061,10 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
         try await ensureConnection()
         guard props.provider == .iapkit else {
-            throw makePurchaseError(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
+            throw PurchaseError.make(code: .featureNotSupported, message: "Provider \(props.provider.rawValue) is not supported")
         }
         guard let iapkit = props.iapkit else {
-            throw makePurchaseError(code: .developerError, message: "Missing IAPKit verification parameters")
+            throw PurchaseError.make(code: .developerError, message: "Missing IAPKit verification parameters")
         }
         let result = try await verifyPurchaseWithIapkit(props: iapkit)
         return VerifyPurchaseWithProviderResult(
@@ -1118,9 +1080,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     public func getStorefront() async throws -> String {
         try await ensureConnection()
         guard let storefront = await Storefront.current else {
-            let error = makePurchaseError(code: .unknown)
-            emitPurchaseError(error)
-            throw error
+            throw PurchaseError.make(code: .unknown)
         }
         return storefront.countryCode
     }
@@ -1172,6 +1132,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// See: https://openiap.dev/docs/apis/get-active-subscriptions
     public func getActiveSubscriptions(_ subscriptionIds: [String]?) async throws -> [ActiveSubscription] {
         try await ensureConnection()
+        let statusCache = StoreKitTypesBridge.SubscriptionStatusCache()
         var allSubscriptions: [ActiveSubscription] = []
         for await verification in Transaction.currentEntitlements {
             let transaction = try checkVerified(verification)
@@ -1204,8 +1165,10 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 environment = nil
             }
 
-            // Fetch renewal info for subscription
-            let renewalInfo = await StoreKitTypesBridge.subscriptionRenewalInfoIOS(for: transaction)
+            let renewalInfo = await StoreKitTypesBridge.subscriptionRenewalInfoIOS(
+                for: transaction,
+                statusCache: statusCache
+            )
 
             allSubscriptions.append(
                 ActiveSubscription(
@@ -1250,29 +1213,32 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         // watchOS: No window scene UI for showManageSubscriptions
         #if !os(tvOS) && !os(watchOS)
             #if canImport(UIKit)
-            let scene: UIWindowScene? = await MainActor.run {
-                UIApplication.shared.connectedScenes.first as? UIWindowScene
+            guard let scene = await activeWindowScene() else {
+                throw PurchaseError.make(code: .unknown)
             }
-            guard let scene else {
-                throw makePurchaseError(code: .unknown)
+            do {
+                try await AppStore.showManageSubscriptions(in: scene)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                throw PurchaseError.wrap(error, fallback: .serviceError)
             }
-            try await AppStore.showManageSubscriptions(in: scene)
             #elseif canImport(AppKit)
             // macOS: AppStore.showManageSubscriptions requires a UIWindowScene, which
             // does not exist on macOS. Fall back to opening the App Store
             // subscriptions management page in the default browser.
             guard let url = URL(string: "https://apps.apple.com/account/subscriptions") else {
-                throw makePurchaseError(code: .unknown, message: "Invalid subscriptions management URL")
+                throw PurchaseError.make(code: .unknown, message: "Invalid subscriptions management URL")
             }
             let opened = await MainActor.run {
                 NSWorkspace.shared.open(url)
             }
             guard opened else {
-                throw makePurchaseError(code: .unknown, message: "Failed to open subscriptions management page")
+                throw PurchaseError.make(code: .unknown, message: "Failed to open subscriptions management page")
             }
             #endif
         #else
-        throw makePurchaseError(code: .featureNotSupported)
+        throw PurchaseError.make(code: .featureNotSupported)
         #endif // !os(tvOS) && !os(watchOS)
     }
 
@@ -1282,7 +1248,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
         guard let subscription = product.subscription else {
-            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            let error = PurchaseError.make(code: .skuNotFound, productId: sku)
             emitPurchaseError(error)
             throw error
         }
@@ -1290,30 +1256,21 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         do {
             let statuses = try await subscription.status
             return statuses.map { status in
-                let renewalInfo: RenewalInfoIOS?
-                switch status.renewalInfo {
-                case .verified(let info):
-                    let jsonString = String(data: info.jsonRepresentation, encoding: .utf8) ?? info.jsonRepresentation.base64EncodedString()
-                    renewalInfo = RenewalInfoIOS(
-                        autoRenewPreference: info.autoRenewPreference,
-                        commitmentInfo: StoreKitTypesBridge.renewalCommitmentInfoIOS(from: info),
-                        isInBillingRetry: info.isInBillingRetry,
-                        jsonRepresentation: jsonString,
-                        renewalBillingPlanType: StoreKitTypesBridge.renewalBillingPlanTypeIOS(from: info),
-                        willAutoRenew: info.willAutoRenew
-                    )
-                case .unverified:
-                    renewalInfo = nil
+                var renewalInfo: RenewalInfoIOS?
+                if case .verified(let info) = status.renewalInfo {
+                    renewalInfo = StoreKitTypesBridge.renewalInfoIOS(from: info)
+                    renewalInfo?.jsonRepresentation = String(data: info.jsonRepresentation, encoding: .utf8)
+                        ?? info.jsonRepresentation.base64EncodedString()
                 }
                 return SubscriptionStatusIOS(
                     renewalInfo: renewalInfo,
-                    state: String(describing: status.state)
+                    state: StoreKitTypesBridge.subscriptionStateIOS(from: status.state)
                 )
             }
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            let purchaseError = makePurchaseError(code: .serviceError, message: error.localizedDescription)
+            let purchaseError = PurchaseError.make(code: .serviceError, message: error.localizedDescription)
             emitPurchaseError(purchaseError)
             throw purchaseError
         }
@@ -1356,7 +1313,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     latest = (key, transaction, result.jwsRepresentation)
                 }
             } catch {
-                let error = makePurchaseError(
+                let error = PurchaseError.make(
                     code: .transactionValidationFailed,
                     message: error.localizedDescription
                 )
@@ -1381,7 +1338,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             let transaction = try checkVerified(result)
             return await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation)
         } catch {
-            let error = makePurchaseError(code: .transactionValidationFailed, message: error.localizedDescription)
+            let error = PurchaseError.make(code: .transactionValidationFailed, message: error.localizedDescription)
             emitPurchaseError(error)
             throw error
         }
@@ -1402,7 +1359,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         #if !os(tvOS) && !os(watchOS)
         let product = try await storeProduct(for: sku)
         guard let result = await product.latestTransaction else {
-            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            let error = PurchaseError.make(code: .skuNotFound, productId: sku)
             emitPurchaseError(error)
             throw error
         }
@@ -1410,15 +1367,19 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         let transaction = try checkVerified(result)
 
         #if canImport(UIKit)
-        let scene: UIWindowScene? = await MainActor.run {
-            UIApplication.shared.connectedScenes.first as? UIWindowScene
-        }
-        guard let scene else {
-            let error = makePurchaseError(code: .purchaseError, message: "Cannot find window scene")
+        guard let scene = await activeWindowScene() else {
+            let error = PurchaseError.make(code: .purchaseError, message: "Cannot find window scene")
             emitPurchaseError(error)
             throw error
         }
-        let status = try await transaction.beginRefundRequest(in: scene)
+        let status: StoreKit.Transaction.RefundRequestStatus
+        do {
+            status = try await transaction.beginRefundRequest(in: scene)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw PurchaseError.wrap(error, fallback: .serviceError, productId: sku)
+        }
         switch status {
         case .success:
             return "success"
@@ -1434,7 +1395,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         // the app, so return nil (no definitive status), matching @unknown default.
         OpenIapLog.debug("Opening refund request page for transaction \(transaction.id)")
         guard let url = URL(string: "https://reportaproblem.apple.com/") else {
-            let error = makePurchaseError(code: .purchaseError, message: "Invalid refund request URL")
+            let error = PurchaseError.make(code: .purchaseError, message: "Invalid refund request URL")
             emitPurchaseError(error)
             throw error
         }
@@ -1442,14 +1403,14 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             NSWorkspace.shared.open(url)
         }
         guard opened else {
-            let error = makePurchaseError(code: .purchaseError, message: "Failed to open refund request page")
+            let error = PurchaseError.make(code: .purchaseError, message: "Failed to open refund request page")
             emitPurchaseError(error)
             throw error
         }
         return nil
         #endif
         #else
-        throw makePurchaseError(code: .featureNotSupported)
+        throw PurchaseError.make(code: .featureNotSupported)
         #endif // !os(tvOS) && !os(watchOS)
     }
 
@@ -1501,7 +1462,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         #if os(iOS) || os(visionOS)
         if #available(iOS 27.0, macCatalyst 27.0, visionOS 27.0, *) {
             guard let viewController = await activeViewController() else {
-                throw makePurchaseError(
+                throw PurchaseError.make(
                     code: .purchaseError,
                     message: "Cannot find an active view controller for offer-code redemption"
                 )
@@ -1531,7 +1492,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         #if os(iOS) || os(visionOS)
         if #available(iOS 16.0, macCatalyst 16.0, visionOS 1.0, *) {
             guard let scene = await activeWindowScene() else {
-                throw makePurchaseError(
+                throw PurchaseError.make(
                     code: .purchaseError,
                     message: "Cannot find an active window scene for offer-code redemption"
                 )
@@ -1554,7 +1515,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
         return nil
         #else
-        throw makePurchaseError(code: .featureNotSupported)
+        throw PurchaseError.make(code: .featureNotSupported)
         #endif // os(iOS)
     }
 
@@ -1564,7 +1525,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         #if os(macOS)
         // deepLinkToSubscriptions can open a browser on macOS, but that call
         // returns immediately and cannot observe changes made outside the app.
-        throw makePurchaseError(code: .featureNotSupported)
+        throw PurchaseError.make(code: .featureNotSupported)
         #else
         let previousTransactions = try await getAllTransactionsIOS()
         try await deepLinkToSubscriptions(nil)
@@ -1616,7 +1577,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         // Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
         if #available(iOS 17.4, macOS 14.4, tvOS 17.4, watchOS 10.4, visionOS 1.1, *) {
             guard await ExternalPurchase.canPresent else {
-                throw makePurchaseError(
+                throw PurchaseError.make(
                     code: .featureNotSupported,
                     message: "External purchase notice sheet is not available"
                 )
@@ -1642,7 +1603,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     )
                 @unknown default:
                     // Handle future cases gracefully
-                    throw makePurchaseError(
+                    throw PurchaseError.make(
                         code: .unknown,
                         message: "Unexpected result from external purchase notice sheet"
                     )
@@ -1654,7 +1615,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                     result: .dismissed
                 )
             } catch {
-                let purchaseError = makePurchaseError(
+                let purchaseError = PurchaseError.make(
                     code: .serviceError,
                     message: "Failed to present external purchase notice: \(error.localizedDescription)"
                 )
@@ -1665,7 +1626,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 )
             }
         } else {
-            throw makePurchaseError(
+            throw PurchaseError.make(
                 code: .featureNotSupported,
                 message: "External purchase notice sheet requires iOS 17.4+, macOS 14.4+, tvOS 17.4+, watchOS 10.4+, or visionOS 1.1+"
             )
@@ -1700,7 +1661,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             }
         }
         #else
-        throw makePurchaseError(code: .featureNotSupported)
+        throw PurchaseError.make(code: .featureNotSupported)
         #endif // os(iOS) || os(tvOS) || os(visionOS)
     }
 
@@ -1754,7 +1715,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 )
             }
         } else {
-            throw makePurchaseError(
+            throw PurchaseError.make(
                 code: .featureNotSupported,
                 message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, tvOS 18.1+, watchOS 11.1+, or visionOS 2.1+"
             )
@@ -1808,7 +1769,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 )
             }
         } else {
-            throw makePurchaseError(
+            throw PurchaseError.make(
                 code: .featureNotSupported,
                 message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, tvOS 18.1+, watchOS 11.1+, or visionOS 2.1+"
             )
@@ -1908,15 +1869,8 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             return true
         }
 
-        guard AppStore.canMakePayments else {
-            emitPurchaseError(makePurchaseError(code: .iapNotAvailable))
-            await state.setInitialized(false)
-            return false
-        }
-
         try Task.checkCancellation()
         try connection.ensureCurrent(generation)
-
         await state.setInitialized(true)
         try startTransactionListener(generation: generation)
         try startUnfinishedTransactionProcessing(generation: generation)
@@ -2027,13 +1981,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     }
 
     private func ensureConnection() async throws {
-        try Task.checkCancellation()
-        guard AppStore.canMakePayments else {
-            let error = makePurchaseError(code: .iapNotAvailable)
-            emitPurchaseError(error)
-            throw error
-        }
-
         while true {
             try Task.checkCancellation()
             let connected = await hasInitializedConnection()
@@ -2049,7 +1996,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             if initialized, await hasInitializedConnection() { return }
             if connection.currentEndTask() != nil { continue }
 
-            let error = makePurchaseError(code: .initConnection)
+            let error = PurchaseError.make(code: .initConnection)
             emitPurchaseError(error)
             throw error
         }
@@ -2079,9 +2026,10 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         if let manager = resources.productManager { await manager.removeAll() }
     }
 
-    private func storeProduct(for sku: String) async throws -> StoreKit.Product {
+    /// Lookup failures are throw-only; `emitsLookupFailure` keeps the event the promoted-product read always sent.
+    private func storeProduct(for sku: String, emitsLookupFailure: Bool = false) async throws -> StoreKit.Product {
         guard let productManager = connection.currentProductManager() else {
-            let error = makePurchaseError(code: .notPrepared)
+            let error = PurchaseError.make(code: .notPrepared)
             emitPurchaseError(error)
             throw error
         }
@@ -2090,9 +2038,20 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             return product
         }
 
-        let products = try await StoreKit.Product.products(for: [sku])
+        let products: [StoreKit.Product]
+        do {
+            products = try await StoreKit.Product.products(for: [sku])
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            let wrapped = PurchaseError.wrap(error, fallback: .queryProduct, productId: sku)
+            if emitsLookupFailure {
+                emitPurchaseError(wrapped)
+            }
+            throw wrapped
+        }
         guard let first = products.first else {
-            let error = makePurchaseError(code: .skuNotFound, productId: sku)
+            let error = PurchaseError.make(code: .skuNotFound, productId: sku)
             emitPurchaseError(error)
             throw error
         }
@@ -2114,7 +2073,26 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                 return ios
             }
         }
-        throw makePurchaseError(code: .purchaseError, message: "Missing iOS purchase parameters")
+        throw PurchaseError.make(code: .purchaseError, message: "Missing iOS purchase parameters")
+    }
+
+    /// Maps a StoreKit purchase failure; a signed promotional offer also lists its usual causes.
+    static func purchaseFailure(_ error: Error, sku: String, hasPromotionalOffer: Bool) -> PurchaseError {
+        var purchaseError = PurchaseError.wrap(error, fallback: .purchaseError, productId: sku)
+        // Only codes a bad offer can produce; the checklist would misdirect a network or restriction failure.
+        let offerCodes: Set<ErrorCode> = [.skuOfferMismatch, .transactionValidationFailed, .purchaseError, .unknown]
+        guard hasPromotionalOffer, offerCodes.contains(purchaseError.code) else { return purchaseError }
+        OpenIapLog.error("Purchase with promotional offer failed: \(purchaseError.message)")
+        purchaseError.message = """
+            Promotional offer purchase failed: \(purchaseError.message)
+
+            Common causes:
+            1. Invalid signature - verify server generates correct signature with exact parameter order
+            2. Empty appAccountToken - ensure empty string ('') is used in signature, not null
+            3. Sandbox testing - ensure current subscription has expired before testing offers
+            4. Offer eligibility - user may not be eligible for this promotional offer
+            """
+        return purchaseError
     }
 
     static func validateIOSPurchaseProps(_ params: RequestPurchaseProps) throws {
@@ -2223,7 +2201,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
                         if let existing = error as? PurchaseError {
                             purchaseError = existing
                         } else {
-                            purchaseError = makePurchaseError(code: .transactionValidationFailed, message: error.localizedDescription)
+                            purchaseError = PurchaseError.make(code: .transactionValidationFailed, message: error.localizedDescription)
                         }
                         self.emitPurchaseError(purchaseError)
                     }
@@ -2354,7 +2332,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         case .verified(let value):
             return value
         case .unverified:
-            throw makePurchaseError(code: .transactionValidationFailed, message: "Transaction verification failed")
+            throw PurchaseError.make(code: .transactionValidationFailed, message: "Transaction verification failed")
         }
     }
 
@@ -2529,7 +2507,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
     /// retry/grace entry and its own verified transaction must be inspected.
     ///
     /// Reference: https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:)
-    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
     private func dispatchBillingIssueMessage(generation: UInt64) async {
         guard !Task.isCancelled else { return }
         var subscriptionGroupIds = Set<String>()
@@ -2549,23 +2526,18 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
 
         var emitted = false
         var emittedTransactionIds = Set<UInt64>()
+        let statusCache = StoreKitTypesBridge.SubscriptionStatusCache()
         for groupId in subscriptionGroupIds {
             guard !Task.isCancelled else { return }
-            let statusArray: [StoreKit.Product.SubscriptionInfo.Status]
-            do {
-                statusArray = try await StoreKit.Product.SubscriptionInfo.status(for: groupId)
-            } catch {
-                OpenIapLog.debug("🔔 [MessageListener] Subscription status failed for group \(groupId): \(error.localizedDescription)")
-                continue
-            }
-            for status in statusArray {
+            for status in await statusCache.statuses(for: groupId) {
                 guard !Task.isCancelled else { return }
                 guard status.state == .inBillingRetryPeriod || status.state == .inGracePeriod,
                       case .verified(let transaction) = status.transaction,
                       emittedTransactionIds.insert(transaction.id).inserted else { continue }
                 let purchase = await StoreKitTypesBridge.purchase(
                     from: transaction,
-                    jwsRepresentation: status.transaction.jwsRepresentation
+                    jwsRepresentation: status.transaction.jwsRepresentation,
+                    statusCache: statusCache
                 )
                 guard !Task.isCancelled,
                       connection.isConnected(generation: generation),
@@ -2576,61 +2548,6 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
         if !emitted {
             OpenIapLog.debug("🔔 [MessageListener] billingIssue received but no subscription currently reports retry/grace state")
-        }
-    }
-
-    private func makePurchaseError(
-        code: ErrorCode,
-        productId: String? = nil,
-        message: String? = nil,
-        debugMessage: String? = nil
-    ) -> PurchaseError {
-        PurchaseError(
-            code: code,
-            debugMessage: debugMessage,
-            message: message ?? defaultMessage(for: code),
-            productId: productId
-        )
-    }
-
-    private func defaultMessage(for code: ErrorCode) -> String {
-        switch code {
-        case .unknown: return "Unknown error occurred"
-        case .userCancelled: return "User cancelled the purchase flow"
-        case .userError: return "User action error"
-        case .itemUnavailable: return "Item unavailable"
-        case .remoteError: return "Remote service error"
-        case .networkError: return "Network connection error"
-        case .serviceError: return "Store service error"
-        case .purchaseVerificationFailed: return "Purchase verification failed"
-        case .purchaseVerificationFinished: return "Transaction already finished"
-        case .purchaseVerificationFinishFailed: return "Transaction finish failed"
-        case .notPrepared: return "Billing is not prepared"
-        case .notEnded: return "Billing connection not ended"
-        case .alreadyOwned: return "Item already owned"
-        case .developerError: return "Developer configuration error"
-        case .billingResponseJsonParseError: return "Failed to parse billing response"
-        case .deferredPayment: return "Payment was deferred (pending approval)"
-        case .interrupted: return "Purchase flow interrupted"
-        case .iapNotAvailable: return "In-app purchases not available on this device"
-        case .purchaseError: return "Purchase error"
-        case .syncError: return "Sync error"
-        case .transactionValidationFailed: return "Transaction validation failed"
-        case .activityUnavailable: return "Required activity is unavailable"
-        case .alreadyPrepared: return "Billing already prepared"
-        case .pending: return "Transaction pending"
-        case .connectionClosed: return "Connection closed"
-        case .initConnection: return "Failed to initialize billing connection"
-        case .serviceDisconnected: return "Billing service disconnected"
-        case .serviceTimeout: return "Billing service request timed out"
-        case .queryProduct: return "Failed to query product"
-        case .skuNotFound: return "SKU not found"
-        case .skuOfferMismatch: return "SKU offer mismatch"
-        case .itemNotOwned: return "Item not owned"
-        case .billingUnavailable: return "Billing unavailable"
-        case .featureNotSupported: return "Feature not supported on this platform"
-        case .emptySkuList: return "Empty SKU list provided"
-        case .duplicatePurchase: return "Duplicate purchase update detected"
         }
     }
 
@@ -2649,7 +2566,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         sku: String
     ) async throws -> StoreKit.Product.PurchaseResult {
         guard let scene = activeWindowScene() else {
-            let error = makePurchaseError(code: .purchaseError, productId: sku, message: "Could not find active window scene")
+            let error = PurchaseError.make(code: .purchaseError, productId: sku, message: "Could not find active window scene")
             emitPurchaseError(error)
             throw error
         }

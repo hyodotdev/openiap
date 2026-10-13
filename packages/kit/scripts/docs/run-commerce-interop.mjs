@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi, getFunctionName } from "convex/server";
 import { Hono } from "hono";
@@ -197,10 +197,18 @@ try {
   const exampleSecret = randomBytes(32).toString("hex");
   const key = "openiap-kit_sk_" + randomBytes(24).toString("hex"),
     publishable = "openiap-kit_pk_" + randomBytes(24).toString("hex");
+  // The Apple client is mocked and never signs, but verification still checks
+  // that the stored key could.
+  const { privateKey: appleKey } = generateKeyPairSync("ec", {
+    namedCurve: "prime256v1",
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  });
   const seeded = await admin.action(anyApi.interopFixture.setup, {
     secret,
     key,
     publishable,
+    appleKey,
   });
   const startedAt = Date.now();
   let expiresAt = startedAt + 45000,
@@ -332,11 +340,14 @@ try {
     }
     return nativeFetch(url, init);
   };
-  const nativeRunAction = ctx.runAction;
-  ctx.runAction = (ref, args) =>
-    getFunctionName(ref) === "files/internal:getAppleP8Key"
-      ? Promise.resolve({ keyContent: "local-fixture-key" })
-      : nativeRunAction(ref, args);
+  ctx.storage = {
+    get: async (storageId) => {
+      const text = await admin.action(anyApi.interopFixture.readStorage, {
+        storageId,
+      });
+      return text === null ? null : new Blob([text]);
+    },
+  };
   const { verifyAppStoreReceiptInternalV1 } =
     await import("../../convex/purchases/ios.ts");
   const { verifyAmazonReceiptInternalV1 } =

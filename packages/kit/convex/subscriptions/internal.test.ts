@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Id } from "../_generated/dataModel";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import { hmacSha256Hex } from "../utils/sha256";
 import {
@@ -2610,6 +2611,237 @@ describe("recordVerifiedSubscriptionHandler", () => {
     });
     expect(db.rows("subscriptions")).toMatchObject([
       { purchaseToken: "ios-unknown-reason-token", state: "Unknown" },
+    ]);
+  });
+
+  it("ignores an older iOS renewal verified after a newer one", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      productId: "pro_monthly",
+    };
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 20 * day,
+      verifiedPurchaseDate: now - 10 * day,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: now - 10 * day,
+      verifiedPurchaseDate: now - 40 * day,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", expiresAt: now + 20 * day },
+    ]);
+  });
+
+  it("applies a newer refunded plan and a refund of the stored transaction", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+    };
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "basic_yearly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 300 * day,
+      verifiedPurchaseDate: now - 65 * day,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: now - day,
+      verifiedPurchaseDate: now - 31 * day,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      { productId: "pro_monthly", state: "Expired" },
+    ]);
+
+    // Refunding a transaction keeps its purchase date.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      expiresAt: now - day,
+      verifiedPurchaseDate: now - 31 * day,
+      revocationReasonIOS: 1,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        productId: "pro_monthly",
+        state: "Revoked",
+        cancellationReason: "Refunded",
+        verifiedPurchaseDate: now - 31 * day,
+      },
+    ]);
+  });
+
+  it("keeps a refund when the pre-refund verify of the same transaction commits last", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      productId: "pro_monthly",
+      expiresAt: now + 20 * day,
+      verifiedPurchaseDate: now - 10 * day,
+    };
+    // Stamped before signing dates were kept: the refund applies by purchase date alone.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    });
+
+    // Concurrent verifies fetched before and after the refund; the refund commits first.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      revocationReasonIOS: 1,
+      verifiedSignedDate: now,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: now - 1_000,
+    });
+    // Nor can a same-transaction verify without a signing date.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        state: "Revoked",
+        cancellationReason: "Refunded",
+        verifiedPurchaseDate: now - 10 * day,
+        verifiedSignedDate: now,
+      },
+    ]);
+  });
+
+  it("applies the first verify to an iOS row stored without a purchase date and stamps it", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+    };
+    // A row written before deploy carries no verifiedPurchaseDate.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 30 * day,
+    });
+
+    // An old replay applies once, as before purchase dates were kept...
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "basic_yearly",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: now - 200 * day,
+      verifiedPurchaseDate: now - 300 * day,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        productId: "basic_yearly",
+        state: "Expired",
+        verifiedPurchaseDate: now - 300 * day,
+      },
+    ]);
+
+    // ...and the next newer verify corrects it.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 30 * day,
+      verifiedPurchaseDate: now,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      { productId: "pro_monthly", state: "Active", verifiedPurchaseDate: now },
+    ]);
+  });
+
+  it("rejects an older verify that commits after a concurrent one stamped the row", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    };
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "basic_yearly",
+      expiresAt: now + 300 * day,
+    });
+
+    // Both requests read the row undated; the newer one commits first.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      expiresAt: now + 30 * day,
+      verifiedPurchaseDate: now,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "plus_monthly",
+      expiresAt: now + 20 * day,
+      verifiedPurchaseDate: now - 10 * day,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { productId: "pro_monthly", verifiedPurchaseDate: now },
+    ]);
+  });
+
+  it("applies an immediate iOS upgrade that ends sooner than the plan it replaced", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    };
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "basic_yearly",
+      expiresAt: now + 300 * day,
+      verifiedPurchaseDate: now - 65 * day,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      expiresAt: now + 30 * day,
+      verifiedPurchaseDate: now,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { productId: "pro_monthly", expiresAt: now + 30 * day },
     ]);
   });
 

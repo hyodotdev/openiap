@@ -25,5 +25,6 @@ export const BUN_PROJECTS = [
 export const OSV_LOCKFILES = [
   ...BUN_PROJECTS.map(({ lockfile }) => lockfile),
   "libraries/react-native-iap/example/Gemfile.lock",
+  "packages/apple/Gemfile.lock",
   "libraries/react-native-iap/yarn.lock",
 ];

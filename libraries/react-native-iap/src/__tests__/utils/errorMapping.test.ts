@@ -72,13 +72,13 @@ describe('utils/errorMapping', () => {
     ).toBe(false);
   });
 
-  test('isRecoverableError includes duplicate-purchase', () => {
+  test('isRecoverableError excludes duplicate-purchase', () => {
     expect(
       isRecoverableError({
         code: DUPLICATE_PURCHASE_CODE,
         message: 'x',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   test('getUserFriendlyErrorMessage returns message for duplicate-purchase', () => {
@@ -149,7 +149,7 @@ describe('utils/errorMapping', () => {
     [ErrorCode.FeatureNotSupported, 'not supported'],
     [ErrorCode.TransactionValidationFailed, 'could not be verified'],
     [ErrorCode.PurchaseVerificationFailed, 'verification failed'],
-    [ErrorCode.PurchaseVerificationFinished, 'verification completed'],
+    [ErrorCode.PurchaseVerificationFinished, 'verification already finished'],
     [ErrorCode.PurchaseVerificationFinishFailed, 'complete purchase'],
     [ErrorCode.EmptySkuList, 'No product IDs'],
     [ErrorCode.InitConnection, 'initialize billing'],

@@ -6006,265 +6006,529 @@ const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {
 
 const APP_OWNERSHIP_STATUS_FROM_STRING = {
 	"licensed": AppOwnershipStatus.LICENSED,
+	"LICENSED": AppOwnershipStatus.LICENSED,
+	"Licensed": AppOwnershipStatus.LICENSED,
 	"unlicensed": AppOwnershipStatus.UNLICENSED,
-	"unknown": AppOwnershipStatus.UNKNOWN
+	"UNLICENSED": AppOwnershipStatus.UNLICENSED,
+	"Unlicensed": AppOwnershipStatus.UNLICENSED,
+	"unknown": AppOwnershipStatus.UNKNOWN,
+	"UNKNOWN": AppOwnershipStatus.UNKNOWN,
+	"Unknown": AppOwnershipStatus.UNKNOWN
 }
 
 const APP_OWNERSHIP_VERIFICATION_REASON_FROM_STRING = {
 	"backend-verification-required": AppOwnershipVerificationReason.BACKEND_VERIFICATION_REQUIRED,
+	"BACKEND_VERIFICATION_REQUIRED": AppOwnershipVerificationReason.BACKEND_VERIFICATION_REQUIRED,
+	"BackendVerificationRequired": AppOwnershipVerificationReason.BACKEND_VERIFICATION_REQUIRED,
 	"verification-failed": AppOwnershipVerificationReason.VERIFICATION_FAILED,
+	"VERIFICATION_FAILED": AppOwnershipVerificationReason.VERIFICATION_FAILED,
+	"VerificationFailed": AppOwnershipVerificationReason.VERIFICATION_FAILED,
 	"network-error": AppOwnershipVerificationReason.NETWORK_ERROR,
+	"NETWORK_ERROR": AppOwnershipVerificationReason.NETWORK_ERROR,
+	"NetworkError": AppOwnershipVerificationReason.NETWORK_ERROR,
 	"service-error": AppOwnershipVerificationReason.SERVICE_ERROR,
-	"unsupported": AppOwnershipVerificationReason.UNSUPPORTED
+	"SERVICE_ERROR": AppOwnershipVerificationReason.SERVICE_ERROR,
+	"ServiceError": AppOwnershipVerificationReason.SERVICE_ERROR,
+	"unsupported": AppOwnershipVerificationReason.UNSUPPORTED,
+	"UNSUPPORTED": AppOwnershipVerificationReason.UNSUPPORTED,
+	"Unsupported": AppOwnershipVerificationReason.UNSUPPORTED
 }
 
 const BILLING_CHOICE_IMAGE_LAYOUT_ANDROID_FROM_STRING = {
 	"rectangular-four-by-one": BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE,
+	"RECTANGULAR_FOUR_BY_ONE": BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE,
 	"rectangular-three-by-one": BillingChoiceImageLayoutAndroid.RECTANGULAR_THREE_BY_ONE,
-	"rectangular-two-by-two": BillingChoiceImageLayoutAndroid.RECTANGULAR_TWO_BY_TWO
+	"RECTANGULAR_THREE_BY_ONE": BillingChoiceImageLayoutAndroid.RECTANGULAR_THREE_BY_ONE,
+	"rectangular-two-by-two": BillingChoiceImageLayoutAndroid.RECTANGULAR_TWO_BY_TWO,
+	"RECTANGULAR_TWO_BY_TWO": BillingChoiceImageLayoutAndroid.RECTANGULAR_TWO_BY_TWO
 }
 
 const BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING = {
 	"unspecified": BillingChoiceScreenTypeAndroid.UNSPECIFIED,
+	"UNSPECIFIED": BillingChoiceScreenTypeAndroid.UNSPECIFIED,
 	"developer-rendered": BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED,
-	"google-rendered": BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
+	"DEVELOPER_RENDERED": BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED,
+	"google-rendered": BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED,
+	"GOOGLE_RENDERED": BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 }
 
 const BILLING_PROGRAM_ANDROID_FROM_STRING = {
 	"unspecified": BillingProgramAndroid.UNSPECIFIED,
+	"UNSPECIFIED": BillingProgramAndroid.UNSPECIFIED,
 	"user-choice-billing": BillingProgramAndroid.USER_CHOICE_BILLING,
+	"USER_CHOICE_BILLING": BillingProgramAndroid.USER_CHOICE_BILLING,
 	"external-content-link": BillingProgramAndroid.EXTERNAL_CONTENT_LINK,
+	"EXTERNAL_CONTENT_LINK": BillingProgramAndroid.EXTERNAL_CONTENT_LINK,
 	"external-offer": BillingProgramAndroid.EXTERNAL_OFFER,
+	"EXTERNAL_OFFER": BillingProgramAndroid.EXTERNAL_OFFER,
 	"external-payments": BillingProgramAndroid.EXTERNAL_PAYMENTS,
-	"billing-choice": BillingProgramAndroid.BILLING_CHOICE
+	"EXTERNAL_PAYMENTS": BillingProgramAndroid.EXTERNAL_PAYMENTS,
+	"billing-choice": BillingProgramAndroid.BILLING_CHOICE,
+	"BILLING_CHOICE": BillingProgramAndroid.BILLING_CHOICE
 }
 
 const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING = {
 	"unspecified": DeveloperBillingLaunchModeAndroid.UNSPECIFIED,
+	"UNSPECIFIED": DeveloperBillingLaunchModeAndroid.UNSPECIFIED,
 	"launch-in-external-browser-or-app": DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP,
-	"caller-will-launch-link": DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK
+	"LAUNCH_IN_EXTERNAL_BROWSER_OR_APP": DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP,
+	"caller-will-launch-link": DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK,
+	"CALLER_WILL_LAUNCH_LINK": DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK
 }
 
 const DEVELOPER_BILLING_TYPE_ANDROID_FROM_STRING = {
 	"developer-billing-type-unspecified": DeveloperBillingTypeAndroid.DEVELOPER_BILLING_TYPE_UNSPECIFIED,
+	"DEVELOPER_BILLING_TYPE_UNSPECIFIED": DeveloperBillingTypeAndroid.DEVELOPER_BILLING_TYPE_UNSPECIFIED,
 	"in-app": DeveloperBillingTypeAndroid.IN_APP,
-	"external-link": DeveloperBillingTypeAndroid.EXTERNAL_LINK
+	"IN_APP": DeveloperBillingTypeAndroid.IN_APP,
+	"external-link": DeveloperBillingTypeAndroid.EXTERNAL_LINK,
+	"EXTERNAL_LINK": DeveloperBillingTypeAndroid.EXTERNAL_LINK
 }
 
 const DISCOUNT_OFFER_TYPE_FROM_STRING = {
 	"introductory": DiscountOfferType.INTRODUCTORY,
+	"INTRODUCTORY": DiscountOfferType.INTRODUCTORY,
+	"Introductory": DiscountOfferType.INTRODUCTORY,
 	"promotional": DiscountOfferType.PROMOTIONAL,
-	"one-time": DiscountOfferType.ONE_TIME
+	"PROMOTIONAL": DiscountOfferType.PROMOTIONAL,
+	"Promotional": DiscountOfferType.PROMOTIONAL,
+	"one-time": DiscountOfferType.ONE_TIME,
+	"ONE_TIME": DiscountOfferType.ONE_TIME,
+	"OneTime": DiscountOfferType.ONE_TIME
 }
 
 const ERROR_CODE_FROM_STRING = {
 	"unknown": ErrorCode.UNKNOWN,
+	"UNKNOWN": ErrorCode.UNKNOWN,
+	"Unknown": ErrorCode.UNKNOWN,
 	"user-cancelled": ErrorCode.USER_CANCELLED,
+	"USER_CANCELLED": ErrorCode.USER_CANCELLED,
+	"UserCancelled": ErrorCode.USER_CANCELLED,
 	"user-error": ErrorCode.USER_ERROR,
+	"USER_ERROR": ErrorCode.USER_ERROR,
+	"UserError": ErrorCode.USER_ERROR,
 	"item-unavailable": ErrorCode.ITEM_UNAVAILABLE,
+	"ITEM_UNAVAILABLE": ErrorCode.ITEM_UNAVAILABLE,
+	"ItemUnavailable": ErrorCode.ITEM_UNAVAILABLE,
 	"remote-error": ErrorCode.REMOTE_ERROR,
+	"REMOTE_ERROR": ErrorCode.REMOTE_ERROR,
+	"RemoteError": ErrorCode.REMOTE_ERROR,
 	"network-error": ErrorCode.NETWORK_ERROR,
+	"NETWORK_ERROR": ErrorCode.NETWORK_ERROR,
+	"NetworkError": ErrorCode.NETWORK_ERROR,
 	"service-error": ErrorCode.SERVICE_ERROR,
+	"SERVICE_ERROR": ErrorCode.SERVICE_ERROR,
+	"ServiceError": ErrorCode.SERVICE_ERROR,
 	"purchase-verification-failed": ErrorCode.PURCHASE_VERIFICATION_FAILED,
+	"PURCHASE_VERIFICATION_FAILED": ErrorCode.PURCHASE_VERIFICATION_FAILED,
+	"PurchaseVerificationFailed": ErrorCode.PURCHASE_VERIFICATION_FAILED,
 	"purchase-verification-finished": ErrorCode.PURCHASE_VERIFICATION_FINISHED,
+	"PURCHASE_VERIFICATION_FINISHED": ErrorCode.PURCHASE_VERIFICATION_FINISHED,
+	"PurchaseVerificationFinished": ErrorCode.PURCHASE_VERIFICATION_FINISHED,
 	"purchase-verification-finish-failed": ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED,
+	"PURCHASE_VERIFICATION_FINISH_FAILED": ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED,
+	"PurchaseVerificationFinishFailed": ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED,
 	"not-prepared": ErrorCode.NOT_PREPARED,
+	"NOT_PREPARED": ErrorCode.NOT_PREPARED,
+	"NotPrepared": ErrorCode.NOT_PREPARED,
 	"not-ended": ErrorCode.NOT_ENDED,
+	"NOT_ENDED": ErrorCode.NOT_ENDED,
+	"NotEnded": ErrorCode.NOT_ENDED,
 	"already-owned": ErrorCode.ALREADY_OWNED,
+	"ALREADY_OWNED": ErrorCode.ALREADY_OWNED,
+	"AlreadyOwned": ErrorCode.ALREADY_OWNED,
 	"developer-error": ErrorCode.DEVELOPER_ERROR,
+	"DEVELOPER_ERROR": ErrorCode.DEVELOPER_ERROR,
+	"DeveloperError": ErrorCode.DEVELOPER_ERROR,
 	"billing-response-json-parse-error": ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR,
+	"BILLING_RESPONSE_JSON_PARSE_ERROR": ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR,
+	"BillingResponseJsonParseError": ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR,
 	"deferred-payment": ErrorCode.DEFERRED_PAYMENT,
+	"DEFERRED_PAYMENT": ErrorCode.DEFERRED_PAYMENT,
+	"DeferredPayment": ErrorCode.DEFERRED_PAYMENT,
 	"interrupted": ErrorCode.INTERRUPTED,
+	"INTERRUPTED": ErrorCode.INTERRUPTED,
+	"Interrupted": ErrorCode.INTERRUPTED,
 	"iap-not-available": ErrorCode.IAP_NOT_AVAILABLE,
+	"IAP_NOT_AVAILABLE": ErrorCode.IAP_NOT_AVAILABLE,
+	"IapNotAvailable": ErrorCode.IAP_NOT_AVAILABLE,
 	"purchase-error": ErrorCode.PURCHASE_ERROR,
+	"PURCHASE_ERROR": ErrorCode.PURCHASE_ERROR,
+	"PurchaseError": ErrorCode.PURCHASE_ERROR,
 	"sync-error": ErrorCode.SYNC_ERROR,
+	"SYNC_ERROR": ErrorCode.SYNC_ERROR,
+	"SyncError": ErrorCode.SYNC_ERROR,
 	"transaction-validation-failed": ErrorCode.TRANSACTION_VALIDATION_FAILED,
+	"TRANSACTION_VALIDATION_FAILED": ErrorCode.TRANSACTION_VALIDATION_FAILED,
+	"TransactionValidationFailed": ErrorCode.TRANSACTION_VALIDATION_FAILED,
 	"activity-unavailable": ErrorCode.ACTIVITY_UNAVAILABLE,
+	"ACTIVITY_UNAVAILABLE": ErrorCode.ACTIVITY_UNAVAILABLE,
+	"ActivityUnavailable": ErrorCode.ACTIVITY_UNAVAILABLE,
 	"already-prepared": ErrorCode.ALREADY_PREPARED,
+	"ALREADY_PREPARED": ErrorCode.ALREADY_PREPARED,
+	"AlreadyPrepared": ErrorCode.ALREADY_PREPARED,
 	"pending": ErrorCode.PENDING,
+	"PENDING": ErrorCode.PENDING,
+	"Pending": ErrorCode.PENDING,
 	"connection-closed": ErrorCode.CONNECTION_CLOSED,
+	"CONNECTION_CLOSED": ErrorCode.CONNECTION_CLOSED,
+	"ConnectionClosed": ErrorCode.CONNECTION_CLOSED,
 	"init-connection": ErrorCode.INIT_CONNECTION,
+	"INIT_CONNECTION": ErrorCode.INIT_CONNECTION,
+	"InitConnection": ErrorCode.INIT_CONNECTION,
 	"service-disconnected": ErrorCode.SERVICE_DISCONNECTED,
+	"SERVICE_DISCONNECTED": ErrorCode.SERVICE_DISCONNECTED,
+	"ServiceDisconnected": ErrorCode.SERVICE_DISCONNECTED,
 	"service-timeout": ErrorCode.SERVICE_TIMEOUT,
+	"SERVICE_TIMEOUT": ErrorCode.SERVICE_TIMEOUT,
+	"ServiceTimeout": ErrorCode.SERVICE_TIMEOUT,
 	"query-product": ErrorCode.QUERY_PRODUCT,
+	"QUERY_PRODUCT": ErrorCode.QUERY_PRODUCT,
+	"QueryProduct": ErrorCode.QUERY_PRODUCT,
 	"sku-not-found": ErrorCode.SKU_NOT_FOUND,
+	"SKU_NOT_FOUND": ErrorCode.SKU_NOT_FOUND,
+	"SkuNotFound": ErrorCode.SKU_NOT_FOUND,
 	"sku-offer-mismatch": ErrorCode.SKU_OFFER_MISMATCH,
+	"SKU_OFFER_MISMATCH": ErrorCode.SKU_OFFER_MISMATCH,
+	"SkuOfferMismatch": ErrorCode.SKU_OFFER_MISMATCH,
 	"item-not-owned": ErrorCode.ITEM_NOT_OWNED,
+	"ITEM_NOT_OWNED": ErrorCode.ITEM_NOT_OWNED,
+	"ItemNotOwned": ErrorCode.ITEM_NOT_OWNED,
 	"billing-unavailable": ErrorCode.BILLING_UNAVAILABLE,
+	"BILLING_UNAVAILABLE": ErrorCode.BILLING_UNAVAILABLE,
+	"BillingUnavailable": ErrorCode.BILLING_UNAVAILABLE,
 	"feature-not-supported": ErrorCode.FEATURE_NOT_SUPPORTED,
+	"FEATURE_NOT_SUPPORTED": ErrorCode.FEATURE_NOT_SUPPORTED,
+	"FeatureNotSupported": ErrorCode.FEATURE_NOT_SUPPORTED,
 	"empty-sku-list": ErrorCode.EMPTY_SKU_LIST,
-	"duplicate-purchase": ErrorCode.DUPLICATE_PURCHASE
+	"EMPTY_SKU_LIST": ErrorCode.EMPTY_SKU_LIST,
+	"EmptySkuList": ErrorCode.EMPTY_SKU_LIST,
+	"duplicate-purchase": ErrorCode.DUPLICATE_PURCHASE,
+	"DUPLICATE_PURCHASE": ErrorCode.DUPLICATE_PURCHASE,
+	"DuplicatePurchase": ErrorCode.DUPLICATE_PURCHASE
 }
 
 const EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING = {
 	"unspecified": ExternalLinkLaunchModeAndroid.UNSPECIFIED,
+	"UNSPECIFIED": ExternalLinkLaunchModeAndroid.UNSPECIFIED,
 	"launch-in-external-browser-or-app": ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP,
-	"caller-will-launch-link": ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK
+	"LAUNCH_IN_EXTERNAL_BROWSER_OR_APP": ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP,
+	"caller-will-launch-link": ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK,
+	"CALLER_WILL_LAUNCH_LINK": ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK
 }
 
 const EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING = {
 	"unspecified": ExternalLinkTypeAndroid.UNSPECIFIED,
+	"UNSPECIFIED": ExternalLinkTypeAndroid.UNSPECIFIED,
 	"link-to-digital-content-offer": ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER,
-	"link-to-app-download": ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD
+	"LINK_TO_DIGITAL_CONTENT_OFFER": ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER,
+	"link-to-app-download": ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD,
+	"LINK_TO_APP_DOWNLOAD": ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD
 }
 
 const EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_FROM_STRING = {
-	"browser": ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER
+	"browser": ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER,
+	"BROWSER": ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER,
+	"Browser": ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER
 }
 
 const EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING = {
 	"acquisition": ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION,
-	"services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES
+	"ACQUISITION": ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION,
+	"Acquisition": ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION,
+	"services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES,
+	"SERVICES": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES,
+	"Services": ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING = {
 	"continue": ExternalPurchaseNoticeAction.CONTINUE,
-	"dismissed": ExternalPurchaseNoticeAction.DISMISSED
+	"CONTINUE": ExternalPurchaseNoticeAction.CONTINUE,
+	"Continue": ExternalPurchaseNoticeAction.CONTINUE,
+	"dismissed": ExternalPurchaseNoticeAction.DISMISSED,
+	"DISMISSED": ExternalPurchaseNoticeAction.DISMISSED,
+	"Dismissed": ExternalPurchaseNoticeAction.DISMISSED
 }
 
 const IAP_EVENT_FROM_STRING = {
 	"purchase-updated": IapEvent.PURCHASE_UPDATED,
+	"PURCHASE_UPDATED": IapEvent.PURCHASE_UPDATED,
+	"PurchaseUpdated": IapEvent.PURCHASE_UPDATED,
 	"purchase-error": IapEvent.PURCHASE_ERROR,
+	"PURCHASE_ERROR": IapEvent.PURCHASE_ERROR,
+	"PurchaseError": IapEvent.PURCHASE_ERROR,
 	"promoted-product-ios": IapEvent.PROMOTED_PRODUCT_IOS,
+	"PROMOTED_PRODUCT_IOS": IapEvent.PROMOTED_PRODUCT_IOS,
+	"PromotedProductIOS": IapEvent.PROMOTED_PRODUCT_IOS,
 	"user-choice-billing-android": IapEvent.USER_CHOICE_BILLING_ANDROID,
+	"USER_CHOICE_BILLING_ANDROID": IapEvent.USER_CHOICE_BILLING_ANDROID,
+	"UserChoiceBillingAndroid": IapEvent.USER_CHOICE_BILLING_ANDROID,
 	"developer-provided-billing-android": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID,
-	"subscription-billing-issue": IapEvent.SUBSCRIPTION_BILLING_ISSUE
+	"DEVELOPER_PROVIDED_BILLING_ANDROID": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID,
+	"DeveloperProvidedBillingAndroid": IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID,
+	"subscription-billing-issue": IapEvent.SUBSCRIPTION_BILLING_ISSUE,
+	"SUBSCRIPTION_BILLING_ISSUE": IapEvent.SUBSCRIPTION_BILLING_ISSUE,
+	"SubscriptionBillingIssue": IapEvent.SUBSCRIPTION_BILLING_ISSUE
 }
 
 const IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING = {
 	"toml": IapkitClientPayloadFormat.TOML,
+	"TOML": IapkitClientPayloadFormat.TOML,
+	"Toml": IapkitClientPayloadFormat.TOML,
 	"json": IapkitClientPayloadFormat.JSON,
-	"text": IapkitClientPayloadFormat.TEXT
+	"JSON": IapkitClientPayloadFormat.JSON,
+	"Json": IapkitClientPayloadFormat.JSON,
+	"text": IapkitClientPayloadFormat.TEXT,
+	"TEXT": IapkitClientPayloadFormat.TEXT,
+	"Text": IapkitClientPayloadFormat.TEXT
 }
 
 const IAPKIT_PURCHASE_STATE_FROM_STRING = {
 	"entitled": IapkitPurchaseState.ENTITLED,
+	"ENTITLED": IapkitPurchaseState.ENTITLED,
 	"pending-acknowledgment": IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
+	"PENDING_ACKNOWLEDGMENT": IapkitPurchaseState.PENDING_ACKNOWLEDGMENT,
 	"pending": IapkitPurchaseState.PENDING,
+	"PENDING": IapkitPurchaseState.PENDING,
 	"canceled": IapkitPurchaseState.CANCELED,
+	"CANCELED": IapkitPurchaseState.CANCELED,
 	"expired": IapkitPurchaseState.EXPIRED,
+	"EXPIRED": IapkitPurchaseState.EXPIRED,
 	"ready-to-consume": IapkitPurchaseState.READY_TO_CONSUME,
+	"READY_TO_CONSUME": IapkitPurchaseState.READY_TO_CONSUME,
 	"consumed": IapkitPurchaseState.CONSUMED,
+	"CONSUMED": IapkitPurchaseState.CONSUMED,
 	"unknown": IapkitPurchaseState.UNKNOWN,
-	"inauthentic": IapkitPurchaseState.INAUTHENTIC
+	"UNKNOWN": IapkitPurchaseState.UNKNOWN,
+	"inauthentic": IapkitPurchaseState.INAUTHENTIC,
+	"INAUTHENTIC": IapkitPurchaseState.INAUTHENTIC
 }
 
 const IAP_PLATFORM_FROM_STRING = {
 	"ios": IapPlatform.IOS,
-	"android": IapPlatform.ANDROID
+	"IOS": IapPlatform.IOS,
+	"android": IapPlatform.ANDROID,
+	"ANDROID": IapPlatform.ANDROID,
+	"Android": IapPlatform.ANDROID
 }
 
 const IAP_STORE_FROM_STRING = {
 	"unknown": IapStore.UNKNOWN,
+	"UNKNOWN": IapStore.UNKNOWN,
+	"Unknown": IapStore.UNKNOWN,
 	"apple": IapStore.APPLE,
+	"APPLE": IapStore.APPLE,
+	"Apple": IapStore.APPLE,
 	"google": IapStore.GOOGLE,
+	"GOOGLE": IapStore.GOOGLE,
+	"Google": IapStore.GOOGLE,
 	"horizon": IapStore.HORIZON,
-	"amazon": IapStore.AMAZON
+	"HORIZON": IapStore.HORIZON,
+	"Horizon": IapStore.HORIZON,
+	"amazon": IapStore.AMAZON,
+	"AMAZON": IapStore.AMAZON,
+	"Amazon": IapStore.AMAZON
 }
 
 const IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING = {
 	"unknown-in-app-message-category-id": InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID,
-	"transactional": InAppMessageCategoryAndroid.TRANSACTIONAL
+	"UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID": InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID,
+	"transactional": InAppMessageCategoryAndroid.TRANSACTIONAL,
+	"TRANSACTIONAL": InAppMessageCategoryAndroid.TRANSACTIONAL
 }
 
 const IN_APP_MESSAGE_RESPONSE_CODE_ANDROID_FROM_STRING = {
 	"no-action-needed": InAppMessageResponseCodeAndroid.NO_ACTION_NEEDED,
-	"subscription-status-updated": InAppMessageResponseCodeAndroid.SUBSCRIPTION_STATUS_UPDATED
+	"NO_ACTION_NEEDED": InAppMessageResponseCodeAndroid.NO_ACTION_NEEDED,
+	"subscription-status-updated": InAppMessageResponseCodeAndroid.SUBSCRIPTION_STATUS_UPDATED,
+	"SUBSCRIPTION_STATUS_UPDATED": InAppMessageResponseCodeAndroid.SUBSCRIPTION_STATUS_UPDATED
 }
 
 const PAYMENT_MODE_FROM_STRING = {
 	"free-trial": PaymentMode.FREE_TRIAL,
+	"FREE_TRIAL": PaymentMode.FREE_TRIAL,
+	"FreeTrial": PaymentMode.FREE_TRIAL,
 	"pay-as-you-go": PaymentMode.PAY_AS_YOU_GO,
+	"PAY_AS_YOU_GO": PaymentMode.PAY_AS_YOU_GO,
+	"PayAsYouGo": PaymentMode.PAY_AS_YOU_GO,
 	"pay-up-front": PaymentMode.PAY_UP_FRONT,
-	"unknown": PaymentMode.UNKNOWN
+	"PAY_UP_FRONT": PaymentMode.PAY_UP_FRONT,
+	"PayUpFront": PaymentMode.PAY_UP_FRONT,
+	"unknown": PaymentMode.UNKNOWN,
+	"UNKNOWN": PaymentMode.UNKNOWN,
+	"Unknown": PaymentMode.UNKNOWN
 }
 
 const PAYMENT_MODE_IOS_FROM_STRING = {
 	"empty": PaymentModeIOS.EMPTY,
+	"EMPTY": PaymentModeIOS.EMPTY,
+	"Empty": PaymentModeIOS.EMPTY,
 	"free-trial": PaymentModeIOS.FREE_TRIAL,
+	"FREE_TRIAL": PaymentModeIOS.FREE_TRIAL,
+	"FreeTrial": PaymentModeIOS.FREE_TRIAL,
 	"pay-as-you-go": PaymentModeIOS.PAY_AS_YOU_GO,
-	"pay-up-front": PaymentModeIOS.PAY_UP_FRONT
+	"PAY_AS_YOU_GO": PaymentModeIOS.PAY_AS_YOU_GO,
+	"PayAsYouGo": PaymentModeIOS.PAY_AS_YOU_GO,
+	"pay-up-front": PaymentModeIOS.PAY_UP_FRONT,
+	"PAY_UP_FRONT": PaymentModeIOS.PAY_UP_FRONT,
+	"PayUpFront": PaymentModeIOS.PAY_UP_FRONT
 }
 
 const PRODUCT_QUERY_TYPE_FROM_STRING = {
 	"in-app": ProductQueryType.IN_APP,
+	"IN_APP": ProductQueryType.IN_APP,
+	"InApp": ProductQueryType.IN_APP,
 	"subs": ProductQueryType.SUBS,
-	"all": ProductQueryType.ALL
+	"SUBS": ProductQueryType.SUBS,
+	"Subs": ProductQueryType.SUBS,
+	"all": ProductQueryType.ALL,
+	"ALL": ProductQueryType.ALL,
+	"All": ProductQueryType.ALL
 }
 
 const PRODUCT_STATUS_ANDROID_FROM_STRING = {
 	"ok": ProductStatusAndroid.OK,
+	"OK": ProductStatusAndroid.OK,
 	"not-found": ProductStatusAndroid.NOT_FOUND,
+	"NOT_FOUND": ProductStatusAndroid.NOT_FOUND,
 	"no-offers-available": ProductStatusAndroid.NO_OFFERS_AVAILABLE,
-	"unknown": ProductStatusAndroid.UNKNOWN
+	"NO_OFFERS_AVAILABLE": ProductStatusAndroid.NO_OFFERS_AVAILABLE,
+	"unknown": ProductStatusAndroid.UNKNOWN,
+	"UNKNOWN": ProductStatusAndroid.UNKNOWN
 }
 
 const PRODUCT_TYPE_FROM_STRING = {
 	"in-app": ProductType.IN_APP,
-	"subs": ProductType.SUBS
+	"IN_APP": ProductType.IN_APP,
+	"InApp": ProductType.IN_APP,
+	"subs": ProductType.SUBS,
+	"SUBS": ProductType.SUBS,
+	"Subs": ProductType.SUBS
 }
 
 const PRODUCT_TYPE_IOS_FROM_STRING = {
 	"consumable": ProductTypeIOS.CONSUMABLE,
+	"CONSUMABLE": ProductTypeIOS.CONSUMABLE,
+	"Consumable": ProductTypeIOS.CONSUMABLE,
 	"non-consumable": ProductTypeIOS.NON_CONSUMABLE,
+	"NON_CONSUMABLE": ProductTypeIOS.NON_CONSUMABLE,
+	"NonConsumable": ProductTypeIOS.NON_CONSUMABLE,
 	"auto-renewable-subscription": ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION,
+	"AUTO_RENEWABLE_SUBSCRIPTION": ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION,
+	"AutoRenewableSubscription": ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION,
 	"non-renewing-subscription": ProductTypeIOS.NON_RENEWING_SUBSCRIPTION,
+	"NON_RENEWING_SUBSCRIPTION": ProductTypeIOS.NON_RENEWING_SUBSCRIPTION,
+	"NonRenewingSubscription": ProductTypeIOS.NON_RENEWING_SUBSCRIPTION,
 	"subscription-bundle": ProductTypeIOS.SUBSCRIPTION_BUNDLE,
-	"subscription-suite": ProductTypeIOS.SUBSCRIPTION_SUITE
+	"SUBSCRIPTION_BUNDLE": ProductTypeIOS.SUBSCRIPTION_BUNDLE,
+	"SubscriptionBundle": ProductTypeIOS.SUBSCRIPTION_BUNDLE,
+	"subscription-suite": ProductTypeIOS.SUBSCRIPTION_SUITE,
+	"SUBSCRIPTION_SUITE": ProductTypeIOS.SUBSCRIPTION_SUITE,
+	"SubscriptionSuite": ProductTypeIOS.SUBSCRIPTION_SUITE
 }
 
 const PURCHASE_STATE_FROM_STRING = {
 	"pending": PurchaseState.PENDING,
+	"PENDING": PurchaseState.PENDING,
+	"Pending": PurchaseState.PENDING,
 	"purchased": PurchaseState.PURCHASED,
-	"unknown": PurchaseState.UNKNOWN
+	"PURCHASED": PurchaseState.PURCHASED,
+	"Purchased": PurchaseState.PURCHASED,
+	"unknown": PurchaseState.UNKNOWN,
+	"UNKNOWN": PurchaseState.UNKNOWN,
+	"Unknown": PurchaseState.UNKNOWN
 }
 
 const PURCHASE_VERIFICATION_PROVIDER_FROM_STRING = {
-	"iapkit": PurchaseVerificationProvider.IAPKIT
+	"iapkit": PurchaseVerificationProvider.IAPKIT,
+	"IAPKIT": PurchaseVerificationProvider.IAPKIT,
+	"Iapkit": PurchaseVerificationProvider.IAPKIT
 }
 
 const SUB_RESPONSE_CODE_ANDROID_FROM_STRING = {
 	"no-applicable-sub-response-code": SubResponseCodeAndroid.NO_APPLICABLE_SUB_RESPONSE_CODE,
+	"NO_APPLICABLE_SUB_RESPONSE_CODE": SubResponseCodeAndroid.NO_APPLICABLE_SUB_RESPONSE_CODE,
 	"payment-declined-due-to-insufficient-funds": SubResponseCodeAndroid.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS,
-	"user-ineligible": SubResponseCodeAndroid.USER_INELIGIBLE
+	"PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS": SubResponseCodeAndroid.PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS,
+	"user-ineligible": SubResponseCodeAndroid.USER_INELIGIBLE,
+	"USER_INELIGIBLE": SubResponseCodeAndroid.USER_INELIGIBLE
 }
 
 const SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING = {
 	"unknown": SubscriptionBillingPlanTypeIOS.UNKNOWN,
+	"UNKNOWN": SubscriptionBillingPlanTypeIOS.UNKNOWN,
+	"Unknown": SubscriptionBillingPlanTypeIOS.UNKNOWN,
 	"monthly": SubscriptionBillingPlanTypeIOS.MONTHLY,
-	"up-front": SubscriptionBillingPlanTypeIOS.UP_FRONT
+	"MONTHLY": SubscriptionBillingPlanTypeIOS.MONTHLY,
+	"Monthly": SubscriptionBillingPlanTypeIOS.MONTHLY,
+	"up-front": SubscriptionBillingPlanTypeIOS.UP_FRONT,
+	"UP_FRONT": SubscriptionBillingPlanTypeIOS.UP_FRONT,
+	"UpFront": SubscriptionBillingPlanTypeIOS.UP_FRONT
 }
 
 const SUBSCRIPTION_OFFER_TYPE_IOS_FROM_STRING = {
 	"introductory": SubscriptionOfferTypeIOS.INTRODUCTORY,
+	"INTRODUCTORY": SubscriptionOfferTypeIOS.INTRODUCTORY,
+	"Introductory": SubscriptionOfferTypeIOS.INTRODUCTORY,
 	"promotional": SubscriptionOfferTypeIOS.PROMOTIONAL,
-	"win-back": SubscriptionOfferTypeIOS.WIN_BACK
+	"PROMOTIONAL": SubscriptionOfferTypeIOS.PROMOTIONAL,
+	"Promotional": SubscriptionOfferTypeIOS.PROMOTIONAL,
+	"win-back": SubscriptionOfferTypeIOS.WIN_BACK,
+	"WIN_BACK": SubscriptionOfferTypeIOS.WIN_BACK,
+	"WinBack": SubscriptionOfferTypeIOS.WIN_BACK
 }
 
 const SUBSCRIPTION_PERIOD_IOS_FROM_STRING = {
 	"day": SubscriptionPeriodIOS.DAY,
+	"DAY": SubscriptionPeriodIOS.DAY,
+	"Day": SubscriptionPeriodIOS.DAY,
 	"week": SubscriptionPeriodIOS.WEEK,
+	"WEEK": SubscriptionPeriodIOS.WEEK,
+	"Week": SubscriptionPeriodIOS.WEEK,
 	"month": SubscriptionPeriodIOS.MONTH,
+	"MONTH": SubscriptionPeriodIOS.MONTH,
+	"Month": SubscriptionPeriodIOS.MONTH,
 	"year": SubscriptionPeriodIOS.YEAR,
-	"empty": SubscriptionPeriodIOS.EMPTY
+	"YEAR": SubscriptionPeriodIOS.YEAR,
+	"Year": SubscriptionPeriodIOS.YEAR,
+	"empty": SubscriptionPeriodIOS.EMPTY,
+	"EMPTY": SubscriptionPeriodIOS.EMPTY,
+	"Empty": SubscriptionPeriodIOS.EMPTY
 }
 
 const SUBSCRIPTION_PERIOD_UNIT_FROM_STRING = {
 	"day": SubscriptionPeriodUnit.DAY,
+	"DAY": SubscriptionPeriodUnit.DAY,
+	"Day": SubscriptionPeriodUnit.DAY,
 	"week": SubscriptionPeriodUnit.WEEK,
+	"WEEK": SubscriptionPeriodUnit.WEEK,
+	"Week": SubscriptionPeriodUnit.WEEK,
 	"month": SubscriptionPeriodUnit.MONTH,
+	"MONTH": SubscriptionPeriodUnit.MONTH,
+	"Month": SubscriptionPeriodUnit.MONTH,
 	"year": SubscriptionPeriodUnit.YEAR,
-	"unknown": SubscriptionPeriodUnit.UNKNOWN
+	"YEAR": SubscriptionPeriodUnit.YEAR,
+	"Year": SubscriptionPeriodUnit.YEAR,
+	"unknown": SubscriptionPeriodUnit.UNKNOWN,
+	"UNKNOWN": SubscriptionPeriodUnit.UNKNOWN,
+	"Unknown": SubscriptionPeriodUnit.UNKNOWN
 }
 
 const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING = {
 	"unknown-replacement-mode": SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE,
+	"UNKNOWN_REPLACEMENT_MODE": SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE,
 	"with-time-proration": SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION,
+	"WITH_TIME_PRORATION": SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION,
 	"charge-prorated-price": SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE,
+	"CHARGE_PRORATED_PRICE": SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE,
 	"charge-full-price": SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE,
+	"CHARGE_FULL_PRICE": SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE,
 	"without-proration": SubscriptionReplacementModeAndroid.WITHOUT_PRORATION,
+	"WITHOUT_PRORATION": SubscriptionReplacementModeAndroid.WITHOUT_PRORATION,
 	"deferred": SubscriptionReplacementModeAndroid.DEFERRED,
-	"keep-existing": SubscriptionReplacementModeAndroid.KEEP_EXISTING
+	"DEFERRED": SubscriptionReplacementModeAndroid.DEFERRED,
+	"keep-existing": SubscriptionReplacementModeAndroid.KEEP_EXISTING,
+	"KEEP_EXISTING": SubscriptionReplacementModeAndroid.KEEP_EXISTING
 }
 
 # ============================================================================

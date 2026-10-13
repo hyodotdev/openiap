@@ -1,24 +1,15 @@
-/** Helpers for platform error codes and structured purchase errors. */
+/**
+ * Error-code helpers shared by react-native-iap and expo-iap.
+ * Edit libraries/react-native-iap/src/utils/errorMapping.ts first and copy it to
+ * expo-iap; errorMapping.shared.test.ts keeps the copies identical.
+ */
 
 import {
   ErrorCode,
   type IapPlatform,
   type SubResponseCodeAndroid,
 } from '../types';
-
-const toKebabCase = (str: string): string => {
-  if (str.includes('_')) {
-    return str
-      .split('_')
-      .map((word) => word.toLowerCase())
-      .join('-');
-  } else {
-    return str
-      .replace(/([A-Z])/g, '-$1')
-      .toLowerCase()
-      .replace(/^-/, '');
-  }
-};
+import {PACKAGE_NAME} from './packageName';
 
 export interface PurchaseErrorProps {
   message?: string;
@@ -45,163 +36,26 @@ export interface PurchaseError extends Error {
   platform?: IapPlatform;
 }
 
-/**
- * Prefix shared with the native Expo bridges. Expo Modules only transports an
- * exception code and message for rejected async functions, so native bridges
- * append the canonical PurchaseError payload to the message with this marker.
- */
-export const OPENIAP_ERROR_ENVELOPE_PREFIX = 'OPENIAP_ERROR_JSON:';
+/** Error code for duplicate purchase events. */
+export const DUPLICATE_PURCHASE_CODE = ErrorCode.DuplicatePurchase;
 
-type UnknownRecord = Record<string, unknown>;
+const OPENIAP_ERROR_CODES: ReadonlySet<string> = new Set(
+  Object.values(ErrorCode),
+);
 
-const asRecord = (value: unknown): UnknownRecord | undefined =>
-  typeof value === 'object' && value !== null
-    ? (value as UnknownRecord)
-    : undefined;
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
-
-const asNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-
-const asBoolean = (value: unknown): boolean | undefined =>
-  typeof value === 'boolean' ? value : undefined;
-
-const asStringArray = (value: unknown): string[] | undefined =>
-  Array.isArray(value)
-    ? value.filter(
-        (candidate): candidate is string => typeof candidate === 'string',
-      )
-    : undefined;
-
-// On iOS, Expo appends " (at <file>:<line>)" to a rejected function's message,
-// so the envelope is rarely the end of the string. Take the object and stop there.
-const sliceEnvelopeObject = (payload: string): string | undefined => {
-  const start = payload.indexOf('{');
-  if (start < 0) return undefined;
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let index = start; index < payload.length; index += 1) {
-    const character = payload[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (character === '\\') {
-      escaped = true;
-      continue;
-    }
-    if (character === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (inString) continue;
-    if (character === '{') depth += 1;
-    else if (character === '}') {
-      depth -= 1;
-      if (depth === 0) return payload.slice(start, index + 1);
-    }
-  }
-  return undefined;
-};
-
-const parseNativeErrorEnvelope = (
-  message: string,
-): UnknownRecord | undefined => {
-  const markerIndex = message.indexOf(OPENIAP_ERROR_ENVELOPE_PREFIX);
-  if (markerIndex < 0) return undefined;
-
-  const envelope = sliceEnvelopeObject(
-    message.slice(markerIndex + OPENIAP_ERROR_ENVELOPE_PREFIX.length),
-  );
-  if (envelope === undefined) return undefined;
-
-  try {
-    return asRecord(JSON.parse(envelope));
-  } catch {
-    return undefined;
-  }
-};
-
-const normalizePlatform = (platform: IapPlatform): 'ios' | 'android' =>
-  typeof platform === 'string' && platform.toLowerCase() === 'ios'
-    ? 'ios'
-    : 'android';
-
-const COMMON_ERROR_CODE_MAP: Record<ErrorCode, string> = {
-  [ErrorCode.Unknown]: ErrorCode.Unknown,
-  [ErrorCode.UserCancelled]: ErrorCode.UserCancelled,
-  [ErrorCode.UserError]: ErrorCode.UserError,
-  [ErrorCode.ItemUnavailable]: ErrorCode.ItemUnavailable,
-  [ErrorCode.RemoteError]: ErrorCode.RemoteError,
-  [ErrorCode.NetworkError]: ErrorCode.NetworkError,
-  [ErrorCode.ServiceError]: ErrorCode.ServiceError,
-  [ErrorCode.NotPrepared]: ErrorCode.NotPrepared,
-  [ErrorCode.NotEnded]: ErrorCode.NotEnded,
-  [ErrorCode.AlreadyOwned]: ErrorCode.AlreadyOwned,
-  [ErrorCode.DeveloperError]: ErrorCode.DeveloperError,
-  [ErrorCode.BillingResponseJsonParseError]:
-    ErrorCode.BillingResponseJsonParseError,
-  [ErrorCode.DeferredPayment]: ErrorCode.DeferredPayment,
-  [ErrorCode.Interrupted]: ErrorCode.Interrupted,
-  [ErrorCode.IapNotAvailable]: ErrorCode.IapNotAvailable,
-  [ErrorCode.PurchaseError]: ErrorCode.PurchaseError,
-  [ErrorCode.SyncError]: ErrorCode.SyncError,
-  [ErrorCode.TransactionValidationFailed]:
-    ErrorCode.TransactionValidationFailed,
-  [ErrorCode.ActivityUnavailable]: ErrorCode.ActivityUnavailable,
-  [ErrorCode.AlreadyPrepared]: ErrorCode.AlreadyPrepared,
-  [ErrorCode.Pending]: ErrorCode.Pending,
-  [ErrorCode.ConnectionClosed]: ErrorCode.ConnectionClosed,
-  [ErrorCode.InitConnection]: ErrorCode.InitConnection,
-  [ErrorCode.ServiceDisconnected]: ErrorCode.ServiceDisconnected,
-  [ErrorCode.QueryProduct]: ErrorCode.QueryProduct,
-  [ErrorCode.SkuNotFound]: ErrorCode.SkuNotFound,
-  [ErrorCode.SkuOfferMismatch]: ErrorCode.SkuOfferMismatch,
-  [ErrorCode.ItemNotOwned]: ErrorCode.ItemNotOwned,
-  [ErrorCode.BillingUnavailable]: ErrorCode.BillingUnavailable,
-  [ErrorCode.FeatureNotSupported]: ErrorCode.FeatureNotSupported,
-  [ErrorCode.DuplicatePurchase]: ErrorCode.DuplicatePurchase,
-  [ErrorCode.ServiceTimeout]: ErrorCode.ServiceTimeout,
-  [ErrorCode.EmptySkuList]: ErrorCode.EmptySkuList,
-  [ErrorCode.PurchaseVerificationFailed]: ErrorCode.PurchaseVerificationFailed,
-  [ErrorCode.PurchaseVerificationFinishFailed]:
-    ErrorCode.PurchaseVerificationFinishFailed,
-  [ErrorCode.PurchaseVerificationFinished]:
-    ErrorCode.PurchaseVerificationFinished,
-};
-
-export const ErrorCodeMapping = {
-  ios: COMMON_ERROR_CODE_MAP,
-  android: COMMON_ERROR_CODE_MAP,
-} as const;
-
-const OPENIAP_ERROR_CODE_SET: Set<string> = new Set(Object.values(ErrorCode));
-
-const HISTORICAL_ERROR_CODE_INPUTS: Record<string, ErrorCode> = {
+// Legacy spellings, keyed in upper snake case without the `E_` prefix.
+const ERROR_CODE_ALIASES: Readonly<Partial<Record<string, ErrorCode>>> = {
+  USER_CANCELED: ErrorCode.UserCancelled,
+  USER_CANCEL: ErrorCode.UserCancelled,
+  CANCELED: ErrorCode.UserCancelled,
+  CANCELLED: ErrorCode.UserCancelled,
   RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
-  E_RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
   RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
-  E_RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
   RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
-  E_RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
 };
 
-const historicalErrorCode = (code: string): ErrorCode | undefined =>
-  HISTORICAL_ERROR_CODE_INPUTS[
-    code
-      .trim()
-      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-      .replace(/-/g, '_')
-      .toUpperCase()
-  ];
-
-// Legacy Google Play Billing response codes accepted by older JS call sites.
-// Native ERROR_CODES constants are code -> message tables, not response-code maps.
-const LEGACY_ANDROID_RESPONSE_CODES = new Map<number, ErrorCode>([
+// Google Play BillingResponseCode values that older call sites pass as codes.
+const ANDROID_RESPONSE_CODES: ReadonlyMap<number, ErrorCode> = new Map([
   [-3, ErrorCode.ServiceTimeout],
   [-2, ErrorCode.FeatureNotSupported],
   [-1, ErrorCode.ServiceDisconnected],
@@ -216,22 +70,76 @@ const LEGACY_ANDROID_RESPONSE_CODES = new Map<number, ErrorCode>([
   [12, ErrorCode.NetworkError],
 ]);
 
+/** Maps any code spelling (`user-cancelled`, `E_USER_CANCELED`, `UserCancelled`) to an ErrorCode. */
+export const normalizeErrorCodeFromNative = (code: unknown): ErrorCode => {
+  if (typeof code !== 'string') {
+    return ErrorCode.Unknown;
+  }
+  const key = code
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/-/g, '_')
+    .toUpperCase()
+    .replace(/^E_/, '');
+  const alias = ERROR_CODE_ALIASES[key];
+  if (alias) {
+    return alias;
+  }
+  const kebab = key.toLowerCase().replace(/_/g, '-');
+  return OPENIAP_ERROR_CODES.has(kebab)
+    ? (kebab as ErrorCode)
+    : ErrorCode.Unknown;
+};
+
+const normalizePlatform = (platform: IapPlatform): 'ios' | 'android' =>
+  typeof platform === 'string' && platform.toLowerCase() === 'ios'
+    ? 'ios'
+    : 'android';
+
+const ERROR_CODE_MAP = Object.fromEntries(
+  Object.values(ErrorCode).map((code) => [code, code]),
+) as Record<ErrorCode, string>;
+
+export const ErrorCodeMapping = {
+  ios: ERROR_CODE_MAP,
+  android: ERROR_CODE_MAP,
+} as const;
+
+export const ErrorCodeUtils = {
+  // OpenIAP native bridges already exchange canonical error-code strings.
+  getNativeErrorCode: (errorCode: ErrorCode): string => errorCode,
+  fromPlatformCode: (
+    platformCode: string | number | null | undefined,
+    platform: IapPlatform,
+  ): ErrorCode => {
+    if (typeof platformCode !== 'number') {
+      return normalizeErrorCodeFromNative(platformCode);
+    }
+    if (normalizePlatform(platform) !== 'android') {
+      return ErrorCode.Unknown;
+    }
+    return ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown;
+  },
+  toPlatformCode: (
+    errorCode: ErrorCode,
+    _platform: IapPlatform,
+  ): string | number => errorCode,
+  isValidForPlatform: (errorCode: ErrorCode, _platform: IapPlatform): boolean =>
+    OPENIAP_ERROR_CODES.has(errorCode),
+};
+
 export const createPurchaseError = (
   props: PurchaseErrorProps,
 ): PurchaseError => {
-  const errorCode = props.code
-    ? typeof props.code === 'string' || typeof props.code === 'number'
-      ? ErrorCodeUtils.fromPlatformCode(props.code, props.platform || 'ios')
-      : props.code
-    : undefined;
-
   const error = new Error(
     props.message ?? 'Unknown error occurred',
   ) as PurchaseError;
-  error.name = '[expo-iap]: PurchaseError';
+  error.name = `[${PACKAGE_NAME}]: PurchaseError`;
   error.responseCode = props.responseCode;
   error.debugMessage = props.debugMessage;
-  error.code = errorCode;
+  error.code = props.code
+    ? ErrorCodeUtils.fromPlatformCode(props.code, props.platform ?? 'ios')
+    : undefined;
   error.productId = props.productId;
   error.productIds = props.productIds;
   error.productType = props.productType;
@@ -244,129 +152,18 @@ export const createPurchaseError = (
 export const createPurchaseErrorFromPlatform = (
   errorData: PurchaseErrorProps,
   platform: IapPlatform,
-): PurchaseError => {
-  const normalizedPlatform = normalizePlatform(platform);
-  const errorCode = errorData.code
-    ? typeof errorData.code === 'string' || typeof errorData.code === 'number'
-      ? ErrorCodeUtils.fromPlatformCode(errorData.code, normalizedPlatform)
-      : errorData.code
-    : ErrorCode.Unknown;
-
-  return createPurchaseError({
+): PurchaseError =>
+  createPurchaseError({
+    ...errorData,
     message: errorData.message ?? 'Unknown error occurred',
-    responseCode: errorData.responseCode,
-    debugMessage: errorData.debugMessage,
-    code: errorCode,
-    productId: errorData.productId,
-    productIds: errorData.productIds,
-    productType: errorData.productType,
-    isEmptyProductList: errorData.isEmptyProductList,
-    subResponseCodeAndroid: errorData.subResponseCodeAndroid,
+    code: errorData.code
+      ? ErrorCodeUtils.fromPlatformCode(
+          errorData.code,
+          normalizePlatform(platform),
+        )
+      : ErrorCode.Unknown,
     platform,
   });
-};
-
-/**
- * Rebuild a canonical PurchaseError from an Expo Modules Promise rejection,
- * read from the message envelope (see OPENIAP_ERROR_ENVELOPE_PREFIX). Direct
- * fields are accepted too, for the Vega/Onside adapters and older native builds.
- */
-export const createPurchaseErrorFromNativeException = (
-  error: unknown,
-  platform: IapPlatform,
-  fallback: PurchaseErrorProps = {},
-): PurchaseError => {
-  const direct = asRecord(error) ?? {};
-  const nativeMessage =
-    asString(direct.message) ??
-    (typeof error === 'string' ? error : undefined) ??
-    fallback.message ??
-    'Unknown error occurred';
-  const envelope = parseNativeErrorEnvelope(nativeMessage) ?? {};
-
-  const envelopePlatform = asString(envelope.platform);
-  const resolvedPlatform: IapPlatform =
-    envelopePlatform === 'ios' || envelopePlatform === 'android'
-      ? envelopePlatform
-      : platform;
-  const subResponseCode =
-    asString(envelope.subResponseCodeAndroid) ??
-    asString(direct.subResponseCodeAndroid) ??
-    fallback.subResponseCodeAndroid;
-
-  return createPurchaseErrorFromPlatform(
-    {
-      code:
-        asString(envelope.code) ??
-        asNumber(envelope.code) ??
-        asString(direct.code) ??
-        asNumber(direct.code) ??
-        fallback.code ??
-        ErrorCode.Unknown,
-      message: asString(envelope.message) ?? fallback.message ?? nativeMessage,
-      debugMessage:
-        asString(envelope.debugMessage) ??
-        asString(direct.debugMessage) ??
-        fallback.debugMessage,
-      responseCode:
-        asNumber(envelope.responseCode) ??
-        asNumber(direct.responseCode) ??
-        fallback.responseCode,
-      productId:
-        asString(envelope.productId) ??
-        asString(direct.productId) ??
-        fallback.productId,
-      productIds:
-        asStringArray(envelope.productIds) ??
-        asStringArray(direct.productIds) ??
-        fallback.productIds,
-      productType:
-        asString(envelope.productType) ??
-        asString(direct.productType) ??
-        fallback.productType,
-      isEmptyProductList:
-        asBoolean(envelope.isEmptyProductList) ??
-        asBoolean(direct.isEmptyProductList) ??
-        fallback.isEmptyProductList,
-      subResponseCodeAndroid: subResponseCode as
-        SubResponseCodeAndroid | undefined,
-      platform: resolvedPlatform,
-    },
-    resolvedPlatform,
-  );
-};
-
-export const ErrorCodeUtils = {
-  // OpenIAP native bridges already exchange canonical error-code strings.
-  getNativeErrorCode: (errorCode: ErrorCode): string => errorCode,
-  fromPlatformCode: (
-    platformCode: string | number | null | undefined,
-    platform: IapPlatform,
-  ): ErrorCode => {
-    if (platformCode == null) {
-      return ErrorCode.Unknown;
-    }
-    if (typeof platformCode === 'number') {
-      return normalizePlatform(platform) === 'android'
-        ? (LEGACY_ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown)
-        : ErrorCode.Unknown;
-    }
-    const historical = historicalErrorCode(platformCode);
-    if (historical) {
-      return historical;
-    }
-    const normalized = toKebabCase(platformCode.replace(/^E_/i, ''));
-    return OPENIAP_ERROR_CODE_SET.has(normalized)
-      ? (normalized as ErrorCode)
-      : ErrorCode.Unknown;
-  },
-  toPlatformCode: (
-    errorCode: ErrorCode,
-    _platform: IapPlatform,
-  ): string | number => errorCode,
-  isValidForPlatform: (errorCode: ErrorCode, _platform: IapPlatform): boolean =>
-    OPENIAP_ERROR_CODE_SET.has(errorCode),
-};
 
 // ---------------------------------------------------------------------------
 // Convenience helpers for interpreting error objects
@@ -374,84 +171,54 @@ export const ErrorCodeUtils = {
 
 type ErrorLike = string | {code?: ErrorCode | string; message?: string};
 
-const ERROR_CODES = new Set<string>(Object.values(ErrorCode));
-
-const normalizeErrorCode = (code?: string | null): string | undefined => {
-  if (!code) {
-    return undefined;
+const extractCode = (error: unknown): ErrorCode | undefined => {
+  if (typeof error === 'string') {
+    return normalizeErrorCodeFromNative(error);
   }
-
-  if (ERROR_CODES.has(code)) {
-    return code;
+  if (error && typeof error === 'object' && 'code' in error) {
+    return normalizeErrorCodeFromNative(error.code);
   }
-
-  const historical = historicalErrorCode(code);
-  if (historical) {
-    return historical;
-  }
-
-  const camelCased = toKebabCase(code);
-  if (ERROR_CODES.has(camelCased)) {
-    return camelCased;
-  }
-
-  if (code.startsWith('E_')) {
-    const trimmed = code.substring(2);
-    if (ERROR_CODES.has(trimmed)) {
-      return trimmed;
-    }
-    const camelTrimmed = toKebabCase(trimmed);
-    if (ERROR_CODES.has(camelTrimmed)) {
-      return camelTrimmed;
-    }
-  }
-
-  return code;
+  return undefined;
 };
 
-function extractCode(error: unknown): string | undefined {
-  if (typeof error === 'string') {
-    return normalizeErrorCode(error);
-  }
+const NETWORK_ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
+  ErrorCode.NetworkError,
+  ErrorCode.RemoteError,
+  ErrorCode.ServiceError,
+  ErrorCode.ServiceDisconnected,
+  ErrorCode.BillingUnavailable,
+]);
 
-  if (error && typeof error === 'object' && 'code' in error) {
-    return normalizeErrorCode((error as {code?: string}).code);
-  }
-
-  return undefined;
-}
+// Codes whose documented action is to retry or reconnect (openiap.dev/docs/errors).
+const RECOVERABLE_ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
+  ErrorCode.NetworkError,
+  ErrorCode.RemoteError,
+  ErrorCode.ServiceError,
+  ErrorCode.ServiceDisconnected,
+  ErrorCode.ServiceTimeout,
+  ErrorCode.ConnectionClosed,
+  ErrorCode.InitConnection,
+  ErrorCode.SyncError,
+  ErrorCode.Interrupted,
+  ErrorCode.QueryProduct,
+]);
 
 export function isUserCancelledError(error: unknown): boolean {
   return extractCode(error) === ErrorCode.UserCancelled;
 }
 
-export function isNetworkError(error: unknown): boolean {
-  const networkErrors: ErrorCode[] = [
-    ErrorCode.NetworkError,
-    ErrorCode.RemoteError,
-    ErrorCode.ServiceError,
-    ErrorCode.ServiceDisconnected,
-    ErrorCode.BillingUnavailable,
-  ];
+export function isDuplicatePurchaseError(error: unknown): boolean {
+  return extractCode(error) === DUPLICATE_PURCHASE_CODE;
+}
 
+export function isNetworkError(error: unknown): boolean {
   const code = extractCode(error);
-  return !!code && (networkErrors as string[]).includes(code);
+  return code !== undefined && NETWORK_ERROR_CODES.has(code);
 }
 
 export function isRecoverableError(error: unknown): boolean {
-  const recoverableErrors: ErrorCode[] = [
-    ErrorCode.NetworkError,
-    ErrorCode.RemoteError,
-    ErrorCode.ServiceError,
-    ErrorCode.Interrupted,
-    ErrorCode.ServiceDisconnected,
-    ErrorCode.BillingUnavailable,
-    ErrorCode.QueryProduct,
-    ErrorCode.InitConnection,
-  ];
-
   const code = extractCode(error);
-  return !!code && (recoverableErrors as string[]).includes(code);
+  return code !== undefined && RECOVERABLE_ERROR_CODES.has(code);
 }
 
 /**
@@ -460,15 +227,11 @@ export function isRecoverableError(error: unknown): boolean {
  * Developers get that diagnostic as `error.message`.
  */
 export function getUserFriendlyErrorMessage(error: ErrorLike): string {
-  const errorCode = extractCode(error);
-
-  switch (errorCode) {
+  switch (extractCode(error)) {
     case ErrorCode.UserCancelled:
-      return 'Purchase was cancelled by user';
+      return 'Purchase cancelled';
     case ErrorCode.NetworkError:
       return 'Network connection error. Please check your internet connection and try again.';
-    case ErrorCode.PurchaseVerificationFinished:
-      return 'Purchase verification already finished';
     case ErrorCode.ServiceDisconnected:
       return 'Billing service disconnected. Please try again.';
     case ErrorCode.BillingUnavailable:
@@ -485,6 +248,8 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'Selected offer does not match the SKU';
     case ErrorCode.DeferredPayment:
       return 'Payment is pending approval';
+    case ErrorCode.DuplicatePurchase:
+      return 'This purchase has already been processed. Try restoring purchases.';
     case ErrorCode.NotPrepared:
       return 'In-app purchase is not ready. Please try again later.';
     case ErrorCode.ServiceError:
@@ -495,20 +260,21 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'Transaction could not be verified';
     case ErrorCode.PurchaseVerificationFailed:
       return 'Purchase verification failed';
+    case ErrorCode.PurchaseVerificationFinished:
+      return 'Purchase verification already finished';
+    case ErrorCode.PurchaseVerificationFinishFailed:
+      return 'Failed to complete purchase verification';
     case ErrorCode.EmptySkuList:
       return 'No product IDs provided';
     case ErrorCode.InitConnection:
       return 'Failed to initialize billing connection';
+    case ErrorCode.IapNotAvailable:
+      return 'In-app purchases are not available on this device';
     case ErrorCode.QueryProduct:
       return 'Failed to query products. Please try again later.';
-    default: {
-      if (error && typeof error === 'object' && 'message' in error) {
-        return (
-          (error as {message?: string}).message ??
-          'An unexpected error occurred'
-        );
-      }
-      return 'An unexpected error occurred';
-    }
+    default:
+      return typeof error === 'object' && error?.message
+        ? error.message
+        : 'An unexpected error occurred';
   }
 }

@@ -22,11 +22,15 @@ function InitConnection() {
         starting store operations.
       </p>
       <p>
-        <strong>iOS:</strong> Verifies <code>AppStore.canMakePayments</code>,
-        receives promoted IAPs through <code>PurchaseIntent.intents</code> on
-        iOS 16.4+ (and <code>SKPaymentQueue</code> only on iOS 15–16.3), and
-        starts a <code>Transaction.updates</code> listener that drives the
-        purchase event stream. Safe to call repeatedly.{' '}
+        <strong>iOS:</strong> Receives promoted IAPs through{' '}
+        <code>PurchaseIntent.intents</code> on iOS 16.4+ (and{' '}
+        <code>SKPaymentQueue</code> only on iOS 15–16.3) and starts a{' '}
+        <code>Transaction.updates</code> listener that drives the purchase event
+        stream. Safe to call repeatedly. It also connects when Screen Time or
+        MDM blocks purchases (<code>AppStore.canMakePayments</code> is{' '}
+        <code>false</code>): reads and restore keep working, and{' '}
+        <code>requestPurchase</code> rejects with <code>iap-not-available</code>
+        .{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/updates"
           target="_blank"
@@ -105,7 +109,7 @@ function InitConnection() {
           </em>{' '}
           — <strong>Android.</strong> Enable a Play Billing program at
           connection time. <code>EXTERNAL_CONTENT_LINK</code> and{' '}
-          <code>EXTERNAL_OFFER</code> require Billing 8.2.0+;{' '}
+          <code>EXTERNAL_OFFER</code> require Billing 8.2.1+;{' '}
           <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);{' '}
           <code>BILLING_CHOICE</code> is available in OpenIAP 2.1.0 /{' '}
           <code>openiap-google</code> 2.3.0 and requires Billing 9.1.0+.
@@ -176,10 +180,10 @@ const connected = await initConnection();
 if (!connected) throw new Error('Store connection failed');
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
-// Both hooks auto-connect on mount. Expo closes the connection on unmount;
-// React Native removes the screen's listeners but keeps the native connection
-// open across screens. Pass connection options to the hook and read its
-// reactive "connected" flag.
+// Both hooks auto-connect on mount. Expo closes the shared connection when the
+// last mounted hook unmounts; React Native removes the screen's listeners but
+// keeps the native connection open across screens. Pass connection options to
+// the hook and read its reactive "connected" flag.
 import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
@@ -191,7 +195,7 @@ function PurchaseScreen() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`import OpenIap
+            <CodeBlock language="swift">{`import OpenIAP
 
 let connected = try await OpenIapModule.shared.initConnection()
 precondition(connected, "Store connection failed")`}</CodeBlock>

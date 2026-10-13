@@ -113,14 +113,15 @@ crons.interval(
 // `subscriptionStats` is maintained incrementally by applySubscriptionEvent,
 // which is correct in steady state but drifts after a missed invocation
 // (action timeout, manual db.patch, schema drift during rollout).
-// Recomputing the most-stale projects daily heals it without an operator.
+// Recomputing the least recently recomputed projects daily heals it without an
+// operator.
 crons.interval(
   "recompute subscription stats (drift correction)",
   { hours: 24 },
   internal.subscriptions.stats.recomputeAllSubscriptionStats,
   // Each project recomputes in its own scheduled mutation (own 40k-read
-  // budget), so the picker is an index scan plus 50 schedule calls. 50 a
-  // day cycles up to 1,500 projects at least monthly.
+  // budget), so the picker is an index scan plus 50 schedule calls. 50 a day
+  // gives each of up to 1,500 projects a turn about monthly, however active.
   { batchSize: 50 },
 );
 

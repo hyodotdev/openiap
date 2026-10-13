@@ -156,21 +156,6 @@ internal object HorizonBillingConverters {
         )
     }
 
-    // Horizon maps PENDING through fromHorizonState, so this must gate on
-    // Purchased: a pending purchase is unpaid and is not an entitlement.
-    fun HorizonPurchase.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
-        autoRenewingAndroid = isAutoRenewing(),
-        basePlanIdAndroid = null,
-        currentPlanId = null,
-        isActive = PurchaseState.fromHorizonState(getPurchaseState()) == PurchaseState.Purchased,
-        productId = products.firstOrNull().orEmpty(),
-        purchaseToken = purchaseToken,
-        purchaseTokenAndroid = purchaseToken,
-        transactionDate = purchaseTime.toDouble(),
-        // Same blank-orderId fallback as toPurchase above.
-        transactionId = orderId?.takeIf { it.isNotBlank() } ?: purchaseToken
-    )
-
     fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
         autoRenewingAndroid = autoRenewingAndroid,
         basePlanIdAndroid = currentPlanId,

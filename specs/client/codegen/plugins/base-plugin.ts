@@ -239,6 +239,16 @@ export abstract class CodegenPlugin {
     return fields;
   }
 
+  /** The canonical deprecation reason the transformer appended to a description. */
+  protected deprecationReason(description: string | undefined): string | null {
+    return description?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]?.trim() || null;
+  }
+
+  /** Every spelling a decoder accepts for an enum value: the wire value first, then IR legacy aliases. */
+  protected enumSpellings(value: IREnum['values'][number]): string[] {
+    return [value.rawValue, ...value.legacyAliases];
+  }
+
   protected enumUnknownValue(irEnum: IREnum): IREnum['values'][number] | null {
     return irEnum.values.find((value) => value.name.toLowerCase().startsWith('unknown')) ?? null;
   }

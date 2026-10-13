@@ -22,11 +22,8 @@ public enum OpenIapSerialization {
     /// Encodes any encodable value into a `[String: Any]` dictionary (non-nullable).
     /// Filters out nil values to ensure compatibility with JSONSerialization.
     ///
-    /// Tags every emitted dictionary with `__typename = String(describing: T.self)`
-    /// so cross-language consumers (Dart, Kotlin, C#) that drive polymorphic
-    /// dispatch off a leaf-level discriminator can decode the union variants
-    /// emitted by the ObjC bridge. The field is harmless extra data for
-    /// consumers that read fields directly (kmp-iap, flutter's iOS plugin).
+    /// Tags the dictionary with `__typename`, the discriminator Dart, Kotlin, and C#
+    /// dispatch on. A union keeps its member's name; any other type gets `T`'s name.
     public static func encode<T: Encodable>(_ value: T) -> [String: Any] {
         do {
             let data = try encoder.encode(value)
@@ -34,7 +31,7 @@ public enum OpenIapSerialization {
                 OpenIapLog.warn("⚠️ [OpenIapSerialization] Failed to deserialize JSON to dictionary for type: \(T.self)")
                 return [:]
             }
-            json["__typename"] = String(describing: T.self)
+            json["__typename"] = json["__typename"] ?? String(describing: T.self)
             return json
         } catch {
             OpenIapLog.error("⚠️ [OpenIapSerialization] Encoding failed for type \(T.self): \(error)")
@@ -53,7 +50,7 @@ public enum OpenIapSerialization {
                     message: "Failed to serialize native \(T.self) payload"
                 )
             }
-            json["__typename"] = String(describing: T.self)
+            json["__typename"] = json["__typename"] ?? String(describing: T.self)
             return json
         } catch let error as PurchaseError {
             throw error
@@ -106,30 +103,17 @@ public enum OpenIapSerialization {
 
     public static func purchaseInput(from object: Any) throws -> PurchaseInput {
         guard let dict = object as? [String: Any] else {
-            print("❌ [OpenIapSerialization] purchaseInput: object is not a dictionary - \(type(of: object))")
             throw PurchaseError.make(code: .developerError, message: "Purchase must be a dictionary")
         }
 
-        print("📦 [OpenIapSerialization] purchaseInput received dict keys: \(dict.keys.sorted())")
-
-        // Check if already wrapped as Purchase union
         if dict["purchaseIos"] != nil || dict["purchaseAndroid"] != nil {
-            print("✅ [OpenIapSerialization] Already wrapped as Purchase union")
-            // Already wrapped, decode as-is
             return try decode(object: dict, as: PurchaseInput.self)
         }
 
-        print("🔄 [OpenIapSerialization] Auto-wrapping as iOS purchase")
-
-        // Decode as PurchaseIOS first, then wrap in Purchase enum
         do {
-            let purchaseIOS = try decode(object: dict, as: PurchaseIOS.self)
-            let result = Purchase.purchaseIos(purchaseIOS)
-            print("✅ [OpenIapSerialization] Successfully decoded and wrapped PurchaseInput")
-            return result
+            return .purchaseIos(try decode(object: dict, as: PurchaseIOS.self))
         } catch {
-            print("❌ [OpenIapSerialization] Decode failed: \(error)")
-            print("📦 [OpenIapSerialization] Dict keys: \(dict.keys.sorted())")
+            OpenIapLog.error("[OpenIapSerialization] purchaseInput decode failed: \(error), keys: \(dict.keys.sorted())")
             throw error
         }
     }

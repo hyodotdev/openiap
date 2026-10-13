@@ -262,13 +262,6 @@ internal sealed partial class OpenIapAndroid
         return env?.Value ?? string.Empty;
     }
 
-    private static string? DecodeNullableString(string json)
-    {
-        if (string.IsNullOrEmpty(json)) return null;
-        var env = JsonSerializer.Deserialize<ValueEnvelope<string?>>(json, JsonOptions.Default);
-        return env?.Value;
-    }
-
     private static List<T> DecodeItems<T>(string json)
     {
         if (string.IsNullOrEmpty(json)) return new List<T>();

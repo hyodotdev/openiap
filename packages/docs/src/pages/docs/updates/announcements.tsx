@@ -1,8 +1,7 @@
-import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
-import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
+import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
 import { AMAZON_SUPPORTER, META_SUPPORTER } from '../../../lib/sponsors';
@@ -48,7 +47,6 @@ const linkIconStyle = {
 
 interface Announcement {
   id: string;
-  aliases?: readonly string[];
   date: Date;
   hidden?: boolean;
   element: React.ReactNode;
@@ -345,7 +343,6 @@ function Announcements() {
     // 2026-08-19: Amazon Fire OS / Vega OS
     {
       id: '2026-08-19-amazon-fireos-vega',
-      aliases: ['2026-06-09-amazon-fireos-vega'],
       date: new Date('2026-08-19'),
       element: (
         <div key="2026-08-19-amazon-fireos-vega" style={cardStyle}>
@@ -1329,19 +1326,6 @@ function Announcements() {
 
   const itemsPerPage = 5;
 
-  const initialPage = useMemo(() => {
-    const hashId = getHashId();
-    if (!hashId) return 1;
-
-    const announcementIndex = sortedAnnouncements.findIndex(
-      (announcement) =>
-        announcement.id === hashId || announcement.aliases?.includes(hashId)
-    );
-    if (announcementIndex === -1) return 1;
-
-    return Math.floor(announcementIndex / itemsPerPage) + 1;
-  }, [sortedAnnouncements]);
-
   return (
     <div className="doc-page">
       <SEO
@@ -1352,7 +1336,7 @@ function Announcements() {
       <h1>📢 Announcements</h1>
       <p>Important news and updates about OpenIAP</p>
 
-      <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
+      <Pagination itemsPerPage={itemsPerPage}>
         {sortedAnnouncements.map((a) => (
           <section key={a.id} id={a.id}>
             {a.element}

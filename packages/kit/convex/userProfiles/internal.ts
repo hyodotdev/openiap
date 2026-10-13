@@ -13,6 +13,68 @@ import {
 // transaction read limit.
 const ACCOUNT_DELETION_PAGE = 10;
 
+// Auth callbacks only: the caller supplies userId, so it must never be public.
+export const createOrUpdateProfile = internalMutation({
+  args: {
+    userId: v.id("users"),
+    email: v.string(),
+    name: v.optional(v.string()),
+    loginMethod: v.string(),
+    isGitHub: v.boolean(),
+    githubUsername: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if profile exists
+    const existingProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique();
+
+    // Determine login method type
+    let loginMethodType: "email" | "github" | "email-github" | "none" = "none";
+
+    if (existingProfile) {
+      const currentMethod = existingProfile.loginMethodType || "none";
+
+      if (args.isGitHub && !currentMethod.includes("github")) {
+        loginMethodType = currentMethod === "email" ? "email-github" : "github";
+      } else if (!args.isGitHub && !currentMethod.includes("email")) {
+        loginMethodType = currentMethod === "github" ? "email-github" : "email";
+      } else {
+        loginMethodType = currentMethod;
+      }
+
+      // Update existing profile
+      await ctx.db.patch(existingProfile._id, {
+        loginMethodType,
+        lastLoginMethod: args.loginMethod,
+        lastLoginAt: Date.now(),
+        ...(args.githubUsername ? { githubUsername: args.githubUsername } : {}),
+        updatedAt: Date.now(),
+      });
+
+      return existingProfile._id;
+    }
+
+    // Create new profile
+    const displayName = args.name || args.email.split("@")[0];
+
+    const profileId = await ctx.db.insert("userProfiles", {
+      userId: args.userId,
+      displayName,
+      locale: "en",
+      loginMethodType: args.isGitHub ? "github" : "email",
+      lastLoginMethod: args.loginMethod,
+      lastLoginAt: Date.now(),
+      ...(args.githubUsername ? { githubUsername: args.githubUsername } : {}),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return profileId;
+  },
+});
+
 // Internal query to get user by ID (read-only, so modeled as a query).
 export const getUserById = internalQuery({
   args: { userId: v.id("users") },

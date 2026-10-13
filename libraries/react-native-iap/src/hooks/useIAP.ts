@@ -538,13 +538,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     [],
   );
 
-  const requestPurchase = useCallback(
-    async (requestObj: RequestPurchaseProps): Promise<void> => {
-      await requestPurchaseInternal(requestObj);
-    },
-    [],
-  );
-
   const restorePurchases = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
       try {
@@ -696,6 +689,17 @@ export function useIAP(options?: UseIapOptions): UseIap {
     }
   }, [getActiveSubscriptionsInternal, getAvailablePurchasesInternal]);
 
+  const requestPurchase = useCallback(
+    async (requestObj: RequestPurchaseProps): Promise<void> => {
+      // A failed hook init removes the listeners; restore them before buying.
+      if (isMountedRef.current) {
+        registerListeners();
+      }
+      await requestPurchaseInternal(requestObj);
+    },
+    [registerListeners],
+  );
+
   // Shared helper: clean up all listeners
   const cleanupListeners = useCallback(() => {
     subscriptionsRef.current.purchaseUpdate?.remove();
@@ -777,8 +781,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (result) {
-        // endConnection invalidates these hook-owned subscription handles.
-        cleanupListeners();
         registerListeners();
         setConnected(true);
         return true;

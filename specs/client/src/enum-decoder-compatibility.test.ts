@@ -4,6 +4,7 @@ import { CSharpPlugin } from '../codegen/plugins/csharp';
 import { DartPlugin } from '../codegen/plugins/dart';
 import { GDScriptPlugin } from '../codegen/plugins/gdscript';
 import { KotlinPlugin } from '../codegen/plugins/kotlin';
+import { SwiftPlugin } from '../codegen/plugins/swift';
 
 const tolerantStatus: IREnum = {
   name: 'TolerantStatus',
@@ -369,6 +370,22 @@ describe('unknown enum decoder compatibility', () => {
     );
     expect(output).toContain('return document.RootElement.Deserialize<Payload>(options);');
     expect(output).toContain('catch (JsonException)');
+  });
+
+  it('degrades neutral Swift enums and keeps input enums strict', () => {
+    const output = new SwiftPlugin({ outputPath: 'Types.swift' }).generate(decoderSchema());
+    const tolerant = output.slice(output.indexOf('public enum TolerantStatus'), output.indexOf('public enum StrictFormat'));
+    const strict = output.slice(output.indexOf('public enum StrictFormat'), output.indexOf('// MARK: - Objects'));
+
+    expect(tolerant).toContain(
+      'public init(from decoder: Decoder) throws {\n        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown',
+    );
+    expect(strict).not.toContain('init(from decoder: Decoder)');
+    expect(output).toContain('self.status = try container.decode(StrictInputEnum<TolerantStatus>.self, forKey: .status).value');
+    expect(output).toContain(
+      'self.statuses = try container.decodeIfPresent([StrictInputEnum<TolerantStatus>].self, forKey: .statuses)?.map(\\.value)',
+    );
+    expect(output).toContain('self.format = try container.decode(StrictFormat.self, forKey: .format)');
   });
 
   it('degrades neutral GDScript enums and drops an unreadable optional payload', () => {

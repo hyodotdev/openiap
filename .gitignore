@@ -6,6 +6,7 @@ bun.lockb
 !libraries/**/yarn.lock
 !libraries/**/bun.lock
 !libraries/react-native-iap/example/Gemfile.lock
+!packages/apple/Gemfile.lock
 !scripts/agent/bun.lock
 
 # Generated files

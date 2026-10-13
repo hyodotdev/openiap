@@ -503,7 +503,7 @@ describe('type-bridge utilities', () => {
 
   it('converts iOS subscription status renewal metadata', () => {
     const status: NitroSubscriptionStatus = {
-      state: 1,
+      state: 'inBillingRetryPeriod',
       platform: 'ios',
       renewalInfo: {
         willAutoRenew: true,
@@ -530,11 +530,11 @@ describe('type-bridge utilities', () => {
   it('converts an iOS subscription status without renewal metadata', () => {
     expect(
       convertNitroSubscriptionStatusToSubscriptionStatusIOS({
-        state: null,
+        state: 'expired',
         platform: 'ios',
         renewalInfo: null,
-      } as never),
-    ).toEqual({state: '', renewalInfo: undefined});
+      }),
+    ).toEqual({state: 'expired', renewalInfo: undefined});
   });
 
   describe('validation helpers', () => {

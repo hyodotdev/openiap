@@ -622,7 +622,7 @@ for (const sub of subscriptions) {
 }`}</CodeBlock>
                       ),
                       swift: (
-                        <CodeBlock language="swift">{`import OpenIap
+                        <CodeBlock language="swift">{`import OpenIAP
 
 let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(nil)
 

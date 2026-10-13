@@ -166,7 +166,7 @@ const subscription = purchaseUpdatedListener((purchase) => {
 subscription.remove();`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`import OpenIap
+            <CodeBlock language="swift">{`import OpenIAP
 
 let subscription = OpenIapModule.shared.purchaseUpdatedListener { purchase in
     Task {
@@ -198,7 +198,7 @@ lifecycleScope.launch {
         // Verify and deliver
         if (verifyPurchaseOnServer(purchase)) {
             deliverProduct(purchase.productId)
-            openIapStore.finishTransaction(purchase, isConsumable = false)
+            openIapStore.finishTransaction(purchase, false) // false: non-consumable
         }
     }
 }`}</CodeBlock>

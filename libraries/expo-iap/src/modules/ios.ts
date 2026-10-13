@@ -15,6 +15,7 @@ import type {
   SubscriptionStatusIOS,
 } from '../types';
 import {type PurchaseError} from '../utils/errorMapping';
+import {invokeNativeWithPurchaseError} from '../utils/nativeError';
 import {decodeApplePurchases} from '../utils/availablePurchases';
 import {Linking, Platform} from 'react-native';
 
@@ -27,6 +28,10 @@ const requireIosPlatform = (methodName: string): void => {
     throw new Error(`${methodName} is only available on iOS`);
   }
 };
+
+// iOS rejections carry the OpenIAP error envelope; rethrow them as PurchaseError.
+const callNativeIOS = <T>(operation: () => Promise<T>): Promise<T> =>
+  invokeNativeWithPurchaseError(operation, 'ios');
 
 export type TransactionEvent = {
   transaction?: Purchase;
@@ -60,7 +65,7 @@ export function isProductIOS<T extends {platform?: string}>(
  */
 export const syncIOS: MutationField<'syncIOS'> = async () => {
   requireIosPlatform('syncIOS');
-  return !!(await ExpoIapModule.syncIOS());
+  return !!(await callNativeIOS(() => ExpoIapModule.syncIOS()));
 };
 
 /**
@@ -81,7 +86,7 @@ export const isEligibleForIntroOfferIOS: QueryField<
   if (!groupId) {
     throw new Error('isEligibleForIntroOfferIOS requires a groupId');
   }
-  return ExpoIapModule.isEligibleForIntroOfferIOS(groupId);
+  return callNativeIOS(() => ExpoIapModule.isEligibleForIntroOfferIOS(groupId));
 };
 
 /**
@@ -102,7 +107,9 @@ export const subscriptionStatusIOS: QueryField<
   if (!sku) {
     throw new Error('subscriptionStatusIOS requires a SKU');
   }
-  const status = await ExpoIapModule.subscriptionStatusIOS(sku);
+  const status = await callNativeIOS(() =>
+    ExpoIapModule.subscriptionStatusIOS(sku),
+  );
   return (status ?? []) as SubscriptionStatusIOS[];
 };
 
@@ -124,7 +131,9 @@ export const currentEntitlementIOS: QueryField<
   if (!sku) {
     throw new Error('currentEntitlementIOS requires a SKU');
   }
-  const purchase = await ExpoIapModule.currentEntitlementIOS(sku);
+  const purchase = await callNativeIOS(() =>
+    ExpoIapModule.currentEntitlementIOS(sku),
+  );
   return (purchase ?? null) as PurchaseIOS | null;
 };
 
@@ -146,7 +155,9 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
   if (!sku) {
     throw new Error('latestTransactionIOS requires a SKU');
   }
-  const transaction = await ExpoIapModule.latestTransactionIOS(sku);
+  const transaction = await callNativeIOS(() =>
+    ExpoIapModule.latestTransactionIOS(sku),
+  );
   return (transaction ?? null) as PurchaseIOS | null;
 };
 
@@ -168,7 +179,9 @@ export const beginRefundRequestIOS: MutationField<
   if (!sku) {
     throw new Error('beginRefundRequestIOS requires a SKU');
   }
-  const status = await ExpoIapModule.beginRefundRequestIOS(sku);
+  const status = await callNativeIOS(() =>
+    ExpoIapModule.beginRefundRequestIOS(sku),
+  );
   return status ?? null;
 };
 
@@ -187,7 +200,9 @@ export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => {
   requireIosPlatform('showManageSubscriptionsIOS');
-  const purchases = await ExpoIapModule.showManageSubscriptionsIOS();
+  const purchases = await callNativeIOS(() =>
+    ExpoIapModule.showManageSubscriptionsIOS(),
+  );
   return decodeApplePurchases(purchases);
 };
 
@@ -201,7 +216,7 @@ export const showManageSubscriptionsIOS: MutationField<
  */
 export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   requireIosPlatform('getReceiptDataIOS');
-  return ExpoIapModule.getReceiptDataIOS();
+  return callNativeIOS(() => ExpoIapModule.getReceiptDataIOS());
 };
 
 /**
@@ -215,7 +230,7 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
  */
 export const requestReceiptRefreshIOS = async (): Promise<string> => {
   requireIosPlatform('requestReceiptRefreshIOS');
-  return ExpoIapModule.requestReceiptRefreshIOS();
+  return callNativeIOS(() => ExpoIapModule.requestReceiptRefreshIOS());
 };
 
 /**
@@ -237,7 +252,7 @@ export const isTransactionVerifiedIOS: QueryField<
   if (!sku) {
     throw new Error('isTransactionVerifiedIOS requires a SKU');
   }
-  return ExpoIapModule.isTransactionVerifiedIOS(sku);
+  return callNativeIOS(() => ExpoIapModule.isTransactionVerifiedIOS(sku));
 };
 
 /**
@@ -259,7 +274,9 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   if (!sku) {
     throw new Error('getTransactionJwsIOS requires a SKU');
   }
-  const jws = await ExpoIapModule.getTransactionJwsIOS(sku);
+  const jws = await callNativeIOS(() =>
+    ExpoIapModule.getTransactionJwsIOS(sku),
+  );
   return jws ?? '';
 };
 
@@ -279,7 +296,9 @@ export const getAppTransactionIOS: QueryField<
   'getAppTransactionIOS'
 > = async () => {
   requireIosPlatform('getAppTransactionIOS');
-  return (await ExpoIapModule.getAppTransactionIOS()) ?? null;
+  return (
+    (await callNativeIOS(() => ExpoIapModule.getAppTransactionIOS())) ?? null
+  );
 };
 
 /**
@@ -298,7 +317,9 @@ export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
 > = async () => {
   requireIosPlatform('getPromotedProductIOS');
-  const product = await ExpoIapModule.getPromotedProductIOS();
+  const product = await callNativeIOS(() =>
+    ExpoIapModule.getPromotedProductIOS(),
+  );
   return (product ?? null) as ProductIOS | null;
 };
 
@@ -314,7 +335,9 @@ export const getPendingTransactionsIOS: QueryField<
   'getPendingTransactionsIOS'
 > = async () => {
   requireIosPlatform('getPendingTransactionsIOS');
-  const transactions = await ExpoIapModule.getPendingTransactionsIOS();
+  const transactions = await callNativeIOS(() =>
+    ExpoIapModule.getPendingTransactionsIOS(),
+  );
   return decodeApplePurchases(transactions);
 };
 
@@ -327,7 +350,9 @@ export const getAllTransactionsIOS: QueryField<
   'getAllTransactionsIOS'
 > = async () => {
   requireIosPlatform('getAllTransactionsIOS');
-  const transactions = await ExpoIapModule.getAllTransactionsIOS();
+  const transactions = await callNativeIOS(() =>
+    ExpoIapModule.getAllTransactionsIOS(),
+  );
   return decodeApplePurchases(transactions);
 };
 
@@ -343,19 +368,25 @@ export const clearTransactionIOS: MutationField<
   'clearTransactionIOS'
 > = async () => {
   requireIosPlatform('clearTransactionIOS');
-  return !!(await ExpoIapModule.clearTransactionIOS());
+  return !!(await callNativeIOS(() => ExpoIapModule.clearTransactionIOS()));
 };
 
 /**
- * Deep link to subscriptions screen on iOS.
+ * Open the App Store subscription management sheet (iOS only).
  * @returns {Promise<void>}
+ * @throws Error if called on non-iOS platform
  *
  * @platform iOS
  */
-export const deepLinkToSubscriptionsIOS = (): Promise<void> =>
-  ExpoIapModule.HAS_EXPLICIT_STORE_PROVIDER
-    ? ExpoIapModule.deepLinkToSubscriptionsIOS().then(() => undefined)
-    : Linking.openURL('https://apps.apple.com/account/subscriptions');
+export const deepLinkToSubscriptionsIOS = async (): Promise<void> => {
+  requireIosPlatform('deepLinkToSubscriptionsIOS');
+  // The Onside module has no subscription sheet; keep the App Store web page.
+  if (ExpoIapModule.USING_ONSIDE_SDK) {
+    await Linking.openURL('https://apps.apple.com/account/subscriptions');
+    return;
+  }
+  await callNativeIOS(() => ExpoIapModule.deepLinkToSubscriptionsIOS());
+};
 
 /**
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
@@ -370,7 +401,9 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
   'canPresentExternalPurchaseNoticeIOS'
 > = async () => {
   requireIosPlatform('canPresentExternalPurchaseNoticeIOS');
-  return !!(await ExpoIapModule.canPresentExternalPurchaseNoticeIOS());
+  return !!(await callNativeIOS(() =>
+    ExpoIapModule.canPresentExternalPurchaseNoticeIOS(),
+  ));
 };
 
 /**
@@ -387,7 +420,9 @@ export const presentExternalPurchaseNoticeSheetIOS: MutationField<
   'presentExternalPurchaseNoticeSheetIOS'
 > = async () => {
   requireIosPlatform('presentExternalPurchaseNoticeSheetIOS');
-  const result = await ExpoIapModule.presentExternalPurchaseNoticeSheetIOS();
+  const result = await callNativeIOS(() =>
+    ExpoIapModule.presentExternalPurchaseNoticeSheetIOS(),
+  );
   return result as ExternalPurchaseNoticeResultIOS;
 };
 
@@ -404,7 +439,9 @@ export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async (url: string) => {
   requireIosPlatform('presentExternalPurchaseLinkIOS');
-  const result = await ExpoIapModule.presentExternalPurchaseLinkIOS(url);
+  const result = await callNativeIOS(() =>
+    ExpoIapModule.presentExternalPurchaseLinkIOS(url),
+  );
   return result as ExternalPurchaseLinkResultIOS;
 };
 
@@ -421,7 +458,9 @@ export const isEligibleForExternalPurchaseCustomLinkIOS: QueryField<
   'isEligibleForExternalPurchaseCustomLinkIOS'
 > = async () => {
   requireIosPlatform('isEligibleForExternalPurchaseCustomLinkIOS');
-  return !!(await ExpoIapModule.isEligibleForExternalPurchaseCustomLinkIOS());
+  return !!(await callNativeIOS(() =>
+    ExpoIapModule.isEligibleForExternalPurchaseCustomLinkIOS(),
+  ));
 };
 
 /**
@@ -444,8 +483,9 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result =
-    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
+  const result = await callNativeIOS(() =>
+    ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType),
+  );
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
@@ -469,8 +509,9 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result =
-    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
+  const result = await callNativeIOS(() =>
+    ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType),
+  );
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

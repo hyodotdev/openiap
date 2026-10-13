@@ -2892,7 +2892,20 @@ test("doctor rejects incomplete or conflicting provider coordinates", () => {
     "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:+\n",
     "openiapStore=community_fixture\nopeniapProvider=io.github.hyochan.openiap:openiap-google:3.6.2\n",
     "openiapStore=unknown\nopeniapProvider=dev.example:provider:1.0.0\n",
+    "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:1.0.0-SNAPSHOT\n",
+    "openiapStore=community_fixture\nopeniapProvider=dev.example:provider:1.0.0-snapshot\n",
   ]) withProject({...EXPO, "android/gradle.properties": properties}, (root) => assert.ok(ids(root).includes("android-store-unknown")));
+});
+
+test("doctor refuses a snapshot provider version with Gradle's wording", () => {
+  for (const version of ["1.0.0-SNAPSHOT", "1.0.0-snapshot", "2.1.0-Snapshot.3"]) {
+    withProject({...EXPO, "android/gradle.properties": `openiapStore=community_fixture\nopeniapProvider=dev.example:provider:${version}\n`}, (root) => {
+      const unknown = doctor(root).findings.find((one) => one.id === "android-store-unknown");
+      assert.equal(unknown?.level, "error", version);
+      assert.equal(unknown.message, "openiapProvider must be group:artifact:version with a fixed version.");
+      assert.equal(unknown.line, 2);
+    });
+  }
 });
 
 test("a community id without openiapProvider names both fixes", () => {

@@ -1278,6 +1278,10 @@
   pointer-events: none;
 }
 
+.docs-sidebar-close {
+  display: none;
+}
+
 /* Sidebar Overlay (mobile only). Starts below the top nav (56px) so the
    nav stays visible/interactive — but the backdrop swallows every other
    tap on the page so menu items behind don't fire by accident. The
@@ -1385,6 +1389,26 @@
     transition:
       transform 0.26s cubic-bezier(0.4, 0, 0.2, 1),
       visibility 0s linear;
+  }
+
+  .docs-sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: calc(-1 * var(--spacing-md)) var(--spacing-md) var(--spacing-sm)
+      auto;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.5rem;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .docs-sidebar-close:hover {
+    background: var(--border-color);
   }
 
   .docs-content {

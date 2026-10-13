@@ -225,6 +225,10 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         RemoveListener(purchaseErrorToken, nameof(_purchaseErrorToken));
         RemoveListener(promotedProductToken, nameof(_promotedProductToken));
         RemoveListener(billingIssueToken, nameof(_billingIssueToken));
+        _purchaseUpdated.OnCompleted();
+        _purchaseError.OnCompleted();
+        _promotedProductIOS.OnCompleted();
+        _subscriptionBillingIssue.OnCompleted();
         GC.SuppressFinalize(this);
     }
 

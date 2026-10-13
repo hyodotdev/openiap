@@ -12,15 +12,13 @@ function AnchorLink({ id, level, children }: AnchorLinkProps) {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if current hash matches this element's id
-    if (location.hash === `#${id}`) {
-      setTimeout(() => {
-        const element = document.getElementById(id);
-        if (element) {
-          element.scrollIntoView({ behavior: 'instant', block: 'start' });
-        }
-      }, 100);
-    }
+    if (location.hash !== `#${id}`) return;
+    const timeoutId = setTimeout(() => {
+      document
+        .getElementById(id)
+        ?.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }, 100);
+    return () => clearTimeout(timeoutId);
   }, [location, id]);
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {

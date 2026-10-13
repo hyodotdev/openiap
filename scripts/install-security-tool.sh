@@ -4,7 +4,7 @@ set -euo pipefail
 TOOL=${1:-}
 TARGET=${2:-}
 if [[ -z "$TOOL" || -z "$TARGET" ]]; then
-  echo "Usage: install-security-tool.sh <codecov|cyclonedx|osv-scanner|trivy> TARGET" >&2
+  echo "Usage: install-security-tool.sh <actionlint|codecov|cyclonedx|osv-scanner|trivy> TARGET" >&2
   exit 1
 fi
 
@@ -12,6 +12,11 @@ SECURITY_TOOL_TMP=$(mktemp -d)
 trap 'rm -rf "$SECURITY_TOOL_TMP"' EXIT
 
 case "$TOOL" in
+  actionlint)
+    ARCHIVE="$SECURITY_TOOL_TMP/actionlint.tar.gz"
+    URL=https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+    SHA256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    ;;
   codecov)
     ARCHIVE="$SECURITY_TOOL_TMP/codecov"
     URL=https://github.com/codecov/codecov-cli/releases/download/v11.3.1/codecovcli_linux
@@ -43,8 +48,8 @@ curl --proto '=https' --tlsv1.2 -fsSL \
   --connect-timeout 15 --max-time 300 \
   --output "$ARCHIVE" "$URL"
 echo "$SHA256  $ARCHIVE" | sha256sum --check --strict
-if [[ "$TOOL" == "trivy" ]]; then
-  tar -xzf "$ARCHIVE" -C "$SECURITY_TOOL_TMP" trivy
-  ARCHIVE="$SECURITY_TOOL_TMP/trivy"
+if [[ "$ARCHIVE" == *.tar.gz ]]; then
+  tar -xzf "$ARCHIVE" -C "$SECURITY_TOOL_TMP" "$TOOL"
+  ARCHIVE="$SECURITY_TOOL_TMP/$TOOL"
 fi
 install -m 0755 "$ARCHIVE" "$TARGET"

@@ -75,6 +75,7 @@ class ProviderConfigurationTest {
         assertEquals(3, SubscriptionManagementFactory.requests.size)
         assertEquals("sku", SubscriptionManagementFactory.requests.first()?.skuAndroid)
         plugin.dispose()
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     @Test fun `missing provider reaches init callback after registration`() {
@@ -135,6 +136,7 @@ class ProviderConfigurationTest {
         assertTrue(details is Map<*, *>)
         assertTrue((details as Map<*, *>)["message"].toString().contains("provider", ignoreCase = true))
         plugin.dispose()
+        shadowOf(Looper.getMainLooper()).idle()
     }
 }
 

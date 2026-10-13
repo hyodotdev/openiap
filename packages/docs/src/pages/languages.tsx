@@ -55,7 +55,7 @@ function Languages() {
         </div>
       </header>
 
-      <main className="xp-shell xp-main">
+      <div className="xp-shell xp-main">
         <section className="xp-section" aria-labelledby="native-core">
           <div className="xp-section-heading">
             <div>
@@ -150,7 +150,7 @@ function Languages() {
             <ArrowUpRight size={14} aria-hidden="true" />
           </a>
         </aside>
-      </main>
+      </div>
     </div>
   );
 }

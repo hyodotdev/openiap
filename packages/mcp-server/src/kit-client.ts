@@ -62,6 +62,8 @@ export interface KitHealthResponse {
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 export const IAPKIT_MCP_LOOPBACK_HEADER = "x-iapkit-mcp-loopback";
+const KIT_REQUEST_TIMEOUT_MS = 30_000;
+const MAX_KIT_RESPONSE_BYTES = 1024 * 1024;
 
 export function normalizeKitBaseUrl(baseUrl?: string): string {
   let url: URL;
@@ -95,6 +97,43 @@ function isJsonContentType(contentType: string | null): boolean {
   );
 }
 
+/**
+ * The one network policy for kit calls: no redirects (one would carry the
+ * caller's key to another host), a timeout, and a response size cap.
+ */
+export async function fetchKit(
+  url: string,
+  init: RequestInit,
+): Promise<{ response: Response; text: string }> {
+  const response = await fetch(url, {
+    ...init,
+    redirect: "error",
+    signal: AbortSignal.timeout(KIT_REQUEST_TIMEOUT_MS),
+  });
+  return { response, text: await readBoundedText(response) };
+}
+
+async function readBoundedText(response: Response): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      received += value.byteLength;
+      if (received > MAX_KIT_RESPONSE_BYTES) {
+        throw new Error(`kit response exceeds ${MAX_KIT_RESPONSE_BYTES} bytes`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
 export class KitHttpError extends Error {
   constructor(
     readonly status: number,
@@ -116,7 +155,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     hostname === "::1";
 
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${root}${path}`, {
+    const { response, text } = await fetchKit(`${root}${path}`, {
       ...init,
       headers: {
         "content-type": "application/json",
@@ -125,7 +164,6 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         ...(init.headers as Record<string, string> | undefined),
       },
     });
-    const text = await response.text();
     // Empty body normalizes to null so callers expecting JSON don't
     // get a truthy "" and crash on property access.
     let parsed: unknown = text === "" ? null : text;

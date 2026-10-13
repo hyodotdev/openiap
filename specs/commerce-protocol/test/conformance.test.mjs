@@ -10,6 +10,7 @@ import { createHmac } from "node:crypto";
 import {
   createGraphqlAdapter,
   createRestAdapter,
+  httpBindingManifest,
   normalizeResultData,
   operationVectors,
   runConformance,
@@ -3812,5 +3813,441 @@ describe("the portable conformance runner", () => {
     );
     expect(authCase.ok).toBe(false);
     expect(authCase.failures.join(" ")).toContain("must be 200");
+  });
+});
+
+describe("the runner judges what a binding could otherwise hide", () => {
+  // Rewrites the JSON body of every response the predicate selects.
+  const rewriting = (provider, select, rewrite) => async (url, options) => {
+    const response = await provider.fetch(url, options);
+    if (!select(String(url), options, response)) return response;
+    return response2(rewrite(await response.json(), options), response);
+  };
+  const failedIds = (report) =>
+    report.results
+      .filter((result) => !result.ok)
+      .map((result) => `${result.binding} ${result.id}`)
+      .sort();
+
+  it("has a not-bound vector for every store bindPurchase accepts evidence for", () => {
+    const stores = new Set(
+      operationVectors.cases
+        .filter((vector) => vector.id.startsWith("bindPurchase.success."))
+        .map((vector) => vector.requiresStore),
+    );
+    const notBound = operationVectors.cases.filter((vector) =>
+      vector.id.startsWith("bindPurchase.unknown-evidence.not-bound"),
+    );
+    expect(new Set(notBound.map((vector) => vector.requiresStore))).toEqual(
+      stores,
+    );
+    for (const vector of notBound) {
+      expect(vector.expect.resultSubset).toEqual({ bound: false });
+    }
+  });
+
+  it.each([
+    [["apple"], ["apple"]],
+    [
+      ["apple", "amazon"],
+      ["amazon", "apple"],
+    ],
+  ])(
+    "fails a provider declaring %j that binds any evidence",
+    async (stores, expectedStores) => {
+      const provider = createMockProvider();
+      const bindAnything = rewriting(
+        provider,
+        (url, _options, response) =>
+          response.status === 200 &&
+          (url.endsWith("/purchases/bind") ||
+            url.endsWith("/capabilities") ||
+            url.endsWith("/graphql")),
+        (body) => {
+          const descriptor = body.data?.providerCapabilities ?? body;
+          if (descriptor.stores) {
+            descriptor.stores = Object.fromEntries(
+              stores.map((store) => [store, descriptor.stores.apple]),
+            );
+          }
+          if (body.data?.bindPurchase) body.data.bindPurchase.bound = true;
+          return "bound" in body ? { bound: true } : body;
+        },
+      );
+      const report = await runConformance({
+        adapters: adaptersFor({ ...provider, fetch: bindAnything }),
+        Ajv,
+        credentials: provider.credentials,
+      });
+      expect(failedIds(report)).toEqual(
+        ["graphql", "rest"].flatMap((binding) =>
+          expectedStores.map(
+            (store) =>
+              `${binding} bindPurchase.unknown-evidence.not-bound.${store}`,
+          ),
+        ),
+      );
+    },
+  );
+
+  it("fails a REST null placeholder that GraphQL normalization would erase", async () => {
+    const provider = createMockProvider();
+    const placeholders = rewriting(
+      provider,
+      (url, _options, response) =>
+        response.status === 200 && url.includes("/subscriptions/status"),
+      (body) => ({ ...body, subscription: body.subscription ?? null }),
+    );
+    const report = await runConformance({
+      adapters: adaptersFor({ ...provider, fetch: placeholders }),
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(failedIds(report)).toEqual([
+      "rest subscriptionStatus.unknown-user.inactive",
+    ]);
+    const failure = report.results.find(
+      (result) =>
+        result.binding === "rest" &&
+        result.id === "subscriptionStatus.unknown-user.inactive",
+    );
+    expect(failure.failures.join(" ")).toContain("does not validate");
+    expect(failure.failures.join(" ")).toContain(
+      "result.subscription must be absent",
+    );
+  });
+
+  const leakingVectors = [
+    "verifyPurchase.auth.unknown-credential",
+    "bindPurchase.auth.verification-role-refused",
+  ];
+  const leakingAll = [...leakingVectors, "graphql.executor-probe"];
+  // The probe submits no evidence, so an evidence-only leak fails the vectors alone.
+  it.each([
+    [
+      "extensions",
+      (error, debug) => ({ extensions: { ...error.extensions, debug } }),
+      leakingAll,
+    ],
+    [
+      "path",
+      (_error, debug) => ({
+        path: [debug.authorization, JSON.stringify(debug.variables)],
+      }),
+      leakingAll,
+    ],
+    ["a non-standard member", (_error, debug) => ({ debug }), leakingAll],
+    [
+      "an extensions key (credential)",
+      (error, debug) => ({
+        extensions: { ...error.extensions, [debug.authorization]: true },
+      }),
+      leakingAll,
+    ],
+    [
+      "an extensions key (evidence)",
+      (error, debug) => ({
+        extensions: {
+          ...error.extensions,
+          debug: { [JSON.stringify(debug.variables)]: true },
+        },
+      }),
+      leakingVectors,
+    ],
+  ])(
+    "fails a GraphQL error that echoes the credential or the evidence in %s",
+    async (_where, leak, failingIds) => {
+      const provider = createMockProvider();
+      const leaky = rewriting(
+        provider,
+        (url) => url.endsWith("/graphql"),
+        (body, options) => {
+          if (!Array.isArray(body.errors)) return body;
+          const debug = {
+            authorization: options.headers.Authorization ?? null,
+            variables: JSON.parse(options.body).variables,
+          };
+          return {
+            ...body,
+            errors: body.errors.map((error) => ({
+              ...error,
+              ...leak(error, debug),
+            })),
+          };
+        },
+      );
+      const report = await runConformance({
+        adapters: [
+          createGraphqlAdapter({
+            url: GRAPHQL_URL,
+            fetch: leaky,
+            credentials: provider.credentials,
+          }),
+        ],
+        Ajv,
+        credentials: provider.credentials,
+      });
+      for (const id of failingIds) {
+        const result = report.results.find((r) => r.id === id);
+        expect(result.ok, id).toBe(false);
+        expect(result.failures.join(" "), id).toContain("echoes submitted");
+      }
+    },
+  );
+
+  const graphqlReport = async (rewrite) => {
+    const provider = createMockProvider();
+    const fetch = rewriting(
+      provider,
+      (url) => url.endsWith("/graphql"),
+      (body) =>
+        Array.isArray(body.errors)
+          ? { ...body, errors: body.errors.map(rewrite) }
+          : body,
+    );
+    return runConformance({
+      adapters: [
+        createGraphqlAdapter({
+          url: GRAPHQL_URL,
+          fetch,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+  };
+
+  it.each([
+    [
+      "a nested V8 stack in extensions",
+      (error) => ({
+        ...error,
+        extensions: {
+          ...error.extensions,
+          exception: {
+            stacktrace: [
+              "Error: boom",
+              "    at loadCredentials (/app/convex/secrets.ts:12:4)",
+            ],
+          },
+        },
+      }),
+    ],
+    ...[
+      ["a JVM frame", "at dev.example.Billing.verify(Billing.kt:42)"],
+      ["a V8 frame with a bare file", "at verify (secrets.ts:12:4)"],
+      ["a Go location", "main.go:42: verify failed"],
+      ["a Ruby frame", "billing.rb:12:in `verify'"],
+      ["a Swift location", "Billing.swift:42: Fatal error"],
+      ["a webpack source path", "webpack://my-app/./src/secrets.ts:12:4"],
+      ["a Windows source path", "(C:\\src\\app\\Main.cs)"],
+      ["a pytest location", "tests/test_verify.py:42"],
+      ["a Go open error", "open /app/main.go: no such file or directory"],
+      ["a PHP frame", "#0 /var/www/app/Billing.php(12): Billing->verify()"],
+      ["a tsc location", "/app/src/a.ts(12,4): error TS2322"],
+      ["an MSBuild location", "C:\\src\\Main.cs(12,5)"],
+      ["a backticked path", "`/app/secrets.ts`"],
+      ["a bracketed path", "[/app/secrets.ts]"],
+      ["a path before a colon", "/app/secrets.ts:"],
+      ["a path with an anchor", "/app/a.ts#L12"],
+      ["a path before punctuation", "see /app/secrets.ts!"],
+      ["a C++ location", "/srv/receipt/verify.cpp:42"],
+      ["a C location", "/srv/receipt/verify.c:42"],
+      ["a GDScript path", "/app/godot_iap.gd"],
+      ["a C++ .cc location", "/srv/receipt/verify.cc:42"],
+      ["a C++ .cxx location", "/srv/receipt/verify.cxx:42"],
+      ["a C header", "/srv/receipt/receipt.h"],
+      ["a C++ header", "/srv/receipt/receipt.hpp"],
+      ["an Objective-C file", "/srv/ios/Store.m"],
+      ["an Objective-C++ file", "/srv/ios/Store.mm"],
+      [
+        "a quoted Python traceback path",
+        'File "/Users/John Doe/app/verify.py", line 42, in verify',
+      ],
+      [
+        "a relative traceback path with a space",
+        'File "my app/verify.py", line 7, in verify',
+      ],
+      ["a quoted Windows path", '"C:\\Users\\John Doe\\src\\Billing.cs"'],
+      ["a single-quoted path", "'/Users/John Doe/app/verify.ts'"],
+      [
+        "a quoted path through a C# folder",
+        '"C:\\Users\\J Doe\\C# Projects\\Billing.cs"',
+      ],
+      ["a glog location", "verify.go:42] failed"],
+      ["a bracketed location", "[views.py:42]"],
+      ["a path before a quoted full stop", '/app/main.go."'],
+      ["a path before a parenthesized full stop", "(see /app/secrets.ts.)"],
+    ].map(([where, text]) => [
+      `${where} in the message`,
+      (error) => ({ ...error, message: `${error.message} ${text}` }),
+    ]),
+    [
+      "a GDScript path in a nested member",
+      (error) => ({
+        ...error,
+        extensions: {
+          ...error.extensions,
+          debug: { script: "/app/godot_iap.gd" },
+        },
+      }),
+    ],
+    [
+      "a GDScript path as a member name",
+      (error) => ({
+        ...error,
+        extensions: { ...error.extensions, "/app/godot_iap.gd": true },
+      }),
+    ],
+    [
+      "a source path without a line",
+      (error) => ({
+        ...error,
+        extensions: {
+          ...error.extensions,
+          debug: { source: "/app/convex/secrets.ts" },
+        },
+      }),
+    ],
+  ])("fails a GraphQL error that discloses %s", async (_where, rewrite) => {
+    const report = await graphqlReport(rewrite);
+    for (const id of [
+      "verifyPurchase.auth.unknown-credential",
+      "bindPurchase.auth.verification-role-refused",
+      "graphql.executor-probe",
+    ]) {
+      const result = report.results.find((r) => r.id === id);
+      expect(result.ok, id).toBe(false);
+      expect(result.failures.join(" "), id).toContain("stack trace");
+    }
+  });
+
+  it("accepts error text with colons, URLs, versions, and bare file names", async () => {
+    const report = await graphqlReport((error) => ({
+      ...error,
+      message: `${error.message} (retry at 12:30:45 or after 2026-10-14T01:02:03.123Z; see https://api.example.com:8443/docs/errors.html#auth)`,
+      extensions: {
+        ...error.extensions,
+        hints: [
+          "ratio 3:2, see RFC 9110:15.5",
+          "Unsupported runtime: requires Node.js:18 or later",
+          "status: https://status.example.rs:8443",
+          "load https://cdn.example.com/sdk/v1.2.3/app.js",
+          "openiap-apple 4.0.2; see /v1/purchases/verify",
+          "upload the AuthKey.p8 file",
+          "Pin the runtime at Node.js:18",
+          "retry at api.example.rs:443",
+          "applications/com.example.go/purchases/subscriptions/tokens/abc",
+          "relative paths without a line pass: src/secrets.ts",
+          "dial api.example.rs:443: i/o timeout",
+          "upstream api.example.rs:443: connection refused",
+          "requires Node.js:18: patch missing",
+          'GET "/v1/products?sku=gold.m" failed',
+          "see /v1.2.3/app.js-legacy",
+          "keep /app/main.go.bak out of it",
+          'expected "/v1/purchases" but got "app.ts"',
+          "[api.example.rs:443]",
+        ],
+      },
+    }));
+    expect(report.ok).toBe(true);
+  });
+
+  it("scans a 600 KB error string in linear time", async () => {
+    const huge = [
+      `/${"a.".repeat(50_000)}`,
+      `a(${"b.".repeat(50_000)}`,
+      `at ${"c-".repeat(50_000)}`,
+      "d.".repeat(50_000),
+      "/e".repeat(50_000),
+      "f+".repeat(50_000),
+    ].join(" ");
+    expect(huge.length).toBeGreaterThan(600_000);
+    let sent = false;
+    const started = performance.now();
+    const report = await graphqlReport((error) => {
+      if (sent) return error;
+      sent = true;
+      return { ...error, extensions: { ...error.extensions, huge } };
+    });
+    expect(performance.now() - started).toBeLessThan(5_000);
+    expect(sent).toBe(true);
+    expect(report.results.some((result) => !result.ok)).toBe(false);
+  });
+
+  it("rejects an adapter whose binding the manifest does not define", async () => {
+    const provider = createMockProvider();
+    const [rest] = adaptersFor(provider);
+    await expect(
+      runConformance({
+        adapters: [{ ...rest, binding: "grpc" }],
+        Ajv,
+        credentials: provider.credentials,
+      }),
+    ).rejects.toThrow(/binding "grpc"/u);
+  });
+
+  it("validates REST errors against the envelope the manifest names, and fails when it is missing", async () => {
+    const provider = createMockProvider();
+    const run = () =>
+      runConformance({
+        adapters: [adaptersFor(provider)[0]],
+        Ajv,
+        credentials: provider.credentials,
+      });
+    const original = httpBindingManifest.errorResponse;
+    httpBindingManifest.errorResponse = "#/$defs/RenamedErrorEnvelope";
+    let renamed;
+    try {
+      renamed = await run();
+    } finally {
+      httpBindingManifest.errorResponse = original;
+    }
+    const authCase = renamed.results.find(
+      (r) => r.id === "subscriptionStatus.auth.missing-credential",
+    );
+    expect(authCase.ok).toBe(false);
+    expect(authCase.failures.join(" ")).toContain(
+      "no bundle definition for the REST error envelope",
+    );
+    expect((await run()).ok).toBe(true);
+  });
+
+  it("probes an events-only provider's GraphQL executor through providerCapabilities", async () => {
+    const provider = createMockProvider({ profiles: [], declareEvents: true });
+    const run = (fetch) =>
+      runConformance({
+        adapters: adaptersFor({ ...provider, fetch }),
+        Ajv,
+        eventsAdapter: referenceEventsAdapter,
+        credentials: provider.credentials,
+      });
+    const report = await run(provider.fetch);
+    expect(failedIds(report)).toEqual([]);
+    expect(
+      report.results.find((r) => r.id === "graphql.executor-probe")?.ok,
+    ).toBe(true);
+
+    // The probe still runs: a dispatcher keyed on operationName fails it.
+    const dispatcher = async (url, options) => {
+      if (!String(url).endsWith("/graphql"))
+        return provider.fetch(url, options);
+      const { operationName } = JSON.parse(options.body);
+      if (operationName !== "ProviderCapabilities") {
+        return provider.fetch(url, options);
+      }
+      return response2(
+        { data: { providerCapabilities: provider.capabilities } },
+        { status: 200 },
+      );
+    };
+    const probe = (await run(dispatcher)).results.find(
+      (r) => r.id === "graphql.executor-probe",
+    );
+    expect(probe.ok).toBe(false);
+    expect(probe.failures.join(" ")).toContain(
+      "syntactically invalid query was executed",
+    );
   });
 });

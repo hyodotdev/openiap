@@ -177,7 +177,7 @@ void main() {
                   'expirationReason': null,
                   'isInBillingRetry': false,
                   'gracePeriodExpirationDate': null,
-                  'priceIncreaseStatus': 'noIncreasePending',
+                  'priceIncreaseStatus': 'PENDING',
                   'renewalDate': 1735689599000.0,
                   'pendingUpgradeProductId': null,
                 },
@@ -202,7 +202,7 @@ void main() {
       expect(sub.renewalInfoIOS!.autoRenewPreference, 'sub.ios.premium');
       expect(sub.renewalInfoIOS!.expirationReason, isNull);
       expect(sub.renewalInfoIOS!.isInBillingRetry, isFalse);
-      expect(sub.renewalInfoIOS!.priceIncreaseStatus, 'noIncreasePending');
+      expect(sub.renewalInfoIOS!.priceIncreaseStatus, 'PENDING');
       expect(sub.renewalInfoIOS!.renewalDate, 1735689599000.0);
       expect(sub.renewalInfoIOS!.pendingUpgradeProductId, isNull);
     });

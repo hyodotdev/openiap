@@ -11,6 +11,12 @@ void main() {
     expect(identical(first, second), isTrue);
   });
 
+  test('apps can extend the public constructor', () {
+    final iap = _CustomIap();
+    expect(iap.isIOS, isTrue);
+    expect(identical(iap, FlutterInappPurchase.instance), isFalse);
+  });
+
   test('platform getters reflect provided platform', () {
     final iap = FlutterInappPurchase.private(
       FakePlatform(operatingSystem: 'ios'),
@@ -20,4 +26,8 @@ void main() {
     expect(iap.isAndroid, isFalse);
     expect(iap.operatingSystem, 'ios');
   });
+}
+
+class _CustomIap extends FlutterInappPurchase {
+  _CustomIap() : super(platform: FakePlatform(operatingSystem: 'ios'));
 }

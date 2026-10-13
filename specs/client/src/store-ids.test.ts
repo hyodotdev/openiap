@@ -1,23 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("./store-registry.json", () => ({
-  default: {
-    stores: [
-      { id: "any" },
-      { id: "self" },
-      { id: "type" },
-      { id: "community_store" },
-      { id: "trailing_" },
-      { id: "double__underscore" },
-    ],
-  },
-}));
-
+import { describe, expect, it } from "vitest";
 import { renderStoreIds } from "../codegen/core/store-ids.js";
+
+const stores = [
+  { id: "any" },
+  { id: "self" },
+  { id: "type" },
+  { id: "community_store" },
+  { id: "trailing_" },
+  { id: "double__underscore" },
+];
 
 describe("store identity constants", () => {
   it("escapes registered ids that become Swift keywords", () => {
-    const swift = renderStoreIds("swift");
+    const swift = renderStoreIds("swift", stores);
     expect(swift).toContain('public static let `Any` = "any"');
     expect(swift).toContain('public static let `Self` = "self"');
     expect(swift).toContain('public static let `Type` = "type"');
@@ -39,7 +34,7 @@ describe("store identity constants", () => {
       "gdscript",
       "csharp",
     ] as const) {
-      expect(renderStoreIds(language)).toContain("community_store");
+      expect(renderStoreIds(language, stores)).toContain("community_store");
     }
   });
 });

@@ -23,11 +23,12 @@ function GetAvailablePurchases() {
         active subscriptions, and any pending transactions not yet finished.
       </p>
       <p>
-        <strong>iOS:</strong> By default iterates <code>Transaction.all</code>{' '}
-        (the full StoreKit 2 history, including refunded / revoked entries).
-        Pass <code>onlyIncludeActiveItemsIOS = true</code> to switch to{' '}
-        <code>Transaction.currentEntitlements</code>, which narrows the result
-        to active non-consumables and live subscriptions.{' '}
+        <strong>iOS:</strong> <code>onlyIncludeActiveItemsIOS: true</code> reads{' '}
+        <code>Transaction.currentEntitlements</code> (active non-consumables and
+        live subscriptions); <code>false</code> iterates{' '}
+        <code>Transaction.all</code>, the full StoreKit 2 history including
+        refunded and revoked entries. The default differs by layer; see{' '}
+        <a href="#parameters">Parameters</a>.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/all"
           target="_blank"
@@ -82,10 +83,10 @@ interface PurchaseOptions {
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]
+            <CodeBlock language="gdscript">{`func get_available_purchases(options = null) -> Array # of Purchase
 
 # Godot failure-aware variant:
-func get_available_purchases_result(options: PurchaseOptions = null) -> Dictionary
+func get_available_purchases_result(options = null) -> Dictionary
 # { "success": true, "purchases": Array[Purchase] }
 # { "success": false, "code": String, "error": String }`}</CodeBlock>
           ),
@@ -116,11 +117,14 @@ func get_available_purchases_result(options: PurchaseOptions = null) -> Dictiona
         <li>
           <code>onlyIncludeActiveItemsIOS</code>{' '}
           <em>
-            (optional, <code>boolean</code>, default <code>true</code>)
+            (optional, <code>boolean</code>; default <code>true</code> in React
+            Native, Expo, Flutter, and MAUI, <code>false</code> in Swift, KMP,
+            and Godot)
           </em>{' '}
-          — <strong>iOS.</strong> Use{' '}
-          <code>Transaction.currentEntitlements</code> (active only). Pass{' '}
-          <code>false</code> to use <code>Transaction.all</code> instead.
+          — <strong>iOS.</strong> <code>true</code> uses{' '}
+          <code>Transaction.currentEntitlements</code> (active only);{' '}
+          <code>false</code> uses <code>Transaction.all</code>. Pass it
+          explicitly when the difference matters.
         </li>
         <li>
           <code>includeSuspendedAndroid</code>{' '}

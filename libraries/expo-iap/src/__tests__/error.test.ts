@@ -1,13 +1,13 @@
 import {
   createPurchaseError,
   createPurchaseErrorFromPlatform,
-  createPurchaseErrorFromNativeException,
   ErrorCodeUtils,
   getUserFriendlyErrorMessage,
   isNetworkError,
   isRecoverableError,
   isUserCancelledError,
 } from '../utils/errorMapping';
+import {createPurchaseErrorFromNativeException} from '../utils/nativeError';
 import {ErrorCode} from '../types';
 
 describe('errorMapping utilities', () => {

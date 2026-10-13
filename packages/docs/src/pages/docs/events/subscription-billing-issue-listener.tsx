@@ -123,7 +123,7 @@ function BillingIssueGate() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`import OpenIap
+            <CodeBlock language="swift">{`import OpenIAP
 
 // iOS/iPadOS/Mac Catalyst 16.4+; visionOS 1.0+
 let subscription = OpenIapModule.shared.subscriptionBillingIssueListener { purchase in

@@ -402,20 +402,21 @@ covers pins and their aliases, the store flags and their conflicts, the
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.
 
-`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
-store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
-a KMP library module, and a module with its own `platform` flavors (which the
-plugin leaves alone). It needs an Android SDK and the network.
+`packages/google/scripts/verify-store-plugin.sh` covers what the plugin adds:
+that the resolved store reaches the published `openiap-google` and `kmp-iap`
+artifacts in an app, a KMP library module, and a module with its own `platform`
+flavors (which the plugin leaves alone). It needs an Android SDK and the
+network.
 
-`scripts/verify-release-consumer.sh` runs R8 as an app's release build does,
-and kmp CI does the same for its example app. It builds a minified release app
-per store from the locally published artifacts and asserts that each links only
-its store's SDK and that R8 keeps what runs by name: every Play Billing class
-and method the Play module looks up by reflection (read from its source), and
-every Amazon SDK class, because that SDK fills its own classes by reflection. It
-also needs an Android SDK and the network. A store SDK that needs R8 rules gets
-them in its flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so
-apps never add them by hand.
+`packages/google/scripts/verify-release-consumer.sh` runs R8 as an app's release
+build does, and kmp CI does the same for its example app. It builds a minified
+release app per store from the locally published artifacts and asserts that each
+links only its store's SDK and that R8 keeps what runs by name: every Play
+Billing class and method the Play module looks up by reflection (read from its
+source), and every Amazon SDK class, because that SDK fills its own classes by
+reflection. It also needs an Android SDK and the network. A store SDK that needs
+R8 rules gets them in its flavor's consumer file
+(`openiap/consumer-rules-<store>.pro`), so apps never add them by hand.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that
@@ -688,134 +689,13 @@ Before writing or editing anything, **ALWAYS** review:
 
 - [`specs/client/CONVENTION.md`](../../specs/client/CONVENTION.md)
 
-### Code Generation Architecture
+### Code Generation
 
-The `@hyodotdev/openiap-client-protocol` package uses two guarded generation lanes over one
-authored schema inventory:
-
-```text
-GraphQL Schema (src/*.graphql)
-         ├──► graphql-codegen + guarded TypeScript AST post-processing
-         │                         └──► src/generated/types.ts
-         └──► Parser → Transformer → IR → Language Plugins
-                                      └──► Swift/Kotlin/Dart/GDScript/C#
-                                                     ↓
-                                          generated-sync-manifest.mjs
-```
-
-#### Directory Structure
-
-```text
-specs/client/codegen/
-├── index.ts              # Main entry point
-├── core/
-│   ├── types.ts          # IR type definitions
-│   ├── parser.ts         # GraphQL schema parser
-│   ├── transformer.ts    # AST → IR transformer
-│   └── utils.ts          # Common utilities (case conversion, keywords)
-├── plugins/
-│   ├── base-plugin.ts    # Abstract base class
-│   ├── swift.ts          # Swift plugin (Codable, ErrorCode handling)
-│   ├── kotlin.ts         # Kotlin plugin (sealed interface, fromJson/toJson)
-│   ├── dart.ts           # Dart plugin (sealed class, factory constructors)
-│   ├── gdscript.ts       # GDScript plugin (Godot engine)
-│   └── csharp.ts         # C# plugin (.NET MAUI)
-```
-
-#### IR (Intermediate Representation)
-
-The IR is a language-agnostic representation of the GraphQL schema:
-
-| IR Type       | Description                                     |
-| ------------- | ----------------------------------------------- |
-| `IREnum`      | Enum with values, raw values, legacy aliases    |
-| `IRInterface` | Protocol/Interface with fields                  |
-| `IRObject`    | Struct/Class with fields, implements, unions    |
-| `IRInput`     | Input type with fields, required field tracking |
-| `IRUnion`     | Union with members, nested union handling       |
-| `IROperation` | Query/Mutation/Subscription with fields         |
-
-#### Language Plugins
-
-Each plugin handles language-specific requirements:
-
-| Plugin       | Features                                                          |
-| ------------ | ----------------------------------------------------------------- |
-| **Swift**    | Codable protocol, ErrorCode custom initializer, platform defaults |
-| **Kotlin**   | sealed interface, fromJson/toJson with nullable patterns          |
-| **Dart**     | extends/implements, factory constructors, sealed class            |
-| **GDScript** | \_init(), from_json/to_json, Variant type                         |
-| **C#**       | records, JsonConverter, [JsonPolymorphic] unions                  |
-
-### Scripts
-
-| Script              | Description                                   |
-| ------------------- | --------------------------------------------- |
-| `generate:ts`       | Generate TypeScript types (graphql-codegen)   |
-| `generate:swift`    | Generate Swift types (IR-based plugin)        |
-| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)       |
-| `generate:dart`     | Generate Dart types (IR-based plugin)         |
-| `generate:gdscript` | Generate GDScript types (IR-based plugin)     |
-| `generate:csharp`   | Generate C# / MAUI types (IR-based plugin)    |
-| `generate`          | Generate every type and sync manifest targets |
-| `sync`              | Replay manifest-owned synchronized copies     |
-
-### Generating Types
-
-```bash
-cd specs/client
-
-# Generate all platform types
-bun run generate
-
-# Diagnostic single-plugin generation (always finish with `bun run generate`
-# before committing so every manifest target is synchronized)
-bun run generate:swift
-bun run generate:kotlin
-bun run generate:dart
-bun run generate:gdscript
-bun run generate:csharp
-```
-
-### Generated Files
-
-| File                        | Platform   | Description                      |
-| --------------------------- | ---------- | -------------------------------- |
-| `src/generated/types.ts`    | TypeScript | Type definitions                 |
-| `src/generated/Types.swift` | iOS/macOS  | Codable structs & enums          |
-| `src/generated/Types.kt`    | Android    | Data classes & sealed interfaces |
-| `src/generated/types.dart`  | Flutter    | Classes & sealed classes         |
-| `src/generated/types.gd`    | Godot      | GDScript classes                 |
-| `src/generated/Types.cs`    | .NET MAUI  | C# records & JSON converters     |
-
-### Adding a New Language
-
-1. Create `codegen/plugins/<language>.ts` extending `CodegenPlugin`
-2. Implement abstract methods:
-   - `mapScalar()` - Map GraphQL scalars to language types
-   - `mapType()` - Map IR types to language type strings
-   - `generateEnum()`, `generateObject()`, etc.
-3. Register in `codegen/index.ts`
-4. Add script to `package.json`
-
-### Schema Markers
-
-Special comments in GraphQL SDL trigger codegen behavior:
-
-| Marker       | Effect                                                       |
-| ------------ | ------------------------------------------------------------ |
-| `# => Union` | Generates result union wrapper (e.g., `FetchProductsResult`) |
-| `# Future`   | Wraps return type in Promise/async                           |
-
-Example:
-
-```graphql
-# => Union
-type RequestPurchaseResult {
-  purchase: Purchase
-  purchases: [Purchase!]
-}
-```
+The generation lanes, IR types, language plugins, scripts, schema markers, and
+the steps for adding a language are documented once in
+[`specs/client/CONVENTION.md`](../../specs/client/CONVENTION.md#code-generation-architecture).
+Run `bun run generate` from `specs/client` before committing; single-plugin
+scripts are diagnostic only.
 
 ---
 

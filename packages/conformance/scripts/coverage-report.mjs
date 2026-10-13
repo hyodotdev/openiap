@@ -11,11 +11,12 @@
  * generated constants, which the drift gate already ties to the spec.
  *
  * --json  emit the artifact instead of the table
- * --check fail if any MUST behavior has no implementation covering it
+ * --check fail if any behavior has no implementation covering it
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { BEHAVIORS } from '../src/spec/behaviors.mjs';
+import { providerProfile } from '../src/spec/provider-profile.mjs';
 import { SUITE_VERSION, clientProtocolVersion } from '../src/spec/version.mjs';
 
 const ROOT = new URL('../../../', import.meta.url);
@@ -50,17 +51,21 @@ function declaredIds(source, blockMarker, constantTable, referencePattern) {
     .filter(Boolean);
 }
 
+/** Fails unless `consumer` runs the suite, so an unused suite claims nothing. */
+function requireConsumer(consumer, marker) {
+  if (!read(consumer).includes(marker)) {
+    throw new Error(`coverage parser: ${consumer} no longer runs ${marker}`);
+  }
+}
+
 const IMPLEMENTATIONS = [];
+const ANDROID_SUITES = 'packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance';
 
 // --- Android stores (one suite, three flavors) -----------------------------
 {
-  const generated = read(
-    'packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/ConformanceBehaviors.kt',
-  );
+  const generated = read(`${ANDROID_SUITES}/ConformanceBehaviors.kt`);
   const table = resolveConstants(generated, /const val (\w+) = "([^"]+)"/g);
-  const suite = read(
-    'packages/conformance/android/src/main/kotlin/dev/hyo/openiap/conformance/StoreConformanceSuite.kt',
-  );
+  const suite = read(`${ANDROID_SUITES}/StoreConformanceSuite.kt`);
   const ids = declaredIds(suite, 'private val coveredBehaviors', table, /ConformanceBehaviors\.(\w+)/g);
   const unsupportedStoreIds = declaredIds(
     suite,
@@ -75,6 +80,32 @@ const IMPLEMENTATIONS = [];
       covered: store === 'Google' ? ids : [...ids, ...unsupportedStoreIds],
     });
   }
+
+  // The provider suite extends the store suite; its tests carry @ConformanceBehavior,
+  // naming generated constants directly or through companion aliases.
+  const provider = read(`${ANDROID_SUITES}/ProviderConformanceSuite.kt`);
+  const aliases = new Map(
+    [...provider.matchAll(/const val (\w+) = ConformanceBehaviors\.(\w+)/g)].map((match) => [
+      match[1],
+      match[2],
+    ]),
+  );
+  const providerIds = [...provider.matchAll(/@ConformanceBehavior\(([^)]*)\)/g)].flatMap((match) =>
+    [...match[1].matchAll(/(?:ConformanceBehaviors\.)?(\w+)/g)].map(([, name]) => {
+      const id = table.get(aliases.get(name) ?? name);
+      if (!id) throw new Error(`coverage parser: unresolved behavior reference ${name}`);
+      return id;
+    }),
+  );
+  requireConsumer(
+    'packages/google/compatibility/community-provider/provider/src/test/java/community/fixture/FixtureConformanceTest.kt',
+    ': ProviderConformanceSuite()',
+  );
+  IMPLEMENTATIONS.push({
+    name: 'android-community-provider',
+    store: 'community',
+    covered: [...new Set([...ids, ...providerIds])],
+  });
 }
 
 // --- Apple client -----------------------------------------------------------
@@ -84,6 +115,23 @@ const IMPLEMENTATIONS = [];
   const suite = read('packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift');
   const ids = declaredIds(suite, 'static let coveredBehaviors', table, /ConformanceBehaviors\.(\w+)/g);
   IMPLEMENTATIONS.push({ name: 'apple-client', store: 'Apple', covered: ids });
+}
+
+// --- Apple provider suite ---------------------------------------------------
+{
+  const suite = read('packages/conformance/apple/Sources/ProviderConformance.swift');
+  const ids = new Set(
+    [...suite.matchAll(/\bcheck\("([a-z-]+\.[a-z0-9-]+)"\)/g)].map((match) => match[1]),
+  );
+  // Capability checks run as `check(id)` over the generated ProviderBehaviors.capabilities.
+  if (/let (\w+) = ProviderBehaviors\.capabilities\[[\s\S]*?\bcheck\(\1\)/.test(suite)) {
+    for (const id of Object.values(providerProfile('ios').capabilities)) ids.add(id);
+  }
+  requireConsumer(
+    'packages/apple/compatibility/community-provider/Tests/FixtureProviderTests/FixtureProviderTests.swift',
+    'ProviderConformanceSuite(adapter:',
+  );
+  IMPLEMENTATIONS.push({ name: 'apple-community-provider', store: 'community', covered: [...ids] });
 }
 
 // --- IAPKit lifecycle -------------------------------------------------------
@@ -183,12 +231,11 @@ if (process.argv.includes('--json')) {
 // adapter is written to pass, so counting it would let every shipped
 // implementation drop out of a behavior while the check stayed green.
 if (process.argv.includes('--check')) {
-  const failing = uncoveredByReal.filter((row) => row.level === 'MUST');
-  if (failing.length > 0) {
+  if (uncoveredByReal.length > 0) {
     console.error(
-      `\n${failing.length} MUST behavior(s) have no implementation beyond the reference adapter:`,
+      `\n${uncoveredByReal.length} behavior(s) have no implementation beyond the reference adapter:`,
     );
-    for (const row of failing) {
+    for (const row of uncoveredByReal) {
       console.error(`- ${row.id}${row.coveredBy.length ? ' (reference only)' : ' (no coverage)'}`);
     }
     process.exit(1);

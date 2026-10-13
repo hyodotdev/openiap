@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { createRequire } from "node:module";
+
+import {
+  Environment,
+  SignedDataVerifier,
+  VerificationException,
+  VerificationStatus,
+} from "@apple/app-store-server-library";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertVerifiedTransactionBinding,
+  isVerifierOutage,
   recordAppStoreVerifiedSubscription,
 } from "./ios";
 import {
@@ -9,6 +21,7 @@ import {
   mapToAppStoreReceiptResponse,
 } from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
+import type { Id } from "../_generated/dataModel";
 
 describe("App Store mappings (real data)", () => {
   it("treats non-consumable purchase as entitled", () => {
@@ -246,28 +259,18 @@ describe("App Store mappings (real data)", () => {
 });
 
 describe("recordAppStoreVerifiedSubscription", () => {
-  function makeRunMutationRecorder(): {
-    ctx: Parameters<typeof recordAppStoreVerifiedSubscription>[0];
-    calls: Record<string, unknown>[];
-  } {
-    const calls: Record<string, unknown>[] = [];
-    const ctx = {
-      runMutation: async (
-        _mutation: unknown,
-        args: Record<string, unknown>,
-      ) => {
-        calls.push(args);
-        return null;
-      },
-    } as unknown as Parameters<typeof recordAppStoreVerifiedSubscription>[0];
-    return { ctx, calls };
+  function makeRunMutationRecorder() {
+    const runMutation = vi.fn();
+    const calls = (): Record<string, unknown>[] =>
+      runMutation.mock.calls.map((call) => call[1] as Record<string, unknown>);
+    return { ctx: { runMutation }, calls };
   }
 
   it("records subscription transactions with store-verified state and micros pricing", async () => {
     const { ctx, calls } = makeRunMutationRecorder();
 
     await recordAppStoreVerifiedSubscription(ctx, {
-      projectId: "projects_1" as never,
+      projectId: "projects_1" as Id<"projects">,
       remoteId: "original-transaction-1",
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       transactionData: {
@@ -277,14 +280,18 @@ describe("recordAppStoreVerifiedSubscription", () => {
         productId: "dev.hyo.martie.premium",
         type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
         environment: "Sandbox",
+        purchaseDate: 1_767_225_600_000,
+        signedDate: 1_767_312_000_000,
         expiresDate: 1_769_904_000_000,
         currency: "USD",
         price: 9990,
       },
     });
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]).toMatchObject({
+      verifiedPurchaseDate: 1_767_225_600_000,
+      verifiedSignedDate: 1_767_312_000_000,
       projectId: "projects_1",
       platform: "IOS",
       purchaseToken: "original-transaction-1",
@@ -300,7 +307,7 @@ describe("recordAppStoreVerifiedSubscription", () => {
     const { ctx, calls } = makeRunMutationRecorder();
 
     await recordAppStoreVerifiedSubscription(ctx, {
-      projectId: "projects_1" as never,
+      projectId: "projects_1" as Id<"projects">,
       remoteId: "transaction-1",
       purchaseState: HarmonizedPurchaseState.READY_TO_CONSUME,
       transactionData: {
@@ -314,7 +321,35 @@ describe("recordAppStoreVerifiedSubscription", () => {
       },
     });
 
-    expect(calls).toHaveLength(0);
+    expect(calls()).toHaveLength(0);
+  });
+
+  it("keeps non-renewing passes as purchases, never expiry-less subscription rows", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+    const yearAgo = Date.now() - 365 * 86_400_000;
+    const transactionData = {
+      transactionId: "pass-1",
+      originalTransactionId: "pass-1",
+      bundleId: "dev.hyo.martie",
+      productId: "dev.hyo.martie.pass_1m",
+      type: AppStoreProductType.NON_RENEWING_SUBSCRIPTION,
+      transactionReason: "PURCHASE",
+      purchaseDate: yearAgo,
+      environment: "Production" as const,
+    };
+
+    // The /v1 verdict is unchanged; only the subscription ledger skips it.
+    expect(mapToAppStoreReceiptResponse(transactionData).state).toBe(
+      HarmonizedPurchaseState.ENTITLED,
+    );
+    await recordAppStoreVerifiedSubscription(ctx, {
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "pass-1",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      transactionData,
+    });
+
+    expect(calls()).toHaveLength(0);
   });
 });
 
@@ -367,5 +402,161 @@ describe("assertVerifiedTransactionBinding", () => {
         verified,
       }),
     ).toThrow(/environment/);
+  });
+});
+
+// Runs the real @apple/app-store-server-library verifier against a throwaway
+// CA whose certificates point their OCSP URL at a local server.
+describe("isVerifierOutage (real verifier)", () => {
+  interface Jsrsasign {
+    KJUR: {
+      asn1: {
+        x509: {
+          Certificate: new (params: Record<string, unknown>) => {
+            getPEM: () => string;
+          };
+        };
+      };
+    };
+  }
+  const libraryRequire = createRequire(
+    createRequire(import.meta.url).resolve("@apple/app-store-server-library"),
+  );
+  const jsrsasign: Jsrsasign = libraryRequire("jsrsasign");
+  let server: Server | undefined;
+
+  afterEach(() => {
+    server?.close();
+    server = undefined;
+  });
+
+  async function ocspResponder(): Promise<string> {
+    server = createServer((request, response) => {
+      request.resume();
+      response.writeHead(503, { "content-type": "text/html" });
+      response.end("<html><body>503 Service Unavailable</body></html>");
+    });
+    await new Promise<void>((resolve) =>
+      server?.listen(0, "127.0.0.1", resolve),
+    );
+    return `http://127.0.0.1:${(server.address() as AddressInfo).port}/ocsp`;
+  }
+
+  function signedTransaction(ocspUrl: string, forged = false) {
+    const key = () => generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const pem = (k: KeyObject, type: "spki" | "pkcs8") =>
+      k.export({ type, format: "pem" }).toString();
+    const root = key();
+    const intermediate = key();
+    const leaf = key();
+    const certificate = (
+      subject: string,
+      issuer: string,
+      publicKey: KeyObject,
+      caKey: KeyObject,
+      ext: unknown[],
+    ) =>
+      new jsrsasign.KJUR.asn1.x509.Certificate({
+        version: 3,
+        serial: { int: 1 },
+        issuer: { str: issuer },
+        subject: { str: subject },
+        notbefore: "250101000000Z",
+        notafter: "350101000000Z",
+        sbjpubkey: pem(publicKey, "spki"),
+        ext,
+        sigalg: "SHA256withECDSA",
+        cakey: pem(caKey, "pkcs8"),
+      }).getPEM();
+    const ca = { extname: "basicConstraints", critical: true, cA: true };
+    const ocsp = { extname: "authorityInfoAccess", array: [{ ocsp: ocspUrl }] };
+    const rootPem = certificate(
+      "/CN=Root",
+      "/CN=Root",
+      root.publicKey,
+      root.privateKey,
+      [ca],
+    );
+    const intermediatePem = certificate(
+      "/CN=Intermediate",
+      "/CN=Root",
+      intermediate.publicKey,
+      root.privateKey,
+      [ca, ocsp, { extname: "1.2.840.113635.100.6.2.1", extn: "0500" }],
+    );
+    const leafPem = certificate(
+      "/CN=Leaf",
+      "/CN=Intermediate",
+      leaf.publicKey,
+      intermediate.privateKey,
+      [ocsp, { extname: "1.2.840.113635.100.6.11.1", extn: "0500" }],
+    );
+    const der = (value: string) =>
+      Buffer.from(value.replace(/-----[^-]+-----|\s/g, ""), "base64");
+    const encode = (value: object) =>
+      Buffer.from(JSON.stringify(value)).toString("base64url");
+    const input = `${encode({
+      alg: "ES256",
+      x5c: [leafPem, intermediatePem, rootPem].map((value) =>
+        der(value).toString("base64"),
+      ),
+    })}.${encode({
+      transactionId: "1",
+      bundleId: "dev.hyo.martie",
+      environment: "Sandbox",
+      signedDate: Date.now(),
+    })}`;
+    const signer = forged ? key().privateKey : leaf.privateKey;
+    const signature = sign("sha256", Buffer.from(input), {
+      key: signer,
+      dsaEncoding: "ieee-p1363",
+    }).toString("base64url");
+    return { jws: `${input}.${signature}`, root: der(rootPem) };
+  }
+
+  async function verifierError(
+    jws: string,
+    root: Buffer,
+    onlineChecks: boolean,
+  ): Promise<unknown> {
+    const verifier = new SignedDataVerifier(
+      [root],
+      onlineChecks,
+      Environment.SANDBOX,
+      "dev.hyo.martie",
+    );
+    return verifier.verifyAndDecodeTransaction(jws).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  }
+
+  it("treats a 503 page from the OCSP responder as an outage", async () => {
+    const { jws, root } = signedTransaction(await ocspResponder());
+
+    const error = await verifierError(jws, root, true);
+
+    expect(error).toBeInstanceOf(VerificationException);
+    expect(isVerifierOutage(error)).toBe(true);
+  });
+
+  it("treats an unreachable OCSP responder as an outage", async () => {
+    const { jws, root } = signedTransaction("http://127.0.0.1:1/ocsp");
+
+    expect(isVerifierOutage(await verifierError(jws, root, true))).toBe(true);
+  });
+
+  it("keeps a forged signature and a bad certificate permanent", async () => {
+    const { jws, root } = signedTransaction("http://127.0.0.1:1/ocsp", true);
+
+    const forged = await verifierError(jws, root, false);
+
+    expect(forged).toBeInstanceOf(VerificationException);
+    expect(isVerifierOutage(forged)).toBe(false);
+    expect(
+      isVerifierOutage(
+        new VerificationException(VerificationStatus.INVALID_CERTIFICATE),
+      ),
+    ).toBe(false);
   });
 });

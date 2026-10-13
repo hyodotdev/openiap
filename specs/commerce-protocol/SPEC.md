@@ -557,6 +557,9 @@ offline bundle.
   `Content-Type: application/json`.
 - Success is exactly the operation's `successStatus`. Every failure returns
   the status §8 assigns to its code, with a `ProtocolErrorResponse` body.
+- A result member the provider omits (§4) is absent from the JSON body; it
+  MUST NOT be sent as `null`. Unlike GraphQL (§7), REST can tell the two
+  apart, and the result schemas reject a `null` member.
 - A request whose method and path under `/commerce/v1` match no operation
   fails with `NOT_FOUND`.
 - An unrecognised input member is ignored (§4), and a caller MUST ignore
@@ -635,7 +638,8 @@ meaning MUST NOT. REST wraps a failure as
 `{ "error": { "code", "message" } }` with the mapped status; GraphQL carries
 the code in `errors[*].extensions.code` (§7). A message is human-readable
 and MUST NOT contain credentials, store evidence, signed payloads, stack
-traces, or implementation source paths.
+traces, or implementation source paths. The same holds for every other member
+of an error, GraphQL `extensions` included.
 
 | Code                  | HTTP | Meaning                                                                      |
 | --------------------- | ---- | ---------------------------------------------------------------------------- |

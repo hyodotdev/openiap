@@ -205,7 +205,8 @@ describe('native error and listener bridges', () => {
     expect(iosHelper).toContain(
       'if JSONSerialization.isValidJSONObject(payload),',
     );
-    expect(iosModule).toContain('throw IapException.from(error)');
+    expect(iosHelper).toContain('throw from(purchaseError)');
+    expect(iosModule).toContain('IapException.bridging(');
   });
 
   it('removes the exact Android listener instances on teardown', () => {

@@ -25,8 +25,11 @@ import dev.hyo.openiap.helpers.ActiveStoreConnection
 import dev.hyo.openiap.helpers.ActiveStoreListenerOwner
 import dev.hyo.openiap.helpers.ActiveStoreOperationRegistry
 import dev.hyo.openiap.helpers.isPurchaseForPendingRequest
+import dev.hyo.openiap.helpers.claimPendingPurchaseIfOwned
+import dev.hyo.openiap.helpers.collectAllProductQueryResults
+import dev.hyo.openiap.helpers.PurchaseDeliveryClaims
+import dev.hyo.openiap.helpers.PurchaseTokenSettler
 import dev.hyo.openiap.helpers.connectionClientToClose
-import dev.hyo.openiap.helpers.emitFailureAndThrow
 import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
@@ -52,8 +55,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -87,40 +88,6 @@ internal fun withResolvedHorizonUserId(
             userId = userId.trim().takeIf { it.isNotEmpty() }
                 ?: throw IllegalArgumentException("Horizon user ID must not be blank"),
         ),
-    )
-}
-
-internal data class HorizonAllQueryResults<T : Any>(
-    val inApp: T?,
-    val subscriptions: T?,
-)
-
-internal suspend fun <T : Any> collectHorizonAllQueryResults(
-    queryInApp: suspend () -> T,
-    querySubscriptions: suspend () -> T,
-): HorizonAllQueryResults<T> {
-    suspend fun capture(query: suspend () -> T): Result<T> = try {
-        Result.success(query())
-    } catch (error: Throwable) {
-        if (
-            error is CancellationException ||
-            error is Error ||
-            error is OpenIapError.ServiceDisconnected
-        ) throw error
-        Result.failure(error)
-    }
-
-    val (inAppResult, subscriptionsResult) = coroutineScope {
-        val inApp = async { capture(queryInApp) }
-        val subscriptions = async { capture(querySubscriptions) }
-        inApp.await() to subscriptions.await()
-    }
-    if (inAppResult.isFailure && subscriptionsResult.isFailure) {
-        throw checkNotNull(inAppResult.exceptionOrNull())
-    }
-    return HorizonAllQueryResults(
-        inApp = inAppResult.getOrNull(),
-        subscriptions = subscriptionsResult.getOrNull(),
     )
 }
 
@@ -158,30 +125,6 @@ internal suspend fun <T> pollHorizonPurchases(
     return emptyList()
 }
 
-internal class HorizonPurchaseDeliveryClaims(
-    private val maximumSize: Int = 100,
-) {
-    private val lock = Any()
-    private val keys = linkedSetOf<String>()
-
-    fun claim(key: String): Boolean = synchronized(lock) {
-        if (!keys.add(key)) return@synchronized false
-        while (keys.size > maximumSize) keys.remove(keys.first())
-        true
-    }
-
-    internal fun size(): Int = synchronized(lock) { keys.size }
-}
-
-internal fun <T : Any> claimHorizonPendingIfOwned(
-    lock: Any,
-    current: () -> T?,
-    owns: (T) -> Boolean,
-    clear: () -> Unit,
-): T? = synchronized(lock) {
-    current()?.takeIf(owns)?.also { clear() }
-}
-
 internal fun horizonUnsupportedPurchaseError(
     type: ProductQueryType,
     offerToken: String?,
@@ -209,13 +152,29 @@ internal fun horizonPurchaseSkuCountError(skus: Collection<String>): OpenIapErro
     else -> null
 }
 
+/**
+ * Base SKU of a Horizon product id. Horizon reports a subscription purchase under a per-term
+ * virtual SKU (`premium:SUBSCRIPTION__MONTHLY`), while its ProductDetails use the base SKU.
+ */
+internal fun horizonBaseSku(productId: String): String =
+    productId.substringBefore(HorizonProductDetails.SUBS_VIRTUAL_SKU_PREFIX)
+
+/** The distinct base SKUs of a Horizon purchase's product ids. */
+internal fun Purchase.horizonBaseSkus(): List<String> =
+    (listOf(productId) + ids.orEmpty())
+        .filter(String::isNotBlank)
+        .map(::horizonBaseSku)
+        .distinct()
+
 internal fun matchesRequestedProductIds(
     primaryProductId: String,
     productIds: Collection<String>,
     requestedProductIds: Collection<String>,
-): Boolean = requestedProductIds.isEmpty() ||
-    primaryProductId in requestedProductIds ||
-    productIds.any { it in requestedProductIds }
+): Boolean {
+    if (requestedProductIds.isEmpty()) return true
+    val requested = requestedProductIds.mapTo(HashSet(), ::horizonBaseSku)
+    return (productIds + primaryProductId).any { horizonBaseSku(it) in requested }
+}
 
 internal fun hasInvalidHorizonSubscriptionOffer(
     requestedSkus: Collection<String>,
@@ -261,7 +220,7 @@ internal fun resolveHorizonProductType(
  */
 class OpenIapModule(
     private val context: Context,
-) : OpenIapProtocol {
+) : OpenIapProtocol, PurchaseTokenSettler {
 
     private val appId: String? by lazy {
         try {
@@ -315,7 +274,7 @@ class OpenIapModule(
         val operationFailures: List<() -> Unit>,
     )
     private var currentActivityRef: WeakReference<Activity>? = null
-    private val purchaseDeliveryClaims = HorizonPurchaseDeliveryClaims()
+    private val purchaseDeliveryClaims = PurchaseDeliveryClaims()
 
     private data class PendingPurchaseSnapshot(
         val client: BillingClient,
@@ -324,6 +283,7 @@ class OpenIapModule(
         val requestedType: ProductQueryType?,
         val selectedBasePlanIds: Map<String, String> = emptyMap(),
         val launchStartedAtMillis: Double? = null,
+        val tokensBeforeLaunch: Set<String> = emptySet(),
     )
     private var pendingPurchase: PendingPurchaseSnapshot? = null
 
@@ -334,7 +294,7 @@ class OpenIapModule(
     private fun takePurchaseCallback(
         expectedCallback: (Result<List<Purchase>>) -> Unit,
         expectedClient: BillingClient? = null,
-    ): ((Result<List<Purchase>>) -> Unit)? = claimHorizonPendingIfOwned(
+    ): ((Result<List<Purchase>>) -> Unit)? = claimPendingPurchaseIfOwned(
         lock = connectionLifecycleLock,
         current = { pendingPurchase },
         owns = { pending ->
@@ -355,20 +315,11 @@ class OpenIapModule(
         return callback != null
     }
 
-    private fun purchaseDeliveryKey(purchase: Purchase): String {
-        val stableId = purchase.purchaseToken?.takeIf(String::isNotBlank)
-            ?: purchase.id.takeIf(String::isNotBlank)
-            ?: "${purchase.productId}:${purchase.transactionDate}"
-        return "$stableId:${purchase.purchaseState.rawValue}"
-    }
-
-    private fun claimPurchaseDelivery(purchase: Purchase): Boolean =
-        purchaseDeliveryClaims.claim(purchaseDeliveryKey(purchase))
-
     private fun installPurchaseCallback(
         expectedClient: BillingClient,
         requestedSkus: Set<String>,
         requestedType: ProductQueryType,
+        tokensBeforeLaunch: Set<String>,
         callback: (Result<List<Purchase>>) -> Unit
     ): OpenIapError? = synchronized(connectionLifecycleLock) {
         when {
@@ -382,6 +333,7 @@ class OpenIapModule(
                     callback = callback,
                     requestedSkus = requestedSkus.toSet(),
                     requestedType = requestedType,
+                    tokensBeforeLaunch = tokensBeforeLaunch,
                 )
                 null
             }
@@ -453,10 +405,75 @@ class OpenIapModule(
         selectedBasePlanIds: Map<String, String>,
     ): PurchaseAndroid {
         if (selectedBasePlanIds.isEmpty()) return purchase
-        val productIds = (listOf(purchase.productId) + purchase.ids.orEmpty())
-            .filter(String::isNotBlank)
-        val basePlanId = uniqueHorizonBasePlanId(productIds.map(selectedBasePlanIds::get))
+        val basePlanId = uniqueHorizonBasePlanId(
+            purchase.horizonBaseSkus().map(selectedBasePlanIds::get)
+        )
         return if (basePlanId == null) purchase else purchase.copy(currentPlanId = basePlanId)
+    }
+
+    /**
+     * Resolves the request with [purchases] and delivers each purchase state to listeners once.
+     * Already-owned recovery passes [redeliver]: the user asked again for what they own.
+     * Delivery is recorded before the caller resumes, so a late store callback for these
+     * purchases cannot complete the caller's next request.
+     */
+    private fun completePurchaseRequest(
+        client: BillingClient,
+        callback: (Result<List<Purchase>>) -> Unit,
+        purchases: List<Purchase>,
+        selectedBasePlanIds: Map<String, String>,
+        redeliver: Boolean = false,
+    ): Boolean {
+        val correlated = purchases.map { purchase ->
+            (purchase as? PurchaseAndroid)?.let { correlateSelectedBasePlan(it, selectedBasePlanIds) }
+                ?: purchase
+        }
+        val taken = takePurchaseCallback(callback, client) ?: return false
+        correlated.forEach { purchase ->
+            if (!purchaseDeliveryClaims.claim(purchase) && !redeliver) return@forEach
+            for (listener in purchaseUpdateListeners) {
+                runCatching { listener.onPurchaseUpdated(purchase) }
+            }
+        }
+        taken(Result.success(correlated))
+        return true
+    }
+
+    /** An owned purchase of the requested SKU satisfies a request rejected as already owned. */
+    private fun recoverAlreadyOwnedPurchase(
+        client: BillingClient,
+        callback: (Result<List<Purchase>>) -> Unit,
+        requestedSkus: Set<String>,
+        requestedType: ProductQueryType?,
+        selectedBasePlanIds: Map<String, String>,
+        error: OpenIapError,
+    ) {
+        val productType = if (requestedType == ProductQueryType.Subs) {
+            BillingClient.ProductType.SUBS
+        } else {
+            BillingClient.ProductType.INAPP
+        }
+        scope.launch {
+            val owned = try {
+                queryPurchasesHorizon(client, activeOperations, productType).filter { purchase ->
+                    matchesRequestedProductIds(
+                        primaryProductId = purchase.productId,
+                        productIds = purchase.ids.orEmpty(),
+                        requestedProductIds = requestedSkus,
+                    )
+                }
+            } catch (queryError: CancellationException) {
+                throw queryError
+            } catch (queryError: Exception) {
+                OpenIapLog.warn("Horizon already-owned recovery failed: ${queryError.message}", TAG)
+                emptyList()
+            }
+            if (owned.isEmpty()) {
+                finishPurchaseCallback(client, callback, error)
+            } else {
+                completePurchaseRequest(client, callback, owned, selectedBasePlanIds, redeliver = true)
+            }
+        }
     }
 
     /** Extracted from the BillingClientStateListener so tests can drive a drop directly. */
@@ -793,7 +810,7 @@ class OpenIapModule(
                     ).map { it.toSubscriptionProduct() }
                 )
                 ProductQueryType.All -> {
-                    val results = collectHorizonAllQueryResults(
+                    val results = collectAllProductQueryResults(
                         queryInApp = {
                             queryProductDetailsHorizon(
                                 client,
@@ -877,10 +894,7 @@ class OpenIapModule(
 
             OpenIapLog.info("Filtered subscriptions count: ${filtered.size}", TAG)
 
-            val subscriptionProductIds = filtered
-                .flatMap { listOf(it.productId) + it.ids.orEmpty() }
-                .filter(String::isNotBlank)
-                .distinct()
+            val subscriptionProductIds = filtered.flatMap { it.horizonBaseSkus() }.distinct()
             val freshDetailsById = if (subscriptionProductIds.isEmpty()) {
                 emptyMap()
             } else {
@@ -906,11 +920,8 @@ class OpenIapModule(
             }
 
             val activeSubscriptions = filtered.map { purchase ->
-                val productIds = (listOf(purchase.productId) + purchase.ids.orEmpty())
-                    .filter(String::isNotBlank)
-                    .distinct()
                 val basePlanId = uniqueHorizonBasePlanId(
-                    productIds.flatMap { productId ->
+                    purchase.horizonBaseSkus().flatMap { productId ->
                         freshDetailsById[productId]
                             ?.subscriptionOfferDetails
                             .orEmpty()
@@ -1015,6 +1026,16 @@ class OpenIapModule(
                 return@withContext emptyList()
             }
 
+            val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
+            // Only a purchase token Horizon does not already report can complete this request.
+            val tokensBeforeLaunch = try {
+                queryPurchasesHorizon(client, activeOperations, desiredType)
+                    .mapNotNullTo(mutableSetOf()) { it.purchaseToken }
+            } catch (error: OpenIapError) {
+                emitPurchaseError(error)
+                return@withContext emptyList()
+            }
+
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 var callbackRef: ((Result<List<Purchase>>) -> Unit)? = null
                 val resumer = continuation.resumeGuard {
@@ -1024,10 +1045,12 @@ class OpenIapModule(
                     result.fold(resumer::resume, resumer::resumeWithException)
                 }
                 callbackRef = callback
+                val requestedSkus = androidArgs.skus.toSet()
                 val installError = installPurchaseCallback(
                     expectedClient = client,
-                    requestedSkus = androidArgs.skus.toSet(),
+                    requestedSkus = requestedSkus,
                     requestedType = androidArgs.type,
+                    tokensBeforeLaunch = tokensBeforeLaunch,
                     callback = callback,
                 )
                 if (installError != null) {
@@ -1040,8 +1063,6 @@ class OpenIapModule(
                     clearPurchaseCallback(callback)
                     return@suspendCancellableCoroutine
                 }
-
-                val desiredType = if (androidArgs.type == ProductQueryType.Subs) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP
 
                 fun buildAndLaunch(details: List<HorizonProductDetails>) {
                     if (!continuation.isActive || !ownsPurchaseCallback(client, callback)) {
@@ -1128,8 +1149,9 @@ class OpenIapModule(
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                             .setOldPurchaseToken(requireNotNull(androidArgs.purchaseToken))
 
-                        // Set replacement mode - this is critical for upgrades
-                        updateParamsBuilder.setSubscriptionReplacementMode(5)
+                        updateParamsBuilder.setSubscriptionReplacementMode(
+                            BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE
+                        )
                         OpenIapLog.debug("  - Replacement mode: CHARGE_FULL_PRICE", TAG)
 
                         val updateParams = updateParamsBuilder.build()
@@ -1165,70 +1187,84 @@ class OpenIapModule(
                         }
                         OpenIapLog.debug("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
 
-                        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                            val err = when (result.responseCode) {
-                                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                                    OpenIapLog.warn("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                                    OpenIapError.DeveloperError(result.debugMessage)
-                                }
-                                BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
-                                else -> OpenIapError.PurchaseFailed(result.debugMessage)
-                            }
-                            finishPurchaseCallback(client, callback, err)
-                        } else {
-                            if (!ownsPurchaseCallback(client, callback)) return@runOnUiThread
-                            OpenIapLog.info(
-                                "launchBillingFlow started; polling purchases while awaiting the callback",
-                                TAG,
-                            )
-                            scope.launch {
-                                val matched = pollHorizonPurchases(
-                                    initialDelayMillis = PURCHASE_QUERY_INITIAL_DELAY_MS,
-                                    intervalMillis = PURCHASE_QUERY_INTERVAL_MS,
-                                    maxAttempts = PURCHASE_QUERY_MAX_ATTEMPTS,
-                                    ownsRequest = { ownsPurchaseCallback(client, callback) },
-                                    query = {
-                                        queryPurchasesHorizon(client, activeOperations, desiredType)
-                                    },
-                                    matches = { purchase ->
-                                        purchase.transactionDate >= launchStartedAtMillis &&
-                                            matchesRequestedProductIds(
-                                                primaryProductId = purchase.productId,
-                                                productIds = purchase.ids.orEmpty(),
-                                                requestedProductIds = androidArgs.skus,
+                        when (result.responseCode) {
+                            BillingClient.BillingResponseCode.OK -> {
+                                if (!ownsPurchaseCallback(client, callback)) return@runOnUiThread
+                                OpenIapLog.info(
+                                    "launchBillingFlow started; polling purchases while awaiting the callback",
+                                    TAG,
+                                )
+                                scope.launch {
+                                    val matched = pollHorizonPurchases(
+                                        initialDelayMillis = PURCHASE_QUERY_INITIAL_DELAY_MS,
+                                        intervalMillis = PURCHASE_QUERY_INTERVAL_MS,
+                                        maxAttempts = PURCHASE_QUERY_MAX_ATTEMPTS,
+                                        ownsRequest = { ownsPurchaseCallback(client, callback) },
+                                        query = {
+                                            queryPurchasesHorizon(client, activeOperations, desiredType)
+                                        },
+                                        matches = { purchase ->
+                                            isPurchaseForPendingRequest(
+                                                productIds = purchase.horizonBaseSkus(),
+                                                purchaseToken = purchase.purchaseToken,
+                                                requestedSkus = requestedSkus,
+                                                tokensBeforeLaunch = tokensBeforeLaunch,
                                             )
-                                    },
-                                    onQueryFailure = { error ->
-                                        OpenIapLog.warn(
-                                            "Horizon purchase polling failed: ${error.message}",
-                                            TAG,
-                                        )
-                                    },
-                                ) ?: return@launch
+                                        },
+                                        onQueryFailure = { error ->
+                                            OpenIapLog.warn(
+                                                "Horizon purchase polling failed: ${error.message}",
+                                                TAG,
+                                            )
+                                        },
+                                    ) ?: return@launch
 
-                                val correlated = matched.map { purchase ->
-                                    (purchase as? PurchaseAndroid)?.let {
-                                        correlateSelectedBasePlan(it, selectedBasePlanIds)
-                                    } ?: purchase
+                                    if (matched.isEmpty()) {
+                                        val timeoutError = OpenIapError.ServiceTimeout(
+                                            "Meta Horizon purchase did not complete within the polling window"
+                                        ).withProductId(androidArgs.skus.singleOrNull())
+                                        finishPurchaseCallback(client, callback, timeoutError)
+                                    } else if (
+                                        completePurchaseRequest(
+                                            client,
+                                            callback,
+                                            matched,
+                                            selectedBasePlanIds,
+                                            // Delivered before means owned: redeliver it as already-owned recovery does,
+                                            // since Horizon may never send that callback.
+                                            redeliver = matched.any(purchaseDeliveryClaims::hasDelivered),
+                                        )
+                                    ) {
+                                        OpenIapLog.debug("Purchase polling found ${matched.size} purchases", TAG)
+                                    }
                                 }
-                                if (correlated.isNotEmpty() && consumePurchaseCallback(
-                                        callback,
-                                        Result.success(correlated),
-                                        client,
-                                    )) {
-                                        OpenIapLog.debug("Purchase polling found ${correlated.size} purchases", TAG)
-                                        correlated.forEach { purchase ->
-                                            if (!claimPurchaseDelivery(purchase)) return@forEach
-                                            for (listener in purchaseUpdateListeners) {
-                                                runCatching { listener.onPurchaseUpdated(purchase) }
-                                            }
-                                        }
-                                } else if (matched.isEmpty()) {
-                                    val timeoutError = OpenIapError.ServiceTimeout(
-                                        "Meta Horizon purchase did not complete within the polling window"
-                                    ).withProductId(androidArgs.skus.singleOrNull())
-                                    finishPurchaseCallback(client, callback, timeoutError)
+                            }
+                            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED ->
+                                recoverAlreadyOwnedPurchase(
+                                    client = client,
+                                    callback = callback,
+                                    requestedSkus = requestedSkus,
+                                    requestedType = androidArgs.type,
+                                    selectedBasePlanIds = selectedBasePlanIds,
+                                    error = OpenIapError.fromBillingResponseCode(
+                                        result.responseCode,
+                                        result.debugMessage,
+                                    ),
+                                )
+                            else -> {
+                                val err = when (result.responseCode) {
+                                    BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
+                                        OpenIapLog.warn("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
+                                        OpenIapError.DeveloperError(result.debugMessage)
+                                    }
+                                    BillingClient.BillingResponseCode.ERROR ->
+                                        OpenIapError.PurchaseFailed(result.debugMessage)
+                                    else -> OpenIapError.fromBillingResponseCode(
+                                        result.responseCode,
+                                        result.debugMessage,
+                                    )
                                 }
+                                finishPurchaseCallback(client, callback, err)
                             }
                         }
                     }
@@ -1324,80 +1360,47 @@ class OpenIapModule(
     }
 
     override val finishTransaction: MutationFinishTransactionHandler = { purchase, isConsumable ->
-        withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            if (!client.isReady()) throw OpenIapError.NotPrepared
-            val token = purchase.purchaseToken?.takeIf { it.isNotBlank() }
-                ?: throw OpenIapError.PurchaseFailed("Missing purchase token on purchase")
-            if (isConsumable == true) {
-                val params = ConsumeParams.newBuilder().setPurchaseToken(token).build()
-                activeOperations.await(client) { operation ->
-                    client.consumeAsync(params) { result, _ ->
-                        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                            OpenIapLog.warn("Failed to consume Horizon purchase: ${result.debugMessage}", TAG)
-                            operation.fail(
-                                OpenIapError.fromBillingResponseCode(
-                                    result.responseCode,
-                                    result.debugMessage
-                                )
-                            )
-                        } else {
-                            operation.succeed(Unit)
-                        }
-                    }
-                }
-            } else {
-                val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(token).build()
-                activeOperations.await(client) { operation ->
-                    client.acknowledgePurchase(params) { result ->
-                        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                            OpenIapLog.warn("Failed to acknowledge Horizon purchase: ${result.debugMessage}", TAG)
-                            operation.fail(
-                                OpenIapError.fromBillingResponseCode(
-                                    result.responseCode,
-                                    result.debugMessage
-                                )
-                            )
-                        } else {
-                            operation.succeed(Unit)
-                        }
-                    }
-                }
-            }
-        }
+        if (billingClient?.isReady() != true) throw OpenIapError.NotPrepared
+        val token = purchase.purchaseToken?.takeIf { it.isNotBlank() }
+            ?: throw OpenIapError.PurchaseFailed("Missing purchase token on purchase")
+        settlePurchaseToken(token, isConsumable == true)
     }
 
     override val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler = { purchaseToken ->
-        withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
-            activeOperations.await(client) { operation ->
-                client.acknowledgePurchase(params) { result ->
-                    val success = result.responseCode == BillingClient.BillingResponseCode.OK
-                    if (!success) {
-                        OpenIapLog.warn("Horizon acknowledge failed: ${result.debugMessage}", TAG)
-                    }
-                    operation.succeed(success)
-                }
+        consumeOrAcknowledge(purchaseToken, isConsumable = false).isOk("acknowledge")
+    }
+
+    override val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler = { purchaseToken ->
+        consumeOrAcknowledge(purchaseToken, isConsumable = true).isOk("consume")
+    }
+
+    override suspend fun settlePurchaseToken(purchaseToken: String, isConsumable: Boolean) {
+        val result = consumeOrAcknowledge(purchaseToken, isConsumable)
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            throw OpenIapError.fromBillingResponseCode(result.responseCode, result.debugMessage)
+        }
+    }
+
+    private suspend fun consumeOrAcknowledge(
+        purchaseToken: String,
+        isConsumable: Boolean,
+    ): BillingResult = withContext(Dispatchers.IO) {
+        val client = billingClient ?: throw OpenIapError.NotPrepared
+        activeOperations.await(client) { operation ->
+            if (isConsumable) {
+                val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
+                client.consumeAsync(params) { result, _ -> operation.succeed(result) }
+            } else {
+                val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchaseToken).build()
+                client.acknowledgePurchase(params) { result -> operation.succeed(result) }
             }
         }
     }
 
-    override val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler = { purchaseToken ->
-        withContext(Dispatchers.IO) {
-            val client = billingClient ?: throw OpenIapError.NotPrepared
-            val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
-            activeOperations.await(client) { operation ->
-                client.consumeAsync(params) { result, _ ->
-                    val success = result.responseCode == BillingClient.BillingResponseCode.OK
-                    if (!success) {
-                        OpenIapLog.warn("Horizon consume failed: ${result.debugMessage}", TAG)
-                    }
-                    operation.succeed(success)
-                }
-            }
+    private fun BillingResult.isOk(operation: String): Boolean =
+        (responseCode == BillingClient.BillingResponseCode.OK).also { ok ->
+            if (!ok) OpenIapLog.warn("Horizon $operation failed: $debugMessage", TAG)
         }
-    }
 
     override val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler = { _ ->
         throw OpenIapError.FeatureNotSupported(
@@ -1567,13 +1570,8 @@ class OpenIapModule(
     }
 
     override suspend fun getStorefront(): String = withContext(Dispatchers.IO) {
-        val client = billingClient ?: emitFailureAndThrow(
-            OpenIapError.NotPrepared,
-            ::emitPurchaseError,
-        )
-        if (!client.isReady()) {
-            emitFailureAndThrow(OpenIapError.NotPrepared, ::emitPurchaseError)
-        }
+        val client = billingClient ?: throw OpenIapError.NotPrepared
+        if (!client.isReady()) throw OpenIapError.NotPrepared
         try {
             activeOperations.await(client) { operation ->
                 client.getBillingConfigAsync(
@@ -1601,7 +1599,6 @@ class OpenIapModule(
             val mapped = error as? OpenIapError
                 ?: OpenIapError.ServiceUnavailable(error.message)
             OpenIapLog.warn("Horizon getStorefront failed: ${mapped.message}", TAG)
-            emitPurchaseError(mapped)
             throw mapped
         }
     }
@@ -1655,13 +1652,18 @@ class OpenIapModule(
                 if (purchases != null) {
                     OpenIapLog.info("Processing ${purchases.size} successful purchases", TAG)
 
-                    val mapped = purchases.map { purchase ->
-                        val productIds = purchase.products
+                    val correlatedPurchases = purchases.map { purchase ->
+                        val productIds = purchase.products.map(::horizonBaseSku)
                         val correlatedRequest = pendingRequest?.takeIf { request ->
-                            val launchStartedAtMillis = request.launchStartedAtMillis
-                                ?: return@takeIf false
-                            purchase.purchaseTime.toDouble() >= launchStartedAtMillis &&
-                                productIds.any { it in request.requestedSkus }
+                            request.launchStartedAtMillis != null &&
+                                isPurchaseForPendingRequest(
+                                    productIds = productIds,
+                                    purchaseToken = purchase.purchaseToken,
+                                    requestedSkus = request.requestedSkus,
+                                    tokensBeforeLaunch = request.tokensBeforeLaunch,
+                                ) &&
+                                // Already delivered in any state: an earlier purchase, not this request's.
+                                !purchaseDeliveryClaims.hasDelivered(purchase.toPurchase())
                         }
                         val cachedSubscriptionProductIds = productIds.filterTo(mutableSetOf()) {
                             productManager.get(it, BillingClient.ProductType.SUBS) != null
@@ -1696,22 +1698,16 @@ class OpenIapModule(
                             "Mapping Horizon purchase: type=$type basePlanResolved=${basePlanId != null}",
                             TAG,
                         )
-                        purchase.toPurchase(basePlanId)
+                        purchase.toPurchase(basePlanId) to (correlatedRequest != null)
                     }
-                    val matched = pendingRequest?.launchStartedAtMillis?.let { launchStartedAtMillis ->
-                        mapped.filter { purchase ->
-                            isPurchaseForPendingRequest(
-                                transactionDateMillis = purchase.transactionDate,
-                                productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
-                                requestedSkus = pendingRequest.requestedSkus,
-                                launchStartedAtMillis = launchStartedAtMillis,
-                            )
-                        }
-                    }.orEmpty()
+                    val mapped = correlatedPurchases.map { (purchase, _) -> purchase }
+                    val matched = correlatedPurchases
+                        .filter { (_, isForRequest) -> isForRequest }
+                        .map { (purchase, _) -> purchase }
                     // Take the callback before notifying listeners, so a listener that
                     // starts another purchase cannot race the resolution. If the take fails
                     // (completed or cleared by polling/disconnect), still deliver the store's
-                    // purchases; claimPurchaseDelivery below dedupes what polling delivered.
+                    // purchases; purchaseDeliveryClaims below dedupes what polling delivered.
                     val completedCallback = if (matched.isNotEmpty() && pendingRequest != null) {
                         takePurchaseCallback(pendingRequest.callback, expectedClient)
                     } else {
@@ -1726,7 +1722,7 @@ class OpenIapModule(
 
                     val delivered = owner.deliver {
                         mapped.forEach { converted ->
-                            if (!claimPurchaseDelivery(converted)) {
+                            if (!purchaseDeliveryClaims.claim(converted)) {
                                 OpenIapLog.debug(
                                     "Skipping duplicate store callback already delivered by polling",
                                     TAG,
@@ -1779,6 +1775,22 @@ class OpenIapModule(
                         )
                     }
                 }
+            } else if (
+                result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED &&
+                pendingRequest?.launchStartedAtMillis != null
+            ) {
+                // Horizon's launchBillingFlow reports an owned SKU here, not as its return value.
+                recoverAlreadyOwnedPurchase(
+                    client = expectedClient,
+                    callback = pendingRequest.callback,
+                    requestedSkus = pendingRequest.requestedSkus,
+                    requestedType = pendingRequest.requestedType,
+                    selectedBasePlanIds = pendingRequest.selectedBasePlanIds,
+                    error = OpenIapError.fromBillingResponseCode(
+                        result.responseCode,
+                        result.debugMessage,
+                    ),
+                )
             } else {
                 OpenIapLog.warn("Purchase failed or cancelled: code=${result.responseCode}", TAG)
                 val completedCallback = pendingRequest

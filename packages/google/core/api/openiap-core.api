@@ -4349,6 +4349,20 @@ public final class dev/hyo/openiap/helpers/ActiveStoreOperationRegistryKt {
 	public static final fun transitionStoreConnection (Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 }
 
+public final class dev/hyo/openiap/helpers/AllProductQueryResults {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/Object;Ljava/lang/Object;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun component2 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;Ljava/lang/Object;)Ldev/hyo/openiap/helpers/AllProductQueryResults;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/helpers/AllProductQueryResults;Ljava/lang/Object;Ljava/lang/Object;ILjava/lang/Object;)Ldev/hyo/openiap/helpers/AllProductQueryResults;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInApp ()Ljava/lang/Object;
+	public final fun getSubscriptions ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class dev/hyo/openiap/helpers/AndroidPurchaseArgs {
 	public static final field $stable I
 	public fun <init> (Ljava/util/List;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ldev/hyo/openiap/SubscriptionProductReplacementParamsAndroid;Ldev/hyo/openiap/DeveloperBillingOptionParamsAndroid;Ldev/hyo/openiap/ProductQueryType;)V
@@ -4382,12 +4396,17 @@ public final class dev/hyo/openiap/helpers/AndroidPurchaseArgs {
 }
 
 public final class dev/hyo/openiap/helpers/CommonHelpersKt {
+	public static final field PLAY_REDEEM_OFFER_CODE_URL Ljava/lang/String;
 	public static final fun awaitAuthoritativeStorefrontCountry (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun awaitAuthoritativeStorefrontCountry$default (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun claimPendingPurchaseIfOwned (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+	public static final fun collectAllProductQueryResults (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun connectionClientToClose (ZZLjava/lang/Object;Ljava/lang/Object;Z)Ljava/lang/Object;
 	public static final fun emitFailureAndThrow (Ldev/hyo/openiap/OpenIapError;Lkotlin/jvm/functions/Function1;)Ljava/lang/Void;
+	public static final fun finishPurchaseToken (Ldev/hyo/openiap/OpenIapProtocol;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun isConnectionAttemptCurrent (JJZZ)Z
 	public static final fun isPurchaseForPendingRequest (DLjava/util/Collection;Ljava/util/Set;D)Z
+	public static final fun isPurchaseForPendingRequest (Ljava/util/Collection;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)Z
 	public static final fun isSubscriptionReplacementTargetCountValid (IZ)Z
 	public static final fun onDeveloperProvidedBilling (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun onPurchaseError (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -4419,6 +4438,19 @@ public final class dev/hyo/openiap/helpers/OpenIapFirstPurchaseNotice {
 	public static final field $stable I
 	public static final field INSTANCE Ldev/hyo/openiap/helpers/OpenIapFirstPurchaseNotice;
 	public static final fun claim (Landroid/content/Context;)Z
+}
+
+public final class dev/hyo/openiap/helpers/PurchaseDeliveryClaims {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (I)V
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun claim (Ldev/hyo/openiap/Purchase;)Z
+	public final fun hasDelivered (Ldev/hyo/openiap/Purchase;)Z
+}
+
+public abstract interface class dev/hyo/openiap/helpers/PurchaseTokenSettler {
+	public abstract fun settlePurchaseToken (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class dev/hyo/openiap/listener/OpenIapConnectionStateListener {

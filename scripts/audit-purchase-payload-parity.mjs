@@ -1248,8 +1248,8 @@ function checkFlutterPayloadContracts() {
     "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     [
       "array.put(JSONObject(purchase.toJson()))",
-      "val payload = JSONObject(p.toJson())",
-      "val payload = JSONObject(purchase.toJson())",
+      'emit("purchase-updated") { JSONObject(purchase.toJson()) }',
+      'emit("subscription-billing-issue") { JSONObject(purchase.toJson()) }',
     ],
     "Flutter Android native purchase serialization",
   );
@@ -1339,7 +1339,7 @@ function checkStrictAppleFrameworkQuerySerialization() {
     [
       "// Providers own purchase-error delivery after dispatch.",
       'GodotIapLog.failure("requestPurchaseWithPayload", error: error)',
-      "enqueueLifecycleOperation(invalidateConnection: false)",
+      "enqueueLifecycleOperation(startsConnection: false)",
       "if disconnected {\n                    let lifecycle = self.advanceConnectionGeneration()",
     ],
     "Godot iOS provider error ownership and failure-aware teardown",
@@ -1793,62 +1793,6 @@ function checkReactNativeActiveSubscriptionPayloadContracts() {
   }
 }
 
-function checkKmpPurchasePayloadContracts() {
-  const generatedTypesPath =
-    "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt";
-  const helperPath =
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt";
-  for (const relativePath of [generatedTypesPath, helperPath]) {
-    expectFile(relativePath);
-  }
-  if (!exists(generatedTypesPath) || !exists(helperPath)) return;
-
-  const generatedTypes = read(generatedTypesPath);
-  const helper = read(helperPath);
-  const purchaseFields = parseKotlinToJsonKeys(
-    generatedTypes,
-    "PurchaseAndroid",
-    generatedTypesPath,
-  );
-  const mapper = extractFunctionBody(
-    helper,
-    "internal fun com.android.billingclient.api.Purchase.toPurchase",
-    `${helperPath} Purchase.toPurchase`,
-  );
-  if (!mapper) return;
-
-  const entries = parseNamedCallArguments(
-    mapper.body,
-    "return PurchaseAndroid",
-    "=",
-    `${helperPath} PurchaseAndroid constructor`,
-  );
-  expectMappedGeneratedFields(
-    "KMP Android Purchase mapper fields",
-    purchaseFields,
-    entries,
-    ["currentPlanId"],
-  );
-  const label = "KMP Android Purchase mapper";
-  expectNamedExpression(entries, "dataAndroid", /^originalJson$/, label);
-  expectNamedExpression(
-    entries,
-    "developerPayloadAndroid",
-    /^developerPayload$/,
-    label,
-  );
-  expectNamedExpression(entries, "purchaseToken", /^purchaseToken$/, label);
-  expectNamedExpression(entries, "ids", /^products$/, label);
-  expectNamedExpression(
-    entries,
-    "productId",
-    /^products\.firstOrNull\(\) \?: ""$/,
-    label,
-  );
-  expectNamedExpression(entries, "signatureAndroid", /^signature$/, label);
-  expectNamedExpression(entries, "transactionId", /^orderId$/, label);
-}
-
 function checkGooglePurchasePayloadContracts() {
   const generatedTypesPath =
     "packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt";
@@ -2276,7 +2220,6 @@ export function collectPurchasePayloadParityFailures(repoRoot) {
   checkStrictAppleFrameworkQuerySerialization();
   checkReactNativePurchasePayloadContracts();
   checkReactNativeActiveSubscriptionPayloadContracts();
-  checkKmpPurchasePayloadContracts();
   checkGooglePurchasePayloadContracts();
   checkVegaPurchasePayloadContracts();
   checkPurchaseRoundTripRegressionCoverage();

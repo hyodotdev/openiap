@@ -152,7 +152,7 @@ await requestPurchase({
 });`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
@@ -302,13 +302,12 @@ await iap.request_purchase(props)`}</CodeBlock>
             <tr>
               <td>Android</td>
               <td>
-                Subscription offers are <strong>required</strong> when
-                purchasing. You must pass <code>subscriptionOffers</code> with
-                offer tokens from{' '}
+                Pass <code>subscriptionOffers</code> with offer tokens from{' '}
                 <Link to="/docs/apis/fetch-products">
                   <code>fetchProducts()</code>
-                </Link>
-                .
+                </Link>{' '}
+                to choose the base plan or offer. When omitted, Play uses the
+                first offer returned for the SKU.
               </td>
             </tr>
             <tr>
@@ -396,7 +395,7 @@ subscription?.subscriptionOffers
   });`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`import OpenIap
+                      <CodeBlock language="swift">{`import OpenIAP
 
 let iapStore = OpenIapStore()
 
@@ -742,7 +741,7 @@ const purchaseWithPromoOffer = async (
 };`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`import OpenIap
+                      <CodeBlock language="swift">{`import OpenIAP
 
 func purchaseWithPromoOffer(
     subscriptionId: String,
@@ -962,7 +961,7 @@ const purchaseSubscription = async (subscriptionId: string) => {
 };`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`import OpenIap
+                      <CodeBlock language="swift">{`import OpenIAP
 
 func purchaseSubscription(subscriptionId: String) async throws {
     // iOS: Simply request purchase
@@ -1471,7 +1470,7 @@ const purchaseSubscription = async (subscriptionId: string) => {
       apple: { sku: subscriptionId },
       google: {
         skus: [subscriptionId],
-        subscriptionOffers, // Required for Android
+        subscriptionOffers, // Android: recommended; Play uses the first offer if omitted
       },
     },
     type: 'subs',
@@ -1511,7 +1510,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
             RequestSubscriptionPropsByPlatforms(
                 google = RequestSubscriptionAndroidProps(
                     skus = listOf(subscriptionId),
-                    subscriptionOffers = subscriptionOffers // Required
+                    subscriptionOffers = subscriptionOffers // Recommended; Play uses the first offer if omitted
                 )
             )
         ),
@@ -1557,7 +1556,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
             RequestSubscriptionPropsByPlatforms(
                 google = RequestSubscriptionAndroidProps(
                     skus = listOf(subscriptionId),
-                    subscriptionOffers = subscriptionOffers // Required
+                    subscriptionOffers = subscriptionOffers // Recommended; Play uses the first offer if omitted
                 )
             )
         ),
@@ -1635,7 +1634,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
             Google = new RequestSubscriptionAndroidProps
             {
                 Skus = new[] { subscriptionId },
-                SubscriptionOffers = subscriptionOffers, // Required
+                SubscriptionOffers = subscriptionOffers, // Recommended; Play uses the first offer if omitted
             },
         },
     });
@@ -1675,7 +1674,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
     props.request_subscription.google = RequestSubscriptionAndroidProps.new()
     props.request_subscription.google.skus = [subscription_id]
-    props.request_subscription.google.subscription_offers = subscription_offers  # Required
+    props.request_subscription.google.subscription_offers = subscription_offers  # Recommended; Play uses the first offer if omitted
     props.type = ProductQueryType.SUBS
 
     await iap.request_purchase(props)`}</CodeBlock>
@@ -2810,7 +2809,7 @@ const verifySubscription = async (purchase: Purchase) => {
 };`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 func verifySubscription(_ purchase: PurchaseIOS) async -> Bool {
     do {
@@ -2924,7 +2923,7 @@ activeSubscriptions.forEach((sub) => {
 });`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 let iapStore = OpenIapStore()
 
@@ -3180,7 +3179,7 @@ const checkFromActiveSubscriptions = async () => {
 };`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`import OpenIap
+                      <CodeBlock language="swift">{`import OpenIAP
 
 let iapStore = OpenIapStore()
 
@@ -3247,70 +3246,6 @@ func checkFromActiveSubscriptions() async throws {
         if let reason = expirationReason {
             print("  Expiration Reason: \\(reason)")
         }
-    }
-}`}</CodeBlock>
-                    ),
-                    kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
-import dev.hyo.openiap.store.OpenIapStore
-
-// Note: subscriptionStatusIOS is iOS-only
-// For KMP iOS target:
-suspend fun checkSubscriptionStatus(sku: String): Pair<Boolean, String> {
-    val statuses = iapStore.subscriptionStatusIOS(sku = sku)
-
-    for (status in statuses) {
-        return when (status.state) {
-            "subscribed" -> {
-                println("✅ Active subscription")
-                true to "active"
-            }
-            "expired" -> {
-                println("❌ Subscription expired")
-                false to "expired"
-            }
-            "revoked" -> {
-                println("💰 Subscription was refunded")
-                false to "refunded"
-            }
-            "inGracePeriod" -> {
-                println("⚠️ Billing issue - grace period active")
-                true to "grace_period"
-            }
-            "inBillingRetryPeriod" -> {
-                println("🔄 Billing retry in progress")
-                true to "billing_retry"
-            }
-            else -> continue
-        }
-    }
-
-    return false to "unknown"
-}
-
-// Using ActiveSubscription for quick checks (works on iOS)
-suspend fun checkFromActiveSubscriptions() {
-    val subs = iapStore.getActiveSubscriptions()
-
-    for (sub in subs) {
-        val renewalInfo = sub.renewalInfoIOS
-
-        // Check if cancelled
-        val isCancelled = renewalInfo?.willAutoRenew == false
-
-        // Check expiration reason
-        val expirationReason = renewalInfo?.expirationReason
-
-        // Check if expired
-        val isExpired = sub.expirationDateIOS?.let {
-            it < System.currentTimeMillis()
-        } ?: false
-
-        println("Product: \${sub.productId}")
-        println("  Active: \${sub.isActive}")
-        println("  Cancelled: $isCancelled")
-        println("  Expired: $isExpired")
-        expirationReason?.let { println("  Expiration Reason: $it") }
     }
 }`}</CodeBlock>
                     ),
@@ -4036,7 +3971,7 @@ const manageSubscriptions = async () => {
 };`}</CodeBlock>
             ),
             swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              <CodeBlock language="swift">{`import OpenIAP
 
 let iapStore = OpenIapStore()
 
@@ -4105,8 +4040,8 @@ func manage_subscriptions() -> void:
             - Understand subscription states and transitions
           </li>
           <li>
-            <Link to="/tutorials#verify-purchase">Verify Purchase</Link> -
-            Server-side verification guides
+            <Link to="/tutorials#verification-guides">Server verification</Link>{' '}
+            - App Store and Google Play verification references
           </li>
         </ul>
       </section>

@@ -19,8 +19,11 @@ import {
   type GraphQLInterfaceType,
   type GraphQLObjectType,
   type GraphQLUnionType,
+  type GraphQLArgument,
+  type GraphQLInputField,
   type GraphQLType,
-  valueFromASTUntyped,
+  print,
+  valueFromAST,
 } from 'graphql';
 import type {
   IRSchema,
@@ -38,7 +41,7 @@ import type {
   IRResultUnionEntry,
   SchemaMarkers,
 } from './types.js';
-import { toKebabCase, PLATFORM_TYPE_DEFAULTS, SUPPORTED_GRAPHQL_SCALARS } from './utils.js';
+import { toConstantCase, toKebabCase, PLATFORM_TYPE_DEFAULTS, SUPPORTED_GRAPHQL_SCALARS } from './utils.js';
 import type { ParsedSchema } from './parser.js';
 import { assertValidSchemaMarkers } from '../../schema-markers.mjs';
 import { assertValidSchemaDeprecations } from '../../schema-deprecations.mjs';
@@ -373,15 +376,14 @@ class SchemaTransformer {
   private transformEnum(enumType: GraphQLEnumType): IREnum {
     const values: IREnumValue[] = enumType.getValues().map((value) => {
       const rawValue = toKebabCase(value.name);
-      // For Swift compatibility: only use PascalCase name as legacy alias (no CONSTANT_CASE)
-      // The enum case matching in Swift uses: kebab-case + PascalCase
-      const legacyAliases: string[] = [];
+      // Every decoder also accepts the SDL name and its CONSTANT_CASE spelling.
+      const legacyAliases = [...new Set([toConstantCase(value.name), value.name])].filter((alias) => alias !== rawValue);
 
       return {
         name: value.name,
         rawValue,
         description: this.descriptionWithDeprecation(value.description, value.deprecationReason, `${enumType.name}.${value.name}`),
-        legacyAliases: [...new Set(legacyAliases)],
+        legacyAliases,
       };
     });
     const rawValueOwners = new Map<string, string>();
@@ -537,7 +539,7 @@ class SchemaTransformer {
       description: this.descriptionWithDeprecation(field.description, field.deprecationReason, `${inputType.name}.${field.name}`),
       type: this.transformType(field.type),
       isOverride: false,
-      defaultValue: field.astNode?.defaultValue ? valueFromASTUntyped(field.astNode.defaultValue) : undefined,
+      defaultValue: this.validatedDefault(field, `${inputType.name}.${field.name}`),
     }));
 
     const hasRequiredFields = graphqlFields.some((field) => field.type instanceof GraphQLNonNull);
@@ -553,6 +555,17 @@ class SchemaTransformer {
       isCustomType,
       customTypeKind,
     };
+  }
+
+  /** GraphQL 16 does not validate SDL defaults, so coerce them against the declared type here. */
+  private validatedDefault(field: GraphQLInputField | GraphQLArgument, label: string): unknown {
+    const node = field.astNode?.defaultValue;
+    if (!node) return undefined;
+    const value = valueFromAST(node, field.type);
+    if (value === undefined) {
+      throw new Error(`${label} default ${print(node)} is not a valid ${String(field.type)}.`);
+    }
+    return value;
   }
 
   // ============================================================================
@@ -615,15 +628,15 @@ class SchemaTransformer {
     const graphqlFields = Object.values(operationType.getFields());
 
     const fields: IROperationField[] = graphqlFields.map((field) => {
-      const args: IRArg[] = field.args.map((arg) => ({
-        name: arg.name,
-        description: this.descriptionWithDeprecation(
-          arg.description,
-          arg.deprecationReason,
-          `${operationType.name}.${field.name}(${arg.name})`,
-        ),
-        type: this.transformType(arg.type),
-      }));
+      const args: IRArg[] = field.args.map((arg) => {
+        const label = `${operationType.name}.${field.name}(${arg.name})`;
+        this.validatedDefault(arg, label);
+        return {
+          name: arg.name,
+          description: this.descriptionWithDeprecation(arg.description, arg.deprecationReason, label),
+          type: this.transformType(arg.type),
+        };
+      });
 
       const returnType = this.transformType(field.type);
       // Resolve return type (VoidResult -> Void, single-field Args inlining)

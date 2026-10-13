@@ -81,10 +81,10 @@ interface DeepLinkOptions {
             <CodeBlock language="dart">{`Future<void> deepLinkToSubscriptions({String? skuAndroid, String? packageNameAndroid});`}</CodeBlock>
           ),
           csharp: (
-            <CodeBlock language="csharp">{`Task<VoidResult> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);`}</CodeBlock>
+            <CodeBlock language="csharp">{`Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options: DeepLinkOptions) -> Types.VoidResult`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func deep_link_to_subscriptions(options = null) -> Variant # Types.VoidResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

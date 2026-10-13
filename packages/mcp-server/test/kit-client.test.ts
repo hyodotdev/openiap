@@ -144,6 +144,22 @@ describe("kitClient", () => {
     }
   });
 
+  it("stops reading a kit response past 1 MiB", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("x".repeat(1024 * 1024 + 1))),
+    );
+
+    const client = kitClient({
+      apiKey: "custom-secret",
+      baseUrl: "https://kit.example",
+    });
+
+    await expect(client.health()).rejects.toThrow(
+      "kit response exceeds 1048576 bytes",
+    );
+  });
+
   it("parses JSON response content types case-insensitively", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

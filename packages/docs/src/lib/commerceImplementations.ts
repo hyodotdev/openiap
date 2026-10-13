@@ -65,7 +65,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit receives that store evidence through verifyPurchase. The paywall, store purchase screen, and app login stay with your app; IAPKit does not replace them.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchase',
-      line: 218,
+      line: 213,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Route tests cover evidence parsing and errors with mocked store calls; they do not perform a mobile purchase.',
@@ -177,10 +177,10 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
     },
     kit: {
       description:
-        'isEntitledAt applies the same rule to Convex records. entitlementsV2 reads the current time and returns allowed products without exposing store purchase tokens.',
+        'isActive applies the shared entitlementActive rule to Convex records. entitlementsV2 reads the current time and returns allowed products without exposing store purchase tokens.',
       file: 'convex/subscriptions/query.ts',
-      symbol: 'isEntitledAt',
-      line: 73,
+      symbol: 'isActive',
+      line: 68,
       checkFile: 'convex/subscriptions/query.test.ts',
       check:
         'Account-read tests check token omission, server authorization, and time advancing past expiry.',
@@ -203,7 +203,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'subscriptionStatusV2 selects a subscription and applies the same access deadline. The protocol handler turns that record into the shared response shape.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'subscriptionStatusV2',
-      line: 318,
+      line: 304,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The contract vectors compare status and access over REST and GraphQL with an in-memory database substitute.',
@@ -249,7 +249,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'eraseUser starts a project-scoped job. The worker removes identity from purchases, subscriptions, and events in batches, waiting for claimed deliveries before cleaning those events.',
       file: 'convex/subscriptions/internal.ts',
       symbol: 'drainSubscriptionUserErasurePage',
-      line: 1468,
+      line: 1515,
       checkFile: 'convex/subscriptions/mutation.test.ts',
       check:
         'Erasure request tests cover server authorization and repeated requests, including already completed jobs.',
@@ -272,7 +272,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'Publishable and secret keys identify the calling project. Convex checks the stored key’s permissions before server operations. Your own backend still authenticates Alice and chooses her user ID.',
       file: 'server/api/commerce/routes.ts',
       symbol: 'commerceAuth / authoritativeServerAuth',
-      line: 143,
+      line: 140,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Tests exercise missing, invalid, and under-scoped keys before input parsing on both bindings.',
@@ -318,7 +318,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'Hono registers the same manifest’s routes and sends validated input to shared handlers backed by Convex and store services. It implements all six operations and also exposes GraphQL.',
       file: 'server/api/commerce/routes.ts',
       symbol: 'HTTP_BINDING route registration',
-      line: 196,
+      line: 193,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The portable runner drives real route code with substituted store/database I/O and compares both bindings.',
@@ -364,7 +364,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The published conformance runner calls IAPKit’s real REST and GraphQL routes against fixture store/database I/O. Separate worker and mutation tests cover persistence responsibilities.',
       file: 'server/api/commerce/conformance.test.ts',
       symbol: 'IAPKit dual-binding conformance',
-      line: 585,
+      line: 593,
       checkFile: 'convex/commerce/spec.conformance.test.ts',
       check:
         'Run bun run test -- server/api/commerce/conformance.test.ts convex/commerce/spec.conformance.test.ts from packages/kit. These are local contract checks, not live store tests.',
