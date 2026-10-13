@@ -16,6 +16,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import java.lang.reflect.Field
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlinx.coroutines.runBlocking
@@ -311,6 +312,31 @@ class HorizonPurchaseFlowTest {
         assertEquals(listOf("purchase-token"), updates.map { it.purchaseToken })
     }
 
+    @Test
+    fun `polling leaves a delivered owned purchase to already-owned recovery`() {
+        val client = FlowBillingClient(owned = listOf(horizonPurchase(1L, token = "token-a")))
+        val module = module(client)
+        val updates = CopyOnWriteArrayList<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        val ok = billingResult(BillingClient.BillingResponseCode.OK)
+        module.onPurchasesUpdated(client, 0L, ok, listOf(horizonPurchase(1L, token = "token-a")))
+
+        // Offline, the prelaunch query returns Meta's durable cache, which never holds consumables.
+        client.durableCacheOnce.set(listOf(horizonPurchase(1L, "durable-id", "token-d")))
+        val retry = startPurchase(module)
+        awaitCondition { retry.get() != null || client.queries.get() >= 3 }
+        module.onPurchasesUpdated(
+            client,
+            0L,
+            billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
+            emptyList(),
+        )
+        awaitCondition { retry.get() != null }
+
+        assertEquals(listOf("token-a"), purchasesOf(retry).map { it.purchaseToken })
+        assertEquals(listOf("token-a", "token-a"), updates.map { it.purchaseToken })
+    }
+
     private fun requestPurchase(module: OpenIapModule): List<Purchase> {
         val outcome = startPurchase(module)
         awaitCondition { outcome.get() != null }
@@ -443,11 +469,20 @@ class HorizonPurchaseFlowTest {
             return result(launchResponseCode)
         }
 
+        val durableCacheOnce = AtomicReference<List<HorizonPurchase>?>()
+        val queries = AtomicInteger()
+
         override fun queryPurchasesAsync(
             queryPurchasesParams: QueryPurchasesParams,
             listener: PurchasesResponseListener,
         ) {
-            listener.onQueryPurchasesResponse(result(BillingResponseCode.OK), owned)
+            queries.incrementAndGet()
+            val cache = durableCacheOnce.getAndSet(null)
+            if (cache != null) {
+                listener.onQueryPurchasesResponse(result(BillingResponseCode.SERVICE_UNAVAILABLE), cache)
+            } else {
+                listener.onQueryPurchasesResponse(result(BillingResponseCode.OK), owned)
+            }
         }
 
         private fun result(code: Int): BillingResult =

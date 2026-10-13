@@ -1206,7 +1206,9 @@ class OpenIapModule(
                                                 purchaseToken = purchase.purchaseToken,
                                                 requestedSkus = requestedSkus,
                                                 tokensBeforeLaunch = tokensBeforeLaunch,
-                                            )
+                                            ) &&
+                                                // Already delivered means owned: already-owned recovery redelivers it.
+                                                !purchaseDeliveryClaims.hasDelivered(purchase)
                                         },
                                         onQueryFailure = { error ->
                                             OpenIapLog.warn(

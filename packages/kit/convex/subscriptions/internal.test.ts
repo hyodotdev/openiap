@@ -2719,6 +2719,11 @@ describe("recordVerifiedSubscriptionHandler", () => {
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       verifiedSignedDate: now - 1_000,
     });
+    // Nor can a same-transaction verify without a signing date.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    });
 
     expect(db.rows("subscriptions")).toMatchObject([
       {
