@@ -4071,6 +4071,10 @@ describe("the runner judges what a binding could otherwise hide", () => {
       ],
       ["a quoted Windows path", '"C:\\Users\\John Doe\\src\\Billing.cs"'],
       ["a single-quoted path", "'/Users/John Doe/app/verify.ts'"],
+      [
+        "a quoted path through a C# folder",
+        '"C:\\Users\\J Doe\\C# Projects\\Billing.cs"',
+      ],
       ["a glog location", "verify.go:42] failed"],
       ["a bracketed location", "[views.py:42]"],
       ["a path before a quoted full stop", '/app/main.go."'],
