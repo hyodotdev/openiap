@@ -8,6 +8,7 @@ import {
   type JWSTransactionDecodedPayload,
   VerificationStatus,
   APIException,
+  Status,
 } from "@apple/app-store-server-library";
 import { v } from "convex/values";
 
@@ -193,7 +194,7 @@ export async function recordAppStoreVerifiedSubscription(
     remoteId: string;
     transactionData: AppStoreReceiptData;
     purchaseState: HarmonizedPurchaseState;
-    latestTransaction: () => Promise<AppStoreReceiptData | null>;
+    latestTransaction: () => Promise<LatestAppleStatus | null>;
   },
 ): Promise<void> {
   // Non-renewing passes carry no expiry, so a subscription row would stay
@@ -207,6 +208,8 @@ export async function recordAppStoreVerifiedSubscription(
 
   let transaction = params.transactionData;
   let purchaseState = params.purchaseState;
+  let expiresAt = transaction.expiresDate;
+  let subscriptionState: string | undefined;
   // A row stored before purchase dates were kept has no order to compare
   // another plan against, so Apple's current subscription status decides.
   // Without an answer the row stays as it is; the verdict already stands.
@@ -219,8 +222,16 @@ export async function recordAppStoreVerifiedSubscription(
   if (authoritative) {
     const latest = await params.latestTransaction();
     if (!latest) return;
-    transaction = latest;
-    purchaseState = mapToAppStoreReceiptResponse(latest).state;
+    transaction = latest.transaction;
+    purchaseState = mapToAppStoreReceiptResponse(transaction).state;
+    expiresAt = transaction.expiresDate;
+    // Billing grace: the paid period ended, but access lasts until Apple's
+    // grace deadline (none known means until a later store fact).
+    if (latest.inGracePeriod) {
+      purchaseState = HarmonizedPurchaseState.ENTITLED;
+      subscriptionState = "SUBSCRIPTION_STATE_IN_GRACE_PERIOD";
+      expiresAt = latest.graceExpiresAt;
+    }
   }
 
   await ctx.runMutation(
@@ -231,7 +242,8 @@ export async function recordAppStoreVerifiedSubscription(
       purchaseToken: params.remoteId,
       productId: transaction.productId ?? "unknown",
       purchaseState,
-      expiresAt: transaction.expiresDate,
+      ...(subscriptionState ? { subscriptionState } : {}),
+      expiresAt,
       currency: transaction.currency,
       priceAmountMicros: appStorePriceToMicros(transaction.price),
       revocationReasonIOS: transaction.revocationReason,
@@ -241,18 +253,29 @@ export async function recordAppStoreVerifiedSubscription(
   );
 }
 
-// The newest transaction Apple reports for this subscription, verified like
-// any other, or null when the App Store Server API cannot say.
-async function fetchLatestAppleTransaction(
-  client: AppStoreServerAPIClient,
+export interface LatestAppleStatus {
+  transaction: AppStoreReceiptData;
+  inGracePeriod: boolean;
+  graceExpiresAt?: number;
+}
+
+// The optional lookup must not hold a /v1 verify: the Apple client has no
+// timeout of its own.
+export const APPLE_STATUS_LOOKUP_DEADLINE_MS = 5_000;
+
+// The newest transaction Apple reports for this subscription with its status,
+// verified like any other, or null when the App Store Server API cannot say
+// in time.
+export async function fetchLatestAppleTransaction(
+  client: Pick<AppStoreServerAPIClient, "getAllSubscriptionStatuses">,
   params: {
     originalTransactionId: string;
     bundleId: string;
     environment: Environment;
     appAppleId?: number;
   },
-): Promise<AppStoreReceiptData | null> {
-  try {
+): Promise<LatestAppleStatus | null> {
+  const lookup = async (): Promise<LatestAppleStatus | null> => {
     const response = await retryOnTransient(() =>
       client.getAllSubscriptionStatuses(params.originalTransactionId),
     );
@@ -262,18 +285,48 @@ async function fetchLatestAppleTransaction(
         (item) => item.originalTransactionId === params.originalTransactionId,
       );
     if (!latest?.signedTransactionInfo) return null;
-    return await verifyJWSTransaction(
+    const transaction = await verifyJWSTransaction(
       latest.signedTransactionInfo,
       params.bundleId,
       params.environment,
       params.appAppleId,
     );
-  } catch (error) {
-    console.error(
-      "Failed to read Apple subscription status:",
-      describeError(error),
-    );
-    return null;
+    const inGracePeriod = latest.status === Status.BILLING_GRACE_PERIOD;
+    const renewal =
+      inGracePeriod && latest.signedRenewalInfo
+        ? await appleVerifier(
+            params.bundleId,
+            params.environment,
+            params.appAppleId,
+          ).verifyAndDecodeRenewalInfo(latest.signedRenewalInfo)
+        : undefined;
+    return {
+      transaction,
+      inGracePeriod,
+      graceExpiresAt: renewal?.gracePeriodExpiresDate,
+    };
+  };
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      console.error("Apple subscription status lookup timed out");
+      resolve(null);
+    }, APPLE_STATUS_LOOKUP_DEADLINE_MS);
+  });
+  try {
+    return await Promise.race([
+      lookup().catch((error: unknown) => {
+        console.error(
+          "Failed to read Apple subscription status:",
+          describeError(error),
+        );
+        return null;
+      }),
+      deadline,
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -306,6 +359,21 @@ function decodeJwsPayload(jws: string): JWSTransactionDecodedPayload {
   }
 }
 
+// Online checks consult Apple's OCSP responder for every certificate.
+function appleVerifier(
+  bundleId: string,
+  environment: Environment,
+  appAppleId?: number,
+): SignedDataVerifier {
+  return new SignedDataVerifier(
+    loadAppleRootCertificates(),
+    true,
+    environment,
+    bundleId,
+    appAppleId,
+  );
+}
+
 export async function verifyJWSTransaction(
   jws: string,
   bundleId: string,
@@ -313,16 +381,7 @@ export async function verifyJWSTransaction(
   appAppleId?: number,
 ): Promise<AppStoreReceiptData> {
   try {
-    const appleRootCAs = loadAppleRootCertificates();
-    const enableOnlineChecks = true;
-
-    const verifier = new SignedDataVerifier(
-      appleRootCAs,
-      enableOnlineChecks,
-      environment,
-      bundleId,
-      appAppleId,
-    );
+    const verifier = appleVerifier(bundleId, environment, appAppleId);
 
     // Online checks call Apple's CRL/OCSP endpoints, so transient failures
     // retry, as on the other store paths. The type adds fields a StoreKit 2

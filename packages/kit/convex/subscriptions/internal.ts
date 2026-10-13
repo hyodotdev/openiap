@@ -671,7 +671,9 @@ export function buildVerifiedSubscriptionSnapshot(
     priceAmountMicros: input.priceAmountMicros,
   };
 
-  if (input.platform === "IOS") {
+  // Apple's status can report billing grace, which takes the shared
+  // subscriptionState mapping below.
+  if (input.platform === "IOS" && input.subscriptionState === undefined) {
     switch (input.purchaseState) {
       case HarmonizedPurchaseState.ENTITLED:
         return {
@@ -903,13 +905,15 @@ export async function recordVerifiedSubscriptionHandler(
   // A row stored before purchase dates were kept has no order to trust: it
   // never rolls the same plan's expiry back, and changes product only when
   // the snapshot is Apple's current subscription status (`authoritative`).
+  // Re-checked here, not in the action: a concurrent verify may have stamped
+  // the row since the action looked, and then dates order even Apple's status.
   const staleSnapshot =
-    !args.authoritative &&
     existing !== null &&
     (existing.verifiedPurchaseDate !== undefined
       ? args.verifiedPurchaseDate !== undefined &&
         args.verifiedPurchaseDate < existing.verifiedPurchaseDate
-      : args.platform === "IOS" &&
+      : !args.authoritative &&
+        args.platform === "IOS" &&
         (snapshot.productId !== existing.productId ||
           (existing.expiresAt !== undefined &&
             snapshot.expiresAt !== undefined &&

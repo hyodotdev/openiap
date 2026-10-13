@@ -2787,6 +2787,62 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
+  it("orders two Apple status answers that raced on the same legacy row", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      authoritative: true,
+    };
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      authoritative: undefined,
+      productId: "basic_yearly",
+      expiresAt: now + 300 * day,
+    });
+
+    // Both requests saw the row undated; the newer answer commits first.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      expiresAt: now + 30 * day,
+      verifiedPurchaseDate: now,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "plus_monthly",
+      expiresAt: now + 20 * day,
+      verifiedPurchaseDate: now - 10 * day,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { productId: "pro_monthly", verifiedPurchaseDate: now },
+    ]);
+  });
+
+  it("records Apple billing grace as InGracePeriod until the grace deadline", async () => {
+    const db = new MemDb();
+    const graceEnds = Date.now() + 86_400_000;
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS",
+      purchaseToken: "ios-grace",
+      productId: "pro_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      subscriptionState: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+      expiresAt: graceEnds,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "InGracePeriod", expiresAt: graceEnds },
+    ]);
+  });
+
   it("applies an immediate iOS upgrade that ends sooner than the plan it replaced", async () => {
     const db = new MemDb();
     const day = 86_400_000;

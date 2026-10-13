@@ -11,7 +11,9 @@ import {
 } from "@apple/app-store-server-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  APPLE_STATUS_LOOKUP_DEADLINE_MS,
   assertVerifiedTransactionBinding,
+  fetchLatestAppleTransaction,
   isVerifierOutage,
   recordAppStoreVerifiedSubscription,
 } from "./ios";
@@ -379,7 +381,10 @@ describe("recordAppStoreVerifiedSubscription", () => {
     });
 
     await recordAppStoreVerifiedSubscription(ctx, {
-      latestTransaction: async () => latest,
+      latestTransaction: async () => ({
+        transaction: latest,
+        inGracePeriod: false,
+      }),
       projectId: "projects_1" as Id<"projects">,
       remoteId: "original-transaction-1",
       purchaseState: HarmonizedPurchaseState.ENTITLED,
@@ -402,12 +407,14 @@ describe("recordAppStoreVerifiedSubscription", () => {
     const future = Date.now() + 86_400_000;
 
     await recordAppStoreVerifiedSubscription(ctx, {
-      latestTransaction: async () =>
-        subscription("pro_monthly", {
+      latestTransaction: async () => ({
+        transaction: subscription("pro_monthly", {
           purchaseDate: 2_000,
           expiresDate: future,
           transactionReason: "RENEWAL",
         }),
+        inGracePeriod: false,
+      }),
       projectId: "projects_1" as Id<"projects">,
       remoteId: "original-transaction-1",
       purchaseState: HarmonizedPurchaseState.EXPIRED,
@@ -419,6 +426,37 @@ describe("recordAppStoreVerifiedSubscription", () => {
         productId: "pro_monthly",
         purchaseState: HarmonizedPurchaseState.ENTITLED,
         expiresAt: future,
+        authoritative: true,
+      }),
+    ]);
+  });
+
+  it("records billing grace from Apple's status, not the elapsed paid period", async () => {
+    const { ctx, calls } = makeRunMutationRecorder("basic_yearly");
+    const graceEnds = Date.now() + 86_400_000;
+
+    await recordAppStoreVerifiedSubscription(ctx, {
+      latestTransaction: async () => ({
+        transaction: subscription("pro_monthly", {
+          purchaseDate: 2_000,
+          expiresDate: Date.now() - 86_400_000,
+          transactionReason: "RENEWAL",
+        }),
+        inGracePeriod: true,
+        graceExpiresAt: graceEnds,
+      }),
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "original-transaction-1",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      transactionData: subscription("pro_monthly_old"),
+    });
+
+    expect(calls()).toEqual([
+      expect.objectContaining({
+        productId: "pro_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        subscriptionState: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+        expiresAt: graceEnds,
         authoritative: true,
       }),
     ]);
@@ -436,6 +474,26 @@ describe("recordAppStoreVerifiedSubscription", () => {
     });
 
     expect(calls()).toHaveLength(0);
+  });
+});
+
+describe("fetchLatestAppleTransaction", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("gives up on a status request that never settles", async () => {
+    vi.useFakeTimers();
+    const result = fetchLatestAppleTransaction(
+      { getAllSubscriptionStatuses: () => new Promise(() => {}) },
+      {
+        originalTransactionId: "original-transaction-1",
+        bundleId: "dev.hyo.martie",
+        environment: Environment.PRODUCTION,
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(APPLE_STATUS_LOOKUP_DEADLINE_MS);
+
+    await expect(result).resolves.toBeNull();
   });
 });
 

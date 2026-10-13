@@ -6,6 +6,7 @@ const appleMocks = vi.hoisted(() => ({
   getAllSubscriptionStatuses: vi.fn(),
   getTransactionInfo: vi.fn(),
   verifierConstructor: vi.fn(),
+  verifyAndDecodeRenewalInfo: vi.fn(),
   verifyAndDecodeTransaction: vi.fn(),
 }));
 
@@ -35,6 +36,10 @@ vi.mock("@apple/app-store-server-library", async (importOriginal) => {
 
       verifyAndDecodeTransaction(jws: string) {
         return appleMocks.verifyAndDecodeTransaction(jws);
+      }
+
+      verifyAndDecodeRenewalInfo(jws: string) {
+        return appleMocks.verifyAndDecodeRenewalInfo(jws);
       }
     },
   };
@@ -255,6 +260,7 @@ describe("legacy subscription rows meeting another plan", () => {
   beforeEach(() => {
     appleMocks.getAllSubscriptionStatuses.mockReset();
     appleMocks.getTransactionInfo.mockReset();
+    appleMocks.verifyAndDecodeRenewalInfo.mockReset();
     appleMocks.verifyAndDecodeTransaction.mockReset();
     appleMocks.getTransactionInfo.mockResolvedValue({
       signedTransactionInfo: "server.signed.transaction",
@@ -295,6 +301,53 @@ describe("legacy subscription rows meeting another plan", () => {
         productId: "pro_monthly",
         purchaseState: "ENTITLED",
         authoritative: true,
+      }),
+    ]);
+  });
+
+  it("records Apple billing grace from the verified renewal info", async () => {
+    const graceEnds = Date.now() + 86_400_000;
+    appleMocks.verifyAndDecodeTransaction.mockImplementation(
+      async (jws: string) =>
+        jws === "latest.signed.transaction"
+          ? { ...currentPlan, expiresDate: Date.now() - 3_600_000 }
+          : verifiedRenewal,
+    );
+    appleMocks.verifyAndDecodeRenewalInfo.mockResolvedValue({
+      gracePeriodExpiresDate: graceEnds,
+    });
+    appleMocks.getAllSubscriptionStatuses.mockResolvedValue({
+      data: [
+        {
+          lastTransactions: [
+            {
+              originalTransactionId: verifiedTransaction.originalTransactionId,
+              status: 4,
+              signedTransactionInfo: "latest.signed.transaction",
+              signedRenewalInfo: "latest.signed.renewal",
+            },
+          ],
+        },
+      ],
+    });
+    const ctx = context("pro_monthly");
+
+    await expect(
+      verifyAppStoreReceipt._handler(ctx as never, {
+        apiKey: "openiap-kit_pk_mobile",
+        jws: clientJws,
+      }),
+    ).resolves.toMatchObject({ isValid: false, state: "EXPIRED" });
+
+    expect(appleMocks.verifyAndDecodeRenewalInfo).toHaveBeenCalledWith(
+      "latest.signed.renewal",
+    );
+    expect(subscriptionWrites(ctx)).toEqual([
+      expect.objectContaining({
+        productId: "pro_monthly",
+        purchaseState: "ENTITLED",
+        subscriptionState: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+        expiresAt: graceEnds,
       }),
     ]);
   });

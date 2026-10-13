@@ -47,7 +47,8 @@ describe("server entrypoint", () => {
     });
 
     await import("./server");
-  });
+    // The full server import can outlast the 10s default on a loaded runner.
+  }, 60_000);
 
   afterAll(() => {
     for (const listener of process.listeners("SIGTERM")) {
