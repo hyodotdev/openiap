@@ -52,6 +52,8 @@ vi.mock("../../convex", () => ({
 }));
 
 const { commerceRoutes } = await import("./routes");
+const { hashApiKey } = await import("../v1/rate-limit");
+const { replayGuardMiddleware } = await import("../v1/replay-guard");
 const { commerceGraphqlSchema } = await import("./graphql");
 
 const SERVER_KEY = "openiap-kit_sk_unit";
@@ -1021,6 +1023,56 @@ describe("commerce verify admission on both bindings", () => {
     expect(prod.status).toBe(200);
     expect((await prod.json()).isValid).toBe(true);
     expect(mocks.action).toHaveBeenCalled();
+  });
+
+  it("does not charge store outages, so the payload still verifies on /v1 afterwards", async () => {
+    const app = buildApp();
+    const token = uniqueToken();
+    mocks.action.mockRejectedValue(new Error("store down"));
+    mocks.handleConvexError.mockReturnValue({
+      code: "PLAY_STORE_VERIFICATION_FAILED",
+      message: "Google Play did not respond",
+      retryAfterSec: 5,
+    });
+    // Past the 30-token budget: every attempt stays an outage, never RATE_LIMITED.
+    for (let attempt = 0; attempt < 35; attempt += 1) {
+      const response = await restVerify(app, token);
+      expect(response.status).toBe(502);
+      expect((await response.json()).error.code).toBe("VERIFICATION_FAILED");
+      // The protocol defines Retry-After for RATE_LIMITED only.
+      expect(response.headers.get("Retry-After")).toBeNull();
+    }
+
+    // /v1 keys the same receipt to the same shared bucket.
+    const v1 = new Hono<{ Variables: { apiKeyHash: string } }>();
+    v1.use("*", async (c, next) => {
+      c.set("apiKeyHash", hashApiKey(CLIENT_KEY));
+      await next();
+    });
+    v1.post(
+      "/verify",
+      replayGuardMiddleware({
+        getPayload: () => ({ store: "google", purchaseToken: token }),
+      }),
+      (c) => c.json({ isValid: true }, 200),
+    );
+    const recovered = await v1.request("/verify", { method: "POST" });
+    expect(recovered.status).toBe(200);
+  });
+
+  it("still charges failures that are not outages", async () => {
+    const app = buildApp();
+    const token = uniqueToken();
+    mocks.action.mockRejectedValue(new Error("misconfigured"));
+    mocks.handleConvexError.mockReturnValue({
+      code: "PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED",
+      message: "Android package name is not configured",
+    });
+    for (let attempt = 0; attempt < 30; attempt += 1)
+      expect((await restVerify(app, token)).status).not.toBe(429);
+    const denied = await restVerify(app, token);
+    expect(denied.status).toBe(429);
+    expect((await denied.json()).error.code).toBe("RATE_LIMITED");
   });
 });
 

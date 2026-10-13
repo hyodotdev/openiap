@@ -17,7 +17,11 @@ import {
 import { enforceVerifyResponseContract } from "./response-contract";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
-import { isStableRejection, replayGuardMiddleware } from "./replay-guard";
+import {
+  isStableRejection,
+  isStoreOutageError,
+  replayGuardMiddleware,
+} from "./replay-guard";
 import { inFlightLimitMiddleware } from "./in-flight-limit";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
@@ -554,7 +558,7 @@ const verifyPurchaseHandler = async (
       }
       // The store could not answer: no verdict, so not a permanent 400, and
       // the replay guard refunds the attempt as it does for SERVICE_BUSY.
-      if (convexError.retryAfterSec !== undefined) {
+      if (isStoreOutageError(convexError)) {
         c.set("verifyCapacityRejected", true);
         c.header("Retry-After", String(Math.max(1, convexError.retryAfterSec)));
         return c.json({ errors: [convexError] }, 503);

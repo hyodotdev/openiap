@@ -665,7 +665,7 @@ const SOURCE_LOCATION = new RegExp(
     // An absolute path ending in a source file: `/app/a.ts`, `C:\src\A.cs(9)`.
     String.raw`(?<![\w$@+~./\\-])${ABSOLUTE}(?:${SEGMENT}[/\\])*${SEGMENT}${SOURCE_EXT}(?=$|[^\w$@+~./\\-]|\.(?:$|[^\w$@+~/\\-]))`,
     // A quoted absolute path, spaces allowed: `"C:\Users\J Doe\A.cs"`.
-    String.raw`"${ABSOLUTE}[^"]*${SOURCE_EXT}"|'${ABSOLUTE}[^']*${SOURCE_EXT}'`,
+    String.raw`"${ABSOLUTE}[^"?#]*${SOURCE_EXT}"|'${ABSOLUTE}[^'?#]*${SOURCE_EXT}'`,
     // Bare-file frames: `f(A.kt:42)`, `File "a b/c.py", line 7`, `A.cs:line 9`.
     String.raw`[\w$]\(${SEGMENT}${SOURCE_EXT}:\d|File "[^"]*${SOURCE_EXT}", line \d|${SOURCE_EXT}:line \d`,
   ].join("|"),

@@ -161,57 +161,52 @@ interface StoreVerdict {
   stableRejection?: boolean;
 }
 
-// The store verification itself, without admission control. Kept separate so
-// the admission layer can wrap it identically for both bindings.
+// The store verification itself, without admission control. Store errors pass
+// through unconverted so admission can see an outage.
 async function verifyPurchaseVerdict(
   context: ProtocolContext,
   input: StoreEvidenceInput,
 ): Promise<StoreVerdict> {
   const common = { apiKey: context.apiKey, requestIp: context.requestIp };
-  try {
-    switch (input.store) {
-      case "apple": {
-        const apple = requireEvidence(input, input.apple);
-        return await client.action(
-          api.purchases.ios.verifyAppStoreReceiptInternalV1,
-          { ...common, jws: apple.jws },
-        );
-      }
-      case "google": {
-        const google = requireEvidence(input, input.google);
-        return await client.action(
-          api.purchases.android.verifyGooglePlayReceiptInternalV1,
-          { ...common, purchaseToken: google.purchaseToken },
-        );
-      }
-      case "horizon": {
-        const horizon = requireEvidence(input, input.horizon);
-        return await client.action(
-          api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
-          { ...common, userId: horizon.userId, sku: horizon.sku },
-        );
-      }
-      case "amazon": {
-        const amazon = requireEvidence(input, input.amazon);
-        return await client.action(
-          api.purchases.amazon.verifyAmazonReceiptInternalV1,
-          {
-            ...common,
-            userId: amazon.userId,
-            receiptId: amazon.receiptId,
-            sandbox: amazon.sandbox,
-          },
-        );
-      }
-      default:
-        throw new ProtocolOperationError(
-          "UNSUPPORTED_STORE",
-          "This provider does not integrate the named store",
-        );
+  switch (input.store) {
+    case "apple": {
+      const apple = requireEvidence(input, input.apple);
+      return await client.action(
+        api.purchases.ios.verifyAppStoreReceiptInternalV1,
+        { ...common, jws: apple.jws },
+      );
     }
-  } catch (error) {
-    if (error instanceof ProtocolOperationError) throw error;
-    rethrowAsProtocolError(error, "VERIFICATION_FAILED");
+    case "google": {
+      const google = requireEvidence(input, input.google);
+      return await client.action(
+        api.purchases.android.verifyGooglePlayReceiptInternalV1,
+        { ...common, purchaseToken: google.purchaseToken },
+      );
+    }
+    case "horizon": {
+      const horizon = requireEvidence(input, input.horizon);
+      return await client.action(
+        api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
+        { ...common, userId: horizon.userId, sku: horizon.sku },
+      );
+    }
+    case "amazon": {
+      const amazon = requireEvidence(input, input.amazon);
+      return await client.action(
+        api.purchases.amazon.verifyAmazonReceiptInternalV1,
+        {
+          ...common,
+          userId: amazon.userId,
+          receiptId: amazon.receiptId,
+          sandbox: amazon.sandbox,
+        },
+      );
+    }
+    default:
+      throw new ProtocolOperationError(
+        "UNSUPPORTED_STORE",
+        "This provider does not integrate the named store",
+      );
   }
 }
 
@@ -240,9 +235,13 @@ export async function verifyPurchase(
       admission.retryAfterSec,
     );
   }
-  const verdict = await admission.run(() =>
-    verifyPurchaseVerdict(context, input),
-  );
+  let verdict: StoreVerdict;
+  try {
+    verdict = await admission.run(() => verifyPurchaseVerdict(context, input));
+  } catch (error) {
+    if (error instanceof ProtocolOperationError) throw error;
+    rethrowAsProtocolError(error, "VERIFICATION_FAILED");
+  }
 
   return {
     store: input.store,

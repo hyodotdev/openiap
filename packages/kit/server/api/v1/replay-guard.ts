@@ -216,6 +216,36 @@ export function tryConsumeReplay(
 }
 
 /**
+ * Gives back the token an attempt without a verdict spent (capacity full, store
+ * outage), so honest backoff retries are not counted as duplicates.
+ */
+export function refundReplayToken(
+  store: Map<string, ReplayBucket>,
+  bucketKey: string,
+  capacity: number,
+): void {
+  const bucket = store.get(bucketKey);
+  // LRU churn can evict an in-flight request's bucket. Its absence already
+  // gives the next request a fresh bucket, so recreating it is unnecessary.
+  if (!bucket) return;
+  store.delete(bucketKey);
+  bucket.tokens = Math.min(capacity, bucket.tokens + 1);
+  store.set(bucketKey, bucket);
+}
+
+// Verification marks "the store did not answer" with retryAfterSec. RATE_LIMITED
+// carries one too, but it is a verdict on the caller, so it stays charged.
+export function isStoreOutageError<
+  T extends { code: string; retryAfterSec?: number },
+>(error: T | null): error is T & { retryAfterSec: number } {
+  return (
+    error !== null &&
+    error.code !== "RATE_LIMITED" &&
+    error.retryAfterSec !== undefined
+  );
+}
+
+/**
  * Starts the failure cooldown after the store definitively rejects a payload.
  * Thrown handler errors (network, config, missing project) never get here:
  * they aren't a store verdict, and a retry may succeed. Creates the bucket,
@@ -304,18 +334,6 @@ export function replayGuardMiddleware(
   const clock = config.now ?? (() => Date.now());
   const getPayload = config.getPayload ?? ((c) => c.req.valid("json"));
 
-  function refundCapacityRejectedAttempt(bucketKey: string): void {
-    const bucket = store.get(bucketKey);
-    if (!bucket) {
-      // LRU churn can evict an in-flight request's bucket. Its absence already
-      // gives the next request a fresh bucket, so recreating it is unnecessary.
-      return;
-    }
-    store.delete(bucketKey);
-    bucket.tokens = Math.min(capacity, bucket.tokens + 1);
-    store.set(bucketKey, bucket);
-  }
-
   return createMiddleware<ReplayGuardEnv, string, ReplayGuardInput>(
     async (c, next) => {
       const apiKeyHash = c.var.apiKeyHash;
@@ -381,7 +399,7 @@ export function replayGuardMiddleware(
         if (c.get("verifyCapacityRejected") === true) {
           // SERVICE_BUSY and a store outage carry no verdict; charging them
           // would turn honest backoff retries into DUPLICATE_PAYLOAD.
-          refundCapacityRejectedAttempt(bucketKey);
+          refundReplayToken(store, bucketKey, capacity);
         } else {
           // In `finally` so a handler exception can't skip marking a stable
           // rejection. Horizon is exempt: it checks current ownership of

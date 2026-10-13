@@ -4065,6 +4065,10 @@ describe("the runner judges what a binding could otherwise hide", () => {
         "a quoted Python traceback path",
         'File "/Users/John Doe/app/verify.py", line 42, in verify',
       ],
+      [
+        "a relative traceback path with a space",
+        'File "my app/verify.py", line 7, in verify',
+      ],
       ["a quoted Windows path", '"C:\\Users\\John Doe\\src\\Billing.cs"'],
       ["a single-quoted path", "'/Users/John Doe/app/verify.ts'"],
       ["a glog location", "verify.go:42] failed"],
@@ -4135,6 +4139,7 @@ describe("the runner judges what a binding could otherwise hide", () => {
           "dial api.example.rs:443: i/o timeout",
           "upstream api.example.rs:443: connection refused",
           "requires Node.js:18: patch missing",
+          'GET "/v1/products?sku=gold.m" failed',
           "see /v1.2.3/app.js-legacy",
           "keep /app/main.go.bak out of it",
           'expected "/v1/purchases" but got "app.ts"',
