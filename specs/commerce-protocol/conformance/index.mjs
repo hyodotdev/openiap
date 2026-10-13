@@ -649,20 +649,25 @@ const SCRIPT_EXT = String.raw`\.[cm]?[jt]sx?`;
 const OTHER_EXT = String.raw`\.(?:kts?|java|scala|swift|go|rb|cs|rs|php|dart|py|c|cc|cpp|cxx|h|hpp|m|mm|gd)`;
 const SOURCE_EXT = `(?:${SCRIPT_EXT}|${OTHER_EXT})`;
 const SEGMENT = String.raw`[\w$@+~.-]*`;
-// SPEC.md 8 bans source paths and stack frames. Segments cannot contain a
-// separator, so no two quantifiers overlap and the scan stays linear.
+const ABSOLUTE = String.raw`(?:[A-Za-z]:)?[/\\]`;
+// SPEC.md 8 bans source paths and stack frames. Best effort over common frame,
+// line-numbered, and absolute-path forms; known limits: an unquoted path with
+// spaces passes, and an apex domain whose TLD is a source extension
+// (`example.cc:443:`) is flagged. No two quantifiers share a run: linear.
 const SOURCE_LOCATION = new RegExp(
   [
     // A located file. JS/TS always prints a column (`a.ts:12:4`), so
-    // `Node.js:18:` stays prose; others (`main.go:42:`) need a dot-free stem,
-    // so `api.example.rs:443:` does too.
-    String.raw`${SCRIPT_EXT}:\d+:\d|(?<![\w$.@+~-])[\w$@+~-]+${OTHER_EXT}:\d+:`,
+    // `Node.js:18:` stays prose; others (`main.go:42:`, `[a.py:42]`) need a
+    // dot-free stem, so `api.example.rs:443:` does too.
+    String.raw`${SCRIPT_EXT}:\d+:\d|(?<![\w$.@+~-])[\w$@+~-]+${OTHER_EXT}:\d+[:\]]`,
     // A path whose last segment is a source file with a line: `tests/a.py:42`.
     String.raw`[/\\]${SEGMENT}${SOURCE_EXT}:\d`,
     // An absolute path ending in a source file: `/app/a.ts`, `C:\src\A.cs(9)`.
-    String.raw`(?<![\w$@+~./\\-])(?:[A-Za-z]:)?[/\\](?:${SEGMENT}[/\\])*${SEGMENT}${SOURCE_EXT}(?=$|\.(?:\s|$)|[^\w$@+~./\\-])`,
-    // Bare-file frames: `f(A.kt:42)`, `File "a.py", line 7`, `A.cs:line 9`.
-    String.raw`[\w$]\(${SEGMENT}${SOURCE_EXT}:\d|File "${SEGMENT}${SOURCE_EXT}", line \d|${SOURCE_EXT}:line \d`,
+    String.raw`(?<![\w$@+~./\\-])${ABSOLUTE}(?:${SEGMENT}[/\\])*${SEGMENT}${SOURCE_EXT}(?=$|[^\w$@+~./\\-]|\.(?:$|[^\w$@+~/\\-]))`,
+    // A quoted absolute path, spaces allowed: `"C:\Users\J Doe\A.cs"`.
+    String.raw`"${ABSOLUTE}[^"]*${SOURCE_EXT}"|'${ABSOLUTE}[^']*${SOURCE_EXT}'`,
+    // Bare-file frames: `f(A.kt:42)`, `File "a b/c.py", line 7`, `A.cs:line 9`.
+    String.raw`[\w$]\(${SEGMENT}${SOURCE_EXT}:\d|File "[^"]*${SOURCE_EXT}", line \d|${SOURCE_EXT}:line \d`,
   ].join("|"),
   "u",
 );
