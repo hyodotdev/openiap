@@ -646,15 +646,25 @@ function entitlementsInvariants(data, input) {
 }
 
 const SOURCE_EXT = String.raw`\.(?:[cm]?[jt]sx?|kts?|java|scala|swift|go|rb|cs|rs|php|dart|py)`;
-// A source path after a separator (`/app/secrets.ts`, `C:\src\Main.cs`), or a
-// bare source file in a stack frame (`verify(Billing.kt:42)`, `at app.js:3:9`,
-// `X.cs:line 12`, `File "app.py", line 7`). No quantifiers overlap: linear.
+const SEGMENT = String.raw`[\w$@+~.-]*`;
+// SPEC.md 8 bans source paths and stack frames. Segments cannot contain a
+// separator, so no two quantifiers overlap and the scan stays linear.
 const SOURCE_LOCATION = new RegExp(
-  String.raw`[/\\][\w$.-]+${SOURCE_EXT}\b|(?:[\w$]\(|\bat |File ")[\w$.-]+${SOURCE_EXT}(?::\d|", line \d)|${SOURCE_EXT}:line \d`,
+  [
+    // A located file anywhere: `main.go:42:`, `a.ts:12:4`, `a.rb:12:in`.
+    String.raw`${SOURCE_EXT}:\d+:`,
+    // A path whose last segment is a source file with a line: `tests/a.py:42`.
+    String.raw`[/\\]${SEGMENT}${SOURCE_EXT}:\d`,
+    // An absolute path ending in a source file: `/app/a.ts`, `C:\src\A.cs`.
+    String.raw`(?<![\w$@+~./\\-])(?:[A-Za-z]:)?[/\\](?:${SEGMENT}[/\\])*${SEGMENT}${SOURCE_EXT}(?=$|[\s"'),;]|:\d|\.(?:\s|$))`,
+    // Bare-file frames: `f(A.kt:42)`, `File "a.py", line 7`, `A.cs:line 9`.
+    String.raw`[\w$]\(${SEGMENT}${SOURCE_EXT}:\d|File "${SEGMENT}${SOURCE_EXT}", line \d|${SOURCE_EXT}:line \d`,
+  ].join("|"),
   "u",
 );
-// A URL's path is not an implementation path; a hostless `file:///` one is.
-const URL_WITH_HOST = /\b[a-z][a-z\d+.-]{0,30}:\/\/[^\s/]\S*/giu;
+// An http(s) URL's path is not an implementation path; another scheme's
+// (`webpack://`, `file://`) is, so only its prefix is dropped.
+const URL_PREFIX = /\bhttps?:\/\/\S*|\b[a-z][a-z\d+.-]{0,30}:\/\//giu;
 
 /**
  * SPEC.md 8 hygiene, shared by the vector envelope checks AND the executor
@@ -680,9 +690,7 @@ function errorHygieneFailures(errors, forbidden, context) {
       );
     }
     if (
-      leaves.some((leaf) =>
-        SOURCE_LOCATION.test(leaf.replace(URL_WITH_HOST, " ")),
-      )
+      leaves.some((leaf) => SOURCE_LOCATION.test(leaf.replace(URL_PREFIX, " ")))
     ) {
       failures.push(
         `${context}: an error discloses a stack trace or source path (SPEC.md 8)`,

@@ -4034,13 +4034,19 @@ describe("the runner judges what a binding could otherwise hide", () => {
         },
       }),
     ],
-    [
-      "a JVM frame in the message",
-      (error) => ({
-        ...error,
-        message: `${error.message} at dev.example.Billing.verify(Billing.kt:42)`,
-      }),
-    ],
+    ...[
+      ["a JVM frame", "at dev.example.Billing.verify(Billing.kt:42)"],
+      ["a V8 frame with a bare file", "at verify (secrets.ts:12:4)"],
+      ["a Go location", "main.go:42: verify failed"],
+      ["a Ruby frame", "billing.rb:12:in `verify'"],
+      ["a Swift location", "Billing.swift:42: Fatal error"],
+      ["a webpack source path", "webpack://my-app/./src/secrets.ts:12:4"],
+      ["a Windows source path", "(C:\\src\\app\\Main.cs)"],
+      ["a pytest location", "tests/test_verify.py:42"],
+    ].map(([where, text]) => [
+      `${where} in the message`,
+      (error) => ({ ...error, message: `${error.message} ${text}` }),
+    ]),
     [
       "a source path without a line",
       (error) => ({
@@ -4049,20 +4055,6 @@ describe("the runner judges what a binding could otherwise hide", () => {
           ...error.extensions,
           debug: { source: "/app/convex/secrets.ts" },
         },
-      }),
-    ],
-    [
-      "a Windows source path",
-      (error) => ({
-        ...error,
-        message: `${error.message} (C:\\src\\app\\Main.cs)`,
-      }),
-    ],
-    [
-      "a pytest location",
-      (error) => ({
-        ...error,
-        message: `${error.message} tests/test_verify.py:42`,
       }),
     ],
   ])("fails a GraphQL error that discloses %s", async (_where, rewrite) => {
@@ -4091,6 +4083,10 @@ describe("the runner judges what a binding could otherwise hide", () => {
           "load https://cdn.example.com/sdk/v1.2.3/app.js",
           "openiap-apple 4.0.2; see /v1/purchases/verify",
           "upload the AuthKey.p8 file",
+          "Pin the runtime at Node.js:18",
+          "retry at api.example.rs:443",
+          "applications/com.example.go/purchases/subscriptions/tokens/abc",
+          "relative paths without a line pass: src/secrets.ts",
         ],
       },
     }));

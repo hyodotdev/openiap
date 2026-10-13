@@ -48,11 +48,19 @@ jobs:
       - name: Validate package version metadata
         run: node scripts/release-branch-policy.mjs audit
 
-      # HEAD^1 is the PR base (or the previous main commit on push).
+      # A PR compares against its base (HEAD^1 of the merge commit); a push, which can
+      # carry several commits, against the main tip before it.
       - name: Audit plugin manifests
-        run: >-
-          node --test scripts/audit-plugin-manifests.test.mjs &&
-          node scripts/audit-plugin-manifests.mjs HEAD^1
+        env:
+          PUSH_BASE: ${{ github.event_name == 'push' && github.event.before || '' }}
+        run: |
+          node --test scripts/audit-plugin-manifests.test.mjs
+          BASE=HEAD^1
+          if [ -n "$PUSH_BASE" ]; then
+            git fetch --no-tags --depth=1 origin "$PUSH_BASE"
+            BASE="$PUSH_BASE"
+          fi
+          node scripts/audit-plugin-manifests.mjs "$BASE"
 
       - name: Require a release note for published source changes
         if: github.event_name == 'pull_request' && github.base_ref == 'main'

@@ -235,6 +235,8 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         val requestedSkus = params.androidSkus()
         // Published inside this call: its own. From a Play callback: the latest may still be an earlier
         // request's, so it counts only without an own failure. Published inside another call: not ours.
+        // Known limit: overlapping requests can still swap callback errors; exact pairing needs request
+        // ids on openiap-google's error events.
         val ownFailure = AtomicReference<AndroidOpenIapError?>()
         val callbackFailure = AtomicReference<AndroidOpenIapError?>()
         // The module tags request failures with the requested SKU, or none when it cannot pick one.
