@@ -1303,6 +1303,8 @@ describe("Apple .p8 keys", () => {
         "apple_p8_asc_api_key",
       ),
       key("k2_newer_key", "organizations_a", "projects_k2"),
+      // A legacy duplicate: projects_k1 still signs with its oldest row.
+      key("k1_newer_duplicate", "organizations_a", "projects_k1"),
       key("other_org_key", "organizations_f", "projects_f"),
     ];
     const db = new TestDb(

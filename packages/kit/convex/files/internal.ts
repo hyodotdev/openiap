@@ -201,10 +201,10 @@ export async function getProjectAppleP8File(
 
 // One App Store Connect key serves the whole team, so a project may sign with a
 // .p8 uploaded elsewhere in its organization. This project's active key first,
-// then the newest of another project configured with the same key ID (the JWT
-// `kid`), then the newest organization-level key, which records no key ID, and
-// last the organization's oldest key, as earlier releases used. Never another
-// organization's.
+// then the active key of the newest-uploading project configured with the same
+// key ID (the JWT `kid`), then the newest organization-level key, which records
+// no key ID, and last the organization's oldest key, as earlier releases used.
+// Never another organization's.
 export const getAppleP8KeyFile = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -239,7 +239,9 @@ export const getAppleP8KeyFile = internalQuery({
           args.purpose === "apple_p8_key"
             ? owner?.iosAppStoreKeyId
             : owner?.iosAscKeyId;
-        if (ownerKeyId === args.keyId) return file;
+        if (ownerKeyId === args.keyId) {
+          return await getProjectAppleP8File(ctx, file.projectId, args.purpose);
+        }
       }
     }
     return organizationKey ?? oldestKey;

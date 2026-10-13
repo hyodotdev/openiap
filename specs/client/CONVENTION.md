@@ -257,7 +257,8 @@ dispatches on the leaf name. GDScript has no union classes: a union-typed field
 holds the dictionary it received as a `Variant`, so it keeps whatever
 `__typename` the native bridge sent but never adds or checks one.
 `src/generated-wire.test.ts` round-trips one payload through every installed
-Swift, Dart, and .NET toolchain, and requires all three in CI.
+Swift, Dart, and .NET toolchain; CI's `test-gql` job, which installs all three,
+sets `OPENIAP_WIRE_TOOLCHAINS=required` to fail when one is missing.
 
 ### Scripts
 

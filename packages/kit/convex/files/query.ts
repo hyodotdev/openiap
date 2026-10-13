@@ -7,7 +7,10 @@ import {
   getWritableOrganization,
   getWritableProject,
 } from "../projects/writable";
-import { getProjectAppleP8File } from "./internal";
+import {
+  getGooglePlayFileByProjectFromDb,
+  getProjectAppleP8File,
+} from "./internal";
 
 async function getPendingProjectIdsForOrganization(
   ctx: QueryCtx,
@@ -313,8 +316,7 @@ export const getAppStoreFileByProject = query({
 });
 
 // The App Store Connect API key: a different .p8 than
-// `getAppStoreFileByProject` returns (see schema.ts). Used by `products/asc.ts`
-// push-sync.
+// `getAppStoreFileByProject` returns (see schema.ts).
 export const getAscApiKeyFileByProject = query({
   args: {
     projectId: v.id("projects"),
@@ -382,14 +384,7 @@ export const getGooglePlayFileByProject = query({
       return null;
     }
 
-    const projectFiles = await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-
-    const googlePlayFile = projectFiles.find(
-      (f) => f.purpose === "android_service_account",
-    );
+    const googlePlayFile = await getGooglePlayFileByProjectFromDb(ctx, project);
 
     if (!googlePlayFile) {
       return null;
