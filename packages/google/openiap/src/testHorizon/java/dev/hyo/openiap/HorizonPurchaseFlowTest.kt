@@ -15,6 +15,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import java.lang.reflect.Field
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlinx.coroutines.runBlocking
@@ -253,7 +254,70 @@ class HorizonPurchaseFlowTest {
         assertEquals(listOf("purchase-token"), updates.map { it.purchaseToken })
     }
 
+    @Test
+    fun `a late callback for a purchase polling delivered does not resolve the next request`() {
+        val client = FlowBillingClient()
+        val module = module(client)
+        val updates = CopyOnWriteArrayList<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+        // Polling finds A before Horizon's callback for it arrives.
+        client.purchaseOnLaunch = horizonPurchase(purchaseTime = 1L, token = "token-a")
+        assertEquals(listOf("token-a"), requestPurchase(module).map { it.purchaseToken })
+
+        // The app consumes A and buys the same SKU again; then A's callback arrives late.
+        client.owned = emptyList()
+        client.purchaseOnLaunch = null
+        val second = startPurchase(module)
+        awaitCondition { client.launches == 2 }
+        val update = billingResult(BillingClient.BillingResponseCode.OK)
+        module.onPurchasesUpdated(client, 0L, update, listOf(horizonPurchase(1L, token = "token-a")))
+        module.onPurchasesUpdated(client, 0L, update, listOf(horizonPurchase(2L, token = "token-b")))
+        awaitCondition { second.get() != null }
+
+        assertEquals(listOf("token-b"), purchasesOf(second).map { it.purchaseToken })
+        assertEquals(listOf("token-a", "token-b"), updates.map { it.purchaseToken })
+    }
+
+    @Test
+    fun `a callback whose connection drops before delivery is not claimed`() {
+        val client = FlowBillingClient()
+        val module = module(client)
+        val updates = CopyOnWriteArrayList<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        val update = billingResult(BillingClient.BillingResponseCode.OK)
+        val dropped = AtomicBoolean(false)
+        val logging = OpenIapLog.isEnabled
+        // The last log line before delivery is the only seam between the owner check and delivery.
+        OpenIapLog.setHandler { _, message, _ ->
+            if (message.startsWith("Mapped ") && dropped.compareAndSet(false, true)) {
+                module.handleBillingServiceDisconnected(client)
+            }
+        }
+        OpenIapLog.enable(true)
+        try {
+            module.onPurchasesUpdated(client, 0L, update, listOf(horizonPurchase(1L)))
+        } finally {
+            OpenIapLog.setHandler(null)
+            OpenIapLog.enable(logging)
+        }
+        assertTrue(dropped.get())
+        assertTrue("an inactive connection must not deliver: $updates", updates.isEmpty())
+
+        // The next connection reports the same purchase; it must still reach listeners.
+        billingClientField().set(module, client)
+        module.onPurchasesUpdated(client, 1L, update, listOf(horizonPurchase(1L)))
+
+        assertEquals(listOf("purchase-token"), updates.map { it.purchaseToken })
+    }
+
     private fun requestPurchase(module: OpenIapModule): List<Purchase> {
+        val outcome = startPurchase(module)
+        awaitCondition { outcome.get() != null }
+        return purchasesOf(outcome)
+    }
+
+    private fun startPurchase(module: OpenIapModule): AtomicReference<Result<RequestPurchaseResult?>> {
         module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
         val props = RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Purchase(
@@ -264,11 +328,13 @@ class HorizonPurchaseFlowTest {
             type = ProductQueryType.InApp,
         )
         val outcome = AtomicReference<Result<RequestPurchaseResult?>>()
-        val worker = thread(isDaemon = true) {
+        thread(isDaemon = true) {
             outcome.set(runCatching { runBlocking { module.requestPurchase(props) } })
         }
-        awaitCondition { outcome.get() != null }
-        worker.join(1_000)
+        return outcome
+    }
+
+    private fun purchasesOf(outcome: AtomicReference<Result<RequestPurchaseResult?>>): List<Purchase> {
         val result = checkNotNull(outcome.get()) { "requestPurchase never completed" }
         return (result.getOrThrow() as RequestPurchaseResultPurchases).value.orEmpty()
     }
@@ -284,11 +350,11 @@ class HorizonPurchaseFlowTest {
 
     private fun module(client: BillingClient): OpenIapModule =
         OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>()).also {
-            OpenIapModule::class.java.getDeclaredField("billingClient").apply {
-                isAccessible = true
-                set(it, client)
-            }
+            billingClientField().set(it, client)
         }
+
+    private fun billingClientField(): Field =
+        OpenIapModule::class.java.getDeclaredField("billingClient").apply { isAccessible = true }
 
     private fun pendingPurchaseField(): Field =
         OpenIapModule::class.java.getDeclaredField("pendingPurchase").apply {
@@ -331,9 +397,10 @@ class HorizonPurchaseFlowTest {
     private fun horizonPurchase(
         purchaseTime: Long,
         productId: String = "product-id",
+        token: String = "purchase-token",
     ): HorizonPurchase = HorizonPurchase(
         purchaseTime,
-        "purchase-token",
+        token,
         listOf(productId),
         "dev.hyo.openiap.test",
         "",
@@ -345,7 +412,7 @@ class HorizonPurchaseFlowTest {
 
     private class FlowBillingClient(
         var launchResponseCode: Int = BillingResponseCode.OK,
-        private val owned: List<HorizonPurchase> = emptyList(),
+        @Volatile var owned: List<HorizonPurchase> = emptyList(),
         private val details: List<HorizonProductDetails> = listOf(
             HorizonProductDetails(
                 "product-id",
@@ -365,8 +432,16 @@ class HorizonPurchaseFlowTest {
             listener.onProductDetailsResponse(result(BillingResponseCode.OK), details)
         }
 
-        override fun launchBillingFlow(activity: Activity, params: BillingFlowParams): BillingResult =
-            result(launchResponseCode)
+        /** Owned once the flow launches, as when the user completes the purchase. */
+        var purchaseOnLaunch: HorizonPurchase? = null
+
+        @Volatile var launches = 0
+
+        override fun launchBillingFlow(activity: Activity, params: BillingFlowParams): BillingResult {
+            launches += 1
+            purchaseOnLaunch?.let { owned = owned + it }
+            return result(launchResponseCode)
+        }
 
         override fun queryPurchasesAsync(
             queryPurchasesParams: QueryPurchasesParams,

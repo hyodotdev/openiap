@@ -340,7 +340,12 @@ export async function getAppStoreServerCredentials(
 
   let privateKey: string | null = null;
   try {
-    privateKey = await readAppleP8Key(ctx, project._id, "apple_p8_key");
+    privateKey = await readAppleP8Key(
+      ctx,
+      project._id,
+      "apple_p8_key",
+      project.iosAppStoreKeyId,
+    );
   } catch (error) {
     console.error("Failed to load Apple P8 key:", describeError(error));
   }

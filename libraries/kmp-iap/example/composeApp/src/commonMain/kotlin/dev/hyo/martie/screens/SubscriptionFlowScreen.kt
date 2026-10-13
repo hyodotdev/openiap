@@ -99,9 +99,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
         ExampleReceiptRecovery { subscriptionProductId(it) in SUBSCRIPTION_IDS }
     }
     fun handlePurchased(purchase: Purchase) {
+        // A deduped redelivery (e.g. already-owned recovery) still ends the request.
+        isProcessing = false
         val method = verificationMethod
         if (!receiptRecovery.retain(purchase)) return
-        isProcessing = false
         if (method == VerificationMethod.None) {
             purchaseResult = "Receipt retained. Choose verification to retry this receipt."
             return

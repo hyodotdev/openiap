@@ -80,11 +80,34 @@ public class ObservableInfrastructureTests
         Assert.Empty(observer.Values);
     }
 
-    private sealed class RecordingObserver : IObserver<int>
+    [Fact]
+    public void Subject_CompletionDuringFanOutStopsDeliveryAndCompletesLateSubscribers()
+    {
+        var subject = new Subject<int>();
+        // The first observer ends the stream from its callback, as disposing the client does.
+        var completing = new RecordingObserver(onNext: subject.OnCompleted);
+        var second = new RecordingObserver();
+        using var first = subject.Subscribe(completing);
+        using var other = subject.Subscribe(second);
+
+        subject.OnNext(1);
+        var late = new RecordingObserver();
+        using var lateSubscription = subject.Subscribe(late);
+
+        Assert.Equal(1, second.Completions);
+        Assert.Empty(second.Values);
+        Assert.Equal(1, late.Completions);
+    }
+
+    private sealed class RecordingObserver(Action? onNext = null) : IObserver<int>
     {
         public List<int> Values { get; } = new();
         public int Completions { get; private set; }
-        public void OnNext(int value) => Values.Add(value);
+        public void OnNext(int value)
+        {
+            Values.Add(value);
+            onNext?.Invoke();
+        }
         public void OnError(Exception error) { }
         public void OnCompleted() => Completions++;
     }

@@ -10,6 +10,7 @@ import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseError
+import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.UserChoiceBillingDetails
@@ -199,16 +200,24 @@ fun isPurchaseForPendingRequest(
  */
 class PurchaseDeliveryClaims(private val maximumSize: Int = 100) {
     private val lock = Any()
-    private val keys = linkedSetOf<String>()
+    private val keys = linkedSetOf<Pair<String, PurchaseState>>()
 
     fun claim(purchase: Purchase): Boolean = synchronized(lock) {
-        val stableId = purchase.purchaseToken?.takeIf(String::isNotBlank)
-            ?: purchase.id.takeIf(String::isNotBlank)
-            ?: "${purchase.productId}:${purchase.transactionDate}"
-        if (!keys.add("$stableId:${purchase.purchaseState.rawValue}")) return@synchronized false
+        if (!keys.add(stableId(purchase) to purchase.purchaseState)) return@synchronized false
         while (keys.size > maximumSize) keys.remove(keys.first())
         true
     }
+
+    /** Whether [purchase] was claimed in any purchase state. */
+    fun hasDelivered(purchase: Purchase): Boolean = synchronized(lock) {
+        val id = stableId(purchase)
+        keys.any { (claimedId, _) -> claimedId == id }
+    }
+
+    private fun stableId(purchase: Purchase): String =
+        purchase.purchaseToken?.takeIf(String::isNotBlank)
+            ?: purchase.id.takeIf(String::isNotBlank)
+            ?: "${purchase.productId}:${purchase.transactionDate}"
 }
 
 /** Claims [current] for one terminal result when [owns] accepts it. */

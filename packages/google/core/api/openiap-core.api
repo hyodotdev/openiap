@@ -4446,6 +4446,7 @@ public final class dev/hyo/openiap/helpers/PurchaseDeliveryClaims {
 	public fun <init> (I)V
 	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun claim (Ldev/hyo/openiap/Purchase;)Z
+	public final fun hasDelivered (Ldev/hyo/openiap/Purchase;)Z
 }
 
 public abstract interface class dev/hyo/openiap/helpers/PurchaseTokenSettler {

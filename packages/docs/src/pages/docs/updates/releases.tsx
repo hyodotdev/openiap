@@ -788,7 +788,8 @@ function Releases() {
                   <code>productId</code> still shows the SKU Horizon reports.
                 </li>
                 <li>
-                  Stale pending or unconsumed purchases no longer resolve a new
+                  Stale pending, unconsumed, or already-delivered purchases,
+                  such as a late Horizon callback, no longer resolve a new
                   request.
                 </li>
                 <li>
@@ -935,6 +936,12 @@ function Releases() {
                   <code>initConnection</code>, and a promoted product tapped
                   before then waits until you listen to{' '}
                   <code>purchasePromoted</code>.
+                </li>
+                <li>
+                  Swift Package Manager builds require openiap-apple 4.0.1 or
+                  later, fixing{' '}
+                  <code>Cannot find &apos;VerifyAppOwnershipProps&apos;</code>{' '}
+                  in apps still resolved to 4.0.0.
                 </li>
                 <li>
                   Android engines in one process share a billing client; an

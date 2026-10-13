@@ -1650,7 +1650,9 @@ class OpenIapModule(
                                     purchaseToken = purchase.purchaseToken,
                                     requestedSkus = request.requestedSkus,
                                     tokensBeforeLaunch = request.tokensBeforeLaunch,
-                                )
+                                ) &&
+                                // Already delivered in any state: an earlier purchase, not this request's.
+                                !purchaseDeliveryClaims.hasDelivered(purchase.toPurchase())
                         }
                         val cachedSubscriptionProductIds = productIds.filterTo(mutableSetOf()) {
                             productManager.get(it, BillingClient.ProductType.SUBS) != null

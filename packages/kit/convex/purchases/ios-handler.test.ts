@@ -137,6 +137,12 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     expect(
       appleMocks.verifyAndDecodeTransaction.mock.invocationCallOrder[0],
     ).toBeLessThan(appleMocks.getTransactionInfo.mock.invocationCallOrder[0]);
+    // The key is selected for the `kid` the Server API JWT will carry.
+    expect(ctx.runQuery).toHaveBeenCalledWith(expect.anything(), {
+      projectId: project._id,
+      purpose: "apple_p8_key",
+      keyId: project.iosAppStoreKeyId,
+    });
   });
 
   it("never asks the Server API about a client JWS that fails signature verification", async () => {

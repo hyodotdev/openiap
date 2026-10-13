@@ -206,8 +206,8 @@ async function resolveAscCredentials(
   // Dedicated ASC .p8 first, else the Server API one; `call()`'s 401 hint
   // covers the wrong kind.
   const keyContent =
-    (await readAppleP8Key(ctx, project._id, "apple_p8_asc_api_key")) ??
-    (await readAppleP8Key(ctx, project._id, "apple_p8_key"));
+    (await readAppleP8Key(ctx, project._id, "apple_p8_asc_api_key", keyId)) ??
+    (await readAppleP8Key(ctx, project._id, "apple_p8_key", keyId));
   if (!keyContent) {
     throw new Error(
       options.detailedErrors

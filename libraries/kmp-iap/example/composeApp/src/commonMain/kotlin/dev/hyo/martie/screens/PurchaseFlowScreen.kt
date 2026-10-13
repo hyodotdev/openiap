@@ -100,9 +100,10 @@ fun PurchaseFlowScreen(navController: NavController) {
     
     val receiptRecovery = remember { ExampleReceiptRecovery { it.productId in PRODUCT_IDS } }
     fun handlePurchased(purchase: Purchase) {
+        // A deduped redelivery (e.g. already-owned recovery) still ends the request.
+        isProcessing = false
         val method = verificationMethod
         if (!receiptRecovery.retain(purchase)) return
-        isProcessing = false
         if (method == VerificationMethod.None) {
             purchaseResult = "Receipt retained. Choose verification to retry this receipt."
             return
@@ -256,6 +257,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         launch {
             kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
+                if (purchase.productId !in PRODUCT_IDS) return@collect
                 currentPurchase = purchase
 
                 when (purchase.purchaseState) {

@@ -143,6 +143,10 @@ class TestQuery {
   async take(count: number): Promise<Row[]> {
     return this.rows.slice(0, count);
   }
+
+  async *[Symbol.asyncIterator](): AsyncGenerator<Row> {
+    yield* this.rows;
+  }
 }
 
 class TestDb {
@@ -1222,52 +1226,90 @@ describe("Apple .p8 keys", () => {
     expect(admin.storage.delete).toHaveBeenCalledWith("storage_old_key");
   });
 
-  it("reads this project's key, then the organization's, then a sibling's, never another organization's", async () => {
-    const key = (_id: string, organizationId: string, projectId?: string) => ({
+  it("shares another project's key only when it is configured with the same key ID", async () => {
+    const key = (
+      _id: string,
+      organizationId: string,
+      projectId?: string,
+      purpose = "apple_p8_key",
+    ) => ({
       _id,
       organizationId,
       ...(projectId ? { projectId } : {}),
-      purpose: "apple_p8_key",
+      purpose,
     });
     const files = [
       key("a_old", "organizations_a", "projects_a"),
-      key("org_old", "organizations_a"),
-      key("other_org", "organizations_b"),
-      key("org_new", "organizations_a"),
       key("a_new", "organizations_a", "projects_a"),
-      key("sibling_old", "organizations_e", "projects_e1"),
-      key("sibling_new", "organizations_e", "projects_e2"),
-      key("foreign_org_newest", "organizations_f", "projects_f1"),
+      key("k1_key", "organizations_a", "projects_k1"),
+      key(
+        "k1_asc_key",
+        "organizations_a",
+        "projects_k1",
+        "apple_p8_asc_api_key",
+      ),
+      key("k2_newer_key", "organizations_a", "projects_k2"),
+      key("other_org_key", "organizations_f", "projects_f"),
     ];
     const db = new TestDb(
       {
         projects: [
           { _id: "projects_a", organizationId: "organizations_a" },
           { _id: "projects_c", organizationId: "organizations_a" },
-          { _id: "projects_e3", organizationId: "organizations_e" },
-          { _id: "projects_d", organizationId: "organizations_d" },
+          {
+            _id: "projects_k1",
+            organizationId: "organizations_a",
+            iosAppStoreKeyId: "K1",
+            iosAscKeyId: "ASC1",
+          },
+          {
+            _id: "projects_k2",
+            organizationId: "organizations_a",
+            iosAppStoreKeyId: "K2",
+          },
+          {
+            _id: "projects_f",
+            organizationId: "organizations_f",
+            iosAppStoreKeyId: "K3",
+          },
         ],
         files,
       },
       {},
     );
-    const lookup = (projectId: string) =>
+    const lookup = (
+      projectId: string,
+      keyId?: string,
+      purpose: "apple_p8_key" | "apple_p8_asc_api_key" = "apple_p8_key",
+    ) =>
       getAppleP8KeyFile._handler(
         { db },
-        { projectId: projectId as Id<"projects">, purpose: "apple_p8_key" },
+        { projectId: projectId as Id<"projects">, purpose, keyId },
       );
 
-    await expect(lookup("projects_a")).resolves.toMatchObject({
+    await expect(lookup("projects_a", "K2")).resolves.toMatchObject({
       _id: "a_new",
     });
-    // An organization-level key wins over a newer sibling project's key.
-    files.push(key("a_sibling_newest", "organizations_a", "projects_b"));
-    await expect(lookup("projects_c")).resolves.toMatchObject({
-      _id: "org_new",
+    // The older K1 key, not the newer sibling's K2 key.
+    await expect(lookup("projects_c", "K1")).resolves.toMatchObject({
+      _id: "k1_key",
     });
-    await expect(lookup("projects_e3")).resolves.toMatchObject({
-      _id: "sibling_new",
+    await expect(lookup("projects_c", "K2")).resolves.toMatchObject({
+      _id: "k2_newer_key",
     });
-    await expect(lookup("projects_d")).resolves.toBeNull();
+    await expect(
+      lookup("projects_c", "ASC1", "apple_p8_asc_api_key"),
+    ).resolves.toMatchObject({ _id: "k1_asc_key" });
+    await expect(lookup("projects_c", "ASC1")).resolves.toBeNull();
+    await expect(lookup("projects_c", "K3")).resolves.toBeNull();
+    await expect(lookup("projects_c")).resolves.toBeNull();
+    // An organization-level key records no key ID, so it comes last.
+    files.push(key("org_key", "organizations_a"));
+    await expect(lookup("projects_c", "K1")).resolves.toMatchObject({
+      _id: "k1_key",
+    });
+    await expect(lookup("projects_c", "K9")).resolves.toMatchObject({
+      _id: "org_key",
+    });
   });
 });

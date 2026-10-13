@@ -184,14 +184,16 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
   },
 });
 
-// One App Store Connect key serves the whole team, so a project may rely on a
-// key uploaded elsewhere in its organization. Newest first: this project's,
-// then an organization-level key (no projectId), then a sibling project's.
-// Never another organization's.
+// One App Store Connect key serves the whole team, so a project may sign with a
+// .p8 uploaded elsewhere in its organization. Newest first: this project's,
+// then another project's configured with the same key ID (the JWT `kid`), then
+// an organization-level key, which records no key ID. Never another
+// organization's.
 export const getAppleP8KeyFile = internalQuery({
   args: {
     projectId: v.id("projects"),
     purpose: appleP8PurposeValidator,
+    keyId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const projectKey = await ctx.db
@@ -204,32 +206,41 @@ export const getAppleP8KeyFile = internalQuery({
     if (projectKey) return projectKey;
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
-    const organizationKeys = () =>
-      ctx.db
-        .query("files")
-        .withIndex("by_org_and_purpose", (q) =>
-          q
-            .eq("organizationId", project.organizationId)
-            .eq("purpose", args.purpose),
-        )
-        .order("desc");
-    return (
-      (await organizationKeys()
-        .filter((q) => q.eq(q.field("projectId"), undefined))
-        .first()) ?? (await organizationKeys().first())
-    );
+    let organizationKey: Doc<"files"> | null = null;
+    for await (const file of ctx.db
+      .query("files")
+      .withIndex("by_org_and_purpose", (q) =>
+        q
+          .eq("organizationId", project.organizationId)
+          .eq("purpose", args.purpose),
+      )
+      .order("desc")) {
+      if (file.projectId === undefined) {
+        organizationKey ??= file;
+      } else if (args.keyId) {
+        const owner = await ctx.db.get(file.projectId);
+        const ownerKeyId =
+          args.purpose === "apple_p8_key"
+            ? owner?.iosAppStoreKeyId
+            : owner?.iosAscKeyId;
+        if (ownerKeyId === args.keyId) return file;
+      }
+    }
+    return organizationKey;
   },
 });
 
-/** The .p8 of `purpose` that `getAppleP8KeyFile` selects, or null. */
+/** The .p8 `getAppleP8KeyFile` selects for `purpose` and `keyId`, or null. */
 export async function readAppleP8Key(
   ctx: Pick<ActionCtx, "runQuery" | "storage">,
   projectId: Id<"projects">,
   purpose: AppleP8Purpose,
+  keyId: string | undefined,
 ): Promise<string | null> {
   const file = await ctx.runQuery(internal.files.internal.getAppleP8KeyFile, {
     projectId,
     purpose,
+    keyId,
   });
   const blob = file ? await ctx.storage.get(file.storageId) : null;
   return blob ? await blob.text() : null;

@@ -25,18 +25,17 @@ internal class GodotIapConnectionLifecycle {
     private var state = State.Disconnected
     private var activeConfig: Map<String, Any?>? = null
 
-    /** Counts successful connections, so a late teardown can tell it targets an older one. */
-    @Volatile
-    var generation = 0L
-        private set
+    /** Numbers connection attempts, so a late teardown can tell it targets an older one. */
+    private var generation = 0L
 
     val isConnected: Boolean
         get() = state == State.Connected
 
+    /** [connect] receives this attempt's generation, for a teardown that must end only this connection. */
     fun init(
         config: Map<String, Any?>,
         onConfigMismatch: () -> Unit,
-        connect: () -> Boolean,
+        connect: (generation: Long) -> Boolean,
     ): InitResult = synchronized(lock) {
         when (state) {
             State.Connected -> {
@@ -55,12 +54,13 @@ internal class GodotIapConnectionLifecycle {
         }
 
         state = State.Initializing
+        // Allocated before connecting, so a drop reported before connect returns targets this attempt.
+        generation++
         try {
-            val connected = connect()
+            val connected = connect(generation)
             if (connected) {
                 activeConfig = config.toMap()
                 state = State.Connected
-                generation++
             } else {
                 activeConfig = null
                 state = State.Disconnected

@@ -13,6 +13,7 @@ export const seed = internalMutation({
     key: v.string(),
     publishable: v.string(),
     storageId: v.id("_storage"),
+    appleKeyStorageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -71,6 +72,19 @@ export const seed = internalMutation({
       updatedAt: now,
     });
     await ctx.db.patch(projectId, { googlePlayServiceAccountFileId: fileId });
+    await ctx.db.insert("files", {
+      organizationId,
+      projectId,
+      uploadedBy: userId,
+      storageId: args.appleKeyStorageId,
+      fileName: "AuthKey_local-key.p8",
+      fileType: "application/x-pem-file",
+      fileSize: 0,
+      purpose: "apple_p8_key",
+      isInternal: true,
+      createdAt: now,
+      updatedAt: now,
+    });
     await ctx.db.insert("outboundDestinations", {
       projectId,
       url: "https://receiver.example.com/commerce",
@@ -99,10 +113,22 @@ export const setup = internalAction({
         { type: "application/json" },
       ),
     );
+    const appleKeyStorageId = await ctx.storage.store(
+      new Blob(["local-fixture-key"], { type: "application/x-pem-file" }),
+    );
     return ctx.runMutation(internal.interopFixture.seed, {
       ...args,
       storageId,
+      appleKeyStorageId,
     });
+  },
+});
+// Action bodies run under Bun, so their `ctx.storage` reads come through here.
+export const readStorage = internalAction({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, { storageId }) => {
+    const blob = await ctx.storage.get(storageId);
+    return blob ? await blob.text() : null;
   },
 });
 export const inspect = internalQuery({

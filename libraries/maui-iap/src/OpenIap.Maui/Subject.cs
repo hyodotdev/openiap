@@ -14,45 +14,47 @@ internal sealed class Subject<T> : IObservable<T>
 {
     private readonly List<IObserver<T>> _observers = new();
     private readonly object _lock = new();
+    private volatile bool _completed;
 
     public IDisposable Subscribe(IObserver<T> observer)
     {
         if (observer is null) throw new ArgumentNullException(nameof(observer));
-        lock (_lock) _observers.Add(observer);
+        bool completed;
+        lock (_lock)
+        {
+            completed = _completed;
+            if (!completed) _observers.Add(observer);
+        }
+        if (completed) observer.OnCompleted();
         return new Subscription(this, observer);
     }
 
+    public void OnNext(T value) => Emit(o => o.OnNext(value));
+
+    public void OnError(Exception error) => Emit(o => o.OnError(error));
+
     /// <summary>
-    /// Emit a value to every current observer. Snapshot first to avoid mutation
-    /// during fan-out (an observer that unsubscribes during OnNext mustn't
-    /// invalidate the iterator).
+    /// Fans out over a snapshot, so an observer that unsubscribes mid-emission
+    /// can't invalidate the iterator, and stops as soon as the stream completes.
     /// </summary>
-    public void OnNext(T value)
+    private void Emit(Action<IObserver<T>> deliver)
     {
         IObserver<T>[] snapshot;
         lock (_lock) snapshot = _observers.ToArray();
         foreach (var o in snapshot)
         {
-            try { o.OnNext(value); } catch { /* swallow; one bad observer mustn't kill the stream */ }
+            if (_completed) return;
+            try { deliver(o); } catch { /* swallow; one bad observer mustn't kill the stream */ }
         }
     }
 
-    public void OnError(Exception error)
-    {
-        IObserver<T>[] snapshot;
-        lock (_lock) snapshot = _observers.ToArray();
-        foreach (var o in snapshot)
-        {
-            try { o.OnError(error); } catch { }
-        }
-    }
-
-    /// <summary>Ends the stream: current observers complete and are released.</summary>
+    /// <summary>Ends the stream: current observers complete and are released; later ones complete at once.</summary>
     public void OnCompleted()
     {
         IObserver<T>[] snapshot;
         lock (_lock)
         {
+            _completed = true;
             snapshot = _observers.ToArray();
             _observers.Clear();
         }

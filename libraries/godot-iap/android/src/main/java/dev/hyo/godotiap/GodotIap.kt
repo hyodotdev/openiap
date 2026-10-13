@@ -38,6 +38,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     private lateinit var openIap: OpenIapProtocol
     private lateinit var store: OpenIapStore
+    private lateinit var dropListener: OpenIapConnectionStateListener
     private var lastInitError: OpenIapError.ProviderConfiguration? = null
     private val connectionLifecycle = GodotIapConnectionLifecycle()
     private val isInitialized: Boolean
@@ -82,10 +83,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         emitSignal("developer_provided_billing", JSONObject(details.toJson()).toString())
     }
 
-    // A dropped billing service ends the bridge connection, so initConnection connects again.
-    private val connectionStateListener = OpenIapConnectionStateListener {
-        val dropped = connectionLifecycle.generation
-        pluginScope.launch(Dispatchers.IO) { endConnection(onlyGeneration = dropped) }
+    // Ends only the connection that dropped, so initConnection connects again.
+    private fun dropListenerFor(generation: Long) = OpenIapConnectionStateListener {
+        pluginScope.launch(Dispatchers.IO) { endConnection(onlyGeneration = generation) }
     }
 
     override fun getPluginName(): String = "GodotIap"
@@ -151,26 +151,28 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         )
                     )
                 },
-                connect = {
+                connect = { generation ->
                     runBlocking {
                         val candidateModule = OpenIapProvider.create(activity)
                         val candidateStore = OpenIapStore(candidateModule)
-                        attachListeners(candidateModule, candidateStore)
+                        val candidateDropListener = dropListenerFor(generation)
+                        attachListeners(candidateModule, candidateStore, candidateDropListener)
                         try {
                             val connected = candidateStore.initConnection(config)
                             if (connected) {
                                 openIap = candidateModule
                                 store = candidateStore
+                                dropListener = candidateDropListener
                             } else {
                                 runCatching { candidateStore.endConnection() }
-                                detachListeners(candidateModule, candidateStore)
+                                detachListeners(candidateModule, candidateStore, candidateDropListener)
                             }
                             connected
                         } catch (error: Exception) {
                             // Preserve listeners until endConnection has had a chance
                             // to publish any pending lifecycle failure.
                             runCatching { candidateStore.endConnection() }
-                            detachListeners(candidateModule, candidateStore)
+                            detachListeners(candidateModule, candidateStore, candidateDropListener)
                             throw error
                         }
                     }
@@ -206,7 +208,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                             .getOrDefault(false)
                     }
                 },
-                cleanupListeners = { detachListeners(openIap, store) },
+                cleanupListeners = { detachListeners(openIap, store, dropListener) },
                 onlyGeneration = onlyGeneration,
             )
         } catch (error: Exception) {
@@ -219,22 +221,30 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return result.success
     }
 
-    private fun attachListeners(module: OpenIapProtocol, targetStore: OpenIapStore): Unit {
+    private fun attachListeners(
+        module: OpenIapProtocol,
+        targetStore: OpenIapStore,
+        dropListener: OpenIapConnectionStateListener,
+    ): Unit {
         targetStore.addPurchaseUpdateListener(purchaseUpdateListener)
         targetStore.addPurchaseErrorListener(purchaseErrorListener)
         targetStore.addUserChoiceBillingListener(userChoiceBillingListener)
         targetStore.addDeveloperProvidedBillingListener(developerProvidedBillingListener)
         module.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
-        module.addConnectionStateListener(connectionStateListener)
+        module.addConnectionStateListener(dropListener)
     }
 
-    private fun detachListeners(module: OpenIapProtocol, targetStore: OpenIapStore): Unit {
+    private fun detachListeners(
+        module: OpenIapProtocol,
+        targetStore: OpenIapStore,
+        dropListener: OpenIapConnectionStateListener,
+    ): Unit {
         targetStore.removePurchaseUpdateListener(purchaseUpdateListener)
         targetStore.removePurchaseErrorListener(purchaseErrorListener)
         targetStore.removeUserChoiceBillingListener(userChoiceBillingListener)
         targetStore.removeDeveloperProvidedBillingListener(developerProvidedBillingListener)
         module.removeSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
-        module.removeConnectionStateListener(connectionStateListener)
+        module.removeConnectionStateListener(dropListener)
     }
 
     // ==========================================

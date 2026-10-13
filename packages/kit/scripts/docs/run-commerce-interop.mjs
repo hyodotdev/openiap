@@ -332,11 +332,14 @@ try {
     }
     return nativeFetch(url, init);
   };
-  const nativeRunAction = ctx.runAction;
-  ctx.runAction = (ref, args) =>
-    getFunctionName(ref) === "files/internal:getAppleP8Key"
-      ? Promise.resolve({ keyContent: "local-fixture-key" })
-      : nativeRunAction(ref, args);
+  ctx.storage = {
+    get: async (storageId) => {
+      const text = await admin.action(anyApi.interopFixture.readStorage, {
+        storageId,
+      });
+      return text === null ? null : new Blob([text]);
+    },
+  };
   const { verifyAppStoreReceiptInternalV1 } =
     await import("../../convex/purchases/ios.ts");
   const { verifyAmazonReceiptInternalV1 } =
