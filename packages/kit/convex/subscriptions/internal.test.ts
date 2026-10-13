@@ -2689,6 +2689,47 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
+  it("keeps a refund when the pre-refund verify of the same transaction commits last", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+      productId: "pro_monthly",
+      expiresAt: now + 20 * day,
+      verifiedPurchaseDate: now - 10 * day,
+    };
+    // Stamped before signing dates were kept: the refund applies by purchase date alone.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+    });
+
+    // Concurrent verifies fetched before and after the refund; the refund commits first.
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      revocationReasonIOS: 1,
+      verifiedSignedDate: now,
+    });
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: now - 1_000,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        state: "Revoked",
+        cancellationReason: "Refunded",
+        verifiedPurchaseDate: now - 10 * day,
+        verifiedSignedDate: now,
+      },
+    ]);
+  });
+
   it("applies the first verify to an iOS row stored without a purchase date and stamps it", async () => {
     const db = new MemDb();
     const day = 86_400_000;

@@ -100,6 +100,7 @@ type RecordVerifiedSubscriptionArgs = {
   priceAmountMicros?: number;
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
+  verifiedSignedDate?: number;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -117,6 +118,7 @@ export interface PersistSubscriptionSnapshotArgs {
   next: NonNullable<CurrentSubscription>;
   now: number;
   verifiedPurchaseDate?: number;
+  verifiedSignedDate?: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
@@ -833,6 +835,7 @@ export const recordVerifiedSubscription = internalMutation({
     priceAmountMicros: v.optional(v.number()),
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
+    verifiedSignedDate: v.optional(v.number()),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
@@ -876,17 +879,7 @@ export async function recordVerifiedSubscriptionHandler(
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
   const now = Date.now();
-  // An Apple JWS describes one transaction, so verifies apply in purchase-date
-  // order: an upgrade is newer yet may end sooner. A row stored before dates
-  // were kept takes the first verify as before; an old replay there is fixed
-  // by the next newer verify.
-  if (
-    existing?.verifiedPurchaseDate !== undefined &&
-    args.verifiedPurchaseDate !== undefined &&
-    args.verifiedPurchaseDate < existing.verifiedPurchaseDate
-  ) {
-    return existing._id;
-  }
+  if (existing && isOlderVerifiedSnapshot(existing, args)) return existing._id;
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
   return persistSubscriptionSnapshot(ctx, {
@@ -897,7 +890,38 @@ export async function recordVerifiedSubscriptionHandler(
     next,
     now,
     verifiedPurchaseDate: args.verifiedPurchaseDate,
+    verifiedSignedDate: args.verifiedSignedDate,
   });
+}
+
+// An Apple JWS describes one transaction, so verifies apply in (purchaseDate,
+// signedDate) order: an upgrade is newer yet may end sooner, and a refund keeps
+// its purchase date. A row stored without a date takes the verify as before; an
+// old replay there is fixed by the next newer verify.
+function isOlderVerifiedSnapshot(
+  stored: Pick<
+    Doc<"subscriptions">,
+    "verifiedPurchaseDate" | "verifiedSignedDate"
+  >,
+  incoming: Pick<
+    RecordVerifiedSubscriptionArgs,
+    "verifiedPurchaseDate" | "verifiedSignedDate"
+  >,
+): boolean {
+  if (
+    stored.verifiedPurchaseDate === undefined ||
+    incoming.verifiedPurchaseDate === undefined
+  ) {
+    return false;
+  }
+  if (incoming.verifiedPurchaseDate !== stored.verifiedPurchaseDate) {
+    return incoming.verifiedPurchaseDate < stored.verifiedPurchaseDate;
+  }
+  return (
+    stored.verifiedSignedDate !== undefined &&
+    incoming.verifiedSignedDate !== undefined &&
+    incoming.verifiedSignedDate < stored.verifiedSignedDate
+  );
 }
 
 export async function persistSubscriptionSnapshot(
@@ -947,8 +971,12 @@ export async function persistSubscriptionSnapshot(
     currency: args.next.currency,
     priceAmountMicros: args.next.priceAmountMicros,
     updatedAt: args.now,
+    // The pair is written together so a signing date never outlives its purchase date.
     ...(args.verifiedPurchaseDate !== undefined
-      ? { verifiedPurchaseDate: args.verifiedPurchaseDate }
+      ? {
+          verifiedPurchaseDate: args.verifiedPurchaseDate,
+          verifiedSignedDate: args.verifiedSignedDate,
+        }
       : {}),
     ...(args.lastEvent
       ? {

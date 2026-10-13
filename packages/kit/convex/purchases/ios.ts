@@ -203,6 +203,7 @@ export async function recordAppStoreVerifiedSubscription(
       priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
       revocationReasonIOS: params.transactionData.revocationReason,
       verifiedPurchaseDate: params.transactionData.purchaseDate,
+      verifiedSignedDate: params.transactionData.signedDate,
     },
   );
 }
