@@ -20,7 +20,6 @@ import {
   createMcpSessionStore,
   MCP_SESSION_CAPACITY_MESSAGE,
   MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS,
-  sessionOwner,
   type BoundedSessionStore,
 } from "./session-store.js";
 
@@ -46,10 +45,12 @@ export interface IapKitWebMcpHandlerOptions {
    */
   kitBaseUrl?: string;
   /**
-   * Checks a bearer is a real secret key before a session is created, so
-   * session slots are only spent by key holders.
+   * Resolves a bearer to an opaque tenant id (kit: its project id) before a
+   * session is created, or null to refuse it. Session slots are then spent
+   * only by key holders, and each tenant has a share. Without it, the prefix
+   * check alone admits a session and no per-tenant share applies.
    */
-  authenticate?: (apiKey: string) => Promise<boolean>;
+  authenticate?: (apiKey: string) => Promise<string | null>;
   /**
    * Identity of this process for session affinity. Defaults to
    * FLY_MACHINE_ID; session ids are prefixed with it so a follow-up
@@ -72,7 +73,7 @@ export function createIapKitWebMcpHandler(
   const kitBaseUrl = normalizeKitBaseUrl(
     options.kitBaseUrl ?? process.env.IAPKIT_BASE_URL,
   );
-  const authenticate = options.authenticate ?? (async () => true);
+  const authenticate = options.authenticate;
 
   return async function handleIapKitMcpRequest(
     request: Request,
@@ -170,7 +171,7 @@ interface PostContext {
   authInfo: AuthInfo;
   machineId: string | undefined;
   kitBaseUrl: string;
-  authenticate: (apiKey: string) => Promise<boolean>;
+  authenticate: IapKitWebMcpHandlerOptions["authenticate"];
 }
 
 async function handlePost(
@@ -207,11 +208,12 @@ async function handlePost(
     );
   }
 
-  if (!(await authenticate(authInfo.token))) {
+  const owner = authenticate ? await authenticate(authInfo.token) : undefined;
+  if (owner === null) {
     return jsonRpcError(403, -32003, INVALID_API_KEY_MESSAGE);
   }
 
-  const reservation = transports.reserve(sessionOwner(authInfo.token));
+  const reservation = transports.reserve(owner);
   if (!reservation) {
     return jsonRpcError(503, -32000, MCP_SESSION_CAPACITY_MESSAGE, {
       "retry-after": String(MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS),

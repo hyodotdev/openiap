@@ -62,8 +62,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private let openIap = OpenIapModule.shared
     private let lifecycleLock = NSLock()
     private var lifecycleTail: Task<Void, Never>?
-    private var lifecycleGeneration: UInt64 = 0
-    private var isConnected: Bool = false
+    private var connection = GodotIapConnectionGenerations()
     private var purchaseUpdateSubscription: Subscription?
     private var purchaseErrorSubscription: Subscription?
     private var promotedProductSubscription: Subscription?
@@ -88,8 +87,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func initConnection() -> String {
         GodotIapLog.payload("initConnection", payload: nil)
         let requestId = UUID().uuidString
-        enqueueLifecycleOperation { [weak self] generation in
+        enqueueLifecycleOperation(startsConnection: true) { [weak self] generation in
             guard let self else { return }
+            // Every wrapper shares this plugin; a live connection keeps its listeners.
+            if self.isConnectionActive(generation: generation) {
+                await self.emitInitConnectionSuccess(generation: generation, requestId: requestId)
+                return
+            }
             do {
                 let result = try await self.openIap.initConnection()
 
@@ -147,7 +151,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     public func endConnection() -> String {
         GodotIapLog.payload("endConnection", payload: nil)
         let requestId = UUID().uuidString
-        enqueueLifecycleOperation(invalidateConnection: false) { [weak self] generation in
+        enqueueLifecycleOperation(startsConnection: false) { [weak self] generation in
             guard let self else { return }
             do {
                 let disconnected = try await self.openIap.endConnection()
@@ -1573,13 +1577,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         generation: UInt64,
         listeners: [Subscription]
     ) {
-        lifecycleGeneration &+= 1
-        isConnected = false
-        return (lifecycleGeneration, takeListenersLocked())
+        (connection.invalidate(), takeListenersLocked())
     }
 
+    /// Runs lifecycle operations in order. One that starts a connection gets a new
+    /// generation unless a connection is already live.
     private func enqueueLifecycleOperation(
-        invalidateConnection: Bool = true,
+        startsConnection: Bool,
         _ operation: @escaping (UInt64) async -> Void
     ) {
         withLifecycleLock {
@@ -1589,13 +1593,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await predecessor.value
                 }
                 guard let self else { return }
-                let generation: UInt64
-                if invalidateConnection {
-                    let lifecycle = self.advanceConnectionGeneration()
-                    self.removeListeners(lifecycle.listeners)
-                    generation = lifecycle.generation
-                } else {
-                    generation = self.withLifecycleLock { self.lifecycleGeneration }
+                // Listeners exist only while connected, so a fresh generation has none to drop.
+                let generation = self.withLifecycleLock {
+                    (startsConnection ? self.connection.beginInit() : nil) ?? self.connection.generation
                 }
                 await operation(generation)
             }
@@ -1625,7 +1625,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     private func installListenersIfOwned(generation: UInt64) -> Bool {
         withLifecycleLock {
-            guard lifecycleGeneration == generation else { return false }
+            guard connection.generation == generation else { return false }
 
             purchaseUpdateSubscription = makePurchaseUpdatedListener(
                 generation: generation,
@@ -1659,8 +1659,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.emitSubscriptionBillingIssue(purchase: purchase)
                 }
             }
-            isConnected = true
-            return true
+            return connection.markConnected(generation)
         }
     }
 
@@ -1669,11 +1668,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     ) -> Subscription? {
         withLifecycleLock {
             self.dedupeTransactionIOS = dedupeTransactionIOS
-            guard isConnected else { return nil }
+            guard connection.isConnected else { return nil }
 
             let previousSubscription = purchaseUpdateSubscription
             purchaseUpdateSubscription = makePurchaseUpdatedListener(
-                generation: lifecycleGeneration,
+                generation: connection.generation,
                 dedupeTransactionIOS: dedupeTransactionIOS
             )
             return previousSubscription
@@ -1697,13 +1696,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func isConnectionGenerationCurrent(_ generation: UInt64) -> Bool {
-        withLifecycleLock { lifecycleGeneration == generation }
+        withLifecycleLock { connection.generation == generation }
     }
 
     private func isConnectionActive(generation: UInt64) -> Bool {
-        withLifecycleLock {
-            lifecycleGeneration == generation && isConnected
-        }
+        withLifecycleLock { connection.isActive(generation) }
     }
 
     @MainActor

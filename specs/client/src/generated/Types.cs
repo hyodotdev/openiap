@@ -4588,12 +4588,9 @@ public sealed record AndroidSubscriptionOfferInput
 public sealed record BillingProgramInformationDialogParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
-    [JsonIgnore]
-    public BillingProgramAndroid BillingProgram { get; init; } = global::OpenIap.BillingProgramAndroid.BillingChoice;
-    [JsonInclude]
     [JsonPropertyName("billingProgram")]
-    [JsonConverter(typeof(StrictNullableEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
-    private BillingProgramAndroid? BillingProgramWire { get => BillingProgram; init => BillingProgram = value ?? global::OpenIap.BillingProgramAndroid.BillingChoice; }
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
+    public BillingProgramAndroid BillingProgram { get; init; } = global::OpenIap.BillingProgramAndroid.BillingChoice;
     /// <summary>External transaction token returned by the Billing Choice reporting-details flow.</summary>
     [JsonPropertyName("externalTransactionToken")]
     public required string ExternalTransactionToken { get; init; }
@@ -4669,19 +4666,13 @@ public sealed record DiscountOfferInputIOS
 public sealed record GetBillingChoiceInfoParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
-    [JsonIgnore]
-    public BillingProgramAndroid BillingProgram { get; init; } = global::OpenIap.BillingProgramAndroid.BillingChoice;
-    [JsonInclude]
     [JsonPropertyName("billingProgram")]
-    [JsonConverter(typeof(StrictNullableEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
-    private BillingProgramAndroid? BillingProgramWire { get => BillingProgram; init => BillingProgram = value ?? global::OpenIap.BillingProgramAndroid.BillingChoice; }
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
+    public BillingProgramAndroid BillingProgram { get; init; } = global::OpenIap.BillingProgramAndroid.BillingChoice;
     /// <summary>Desired Play Billing choice image layout.</summary>
-    [JsonIgnore]
-    public BillingChoiceImageLayoutAndroid PlayBillingChoiceImageLayout { get; init; } = global::OpenIap.BillingChoiceImageLayoutAndroid.RectangularFourByOne;
-    [JsonInclude]
     [JsonPropertyName("playBillingChoiceImageLayout")]
-    [JsonConverter(typeof(StrictNullableEnumJsonConverter<BillingChoiceImageLayoutAndroid, BillingChoiceImageLayoutAndroidJsonConverter>))]
-    private BillingChoiceImageLayoutAndroid? PlayBillingChoiceImageLayoutWire { get => PlayBillingChoiceImageLayout; init => PlayBillingChoiceImageLayout = value ?? global::OpenIap.BillingChoiceImageLayoutAndroid.RectangularFourByOne; }
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingChoiceImageLayoutAndroid, BillingChoiceImageLayoutAndroidJsonConverter>))]
+    public BillingChoiceImageLayoutAndroid PlayBillingChoiceImageLayout { get; init; } = global::OpenIap.BillingChoiceImageLayoutAndroid.RectangularFourByOne;
     /// <summary>BCP 47 locale tag. If omitted, Play Billing uses the user&apos;s default locale.</summary>
     [JsonPropertyName("userLocale")]
     public string? UserLocale { get; init; }
@@ -4695,12 +4686,9 @@ public sealed record GetBillingChoiceInfoParamsAndroid
 public sealed record InAppMessageParamsAndroid
 {
     /// <summary>In-app message categories to show. Defaults to transactional messages.</summary>
-    [JsonIgnore]
-    public IReadOnlyList<InAppMessageCategoryAndroid>? Categories { get; init; } = new List<InAppMessageCategoryAndroid> { global::OpenIap.InAppMessageCategoryAndroid.Transactional };
-    [JsonInclude]
     [JsonPropertyName("categories")]
     [JsonConverter(typeof(StrictEnumListJsonConverter<InAppMessageCategoryAndroid, InAppMessageCategoryAndroidJsonConverter>))]
-    private IReadOnlyList<InAppMessageCategoryAndroid>? CategoriesWire { get => Categories; init => Categories = value ?? new List<InAppMessageCategoryAndroid> { global::OpenIap.InAppMessageCategoryAndroid.Transactional }; }
+    public IReadOnlyList<InAppMessageCategoryAndroid>? Categories { get; init; } = new List<InAppMessageCategoryAndroid> { global::OpenIap.InAppMessageCategoryAndroid.Transactional };
 }
 
 /// <summary>Connection initialization configuration</summary>
@@ -4728,12 +4716,9 @@ public sealed record InitConnectionConfig
     /// Must match choiceScreenType returned by isBillingProgramAvailableAndroid.
     /// Defaults to GOOGLE_RENDERED.
     /// </summary>
-    [JsonIgnore]
-    public BillingChoiceScreenTypeAndroid? BillingChoiceScreenTypeAndroid { get; init; } = global::OpenIap.BillingChoiceScreenTypeAndroid.GoogleRendered;
-    [JsonInclude]
     [JsonPropertyName("billingChoiceScreenTypeAndroid")]
     [JsonConverter(typeof(StrictNullableEnumJsonConverter<BillingChoiceScreenTypeAndroid, BillingChoiceScreenTypeAndroidJsonConverter>))]
-    private BillingChoiceScreenTypeAndroid? BillingChoiceScreenTypeAndroidWire { get => BillingChoiceScreenTypeAndroid; init => BillingChoiceScreenTypeAndroid = value ?? global::OpenIap.BillingChoiceScreenTypeAndroid.GoogleRendered; }
+    public BillingChoiceScreenTypeAndroid? BillingChoiceScreenTypeAndroid { get; init; } = global::OpenIap.BillingChoiceScreenTypeAndroid.GoogleRendered;
 }
 
 /// <summary>
@@ -4783,12 +4768,9 @@ public sealed record ProductRequest
 {
     [JsonPropertyName("skus")]
     public required IReadOnlyList<string> Skus { get; init; }
-    [JsonIgnore]
-    public ProductQueryType? Type { get; init; } = global::OpenIap.ProductQueryType.InApp;
-    [JsonInclude]
     [JsonPropertyName("type")]
     [JsonConverter(typeof(StrictNullableEnumJsonConverter<ProductQueryType, ProductQueryTypeJsonConverter>))]
-    private ProductQueryType? TypeWire { get => Type; init => Type = value ?? global::OpenIap.ProductQueryType.InApp; }
+    public ProductQueryType? Type { get; init; } = global::OpenIap.ProductQueryType.InApp;
 }
 
 /// <summary>

@@ -304,10 +304,18 @@ export async function verifyJWSTransaction(
   }
 }
 
-// The verifier wraps a failed OCSP/CRL request in VerificationException.cause.
-// A forged signature carries no network cause, so it stays a verdict.
-function isVerifierOutage(error: unknown): boolean {
-  return error instanceof VerificationException && isStoreOutage(error.cause);
+// The verifier's only network call is the OCSP check, made after the chain
+// verified against Apple's roots, so a failed request (node-fetch FetchError)
+// or an unreadable reply such as a 503 page (raised in checkOCSPStatus) is an
+// outage. A forged signature fails elsewhere and stays a verdict.
+export function isVerifierOutage(error: unknown): boolean {
+  if (!(error instanceof VerificationException)) return false;
+  const cause = error.cause;
+  return (
+    cause instanceof Error &&
+    (cause.name === "FetchError" ||
+      (cause.stack ?? "").includes("checkOCSPStatus"))
+  );
 }
 
 type AppStoreServerCredentials = {

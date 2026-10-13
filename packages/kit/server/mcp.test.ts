@@ -10,11 +10,14 @@ const SECRET_KEY = "openiap-kit_sk_hosted";
 describe("IAPKit MCP route handler", () => {
   beforeEach(() => {
     convexMock.query.mockReset();
-    convexMock.query.mockResolvedValue({ found: true });
+    convexMock.query.mockResolvedValue({
+      found: true,
+      projectId: "projects_1",
+    });
   });
 
   it("creates no session until Convex confirms the secret key", async () => {
-    convexMock.query.mockResolvedValue({ found: false });
+    convexMock.query.mockResolvedValue({ found: false, projectId: null });
 
     const response = await postMcp(INITIALIZE);
 

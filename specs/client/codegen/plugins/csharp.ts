@@ -660,23 +660,32 @@ export class CSharpPlugin extends CodegenPlugin {
       const jsonName = field.name;
       const overrideModifier = inheritedFields.has(field.name) ? 'override ' : '';
       if (storeIdentity && field.name === 'storeId') this.emit('    private string? _storeId;');
-      const inputDefault = isInputContext ? this.buildDefaultValueExpression(field) : null;
-      const converter = this.propertyConverter(field.type, isInputContext, inputDefault !== null);
-      if (inputDefault) {
-        // JSON null means the default, as in every other generated language; the
-        // private wire property keeps the public property's type unchanged.
-        this.emit('    [JsonIgnore]');
-        this.emit(`    public ${overrideModifier}${propType} ${propName} { get; init; } = ${inputDefault};`);
-        this.emitDeprecation(field.description, '    ');
-        this.emit('    [JsonInclude]');
-        this.emit(`    [JsonPropertyName("${jsonName}")]`);
-        if (converter) this.emit(`    [JsonConverter(typeof(${converter}))]`);
-        const wireType = field.type.nullable ? propType : `${propType}?`;
-        this.emit(`    private ${wireType} ${propName}Wire { get => ${propName}; init => ${propName} = value ?? ${inputDefault}; }`);
-        return;
-      }
       this.emit(`    [JsonPropertyName("${jsonName}")]`);
-      if (converter) this.emit(`    [JsonConverter(typeof(${converter}))]`);
+      if (isInputContext && field.type.kind === 'enum') {
+        const converter = field.type.nullable ? 'StrictNullableEnumJsonConverter' : 'StrictEnumJsonConverter';
+        this.emit(
+          `    [JsonConverter(typeof(${converter}<${field.type.name}, ${field.type.name}JsonConverter>))]`,
+        );
+      } else if (isInputContext && field.type.kind === 'list' && field.type.elementType?.kind === 'enum') {
+        const converter = field.type.elementType.nullable
+          ? 'StrictNullableEnumListJsonConverter'
+          : 'StrictEnumListJsonConverter';
+        const enumName = field.type.elementType.name;
+        this.emit(`    [JsonConverter(typeof(${converter}<${enumName}, ${enumName}JsonConverter>))]`);
+      } else if (
+        field.type.nullable &&
+        ['object', 'input'].includes(field.type.kind) &&
+        this.typeNeedsTolerantNullableDecoder(field.type.name!, this.schema)
+      ) {
+        this.emit(`    [JsonConverter(typeof(${field.type.name}NullableJsonConverter))]`);
+      } else if (
+        field.type.kind === 'list' &&
+        field.type.elementType?.nullable === true &&
+        field.type.elementType.kind === 'object' &&
+        this.typeNeedsTolerantNullableDecoder(field.type.elementType.name!, this.schema)
+      ) {
+        this.emit(`    [JsonConverter(typeof(${field.type.elementType.name}NullableElementListJsonConverter))]`);
+      }
 
       // Legacy official identity can be inferred; other non-null fields remain required.
       if (storeIdentity && field.name === 'storeId') {
@@ -701,30 +710,6 @@ export class CSharpPlugin extends CodegenPlugin {
         this.emit(`    public ${overrideModifier}required ${propType} ${propName} { get; init; }`);
       }
     });
-  }
-
-  /** The JsonConverter a property needs, if any. A defaulted input enum always reads null. */
-  private propertyConverter(type: IRType, isInputContext: boolean, readsNull: boolean): string | null {
-    if (isInputContext && type.kind === 'enum') {
-      const converter = type.nullable || readsNull ? 'StrictNullableEnumJsonConverter' : 'StrictEnumJsonConverter';
-      return `${converter}<${type.name}, ${type.name}JsonConverter>`;
-    }
-    if (isInputContext && type.kind === 'list' && type.elementType?.kind === 'enum') {
-      const converter = type.elementType.nullable ? 'StrictNullableEnumListJsonConverter' : 'StrictEnumListJsonConverter';
-      return `${converter}<${type.elementType.name}, ${type.elementType.name}JsonConverter>`;
-    }
-    if (type.nullable && ['object', 'input'].includes(type.kind) && this.typeNeedsTolerantNullableDecoder(type.name!, this.schema)) {
-      return `${type.name}NullableJsonConverter`;
-    }
-    if (
-      type.kind === 'list' &&
-      type.elementType?.nullable === true &&
-      type.elementType.kind === 'object' &&
-      this.typeNeedsTolerantNullableDecoder(type.elementType.name!, this.schema)
-    ) {
-      return `${type.elementType.name}NullableElementListJsonConverter`;
-    }
-    return null;
   }
 
   private buildDefaultValueExpression(field: IRField): string | null {

@@ -650,10 +650,6 @@ function Releases() {
                   already does.
                 </li>
                 <li>
-                  C# inputs apply schema defaults to an explicit JSON{' '}
-                  <code>null</code>, as they do to an omitted field.
-                </li>
-                <li>
                   Dart deprecates <code>isAlternativeBilling</code> on{' '}
                   <code>PurchaseAndroid</code> and <code>PurchaseIOS</code>,
                   which native code never sets, for removal in the next major
@@ -778,6 +774,18 @@ function Releases() {
                   An already-owned rejection resolves with the owned purchase,
                   now on Horizon too, and Horizon maps other launch errors to
                   specific codes.
+                </li>
+                <li>
+                  Horizon treats a subscription it reports under a per-term SKU,
+                  such as <code>premium:SUBSCRIPTION__MONTHLY</code>, as the
+                  base SKU, so <code>requestPurchase</code> and already-owned
+                  recovery resolve with it.
+                </li>
+                <li>
+                  <code>getActiveSubscriptions([&apos;premium&apos;])</code>{' '}
+                  returns it with <code>basePlanIdAndroid</code> and{' '}
+                  <code>currentPlanId</code> filled in; its{' '}
+                  <code>productId</code> still shows the SKU Horizon reports.
                 </li>
                 <li>
                   Stale pending or unconsumed purchases no longer resolve a new
@@ -951,6 +959,11 @@ function Releases() {
                   now initialize; connect purchase signals on{' '}
                   <Link to="/docs/setup/godot#scene-setup">one wrapper</Link>,
                   because each re-emits every store event.
+                </li>
+                <li>
+                  On iOS, a second wrapper&apos;s <code>init_connection</code>{' '}
+                  reuses the live connection instead of tearing it down, so
+                  events keep reaching the first wrapper.
                 </li>
                 <li>
                   Android <code>has_active_subscriptions()</code> and{' '}

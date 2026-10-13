@@ -171,10 +171,9 @@ public class RecordJsonTests
     }
 
     [Fact]
-    public void DefaultedInputs_MapExplicitNullToTheSchemaDefault()
+    public void DefaultedInputs_UseTheSchemaDefaultWhenOmitted()
     {
-        // The private [JsonInclude] wire property must stay visible to JsonOptions.Default.
-        const string json = """{"billingProgram":null,"externalTransactionToken":"token"}""";
+        const string json = """{"externalTransactionToken":"token"}""";
         var parsed = JsonSerializer.Deserialize<BillingProgramInformationDialogParamsAndroid>(json, Options)!;
         Assert.Equal(BillingProgramAndroid.BillingChoice, parsed.BillingProgram);
 

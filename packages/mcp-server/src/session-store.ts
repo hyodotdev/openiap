@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 interface SessionEntry<T> {
   value: T;
   lastAccessedAt: number;
@@ -19,7 +17,7 @@ interface ClosableSession {
 
 export interface BoundedSessionStoreOptions<T> {
   maxSize: number;
-  /** Sessions one owner (API key) may hold; its oldest goes first. */
+  /** Sessions one owner (a tenant id) may hold; its oldest goes first. */
   maxPerOwner?: number;
   idleTtlMs: number;
   dispose: (value: T) => void | Promise<void>;
@@ -179,11 +177,6 @@ export class BoundedSessionStore<T> {
       this.options.onDisposeError?.(error);
     }
   }
-}
-
-/** Groups sessions by key without keeping the raw key in the store. */
-export function sessionOwner(apiKey: string): string {
-  return createHash("sha256").update(apiKey).digest("hex");
 }
 
 export function createMcpSessionStore<T extends ClosableSession>(

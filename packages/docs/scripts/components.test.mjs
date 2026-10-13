@@ -178,11 +178,15 @@ test('applies the theme before first paint, even with storage blocked', async ()
     new URL('../index.html', import.meta.url),
     'utf8'
   );
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  // Inline head scripts are the bare <script> blocks; module scripts carry attributes.
+  const scripts = html
+    .split('<script>')
+    .slice(1)
+    .map((part) => part.slice(0, part.indexOf('</script>')));
   assert.equal(scripts.length, 1, 'expected one inline head script');
   const isDark = (stored, prefersDark) => {
     const classes = new Set();
-    runInNewContext(scripts[0][1], {
+    runInNewContext(scripts[0], {
       localStorage: {
         getItem: () => {
           if (stored instanceof Error) throw stored;

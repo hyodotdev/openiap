@@ -99,6 +99,89 @@ class HorizonPurchaseFlowTest {
     }
 
     @Test
+    fun `a subscription purchased under its virtual sku resolves the base sku request`() {
+        val client = FlowBillingClient()
+        val module = module(client)
+        val results = CopyOnWriteArrayList<Result<List<Purchase>>>()
+        installLaunchedPurchase(module, client, sku = "premium", type = ProductQueryType.Subs) {
+            results += it
+        }
+
+        module.onPurchasesUpdated(
+            client,
+            0L,
+            billingResult(BillingClient.BillingResponseCode.OK),
+            listOf(horizonPurchase(purchaseTime = 1L, productId = VIRTUAL_SUBSCRIPTION_SKU)),
+        )
+
+        assertEquals(
+            listOf(VIRTUAL_SUBSCRIPTION_SKU),
+            results.single().getOrThrow().map { it.productId },
+        )
+    }
+
+    @Test
+    fun `already-owned recovery finds a subscription owned under its virtual sku`() {
+        val client = FlowBillingClient(
+            owned = listOf(horizonPurchase(purchaseTime = 1L, productId = VIRTUAL_SUBSCRIPTION_SKU)),
+        )
+        val module = module(client)
+        val results = CopyOnWriteArrayList<Result<List<Purchase>>>()
+        val errors = CopyOnWriteArrayList<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        installLaunchedPurchase(module, client, sku = "premium", type = ProductQueryType.Subs) {
+            results += it
+        }
+
+        module.onPurchasesUpdated(
+            client,
+            0L,
+            billingResult(BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED),
+            emptyList(),
+        )
+        awaitCondition { results.isNotEmpty() }
+
+        assertEquals(
+            listOf(VIRTUAL_SUBSCRIPTION_SKU),
+            results.single().getOrThrow().map { it.productId },
+        )
+        assertTrue("recovery must not publish an error: $errors", errors.isEmpty())
+    }
+
+    @Test
+    fun `an active subscription owned under its virtual sku reports its base plan`() = runBlocking {
+        // Horizon merges each term into one base-SKU product whose offers carry that base plan.
+        val premium = HorizonProductDetails(
+            "premium",
+            "Premium",
+            "Premium",
+            "Premium",
+            BillingClient.ProductType.SUBS,
+            null,
+            listOf(
+                HorizonProductDetails.SubscriptionOfferDetails(
+                    "premium",
+                    HorizonProductDetails.InstallmentPlanDetails(0, 0),
+                    null,
+                    emptyList(),
+                    "SUBSCRIPTION__MONTHLY",
+                    HorizonProductDetails.PricingPhases(emptyList()),
+                )
+            ),
+        )
+        val client = FlowBillingClient(
+            owned = listOf(horizonPurchase(purchaseTime = 1L, productId = VIRTUAL_SUBSCRIPTION_SKU)),
+            details = listOf(premium),
+        )
+        val module = module(client)
+
+        val subscription = module.getActiveSubscriptions(listOf("premium")).single()
+
+        assertEquals(VIRTUAL_SUBSCRIPTION_SKU, subscription.productId)
+        assertEquals("premium", subscription.basePlanIdAndroid)
+    }
+
+    @Test
     fun `launch result codes map to their OpenIAP errors`() {
         val client = FlowBillingClient(
             launchResponseCode = BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
@@ -216,6 +299,8 @@ class HorizonPurchaseFlowTest {
         module: OpenIapModule,
         client: BillingClient,
         tokensBeforeLaunch: Set<String> = emptySet(),
+        sku: String = "product-id",
+        type: ProductQueryType = ProductQueryType.InApp,
         callback: (Result<List<Purchase>>) -> Unit,
     ) {
         val snapshotClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PendingPurchaseSnapshot")
@@ -228,8 +313,8 @@ class HorizonPurchaseFlowTest {
             constructor.newInstance(
                 client,
                 callback,
-                setOf("product-id"),
-                ProductQueryType.InApp,
+                setOf(sku),
+                type,
                 emptyMap<String, String>(),
                 1.0,
                 tokensBeforeLaunch,
@@ -243,10 +328,13 @@ class HorizonPurchaseFlowTest {
             .setDebugMessage("")
             .build()
 
-    private fun horizonPurchase(purchaseTime: Long): HorizonPurchase = HorizonPurchase(
+    private fun horizonPurchase(
+        purchaseTime: Long,
+        productId: String = "product-id",
+    ): HorizonPurchase = HorizonPurchase(
         purchaseTime,
         "purchase-token",
-        listOf("product-id"),
+        listOf(productId),
         "dev.hyo.openiap.test",
         "",
         "order-product-id",
@@ -258,25 +346,23 @@ class HorizonPurchaseFlowTest {
     private class FlowBillingClient(
         var launchResponseCode: Int = BillingResponseCode.OK,
         private val owned: List<HorizonPurchase> = emptyList(),
+        private val details: List<HorizonProductDetails> = listOf(
+            HorizonProductDetails(
+                "product-id",
+                "Title",
+                "Name",
+                "Description",
+                ProductType.INAPP,
+                HorizonProductDetails.OneTimePurchaseOfferDetails("$1.00", 1_000_000L, "USD"),
+                emptyList(),
+            )
+        ),
     ) : RecordingBillingClient() {
         override fun queryProductDetailsAsync(
             params: QueryProductDetailsParams,
             listener: ProductDetailsResponseListener,
         ) {
-            listener.onProductDetailsResponse(
-                result(BillingResponseCode.OK),
-                listOf(
-                    HorizonProductDetails(
-                        "product-id",
-                        "Title",
-                        "Name",
-                        "Description",
-                        ProductType.INAPP,
-                        HorizonProductDetails.OneTimePurchaseOfferDetails("$1.00", 1_000_000L, "USD"),
-                        emptyList(),
-                    )
-                ),
-            )
+            listener.onProductDetailsResponse(result(BillingResponseCode.OK), details)
         }
 
         override fun launchBillingFlow(activity: Activity, params: BillingFlowParams): BillingResult =
@@ -291,5 +377,10 @@ class HorizonPurchaseFlowTest {
 
         private fun result(code: Int): BillingResult =
             BillingResult.newBuilder().setResponseCode(code).setDebugMessage("").build()
+    }
+
+    private companion object {
+        // Horizon 2.0.0 reports a subscription purchase under base SKU + term suffix.
+        const val VIRTUAL_SUBSCRIPTION_SKU = "premium:SUBSCRIPTION__MONTHLY"
     }
 }

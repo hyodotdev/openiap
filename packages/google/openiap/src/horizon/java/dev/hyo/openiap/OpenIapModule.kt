@@ -152,13 +152,29 @@ internal fun horizonPurchaseSkuCountError(skus: Collection<String>): OpenIapErro
     else -> null
 }
 
+/**
+ * Base SKU of a Horizon product id. Horizon reports a subscription purchase under a per-term
+ * virtual SKU (`premium:SUBSCRIPTION__MONTHLY`), while its ProductDetails use the base SKU.
+ */
+internal fun horizonBaseSku(productId: String): String =
+    productId.substringBefore(HorizonProductDetails.SUBS_VIRTUAL_SKU_PREFIX)
+
+/** The distinct base SKUs of a Horizon purchase's product ids. */
+internal fun Purchase.horizonBaseSkus(): List<String> =
+    (listOf(productId) + ids.orEmpty())
+        .filter(String::isNotBlank)
+        .map(::horizonBaseSku)
+        .distinct()
+
 internal fun matchesRequestedProductIds(
     primaryProductId: String,
     productIds: Collection<String>,
     requestedProductIds: Collection<String>,
-): Boolean = requestedProductIds.isEmpty() ||
-    primaryProductId in requestedProductIds ||
-    productIds.any { it in requestedProductIds }
+): Boolean {
+    if (requestedProductIds.isEmpty()) return true
+    val requested = requestedProductIds.mapTo(HashSet(), ::horizonBaseSku)
+    return (productIds + primaryProductId).any { horizonBaseSku(it) in requested }
+}
 
 internal fun hasInvalidHorizonSubscriptionOffer(
     requestedSkus: Collection<String>,
@@ -389,9 +405,9 @@ class OpenIapModule(
         selectedBasePlanIds: Map<String, String>,
     ): PurchaseAndroid {
         if (selectedBasePlanIds.isEmpty()) return purchase
-        val productIds = (listOf(purchase.productId) + purchase.ids.orEmpty())
-            .filter(String::isNotBlank)
-        val basePlanId = uniqueHorizonBasePlanId(productIds.map(selectedBasePlanIds::get))
+        val basePlanId = uniqueHorizonBasePlanId(
+            purchase.horizonBaseSkus().map(selectedBasePlanIds::get)
+        )
         return if (basePlanId == null) purchase else purchase.copy(currentPlanId = basePlanId)
     }
 
@@ -875,10 +891,7 @@ class OpenIapModule(
 
             OpenIapLog.info("Filtered subscriptions count: ${filtered.size}", TAG)
 
-            val subscriptionProductIds = filtered
-                .flatMap { listOf(it.productId) + it.ids.orEmpty() }
-                .filter(String::isNotBlank)
-                .distinct()
+            val subscriptionProductIds = filtered.flatMap { it.horizonBaseSkus() }.distinct()
             val freshDetailsById = if (subscriptionProductIds.isEmpty()) {
                 emptyMap()
             } else {
@@ -904,11 +917,8 @@ class OpenIapModule(
             }
 
             val activeSubscriptions = filtered.map { purchase ->
-                val productIds = (listOf(purchase.productId) + purchase.ids.orEmpty())
-                    .filter(String::isNotBlank)
-                    .distinct()
                 val basePlanId = uniqueHorizonBasePlanId(
-                    productIds.flatMap { productId ->
+                    purchase.horizonBaseSkus().flatMap { productId ->
                         freshDetailsById[productId]
                             ?.subscriptionOfferDetails
                             .orEmpty()
@@ -1192,7 +1202,7 @@ class OpenIapModule(
                                         },
                                         matches = { purchase ->
                                             isPurchaseForPendingRequest(
-                                                productIds = listOf(purchase.productId) + purchase.ids.orEmpty(),
+                                                productIds = purchase.horizonBaseSkus(),
                                                 purchaseToken = purchase.purchaseToken,
                                                 requestedSkus = requestedSkus,
                                                 tokensBeforeLaunch = tokensBeforeLaunch,
@@ -1632,7 +1642,7 @@ class OpenIapModule(
                     OpenIapLog.info("Processing ${purchases.size} successful purchases", TAG)
 
                     val correlatedPurchases = purchases.map { purchase ->
-                        val productIds = purchase.products
+                        val productIds = purchase.products.map(::horizonBaseSku)
                         val correlatedRequest = pendingRequest?.takeIf { request ->
                             request.launchStartedAtMillis != null &&
                                 isPurchaseForPendingRequest(

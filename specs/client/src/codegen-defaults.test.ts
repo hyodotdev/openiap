@@ -155,9 +155,6 @@ describe('codegen defaults', () => {
 
     expect(output).toContain('public required string UnsupportedDefault { get; init; }');
     expect(output).toContain('public string EscapedString { get; init; } = "quote \\" and slash \\\\";');
-    expect(output).toContain(
-      'private string? EscapedStringWire { get => EscapedString; init => EscapedString = value ?? "quote \\" and slash \\\\"; }',
-    );
   });
 
   it('emits whole-number GraphQL Float defaults as Kotlin Double literals', () => {
@@ -202,13 +199,6 @@ describe('codegen defaults', () => {
       schema([field('renderer', rendererType, 'GOOGLE_RENDERED')], [rendererEnum]),
     );
     expect(csharpOutput).toContain('public Renderer? Renderer { get; init; } = global::OpenIap.Renderer.GoogleRendered;');
-    // Explicit JSON null reaches the wire property and becomes the default.
-    expect(csharpOutput).toContain(
-      '    [JsonIgnore]\n    public Renderer? Renderer { get; init; } = global::OpenIap.Renderer.GoogleRendered;\n    [JsonInclude]\n    [JsonPropertyName("renderer")]',
-    );
-    expect(csharpOutput).toContain(
-      'private Renderer? RendererWire { get => Renderer; init => Renderer = value ?? global::OpenIap.Renderer.GoogleRendered; }',
-    );
   });
 
   it('preserves null for GDScript enum inputs without defaults', () => {

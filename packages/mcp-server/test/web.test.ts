@@ -15,8 +15,13 @@ const silentLogger = { error: () => undefined, info: () => undefined };
 const SECRET_KEY = "openiap-kit_sk_hosted";
 const BEARER = { authorization: `Bearer ${SECRET_KEY}` };
 
+// Test tenancy: each bearer is its own tenant, as kit's project ids would be.
 function createHandler(machineId?: string) {
-  return createIapKitWebMcpHandler({ logger: silentLogger, machineId });
+  return createIapKitWebMcpHandler({
+    logger: silentLogger,
+    machineId,
+    authenticate: async (apiKey) => `tenant:${apiKey}`,
+  });
 }
 
 function initializeRequest(
@@ -159,6 +164,28 @@ describe("web MCP handler session routing", () => {
       expect(followUp.status).toBe(200);
       await followUp.text();
     }
+  });
+
+  it("shares one tenant's quota across its keys, by the id authenticate returns", async () => {
+    const handler = createIapKitWebMcpHandler({
+      logger: silentLogger,
+      authenticate: async () => "projects_1",
+    });
+    const keyA = { authorization: `Bearer ${SECRET_KEY}_a` };
+    const keyB = { authorization: `Bearer ${SECRET_KEY}_b` };
+    const sessionsA: string[] = [];
+    for (let index = 0; index < 16; index += 1) {
+      const response = await handler(initializeRequest(undefined, keyA));
+      sessionsA.push(response.headers.get("mcp-session-id") ?? "");
+      await response.text();
+    }
+
+    const fromB = await handler(initializeRequest(undefined, keyB));
+    expect(fromB.status).toBe(200);
+    await fromB.text();
+
+    const evicted = await handler(toolsListRequest(sessionsA[0], keyA));
+    expect(evicted.status).toBe(404);
   });
 
   it("caps one key's sessions so it cannot evict other tenants", async () => {
@@ -322,7 +349,7 @@ describe("hosted MCP from kit's network position", () => {
   });
 
   it("creates no session for a key the kit does not recognize", async () => {
-    const authenticate = vi.fn(async () => false);
+    const authenticate = vi.fn(async () => null);
     const handler = createIapKitWebMcpHandler({
       logger: silentLogger,
       authenticate,

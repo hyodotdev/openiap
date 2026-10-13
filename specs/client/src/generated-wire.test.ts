@@ -12,7 +12,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 // One payload every generated language must decode and re-encode the same way:
 // flat union members tagged with `__typename` (including the nested
-// `latestTransaction`), and input defaults applied to explicit JSON nulls.
+// `latestTransaction`), and SDL defaults applied to omitted input keys. C# keeps
+// an explicit null as null, so the shared payload omits the keys instead.
 const purchaseIOS = {
   __typename: "PurchaseIOS",
   id: "txn-ios",
@@ -49,9 +50,9 @@ const unions = {
 };
 const input = {
   ...unions,
-  choice: { billingProgram: null, playBillingChoiceImageLayout: null },
-  messages: { categories: null },
-  request: { skus: ["premium"], type: null },
+  choice: {},
+  messages: {},
+  request: { skus: ["premium"] },
 };
 const expected = {
   ...unions,
@@ -111,8 +112,6 @@ const swift: RoundTrip = (() => {
   let binary: string | null = null;
   return (payload) => {
     if (!binary) {
-      // `.sortedKeys` puts `__typename` first, as MAUI's NSObjectJsonBridge does
-      // before System.Text.Json reads it; production Swift JSON has no key order.
       writeFileSync(
         join(workDir, "main.swift"),
         `import Foundation
@@ -124,9 +123,7 @@ struct Wire: Codable {
     let verify: VerifyPurchaseResult
 }
 let wire = try JSONDecoder().decode(Wire.self, from: FileHandle.standardInput.readDataToEndOfFile())
-let encoder = JSONEncoder()
-encoder.outputFormatting = .sortedKeys
-FileHandle.standardOutput.write(try encoder.encode(wire))
+FileHandle.standardOutput.write(try JSONEncoder().encode(wire))
 `,
       );
       binary = join(workDir, "swift-wire");
@@ -200,6 +197,7 @@ var options = new JsonSerializerOptions
 {
     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    AllowOutOfOrderMetadataProperties = true,
 };
 var input = JsonNode.Parse(Console.In.ReadToEnd())!;
 JsonNode? RoundTrip<T>(string key) => JsonSerializer.SerializeToNode(input[key]!.Deserialize<T>(options), options);

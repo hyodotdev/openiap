@@ -75,9 +75,10 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
   - Example: `type: ProductQueryType = InApp`.
 - The transformer coerces every default against its declared type and fails
   generation on an invalid one.
-- When decoding JSON, an omitted key and an explicit `null` both mean the
-  default, in every language. C# reads the key through a private wire property
-  so the public property keeps its type.
+- When decoding JSON, an omitted key means the default in every language.
+  Swift, Kotlin, Dart, and GDScript treat an explicit `null` the same way; C#
+  keeps it as `null` (or rejects it for a non-null field), since C# apps build
+  inputs in code rather than decode them.
 - Document defaults in the field description if behavior matters.
 
 ## Field and Operation Descriptions

@@ -123,6 +123,8 @@ final class GeneratedTypeCodingTests: XCTestCase {
     func testInputsApplySchemaDefaultsAndRejectUnknownEnums() throws {
         let request = try OpenIapSerialization.decode(object: ["skus": ["sku"]], as: ProductRequest.self)
         XCTAssertEqual(request.type, .inApp)
+        let explicitNull = try OpenIapSerialization.decode(object: ["skus": ["sku"], "type": NSNull()], as: ProductRequest.self)
+        XCTAssertEqual(explicitNull.type, .inApp)
         XCTAssertEqual(try OpenIapSerialization.decode(object: [:], as: InAppMessageParamsAndroid.self).categories, [.transactional])
         let choice = try OpenIapSerialization.decode(object: [:], as: GetBillingChoiceInfoParamsAndroid.self)
         XCTAssertEqual(choice.billingProgram, .billingChoice)

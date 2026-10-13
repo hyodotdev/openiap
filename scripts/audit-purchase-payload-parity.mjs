@@ -1339,7 +1339,7 @@ function checkStrictAppleFrameworkQuerySerialization() {
     [
       "// Providers own purchase-error delivery after dispatch.",
       'GodotIapLog.failure("requestPurchaseWithPayload", error: error)',
-      "enqueueLifecycleOperation(invalidateConnection: false)",
+      "enqueueLifecycleOperation(startsConnection: false)",
       "if disconnected {\n                    let lifecycle = self.advanceConnectionGeneration()",
     ],
     "Godot iOS provider error ownership and failure-aware teardown",

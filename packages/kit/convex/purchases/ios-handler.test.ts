@@ -174,7 +174,10 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     appleMocks.verifyAndDecodeTransaction.mockRejectedValue(
       new VerificationException(
         VerificationStatus.VERIFICATION_FAILURE,
-        Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }),
+        Object.assign(new Error("request to ocsp failed, reason: hang up"), {
+          name: "FetchError",
+          code: "ECONNRESET",
+        }),
       ),
     );
     const ctx = context();

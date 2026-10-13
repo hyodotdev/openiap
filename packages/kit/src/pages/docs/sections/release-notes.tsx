@@ -88,7 +88,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         topic: "MCP",
-        text: "The hosted endpoint confirms the secret key before opening a session, always calls IAPKit itself, refuses redirects and bounds request and response sizes. One key holds at most 16 sessions, and a full table closes its least recently used session instead of refusing new ones.",
+        text: "The hosted endpoint confirms the secret key before opening a session, always calls IAPKit itself, refuses redirects and bounds request and response sizes. One project holds at most 16 sessions, and a full table closes its least recently used session instead of refusing new ones.",
       },
       {
         kind: "security",
