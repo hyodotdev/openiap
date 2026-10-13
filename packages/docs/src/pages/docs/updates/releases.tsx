@@ -969,8 +969,10 @@ function Releases() {
                 </li>
                 <li>
                   On iOS, a second wrapper&apos;s <code>init_connection</code>{' '}
-                  reuses the live connection instead of tearing it down, so
-                  events keep reaching the first wrapper.
+                  reuses the live connection and replay setting instead of
+                  resetting them, so events keep reaching the first wrapper. The
+                  latest <code>set_purchase_updated_listener_options</code> call
+                  applies to every wrapper.
                 </li>
                 <li>
                   Android <code>has_active_subscriptions()</code> and{' '}

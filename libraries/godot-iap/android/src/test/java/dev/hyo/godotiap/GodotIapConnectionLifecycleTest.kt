@@ -67,6 +67,32 @@ class GodotIapConnectionLifecycleTest {
     }
 
     @Test
+    fun `a drop queued during init signals connected before disconnected`() {
+        val signals = Collections.synchronizedList(mutableListOf<String>())
+        val dropEnded = CountDownLatch(1)
+        val lifecycle = GodotIapConnectionLifecycle { connected ->
+            // A slow `connected` gives a drop outside the lock time to overtake it.
+            if (connected) dropEnded.await(200, TimeUnit.MILLISECONDS)
+            signals += if (connected) "connected" else "disconnected"
+        }
+
+        lateinit var drop: Thread
+        lifecycle.init(defaultConfig, {}) { generation ->
+            drop = thread {
+                lifecycle.end(disconnect = { true }, cleanupListeners = {}, onlyGeneration = generation)
+                dropEnded.countDown()
+            }
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (drop.state != Thread.State.BLOCKED && System.nanoTime() < deadline) Thread.yield()
+            true
+        }
+        drop.join(5_000)
+
+        assertEquals(listOf("connected", "disconnected"), signals)
+        assertFalse(lifecycle.isConnected)
+    }
+
+    @Test
     fun `end waits for in-flight init and leaves lifecycle disconnected`() {
         val lifecycle = GodotIapConnectionLifecycle()
         val initEntered = CountDownLatch(1)

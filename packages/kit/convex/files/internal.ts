@@ -187,8 +187,9 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
 // One App Store Connect key serves the whole team, so a project may sign with a
 // .p8 uploaded elsewhere in its organization. Newest first: this project's,
 // then another project's configured with the same key ID (the JWT `kid`), then
-// an organization-level key, which records no key ID. Never another
-// organization's.
+// an organization-level key, which records no key ID, and last the
+// organization's oldest key, the one earlier releases always used. Never
+// another organization's.
 export const getAppleP8KeyFile = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -207,6 +208,7 @@ export const getAppleP8KeyFile = internalQuery({
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
     let organizationKey: Doc<"files"> | null = null;
+    let oldestKey: Doc<"files"> | null = null;
     for await (const file of ctx.db
       .query("files")
       .withIndex("by_org_and_purpose", (q) =>
@@ -215,6 +217,7 @@ export const getAppleP8KeyFile = internalQuery({
           .eq("purpose", args.purpose),
       )
       .order("desc")) {
+      oldestKey = file;
       if (file.projectId === undefined) {
         organizationKey ??= file;
       } else if (args.keyId) {
@@ -226,7 +229,7 @@ export const getAppleP8KeyFile = internalQuery({
         if (ownerKeyId === args.keyId) return file;
       }
     }
-    return organizationKey;
+    return organizationKey ?? oldestKey;
   },
 });
 

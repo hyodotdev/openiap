@@ -85,6 +85,12 @@ class _SharedNativeState {
   /// iOS transaction ids delivered on the current connection.
   final purchaseUpdatedHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
 
+  /// Native dedupe stays off while any instance has an opt-out listener.
+  int nonDedupingPurchaseUpdatedListenerCountIOS = 0;
+
+  /// Serializes listener-option calls to the one native listener.
+  Future<void> purchaseListenerConfiguration = Future<void>.value();
+
   /// A new connection replays transactions, so delivered ids start over.
   void markDisconnected() {
     connectionDrops++;
@@ -151,8 +157,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   late final FirstPurchaseNotice _firstPurchaseNotice =
       FirstPurchaseNotice(_platform, _channel);
 
-  int _nonDedupingPurchaseUpdatedListenerCountIOS = 0;
-
   /// Purchase updated event stream
   Stream<gentype.Purchase> get purchaseUpdatedListener {
     _listenToNative();
@@ -165,8 +169,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS] to
   /// false to also receive StoreKit replays of transaction IDs already
-  /// delivered this connection session. Native listener state is shared per
-  /// plugin instance, but streams that do not opt out still filter replays.
+  /// delivered this connection session. Native listener state is shared by
+  /// every instance, but streams that do not opt out still filter replays.
   /// Android ignores the flag.
   Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
@@ -271,13 +275,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Future<void> _setDedupingPurchaseUpdatedListenerOptionsIOS(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) async {
-    if (_nonDedupingPurchaseUpdatedListenerCountIOS > 0) return;
+    if (_shared.nonDedupingPurchaseUpdatedListenerCountIOS > 0) return;
     await _setPurchaseUpdatedListenerOptions(options);
   }
 
   Future<void> _retainNonDedupingPurchaseUpdatedListenerIOS() async {
-    _nonDedupingPurchaseUpdatedListenerCountIOS += 1;
-    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 1) {
+    _shared.nonDedupingPurchaseUpdatedListenerCountIOS += 1;
+    if (_shared.nonDedupingPurchaseUpdatedListenerCountIOS == 1) {
       await _setPurchaseUpdatedListenerOptions(
         const gentype.PurchaseUpdatedListenerOptions(
           dedupeTransactionIOS: false,
@@ -287,9 +291,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   }
 
   Future<void> _releaseNonDedupingPurchaseUpdatedListenerIOS() async {
-    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 0) return;
-    _nonDedupingPurchaseUpdatedListenerCountIOS -= 1;
-    if (_nonDedupingPurchaseUpdatedListenerCountIOS == 0) {
+    if (_shared.nonDedupingPurchaseUpdatedListenerCountIOS == 0) return;
+    _shared.nonDedupingPurchaseUpdatedListenerCountIOS -= 1;
+    if (_shared.nonDedupingPurchaseUpdatedListenerCountIOS == 0) {
       await _setPurchaseUpdatedListenerOptions(
         const gentype.PurchaseUpdatedListenerOptions(
           dedupeTransactionIOS: true,
@@ -335,7 +339,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   set _isInitialized(bool connected) =>
       _connectedAtDrop = connected ? _shared.connectionDrops : null;
   bool _isIapUnavailable = false;
-  Future<void> _purchaseListenerConfiguration = Future<void>.value();
 
   PurchaseError _connectionRequiredError() => PurchaseError(
         code: _isIapUnavailable
@@ -349,9 +352,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   Future<void> _configurePurchaseListener(
     Future<void> Function() configure,
   ) {
-    final previous = _purchaseListenerConfiguration;
+    final previous = _shared.purchaseListenerConfiguration;
     final current = previous.catchError((Object _) {}).then((_) => configure());
-    _purchaseListenerConfiguration = current.catchError((Object _) {});
+    _shared.purchaseListenerConfiguration = current.catchError((Object _) {});
     return current;
   }
 
@@ -498,7 +501,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         try {
           _listenToNative();
           // Let pending listener-option changes reach native first.
-          await _purchaseListenerConfiguration;
+          await _shared.purchaseListenerConfiguration;
 
           Map<String, dynamic>? config;
           if (billingChoiceScreenTypeAndroid != null ||

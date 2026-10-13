@@ -40,7 +40,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     private lateinit var store: OpenIapStore
     private lateinit var dropListener: OpenIapConnectionStateListener
     private var lastInitError: OpenIapError.ProviderConfiguration? = null
-    private val connectionLifecycle = GodotIapConnectionLifecycle()
+    private val connectionLifecycle = GodotIapConnectionLifecycle { connected ->
+        emitSignal(if (connected) "connected" else "disconnected")
+    }
     private val isInitialized: Boolean
         get() = connectionLifecycle.isConnected
     private val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -188,7 +190,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             GodotIapConnectionLifecycle.InitResult(false, false)
         }
 
-        if (result.didConnect) emitSignal("connected")
         GodotIapLog.result("initConnection", result.success)
         return result.success
     }
@@ -216,7 +217,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             GodotIapConnectionLifecycle.EndResult(false, false)
         }
 
-        if (result.didEnd) emitSignal("disconnected")
         GodotIapLog.result("endConnection", result.success)
         return result.success
     }

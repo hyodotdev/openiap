@@ -6,7 +6,10 @@ package dev.hyo.godotiap
  * connect/disconnect operation: endConnection cannot return and then have an
  * older initConnection publish a replacement BillingClient behind it.
  */
-internal class GodotIapConnectionLifecycle {
+internal class GodotIapConnectionLifecycle(
+    /** Runs under the lock, so a drop's `disconnected` cannot overtake its `connected`. */
+    private val onConnectionChanged: (connected: Boolean) -> Unit = {},
+) {
     internal data class InitResult(
         val success: Boolean,
         val didConnect: Boolean,
@@ -56,7 +59,7 @@ internal class GodotIapConnectionLifecycle {
         state = State.Initializing
         // Allocated before connecting, so a drop reported before connect returns targets this attempt.
         generation++
-        try {
+        val result = try {
             val connected = connect(generation)
             if (connected) {
                 activeConfig = config.toMap()
@@ -71,6 +74,8 @@ internal class GodotIapConnectionLifecycle {
             state = State.Disconnected
             throw error
         }
+        if (result.didConnect) onConnectionChanged(true)
+        result
     }
 
     /** With [onlyGeneration], ends only that connection and leaves a newer one alone. */
@@ -102,6 +107,7 @@ internal class GodotIapConnectionLifecycle {
                 state = State.Disconnected
             }
         }
+        onConnectionChanged(false)
         EndResult(success = success, didEnd = true)
     }
 }

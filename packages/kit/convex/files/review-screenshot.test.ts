@@ -1300,9 +1300,16 @@ describe("Apple .p8 keys", () => {
     await expect(
       lookup("projects_c", "ASC1", "apple_p8_asc_api_key"),
     ).resolves.toMatchObject({ _id: "k1_asc_key" });
-    await expect(lookup("projects_c", "ASC1")).resolves.toBeNull();
-    await expect(lookup("projects_c", "K3")).resolves.toBeNull();
-    await expect(lookup("projects_c")).resolves.toBeNull();
+    // No key ID match: the organization's oldest key, as before key IDs were checked.
+    await expect(lookup("projects_c", "ASC1")).resolves.toMatchObject({
+      _id: "a_old",
+    });
+    await expect(lookup("projects_c", "K3")).resolves.toMatchObject({
+      _id: "a_old",
+    });
+    await expect(lookup("projects_c")).resolves.toMatchObject({
+      _id: "a_old",
+    });
     // An organization-level key records no key ID, so it comes last.
     files.push(key("org_key", "organizations_a"));
     await expect(lookup("projects_c", "K1")).resolves.toMatchObject({

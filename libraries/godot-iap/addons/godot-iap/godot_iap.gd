@@ -80,7 +80,8 @@ static var _shared_native_plugin: Object = null
 var _is_connected: bool = false
 ## True once _ready() set this wrapper up; tests set it early to keep injected fakes.
 var _is_initialized: bool = false
-var _purchase_updated_listener_options: Dictionary = {}
+## Shared like the native listener it configures, so another wrapper's init cannot reset it.
+static var _purchase_updated_listener_options: Dictionary = {}
 var _apple_async_results: Dictionary = {}
 var _apple_async_result_order: Array[String] = []
 var _apple_async_waiters: Dictionary = {}
@@ -394,7 +395,8 @@ func is_store_connected() -> bool:
 ##
 ## On Apple platforms, set [code]dedupe_transaction_ios[/code] to false to also receive
 ## StoreKit replay events for transaction IDs already delivered during the
-## current connection session. Android ignores this flag.
+## current connection session. Every wrapper shares one native listener, so
+## the latest call applies to all of them. Android ignores this flag.
 func set_purchase_updated_listener_options(options = null) -> void:
 	if typeof(options) == TYPE_OBJECT and options.has_method("to_dict"):
 		_purchase_updated_listener_options = options.to_dict()

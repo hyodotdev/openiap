@@ -298,6 +298,7 @@ func _run_all_tests() -> void:
 	await test_unavailable_redemption_signals()
 	await test_ios_transaction_lists_skip_invalid_store_identities()
 	await test_macos_shared_api_routing()
+	await test_another_wrapper_init_keeps_replay_options()
 
 
 func _install_android_fake() -> FakeAndroidJsonPlugin:
@@ -1606,6 +1607,27 @@ func test_ios_transaction_lists_skip_invalid_store_identities() -> void:
 
 	for list in [pending, history, changed]:
 		_assert_false(list.has(null), "Transaction lists must never contain null")
+	_uninstall_fake()
+
+
+func test_another_wrapper_init_keeps_replay_options() -> void:
+	var fake = _install_ios_fake()
+	var other: Node = GodotIapWrapper.new()
+	other._is_initialized = true
+	root.add_child(other)
+	other._native_plugin = fake
+	other._platform = "iOS"
+
+	GodotIapPlugin.set_purchase_updated_listener_options({"dedupeTransactionIOS": false})
+	_assert_true(await other.init_connection(), "The second wrapper connects through the shared plugin")
+	_assert_equal(
+		JSON.parse_string(fake.responses.get("last_listener_options", "{}")),
+		{"dedupeTransactionIOS": false},
+		"Another wrapper's init must keep the replay option the first wrapper set"
+	)
+
+	GodotIapPlugin.set_purchase_updated_listener_options(null)
+	other.free()
 	_uninstall_fake()
 
 
