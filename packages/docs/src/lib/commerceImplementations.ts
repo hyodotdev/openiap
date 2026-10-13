@@ -65,7 +65,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit receives that store evidence through verifyPurchase. The paywall, store purchase screen, and app login stay with your app; IAPKit does not replace them.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchase',
-      line: 218,
+      line: 213,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Route tests cover evidence parsing and errors with mocked store calls; they do not perform a mobile purchase.',
