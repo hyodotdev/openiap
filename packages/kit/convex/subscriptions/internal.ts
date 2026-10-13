@@ -100,6 +100,7 @@ type RecordVerifiedSubscriptionArgs = {
   priceAmountMicros?: number;
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
+  isUpgraded?: boolean;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -833,6 +834,7 @@ export const recordVerifiedSubscription = internalMutation({
     priceAmountMicros: v.optional(v.number()),
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
+    isUpgraded: v.optional(v.boolean()),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
@@ -875,24 +877,24 @@ export async function recordVerifiedSubscriptionHandler(
   // transaction; without comparable ordering metadata that snapshot must not
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
+  const now = Date.now();
   // An Apple JWS describes one transaction. Order by purchase date, not
   // expiry: an immediate upgrade (yearly to monthly) is newer yet ends sooner.
-  // A row stored before purchase dates were kept never rolls the same plan's
-  // expiry back, but a product change (an upgrade) applies and stamps a date.
-  if (
-    existing &&
+  // A row stored before purchase dates were kept has no order to trust: it
+  // never rolls the same plan's expiry back, and changes product only for a
+  // transaction that entitles now and Apple has not marked upgraded.
+  const staleSnapshot =
+    existing !== null &&
     (existing.verifiedPurchaseDate !== undefined
       ? args.verifiedPurchaseDate !== undefined &&
         args.verifiedPurchaseDate < existing.verifiedPurchaseDate
       : args.platform === "IOS" &&
-        snapshot.productId === existing.productId &&
-        existing.expiresAt !== undefined &&
-        snapshot.expiresAt !== undefined &&
-        snapshot.expiresAt < existing.expiresAt)
-  ) {
-    return existing._id;
-  }
-  const now = Date.now();
+        (snapshot.productId === existing.productId
+          ? existing.expiresAt !== undefined &&
+            snapshot.expiresAt !== undefined &&
+            snapshot.expiresAt < existing.expiresAt
+          : args.isUpgraded === true || !entitlementActive(snapshot, now)));
+  if (staleSnapshot) return existing._id;
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
   return persistSubscriptionSnapshot(ctx, {

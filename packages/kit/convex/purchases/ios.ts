@@ -203,6 +203,7 @@ export async function recordAppStoreVerifiedSubscription(
       priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
       revocationReasonIOS: params.transactionData.revocationReason,
       verifiedPurchaseDate: params.transactionData.purchaseDate,
+      isUpgraded: params.transactionData.isUpgraded,
     },
   );
 }
@@ -292,6 +293,7 @@ export async function verifyJWSTransaction(
       signedDate: verifiedTransaction.signedDate,
       transactionReason: verifiedTransaction.transactionReason,
       appTransactionId: verifiedTransaction.appTransactionId,
+      isUpgraded: verifiedTransaction.isUpgraded,
     };
 
     return transactionData;

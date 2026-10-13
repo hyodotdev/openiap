@@ -2704,6 +2704,57 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
+  it.each([
+    {
+      name: "an old expired transaction of another plan",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresInDays: -200,
+      isUpgraded: undefined,
+    },
+    {
+      name: "a superseded plan still before its original expiry",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresInDays: 200,
+      isUpgraded: true,
+    },
+  ])(
+    "keeps an iOS row stored without a purchase date when verifying $name",
+    async ({ purchaseState, expiresInDays, isUpgraded }) => {
+      const db = new MemDb();
+      const day = 86_400_000;
+      const now = Date.now();
+      const input = {
+        projectId: PROJECT_ID as Id<"projects">,
+        platform: "IOS" as const,
+        purchaseToken: "ios-original-transaction",
+      };
+      await recordVerifiedSubscriptionHandler(makeCtx(db), {
+        ...input,
+        productId: "pro_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        expiresAt: now + 30 * day,
+      });
+
+      await recordVerifiedSubscriptionHandler(makeCtx(db), {
+        ...input,
+        productId: "basic_yearly",
+        purchaseState,
+        expiresAt: now + expiresInDays * day,
+        verifiedPurchaseDate: now - 300 * day,
+        isUpgraded,
+      });
+
+      expect(db.rows("subscriptions")).toMatchObject([
+        {
+          productId: "pro_monthly",
+          state: "Active",
+          expiresAt: now + 30 * day,
+        },
+      ]);
+      expect(db.rows("subscriptions")[0]?.verifiedPurchaseDate).toBeUndefined();
+    },
+  );
+
   it("applies an immediate iOS upgrade that ends sooner than the plan it replaced", async () => {
     const db = new MemDb();
     const day = 86_400_000;

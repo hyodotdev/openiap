@@ -294,12 +294,14 @@ describe("recordAppStoreVerifiedSubscription", () => {
         expiresDate: 1_769_904_000_000,
         currency: "USD",
         price: 9990,
+        isUpgraded: true,
       },
     });
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       verifiedPurchaseDate: 1_767_225_600_000,
+      isUpgraded: true,
       projectId: "projects_1",
       platform: "IOS",
       purchaseToken: "original-transaction-1",

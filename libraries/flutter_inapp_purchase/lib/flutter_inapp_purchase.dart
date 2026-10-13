@@ -82,6 +82,15 @@ class _SharedNativeState {
   /// connected earlier must call initConnection again.
   int connectionDrops = 0;
 
+  /// iOS transaction ids delivered on the current connection.
+  final purchaseUpdatedHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
+
+  /// A new connection replays transactions, so delivered ids start over.
+  void markDisconnected() {
+    connectionDrops++;
+    purchaseUpdatedHistoryIOS.clear();
+  }
+
   void _replayPromotedProduct() {
     final productId = pendingPromotedProductIOS;
     pendingPromotedProductIOS = null;
@@ -142,8 +151,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   late final FirstPurchaseNotice _firstPurchaseNotice =
       FirstPurchaseNotice(_platform, _channel);
 
-  final _purchaseUpdatedDedupeHistoryIOS = _PurchaseUpdatedDedupeHistoryIOS();
-  int _purchaseUpdatedDedupeGenerationIOS = 0;
   int _nonDedupingPurchaseUpdatedListenerCountIOS = 0;
 
   /// Purchase updated event stream
@@ -214,15 +221,15 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   }) {
     return Stream<gentype.Purchase>.multi((controller) {
       final listenerHistory = _PurchaseUpdatedDedupeHistoryIOS.copy(
-        _purchaseUpdatedDedupeHistoryIOS,
+        _shared.purchaseUpdatedHistoryIOS,
       );
-      var listenerGeneration = _purchaseUpdatedDedupeGenerationIOS;
+      var listenerGeneration = _shared.connectionDrops;
       late StreamSubscription<gentype.Purchase> subscription;
       subscription = _shared.purchaseUpdated.stream.listen(
         (purchase) {
-          if (listenerGeneration != _purchaseUpdatedDedupeGenerationIOS) {
+          if (listenerGeneration != _shared.connectionDrops) {
             listenerHistory.clear();
-            listenerGeneration = _purchaseUpdatedDedupeGenerationIOS;
+            listenerGeneration = _shared.connectionDrops;
           }
 
           final transactionId = _purchaseUpdatedTransactionIdIOS(purchase);
@@ -230,7 +237,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final isDuplicateForListener =
                 listenerHistory.contains(transactionId);
             listenerHistory.record(transactionId);
-            _purchaseUpdatedDedupeHistoryIOS.record(transactionId);
+            _shared.purchaseUpdatedHistoryIOS.record(transactionId);
             if (dedupeTransactionIOS && isDuplicateForListener) {
               return;
             }
@@ -248,11 +255,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   String? _purchaseUpdatedTransactionIdIOS(gentype.Purchase purchase) {
     final id = purchase.id;
     return id.isEmpty ? null : id;
-  }
-
-  void _resetPurchaseUpdatedDedupeHistoryIOS() {
-    _purchaseUpdatedDedupeHistoryIOS.clear();
-    _purchaseUpdatedDedupeGenerationIOS += 1;
   }
 
   Future<void> _setPurchaseUpdatedListenerOptions(
@@ -382,7 +384,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         // A dropped billing service needs initConnection again.
         final state = jsonDecode(call.arguments as String);
         if (state is Map && state['connected'] == false) {
-          _shared.connectionDrops++;
+          _shared.markDisconnected();
         }
         break;
       case 'iap-promoted-product':
@@ -545,11 +547,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           if (disconnected == false) return false;
 
           // The native connection is shared, so every instance must reconnect.
-          _shared.connectionDrops++;
+          _shared.markDisconnected();
           _isIapUnavailable = false;
-          if (isIOS) {
-            _resetPurchaseUpdatedDedupeHistoryIOS();
-          }
           return true;
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(

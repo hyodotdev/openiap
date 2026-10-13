@@ -79,6 +79,7 @@ export const appStoreReceiptDataValidator = v.object({
   signedDate: v.optional(v.number()),
   transactionReason: v.optional(v.string()),
   appTransactionId: v.optional(v.string()),
+  isUpgraded: v.optional(v.boolean()),
   failureReason: v.optional(
     v.object({
       code: v.string(),

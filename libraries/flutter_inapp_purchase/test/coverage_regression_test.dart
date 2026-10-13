@@ -581,6 +581,48 @@ void main() {
       expect(calls.where((m) => m == 'initConnection'), hasLength(3));
     });
 
+    test('a replay after another instance ended the connection is delivered',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => true);
+      final ender = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      final listener = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      await ender.initConnection();
+      await listener.initConnection();
+      final delivered = <String>[];
+      final subscription = listener.purchaseUpdatedListener.listen(
+        (purchase) => delivered.add(purchase.id),
+      );
+      Future<void> deliver() => send(
+            'purchase-updated',
+            jsonEncode(<String, dynamic>{
+              'id': 'transaction-t',
+              'transactionId': 'transaction-t',
+              'productId': 'premium',
+              'purchaseState': 'purchased',
+              'quantity': 1,
+              'isAutoRenewing': false,
+              'store': 'apple',
+              'storeId': 'apple',
+              'transactionDate': 1,
+            }),
+          );
+
+      await deliver();
+      await ender.endConnection();
+      await listener.endConnection();
+      await listener.initConnection();
+      await deliver();
+      await pumpEventQueue();
+
+      expect(delivered, <String>['transaction-t', 'transaction-t']);
+      await subscription.cancel();
+    });
+
     test('an unused instance does not take events from the one in use',
         () async {
       final inUse = FlutterInappPurchase.private(
