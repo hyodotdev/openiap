@@ -52,12 +52,12 @@ jobs:
       # carry several commits, against the main tip before it.
       - name: Audit plugin manifests
         env:
-          PUSH_BASE: ${{ github.event_name == 'push' && github.event.before || '' }}
+          PUSH_BASE: ${{ github.event_name == 'push' && !github.event.created && github.event.before || '' }}
         run: |
           node --test scripts/audit-plugin-manifests.test.mjs
           BASE=HEAD^1
-          if [ -n "$PUSH_BASE" ]; then
-            git fetch --no-tags --depth=1 origin "$PUSH_BASE"
+          # An unreachable push base (force push, fetch error) falls back to HEAD^1.
+          if [ -n "$PUSH_BASE" ] && git fetch --no-tags --depth=1 origin "$PUSH_BASE"; then
             BASE="$PUSH_BASE"
           fi
           node scripts/audit-plugin-manifests.mjs "$BASE"

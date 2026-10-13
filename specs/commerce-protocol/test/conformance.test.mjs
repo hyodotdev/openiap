@@ -4043,10 +4043,39 @@ describe("the runner judges what a binding could otherwise hide", () => {
       ["a webpack source path", "webpack://my-app/./src/secrets.ts:12:4"],
       ["a Windows source path", "(C:\\src\\app\\Main.cs)"],
       ["a pytest location", "tests/test_verify.py:42"],
+      ["a Go open error", "open /app/main.go: no such file or directory"],
+      ["a PHP frame", "#0 /var/www/app/Billing.php(12): Billing->verify()"],
+      ["a tsc location", "/app/src/a.ts(12,4): error TS2322"],
+      ["an MSBuild location", "C:\\src\\Main.cs(12,5)"],
+      ["a backticked path", "`/app/secrets.ts`"],
+      ["a bracketed path", "[/app/secrets.ts]"],
+      ["a path before a colon", "/app/secrets.ts:"],
+      ["a path with an anchor", "/app/a.ts#L12"],
+      ["a path before punctuation", "see /app/secrets.ts!"],
+      ["a C++ location", "/srv/receipt/verify.cpp:42"],
+      ["a C location", "/srv/receipt/verify.c:42"],
+      ["a GDScript path", "/app/godot_iap.gd"],
     ].map(([where, text]) => [
       `${where} in the message`,
       (error) => ({ ...error, message: `${error.message} ${text}` }),
     ]),
+    [
+      "a GDScript path in a nested member",
+      (error) => ({
+        ...error,
+        extensions: {
+          ...error.extensions,
+          debug: { script: "/app/godot_iap.gd" },
+        },
+      }),
+    ],
+    [
+      "a GDScript path as a member name",
+      (error) => ({
+        ...error,
+        extensions: { ...error.extensions, "/app/godot_iap.gd": true },
+      }),
+    ],
     [
       "a source path without a line",
       (error) => ({
@@ -4087,6 +4116,10 @@ describe("the runner judges what a binding could otherwise hide", () => {
           "retry at api.example.rs:443",
           "applications/com.example.go/purchases/subscriptions/tokens/abc",
           "relative paths without a line pass: src/secrets.ts",
+          "dial api.example.rs:443: i/o timeout",
+          "upstream api.example.rs:443: connection refused",
+          "requires Node.js:18: patch missing",
+          "see /v1.2.3/app.js-legacy",
         ],
       },
     }));

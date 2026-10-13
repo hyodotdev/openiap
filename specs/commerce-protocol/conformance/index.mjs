@@ -645,18 +645,22 @@ function entitlementsInvariants(data, input) {
   return failures;
 }
 
-const SOURCE_EXT = String.raw`\.(?:[cm]?[jt]sx?|kts?|java|scala|swift|go|rb|cs|rs|php|dart|py)`;
+const SCRIPT_EXT = String.raw`\.[cm]?[jt]sx?`;
+const OTHER_EXT = String.raw`\.(?:kts?|java|scala|swift|go|rb|cs|rs|php|dart|py|c|cc|cpp|cxx|h|hpp|m|mm|gd)`;
+const SOURCE_EXT = `(?:${SCRIPT_EXT}|${OTHER_EXT})`;
 const SEGMENT = String.raw`[\w$@+~.-]*`;
 // SPEC.md 8 bans source paths and stack frames. Segments cannot contain a
 // separator, so no two quantifiers overlap and the scan stays linear.
 const SOURCE_LOCATION = new RegExp(
   [
-    // A located file anywhere: `main.go:42:`, `a.ts:12:4`, `a.rb:12:in`.
-    String.raw`${SOURCE_EXT}:\d+:`,
+    // A located file. JS/TS always prints a column (`a.ts:12:4`), so
+    // `Node.js:18:` stays prose; others (`main.go:42:`) need a dot-free stem,
+    // so `api.example.rs:443:` does too.
+    String.raw`${SCRIPT_EXT}:\d+:\d|(?<![\w$.@+~-])[\w$@+~-]+${OTHER_EXT}:\d+:`,
     // A path whose last segment is a source file with a line: `tests/a.py:42`.
     String.raw`[/\\]${SEGMENT}${SOURCE_EXT}:\d`,
-    // An absolute path ending in a source file: `/app/a.ts`, `C:\src\A.cs`.
-    String.raw`(?<![\w$@+~./\\-])(?:[A-Za-z]:)?[/\\](?:${SEGMENT}[/\\])*${SEGMENT}${SOURCE_EXT}(?=$|[\s"'),;]|:\d|\.(?:\s|$))`,
+    // An absolute path ending in a source file: `/app/a.ts`, `C:\src\A.cs(9)`.
+    String.raw`(?<![\w$@+~./\\-])(?:[A-Za-z]:)?[/\\](?:${SEGMENT}[/\\])*${SEGMENT}${SOURCE_EXT}(?=$|\.(?:\s|$)|[^\w$@+~./\\-])`,
     // Bare-file frames: `f(A.kt:42)`, `File "a.py", line 7`, `A.cs:line 9`.
     String.raw`[\w$]\(${SEGMENT}${SOURCE_EXT}:\d|File "${SEGMENT}${SOURCE_EXT}", line \d|${SOURCE_EXT}:line \d`,
   ].join("|"),
