@@ -100,7 +100,6 @@ type RecordVerifiedSubscriptionArgs = {
   priceAmountMicros?: number;
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
-  authoritative?: boolean;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -671,9 +670,7 @@ export function buildVerifiedSubscriptionSnapshot(
     priceAmountMicros: input.priceAmountMicros,
   };
 
-  // Apple's status can report billing grace, which takes the shared
-  // subscriptionState mapping below.
-  if (input.platform === "IOS" && input.subscriptionState === undefined) {
+  if (input.platform === "IOS") {
     switch (input.purchaseState) {
       case HarmonizedPurchaseState.ENTITLED:
         return {
@@ -836,30 +833,9 @@ export const recordVerifiedSubscription = internalMutation({
     priceAmountMicros: v.optional(v.number()),
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
-    // Apple's current subscription status, newest by definition.
-    authoritative: v.optional(v.boolean()),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
-});
-
-// The product of an iOS row stored before verified purchase dates were kept
-// and not yet governed by a store event, or null.
-export const legacyAppleSubscriptionProductId = internalQuery({
-  args: { projectId: v.id("projects"), purchaseToken: v.string() },
-  returns: v.union(v.string(), v.null()),
-  handler: async (ctx, args) => {
-    const row = await findSubscriptionByToken(
-      ctx,
-      args.projectId,
-      args.purchaseToken,
-    );
-    return row?.platform === "IOS" &&
-      row.verifiedPurchaseDate === undefined &&
-      row.lastEventId === undefined
-      ? row.productId
-      : null;
-  },
 });
 
 export async function recordVerifiedSubscriptionHandler(
@@ -900,25 +876,17 @@ export async function recordVerifiedSubscriptionHandler(
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
   const now = Date.now();
-  // An Apple JWS describes one transaction. Order by purchase date, not
-  // expiry: an immediate upgrade (yearly to monthly) is newer yet ends sooner.
-  // A row stored before purchase dates were kept has no order to trust: it
-  // never rolls the same plan's expiry back, and changes product only when
-  // the snapshot is Apple's current subscription status (`authoritative`).
-  // Re-checked here, not in the action: a concurrent verify may have stamped
-  // the row since the action looked, and then dates order even Apple's status.
-  const staleSnapshot =
-    existing !== null &&
-    (existing.verifiedPurchaseDate !== undefined
-      ? args.verifiedPurchaseDate !== undefined &&
-        args.verifiedPurchaseDate < existing.verifiedPurchaseDate
-      : !args.authoritative &&
-        args.platform === "IOS" &&
-        (snapshot.productId !== existing.productId ||
-          (existing.expiresAt !== undefined &&
-            snapshot.expiresAt !== undefined &&
-            snapshot.expiresAt < existing.expiresAt)));
-  if (staleSnapshot) return existing._id;
+  // An Apple JWS describes one transaction, so verifies apply in purchase-date
+  // order: an upgrade is newer yet may end sooner. A row stored before dates
+  // were kept takes the first verify as before; an old replay there is fixed
+  // by the next newer verify.
+  if (
+    existing?.verifiedPurchaseDate !== undefined &&
+    args.verifiedPurchaseDate !== undefined &&
+    args.verifiedPurchaseDate < existing.verifiedPurchaseDate
+  ) {
+    return existing._id;
+  }
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
   return persistSubscriptionSnapshot(ctx, {

@@ -8,7 +8,6 @@ import {
   type JWSTransactionDecodedPayload,
   VerificationStatus,
   APIException,
-  Status,
 } from "@apple/app-store-server-library";
 import { v } from "convex/values";
 
@@ -120,19 +119,13 @@ export const verifyAppStoreReceiptInternalV1 = action({
       project.iosAppAppleId,
     );
 
-    const client = new AppStoreServerAPIClient(
-      serverCredentials.privateKey,
-      serverCredentials.keyId,
-      serverCredentials.issuerId,
-      project.iosBundleId,
-      environment,
-    );
     const transactionData = await verifyTransactionWithServerApi({
-      client,
+      ctx,
       decodedJwsPayload: decodedPayload,
       bundleId: project.iosBundleId,
       environment,
       appAppleId: project.iosAppAppleId,
+      credentials: serverCredentials,
     });
 
     assertVerifiedTransactionBinding({
@@ -168,19 +161,11 @@ export const verifyAppStoreReceiptInternalV1 = action({
       requestIp: args.requestIp,
       verificationDurationMs: Date.now() - verificationStart,
     });
-    const bundleId = project.iosBundleId;
     await recordAppStoreVerifiedSubscription(ctx, {
       projectId: project._id,
       remoteId,
       transactionData,
       purchaseState: storeReceiptResponse.state,
-      latestTransaction: () =>
-        fetchLatestAppleTransaction(client, {
-          originalTransactionId: remoteId,
-          bundleId,
-          environment,
-          appAppleId: project.iosAppAppleId,
-        }),
     });
 
     return receiptResponse;
@@ -188,13 +173,12 @@ export const verifyAppStoreReceiptInternalV1 = action({
 });
 
 export async function recordAppStoreVerifiedSubscription(
-  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  ctx: Pick<ActionCtx, "runMutation">,
   params: {
     projectId: Id<"projects">;
     remoteId: string;
     transactionData: AppStoreReceiptData;
     purchaseState: HarmonizedPurchaseState;
-    latestTransaction: () => Promise<LatestAppleStatus | null>;
   },
 ): Promise<void> {
   // Non-renewing passes carry no expiry, so a subscription row would stay
@@ -206,128 +190,21 @@ export async function recordAppStoreVerifiedSubscription(
     return;
   }
 
-  let transaction = params.transactionData;
-  let purchaseState = params.purchaseState;
-  let expiresAt = transaction.expiresDate;
-  let subscriptionState: string | undefined;
-  // A row stored before purchase dates were kept has no order to compare
-  // another plan against, so Apple's current subscription status decides.
-  // Without an answer the row stays as it is; the verdict already stands.
-  const legacyProductId = await ctx.runQuery(
-    internal.subscriptions.internal.legacyAppleSubscriptionProductId,
-    { projectId: params.projectId, purchaseToken: params.remoteId },
-  );
-  const authoritative =
-    legacyProductId !== null && legacyProductId !== transaction.productId;
-  if (authoritative) {
-    const latest = await params.latestTransaction();
-    if (!latest) return;
-    transaction = latest.transaction;
-    purchaseState = mapToAppStoreReceiptResponse(transaction).state;
-    expiresAt = transaction.expiresDate;
-    // Billing grace: the paid period ended, but access lasts until Apple's
-    // grace deadline (none known means until a later store fact).
-    if (latest.inGracePeriod) {
-      purchaseState = HarmonizedPurchaseState.ENTITLED;
-      subscriptionState = "SUBSCRIPTION_STATE_IN_GRACE_PERIOD";
-      expiresAt = latest.graceExpiresAt;
-    }
-  }
-
   await ctx.runMutation(
     internal.subscriptions.internal.recordVerifiedSubscription,
     {
       projectId: params.projectId,
       platform: "IOS",
       purchaseToken: params.remoteId,
-      productId: transaction.productId ?? "unknown",
-      purchaseState,
-      ...(subscriptionState ? { subscriptionState } : {}),
-      expiresAt,
-      currency: transaction.currency,
-      priceAmountMicros: appStorePriceToMicros(transaction.price),
-      revocationReasonIOS: transaction.revocationReason,
-      verifiedPurchaseDate: transaction.purchaseDate,
-      ...(authoritative ? { authoritative: true } : {}),
+      productId: params.transactionData.productId ?? "unknown",
+      purchaseState: params.purchaseState,
+      expiresAt: params.transactionData.expiresDate,
+      currency: params.transactionData.currency,
+      priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
+      revocationReasonIOS: params.transactionData.revocationReason,
+      verifiedPurchaseDate: params.transactionData.purchaseDate,
     },
   );
-}
-
-export interface LatestAppleStatus {
-  transaction: AppStoreReceiptData;
-  inGracePeriod: boolean;
-  graceExpiresAt?: number;
-}
-
-// The optional lookup must not hold a /v1 verify: the Apple client has no
-// timeout of its own.
-export const APPLE_STATUS_LOOKUP_DEADLINE_MS = 5_000;
-
-// The newest transaction Apple reports for this subscription with its status,
-// verified like any other, or null when the App Store Server API cannot say
-// in time.
-export async function fetchLatestAppleTransaction(
-  client: Pick<AppStoreServerAPIClient, "getAllSubscriptionStatuses">,
-  params: {
-    originalTransactionId: string;
-    bundleId: string;
-    environment: Environment;
-    appAppleId?: number;
-  },
-): Promise<LatestAppleStatus | null> {
-  const lookup = async (): Promise<LatestAppleStatus | null> => {
-    const response = await retryOnTransient(() =>
-      client.getAllSubscriptionStatuses(params.originalTransactionId),
-    );
-    const latest = (response.data ?? [])
-      .flatMap((group) => group.lastTransactions ?? [])
-      .find(
-        (item) => item.originalTransactionId === params.originalTransactionId,
-      );
-    if (!latest?.signedTransactionInfo) return null;
-    const transaction = await verifyJWSTransaction(
-      latest.signedTransactionInfo,
-      params.bundleId,
-      params.environment,
-      params.appAppleId,
-    );
-    const inGracePeriod = latest.status === Status.BILLING_GRACE_PERIOD;
-    const renewal =
-      inGracePeriod && latest.signedRenewalInfo
-        ? await appleVerifier(
-            params.bundleId,
-            params.environment,
-            params.appAppleId,
-          ).verifyAndDecodeRenewalInfo(latest.signedRenewalInfo)
-        : undefined;
-    return {
-      transaction,
-      inGracePeriod,
-      graceExpiresAt: renewal?.gracePeriodExpiresDate,
-    };
-  };
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<null>((resolve) => {
-    timer = setTimeout(() => {
-      console.error("Apple subscription status lookup timed out");
-      resolve(null);
-    }, APPLE_STATUS_LOOKUP_DEADLINE_MS);
-  });
-  try {
-    return await Promise.race([
-      lookup().catch((error: unknown) => {
-        console.error(
-          "Failed to read Apple subscription status:",
-          describeError(error),
-        );
-        return null;
-      }),
-      deadline,
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 function decodeJwsPayload(jws: string): JWSTransactionDecodedPayload {
@@ -359,21 +236,6 @@ function decodeJwsPayload(jws: string): JWSTransactionDecodedPayload {
   }
 }
 
-// Online checks consult Apple's OCSP responder for every certificate.
-function appleVerifier(
-  bundleId: string,
-  environment: Environment,
-  appAppleId?: number,
-): SignedDataVerifier {
-  return new SignedDataVerifier(
-    loadAppleRootCertificates(),
-    true,
-    environment,
-    bundleId,
-    appAppleId,
-  );
-}
-
 export async function verifyJWSTransaction(
   jws: string,
   bundleId: string,
@@ -381,7 +243,16 @@ export async function verifyJWSTransaction(
   appAppleId?: number,
 ): Promise<AppStoreReceiptData> {
   try {
-    const verifier = appleVerifier(bundleId, environment, appAppleId);
+    const appleRootCAs = loadAppleRootCertificates();
+    const enableOnlineChecks = true;
+
+    const verifier = new SignedDataVerifier(
+      appleRootCAs,
+      enableOnlineChecks,
+      environment,
+      bundleId,
+      appAppleId,
+    );
 
     // Online checks call Apple's CRL/OCSP endpoints, so transient failures
     // retry, as on the other store paths. The type adds fields a StoreKit 2
@@ -524,14 +395,23 @@ export function assertVerifiedTransactionBinding(params: {
 }
 
 async function verifyTransactionWithServerApi(params: {
-  client: AppStoreServerAPIClient;
+  ctx: ActionCtx;
   decodedJwsPayload: JWSTransactionDecodedPayload;
   bundleId: string;
   environment: Environment;
   appAppleId?: number;
+  credentials: AppStoreServerCredentials;
 }): Promise<AppStoreReceiptData> {
-  const { client, decodedJwsPayload, bundleId, environment, appAppleId } =
+  const { decodedJwsPayload, bundleId, environment, appAppleId, credentials } =
     params;
+
+  const client = new AppStoreServerAPIClient(
+    credentials.privateKey,
+    credentials.keyId,
+    credentials.issuerId,
+    bundleId,
+    environment,
+  );
 
   try {
     // Retries the API's transient 5xx; extractHttpStatus reads APIException's

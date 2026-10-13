@@ -3,10 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const appleMocks = vi.hoisted(() => ({
   apiClientConstructor: vi.fn(),
-  getAllSubscriptionStatuses: vi.fn(),
   getTransactionInfo: vi.fn(),
   verifierConstructor: vi.fn(),
-  verifyAndDecodeRenewalInfo: vi.fn(),
   verifyAndDecodeTransaction: vi.fn(),
 }));
 
@@ -24,10 +22,6 @@ vi.mock("@apple/app-store-server-library", async (importOriginal) => {
       getTransactionInfo(transactionId: string) {
         return appleMocks.getTransactionInfo(transactionId);
       }
-
-      getAllSubscriptionStatuses(transactionId: string) {
-        return appleMocks.getAllSubscriptionStatuses(transactionId);
-      }
     },
     SignedDataVerifier: class {
       constructor(...args: unknown[]) {
@@ -36,10 +30,6 @@ vi.mock("@apple/app-store-server-library", async (importOriginal) => {
 
       verifyAndDecodeTransaction(jws: string) {
         return appleMocks.verifyAndDecodeTransaction(jws);
-      }
-
-      verifyAndDecodeRenewalInfo(jws: string) {
-        return appleMocks.verifyAndDecodeRenewalInfo(jws);
       }
     },
   };
@@ -75,18 +65,13 @@ function compactJws(payload: Record<string, unknown>): string {
   ].join(".");
 }
 
-function context(legacyProductId: string | null = null) {
+function context() {
   return {
-    runQuery: vi.fn(async (reference: FunctionReference<"query">) => {
-      switch (getFunctionName(reference)) {
-        case "files/internal:getAppleP8KeyFile":
-          return { storageId: "storage_key" };
-        case "subscriptions/internal:legacyAppleSubscriptionProductId":
-          return legacyProductId;
-        default:
-          return project;
-      }
-    }),
+    runQuery: vi.fn(async (reference: FunctionReference<"query">) =>
+      getFunctionName(reference) === "files/internal:getAppleP8KeyFile"
+        ? { storageId: "storage_key" }
+        : project,
+    ),
     storage: { get: vi.fn().mockResolvedValue(new Blob(["private-key"])) },
     runMutation: vi.fn().mockResolvedValue("purchases_1"),
   };
@@ -107,7 +92,6 @@ const verifiedTransaction = {
 describe("verifyAppStoreReceiptInternalV1 handler", () => {
   beforeEach(() => {
     appleMocks.apiClientConstructor.mockReset();
-    appleMocks.getAllSubscriptionStatuses.mockReset();
     appleMocks.getTransactionInfo.mockReset();
     appleMocks.verifierConstructor.mockReset();
     appleMocks.verifyAndDecodeTransaction.mockReset();
@@ -235,144 +219,6 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     expect(savedVerdicts(ctx)).toHaveLength(0);
   });
 });
-
-describe("legacy subscription rows meeting another plan", () => {
-  const verifiedRenewal = {
-    ...verifiedTransaction,
-    productId: "basic_yearly",
-    type: "Auto-Renewable Subscription",
-    transactionReason: "RENEWAL",
-    expiresDate: Date.now() - 86_400_000,
-  };
-  const currentPlan = {
-    ...verifiedRenewal,
-    transactionId: "2000001177059999",
-    productId: "pro_monthly",
-    purchaseDate: Date.now() - 3_600_000,
-    expiresDate: Date.now() + 86_400_000,
-  };
-  const clientJws = compactJws({
-    transactionId: verifiedTransaction.transactionId,
-    bundleId: verifiedTransaction.bundleId,
-    environment: "Production",
-  });
-
-  beforeEach(() => {
-    appleMocks.getAllSubscriptionStatuses.mockReset();
-    appleMocks.getTransactionInfo.mockReset();
-    appleMocks.verifyAndDecodeRenewalInfo.mockReset();
-    appleMocks.verifyAndDecodeTransaction.mockReset();
-    appleMocks.getTransactionInfo.mockResolvedValue({
-      signedTransactionInfo: "server.signed.transaction",
-    });
-    appleMocks.verifyAndDecodeTransaction.mockImplementation(
-      async (jws: string) =>
-        jws === "latest.signed.transaction" ? currentPlan : verifiedRenewal,
-    );
-  });
-
-  it("records Apple's current subscription status instead of the replayed plan", async () => {
-    appleMocks.getAllSubscriptionStatuses.mockResolvedValue({
-      data: [
-        {
-          lastTransactions: [
-            {
-              originalTransactionId: verifiedTransaction.originalTransactionId,
-              signedTransactionInfo: "latest.signed.transaction",
-            },
-          ],
-        },
-      ],
-    });
-    const ctx = context("pro_monthly");
-
-    await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: clientJws,
-      }),
-    ).resolves.toMatchObject({ isValid: false, state: "EXPIRED" });
-
-    expect(appleMocks.getAllSubscriptionStatuses).toHaveBeenCalledWith(
-      verifiedTransaction.originalTransactionId,
-    );
-    expect(subscriptionWrites(ctx)).toEqual([
-      expect.objectContaining({
-        productId: "pro_monthly",
-        purchaseState: "ENTITLED",
-        authoritative: true,
-      }),
-    ]);
-  });
-
-  it("records Apple billing grace from the verified renewal info", async () => {
-    const graceEnds = Date.now() + 86_400_000;
-    appleMocks.verifyAndDecodeTransaction.mockImplementation(
-      async (jws: string) =>
-        jws === "latest.signed.transaction"
-          ? { ...currentPlan, expiresDate: Date.now() - 3_600_000 }
-          : verifiedRenewal,
-    );
-    appleMocks.verifyAndDecodeRenewalInfo.mockResolvedValue({
-      gracePeriodExpiresDate: graceEnds,
-    });
-    appleMocks.getAllSubscriptionStatuses.mockResolvedValue({
-      data: [
-        {
-          lastTransactions: [
-            {
-              originalTransactionId: verifiedTransaction.originalTransactionId,
-              status: 4,
-              signedTransactionInfo: "latest.signed.transaction",
-              signedRenewalInfo: "latest.signed.renewal",
-            },
-          ],
-        },
-      ],
-    });
-    const ctx = context("pro_monthly");
-
-    await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: clientJws,
-      }),
-    ).resolves.toMatchObject({ isValid: false, state: "EXPIRED" });
-
-    expect(appleMocks.verifyAndDecodeRenewalInfo).toHaveBeenCalledWith(
-      "latest.signed.renewal",
-    );
-    expect(subscriptionWrites(ctx)).toEqual([
-      expect.objectContaining({
-        productId: "pro_monthly",
-        purchaseState: "ENTITLED",
-        subscriptionState: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
-        expiresAt: graceEnds,
-      }),
-    ]);
-  });
-
-  it("keeps the row and the verdict when Apple's status cannot be read", async () => {
-    appleMocks.getAllSubscriptionStatuses.mockRejectedValue(new Error("down"));
-    const ctx = context("pro_monthly");
-
-    await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: clientJws,
-      }),
-    ).resolves.toMatchObject({ isValid: false, state: "EXPIRED" });
-
-    expect(subscriptionWrites(ctx)).toHaveLength(0);
-  });
-});
-
-// Subscription writes are the receipt writes that name a platform.
-function subscriptionWrites(ctx: ReturnType<typeof context>): unknown[] {
-  return ctx.runMutation.mock.calls
-    .map((call) => call[1] as { platform?: unknown })
-    .filter((args) => args.platform === "IOS");
-}
 
 // Receipt writes carry a state; the admission mutation does not.
 function savedVerdicts(ctx: ReturnType<typeof context>): unknown[] {
