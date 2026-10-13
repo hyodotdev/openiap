@@ -100,7 +100,7 @@ type RecordVerifiedSubscriptionArgs = {
   priceAmountMicros?: number;
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
-  isUpgraded?: boolean;
+  authoritative?: boolean;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -834,10 +834,30 @@ export const recordVerifiedSubscription = internalMutation({
     priceAmountMicros: v.optional(v.number()),
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
-    isUpgraded: v.optional(v.boolean()),
+    // Apple's current subscription status, newest by definition.
+    authoritative: v.optional(v.boolean()),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
+});
+
+// The product of an iOS row stored before verified purchase dates were kept
+// and not yet governed by a store event, or null.
+export const legacyAppleSubscriptionProductId = internalQuery({
+  args: { projectId: v.id("projects"), purchaseToken: v.string() },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const row = await findSubscriptionByToken(
+      ctx,
+      args.projectId,
+      args.purchaseToken,
+    );
+    return row?.platform === "IOS" &&
+      row.verifiedPurchaseDate === undefined &&
+      row.lastEventId === undefined
+      ? row.productId
+      : null;
+  },
 });
 
 export async function recordVerifiedSubscriptionHandler(
@@ -881,19 +901,19 @@ export async function recordVerifiedSubscriptionHandler(
   // An Apple JWS describes one transaction. Order by purchase date, not
   // expiry: an immediate upgrade (yearly to monthly) is newer yet ends sooner.
   // A row stored before purchase dates were kept has no order to trust: it
-  // never rolls the same plan's expiry back, and changes product only for a
-  // transaction that entitles now and Apple has not marked upgraded.
+  // never rolls the same plan's expiry back, and changes product only when
+  // the snapshot is Apple's current subscription status (`authoritative`).
   const staleSnapshot =
+    !args.authoritative &&
     existing !== null &&
     (existing.verifiedPurchaseDate !== undefined
       ? args.verifiedPurchaseDate !== undefined &&
         args.verifiedPurchaseDate < existing.verifiedPurchaseDate
       : args.platform === "IOS" &&
-        (snapshot.productId === existing.productId
-          ? existing.expiresAt !== undefined &&
+        (snapshot.productId !== existing.productId ||
+          (existing.expiresAt !== undefined &&
             snapshot.expiresAt !== undefined &&
-            snapshot.expiresAt < existing.expiresAt
-          : args.isUpgraded === true || !entitlementActive(snapshot, now)));
+            snapshot.expiresAt < existing.expiresAt)));
   if (staleSnapshot) return existing._id;
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);

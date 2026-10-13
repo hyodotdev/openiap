@@ -53,7 +53,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Apple subscriptions",
-        text: "Non-renewing passes no longer count as active subscriptions, including rows recorded before this fix; grace periods are unaffected. Verifying an older renewal no longer rolls a subscription back to that period. Verify responses are unchanged.",
+        text: "Non-renewing passes no longer count as active subscriptions, including rows recorded before this fix; grace periods are unaffected. Verifying an older renewal no longer rolls a subscription back to that period; for a subscription recorded earlier, a different plan is settled by Apple's current subscription status. Verify responses are unchanged.",
       },
       {
         kind: "fix",

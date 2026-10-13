@@ -9,7 +9,7 @@ import {
   VerificationException,
   VerificationStatus,
 } from "@apple/app-store-server-library";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertVerifiedTransactionBinding,
   isVerifierOutage,
@@ -18,6 +18,7 @@ import {
 import {
   applyExpectedProductId,
   AppStoreProductType,
+  type AppStoreReceiptData,
   mapToAppStoreReceiptResponse,
 } from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
@@ -259,28 +260,34 @@ describe("App Store mappings (real data)", () => {
 });
 
 describe("recordAppStoreVerifiedSubscription", () => {
-  function makeRunMutationRecorder(): {
-    ctx: Parameters<typeof recordAppStoreVerifiedSubscription>[0];
-    calls: Record<string, unknown>[];
-  } {
-    const calls: Record<string, unknown>[] = [];
-    const ctx = {
-      runMutation: async (
-        _mutation: unknown,
-        args: Record<string, unknown>,
-      ) => {
-        calls.push(args);
-        return null;
-      },
-    } as unknown as Parameters<typeof recordAppStoreVerifiedSubscription>[0];
-    return { ctx, calls };
+  // `legacyProductId`: the product of a row stored without a purchase date.
+  function makeRunMutationRecorder(legacyProductId: string | null = null) {
+    const runMutation = vi.fn();
+    const runQuery = vi.fn().mockResolvedValue(legacyProductId);
+    const calls = (): Record<string, unknown>[] =>
+      runMutation.mock.calls.map((call) => call[1] as Record<string, unknown>);
+    return { ctx: { runMutation, runQuery }, calls };
   }
+  const noLatest = vi.fn(async () => null);
+  const subscription = (
+    productId: string,
+    extra: Partial<AppStoreReceiptData> = {},
+  ): AppStoreReceiptData => ({
+    transactionId: `${productId}-transaction`,
+    originalTransactionId: "original-transaction-1",
+    bundleId: "dev.hyo.martie",
+    productId,
+    type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+    environment: "Production",
+    ...extra,
+  });
 
   it("records subscription transactions with store-verified state and micros pricing", async () => {
     const { ctx, calls } = makeRunMutationRecorder();
 
     await recordAppStoreVerifiedSubscription(ctx, {
-      projectId: "projects_1" as never,
+      latestTransaction: noLatest,
+      projectId: "projects_1" as Id<"projects">,
       remoteId: "original-transaction-1",
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       transactionData: {
@@ -294,14 +301,12 @@ describe("recordAppStoreVerifiedSubscription", () => {
         expiresDate: 1_769_904_000_000,
         currency: "USD",
         price: 9990,
-        isUpgraded: true,
       },
     });
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]).toMatchObject({
       verifiedPurchaseDate: 1_767_225_600_000,
-      isUpgraded: true,
       projectId: "projects_1",
       platform: "IOS",
       purchaseToken: "original-transaction-1",
@@ -317,7 +322,8 @@ describe("recordAppStoreVerifiedSubscription", () => {
     const { ctx, calls } = makeRunMutationRecorder();
 
     await recordAppStoreVerifiedSubscription(ctx, {
-      projectId: "projects_1" as never,
+      latestTransaction: noLatest,
+      projectId: "projects_1" as Id<"projects">,
       remoteId: "transaction-1",
       purchaseState: HarmonizedPurchaseState.READY_TO_CONSUME,
       transactionData: {
@@ -331,7 +337,7 @@ describe("recordAppStoreVerifiedSubscription", () => {
       },
     });
 
-    expect(calls).toHaveLength(0);
+    expect(calls()).toHaveLength(0);
   });
 
   it("keeps non-renewing passes as purchases, never expiry-less subscription rows", async () => {
@@ -353,13 +359,83 @@ describe("recordAppStoreVerifiedSubscription", () => {
       HarmonizedPurchaseState.ENTITLED,
     );
     await recordAppStoreVerifiedSubscription(ctx, {
+      latestTransaction: noLatest,
       projectId: "projects_1" as Id<"projects">,
       remoteId: "pass-1",
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       transactionData,
     });
 
-    expect(calls).toHaveLength(0);
+    expect(calls()).toHaveLength(0);
+  });
+
+  it("records Apple's latest when a legacy row meets another plan: a newer refunded monthly", async () => {
+    const { ctx, calls } = makeRunMutationRecorder("basic_yearly");
+    const latest = subscription("pro_monthly", {
+      purchaseDate: 2_000,
+      expiresDate: 3_000,
+      revocationDate: 2_500,
+      transactionReason: "PURCHASE",
+    });
+
+    await recordAppStoreVerifiedSubscription(ctx, {
+      latestTransaction: async () => latest,
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "original-transaction-1",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      transactionData: subscription("pro_monthly_trial"),
+    });
+
+    expect(calls()).toEqual([
+      expect.objectContaining({
+        productId: "pro_monthly",
+        purchaseState: HarmonizedPurchaseState.CANCELED,
+        expiresAt: 3_000,
+        verifiedPurchaseDate: 2_000,
+        authoritative: true,
+      }),
+    ]);
+  });
+
+  it("records Apple's current plan when a legacy row meets a replayed old plan", async () => {
+    const { ctx, calls } = makeRunMutationRecorder("pro_monthly");
+    const future = Date.now() + 86_400_000;
+
+    await recordAppStoreVerifiedSubscription(ctx, {
+      latestTransaction: async () =>
+        subscription("pro_monthly", {
+          purchaseDate: 2_000,
+          expiresDate: future,
+          transactionReason: "RENEWAL",
+        }),
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "original-transaction-1",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      transactionData: subscription("basic_yearly", { expiresDate: 1_000 }),
+    });
+
+    expect(calls()).toEqual([
+      expect.objectContaining({
+        productId: "pro_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        expiresAt: future,
+        authoritative: true,
+      }),
+    ]);
+  });
+
+  it("leaves a legacy row unchanged when Apple's status cannot be read", async () => {
+    const { ctx, calls } = makeRunMutationRecorder("basic_yearly");
+
+    await recordAppStoreVerifiedSubscription(ctx, {
+      latestTransaction: noLatest,
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "original-transaction-1",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      transactionData: subscription("pro_monthly"),
+    });
+
+    expect(calls()).toHaveLength(0);
   });
 });
 

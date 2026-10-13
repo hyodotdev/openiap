@@ -119,13 +119,19 @@ export const verifyAppStoreReceiptInternalV1 = action({
       project.iosAppAppleId,
     );
 
+    const client = new AppStoreServerAPIClient(
+      serverCredentials.privateKey,
+      serverCredentials.keyId,
+      serverCredentials.issuerId,
+      project.iosBundleId,
+      environment,
+    );
     const transactionData = await verifyTransactionWithServerApi({
-      ctx,
+      client,
       decodedJwsPayload: decodedPayload,
       bundleId: project.iosBundleId,
       environment,
       appAppleId: project.iosAppAppleId,
-      credentials: serverCredentials,
     });
 
     assertVerifiedTransactionBinding({
@@ -161,11 +167,19 @@ export const verifyAppStoreReceiptInternalV1 = action({
       requestIp: args.requestIp,
       verificationDurationMs: Date.now() - verificationStart,
     });
+    const bundleId = project.iosBundleId;
     await recordAppStoreVerifiedSubscription(ctx, {
       projectId: project._id,
       remoteId,
       transactionData,
       purchaseState: storeReceiptResponse.state,
+      latestTransaction: () =>
+        fetchLatestAppleTransaction(client, {
+          originalTransactionId: remoteId,
+          bundleId,
+          environment,
+          appAppleId: project.iosAppAppleId,
+        }),
     });
 
     return receiptResponse;
@@ -173,12 +187,13 @@ export const verifyAppStoreReceiptInternalV1 = action({
 });
 
 export async function recordAppStoreVerifiedSubscription(
-  ctx: Pick<ActionCtx, "runMutation">,
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   params: {
     projectId: Id<"projects">;
     remoteId: string;
     transactionData: AppStoreReceiptData;
     purchaseState: HarmonizedPurchaseState;
+    latestTransaction: () => Promise<AppStoreReceiptData | null>;
   },
 ): Promise<void> {
   // Non-renewing passes carry no expiry, so a subscription row would stay
@@ -190,22 +205,76 @@ export async function recordAppStoreVerifiedSubscription(
     return;
   }
 
+  let transaction = params.transactionData;
+  let purchaseState = params.purchaseState;
+  // A row stored before purchase dates were kept has no order to compare
+  // another plan against, so Apple's current subscription status decides.
+  // Without an answer the row stays as it is; the verdict already stands.
+  const legacyProductId = await ctx.runQuery(
+    internal.subscriptions.internal.legacyAppleSubscriptionProductId,
+    { projectId: params.projectId, purchaseToken: params.remoteId },
+  );
+  const authoritative =
+    legacyProductId !== null && legacyProductId !== transaction.productId;
+  if (authoritative) {
+    const latest = await params.latestTransaction();
+    if (!latest) return;
+    transaction = latest;
+    purchaseState = mapToAppStoreReceiptResponse(latest).state;
+  }
+
   await ctx.runMutation(
     internal.subscriptions.internal.recordVerifiedSubscription,
     {
       projectId: params.projectId,
       platform: "IOS",
       purchaseToken: params.remoteId,
-      productId: params.transactionData.productId ?? "unknown",
-      purchaseState: params.purchaseState,
-      expiresAt: params.transactionData.expiresDate,
-      currency: params.transactionData.currency,
-      priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
-      revocationReasonIOS: params.transactionData.revocationReason,
-      verifiedPurchaseDate: params.transactionData.purchaseDate,
-      isUpgraded: params.transactionData.isUpgraded,
+      productId: transaction.productId ?? "unknown",
+      purchaseState,
+      expiresAt: transaction.expiresDate,
+      currency: transaction.currency,
+      priceAmountMicros: appStorePriceToMicros(transaction.price),
+      revocationReasonIOS: transaction.revocationReason,
+      verifiedPurchaseDate: transaction.purchaseDate,
+      ...(authoritative ? { authoritative: true } : {}),
     },
   );
+}
+
+// The newest transaction Apple reports for this subscription, verified like
+// any other, or null when the App Store Server API cannot say.
+async function fetchLatestAppleTransaction(
+  client: AppStoreServerAPIClient,
+  params: {
+    originalTransactionId: string;
+    bundleId: string;
+    environment: Environment;
+    appAppleId?: number;
+  },
+): Promise<AppStoreReceiptData | null> {
+  try {
+    const response = await retryOnTransient(() =>
+      client.getAllSubscriptionStatuses(params.originalTransactionId),
+    );
+    const latest = (response.data ?? [])
+      .flatMap((group) => group.lastTransactions ?? [])
+      .find(
+        (item) => item.originalTransactionId === params.originalTransactionId,
+      );
+    if (!latest?.signedTransactionInfo) return null;
+    return await verifyJWSTransaction(
+      latest.signedTransactionInfo,
+      params.bundleId,
+      params.environment,
+      params.appAppleId,
+    );
+  } catch (error) {
+    console.error(
+      "Failed to read Apple subscription status:",
+      describeError(error),
+    );
+    return null;
+  }
 }
 
 function decodeJwsPayload(jws: string): JWSTransactionDecodedPayload {
@@ -293,7 +362,6 @@ export async function verifyJWSTransaction(
       signedDate: verifiedTransaction.signedDate,
       transactionReason: verifiedTransaction.transactionReason,
       appTransactionId: verifiedTransaction.appTransactionId,
-      isUpgraded: verifiedTransaction.isUpgraded,
     };
 
     return transactionData;
@@ -397,23 +465,14 @@ export function assertVerifiedTransactionBinding(params: {
 }
 
 async function verifyTransactionWithServerApi(params: {
-  ctx: ActionCtx;
+  client: AppStoreServerAPIClient;
   decodedJwsPayload: JWSTransactionDecodedPayload;
   bundleId: string;
   environment: Environment;
   appAppleId?: number;
-  credentials: AppStoreServerCredentials;
 }): Promise<AppStoreReceiptData> {
-  const { decodedJwsPayload, bundleId, environment, appAppleId, credentials } =
+  const { client, decodedJwsPayload, bundleId, environment, appAppleId } =
     params;
-
-  const client = new AppStoreServerAPIClient(
-    credentials.privateKey,
-    credentials.keyId,
-    credentials.issuerId,
-    bundleId,
-    environment,
-  );
 
   try {
     // Retries the API's transient 5xx; extractHttpStatus reads APIException's

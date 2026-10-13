@@ -2672,7 +2672,7 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
-  it("applies an upgrade on an iOS row stored without a purchase date and stamps it", async () => {
+  it("applies Apple's status on an iOS row stored without a purchase date and stamps it", async () => {
     const db = new MemDb();
     const day = 86_400_000;
     const now = Date.now();
@@ -2693,6 +2693,7 @@ describe("recordVerifiedSubscriptionHandler", () => {
       productId: "pro_monthly",
       expiresAt: now + 30 * day,
       verifiedPurchaseDate: now,
+      authoritative: true,
     });
 
     expect(db.rows("subscriptions")).toMatchObject([
@@ -2709,17 +2710,15 @@ describe("recordVerifiedSubscriptionHandler", () => {
       name: "an old expired transaction of another plan",
       purchaseState: HarmonizedPurchaseState.EXPIRED,
       expiresInDays: -200,
-      isUpgraded: undefined,
     },
     {
       name: "a superseded plan still before its original expiry",
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       expiresInDays: 200,
-      isUpgraded: true,
     },
   ])(
-    "keeps an iOS row stored without a purchase date when verifying $name",
-    async ({ purchaseState, expiresInDays, isUpgraded }) => {
+    "keeps an iOS row stored without a purchase date when verifying $name without Apple's status",
+    async ({ purchaseState, expiresInDays }) => {
       const db = new MemDb();
       const day = 86_400_000;
       const now = Date.now();
@@ -2741,7 +2740,6 @@ describe("recordVerifiedSubscriptionHandler", () => {
         purchaseState,
         expiresAt: now + expiresInDays * day,
         verifiedPurchaseDate: now - 300 * day,
-        isUpgraded,
       });
 
       expect(db.rows("subscriptions")).toMatchObject([
@@ -2754,6 +2752,40 @@ describe("recordVerifiedSubscriptionHandler", () => {
       expect(db.rows("subscriptions")[0]?.verifiedPurchaseDate).toBeUndefined();
     },
   );
+
+  it("lets Apple's status revoke the plan on an iOS row stored without a purchase date", async () => {
+    const db = new MemDb();
+    const day = 86_400_000;
+    const now = Date.now();
+    const input = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: "ios-original-transaction",
+    };
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "basic_yearly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 300 * day,
+    });
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      productId: "pro_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      expiresAt: now + 20 * day,
+      verifiedPurchaseDate: now - 10 * day,
+      authoritative: true,
+    });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        productId: "pro_monthly",
+        state: "Revoked",
+        verifiedPurchaseDate: now - 10 * day,
+      },
+    ]);
+  });
 
   it("applies an immediate iOS upgrade that ends sooner than the plan it replaced", async () => {
     const db = new MemDb();
