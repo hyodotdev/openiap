@@ -184,12 +184,27 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
   },
 });
 
+// The project's active .p8 for signing and the dashboard: the oldest, which
+// earlier releases signed with when legacy rows were duplicated.
+export async function getProjectAppleP8File(
+  ctx: Pick<QueryCtx, "db">,
+  projectId: Id<"projects">,
+  purpose: AppleP8Purpose,
+): Promise<Doc<"files"> | null> {
+  return await ctx.db
+    .query("files")
+    .withIndex("by_project_and_purpose", (q) =>
+      q.eq("projectId", projectId).eq("purpose", purpose),
+    )
+    .first();
+}
+
 // One App Store Connect key serves the whole team, so a project may sign with a
-// .p8 uploaded elsewhere in its organization. Newest first: this project's,
-// then another project's configured with the same key ID (the JWT `kid`), then
-// an organization-level key, which records no key ID, and last the
-// organization's oldest key, the one earlier releases always used. Never
-// another organization's.
+// .p8 uploaded elsewhere in its organization. This project's active key first,
+// then the newest of another project configured with the same key ID (the JWT
+// `kid`), then the newest organization-level key, which records no key ID, and
+// last the organization's oldest key, as earlier releases used. Never another
+// organization's.
 export const getAppleP8KeyFile = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -197,13 +212,11 @@ export const getAppleP8KeyFile = internalQuery({
     keyId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const projectKey = await ctx.db
-      .query("files")
-      .withIndex("by_project_and_purpose", (q) =>
-        q.eq("projectId", args.projectId).eq("purpose", args.purpose),
-      )
-      .order("desc")
-      .first();
+    const projectKey = await getProjectAppleP8File(
+      ctx,
+      args.projectId,
+      args.purpose,
+    );
     if (projectKey) return projectKey;
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;

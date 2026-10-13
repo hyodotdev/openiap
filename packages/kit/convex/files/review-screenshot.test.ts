@@ -30,6 +30,11 @@ import {
   validateGoogleServiceAccountPrivateKey,
   validateAppleReviewScreenshotUpload as registeredValidateUpload,
 } from "./action";
+import {
+  getAppStoreFileByProject as registeredGetAppStoreFileByProject,
+  getAscApiKeyFileByProject as registeredGetAscApiKeyFileByProject,
+  list as registeredListFiles,
+} from "./query";
 import { validateGoogleServiceAccountContent } from "./validation";
 import type { Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
@@ -44,6 +49,13 @@ const readFileAsBase64 = testableFunction(
 const saveFile = testableFunction(registeredSaveFile);
 const insertAppleP8Key = testableFunction(registeredInsertAppleP8Key);
 const getAppleP8KeyFile = testableFunction(registeredGetAppleP8KeyFile);
+const getAppStoreFileByProject = testableFunction(
+  registeredGetAppStoreFileByProject,
+);
+const getAscApiKeyFileByProject = testableFunction(
+  registeredGetAscApiKeyFileByProject,
+);
+const listFiles = testableFunction(registeredListFiles);
 const drainGoogleServiceAccountFiles = testableFunction(
   registeredDrainGoogleServiceAccountFiles,
 );
@@ -1226,6 +1238,48 @@ describe("Apple .p8 keys", () => {
     expect(admin.storage.delete).toHaveBeenCalledWith("storage_old_key");
   });
 
+  it("signs with the legacy duplicate the dashboard shows", async () => {
+    const { ctx } = p8Ctx("admin");
+    const row = (_id: string, purpose: string) => ({
+      _id,
+      organizationId: "organizations_a",
+      projectId: "projects_a",
+      uploadedBy: "users_a",
+      purpose,
+    });
+    ctx.db.tables.files = [
+      row("server_a", "apple_p8_key"),
+      row("asc_a", "apple_p8_asc_api_key"),
+      row("server_b", "apple_p8_key"),
+      row("asc_b", "apple_p8_asc_api_key"),
+    ];
+    const projectId = "projects_a" as Id<"projects">;
+    const listed = await listFiles._handler(ctx, {
+      organizationId: "organizations_a" as Id<"organizations">,
+    });
+    for (const [purpose, dashboardQuery] of [
+      ["apple_p8_key", getAppStoreFileByProject],
+      ["apple_p8_asc_api_key", getAscApiKeyFileByProject],
+    ] as const) {
+      const signing = await getAppleP8KeyFile._handler(ctx, {
+        projectId,
+        purpose,
+        keyId: "A",
+      });
+      const oldest = purpose === "apple_p8_key" ? "server_a" : "asc_a";
+      expect(signing?._id).toBe(oldest);
+      await expect(
+        dashboardQuery._handler(ctx, { projectId }),
+      ).resolves.toMatchObject({ _id: oldest });
+      // The settings page shows the first matching row of `list`.
+      expect(
+        listed.find(
+          (file) => file.purpose === purpose && file.projectId === projectId,
+        )?._id,
+      ).toBe(oldest);
+    }
+  });
+
   it("prefers another project's key configured with the same key ID", async () => {
     const key = (
       _id: string,
@@ -1288,7 +1342,7 @@ describe("Apple .p8 keys", () => {
       );
 
     await expect(lookup("projects_a", "K2")).resolves.toMatchObject({
-      _id: "a_new",
+      _id: "a_old",
     });
     // The older K1 key, not the newer sibling's K2 key.
     await expect(lookup("projects_c", "K1")).resolves.toMatchObject({

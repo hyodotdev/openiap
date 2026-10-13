@@ -72,12 +72,16 @@ import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderResult
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -104,6 +108,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     @Volatile
     private var module: AndroidOpenIapProtocol? = null
     private val connectionMutex = Mutex()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     // Cleared when the store drops the billing service so the next initConnection reconnects.
     @Volatile
     private var isConnected = false
@@ -514,9 +519,14 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         val purchaseError = OpenIapPurchaseErrorListener { error ->
             _purchaseErrorListener.tryEmit(error.toKmpPurchaseError())
         }
+        // Locked so an in-flight initConnection cannot overwrite the drop; runs inline when uncontended.
         val connectionState = OpenIapConnectionStateListener {
-            isConnected = false
-            enabledBillingProgram = null
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                connectionMutex.withLock {
+                    isConnected = false
+                    enabledBillingProgram = null
+                }
+            }
         }
         openModule.addPurchaseUpdateListener(purchaseUpdate)
         openModule.addPurchaseErrorListener(purchaseError)

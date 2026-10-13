@@ -231,7 +231,8 @@ const languages: Array<[string, RoundTrip, boolean]> = [
 const available = languages.filter(([, , present]) => present);
 
 describe("generated wire contract across languages", () => {
-  it.runIf(Boolean(process.env.CI))(
+  // Only the CI job that installs Swift, Dart and .NET sets this; release jobs do not.
+  it.runIf(process.env.OPENIAP_WIRE_TOOLCHAINS === "required")(
     "runs every language toolchain in CI",
     () => {
       expect(available.map(([name]) => name)).toEqual(

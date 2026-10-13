@@ -368,6 +368,42 @@ class OpenIapDelegateTest {
     }
 
     @Test
+    fun `a drop while initConnection is still resuming survives its success`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            var connects = 0
+            val setupFinished = CompletableDeferred<Boolean>()
+            val attached = AttachedListeners()
+            val init: MutationInitConnectionHandler = { connects++; if (connects == 1) setupFinished.await() else true }
+            val module = fakeModule { method, args ->
+                when {
+                    attached.record(method, args) -> null
+                    method == "setActivity" -> null
+                    method == "getInitConnection" -> init
+                    else -> error("Unexpected call: $method")
+                }
+            }
+            val delegate = delegateFor(
+                Store.PLAY_STORE,
+                module,
+                context = ContextWrapper(null),
+                registerListeners = true,
+            )
+
+            val first = async(start = CoroutineStart.UNDISPATCHED) { delegate.initConnection(null) }
+            // The store drops while initConnection is still suspended in it.
+            attached.get<OpenIapConnectionStateListener>("ConnectionStateListener").onBillingServiceDisconnected()
+            setupFinished.complete(true)
+            assertTrue(first.await())
+
+            assertTrue(delegate.initConnection(null))
+            assertEquals(2, connects)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun `billing selection listeners deliver every choice through KmpIAP`() = runBlocking {
         val attached = AttachedListeners()
         val module = fakeModule { method, args ->

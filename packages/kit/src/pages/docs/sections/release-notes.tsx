@@ -78,7 +78,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Dashboard",
-        text: "A .p8 upload must be a P-256 private key. Verification uses the newest key of the project, then of its organization, never another organization's. Cancelling a queued product sync frees the platform at once, and a sync that never starts expires.",
+        text: "A .p8 upload must be a P-256 private key and replaces the project's previous key. Verification signs with the key Settings shows, then with an organization key, preferring one with the same key ID, never another organization's. Cancelling a queued product sync frees the platform at once, and a sync that never starts expires.",
       },
       {
         kind: "security",

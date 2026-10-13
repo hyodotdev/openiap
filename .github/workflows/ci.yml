@@ -581,6 +581,8 @@ jobs:
 
       - name: Run tests
         working-directory: specs/client
+        env:
+          OPENIAP_WIRE_TOOLCHAINS: required
         run: bun run test
 
       # Breaking-change guard for the schema (knowledge/research backlog R1).
