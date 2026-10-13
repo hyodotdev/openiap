@@ -91,6 +91,9 @@ class _SharedNativeState {
   /// Serializes listener-option calls to the one native listener.
   Future<void> purchaseListenerConfiguration = Future<void>.value();
 
+  /// Whether each Play purchase token was last seen acknowledged.
+  final acknowledgedAndroidPurchaseTokens = <String, bool>{};
+
   /// A new connection replays transactions, so delivered ids start over.
   void markDisconnected() {
     connectionDrops++;
@@ -138,8 +141,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     _listenToNative();
     return _shared.purchasePromoted.stream;
   }
-
-  final Map<String, bool> _acknowledgedAndroidPurchaseTokens = <String, bool>{};
 
   /// Defining the [MethodChannel] for Flutter_Inapp_Purchase
   final MethodChannel _channel = const MethodChannel('flutter_inapp');
@@ -436,7 +437,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             platformIsAndroid: _platform.isAndroid,
             platformIsIOS: _platform.isIOS || _platform.isMacOS,
             acknowledgedAndroidPurchaseTokens:
-                _acknowledgedAndroidPurchaseTokens,
+                _shared.acknowledgedAndroidPurchaseTokens,
           );
           _shared.subscriptionBillingIssue.add(purchase);
         } catch (e, stackTrace) {
@@ -464,7 +465,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         originalJson: result,
         platformIsAndroid: _platform.isAndroid,
         platformIsIOS: _platform.isIOS || _platform.isMacOS,
-        acknowledgedAndroidPurchaseTokens: _acknowledgedAndroidPurchaseTokens,
+        acknowledgedAndroidPurchaseTokens:
+            _shared.acknowledgedAndroidPurchaseTokens,
       );
 
       controller.add(purchase);
@@ -871,7 +873,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 platformIsAndroid: false,
                 platformIsIOS: true,
                 acknowledgedAndroidPurchaseTokens:
-                    _acknowledgedAndroidPurchaseTokens,
+                    _shared.acknowledgedAndroidPurchaseTokens,
                 rejectMalformed: true,
               );
             } else if (_platform.isAndroid) {
@@ -888,7 +890,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 platformIsAndroid: true,
                 platformIsIOS: false,
                 acknowledgedAndroidPurchaseTokens:
-                    _acknowledgedAndroidPurchaseTokens,
+                    _shared.acknowledgedAndroidPurchaseTokens,
                 rejectMalformed: true,
               );
             }
@@ -1228,7 +1230,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 platformIsAndroid: false,
                 platformIsIOS: true,
                 acknowledgedAndroidPurchaseTokens:
-                    _acknowledgedAndroidPurchaseTokens,
+                    _shared.acknowledgedAndroidPurchaseTokens,
                 rejectMalformed: true,
               );
               if (purchases
@@ -1276,7 +1278,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               platformIsAndroid: _platform.isAndroid,
               platformIsIOS: _platform.isIOS || _platform.isMacOS,
               acknowledgedAndroidPurchaseTokens:
-                  _acknowledgedAndroidPurchaseTokens,
+                  _shared.acknowledgedAndroidPurchaseTokens,
               rejectMalformed: true,
             );
             if (purchases.any((purchase) => purchase is! gentype.PurchaseIOS)) {
@@ -1322,7 +1324,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               platformIsAndroid: _platform.isAndroid,
               platformIsIOS: _platform.isIOS || _platform.isMacOS,
               acknowledgedAndroidPurchaseTokens:
-                  _acknowledgedAndroidPurchaseTokens,
+                  _shared.acknowledgedAndroidPurchaseTokens,
               rejectMalformed: true,
             );
             if (purchases.any((purchase) => purchase is! gentype.PurchaseIOS)) {
@@ -1371,7 +1373,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             platformIsAndroid: _platform.isAndroid,
             platformIsIOS: _platform.isIOS || _platform.isMacOS,
             acknowledgedAndroidPurchaseTokens:
-                _acknowledgedAndroidPurchaseTokens,
+                _shared.acknowledgedAndroidPurchaseTokens,
           );
           return purchases.whereType<gentype.PurchaseIOS>().firstOrNull;
         } on PlatformException catch (error) {
@@ -1407,7 +1409,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             platformIsAndroid: _platform.isAndroid,
             platformIsIOS: _platform.isIOS || _platform.isMacOS,
             acknowledgedAndroidPurchaseTokens:
-                _acknowledgedAndroidPurchaseTokens,
+                _shared.acknowledgedAndroidPurchaseTokens,
           );
           return purchases.whereType<gentype.PurchaseIOS>().firstOrNull;
         } on PlatformException catch (error) {
@@ -1660,7 +1662,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
             if (!consumable &&
-                (_acknowledgedAndroidPurchaseTokens[token] ?? false)) {
+                (_shared.acknowledgedAndroidPurchaseTokens[token] ?? false)) {
               if (kDebugMode) {
                 debugPrint(
                   '[FlutterInappPurchase] Android: Purchase already acknowledged (cached)',
@@ -1682,9 +1684,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           });
           if (token != null) {
             if (consumable) {
-              _acknowledgedAndroidPurchaseTokens.remove(token);
+              _shared.acknowledgedAndroidPurchaseTokens.remove(token);
             } else {
-              _acknowledgedAndroidPurchaseTokens[token] = true;
+              _shared.acknowledgedAndroidPurchaseTokens[token] = true;
             }
           }
           unawaited(_firstPurchaseNotice.onFinished(purchase));
@@ -2611,7 +2613,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             platformIsAndroid: _platform.isAndroid,
             platformIsIOS: _platform.isIOS,
             acknowledgedAndroidPurchaseTokens:
-                _acknowledgedAndroidPurchaseTokens,
+                _shared.acknowledgedAndroidPurchaseTokens,
           );
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(

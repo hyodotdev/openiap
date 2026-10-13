@@ -537,6 +537,34 @@ void main() {
       expect((await received).map((p) => p.productId), ['premium', 'premium']);
     });
 
+    test('any instance skips finishing a purchase delivered as acknowledged',
+        () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        return true;
+      });
+      final finisher = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final purchase = finisher.purchaseUpdatedListener.first;
+      // The channel handler now belongs to this other instance.
+      FlutterInappPurchase.private(FakePlatform(operatingSystem: 'android'))
+          .purchaseUpdatedListener;
+
+      await send(
+        'purchase-updated',
+        jsonEncode({
+          ..._androidPurchaseJson('acknowledged'),
+          'isAcknowledgedAndroid': true,
+        }),
+      );
+      await finisher.finishTransaction(purchase: await purchase);
+
+      expect(calls, isNot(contains('finishTransaction')));
+    });
+
     test('a dropped connection resets every instance', () async {
       final calls = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

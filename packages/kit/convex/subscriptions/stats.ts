@@ -181,8 +181,8 @@ async function touchStatsRow(
 
 // Daily drift correction: the incremental path drifts after a missed call
 // (action timeout, schema drift during rollout, a manual db.patch), so the
-// stalest projects are fully recomputed. Each project runs as its own scheduled
-// mutation, with its own read budget instead of sharing the picker's.
+// least recently recomputed projects are rebuilt. Each project runs as its own
+// scheduled mutation, with its own read budget instead of sharing the picker's.
 export const recomputeAllSubscriptionStats = internalMutation({
   args: {
     // Projects per tick, kept modest so thousands are not queued at once.
@@ -190,15 +190,15 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
-    // 50 a day covers up to 1500 projects at least monthly.
     const limit = args.batchSize ?? 50;
-    // Stalest rows first. A project has a row per currency, so read ~3× the
-    // limit to find enough distinct projects; SCAN_CAP bounds the read even
-    // under clock skew.
+    // Oldest rows first: a recompute replaces a project's rows and incremental
+    // writes never re-create one, so daily activity cannot hold a project back.
+    // A project has a row per currency, so read ~3× the limit to find enough
+    // distinct projects.
     const SCAN_CAP = Math.max(limit * 3, 300);
     const stale = await ctx.db
       .query("subscriptionStats")
-      .withIndex("by_updated_at")
+      .withIndex("by_creation_time")
       .order("asc")
       .take(SCAN_CAP);
     const seenProjects = new Set<string>();
@@ -376,7 +376,8 @@ async function runRecomputePageInline(
     return;
   }
 
-  // Last page — commit the totals to subscriptionStats.
+  // Last page — commit the totals to subscriptionStats. Replace rather than
+  // patch: the drift-correction picker orders projects by row creation.
   const existing = await ctx.db
     .query("subscriptionStats")
     .withIndex("by_project", (q) => q.eq("projectId", args.projectId))

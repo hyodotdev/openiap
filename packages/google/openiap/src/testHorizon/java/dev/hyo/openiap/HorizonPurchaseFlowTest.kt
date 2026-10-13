@@ -338,7 +338,6 @@ class HorizonPurchaseFlowTest {
         val first = CopyOnWriteArrayList<Result<List<Purchase>>>()
         val second = CopyOnWriteArrayList<Result<List<Purchase>>>()
         installLaunchedPurchase(module, client) { result ->
-            first += result
             // Once resumed, the app consumes A and buys the same SKU; A's callback then arrives late.
             client.owned = emptyList()
             installLaunchedPurchase(module, client) { second += it }
@@ -348,6 +347,8 @@ class HorizonPurchaseFlowTest {
                 billingResult(BillingClient.BillingResponseCode.OK),
                 listOf(horizonPurchase(1L, token = "token-a")),
             )
+            // Recorded last, so the assertions below run after the late callback.
+            first += result
         }
 
         module.onPurchasesUpdated(
