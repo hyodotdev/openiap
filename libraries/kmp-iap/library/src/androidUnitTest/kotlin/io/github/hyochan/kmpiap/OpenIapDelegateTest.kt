@@ -44,6 +44,7 @@ import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -116,7 +117,7 @@ class OpenIapDelegateTest {
             yield()
             collector.cancel()
             assertEquals(listOf(ErrorCode.UserCancelled), events.map { it.code }, "$store events")
-            assertEquals(1, errorListeners.size, "$store attaches no per-request listener")
+            assertEquals(1, errorListeners.size, "$store request listener detached")
         }
     }
 
@@ -132,58 +133,13 @@ class OpenIapDelegateTest {
                 "addPurchaseErrorListener" -> errorListeners.add(args!![0] as OpenIapPurchaseErrorListener)
                 "removePurchaseErrorListener" -> errorListeners.remove(args!![0])
                 "getRequestPurchase" -> request
-                else -> if (method.endsWith("Listener")) null else error("Unexpected call: $method")
+                else -> error("Unexpected call: $method")
             }
         }
 
-        val result = delegateFor(Store.PLAY_STORE, module, registerListeners = true).requestPurchase(purchaseRequest())
+        val result = delegateFor(Store.PLAY_STORE, module).requestPurchase(purchaseRequest())
 
         assertEquals(emptyList(), (result as RequestPurchaseResultPurchases).value)
-    }
-
-    @Test
-    fun `a Play error collector can start a fallback purchase before the failed request returns`() = runTest {
-        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
-        try {
-            val errorListeners = CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
-            val sheetClosed = CompletableDeferred<Unit>()
-            var requests = 0
-            val request: MutationRequestPurchaseHandler = {
-                val isFirst = ++requests == 1
-                if (isFirst) sheetClosed.await()
-                dev.hyo.openiap.RequestPurchaseResultPurchases(
-                    if (isFirst) emptyList() else listOf(nativePurchase("fallback"))
-                )
-            }
-            val module = fakeModule { method, args ->
-                when (method) {
-                    "addPurchaseErrorListener" -> errorListeners.add(args!![0] as OpenIapPurchaseErrorListener)
-                    "removePurchaseErrorListener" -> errorListeners.remove(args!![0])
-                    "getRequestPurchase" -> request
-                    else -> if (method.endsWith("Listener")) null else error("Unexpected call: $method")
-                }
-            }
-            val play = delegateFor(Store.PLAY_STORE, module, registerListeners = true)
-            val fallback = async(Dispatchers.Main, start = CoroutineStart.UNDISPATCHED) {
-                play.purchaseErrorListener.first { it.code == ErrorCode.ItemUnavailable }
-                runCatching { play.requestPurchase(purchaseRequest("fallback")) }
-            }
-            val first = async(start = CoroutineStart.UNDISPATCHED) {
-                runCatching { play.requestPurchase(purchaseRequest()) }
-            }
-
-            // Native Play releases its request, then reports the failure before the call returns.
-            val unavailable = OpenIapError.ItemUnavailable("unavailable").withProductId("premium")
-            errorListeners.forEach { it.onPurchaseError(unavailable) }
-            val fallbackResult = fallback.await()
-            sheetClosed.complete(Unit)
-
-            assertEquals("fallback", (fallbackResult.getOrThrow() as RequestPurchaseResultPurchases).value?.single()?.productId)
-            val failure = first.await().exceptionOrNull() as PurchaseException
-            assertEquals(ErrorCode.ItemUnavailable, failure.error.code)
-        } finally {
-            Dispatchers.resetMain()
-        }
     }
 
     @Test
@@ -312,41 +268,68 @@ class OpenIapDelegateTest {
     }
 
     @Test
-    fun `a second Play purchase fails fast and cannot take the first one's failure`() = runBlocking {
-        val errorListeners = CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
-        val sheetClosed = CompletableDeferred<Unit>()
-        var requestsInModule = 0
-        val request: MutationRequestPurchaseHandler = {
-            requestsInModule++
-            if (requestsInModule > 1) {
-                // The real module also rejects a second request and reports it to every listener.
-                val busy = OpenIapError.DeveloperError("Another purchase is already in progress")
-                errorListeners.forEach { it.onPurchaseError(busy) }
-                throw busy
-            }
-            sheetClosed.await()
-            errorListeners.forEach { it.onPurchaseError(OpenIapError.UserCancelled("cancelled")) }
-            dev.hyo.openiap.RequestPurchaseResultPurchases(emptyList())
-        }
-        val module = fakeModule { method, args ->
-            when (method) {
-                "addPurchaseErrorListener" -> errorListeners.add(args!![0] as OpenIapPurchaseErrorListener)
-                "removePurchaseErrorListener" -> errorListeners.remove(args!![0])
-                "getRequestPurchase" -> request
-                else -> if (method.endsWith("Listener")) null else error("Unexpected call: $method")
-            }
-        }
-        val play = delegateFor(Store.PLAY_STORE, module, registerListeners = true)
+    fun `a Play outcome collector can start the next purchase before the finished request returns`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            for (outcome in listOf("error", "purchase", "user choice")) {
+                val play = FakePlay()
+                val delegate = delegateFor(Store.PLAY_STORE, play.module, registerListeners = true)
+                // Main is unconfined here, as Main.immediate is for a collector on the main thread.
+                val next = async(Dispatchers.Main, start = CoroutineStart.UNDISPATCHED) {
+                    when (outcome) {
+                        "error" -> delegate.purchaseErrorListener.first()
+                        "purchase" -> delegate.purchaseUpdatedListener.first()
+                        else -> delegate.userChoiceBillingListenerAndroid.first()
+                    }
+                    runCatching { delegate.requestPurchase(purchaseRequest("next")) }
+                }
+                val first = async(start = CoroutineStart.UNDISPATCHED) {
+                    runCatching { delegate.requestPurchase(purchaseRequest()) }
+                }
 
-        val first = async(start = CoroutineStart.UNDISPATCHED) {
-            assertFailsWith<PurchaseException> { play.requestPurchase(purchaseRequest()) }
-        }
-        val second = assertFailsWith<PurchaseException> { play.requestPurchase(purchaseRequest()) }
-        sheetClosed.complete(Unit)
+                when (outcome) {
+                    "error" -> play.fail(OpenIapError.ItemUnavailable("unavailable").withProductId("premium"))
+                    "purchase" -> play.buy("premium")
+                    else -> play.chooseAlternativeBilling("premium")
+                }
+                assertTrue(play.isPending, "$outcome: the collector started the next purchase")
+                play.buy("next")
 
-        assertEquals(ErrorCode.DeveloperError, second.error.code)
-        assertEquals(ErrorCode.UserCancelled, first.await().error.code)
-        assertEquals(1, requestsInModule)
+                val nextResult = next.await().getOrThrow() as RequestPurchaseResultPurchases
+                assertEquals("next", nextResult.value?.single()?.productId, outcome)
+                val firstResult = first.await()
+                when (outcome) {
+                    "error" -> assertEquals(
+                        ErrorCode.ItemUnavailable,
+                        assertIs<PurchaseException>(firstResult.exceptionOrNull()).error.code,
+                    )
+                    "purchase" -> assertEquals(
+                        "premium",
+                        (firstResult.getOrThrow() as RequestPurchaseResultPurchases).value?.single()?.productId,
+                    )
+                    else -> assertEquals(emptyList(), (firstResult.getOrThrow() as RequestPurchaseResultPurchases).value)
+                }
+            }
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `a deferred same-product purchase and a rejected purchase leave the open Play request its own failure`() = runBlocking {
+        val play = FakePlay()
+        val delegate = delegateFor(Store.PLAY_STORE, play.module, registerListeners = true)
+        val open = async(start = CoroutineStart.UNDISPATCHED) {
+            runCatching { delegate.requestPurchase(purchaseRequest()) }
+        }
+
+        // An earlier Pending purchase of the same product completes; it does not end this request.
+        play.deliverUnrelated("premium")
+        val rejected = runCatching { delegate.requestPurchase(purchaseRequest()) }
+        play.fail(OpenIapError.UserCancelled("cancelled").withProductId("premium"))
+
+        assertEquals(ErrorCode.DeveloperError, assertIs<PurchaseException>(rejected.exceptionOrNull()).error.code)
+        assertEquals(ErrorCode.UserCancelled, assertIs<PurchaseException>(open.await().exceptionOrNull()).error.code)
     }
 
     @Test
@@ -505,6 +488,67 @@ class OpenIapDelegateTest {
         assertEquals("KR", authoritativeStorefrontCountryOrNull(" KR "))
         assertNull(authoritativeStorefrontCountryOrNull("  "))
         assertNull(authoritativeStorefrontCountryOrNull(null))
+    }
+
+    /** openiap-google's Play request lifecycle: one request at a time, freed before its outcome is emitted. */
+    private inner class FakePlay {
+        private val updates = CopyOnWriteArraySet<OpenIapPurchaseUpdateListener>()
+        private val errors = CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
+        private val choices = CopyOnWriteArraySet<OpenIapUserChoiceBillingListener>()
+        private var pending: CompletableDeferred<List<dev.hyo.openiap.Purchase>>? = null
+        val isPending get() = pending != null
+
+        private val request: MutationRequestPurchaseHandler = {
+            if (pending != null) {
+                val busy = OpenIapError.DeveloperError("Another purchase is already in progress")
+                errors.forEach { it.onPurchaseError(busy) }
+                throw busy
+            }
+            val outcome = CompletableDeferred<List<dev.hyo.openiap.Purchase>>().also { pending = it }
+            dev.hyo.openiap.RequestPurchaseResultPurchases(outcome.await())
+        }
+
+        val module = fakeModule { method, args ->
+            when (method) {
+                "addPurchaseUpdateListener" -> updates.add(args!![0] as OpenIapPurchaseUpdateListener)
+                "removePurchaseUpdateListener" -> updates.remove(args!![0])
+                "addPurchaseErrorListener" -> errors.add(args!![0] as OpenIapPurchaseErrorListener)
+                "removePurchaseErrorListener" -> errors.remove(args!![0])
+                "addUserChoiceBillingListener" -> choices.add(args!![0] as OpenIapUserChoiceBillingListener)
+                "removeUserChoiceBillingListener" -> choices.remove(args!![0])
+                "getRequestPurchase" -> request
+                else -> if (method.endsWith("Listener")) null else error("Unexpected call: $method")
+            }
+        }
+
+        private fun claim() = checkNotNull(pending) { "No purchase is pending" }.also { pending = null }
+
+        fun fail(error: OpenIapError) {
+            val claimed = claim()
+            errors.forEach { it.onPurchaseError(error) }
+            claimed.complete(emptyList())
+        }
+
+        fun buy(productId: String) {
+            val claimed = claim()
+            val purchase = nativePurchase(productId)
+            updates.forEach { it.onPurchaseUpdated(purchase) }
+            claimed.complete(listOf(purchase))
+        }
+
+        fun chooseAlternativeBilling(productId: String) {
+            val claimed = claim()
+            val details = dev.hyo.openiap.UserChoiceBillingDetails.fromJson(
+                mapOf("externalTransactionToken" to "user-$productId", "products" to listOf(productId))
+            )
+            choices.forEach { it.onUserChoiceBilling(details) }
+            claimed.complete(emptyList())
+        }
+
+        fun deliverUnrelated(productId: String) {
+            val purchase = nativePurchase(productId)
+            updates.forEach { it.onPurchaseUpdated(purchase) }
+        }
     }
 
     private fun purchaseRequest(sku: String = "premium") = RequestPurchaseProps(

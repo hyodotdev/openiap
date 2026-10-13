@@ -1,5 +1,5 @@
 "use node";
-import { createPrivateKey, type KeyObject } from "node:crypto";
+import { createPrivateKey } from "node:crypto";
 import { action } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
@@ -7,6 +7,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import sharp from "sharp";
 import type { Id } from "../_generated/dataModel";
 import type { AppleP8SaveResult } from "./mutation";
+import { es256KeyProblem } from "../products/jwt";
 import {
   appleP8PurposeValidator,
   validateAppleReviewScreenshotContent,
@@ -33,18 +34,13 @@ export function validateGoogleServiceAccountPrivateKey(
 /** Apple signs ES256 only, so a .p8 must parse as a P-256 EC private key. */
 export function validateAppleP8KeyContent(content: string): void {
   validateP8Content(content);
-  let key: KeyObject;
-  try {
-    key = createPrivateKey(content);
-  } catch {
+  const problem = es256KeyProblem(content);
+  if (problem === "unreadable") {
     throw new ConvexError(
       "The .p8 file does not contain a readable private key",
     );
   }
-  if (
-    key.asymmetricKeyType !== "ec" ||
-    key.asymmetricKeyDetails?.namedCurve !== "prime256v1"
-  ) {
+  if (problem === "not-p256") {
     throw new ConvexError(
       "The .p8 file is not an Apple key: expected a P-256 EC private key",
     );

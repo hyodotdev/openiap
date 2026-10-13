@@ -369,6 +369,7 @@ async function runRecomputePageInline(
       q.eq("projectId", args.projectId).gt("updatedAt", args.runStartedAt),
     )
     .first();
+  // Known limit: a very large project written to on every run never commits and stays first in line.
   if (concurrentWrite) {
     console.info(
       `[subscriptionStats] aborting recompute commit for project=${args.projectId} — subscription updated at ${concurrentWrite.updatedAt} > runStartedAt=${args.runStartedAt}; incremental path is authoritative.`,

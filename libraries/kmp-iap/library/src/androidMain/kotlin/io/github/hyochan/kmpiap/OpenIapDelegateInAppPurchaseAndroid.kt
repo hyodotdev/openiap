@@ -76,6 +76,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -114,8 +115,8 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     // The program the live connection enabled; null when none or disconnected.
     @Volatile
     private var enabledBillingProgram: BillingProgramAndroid? = null
-    // One Play purchase at a time, so a captured failure always belongs to its own request.
-    private val playRequest = AtomicReference<PlayRequest?>()
+    // The Play requestPurchase call running on this thread, so each call keeps only its own errors.
+    private val runningPlayCall = ThreadLocal<Any?>()
 
     // Horizon and Amazon have no Play billing programs, choice events, or billing-issue signal.
     private val hasPlayBillingApis = store == Store.PLAY_STORE || store == Store.UNKNOWN
@@ -229,23 +230,31 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
                 )
             )
         }
-        val request = PlayRequest(params.androidSkus())
-        if (!playRequest.compareAndSet(null, request)) {
-            failWith(PurchaseError(code = ErrorCode.DeveloperError, message = "Another purchase is already in progress"))
+        // openiap-google admits one purchase at a time and frees it before emitting the outcome.
+        val call = Any()
+        val requestedSkus = params.androidSkus()
+        val failure = AtomicReference<AndroidOpenIapError?>()
+        // The module tags request failures with the requested SKU, or none when it cannot pick one.
+        // One published inside another call, such as its rejection while this one is open, is not ours.
+        val captureFailure = OpenIapPurchaseErrorListener { error ->
+            val productId = error.toKmpPurchaseError().productId
+            val publisher = runningPlayCall.get()
+            if ((publisher == null || publisher === call) && (productId == null || productId in requestedSkus)) {
+                failure.compareAndSet(null, error)
+            }
         }
+        openModule.addPurchaseErrorListener(captureFailure)
         try {
-            val result = openModule.requestPurchase(params.toOpenIap())
+            val result = withContext(runningPlayCall.asContextElement(call)) {
+                openModule.requestPurchase(params.toOpenIap())
+            }
             // The module already published this failure to the error listeners.
-            request.failure.get()?.takeIf { result.isEmpty() }?.let { throw it }
+            failure.get()?.takeIf { result.isEmpty() }?.let { throw it }
             return result?.toKmp()
         } finally {
-            playRequest.compareAndSet(request, null)
+            openModule.removePurchaseErrorListener(captureFailure)
         }
     }
-
-    // Released before collectors see the request's terminal event, so they can start the next purchase.
-    private fun releasePlayRequest(productId: String?): PlayRequest? =
-        playRequest.get()?.takeIf { it.owns(productId) && playRequest.compareAndSet(it, null) }
 
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         withMappedOpenIapError {
@@ -509,14 +518,10 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     private fun registerListeners(openModule: AndroidOpenIapProtocol) {
         val purchaseUpdate = OpenIapPurchaseUpdateListener { purchase ->
-            val kmpPurchase = purchase.toKmp()
-            releasePlayRequest(kmpPurchase.productId)
-            _purchaseUpdatedListener.tryEmit(kmpPurchase)
+            _purchaseUpdatedListener.tryEmit(purchase.toKmp())
         }
         val purchaseError = OpenIapPurchaseErrorListener { error ->
-            val kmpError = error.toKmpPurchaseError()
-            releasePlayRequest(kmpError.productId)?.failure?.compareAndSet(null, error)
-            _purchaseErrorListener.tryEmit(kmpError)
+            _purchaseErrorListener.tryEmit(error.toKmpPurchaseError())
         }
         // Locked so an in-flight initConnection cannot overwrite the drop; runs inline when uncontended.
         val connectionState = OpenIapConnectionStateListener {
@@ -633,14 +638,6 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
 
     private fun failUnsupported(message: String): Nothing =
         failWith(PurchaseError(code = ErrorCode.FeatureNotSupported, message = message))
-}
-
-/** A Play purchase request and the failure the module reported for it. */
-private class PlayRequest(private val skus: List<String>) {
-    val failure = AtomicReference<AndroidOpenIapError?>()
-
-    // The module tags request events with the requested SKU, or none when it cannot pick one.
-    fun owns(productId: String?): Boolean = productId == null || productId in skus
 }
 
 internal fun AndroidOpenIapError.toKmpPurchaseError(): PurchaseError {

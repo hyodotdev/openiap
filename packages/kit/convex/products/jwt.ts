@@ -7,7 +7,21 @@
 // into the action bundle, and node:crypto already does ECDSA over P-256.
 // No Convex imports, so vitest can test it without an action runtime.
 
-import { createPrivateKey, createSign } from "node:crypto";
+import { createPrivateKey, createSign, type KeyObject } from "node:crypto";
+
+// Why a PEM cannot sign ES256, Apple's only JWT algorithm; null when it can.
+export function es256KeyProblem(pem: string): "unreadable" | "not-p256" | null {
+  let key: KeyObject;
+  try {
+    key = createPrivateKey(pem);
+  } catch {
+    return "unreadable";
+  }
+  return key.asymmetricKeyType === "ec" &&
+    key.asymmetricKeyDetails?.namedCurve === "prime256v1"
+    ? null
+    : "not-p256";
+}
 
 export type AscJwtClaims = {
   iss?: string; // issuerId — ASC > Users and Access > Keys

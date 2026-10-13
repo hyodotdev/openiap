@@ -39,6 +39,7 @@ import {
 } from "./errors";
 import { retryOnTransient } from "./retry";
 import { readAppleP8Key } from "../files/internal";
+import { es256KeyProblem } from "../products/jwt";
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
@@ -313,10 +314,14 @@ export function isVerifierOutage(error: unknown): boolean {
   if (!(error instanceof VerificationException)) return false;
   const cause = error.cause;
   return (
-    cause instanceof Error &&
-    (cause.name === "FetchError" ||
-      (cause.stack ?? "").includes("checkOCSPStatus"))
+    isFetchFailure(cause) ||
+    (cause instanceof Error && (cause.stack ?? "").includes("checkOCSPStatus"))
   );
+}
+
+// node-fetch raises FetchError when a request gets no usable answer.
+function isFetchFailure(error: unknown): boolean {
+  return error instanceof Error && error.name === "FetchError";
 }
 
 type AppStoreServerCredentials = {
@@ -350,7 +355,9 @@ export async function getAppStoreServerCredentials(
   } catch (error) {
     console.error("Failed to load Apple P8 key:", describeError(error));
   }
-  if (!privateKey) {
+  // The Server API client signs before any request, so a key that cannot sign
+  // ES256 is a configuration error, never an outage.
+  if (!privateKey || es256KeyProblem(privateKey)) {
     missingFields.push("privateKey");
   }
 
@@ -450,10 +457,14 @@ async function verifyTransactionWithServerApi(params: {
       );
     }
 
-    // A transport failure is not a verdict, and its text is not ours to return.
+    // Only a failed request is an outage; any other error would repeat. Neither
+    // text is ours to return.
+    const outage = isFetchFailure(error);
     throw new AppStoreTransactionVerificationFailedError(
-      "App Store Server API did not respond",
-      STORE_OUTAGE_RETRY_AFTER_SEC,
+      outage
+        ? "App Store Server API did not respond"
+        : "App Store Server API request failed",
+      outage ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
     );
   }
 }
