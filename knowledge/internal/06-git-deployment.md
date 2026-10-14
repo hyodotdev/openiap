@@ -349,6 +349,10 @@ command from a local terminal.
   not at repository level. `audit-security.mjs workflows` rejects a job that
   reads a secret without `environment:`; OIDC-only publish jobs stay ungated.
 
+GitHub's SHA policy also covers actions called by composite actions. When
+updating an action, verify that its nested `uses` references use full commit
+SHAs.
+
 Release Git pushes use the private, organization-owned OpenIAP release App.
 Store `RELEASE_APP_CLIENT_ID` as a variable and `RELEASE_APP_PRIVATE_KEY` as a
 secret in the main-only `release` environment. The workflows mint a one-hour,

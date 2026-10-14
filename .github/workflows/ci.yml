@@ -692,11 +692,12 @@ jobs:
         run: bun run generate
 
       # The generated-wire test compiles Dart and C# output alongside Swift.
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6

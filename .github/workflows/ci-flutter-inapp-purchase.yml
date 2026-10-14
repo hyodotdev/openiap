@@ -79,11 +79,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
@@ -154,11 +155,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Build iOS and macOS examples with SwiftPM
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
@@ -174,11 +176,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Set up Xcode
         uses: ./.github/actions/setup-xcode

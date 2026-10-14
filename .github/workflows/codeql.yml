@@ -242,11 +242,12 @@ jobs:
 
       - name: Setup Flutter
         if: matrix.component == 'flutter'
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
@@ -422,11 +423,12 @@ jobs:
 
       - name: Setup Flutter
         if: matrix.component == 'flutter'
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Set up Xcode
         id: xcode

@@ -5339,7 +5339,7 @@ function checkFrameworkDependencyHygiene() {
       'SOURCE_RUN_ATTEMPT_ACTUAL" != "$SOURCE_RUN_ATTEMPT"',
       'npm-publish-authorization.mjs" verify',
       "Check if pub.dev package already published",
-      'flutter-version: "3.44.9"',
+      'version: "3.44.9"',
       'HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}"',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
       "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION",
@@ -5391,17 +5391,17 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.44.9"'],
+      ['version: "3.44.9"'],
       `${flutterWorkflow} must pin Flutter SDK`,
     );
     expectNotIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.x"'],
+      ['version: "3.x"'],
       `${flutterWorkflow} must not float Flutter SDK`,
     );
     expectNotIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.41.9"', 'flutter-version: "3.44.0"'],
+      ['version: "3.41.9"', 'version: "3.44.0"'],
       `${flutterWorkflow} must not use a superseded Flutter toolchain`,
     );
   }
@@ -8302,7 +8302,7 @@ function checkXcode27StoreKitCoverage() {
     expectIncludes(
       workflowPath,
       [
-        'flutter-version: "3.44.9"',
+        'version: "3.44.9"',
         "bash scripts/verify-apple-swiftpm-consumer-build.sh",
       ],
       `${workflowPath} Flutter Xcode 27 SwiftPM example build`,

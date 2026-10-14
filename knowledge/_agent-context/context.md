@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-14T14:15:08.550Z
+> Last updated: 2026-10-14T14:51:20.884Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2796,6 +2796,10 @@ command from a local terminal.
   `kit-production` for the kit deploy. Keep those secrets in the environment,
   not at repository level. `audit-security.mjs workflows` rejects a job that
   reads a secret without `environment:`; OIDC-only publish jobs stay ungated.
+
+GitHub's SHA policy also covers actions called by composite actions. When
+updating an action, verify that its nested `uses` references use full commit
+SHAs.
 
 Release Git pushes use the private, organization-owned OpenIAP release App.
 Store `RELEASE_APP_CLIENT_ID` as a variable and `RELEASE_APP_PRIVATE_KEY` as a
