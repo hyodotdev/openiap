@@ -26,10 +26,15 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
     date: "2026-10-12",
-    pullRequests: [523, 528],
+    pullRequests: [523, 528, 532],
     tagline:
       "Amazon subscription lifecycle beta and a security hardening pass.",
     items: [
+      {
+        kind: "fix",
+        topic: "Google verification",
+        text: "Google purchase verification and store-enriched subscription notifications preserve Sandbox or Production from verified store markers, allowing apps to isolate test purchases and lifecycle updates.",
+      },
       {
         kind: "feature",
         topic: "Amazon subscriptions",

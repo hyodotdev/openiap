@@ -123,6 +123,16 @@ export default function VerificationGooglePage() {
         one-shot or a subscription.
       </p>
       <p>
+        Verification returns <code>environment</code> as <code>Sandbox</code>{" "}
+        for Google-verified test purchases and <code>Production</code>{" "}
+        otherwise. IAPKit reads the store&apos;s <code>testPurchase</code> or{" "}
+        <code>testPurchaseContext</code> marker; clients cannot select it.
+        Environment does not replace the <code>isValid</code> and purchase-state
+        checks. Subscription lifecycle notifications carry the same environment
+        after IAPKit fetches the purchase from Google.
+      </p>
+
+      <p>
         Google purchase tokens are opaque, so your app or backend should not try
         to derive the product id from the token. IAPKit returns the{" "}
         <code>productId</code> that Google verifies. If you already know which

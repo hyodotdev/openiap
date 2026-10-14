@@ -37,6 +37,7 @@ export const googlePlayReceiptDataValidator = v.object({
   purchaseDate: v.number(),
   quantity: v.number(),
   type: v.union(v.literal("Subscription"), v.literal("InApp")),
+  environment: v.optional(receiptEnvironmentValidator),
   orderId: v.optional(v.string()),
   subscriptionState: v.optional(v.string()),
   purchaseState: v.optional(v.string()),
@@ -52,6 +53,14 @@ export const googlePlayReceiptDataValidator = v.object({
 export type GooglePlayReceiptData = Infer<
   typeof googlePlayReceiptDataValidator
 >;
+
+export type ReceiptEnvironment = Infer<typeof receiptEnvironmentValidator>;
+
+export function googlePlayEnvironment(
+  testPurchase: object | null | undefined,
+): ReceiptEnvironment {
+  return testPurchase != null ? "Sandbox" : "Production";
+}
 
 export const appStoreReceiptDataValidator = v.object({
   transactionId: v.optional(v.string()),
@@ -247,6 +256,9 @@ export function mapToGooglePlayReceiptResponse(
     isValid: isValidState(state),
     state,
     productId: receiptData.productId,
+    ...(receiptData.environment
+      ? { environment: receiptData.environment }
+      : {}),
   };
 }
 

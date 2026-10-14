@@ -14,6 +14,7 @@ import {
   GooglePlayReceiptData,
   receiptResponseValidator,
   isValidState,
+  googlePlayEnvironment,
 } from "./shared";
 import {
   PlayStoreServiceAccountNotFoundError,
@@ -386,6 +387,7 @@ export function mapSubscriptionResponseToReceiptData(args: {
     purchaseDate,
     quantity: 1,
     type: "Subscription" as const,
+    environment: googlePlayEnvironment(args.subscriptionResponse.testPurchase),
     orderId:
       lineItem?.latestSuccessfulOrderId ||
       args.subscriptionResponse.latestOrderId ||
@@ -452,6 +454,9 @@ export function mapProductResponseToReceiptData(args: {
     purchaseDate,
     quantity: lineItem?.productOfferDetails?.quantity ?? 1,
     type: "InApp" as const,
+    environment: googlePlayEnvironment(
+      args.productResponse.testPurchaseContext,
+    ),
     orderId: args.productResponse.orderId || undefined,
     purchaseState:
       args.productResponse.purchaseStateContext?.purchaseState || undefined,

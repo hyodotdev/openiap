@@ -7,7 +7,7 @@ import { action, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { moneyToMicros } from "../products/play";
-import { getProjectByApiKey } from "../purchases/shared";
+import { getProjectByApiKey, googlePlayEnvironment } from "../purchases/shared";
 import {
   isUnauthenticatedPubSubAllowed,
   normalizeGoogleRtdn,
@@ -702,6 +702,7 @@ async function maybeFetchSubscriptionInfo(
 
     return {
       productId: matched?.productId ?? undefined,
+      environment: googlePlayEnvironment(data.testPurchase),
       ...(ambiguousLineItems ? { ambiguousLineItems: true } : {}),
       linkedPurchaseToken: data.linkedPurchaseToken ?? undefined,
       state: data.subscriptionState ?? undefined,
