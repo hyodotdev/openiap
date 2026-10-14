@@ -636,13 +636,6 @@ function runUpdateNative(args) {
   );
 }
 
-function runVersion(args) {
-  if (args.length !== 1) {
-    throw new Error("Usage: release-branch-policy.mjs version <package>");
-  }
-  console.log(readPackageVersion(args[0]));
-}
-
 function runAudit(args) {
   if (args.length) throw new Error("Usage: release-branch-policy.mjs audit");
   assertClientProtocol(readVersionManifest());
@@ -674,12 +667,8 @@ function main() {
     runAudit(args);
     return;
   }
-  if (command === "version") {
-    runVersion(args);
-    return;
-  }
   throw new Error(
-    "Usage: release-branch-policy.mjs <assert-client-protocol|audit|guard|native-gate|update-native|version> [arguments]",
+    "Usage: release-branch-policy.mjs <assert-client-protocol|audit|guard|native-gate|update-native> [arguments]",
   );
 }
 

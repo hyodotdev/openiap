@@ -85,7 +85,7 @@ jobs:
               # maintainer writes their release card.
               if ! OUTPUT=$(node scripts/audit-release-notes.mjs HEAD^1 2>&1); then
                 printf '%s\n' "$OUTPUT" | sed 's/^::error::/::warning::/'
-                echo "::warning::This change needs a release card; a maintainer will add it before release."
+                echo "::warning::This change needs a release card; a maintainer will add it before merging."
               fi
               ;;
           esac
@@ -258,8 +258,16 @@ jobs:
           predicate-quantifier: some-with-excludes
           filters: |
             agent:
-              # The agent-context inputs and outputs in scripts/agent/context-files.ts.
+              # The agent-context inputs and outputs in scripts/agent/context-files.ts,
+              # plus the files scripts/agent/tests read.
               - 'scripts/agent/**'
+              - '.claude/commands/review-pr.md'
+              - '.claude/skills/openiap-workflows/SKILL.md'
+              - '.codex/skills/openiap-workflows/SKILL.md'
+              - '.codex/skills/review-self/SKILL.md'
+              - '.husky/pre-commit'
+              - 'packages/kit/public/llms.txt'
+              - 'scripts/delete-review-automation-comments.mjs'
               - 'scripts/assert-clean-worktree.mjs'
               - 'package.json'
               - 'bun.lock'
@@ -323,6 +331,10 @@ jobs:
             parity:
               # The SDK parity audit reads code, docs, and agent surfaces across the tree.
               - '.claude/**'
+              - '.codecov.yml'
+              - '.codecov.yaml'
+              - 'llms.txt'
+              - 'llms-full.txt'
               - '.codex/**'
               - '.gemini/**'
               - '.github/**'

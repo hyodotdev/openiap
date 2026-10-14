@@ -186,6 +186,10 @@ jobs:
             echo "✓ Tag $VERSION does not exist, proceeding with release"
           fi
 
+      # Before the tag checkout, which may predate this local action.
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
+
       - name: Preserve Bundler files
         run: |
           # A current retry checks out a tag that may predate these files.
@@ -209,9 +213,6 @@ jobs:
           node scripts/assert-release-tag.mjs \
             apple "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
           git checkout "$SELECTED_TAG"
-
-      - name: Setup Ruby
-        uses: ./.github/actions/setup-ruby
 
       - name: Install CocoaPods
         run: BUNDLE_FROZEN=true bundle install

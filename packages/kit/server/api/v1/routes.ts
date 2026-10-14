@@ -59,6 +59,8 @@ const specUrl =
 
 const REDOC_SCRIPT_URL =
   "https://cdn.redoc.ly/redoc/v3.0.0-rc.0/redoc.standalone.js";
+const REDOC_SCRIPT_INTEGRITY =
+  "sha384-6A0kxuGK8Gz188H91eR7PQfgL61lrhJnm0Km5agIdh4ww0brukziJnuv/0pgSJFm";
 
 // Redoc reads cookies and web storage, which throw in a sandboxed page.
 const REDOC_STORAGE_SHIM = `
@@ -82,9 +84,9 @@ const redocShimHash = crypto
   .update(REDOC_STORAGE_SHIM)
   .digest("base64");
 
-// The CDN script has no integrity pin, so the sandbox runs it in an opaque
-// origin that cannot read the dashboard's stored sign-in tokens.
-const REDOC_CONTENT_SECURITY_POLICY = `sandbox allow-scripts; script-src 'sha256-${redocShimHash}' ${REDOC_SCRIPT_URL}`;
+// The sandbox keeps the page in an opaque origin that cannot read the
+// dashboard's stored sign-in tokens; popups and downloads serve its links.
+const REDOC_CONTENT_SECURITY_POLICY = `sandbox allow-scripts allow-popups allow-downloads; script-src 'sha256-${redocShimHash}' ${REDOC_SCRIPT_URL}`;
 
 /**
  * Redoc UI with API documentation.
@@ -108,7 +110,12 @@ app.get("", (c) => {
       <body>
         ${raw(`<script>${REDOC_STORAGE_SHIM}</script>`)}
         <redoc spec-url="${specUrl}"></redoc>
-        <script type="module" src="${REDOC_SCRIPT_URL}"></script>
+        <script
+          type="module"
+          src="${REDOC_SCRIPT_URL}"
+          integrity="${REDOC_SCRIPT_INTEGRITY}"
+          crossorigin="anonymous"
+        ></script>
       </body>
     </html>
   `);

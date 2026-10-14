@@ -656,6 +656,12 @@ export const cases = Object.freeze([
     ],
   },
   {
+    // scripts/agent/tests read these, so they cannot ride on context-files.ts.
+    name: "agent-test-inputs",
+    files: [".claude/commands/review-pr.md", ".husky/pre-commit"],
+    jobs: ["ci:audit-parity", "ci:test-agent"],
+  },
+  {
     name: "scripts-docs-only",
     files: ["scripts/agent/README.md"],
     jobs: ["ci:audit-lockfile", "ci:audit-parity", "ci:test-agent"],

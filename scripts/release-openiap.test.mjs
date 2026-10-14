@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -606,5 +607,40 @@ test("documented npm RC promotion retains the stable base version", (t) => {
       /version=4\.0\.0\nis_prerelease=false/u,
       filename,
     );
+  }
+});
+
+// A `current` retry checks out the release tag, which can predate files added
+// since; steps after that checkout must not load them from the workspace.
+test("release steps after a tag checkout use no repository-local setup", () => {
+  const workflows = join(root, ".github/workflows");
+  for (const filename of readdirSync(workflows).filter((name) =>
+    /^(release|publish)-.+\.yml$/u.test(name),
+  )) {
+    const { jobs } = parse(readFileSync(join(workflows, filename), "utf8"));
+    for (const [jobId, job] of Object.entries(jobs)) {
+      const steps = job.steps ?? [];
+      const checkout = steps.findIndex((step) =>
+        /git checkout "\$/u.test(step.run ?? ""),
+      );
+      if (checkout < 0) continue;
+      // Steps gated on the opposite of the checkout's condition never follow it.
+      const opposite = [
+        ...String(steps[checkout].if ?? "").matchAll(
+          /([\w.-]+) == ('[^']*')/gu,
+        ),
+      ].map(([, operand, value]) => `${operand} != ${value}`);
+      for (const step of steps
+        .slice(checkout + 1)
+        .filter(
+          (step) => !opposite.some((guard) => step.if?.includes(guard)),
+        )) {
+        assert.doesNotMatch(
+          JSON.stringify(step),
+          /"uses":"\.\/|-version-file/u,
+          `${filename} ${jobId}: "${step.name}" runs after the tag checkout`,
+        );
+      }
+    }
   }
 });

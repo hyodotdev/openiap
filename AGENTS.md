@@ -146,7 +146,8 @@ Report unavailable checks as `BLOCKED` (unverified), never as passed.
 - **Never write to a production deployment**: no mutation or action from the
   Convex dashboard runner or `npx convex run --prod`, and no HTTP call that is
   not a plain read. The dashboard runner preselects the last function used,
-  which has included `drainAccountDeletionBatch`; avoid opening it.
+  which has included `drainAccountDeletionBatch`; confirm the selection before
+  pressing Run, and prefer not opening it.
 - Never edit, insert, or delete documents in the production data browser.
   Schema and data changes ship through a reviewed deploy.
 - Read production only when asked (tables, counts, logs, health), report
@@ -161,7 +162,9 @@ Report unavailable checks as `BLOCKED` (unverified), never as passed.
 Webhooks run server-to-server only: store → IAPKit, and IAPKit → a developer
 backend the project owner registered. Never add an IAPKit → SDK/mobile webhook
 stream, SSE endpoint, WebSocket, push relay, or long-poll feed; device push
-belongs to the developer's backend. `bun audit:parity` enforces this. See
+belongs to the developer's backend, and a shipped app never gets project-wide
+lifecycle events or a secret key. `bun audit:parity` enforces this; do not
+weaken it to bring the feature back. See
 [IAPKit webhook boundary](knowledge/internal/02-architecture.md#iapkit-webhook-boundary).
 
 ### Auto-Generated Files (DO NOT EDIT)
@@ -179,6 +182,9 @@ them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
+- `libraries/{react-native-iap,expo-iap}/src/kit-api.ts`
+- `libraries/expo-iap/src/utils/errorMapping.ts` and its
+  `__tests__/errorMapping.shared.test.ts` (mirrored from react-native-iap)
 
 `openiap-versions.json` tracks only `clientProtocol`, `google`, and `apple`, and
 only release CI changes it; feature work never edits version fields. Framework

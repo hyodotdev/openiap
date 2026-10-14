@@ -92,9 +92,12 @@ describe("apiRoutes", () => {
       .digest("base64");
     const redocScript =
       "https://cdn.redoc.ly/redoc/v3.0.0-rc.0/redoc.standalone.js";
-    expect(page).toContain(`<script type="module" src="${redocScript}">`);
+    expect(page).toMatch(
+      /<script\s+type="module"\s+src="[^"]+"\s+integrity="sha384-[A-Za-z0-9+/=]+"\s+crossorigin="anonymous"\s*>/,
+    );
+    expect(page).toContain(`src="${redocScript}"`);
     expect(response.headers.get("Content-Security-Policy")).toBe(
-      `sandbox allow-scripts; script-src 'sha256-${shimHash}' ${redocScript}`,
+      `sandbox allow-scripts allow-popups allow-downloads; script-src 'sha256-${shimHash}' ${redocScript}`,
     );
   });
 

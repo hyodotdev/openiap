@@ -810,33 +810,6 @@ test("each package's version is read in one place, by module and CLI", (t) => {
     () => readPackageVersion("docs", root),
     /Unknown package 'docs'/,
   );
-
-  const cli = (...args) =>
-    spawnSync(
-      process.execPath,
-      [resolve(repoRoot, "scripts/release-branch-policy.mjs"), ...args],
-      { encoding: "utf8" },
-    );
-  for (const id of Object.keys(versionSources)) {
-    const result = cli("version", id);
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `${readPackageVersion(id)}\n`);
-  }
-  assert.equal(cli("version").status, 1);
-  assert.match(cli("version", "docs").stderr, /Unknown package 'docs'/);
-
-  // Release workflows ask the policy instead of parsing manifests themselves.
-  for (const id of ["apple", "google", "flutter", "godot", "kmp", "maui"]) {
-    const workflow = readFileSync(
-      resolve(repoRoot, ".github/workflows", releaseWorkflows[id].filename),
-      "utf8",
-    );
-    assert.match(
-      workflow,
-      new RegExp(`release-branch-policy\\.mjs"? version ${id}\\)`),
-      id,
-    );
-  }
 });
 
 test("framework release workflows refuse stale dispatch heads", () => {

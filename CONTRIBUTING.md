@@ -16,19 +16,20 @@ from that directory. CI runs the same commands.
 | --------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Docs site (`packages/docs`)                   | Bun                           | `bun run typecheck && bun run lint && bunx prettier --check "src/**/*.{ts,tsx,css}"`, then `bun run audit:docs` from the root |
 | iOS/macOS native (`packages/apple`)           | Xcode 26                      | `swift build && swift test`                                                                                                   |
-| Android native (`packages/google`)            | JDK 17                        | `./gradlew :openiap-core:test :openiap:test`                                                                                  |
+| Android native (`packages/google`)            | JDK 17, Android SDK           | `./gradlew :openiap-core:test :openiap:test`                                                                                  |
 | Client schema (`specs/client`)                | Bun                           | See [Changing the Client Schema](#changing-the-client-schema)                                                                 |
 | Commerce Protocol (`specs/commerce-protocol`) | Bun, Node.js 20               | See [Changing the Commerce Protocol](#changing-the-commerce-protocol)                                                         |
 | `libraries/react-native-iap`                  | Node.js 20, Yarn 3 (Corepack) | `yarn install && yarn lint:tsc && yarn test:ci`                                                                               |
 | `libraries/expo-iap`                          | Bun                           | `bun install && bun run lint:tsc && bun run test`                                                                             |
 | `libraries/flutter_inapp_purchase`            | Flutter 3.44                  | `flutter pub get && flutter analyze && flutter test`                                                                          |
-| `libraries/godot-iap`                         | Godot 4.3+                    | `make test`                                                                                                                   |
-| `libraries/kmp-iap`                           | JDK 17                        | `./gradlew :library:testPlayDebugUnitTest`                                                                                    |
+| `libraries/godot-iap`                         | Godot 4.5+                    | `bash scripts/run-godot-suite.sh test_types_only test_api_surface test_godot_iap`                                             |
+| `libraries/kmp-iap`                           | JDK 17, Android SDK           | `./gradlew :library:testPlayDebugUnitTest`                                                                                    |
 | `libraries/maui-iap`                          | .NET 10 SDK                   | `dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0`                                  |
 
 Bun is pinned to 1.3.13 by the root `package.json` `packageManager` field. The
 pre-commit hook enforces that exact version only when you change dependencies
-(a staged `package.json` or `bun.lock`). Root audit scripts need Node.js 22.
+(a staged `package.json` or `bun.lock`). Root audit scripts need Node.js 22.18
+or later.
 
 For the root workspace (docs, specs, and the pre-commit hook):
 
@@ -38,9 +39,10 @@ cd openiap
 bun install
 ```
 
-Each library's `CONTRIBUTING.md` (`AGENTS.md` for `maui-iap`) explains how to
-run its example app. React Native's `example/` is a Yarn workspace, so the
-library's `yarn install` already installs it.
+Each library's `CONTRIBUTING.md` explains how to run its example app; for
+`maui-iap`, see [`example/README.md`](libraries/maui-iap/example/README.md).
+React Native's `example/` is a Yarn workspace, so the library's `yarn install`
+already installs it.
 
 ## Changing the Client Schema
 

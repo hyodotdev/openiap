@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-14T12:55:48.371Z
+> Last updated: 2026-10-14T13:19:55.989Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3548,7 +3548,9 @@ library follows the same pattern with its own `AGENTS.md`.
 
 `.claude/commands/`, `.claude/skills/`, `.codex/skills/`, and `.cursor/rules/`
 are thin discovery adapters for hosts whose formats differ. They route back to
-the shared instructions and must not copy project policy.
+the shared instructions and must not copy project policy. Keep the canonical
+`.codex/skills/` bodies agent-neutral: Codex, Muse, and the Claude adapters all
+read the same text.
 `bun run audit:agents` checks that every command and skill is wired for every
 agent.
 

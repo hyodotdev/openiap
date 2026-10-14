@@ -134,7 +134,9 @@ describe("server entrypoint", () => {
     );
     // Redoc keeps its own sandbox policy; both policies are enforced.
     const redocPolicy = responses.redoc.headers.get("Content-Security-Policy");
-    expect(redocPolicy).toMatch(/^sandbox allow-scripts; script-src /);
+    expect(redocPolicy).toMatch(
+      /^sandbox allow-scripts allow-popups allow-downloads; script-src /,
+    );
     expect(redocPolicy).toContain(`, ${htmlPolicy}`);
   });
 

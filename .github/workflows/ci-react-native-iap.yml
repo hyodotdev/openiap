@@ -29,6 +29,7 @@ on:
       - ".github/workflows/ci-react-native-iap.yml"
       - ".github/actions/setup-ruby/action.yml"
       - ".java-version"
+      - "package.json"
       - "!**/*.md"
   push:
     branches: [main, next]
@@ -58,6 +59,7 @@ on:
       - ".github/workflows/ci-react-native-iap.yml"
       - ".github/actions/setup-ruby/action.yml"
       - ".java-version"
+      - "package.json"
       - "!**/*.md"
 
 permissions:

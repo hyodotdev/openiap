@@ -78,7 +78,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         topic: "Rate limits",
-        text: "Malformed purchase verifications are rejected with their own error before they use a project's verification budget, so junk requests no longer push real purchases into RATE_LIMITED.",
+        text: "Verifications that fail IAPKit's own checks, such as an Apple JWS for another app or a store the project has not configured, return their own error without using the project's verification budget.",
       },
       {
         kind: "security",

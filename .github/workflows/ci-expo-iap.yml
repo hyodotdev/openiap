@@ -23,6 +23,7 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-expo-iap.yml"
       - ".java-version"
+      - "package.json"
       - "!**/*.md"
   push:
     branches: [main, next]
@@ -46,6 +47,7 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-expo-iap.yml"
       - ".java-version"
+      - "package.json"
       - "!**/*.md"
 
 permissions:

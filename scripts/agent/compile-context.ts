@@ -64,7 +64,7 @@ function readInstallationVersions(): LlmsVersions {
     CONTEXT_SOURCES.docsVersionMetadata,
   );
 
-  return {
+  const versions: LlmsVersions = {
     apple: openiapVersions.apple,
     google: openiapVersions.google,
     flutter: metadata.flutterPackageVersion,
@@ -73,6 +73,13 @@ function readInstallationVersions(): LlmsVersions {
     maui: metadata.mauiPackageVersion,
     mauiPackageId: metadata.mauiPackageId,
   };
+  const missing = Object.entries(versions).filter(([, value]) => !value);
+  if (missing.length) {
+    throw new Error(
+      `Missing installation versions: ${missing.map(([key]) => key).join(", ")}`,
+    );
+  }
+  return versions;
 }
 
 function withFinalNewline(content: string): string {

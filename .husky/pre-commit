@@ -24,7 +24,7 @@ if staged '(^|/)(package\.json|bun\.lock)$'; then
 fi
 
 # Inputs of the parity audit: code, docs, agent surfaces, and workflows.
-if staged '^(\.claude/|\.codex/|\.gemini/|\.github/(workflows|actions)/|\.gitignore$|[A-Z_]+\.md$|codecov\.yml$|openiap-versions\.json$|package\.json$|knowledge/|libraries/|packages/|plugins/|scripts/|security/|specs/)'; then
+if staged '^(\.claude/|\.codex/|\.gemini/|\.github/(workflows|actions)/|\.gitignore$|[A-Z_]+\.md$|\.?codecov\.ya?ml$|llms(-full)?\.txt$|openiap-versions\.json$|package\.json$|knowledge/|libraries/|packages/|plugins/|scripts/|security/|specs/)'; then
   echo "🔎 SDK parity audit…"
   node scripts/audit-non-godot-parity.mjs
 fi
@@ -59,7 +59,7 @@ if staged '^(plugins/openiap/|scripts/audit-plugin-manifests(\.test)?\.mjs$)'; t
 fi
 
 # Codex, Claude, and Grok must stay pointed at the same workflows.
-if staged '^(\.claude/|\.codex/|AGENTS\.md$|CLAUDE\.md$|GEMINI\.md$|scripts/audit-agent-surfaces(\.test)?\.mjs$)'; then
+if staged '^(\.claude/|\.codex/|libraries/[^/]+/\.claude/|AGENTS\.md$|CLAUDE\.md$|GEMINI\.md$|knowledge/internal/10-agent-tooling\.md$|scripts/audit-agent-surfaces(\.test)?\.mjs$)'; then
   echo "🤝 agent surface audit…"
   bun run audit:agents
 fi
