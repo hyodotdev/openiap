@@ -108,6 +108,38 @@ describe("server entrypoint", () => {
     expect(serverState.readFile).toHaveBeenCalledTimes(1);
   });
 
+  it("adds baseline security headers, and a framing CSP to HTML", async () => {
+    const fetch = serverState.fetch;
+    if (!fetch) throw new Error("server fetch handler was not captured");
+
+    const responses = {
+      health: await fetch(new Request("http://localhost/health")),
+      apiMiss: await fetch(new Request("http://localhost/v1/missing")),
+      spa: await fetch(new Request("http://localhost/dashboard")),
+      redoc: await fetch(new Request("http://localhost/v1")),
+    };
+    for (const response of Object.values(responses)) {
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(response.headers.get("Referrer-Policy")).toBe(
+        "strict-origin-when-cross-origin",
+      );
+      expect(response.headers.has("Strict-Transport-Security")).toBe(false);
+    }
+
+    const htmlPolicy =
+      "frame-ancestors 'none'; base-uri 'self'; object-src 'none'";
+    expect(responses.health.headers.has("Content-Security-Policy")).toBe(false);
+    expect(responses.spa.headers.get("Content-Security-Policy")).toBe(
+      htmlPolicy,
+    );
+    // Redoc keeps its own sandbox policy; both policies are enforced.
+    const redocPolicy = responses.redoc.headers.get("Content-Security-Policy");
+    expect(redocPolicy).toMatch(
+      /^sandbox allow-scripts allow-popups allow-downloads; script-src /,
+    );
+    expect(redocPolicy).toContain(`, ${htmlPolicy}`);
+  });
+
   it("drains once when shutdown signals arrive", () => {
     const sigterm = process
       .listeners("SIGTERM")
@@ -138,5 +170,22 @@ describe("server entrypoint", () => {
       expect(await response.text()).toContain("index.html missing");
     }
     expect(serverState.readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends HSTS only from a production build", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    try {
+      vi.resetModules();
+      await import("./server");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    const fetch = serverState.fetch;
+    if (!fetch) throw new Error("server fetch handler was not captured");
+
+    const response = await fetch(new Request("http://localhost/health"));
+    expect(response.headers.get("Strict-Transport-Security")).toBe(
+      "max-age=31536000",
+    );
   });
 });

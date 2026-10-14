@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
+import { parse as parseYaml } from "yaml";
 import { fileURLToPath } from "node:url";
 import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
@@ -22,6 +23,7 @@ import {
   nativeGateSkipReason,
   nativeReleaseGates,
   assertReleaseBranch,
+  readPackageVersion,
   compareSemVer,
   findPrereleaseVersions,
   isPrereleaseVersion,
@@ -155,6 +157,13 @@ test("Ruby dependencies are locked and installed frozen", () => {
     concurrentRuby.localeCompare("1.3.7", undefined, { numeric: true }) >= 0,
   );
 
+  const rubyAction = readFileSync(
+    resolve(repoRoot, ".github/actions/setup-ruby/action.yml"),
+    "utf8",
+  );
+  assert.match(rubyAction, /ruby\/setup-ruby@[a-f0-9]{40} # v1/u);
+  assert.match(rubyAction, /ruby-version: "3\.3"/u);
+
   const example = "libraries/react-native-iap/example";
   for (const [filename, installStep, directory] of [
     ["ci.yml", "Verify Ruby locks", example],
@@ -166,11 +175,7 @@ test("Ruby dependencies are locked and installed frozen", () => {
     const workflow = readWorkflow(filename);
     const setup = extractNamedStep(workflow, "Setup Ruby").source;
     const install = extractNamedStep(workflow, installStep).source;
-    assert.match(
-      setup,
-      /ruby\/setup-ruby@[a-f0-9]{40} # v1/u,
-    );
-    assert.match(setup, /ruby-version: "3\.3"/u);
+    assert.match(setup, /uses: \.\/\.github\/actions\/setup-ruby/u);
     if (directory) {
       assert.ok(setup.includes(`working-directory: ${directory}`), filename);
     }
@@ -252,7 +257,8 @@ test("release version commits use package@version subjects", () => {
     assert.ok(
       versionCommits.some(
         (line) =>
-          line === expectedCommit || line === `${expectedCommit} --allow-empty`,
+          line.replace(/( --allow-empty)?( --no-verify)?$/u, "") ===
+          expectedCommit,
       ),
       `${filename} must use the canonical release commit subject`,
     );
@@ -770,6 +776,44 @@ test("existing release tags must match metadata, origin, and release-branch ance
   );
 });
 
+test("each package's version is read in one place, by module and CLI", (t) => {
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-package-version-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const write = (path, content) => {
+    mkdirSync(dirname(resolve(root, path)), { recursive: true });
+    writeFileSync(resolve(root, path), content);
+  };
+  write(
+    "libraries/kmp-iap/gradle.properties",
+    "kotlin.code.style=official\nlibraryVersion=3.1.0\n",
+  );
+  write(
+    "libraries/flutter_inapp_purchase/pubspec.yaml",
+    "name: flutter_inapp_purchase\nversion: 3.1.0 # release\n",
+  );
+  write("libraries/godot-iap/addons/godot-iap/plugin.cfg", 'version="3.1.0"\n');
+  // Tags cut before PackageVersion only carry <Version>.
+  write(
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    "<Project><Version>3.1.0</Version></Project>",
+  );
+  write("specs/openiap-kit/package.json", '{"version":"3.1.0"}');
+  for (const id of ["kmp", "flutter", "godot", "maui", "commerce-protocol"]) {
+    assert.equal(readPackageVersion(id, root), "3.1.0", id);
+  }
+  write("libraries/kmp-iap/gradle.properties", "libraryVersion=next\n");
+  assert.throws(() => readPackageVersion("kmp", root), /Invalid kmp-iap/);
+  write("libraries/godot-iap/addons/godot-iap/plugin.cfg", "name=godot-iap\n");
+  assert.throws(
+    () => readPackageVersion("godot", root),
+    /Unable to read godot-iap version/,
+  );
+  assert.throws(
+    () => readPackageVersion("docs", root),
+    /Unknown package 'docs'/,
+  );
+});
+
 test("framework release workflows refuse stale dispatch heads", () => {
   const guardScript = readFileSync(
     resolve(repoRoot, "scripts/assert-release-head.mjs"),
@@ -1263,8 +1307,14 @@ test("Godot builds version-bound native payloads only for a new tag", () => {
     );
   }
   assert.match(steps[0].source, /scripts\/sync-release-generated\.sh/u);
-  assert.match(steps[2].source, /run: make android GODOT_VERSION=4\.3/u);
-  assert.match(steps[3].source, /run: make ios macos GODOT_VERSION=4\.3/u);
+  assert.match(
+    steps[2].source,
+    /run: make android GODOT_VERSION="\$GODOT_MINIMUM"/u,
+  );
+  assert.match(
+    steps[3].source,
+    /run: make ios macos GODOT_VERSION="\$GODOT_MINIMUM"/u,
+  );
   assert.match(steps[4].source, /verify-ios-toolchain\.sh/u);
   assert.match(steps[5].source, /audit-godot-binary-digests\.mjs --write/u);
   assert.doesNotMatch(steps[6].source, /--write/u);
@@ -2198,6 +2248,84 @@ test("release pushes expose credentials only in their owning step", () => {
       assert.match(step, /gh auth setup-git/u, `${filename}:${index + 1}`);
     }
   }
+});
+
+test("release Git pushes use repository-scoped App tokens from the main-only environment", () => {
+  for (const { filename } of Object.values(releaseWorkflows)) {
+    const workflow = parseYaml(readWorkflow(filename));
+    let pushes = 0;
+    for (const job of Object.values(workflow.jobs)) {
+      const steps = job.steps ?? [];
+      const tokenSteps = new Map();
+      for (const [index, step] of steps.entries()) {
+        if (step.uses?.startsWith("actions/create-github-app-token@")) {
+          assert.equal(job.environment, "release", filename);
+          assert.match(step.uses, /@[a-f0-9]{40}$/u, filename);
+          assert.deepEqual(
+            step.with,
+            {
+              "client-id": "${{ vars.RELEASE_APP_CLIENT_ID }}",
+              "private-key": "${{ secrets.RELEASE_APP_PRIVATE_KEY }}",
+              "permission-contents": "write",
+            },
+            filename,
+          );
+          tokenSteps.set(step.id, index);
+        }
+        const token = step.env?.GH_TOKEN?.match(
+          /^\$\{\{ steps\.([\w-]+)\.outputs\.token \}\}$/u,
+        );
+        // Hooks run repository and dependency code; keep them away from it.
+        if (token) {
+          const commands = (step.run ?? "")
+            .replace(/\s+#[^\n]*/gu, "")
+            .split(/\n|&&|;|\|/u);
+          for (const command of commands) {
+            if (
+              /\bgit(?:\s+-{1,2}\S+(?:\s+[^-\s]\S*)?)*\s+commit\b/u.test(
+                command,
+              )
+            ) {
+              assert.match(
+                command,
+                /\s--no-verify\b/u,
+                `${filename}: ${step.name} commits while holding the push token`,
+              );
+            }
+          }
+        }
+        if (!/\bgit\b[^\n]*\bpush\b/u.test(step.run ?? "")) continue;
+        pushes += 1;
+        assert.equal(job.environment, "release", filename);
+        assert.ok(token, `${filename}: ${step.name} must use an App token`);
+        assert.ok(tokenSteps.get(token[1]) < index, filename);
+        assert.match(step.run, /gh auth setup-git/u, filename);
+      }
+      assert.ok(!job.env?.GH_TOKEN, filename);
+    }
+    assert.ok(!workflow.env?.GH_TOKEN, filename);
+    assert.ok(pushes > 0, filename);
+    assert.doesNotMatch(
+      readWorkflow(filename),
+      /secrets\.DEPENDENCY_UPDATE_PAT/u,
+      filename,
+    );
+  }
+});
+
+test("Google renews its App token after building artifacts and before pushing the tag", () => {
+  const workflow = parseYaml(readWorkflow("release-google.yml"));
+  const steps = workflow.jobs.release.steps;
+  const build = steps.findIndex(
+    (step) => step.name === "Build release artifacts",
+  );
+  const token = steps.findIndex((step) => step.id === "release-tag-token");
+  const push = steps.findIndex((step) => step.name === "Create and push tag");
+  assert.ok(build >= 0 && build < token && token < push);
+  assert.equal(
+    steps[push].env.GH_TOKEN,
+    "${{ steps.release-tag-token.outputs.token }}",
+  );
 });
 
 test("Apple release keeps its Bundler files across a current tag checkout", () => {

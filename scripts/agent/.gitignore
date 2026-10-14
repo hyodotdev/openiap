@@ -1,9 +1,3 @@
-# Environment
-.env
-
-# LanceDB data
-.lancedb/
-
 # Dependencies
 node_modules/
 

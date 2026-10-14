@@ -195,13 +195,8 @@ EOF
 | `chore`    | Maintenance tasks     |
 | `test`     | Adding/updating tests |
 
-**Scope Examples:**
-
-- `gql` - GraphQL schema changes
-- `apple` - iOS/macOS package
-- `google` - Android package
-- `docs` - Documentation site
-- `skills` - Claude skills/commands
+Scopes are listed in the
+[Scope Reference](../../knowledge/internal/06-git-deployment.md#scope-reference).
 
 ### 6. Push to Remote
 

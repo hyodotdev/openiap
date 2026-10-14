@@ -254,25 +254,23 @@ is what an earlier revision of this audit got wrong.
 ### IAPKit toolchain boundary
 
 IAPKit deploys with `flyctl deploy --remote-only`, so the image is built by
-Fly's builder from `packages/kit/Dockerfile`, not by CI. Two different Bun
-versions are therefore in play, and they are not interchangeable:
+Fly's builder from `packages/kit/Dockerfile`, not by CI. Two Bun versions are
+therefore in play, and they are not interchangeable:
 
-| Role                             | Version | What it touches                                              |
-| -------------------------------- | ------- | ------------------------------------------------------------ |
-| `toolchain.bun` / `pinned`       | 1.3.13  | what CI installs to lint, typecheck and test                 |
-| `toolchain.bun` / `runtimeImage` | 1.4.2   | the `oven/bun` base that compiles the binary serving traffic |
+| Role          | Declared in                                             | What it touches                                   |
+| ------------- | ------------------------------------------------------- | ------------------------------------------------- |
+| CI toolchain  | `packageManager` in the root `package.json`             | what CI installs to lint, typecheck and test      |
+| Runtime image | the `oven/bun` `FROM` line in `packages/kit/Dockerfile` | the base that compiles the binary serving traffic |
 
 The tests that gate a deploy run on the first; the artifact that serves traffic
-is compiled by the second.
+is compiled by the second. The gap is real; closing it means agreeing a single
+version and moving both together.
 
 After the deploy, the workflow reads `https://kit.openiap.dev/health` and
 requires the `revision` it reports to be the commit just built. Every earlier
 step proves what was built and pushed; this is the only one that proves what is
 serving, so a rollout that kept the previous machine is visible rather than
-assumed away. Both are declared in `scripts/facts.mjs` and scanned,
-so neither can move without the declared-fact audit failing — but the gap
-between them is a real one, not an artefact of the audit. Closing it means
-agreeing a single version and moving both together.
+assumed away.
 
 ### Release immutability
 

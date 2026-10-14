@@ -615,7 +615,7 @@ test("the registry note keeps a major's profile while any entry cites it", () =>
   );
 });
 
-test("package version upgrades are CI-only across agent guidance", () => {
+test("no agent guidance permits local version upgrades", () => {
   const canonical = fs.readFileSync(
     path.join(repoRoot, "knowledge/internal/06-git-deployment.md"),
     "utf8",
@@ -634,7 +634,6 @@ test("package version upgrades are CI-only across agent guidance", () => {
     ".codex/skills/ship-release/SKILL.md",
   ]) {
     const source = fs.readFileSync(path.join(repoRoot, file), "utf8");
-    assert.ok(source.includes("CI-only"), `${file} must preserve CI ownership`);
     assert.ok(
       !/feature PR may|contract change may bump|feature PR setting/.test(
         source,

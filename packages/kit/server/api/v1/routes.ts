@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { html } from "hono/html";
+import { html, raw } from "hono/html";
 import { describeRoute, openAPIRouteHandler, resolver } from "hono-openapi";
 import * as crypto from "node:crypto";
 import * as util from "node:util";
@@ -57,10 +57,42 @@ const specUrl =
     ? `${DEV_BASE_URL}/v1/openapi`
     : `${PROD_BASE_URL}/v1/openapi`;
 
+const REDOC_SCRIPT_URL =
+  "https://cdn.redoc.ly/redoc/v3.0.0-rc.0/redoc.standalone.js";
+const REDOC_SCRIPT_INTEGRITY =
+  "sha384-6A0kxuGK8Gz188H91eR7PQfgL61lrhJnm0Km5agIdh4ww0brukziJnuv/0pgSJFm";
+
+// Redoc reads cookies and web storage, which throw in a sandboxed page.
+const REDOC_STORAGE_SHIM = `
+Object.defineProperty(document, "cookie", { get: () => "", set() {} });
+for (const name of ["localStorage", "sessionStorage"]) {
+  const items = new Map();
+  Object.defineProperty(window, name, {
+    value: {
+      getItem: (key) => items.get(key) ?? null,
+      setItem: (key, value) => void items.set(key, String(value)),
+      removeItem: (key) => void items.delete(key),
+      clear: () => items.clear(),
+      key: (index) => [...items.keys()][index] ?? null,
+      get length() { return items.size; },
+    },
+  });
+}`;
+
+const redocShimHash = crypto
+  .createHash("sha256")
+  .update(REDOC_STORAGE_SHIM)
+  .digest("base64");
+
+// The sandbox keeps the page in an opaque origin that cannot read the
+// dashboard's stored sign-in tokens; popups and downloads serve its links.
+const REDOC_CONTENT_SECURITY_POLICY = `sandbox allow-scripts allow-popups allow-downloads; script-src 'sha256-${redocShimHash}' ${REDOC_SCRIPT_URL}`;
+
 /**
  * Redoc UI with API documentation.
  */
 app.get("", (c) => {
+  c.header("Content-Security-Policy", REDOC_CONTENT_SECURITY_POLICY);
   return c.html(html`
     <!DOCTYPE html>
     <html lang="en">
@@ -76,10 +108,13 @@ app.get("", (c) => {
         </style>
       </head>
       <body>
+        ${raw(`<script>${REDOC_STORAGE_SHIM}</script>`)}
         <redoc spec-url="${specUrl}"></redoc>
         <script
           type="module"
-          src="https://cdn.redoc.ly/redoc/v3.0.0-rc.0/redoc.standalone.js"
+          src="${REDOC_SCRIPT_URL}"
+          integrity="${REDOC_SCRIPT_INTEGRITY}"
+          crossorigin="anonymous"
         ></script>
       </body>
     </html>
@@ -96,6 +131,11 @@ const servers =
  */
 app.get(
   "/openapi",
+  // The sandboxed Redoc page fetches this from an opaque origin.
+  async (c, next) => {
+    c.header("Access-Control-Allow-Origin", "*");
+    await next();
+  },
   openAPIRouteHandler(app, {
     documentation: {
       info: {
@@ -623,7 +663,7 @@ app.post(
   ...verifyMiddleware,
 );
 
-// Compatibility alias, left out of the OpenAPI output.
+// Compatibility alias for older clients.
 app.post("/verify-purchase", ...verifyMiddleware);
 
 // Lifecycle webhooks (Apple ASN v2, Google RTDN). Apple can't send auth

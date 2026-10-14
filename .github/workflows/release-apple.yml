@@ -28,7 +28,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  XCODE_VERSION: 26.6
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -65,9 +64,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
+        uses: ./.github/actions/setup-xcode
 
       - name: Build
         working-directory: packages/apple
@@ -99,9 +96,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
+        uses: ./.github/actions/setup-xcode
 
       - name: Calculate new version
         id: version
@@ -110,7 +105,6 @@ jobs:
           VERSION_TYPE: ${{ github.event.inputs.version }}
           IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: |
-          # Read current apple version from openiap-versions.json
           CURRENT_VERSION=$(jq -r '.apple' openiap-versions.json)
           echo "Current version: $CURRENT_VERSION"
           echo "PREVIOUS_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
@@ -200,6 +194,11 @@ jobs:
           cp packages/apple/Gemfile packages/apple/Gemfile.lock "$TOOLING/"
           echo "BUNDLE_GEMFILE=$TOOLING/Gemfile" >> "$GITHUB_ENV"
 
+      # After BUNDLE_GEMFILE selects the locked Bundler, before the tag
+      # checkout, which may predate this local action.
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
+
       - name: Checkout release tag (current version)
         if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
         env:
@@ -215,11 +214,6 @@ jobs:
           node scripts/assert-release-tag.mjs \
             apple "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
           git checkout "$SELECTED_TAG"
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@e81a8fa391b11a595c1b7ed84177cc0fe02faf83 # v1
-        with:
-          ruby-version: "3.3"
 
       - name: Install CocoaPods
         run: BUNDLE_FROZEN=true bundle install
@@ -266,7 +260,7 @@ jobs:
         if: steps.version.outputs.skip_version_commit != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Sync version files
         if: steps.version.outputs.skip_version_commit != 'true'
@@ -286,10 +280,18 @@ jobs:
         if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
         run: node scripts/assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"
 
+      - name: Create release push token
+        id: release-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Commit version update
         if: steps.version.outputs.skip_version_commit != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh auth setup-git
@@ -304,7 +306,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore(release): openiap-apple@$VERSION"
+            git commit -m "chore(release): openiap-apple@$VERSION" --no-verify
             if ! git push origin "HEAD:$RELEASE_BRANCH"; then
               echo "::error::Release branch moved after verification; rerun the release workflow"
               exit 1
@@ -313,7 +315,7 @@ jobs:
 
       - name: Create and push tag
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh auth setup-git

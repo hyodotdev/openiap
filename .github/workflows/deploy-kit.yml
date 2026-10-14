@@ -1,26 +1,28 @@
 name: "A2. Deploy: Kit"
 
-# Verify on any push/PR or manual ref; deploy only from the main branch. The
-# paths filter keeps this workflow off the critical path for unrelated package
-# changes. Production deploys publish additive Convex functions before Fly.
+# Verify on any push/PR or manual ref; deploy only from the main branch, and
+# from a push only when it changes what kit builds from
+# (scripts/ci/kit-deploy-needed.mjs). Production deploys publish additive
+# Convex functions before Fly.
 
 on:
   push:
     branches: [main]
     paths:
       - "packages/kit/**"
-      # kit.openiap.dev/mcp is served by kit's Fly binary importing
-      # @hyodotdev/openiap-mcp-server/web straight from source, so an
-      # MCP-server change must redeploy kit or it never ships (issue #287).
+      # The kit binary serves kit.openiap.dev/mcp from the MCP server's source
+      # (issue #287) and embeds the Commerce Protocol's generated artifacts.
       - "packages/mcp-server/**"
-      # The kit server imports @hyodotdev/openiap-commerce-protocol at runtime and the
-      # compiled binary embeds its generated artifacts (the route manifest,
-      # error map, and capability descriptor), so a spec change must redeploy
-      # kit or the served /commerce/v1 surface silently diverges from the spec.
       - "specs/commerce-protocol/**"
+      # The MCP server compiles against the portable kit-api contract.
+      - "specs/client/src/kit-api.ts"
+      - "specs/client/package.json"
+      - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
       - "scripts/assert-lcov-coverage.mjs"
+      - "scripts/bun-dependency-snapshot.mjs"
+      - "scripts/ci/kit-deploy-needed.mjs"
       - ".github/actions/coverage-report/**"
       - "bun.lock"
       - "package.json"
@@ -28,18 +30,15 @@ on:
     paths:
       - "packages/kit/**"
       - "packages/mcp-server/**"
-      # MCP compiles against the portable kit-api contract. These inputs run
-      # verification on PRs but do not trigger a production deploy by themselves.
+      - "specs/commerce-protocol/**"
       - "specs/client/src/kit-api.ts"
       - "specs/client/package.json"
-      # Runtime dependency of the kit binary (see the push trigger above); its
-      # generated artifacts are compiled in, so a spec change both runs kit's
-      # conformance test and, on main, redeploys.
-      - "specs/commerce-protocol/**"
       - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
       - "scripts/assert-lcov-coverage.mjs"
+      - "scripts/bun-dependency-snapshot.mjs"
+      - "scripts/ci/kit-deploy-needed.mjs"
       - ".github/actions/coverage-report/**"
       - "bun.lock"
       - "package.json"
@@ -55,6 +54,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      deploy: ${{ steps.scope.outputs.deploy }}
     defaults:
       run:
         working-directory: packages/kit
@@ -67,7 +68,24 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
+
+      # Root manifest and lock edits deploy only when they reach kit; PRs run
+      # it too so the decision is exercised before it gates main.
+      - name: Decide whether the change deploys kit
+        id: scope
+        working-directory: ${{ github.workspace }}
+        env:
+          BASE: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
+        run: |
+          deploy=true
+          if [ -n "$BASE" ]; then
+            deploy="$(bun scripts/ci/kit-deploy-needed.mjs "$BASE")"
+          fi
+          # Only an explicit `false` skips the deploy.
+          [ "$deploy" = false ] || deploy=true
+          echo "Deploy kit: $deploy"
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies (workspace root)
         working-directory: ${{ github.workspace }}
@@ -204,7 +222,10 @@ jobs:
   deploy:
     name: Deploy Convex + openiap-kit
     needs: verify
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && needs.verify.outputs.deploy == 'true'))
     environment: kit-production
     runs-on: ubuntu-latest
     concurrency:
@@ -232,7 +253,7 @@ jobs:
       - name: Setup Bun (for Convex deploy)
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install Kit dependencies
         run: |

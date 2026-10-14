@@ -16,8 +16,8 @@ import {
   ReceiptVerificationError,
 } from "./errors";
 import {
+  assertVerificationAdmission,
   getProjectByApiKey,
-  getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
   type ReceiptResponse,
@@ -172,9 +172,7 @@ export async function verifyHorizonReceipt(
   options: RecheckOptions = {},
 ): Promise<ReceiptResponse> {
   const verificationStart = Date.now();
-  const project = options.recheck
-    ? await getProjectByApiKey(ctx, args.apiKey)
-    : await getVerificationProjectByApiKey(ctx, args.apiKey);
+  const project = await getProjectByApiKey(ctx, args.apiKey);
 
   if (project.horizonEnabled !== true) {
     throw new ProjectMetaHorizonNotEnabledError();
@@ -185,6 +183,7 @@ export async function verifyHorizonReceipt(
   if (!project.horizonAppSecret) {
     throw new ProjectMetaHorizonAppSecretNotConfiguredError();
   }
+  if (!options.recheck) await assertVerificationAdmission(ctx, project._id);
 
   const requestData = {
     store: "horizon" as const,

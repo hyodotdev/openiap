@@ -11,7 +11,10 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { collectDocsVersionMetadataDrift } from "./verify-docs-version-metadata.mjs";
+import {
+  collectDocsVersionMetadataDrift,
+  writeDocsVersionMetadata,
+} from "./verify-docs-version-metadata.mjs";
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -85,4 +88,17 @@ test("rejects a missing generated metadata snapshot", (t) => {
   assert.deepEqual(collectDocsVersionMetadataDrift(root), [
     "packages/docs/src/generated/version-metadata.json is missing",
   ]);
+});
+
+test("writes the same metadata it verifies", (t) => {
+  const root = fixture(t);
+  const metadataFile = resolve(
+    root,
+    "packages/docs/src/generated/version-metadata.json",
+  );
+  const committed = readFileSync(metadataFile, "utf8");
+  rmSync(metadataFile);
+  writeDocsVersionMetadata(root);
+  assert.equal(readFileSync(metadataFile, "utf8"), committed);
+  assert.deepEqual(collectDocsVersionMetadataDrift(root), []);
 });

@@ -363,36 +363,8 @@ bun run lint:prettier
 
 ### Commit Messages
 
-Follow conventional commit format:
-
-```text
-type(scope): subject
-
-body
-
-footer
-```
-
-Types:
-
-- `feat`: new feature
-- `fix`: bug fix
-- `docs`: documentation changes
-- `style`: code style changes (formatting, etc.)
-- `refactor`: code refactoring
-- `test`: test additions or modifications
-- `chore`: maintenance tasks
-
-Example:
-
-```text
-feat(ios): add getStorefrontIos function
-
-Implements iOS-specific storefront retrieval using StoreKit.
-Follows platform-specific naming convention.
-
-Closes #123
-```
+Follow the monorepo's [Git Commit Message Format](https://github.com/hyodotdev/openiap/blob/main/knowledge/internal/06-git-deployment.md#git-commit-message-format),
+for example `feat(expo): add getAppTransactionIOS`.
 
 ### Pull Request Process
 

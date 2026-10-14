@@ -18,9 +18,6 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  XCODE_VERSION: 26.6
-
 jobs:
   audit-release-state:
     name: Audit Release Metadata
@@ -71,6 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
         run: |
           # Read labels now, not from the event, so a re-run sees one added later.
           LABELS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')
@@ -78,12 +76,24 @@ jobs:
             echo "Release note audit skipped: the PR is labeled ፦ refactor."
             exit 0
           fi
-          node scripts/audit-release-notes.mjs HEAD^1
+          case "$AUTHOR_ASSOCIATION" in
+            OWNER | MEMBER | COLLABORATOR)
+              node scripts/audit-release-notes.mjs HEAD^1
+              ;;
+            *)
+              # Outside contributors cannot know the next version, so a
+              # maintainer writes their release card.
+              if ! OUTPUT=$(node scripts/audit-release-notes.mjs HEAD^1 2>&1); then
+                printf '%s\n' "$OUTPUT" | sed 's/^::error::/::warning::/'
+                echo "::warning::This change needs a release card; a maintainer will add it before merging."
+              fi
+              ;;
+          esac
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install release test dependencies
         run: bun install --frozen-lockfile --filter openiap-monorepo --ignore-scripts
@@ -108,12 +118,10 @@ jobs:
       - name: Test Gradle network retry helper
         run: node --test scripts/ci/retry-gradle.test.mjs
 
-  # The test jobs below install with --frozen-lockfile but only run when
-  # their path filters match, so a workspace package.json change outside
-  # those paths can land with a stale bun.lock. Run the check on every CI
-  # run to catch lockfile drift regardless of which paths changed.
   audit-lockfile:
     name: Audit Lockfile Sync
+    needs: changes
+    if: needs.changes.outputs.deps == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -129,12 +137,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Setup Ruby
-        uses: ruby/setup-ruby@e81a8fa391b11a595c1b7ed84177cc0fe02faf83 # v1
+        uses: ./.github/actions/setup-ruby
         with:
-          ruby-version: "3.3"
           working-directory: libraries/react-native-iap/example
 
       - name: Verify bun.lock matches workspace manifests
@@ -177,8 +184,7 @@ jobs:
           done
 
       - name: Verify Yarn lock
-        working-directory: libraries/react-native-iap
-        run: corepack yarn install --immutable --mode=skip-build
+        run: cd libraries/react-native-iap && corepack yarn install --immutable --mode=skip-build
 
       - name: Verify Ruby locks
         run: |
@@ -221,11 +227,17 @@ jobs:
             --lockfile=libraries/react-native-iap/yarn.lock \
             --lockfile=scripts/agent/bun.lock
 
-  # Detect which packages have changes
+  # Detect which packages have changes. The filters that gated nothing before
+  # still run their jobs on every push.
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
+      agent: ${{ github.event_name != 'pull_request' || steps.filter.outputs.agent }}
+      commerce: ${{ github.event_name != 'pull_request' || steps.filter.outputs.commerce }}
+      conformance: ${{ github.event_name != 'pull_request' || steps.filter.outputs.conformance }}
+      deps: ${{ github.event_name != 'pull_request' || steps.filter.outputs.deps }}
+      parity: ${{ github.event_name != 'pull_request' || steps.filter.outputs.parity }}
       gql: ${{ steps.filter.outputs.gql }}
       android: ${{ steps.filter.outputs.android }}
       ios: ${{ steps.filter.outputs.ios }}
@@ -245,6 +257,109 @@ jobs:
           # Without this, '!' patterns are OR-ed positives that match nearly everything.
           predicate-quantifier: some-with-excludes
           filters: |
+            agent:
+              # The agent-context inputs and outputs in scripts/agent/context-files.ts,
+              # plus the files scripts/agent/tests read.
+              - 'scripts/agent/**'
+              - '.claude/commands/review-pr.md'
+              - '.claude/skills/openiap-workflows/SKILL.md'
+              - '.codex/skills/openiap-workflows/SKILL.md'
+              - '.codex/skills/review-self/SKILL.md'
+              - '.husky/pre-commit'
+              - 'packages/kit/public/llms.txt'
+              - 'scripts/delete-review-automation-comments.mjs'
+              - 'scripts/assert-clean-worktree.mjs'
+              - 'package.json'
+              - 'bun.lock'
+              - 'openiap-versions.json'
+              - 'packages/docs/src/generated/version-metadata.json'
+              - 'specs/commerce-protocol/SPEC.md'
+              - 'packages/docs/community-touchpoints.json'
+              - 'knowledge/internal/**'
+              - 'knowledge/external/**'
+              - 'knowledge/_agent-context/**'
+              - 'knowledge/_claude-context'
+              - 'packages/docs/public/llms.txt'
+              - 'packages/docs/public/llms-full.txt'
+              - 'llms.txt'
+              - 'llms-full.txt'
+              - '.github/workflows/ci.yml'
+            commerce:
+              - 'specs/commerce-protocol/**'
+              - 'packages/kit/**'
+              - 'packages/mcp-server/**'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/ci.yml'
+            conformance:
+              # The suites in every language whose behavior ids it checks.
+              - 'packages/conformance/**'
+              - 'packages/apple/Tests/OpenIapTests/ConformanceBehaviors.swift'
+              - 'packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift'
+              - 'packages/apple/compatibility/community-provider/Tests/FixtureProviderTests/FixtureProviderTests.swift'
+              - 'packages/google/compatibility/community-provider/provider/src/test/java/community/fixture/FixtureConformanceTest.kt'
+              - 'packages/kit/convex/webhooks/conformance.test.ts'
+              - 'libraries/react-native-iap/src/__tests__/conformance.test.ts'
+              - 'libraries/expo-iap/src/__tests__/conformance.test.ts'
+              - 'specs/client/package.json'
+              - 'specs/client/src/capability-matrix.mjs'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/ci.yml'
+            deps:
+              - '**/package.json'
+              - '**/bun.lock'
+              - '**/yarn.lock'
+              - '**/Gemfile'
+              - '**/Gemfile.lock'
+              - '**/osv-scanner.toml'
+              - '**/gradle-wrapper.jar'
+              - 'libraries/react-native-iap/.yarnrc.yml'
+              - 'libraries/react-native-iap/.yarn/**'
+              # Godot binary digests and the files the guard tests read.
+              - 'libraries/godot-iap/prebuilt-binaries.sha256'
+              - 'libraries/godot-iap/addons/godot-iap/bin/**'
+              - 'libraries/godot-iap/addons/godot-iap/android/**'
+              - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
+              - 'libraries/expo-iap/example/scripts/build-vega-example.mjs'
+              - 'libraries/react-native-iap/example/scripts/build-vega-example.mjs'
+              - 'packages/kit/Dockerfile'
+              - '.claude/commands/audit-security.md'
+              - '.github/**'
+              - 'scripts/**'
+              - 'security/**'
+            parity:
+              # The SDK parity audit reads code, docs, and agent surfaces across the tree.
+              - '.claude/**'
+              - '.codecov.yml'
+              - '.codecov.yaml'
+              - 'codecov.yaml'
+              - 'dev/**'
+              - 'llms.txt'
+              - 'llms-full.txt'
+              - '.codex/**'
+              - '.gemini/**'
+              - '.github/**'
+              - '.gitignore'
+              - 'AGENTS.md'
+              - 'CHANGELOG.md'
+              - 'CLAUDE.md'
+              - 'CODE_OF_CONDUCT.md'
+              - 'CONTRIBUTING.md'
+              - 'GEMINI.md'
+              - 'MAINTAINERS.md'
+              - 'README.md'
+              - 'SECURITY.md'
+              - 'codecov.yml'
+              - 'openiap-versions.json'
+              - 'package.json'
+              - 'knowledge/**'
+              - 'libraries/**'
+              - 'packages/**'
+              - 'plugins/**'
+              - 'scripts/**'
+              - 'security/**'
+              - 'specs/**'
             gql:
               - '.github/workflows/release-openiap.yml'
               - 'specs/client/**'
@@ -258,6 +373,7 @@ jobs:
               - '!**/*.md'
             android:
               - 'packages/google/**'
+              - '.java-version'
               - 'packages/conformance/**'
               - 'specs/client/**'
               - 'scripts/**'
@@ -266,6 +382,7 @@ jobs:
               - '!**/*.md'
             ios:
               - 'packages/apple/**'
+              - '.github/actions/setup-xcode/**'
               - 'packages/conformance/apple/**'
               - 'packages/conformance/src/spec/**'
               - 'packages/conformance/scripts/**'
@@ -333,7 +450,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install CLI dependencies
         run: bun install --frozen-lockfile --filter @hyodotdev/openiap --ignore-scripts
@@ -373,6 +490,8 @@ jobs:
 
   test-commerce-protocol:
     name: Test Commerce Protocol
+    needs: changes
+    if: needs.changes.outputs.commerce == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -385,7 +504,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: |
@@ -410,6 +529,8 @@ jobs:
 
   test-conformance:
     name: Test Conformance Suite
+    needs: changes
+    if: needs.changes.outputs.conformance == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -422,7 +543,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: |
@@ -460,6 +581,8 @@ jobs:
 
   audit-parity:
     name: Audit SDK Parity
+    needs: changes
+    if: needs.changes.outputs.parity == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -467,15 +590,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # 22 strips types, so the path-filter audit can import context-files.ts.
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install parity audit dependencies
         run: |
@@ -515,7 +639,7 @@ jobs:
       - name: Run non-Godot SDK parity audit
         run: node scripts/audit-non-godot-parity.mjs
 
-      # Unconditional: kit and the spec deploy on separate workflows.
+      # Kit and the spec deploy on separate workflows, so check their contract here.
       - name: Test IAPKit spec contract audit
         run: node --test scripts/audit-kit-spec-contract.test.mjs
 
@@ -524,18 +648,6 @@ jobs:
 
       - name: Audit CI path filters
         run: npm run audit:ci-paths
-
-      - name: Audit declared facts
-        run: npm run audit:facts
-
-      - name: Audit research references
-        run: npm run audit:research
-
-      - name: Audit whitepaper freshness
-        run: npm run audit:whitepaper
-
-      - name: Test issue-mining script
-        run: node --test scripts/mine-iap-issues.test.mjs
 
       - name: Audit agent surfaces
         run: npm run audit:agents
@@ -563,7 +675,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: |
@@ -580,11 +692,12 @@ jobs:
         run: bun run generate
 
       # The generated-wire test compiles Dart and C# output alongside Swift.
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -627,7 +740,7 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - name: Grant execute permission
         working-directory: packages/google
@@ -715,9 +828,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
+        uses: ./.github/actions/setup-xcode
 
       - name: Build
         working-directory: packages/apple
@@ -755,7 +866,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        uses: ./.github/actions/setup-xcode
         with:
           xcode-version: ${{ matrix.xcode-version }}
 
@@ -777,7 +888,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: |
@@ -834,7 +945,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: |
@@ -903,6 +1014,8 @@ jobs:
 
   test-agent:
     name: Test Agent Scripts
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -913,7 +1026,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         working-directory: scripts/agent

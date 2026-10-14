@@ -133,8 +133,8 @@ Keep each project surface under its canonical owner:
   in this section in the same change.
 - Keep shared editor settings in root `.vscode/`. Package-specific settings are
   allowed only when they apply exclusively to that package's toolchain.
-- Run `bun run audit:layout` after directory changes. Pre-commit and CI enforce
-  the same audit; do not weaken it to permit a duplicate owner.
+- Run `bun run audit:layout` after directory changes. CI enforces the same
+  audit; do not weaken it to permit a duplicate owner.
 
 ### Specification Distribution Boundary
 
@@ -281,7 +281,7 @@ policy and transport.
 ```
 ┌──────────────┐
 │   specs/     │
-│openiap/client│ ──── Generates Types ────┐
+│    client    │ ──── Generates Types ────┐
 └──────────────┘                           │
                                           ▼
                           ┌──────────────────────────┐

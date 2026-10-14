@@ -39,14 +39,9 @@ to remains suffix-free inside `packages/google`.
 
 ## Generated Files
 
-Do not hand-edit generated files such as:
-
-- `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
-- `packages/apple/Sources/Models/Types.swift`
-- `libraries/*/src/types.ts`
-- `libraries/flutter_inapp_purchase/lib/types.dart`
-- `libraries/kmp-iap/library/src/commonMain/**/Types.kt`
-- `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
+Flag any hand edit to a generated file. The list is in the root `AGENTS.md`
+("Auto-Generated Files"); every sync target in
+`specs/client/generated-sync-manifest.mjs` is generated.
 
 When reviewing generated handler wiring, require the hand-written module to
 implement the generated contract rather than renaming generated fields.

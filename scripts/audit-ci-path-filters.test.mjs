@@ -53,7 +53,7 @@ test("rejects dropping the client contract from MCP verification", () => {
         file,
         fs
           .readFileSync(file, "utf8")
-          .replace('      - "specs/client/src/kit-api.ts"\n', ""),
+          .replaceAll('      - "specs/client/src/kit-api.ts"\n', ""),
       );
     },
     (root) => {
@@ -392,27 +392,55 @@ test("rejects deleting a filter that a job still gates on", () => {
   );
 });
 
-test("rejects gating a job that guards the markdown corpus", () => {
+test("rejects dropping the push fallback from a formerly unconditional job", () => {
+  const fallback =
+    "${{ github.event_name != 'pull_request' || steps.filter.outputs.parity }}";
   withPatchedWorkflows(
     (workflows) => {
       const file = path.join(workflows, "ci.yml");
-      fs.writeFileSync(
-        file,
-        fs
-          .readFileSync(file, "utf8")
-          .replace(
-            "  audit-parity:\n    name: Audit SDK Parity\n",
-            "  audit-parity:\n    name: Audit SDK Parity\n    needs: changes\n",
-          ),
+      const source = fs.readFileSync(file, "utf8");
+      const mutated = source.replace(
+        `parity: ${fallback}`,
+        "parity: ${{ steps.filter.outputs.parity }}",
       );
+      assert.notEqual(mutated, source, "parity output fixture did not match");
+      fs.writeFileSync(file, mutated);
     },
     (root) => {
       assert.ok(
         findPolicyViolations(root).includes(
-          "ci.yml: job audit-parity must stay unconditional",
+          `ci.yml: changes job must publish the parity filter output as ${fallback}`,
         ),
       );
     },
+  );
+});
+
+test("the agent filter must cover the agent-context inventory", () => {
+  withPatchedWorkflows(
+    (workflows) =>
+      patchCiFilter(workflows, "agent", "knowledge/internal/**", null),
+    (root) => {
+      assert.ok(
+        findPolicyViolations(root).some((finding) =>
+          /^ci\.yml agent: paths miss knowledge\/internal\/.+\.md, which scripts\/agent\/context-files\.ts reads$/u.test(
+            finding,
+          ),
+        ),
+      );
+    },
+  );
+});
+
+test("a **/name pattern matches that file name at any depth", () => {
+  assert.equal(matchesFilter(["**/package.json"], ["package.json"]), true);
+  assert.equal(
+    matchesFilter(["**/package.json"], ["libraries/expo-iap/package.json"]),
+    true,
+  );
+  assert.equal(
+    matchesFilter(["**/package.json"], ["scripts/my-package.json"]),
+    false,
   );
 });
 

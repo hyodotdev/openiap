@@ -1,241 +1,80 @@
 # Contributing to OpenIAP
 
-This guide explains how to contribute to the OpenIAP monorepo.
+Thanks for helping. Open an [issue](https://github.com/hyodotdev/openiap/issues)
+for a bug, or start a [Discussion](https://github.com/hyodotdev/openiap/discussions)
+before building a new API so its shape is agreed first. Small fixes can go
+straight to a pull request.
 
-## 1. Project Structure
+## What You Need For Your Change
 
-```text
-openiap/
-├── packages/
-│   ├── apple/         # iOS/macOS native implementation
-│   ├── cli/           # `openiap doctor` command line tool
-│   ├── conformance/   # Behavioral conformance suite
-│   ├── docs/          # Documentation site (openiap.dev)
-│   ├── google/        # Android native implementation
-│   ├── kit/           # Hosted purchase and entitlement service
-│   └── mcp-server/    # IAPKit MCP server
-├── specs/
-│   ├── client/             # Client GraphQL contract & type generation (SSOT)
-│   └── commerce-protocol/  # Server-side Commerce Protocol
-├── plugins/
-│   └── openiap/       # Codex and Claude Code integration
-├── libraries/
-│   ├── react-native-iap/          # React Native SDK (npm)
-│   ├── expo-iap/                  # Expo SDK (npm)
-│   ├── flutter_inapp_purchase/    # Flutter SDK (pub.dev)
-│   ├── godot-iap/                 # Godot 4.x plugin (GitHub Release)
-│   ├── kmp-iap/                   # Kotlin Multiplatform (Maven Central)
-│   └── maui-iap/                  # .NET MAUI / C# (NuGet)
-├── knowledge/         # Architecture, conventions, and external references
-├── scripts/           # Repository-wide automation
-└── .github/workflows/             # CI/CD
-```
+A docs text fix needs nothing local: edit the page under
+`packages/docs/src/pages/` in the GitHub web editor and open the PR. For
+anything else, install the toolchain for the area you touch and run its checks
+from that directory. CI runs the same commands.
 
-- **packages/** contains native implementations, hosted services, docs, and behavioral conformance.
-- **specs/** contains implementation-independent contracts and their derived portable artifacts.
-- **plugins/** contains agent integrations distributed to users.
-- **libraries/** contains framework-specific SDKs that wrap the native modules.
-- **knowledge/** is the repository's architecture and convention SSOT.
-- **scripts/** contains monorepo-wide automation.
+| Change                                        | Toolchain                     | Checks                                                                                                                        |
+| --------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Docs site (`packages/docs`)                   | Bun                           | `bun run typecheck && bun run lint && bunx prettier --check "src/**/*.{ts,tsx,css}"`, then `bun run audit:docs` from the root |
+| iOS/macOS native (`packages/apple`)           | Xcode 26                      | `swift build && swift test`                                                                                                   |
+| Android native (`packages/google`)            | JDK 17, Android SDK           | `./gradlew :openiap-core:test :openiap:test`                                                                                  |
+| Client schema (`specs/client`)                | Bun                           | See [Changing the Client Schema](#changing-the-client-schema)                                                                 |
+| Commerce Protocol (`specs/commerce-protocol`) | Bun, Node.js 20               | See [Changing the Commerce Protocol](#changing-the-commerce-protocol)                                                         |
+| `libraries/react-native-iap`                  | Node.js 20, Yarn 3 (Corepack) | `yarn install && yarn lint:tsc && yarn test:ci`                                                                               |
+| `libraries/expo-iap`                          | Bun                           | `bun install && bun run lint:tsc && bun run test`                                                                             |
+| `libraries/flutter_inapp_purchase`            | Flutter 3.44                  | `flutter pub get && flutter analyze && flutter test`                                                                          |
+| `libraries/godot-iap`                         | Godot 4.5+                    | `bash scripts/run-godot-suite.sh test_types_only test_api_surface test_godot_iap`                                             |
+| `libraries/kmp-iap`                           | JDK 17, Android SDK           | `./gradlew :library:testPlayDebugUnitTest`                                                                                    |
+| `libraries/maui-iap`                          | .NET 10 SDK                   | `dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0`                                  |
 
-## 2. Getting Started
+Bun is pinned to 1.3.13 by the root `package.json` `packageManager` field. The
+pre-commit hook enforces that exact version only when you change dependencies
+(a staged `package.json` or `bun.lock`). Root audit scripts need Node.js 22.18
+or later.
 
-### Prerequisites
-
-- [Bun](https://bun.sh/) at the exact version declared by the root
-  `packageManager` field (currently 1.3.13)
-- For Android: JDK 17+, Gradle
-- For iOS: Xcode, Swift 5.9+
-- For Flutter: Flutter SDK
-- For Godot: Godot 4.x editor
-- For MAUI: .NET 9 SDK + MAUI workload
-
-### Initial Setup
+For the root workspace (docs, specs, and the pre-commit hook):
 
 ```bash
 git clone https://github.com/hyodotdev/openiap.git
 cd openiap
 bun install
-
-# Sync checked-in version metadata and compatibility copies
-./scripts/sync-versions.sh
 ```
 
-Each library uses its own package manager:
+Each library's `CONTRIBUTING.md` explains how to run its example app; for
+`maui-iap`, see [`example/README.md`](libraries/maui-iap/example/README.md).
+React Native's `example/` is a Yarn workspace, so the library's `yarn install`
+already installs it.
 
-| Library                | Package Manager              |
-| ---------------------- | ---------------------------- |
-| react-native-iap       | Yarn 3 (Berry)               |
-| expo-iap               | Bun                          |
-| flutter_inapp_purchase | Flutter/Dart (`flutter pub`) |
-| godot-iap              | N/A (GDScript)               |
-| kmp-iap                | Gradle                       |
-| maui-iap               | .NET CLI / NuGet             |
+## Changing the Client Schema
 
-## 3. Development Workflows
+1. Edit `specs/client/src/*.graphql`.
+2. Run `cd specs/client && bun run generate && bun run test`. Generation
+   rewrites every language and syncs every SDK copy in one step.
+3. Wire the change through each SDK with the
+   [SDK Parity Checklist](knowledge/internal/04-platform-packages.md#sdk-parity-checklist-critical--prevents-declared-but-not-implemented),
+   then run `bun run audit:parity` from the root.
 
-### Adding a New ErrorCode or Type
+Never edit generated files by hand; the list is in
+[AGENTS.md](AGENTS.md#auto-generated-files-do-not-edit).
 
-1. Edit `specs/client/src/*.graphql`
-2. `cd specs/client && bun run generate`
-3. Update Swift switch statements in `packages/apple/Sources/Models/OpenIapError.swift` and `packages/apple/Sources/OpenIapModule.swift`
-4. Update `COMMON_ERROR_CODE_MAP` in `libraries/react-native-iap/src/utils/errorMapping.ts` and `libraries/expo-iap/src/utils/errorMapping.ts`
+## Changing the Commerce Protocol
 
-### Type Generation Architecture
+Start with the **Commerce Protocol proposal** issue form. The
+[contribution procedure](specs/commerce-protocol/CONVENTION.md#public-collaboration-and-implementation-evidence)
+covers the evidence and compatibility review. Edit `SPEC.md` and the owning
+GraphQL layer under `schema/`, then run `bun run build && bun run test` in
+`specs/commerce-protocol`. Never edit `specs/commerce-protocol/generated/`.
 
-```text
-GraphQL Schema ─┬─► graphql-codegen + guarded AST post-processing ─► TypeScript
-                └─► Parser → IR → language plugins ─► Swift/Kotlin/Dart/GDScript/C#
-                                                        ↓
-                                             generated-sync-manifest.mjs
-```
+## Opening a Pull Request
 
-One `bun run generate` command in `specs/client` produces every language and
-syncs every target declared in `generated-sync-manifest.mjs`. Do not run a
-second type-copy command or maintain another target list.
+- Fork, branch from `main`, and keep one change per PR.
+- Write in English. Commit messages read `feat: add x` with a tag or `Add x`
+  without one; scopes are listed in
+  [Git Commit Message Format](knowledge/internal/06-git-deployment.md#git-commit-message-format).
+- Say what changed and why in a few short paragraphs.
+- Skip labels and the release-notes card. The maintainer adds both, and on
+  outside PRs the release-note check only warns.
+- Do not bump versions. Releases run from CI.
 
-### Changing the Commerce Protocol
-
-Start shared behavior proposals with the **Commerce Protocol proposal** issue
-form. The [protocol contribution procedure](specs/commerce-protocol/CONVENTION.md#public-collaboration-and-implementation-evidence)
-defines the evidence and compatibility review. You can also contribute an
-independent reproduction using the [service composition example](https://openiap.dev/commerce-protocol/ecosystem#composition-proof)
-without proposing a contract change.
-
-1. Edit `specs/commerce-protocol/SPEC.md` and the owning GraphQL layer
-   under `schema/`.
-2. Run `cd specs/commerce-protocol && bun run build` to regenerate the
-   validator, binding, OpenAPI, and vector artifacts.
-3. Run `bun run test` from that directory, then run the focused IAPKit
-   conformance suite documented in its `CONVENTION.md`.
-
-Never edit `specs/commerce-protocol/generated/` directly. Nothing under
-`specs/` is a deployed service; IAPKit remains under `packages/kit`.
-
-### Working on a Specific Library
-
-Each library has its own canonical `AGENTS.md` with detailed conventions and development instructions. `CLAUDE.md` and `GEMINI.md` are compatibility links to it:
-
-- `libraries/react-native-iap/AGENTS.md` -- Nitro Modules, useIAP hook, error handling
-- `libraries/expo-iap/AGENTS.md` -- Expo Modules, iOS podspec workaround, tvOS support
-- `libraries/flutter_inapp_purchase/AGENTS.md` -- Generated types.dart, fetchProducts generic API
-- `libraries/godot-iap/AGENTS.md` -- GDExtension (iOS), AAR plugin (Android)
-- `libraries/kmp-iap/AGENTS.md` -- Flow-based API, CocoaPods iOS integration
-- `libraries/maui-iap/AGENTS.md` -- .NET MAUI / C#, generated Types.cs, native bindings
-
-Libraries reference local `packages/apple` and `packages/google` source during development. Published packages use CocoaPods/Maven Central for native dependencies.
-
-### Running Examples
-
-| Library          | Command                                                                                                                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| react-native-iap | `cd libraries/react-native-iap && yarn install && yarn prepare && cd example && yarn install && yarn ios --device`                                                                  |
-| expo-iap         | `cd libraries/expo-iap && bun install && bun run prepare && cd example && bun install && bunx expo run:ios --device`                                                                |
-| flutter          | `cd libraries/flutter_inapp_purchase && flutter pub get && cd example && flutter pub get && flutter run`                                                                            |
-| godot            | Open `libraries/godot-iap/Example/project.godot` in Godot editor, export to device                                                                                                  |
-| kmp              | `cd libraries/kmp-iap && ./gradlew :library:podGenIos && ./gradlew :library:podInstallSyntheticIos && ./gradlew :example:composeApp:linkDebugFrameworkIosArm64`, then open in Xcode |
-| maui             | `cd libraries/maui-iap && dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -f net9.0`                                                                                              |
-
-## 4. Release Process
-
-### Release Order (CRITICAL)
-
-Native modules must be released before framework libraries:
-
-1. `packages/apple` -- CocoaPods + SPM (via `release-apple.yml`)
-2. `packages/google` -- Maven Central (via `release-google.yml`)
-3. Framework libraries (one at a time after verifying steps 1+2):
-   - `release-react-native.yml` -- npm
-   - `release-expo.yml` -- npm
-   - `release-flutter.yml` -- pub.dev
-   - `release-godot.yml` -- GitHub Release
-   - `release-kmp.yml` -- Maven Central
-   - `release-maui.yml` -- NuGet
-
-### Prerelease
-
-Follow [the release workflow](.claude/commands/release.md) for package-specific
-inputs: `prerelease=true` starts at rc.1, `version=rc-bump` increments an RC
-where supported, and `version=patch` promotes an RC to its stable base version.
-Vercel automatically deploys main's documentation, including RC metadata.
-Documentation deployment does not publish packages.
-The docs site has no version or release workflow.
-
-### Version Management
-
-- `openiap-versions.json` tracks only `clientProtocol`, `google`, and `apple` versions.
-- `clientProtocol` mirrors `specs/client/package.json`. That manifest is the
-  single source for the Client Protocol version; bump it there, never here.
-- `google` and `apple` are native package versions. They are CI-managed and say
-  nothing about the protocol version.
-- The Commerce Protocol has its own version in
-  `specs/commerce-protocol/package.json`. Release it through
-  `release-openiap.yml` with `package=commerce-protocol`.
-- Framework library versions live in each library's package metadata and release workflow.
-- `./scripts/sync-versions.sh` verifies the mirror matches the publishing
-  manifest and propagates the canonical values; it does not regenerate schema
-  types.
-
-## 5. CI/CD
-
-| Workflow                        | Scope                                                                       |
-| ------------------------------- | --------------------------------------------------------------------------- |
-| `ci.yml`                        | Client spec, Commerce Protocol, IAPKit conformance, Apple, Google, and docs |
-| `release-openiap.yml`           | Publish the scoped Client Protocol, Commerce Protocol, or CLI package       |
-| `ci-react-native-iap.yml`       | Lint + test                                                                 |
-| `ci-expo-iap.yml`               | Lint + test                                                                 |
-| `ci-flutter-inapp-purchase.yml` | Analyze + test                                                              |
-| `ci-godot-iap.yml`              | Verify files                                                                |
-| `ci-kmp-iap.yml`                | Compile check                                                               |
-| `ci-maui-iap.yml`               | .NET build                                                                  |
-| `deploy-kit.yml`                | Verify IAPKit and deploy from `main`                                        |
-
-## 6. Auto-generated Files (DO NOT EDIT)
-
-These files are generated and synchronized by `bun run generate` in
-`specs/client`. Never edit them directly:
-
-- `specs/client/src/generated/*` -- Generated type outputs
-- `packages/apple/Sources/Models/Types.swift`
-- `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
-- `libraries/react-native-iap/src/types.ts`
-- `libraries/expo-iap/src/types.ts`
-- `libraries/flutter_inapp_purchase/lib/types.dart`
-- `libraries/godot-iap/addons/godot-iap/types.gd`
-- `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
-- `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `openiap-versions.json` -- Tracks only `clientProtocol`, `google`, and `apple`.
-  `clientProtocol` is a generated mirror of `specs/client/package.json`;
-  Google/Apple are native-workflow-managed. Never edit any of the three by hand
-
-To regenerate:
-
-```bash
-cd specs/client && bun run generate
-```
-
-## 7. Commit Conventions
-
-```text
-<type>: <description>
-```
-
-- With tag: lowercase after the colon (e.g., `feat: add subscription upgrade flow`)
-- Without tag: uppercase first letter (e.g., `Add subscription upgrade flow`)
-
-**Types:**
-
-| Tag        | Description           |
-| ---------- | --------------------- |
-| `feat`     | New feature           |
-| `fix`      | Bug fix               |
-| `docs`     | Documentation changes |
-| `refactor` | Code refactoring      |
-| `test`     | Add/modify tests      |
-| `chore`    | Build/config changes  |
-
-## 8. Links
-
-- Docs: <https://openiap.dev>
-- GitHub: <https://github.com/hyodotdev/openiap>
-- Discussions: <https://github.com/hyodotdev/openiap/discussions>
+Maintainers: releases, versioning, and deployment are in
+[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md).
+Project conventions start at [AGENTS.md](AGENTS.md).

@@ -8,6 +8,9 @@ on:
       - ".github/workflows/release-godot.yml"
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
+      - "scripts/ci/godot-versions.sh"
+      - ".github/actions/setup-xcode/action.yml"
+      - ".java-version"
       - "libraries/godot-iap/**"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
@@ -27,6 +30,9 @@ on:
       - ".github/workflows/release-godot.yml"
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
+      - "scripts/ci/godot-versions.sh"
+      - ".github/actions/setup-xcode/action.yml"
+      - ".java-version"
       - "libraries/godot-iap/**"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
@@ -62,17 +68,20 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Read Godot versions
+        run: '"$GITHUB_WORKSPACE/scripts/ci/godot-versions.sh" >> "$GITHUB_ENV"'
+
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2.4.3
         with:
-          version: 4.7.1
+          version: ${{ env.GODOT_CURRENT_SEMVER }}
           use-dotnet: false
 
       - name: Setup Java
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:
@@ -103,6 +112,20 @@ jobs:
           fi
           echo "GDExtension platform gating is consistent"
 
+      # Workflows read the Godot versions from the Makefile and .gdextension;
+      # these copies cannot, so pin them.
+      - name: Verify Godot version copies
+        run: |
+          grep -qF "'compatibility_minimum = \"$GODOT_MINIMUM\"'" Makefile
+          grep -qF "config/features=PackedStringArray(\"${GODOT_CURRENT_SEMVER%.*}\"" \
+            Example/project.godot
+          # android_export.gd's AGP, Gradle, and SDK floors were validated
+          # against this androidx.core; revalidate them before moving it.
+          for gradle in openiap core; do
+            grep -qF 'implementation("androidx.core:core:1.18.0")' \
+              "$GITHUB_WORKSPACE/packages/google/$gradle/build.gradle.kts"
+          done
+
       - name: Verify Android plugin files exist
         run: |
           test -f android/build.gradle.kts
@@ -113,7 +136,7 @@ jobs:
         run: |
           mkdir -p android/libs
           bash "$GITHUB_WORKSPACE/scripts/fetch-godot-lib.sh" \
-            4.3-stable android/libs/godot-lib.aar
+            "$GODOT_MINIMUM-stable" android/libs/godot-lib.aar
           cd android
           chmod +x gradlew
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
@@ -122,7 +145,7 @@ jobs:
       - name: Build and test Android plugin against latest Godot
         run: |
           bash "$GITHUB_WORKSPACE/scripts/fetch-godot-lib.sh" \
-            4.7.1-stable android/libs/godot-lib.aar
+            "$GODOT_CURRENT-stable" android/libs/godot-lib.aar
           cd android
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
             ./gradlew --no-daemon clean assembleDebug testDebugUnitTest
@@ -157,8 +180,8 @@ jobs:
         run: bash scripts/run-godot-suite.sh test_android_store test_android_export
 
   verify-minimum-godot:
-    name: Verify on Godot 4.3
-    # The addon supports Godot 4.3+; Verify runs the latest release.
+    name: Verify on minimum Godot
+    # Verify runs the build version; this runs the shipped compatibility_minimum.
     # test_godot_iap.gd captures logs through Logger, which needs Godot 4.5.
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -168,10 +191,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Read Godot versions
+        run: '"$GITHUB_WORKSPACE/scripts/ci/godot-versions.sh" >> "$GITHUB_ENV"'
+
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2.4.3
         with:
-          version: 4.3.0
+          version: ${{ env.GODOT_MINIMUM_SEMVER }}
           use-dotnet: false
 
       - name: Test generated types, API surface, envelopes, and export store mapping
@@ -258,9 +284,7 @@ jobs:
         run: bash scripts/verify-ios-toolchain.sh
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: "26.6"
+        uses: ./.github/actions/setup-xcode
 
       - name: Checkout SwiftGodot
         working-directory: libraries/godot-iap

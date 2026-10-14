@@ -6,19 +6,15 @@ import { fileURLToPath } from "node:url";
  * Source and output paths for the generated agent context.
  *
  * The compiler, pre-commit hook, and tests consume this contract directly.
- * CI runs the freshness check unconditionally, so it does not maintain a
- * second path-filter inventory that can drift when a new compiler input is
- * introduced.
+ * CI's `agent` path filter mirrors it; `audit-ci-path-filters.mjs` fails when
+ * the filter misses one.
  */
 export const CONTEXT_DIRECT_INPUTS = Object.freeze({
   compilerRoot: "scripts/agent",
   rootPackage: "package.json",
   rootLock: "bun.lock",
   openiapVersions: "openiap-versions.json",
-  flutterPackage: "libraries/flutter_inapp_purchase/pubspec.yaml",
-  godotPackage: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
-  kmpPackage: "libraries/kmp-iap/gradle.properties",
-  mauiPackage: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+  docsVersionMetadata: "packages/docs/src/generated/version-metadata.json",
   commerceProtocolSpec: "specs/commerce-protocol/SPEC.md",
   communityTouchpoints: "packages/docs/community-touchpoints.json",
 });

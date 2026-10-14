@@ -13,6 +13,7 @@ on:
       - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
+      - ".java-version"
       - "!**/*.md"
   push:
     branches: [main, next]
@@ -26,6 +27,7 @@ on:
       - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
+      - ".java-version"
       - "!**/*.md"
 
 permissions:
@@ -53,7 +55,7 @@ jobs:
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:
@@ -101,7 +103,7 @@ jobs:
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:

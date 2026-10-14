@@ -141,7 +141,9 @@ describe("generated sync manifest", () => {
       "packages/*",
       "specs/*",
     ]);
-    const definitions = Object.values(GENERATED_SYNC_MANIFEST);
+    const definitions = Object.values(GENERATED_SYNC_MANIFEST).filter(
+      ({ exportKey }) => exportKey,
+    );
     expect(new Set(definitions.map(({ exportKey }) => exportKey)).size).toBe(
       definitions.length,
     );
@@ -179,6 +181,18 @@ describe("generated sync manifest", () => {
     });
   });
 
+  it("keeps library mirrors out of the client spec package", () => {
+    const mirrors = Object.values(GENERATED_SYNC_MANIFEST).filter(
+      ({ exportKey }) => !exportKey,
+    );
+    expect(mirrors.length).toBeGreaterThan(0);
+    for (const { source, generated } of mirrors) {
+      expect(generated, source).toBe(false);
+      expect(source.startsWith("libraries/"), source).toBe(true);
+      expect(isGqlGenerationInputPath(source), source).toBe(false);
+    }
+  });
+
   it("keeps executable sync consumers on the manifest", () => {
     for (const path of [
       "specs/client/scripts/sync-to-platforms.mjs",
@@ -209,7 +223,7 @@ describe("generated sync manifest", () => {
     }
   });
 
-  it("runs parity unconditionally and checks the whole worktree after synchronization", () => {
+  it("runs parity for every synchronized path and checks the whole worktree after synchronization", () => {
     const workflow = readRepositoryFile(".github/workflows/ci.yml");
     const parityJob = workflow.slice(
       workflow.indexOf("  audit-parity:"),
@@ -230,15 +244,13 @@ describe("generated sync manifest", () => {
 
     expect(syncIndex).toBeGreaterThanOrEqual(0);
     expect(parityJob).toContain("uses: oven-sh/setup-bun@");
-    expect(parityJob).toContain("bun-version: 1.3.13");
+    expect(parityJob).toContain("bun-version-file: package.json");
     expect(setupIndex).toBeGreaterThanOrEqual(0);
     expect(installIndex).toBeGreaterThanOrEqual(0);
     expect(installIndex).toBeGreaterThan(setupIndex);
     expect(syncIndex).toBeGreaterThan(installIndex);
     expect(driftIndex).toBeGreaterThan(syncIndex);
     expect(parityIndex).toBeGreaterThan(driftIndex);
-    expect(parityJob).not.toContain("needs: changes");
-    expect(parityJob).not.toContain("needs.changes.outputs.parity");
     expect(parityJob).not.toContain("assert-generated-staged.mjs");
     expect(parityJob).not.toContain(
       "node specs/client/scripts/verify-generated-sync.mjs",
@@ -250,11 +262,22 @@ describe("generated sync manifest", () => {
       workflow.match(/node scripts\/assert-clean-worktree\.mjs/g),
     ).toHaveLength(3);
     expect(workflow).not.toContain("git status --porcelain");
-    const changesJob = workflow.slice(
-      workflow.indexOf("  changes:"),
-      workflow.indexOf("\n  audit-parity:"),
+    const parityFilter = workflow.slice(
+      workflow.indexOf("            parity:"),
+      workflow.indexOf("            gql:"),
     );
-    expect(changesJob).not.toContain("parity:");
+    const parityRoots = [...parityFilter.matchAll(/- '([^']+)\/\*\*'/g)].map(
+      (match) => match[1],
+    );
+    for (const path of GENERATED_SYNC_EDGES.flatMap(({ source, path }) => [
+      source,
+      path,
+    ])) {
+      expect(
+        parityRoots.some((root) => path.startsWith(`${root}/`)),
+        path,
+      ).toBe(true);
+    }
     const parityAudit = readRepositoryFile(
       "scripts/audit-non-godot-parity.mjs",
     );
@@ -292,9 +315,13 @@ describe("generated sync manifest", () => {
       "assert-generation-inputs-staged.mjs assert-staged-clean",
     );
     expect(preCommit).toContain("node scripts/audit-non-godot-parity.mjs");
+    const stagedHelper = preCommit.slice(
+      preCommit.indexOf("STAGED="),
+      preCommit.indexOf("\n}\n", preCommit.indexOf("staged() {")) + 3,
+    );
     const flutterGate = preCommit.slice(
-      preCommit.indexOf("# Paths-aware Flutter analyze."),
-      preCommit.indexOf("# Paths-aware GQL generator gate."),
+      preCommit.indexOf("if staged '^libraries/flutter_inapp_purchase/"),
+      preCommit.indexOf("# Every specs/client change"),
     );
     expect(flutterGate).toContain("unset $(git rev-parse --local-env-vars)");
     expect(
@@ -337,7 +364,8 @@ printf clean > "$FLUTTER_OBSERVED_FILE"
         "sh",
         [
           "-c",
-          `${flutterGate}
+          `${stagedHelper}
+${flutterGate}
 printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
 `,
         ],

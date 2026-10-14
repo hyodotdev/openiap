@@ -8,7 +8,8 @@ import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { moneyToMicros } from "../products/play";
 import {
-  getVerificationProjectByApiKey,
+  assertVerificationAdmission,
+  getProjectByApiKey,
   mapToGooglePlayReceiptResponse,
   applyExpectedProductId,
   GooglePlayReceiptData,
@@ -51,12 +52,14 @@ export const verifyGooglePlayReceiptInternalV1 = action({
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
     const verificationStart = Date.now();
-    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
+    const project = await getProjectByApiKey(ctx, args.apiKey);
     const packageName = project.androidPackageName;
 
     if (!packageName) {
       throw new ProjectAndroidPackageNameNotConfiguredError();
     }
+
+    await assertVerificationAdmission(ctx, project._id);
 
     const serviceAccountFile = await ctx.runQuery(
       internal.files.internal.getGooglePlayFileByProjectInternal,

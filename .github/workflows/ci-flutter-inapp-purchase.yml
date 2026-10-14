@@ -21,6 +21,8 @@ on:
       - "scripts/assert-lcov-coverage.mjs"
       - ".github/actions/coverage-report/**"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
+      - ".github/actions/setup-xcode/action.yml"
+      - ".java-version"
       - ".github/workflows/release-flutter.yml"
       - "scripts/ci/retry-gradle.sh"
       - "scripts/verify-horizon-merged-manifest.mjs"
@@ -45,6 +47,8 @@ on:
       - "scripts/assert-lcov-coverage.mjs"
       - ".github/actions/coverage-report/**"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
+      - ".github/actions/setup-xcode/action.yml"
+      - ".java-version"
       - ".github/workflows/release-flutter.yml"
       - "scripts/ci/retry-gradle.sh"
       - "scripts/verify-horizon-merged-manifest.mjs"
@@ -75,16 +79,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - name: Install dependencies
         run: flutter pub get
@@ -150,38 +155,36 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Build iOS and macOS examples with SwiftPM
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
   apple-cocoapods:
-    name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 26.6)
+    name: iOS CocoaPods consumer (Flutter 3.44 + pinned Xcode)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: macos-26
     timeout-minutes: 60
-    env:
-      XCODE_VERSION: 26.6
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: flutter-actions/setup-flutter@adb607ae976a9e00473569facfc69813c637a060 # v4.3
         with:
           channel: stable
-          flutter-version: "3.44.9"
+          version: "3.44.9"
           cache: true
+          cache-sdk: true
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
+        uses: ./.github/actions/setup-xcode
 
       - name: Build iOS CocoaPods consumer
         run: bash scripts/verify-ios-cocoapods-consumer-build.sh

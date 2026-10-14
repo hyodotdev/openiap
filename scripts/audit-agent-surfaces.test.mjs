@@ -22,6 +22,7 @@ const MIRRORED = [
   ".claude/skills",
   ".codex/skills",
   "AGENTS.md",
+  "knowledge/internal/10-agent-tooling.md",
 ];
 
 function withMirroredRepository(mutate, run) {
@@ -79,7 +80,11 @@ test("rejects a command no router mentions", () => {
         ),
       );
       assert.ok(
-        findings.some((f) => f.includes("AGENTS.md skills table is missing /audit-orphan")),
+        findings.some((f) =>
+          f.includes(
+            "knowledge/internal/10-agent-tooling.md skills table is missing /audit-orphan",
+          ),
+        ),
       );
     },
   );

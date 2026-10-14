@@ -151,7 +151,6 @@ describe("generated context path contract", () => {
     expect(preCommit).toContain("context-files.ts assert-outputs-clean");
     expect(workflow).toContain("node scripts/assert-clean-worktree.mjs");
     expect(workflow).not.toContain("context-files.ts assert-outputs-clean");
-    expect(workflow).not.toContain("needs.changes.outputs.agent");
   });
 
   test("describes both specifications under the canonical nested root", () => {

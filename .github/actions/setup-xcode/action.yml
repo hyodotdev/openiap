@@ -1,0 +1,25 @@
+name: Set up Xcode
+description: Select the repository's pinned Xcode, or the version a boundary leg names.
+inputs:
+  xcode-version:
+    description: Xcode version to select
+    default: "26.6"
+outputs:
+  version:
+    description: Selected Xcode version
+    value: ${{ inputs.xcode-version }}
+  major:
+    description: Major version of the selected Xcode
+    value: ${{ steps.version.outputs.major }}
+runs:
+  using: composite
+  steps:
+    - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+      with:
+        xcode-version: ${{ inputs.xcode-version }}
+
+    - id: version
+      shell: bash
+      env:
+        XCODE_VERSION: ${{ inputs.xcode-version }}
+      run: echo "major=${XCODE_VERSION%%.*}" >> "$GITHUB_OUTPUT"

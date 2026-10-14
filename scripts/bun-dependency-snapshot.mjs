@@ -71,7 +71,7 @@ function resolvePackageKey(packages, originKey, dependencyName) {
   );
 }
 
-export function createBunManifest(lock, sourceLocation = "bun.lock") {
+function createResolver(lock) {
   const packages = lock.packages ?? {};
   const workspaces = lock.workspaces ?? {};
   const workspaceByName = new Map(
@@ -86,9 +86,6 @@ export function createBunManifest(lock, sourceLocation = "bun.lock") {
       return marker < 0 ? [] : [[resolution.slice(marker + 11), key]];
     }),
   );
-  const direct = new Set();
-  const runtime = new Set();
-  const development = new Set();
 
   function resolveDependency(originKey, { name, optional, peer, range }) {
     if (String(range).startsWith("workspace:")) {
@@ -111,6 +108,31 @@ export function createBunManifest(lock, sourceLocation = "bun.lock") {
       throw error;
     }
   }
+
+  return { packages, workspaces, workspacePackageKeyByPath, resolveDependency };
+}
+
+function devDependencySeeds(resolver, path) {
+  const { workspaces, workspacePackageKeyByPath, resolveDependency } = resolver;
+  const originKey = workspacePackageKeyByPath.get(path) ?? "";
+  return Object.entries(workspaces[path].devDependencies ?? {}).map(
+    ([name, range]) =>
+      resolveDependency(originKey, {
+        name,
+        optional: false,
+        peer: false,
+        range,
+      }),
+  );
+}
+
+export function createBunManifest(lock, sourceLocation = "bun.lock") {
+  const resolver = createResolver(lock);
+  const { packages, workspaces, workspacePackageKeyByPath, resolveDependency } =
+    resolver;
+  const direct = new Set();
+  const runtime = new Set();
+  const development = new Set();
 
   function traverse(seeds, scope) {
     const visitedWorkspaces = new Set();
@@ -146,17 +168,8 @@ export function createBunManifest(lock, sourceLocation = "bun.lock") {
 
   const runtimeSeeds = [];
   const developmentSeeds = [];
-  for (const [path, workspace] of Object.entries(workspaces)) {
-    const originKey = workspacePackageKeyByPath.get(path) ?? "";
-    for (const [name, range] of Object.entries(
-      workspace.devDependencies ?? {},
-    )) {
-      const child = resolveDependency(originKey, {
-        name,
-        optional: false,
-        peer: false,
-        range,
-      });
+  for (const path of Object.keys(workspaces)) {
+    for (const child of devDependencySeeds(resolver, path)) {
       if (child.kind === "package") direct.add(child.key);
       developmentSeeds.push(child);
     }
@@ -220,6 +233,44 @@ export function createBunManifest(lock, sourceLocation = "bun.lock") {
     file: { source_location: sourceLocation },
     resolved,
   };
+}
+
+/**
+ * Every lock entry one workspace installs: its own dependencies and
+ * devDependencies, the workspaces it depends on, and everything those reach.
+ * Equal closures mean a lock change cannot reach that workspace.
+ */
+export function workspaceClosure(lock, workspacePath) {
+  const resolver = createResolver(lock);
+  const { packages, workspaces, workspacePackageKeyByPath, resolveDependency } =
+    resolver;
+  if (!workspaces[workspacePath]) {
+    throw new Error(`missing workspace ${workspacePath}`);
+  }
+  const entries = new Set();
+  const queue = [
+    { kind: "workspace", key: workspacePath },
+    ...devDependencySeeds(resolver, workspacePath),
+  ];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    const isWorkspace = node.kind === "workspace";
+    const entry = isWorkspace ? workspaces[node.key] : packages[node.key];
+    if (!entry) throw new Error(`missing Bun lock entry ${node.key}`);
+    const line = `${node.key} ${JSON.stringify(entry)}`;
+    if (entries.has(line)) continue;
+    entries.add(line);
+    const originKey = isWorkspace
+      ? (workspacePackageKeyByPath.get(node.key) ?? "")
+      : node.key;
+    for (const dependency of dependencyEntries(
+      isWorkspace ? entry : entry[2],
+    )) {
+      const child = resolveDependency(originKey, dependency);
+      if (child) queue.push(child);
+    }
+  }
+  return [...entries].sort();
 }
 
 export function createSnapshot(projects, environment, now = new Date()) {

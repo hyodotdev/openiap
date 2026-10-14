@@ -190,18 +190,15 @@ It ships in the npm tarball, so every link to something outside this package
 is an absolute repository URL — a relative one dangles for anyone reading the
 installed copy.
 
-It is also the source of the published PDF. After editing it, rebuild with
-`scripts/build-whitepaper.sh` and commit the PDF and the
-`scripts/whitepaper.sha256` manifest it writes in the same change.
-`bun audit:whitepaper` compares that manifest with the working tree, so a
-source edit without a rebuild, or a rebuild that never reached the commit,
-fails instead of publishing a stale document. Bump the version and date in its front matter when
-the reasoning changes, not for a typo.
+`packages/docs/public/commerce-protocol-rationale.pdf` is a published snapshot
+of it. Nothing rebuilds or checks the PDF any more, so editing `DESIGN.md`
+leaves it unchanged; to republish, restore `scripts/build-whitepaper.sh` from
+git history and run it. Bump the version and date in its front matter when the reasoning
+changes, not for a typo.
 
 ## Verification
 
 ```bash
 bun run test                                # from specs/commerce-protocol
-(cd ../.. && bun audit:whitepaper)          # DESIGN.md matches the published PDF
 (cd ../../packages/kit && npx vitest run convex/commerce/)  # the conformance proof
 ```

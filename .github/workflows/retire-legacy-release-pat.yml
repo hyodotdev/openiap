@@ -1,0 +1,80 @@
+name: "Security: Retire legacy release PAT"
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: retire-legacy-release-pat
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    if: github.repository == 'hyodotdev/openiap' && github.ref == 'refs/heads/main' && github.actor == 'hyochan'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: release
+    steps:
+      - name: Revoke the stored legacy PAT without displaying it
+        env:
+          LEGACY_RELEASE_PAT: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          token = os.environ.pop("LEGACY_RELEASE_PAT", "")
+          if not token.startswith(("ghp_", "github_pat_")):
+              raise SystemExit("Expected a personal access token; nothing was revoked")
+
+          def request(path, *, credential=None, payload=None):
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2026-03-10",
+                  "User-Agent": "OpenIAP-legacy-release-PAT-retirement",
+              }
+              if credential:
+                  headers["Authorization"] = "Bearer " + credential
+              body = None if payload is None else json.dumps(payload).encode()
+              if body is not None:
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request("https://api.github.com" + path, data=body, headers=headers)
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      data = response.read()
+                      return response.status, json.loads(data) if data else None
+              except urllib.error.HTTPError as error:
+                  return error.code, None
+
+          status, user = request("/user", credential=token)
+          summary = {
+              "credential_type": "fine-grained PAT" if token.startswith("github_pat_") else "classic PAT",
+              "fingerprint": hashlib.sha256(token.encode()).hexdigest()[:12],
+              "before_http_status": status,
+          }
+          if status == 401:
+              print(json.dumps({**summary, "already_invalid": True}))
+              raise SystemExit(0)
+          if status != 200 or user.get("login") != "hyochan":
+              raise SystemExit("PAT ownership could not be verified; nothing was revoked")
+
+          # GitHub requires this revocation endpoint to be unauthenticated.
+          accepted, _ = request("/credentials/revoke", payload={"credentials": [token]})
+          if accepted != 202:
+              raise SystemExit(f"Revocation was not accepted: HTTP {accepted}")
+          deadline = time.monotonic() + 120
+          while time.monotonic() < deadline:
+              status, _ = request("/user", credential=token)
+              if status == 401:
+                  print(json.dumps({**summary, "revocation_http_status": accepted,
+                                    "after_http_status": status, "revoked": True}))
+                  break
+              time.sleep(5)
+          else:
+              raise SystemExit(f"Revocation remains unverified: HTTP {status}")
+          PY

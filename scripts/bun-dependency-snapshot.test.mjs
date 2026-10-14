@@ -10,6 +10,7 @@ import {
   createSnapshot,
   npmPurl,
   parsePackageIdentity,
+  workspaceClosure,
 } from "./bun-dependency-snapshot.mjs";
 import { BUN_PROJECTS, OSV_LOCKFILES } from "./dependency-projects.mjs";
 
@@ -104,6 +105,36 @@ test("Bun manifest follows exact edges, scopes, and duplicate versions", () => {
     "indirect",
   );
   assert.equal(manifest.resolved["pkg:npm/peer-only@1.0.0"].scope, "runtime");
+});
+
+test("a workspace closure holds only what that workspace installs", () => {
+  const keys = (closure) => closure.map((line) => line.split(" ")[0]);
+  assert.deepEqual(keys(workspaceClosure(lock, "packages/child")), [
+    "child/shared",
+    "duplicate",
+    "packages/child",
+  ]);
+
+  const bumped = structuredClone(lock);
+  bumped.packages.runtime[0] = "runtime@1.0.1";
+  assert.deepEqual(
+    workspaceClosure(bumped, "packages/child"),
+    workspaceClosure(lock, "packages/child"),
+  );
+  bumped.packages.duplicate[0] = "duplicate@2.0.1";
+  assert.notDeepEqual(
+    workspaceClosure(bumped, "packages/child"),
+    workspaceClosure(lock, "packages/child"),
+  );
+
+  // Workspace dependencies and devDependencies are part of the closure.
+  const linked = structuredClone(lock);
+  linked.workspaces[""].dependencies.child = "workspace:*";
+  const root = keys(workspaceClosure(linked, ""));
+  assert.ok(root.includes("packages/child") && root.includes("child/shared"));
+  assert.ok(root.includes("tool") && root.includes("helper"));
+
+  assert.throws(() => workspaceClosure(lock, "packages/gone"), /missing/u);
 });
 
 test("snapshot binds every Bun project to the workflow commit", () => {

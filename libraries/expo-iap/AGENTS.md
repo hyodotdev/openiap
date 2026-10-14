@@ -2,11 +2,9 @@
 
 ## Commit Message Convention
 
-- Follow the Angular Conventional Commits format: `<type>(<scope>): <subject>`
-- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
-- Scope is optional but recommended (for example: `auth`, `api`, `ui`)
-- Subject must be imperative, lowercase, without a trailing period, and roughly 50 characters
-- Wrap commit body lines near 72 characters and include footers such as `BREAKING CHANGE:` or `Closes #123` when needed
+Follow the monorepo
+[Git Commit Message Format](../../knowledge/internal/06-git-deployment.md#git-commit-message-format)
+with the `expo` scope, e.g. `fix(expo): resolve purchase crash`.
 
 ## Tooling & Package Management
 

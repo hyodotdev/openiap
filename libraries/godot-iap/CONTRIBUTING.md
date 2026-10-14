@@ -137,15 +137,8 @@ make run-ios       # Test
 
 ### Commit Messages
 
-Use conventional commit format:
-
-- `feat:` New features
-- `fix:` Bug fixes
-- `docs:` Documentation changes
-- `refactor:` Code refactoring
-- `chore:` Build/tooling changes
-
-Example: `fix: iOS async products_fetched signal handling`
+Follow the monorepo's [Git Commit Message Format](https://github.com/hyodotdev/openiap/blob/main/knowledge/internal/06-git-deployment.md#git-commit-message-format),
+for example `fix(godot): handle async products_fetched on iOS`.
 
 ## Release Process
 

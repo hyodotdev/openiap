@@ -385,6 +385,10 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
+Outside contributors (not an owner, member, or collaborator) are not expected
+to write the card. The maintainer adds it before merging; CI's release-note
+check only warns on their PRs.
+
 Vercel automatically deploys main's docs, including RC metadata and release
 cards ahead of package publication. See
 [Deploying Documentation](./06-git-deployment.md#deploying-documentation).

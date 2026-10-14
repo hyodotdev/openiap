@@ -134,9 +134,9 @@ SSOT; `lib/types.dart` is ignored because it is generated.
 
 ### Commit Message Convention
 
-- Follow the Angular commit style: `<type>: <short summary>` (50 characters max).
-- Use lowercase `type` (e.g., `feat`, `fix`, `docs`, `chore`, `test`).
-- Keep the summary concise and descriptive; avoid punctuation at the end.
+Follow the monorepo
+[Git Commit Message Format](../../knowledge/internal/06-git-deployment.md#git-commit-message-format)
+with the `flutter` scope, e.g. `fix(flutter): correct discount mapping`.
 
 **Important**:
 

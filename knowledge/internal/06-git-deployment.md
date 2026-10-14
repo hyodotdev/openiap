@@ -96,6 +96,7 @@ attributes and throws when the element is present but unreadable.
 Apply relevant labels by default when creating an issue, Discussion or pull
 request, and recheck them when updating it. An unlabeled artifact is unfinished.
 Inspect its content, existing labels and `gh label list` before selecting them.
+Outside contributors cannot set labels; the maintainer labels their PRs.
 
 Choose the smallest useful set: **one to five labels in total**, including
 existing labels. Five is a ceiling, never a target; one or two is often enough.
@@ -152,6 +153,9 @@ before reporting completion. These steps do not grant authority to create an
 artifact or change an unrelated one.
 
 ## Opening Pull Requests
+
+This section binds AI agents and maintainer sessions. Human contributors are
+welcome to open pull requests; see `CONTRIBUTING.md`.
 
 Open a new pull request only when the maintainer explicitly requests that PR
 in this conversation or starts a workflow that includes it (`/commit --pr`,
@@ -344,6 +348,24 @@ command from a local terminal.
   `kit-production` for the kit deploy. Keep those secrets in the environment,
   not at repository level. `audit-security.mjs workflows` rejects a job that
   reads a secret without `environment:`; OIDC-only publish jobs stay ungated.
+
+GitHub's SHA policy also covers actions called by composite actions. When
+updating an action, verify that its nested `uses` references use full commit
+SHAs.
+
+Release Git pushes use the private, organization-owned OpenIAP release App.
+Store `RELEASE_APP_CLIENT_ID` as a variable and `RELEASE_APP_PRIVATE_KEY` as a
+secret in the main-only `release` environment. The workflows mint a one-hour,
+repository-scoped token with only Contents write immediately before pushing;
+Google mints a fresh token again after its artifact build. The pre-commit hook
+never sees the token: hooked commits happen before it is minted, and any commit
+inside a push step uses `--no-verify`. This keeps the token out of the hook's
+environment; it is not a boundary against code that earlier steps of the same
+job already ran. Only this App may
+bypass main's required CI checks for validated release version commits. Keep
+the checks active for everyone else and give the App no exception to tag
+immutability. Registry publication and workflow dispatch keep their existing
+OIDC and `GITHUB_TOKEN` authentication.
 
 Exact-version `npm deprecate` and retraction through the signed-in pub.dev Admin
 UI are authenticated lifecycle-maintenance exceptions, not package publishing.

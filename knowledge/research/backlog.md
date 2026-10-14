@@ -81,11 +81,10 @@ Status values: `proposed` → `in progress` → `shipped (link)` or
   troubleshooting docs and conformance behaviors.
 - First step: export issue titles/labels/bodies for the six repos into a
   local dataset and hand-classify a 100-issue sample to seed the taxonomy.
-- Status: shipped (pipeline) — `scripts/mine-iap-issues.mjs`
-  (`bun run research:mine-issues`) exports all 2,265 issues across the six
-  archives into `knowledge/research/_datasets/` (gitignored) with
-  keyword-seeded candidate categories. Hand classification is the remaining
-  manual pass.
+- Status: export done, script retired — `scripts/mine-iap-issues.mjs`
+  exported all 2,265 issues across the six archives with keyword-seeded
+  candidate categories, then left the tree in October 2026 (restore it from
+  git history to re-export). Hand classification is the remaining manual pass.
 
 ## R6 — IAP misuse catalog and lint rules
 

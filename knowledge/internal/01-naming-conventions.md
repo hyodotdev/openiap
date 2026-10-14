@@ -166,7 +166,7 @@ getStorefront();
 | `get`          | Synchronous data retrieval       | `getReceiptDataIOS`, `getPackageName`                         |
 | `fetch`        | Async data retrieval from server | `fetchProducts`                                               |
 | `request`      | User-initiated async operations  | `requestPurchase`                                             |
-| `clear`        | Remove/reset data                | `clearTransactionIOS`, `clearProductsIOS`                     |
+| `clear`        | Remove/reset data                | `clearTransactionIOS`                                         |
 | `is/has`       | Boolean checks                   | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions`        |
 | `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentExternalPurchaseNoticeSheetIOS` |
 | `begin`        | Start a multi-step process       | `beginRefundRequestIOS`                                       |

@@ -327,8 +327,8 @@ A Benchmark for API-Misuse Detectors._ MSR 2016.
 - Limit: this corpus does not establish IAP misuse prevalence or severity;
   the often-quoted 9.1% figure belongs to Amann's 2018 dissertation.
 - Reviewed: author-hosted abstract and publication metadata, 2026-09-05.
-- Applied: `knowledge/research/misuse-catalog.md` and
-  `scripts/mine-iap-issues.mjs` (backlog R5, R6);
+- Applied: `knowledge/research/misuse-catalog.md` and the issue export
+  (backlog R5, R6);
   `knowledge/research/sdk-query-study.md` reproducible case design;
   `knowledge/research/issue-corpus-study.md` coding scheme.
 
@@ -381,7 +381,7 @@ pp. 703-732. DOI: 10.1007/s10664-010-9150-8.
   matching, penetrability, and format.
 - OpenIAP relevance: independent validation of the reader-first documentation
   standard in `knowledge/internal/05-docs-patterns.md`.
-- Applied: `scripts/mine-iap-issues.mjs` (backlog R5);
+- Applied: the issue export (backlog R5);
   `knowledge/research/issue-corpus-study.md` method basis.
 
 ## Ecosystem and supply chain

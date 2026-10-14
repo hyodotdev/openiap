@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
     date: "2026-10-12",
-    pullRequests: [523, 528, 532],
+    pullRequests: [523, 528, 532, 533],
     tagline:
       "Amazon subscription lifecycle beta and a security hardening pass.",
     items: [
@@ -74,6 +74,16 @@ const RELEASES: ReleaseEntry[] = [
         kind: "fix",
         topic: "Rate limits",
         text: "One flooding IP no longer drains an app's per-key budget. Secret-key admin routes now share the limits of their URL-key forms.",
+      },
+      {
+        kind: "security",
+        topic: "Rate limits",
+        text: "Verifications that fail IAPKit's own checks, such as an Apple JWS for another app or a store the project has not configured, return their own error without using the project's verification budget.",
+      },
+      {
+        kind: "security",
+        topic: "Headers",
+        text: "Responses send nosniff, a referrer policy and HSTS in production, pages cannot be framed, and the /v1 API reference runs in a sandboxed origin that cannot read dashboard sign-in data.",
       },
       {
         kind: "security",

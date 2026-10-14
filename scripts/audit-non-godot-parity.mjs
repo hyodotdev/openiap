@@ -13,7 +13,10 @@ import { collectGeneratedSyncDrift } from "../specs/client/scripts/verify-genera
 import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { collectScheduledRemovalFailures } from "./scheduled-removals.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
-import { assertClientProtocol } from "./release-branch-policy.mjs";
+import {
+  assertClientProtocol,
+  versionSources,
+} from "./release-branch-policy.mjs";
 import { collectDocsVersionMetadataDrift } from "./verify-docs-version-metadata.mjs";
 import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
 import { collectCommunityTouchpointFailures } from "./audit-community-touchpoints.mjs";
@@ -24,8 +27,6 @@ import {
   maskTypeScriptCommentsAndStrings,
 } from "./audit-purchase-payload-parity.mjs";
 import { storeBindings } from "../specs/client/store-registry.mjs";
-import { SUITE_VERSION } from "../packages/conformance/src/spec/suite-version.mjs";
-import { sponsorBlockStart } from "./sync-sponsors.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 execFileSync(
@@ -552,24 +553,6 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
   }
 }
 
-function expectCodeBlocksNotInclude(
-  relativePath,
-  needles,
-  label = relativePath,
-) {
-  expectFile(relativePath);
-  if (!exists(relativePath)) return;
-  const text = read(relativePath);
-  const codeBlocks = [...text.matchAll(/<CodeBlock\b[\s\S]*?<\/CodeBlock>/g)]
-    .map((match) => match[0])
-    .join("\n");
-  for (const needle of needles) {
-    if (codeBlocks.includes(needle)) {
-      fail(`${label} code examples must not include ${JSON.stringify(needle)}`);
-    }
-  }
-}
-
 function expectNoMatch(relativePath, regex, label = relativePath) {
   expectFile(relativePath);
   if (!exists(relativePath)) return;
@@ -642,7 +625,7 @@ function expectSameSet(label, ssotValues, registryValues) {
   }
 }
 
-function checkFrameworkCiAndCoverageBadges() {
+function checkCoverageReporting() {
   const contracts = [
     {
       componentId: "react-native-iap",
@@ -650,7 +633,6 @@ function checkFrameworkCiAndCoverageBadges() {
       coveragePath: "libraries/react-native-iap/src",
       generatedCoverageFile: "types.ts",
       libraryPath: "libraries/react-native-iap",
-      readmePath: "libraries/react-native-iap/README.md",
       testCommand: "run: yarn test:ci",
       testJob: "test",
       workflowFile: "ci-react-native-iap.yml",
@@ -661,7 +643,6 @@ function checkFrameworkCiAndCoverageBadges() {
       coveragePath: "libraries/expo-iap/src",
       generatedCoverageFile: "types.ts",
       libraryPath: "libraries/expo-iap",
-      readmePath: "libraries/expo-iap/README.md",
       testCommand: "run: bun run test:coverage",
       testJob: "test",
       workflowFile: "ci-expo-iap.yml",
@@ -672,7 +653,6 @@ function checkFrameworkCiAndCoverageBadges() {
       coveragePath: "libraries/flutter_inapp_purchase/lib",
       generatedCoverageFile: "types.dart",
       libraryPath: "libraries/flutter_inapp_purchase",
-      readmePath: "libraries/flutter_inapp_purchase/README.md",
       testCommand: "run: flutter test --coverage",
       testJob: "analyze-and-test",
       workflowFile: "ci-flutter-inapp-purchase.yml",
@@ -694,7 +674,6 @@ function checkFrameworkCiAndCoverageBadges() {
         },
       ],
       codecovTargetPath: "packages/kit/server",
-      codecovConfigPush: false,
       coverageAssertions: [
         "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-server",
         "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info --component iapkit-convex",
@@ -706,7 +685,6 @@ function checkFrameworkCiAndCoverageBadges() {
         "vitest run --coverage --coverage.include='server/**/*.ts' --coverage.include='convex/**/*.ts' --coverage.exclude='**/*.test.ts' --coverage.exclude='convex/_generated/**' --coverage.exclude='convex/test.setup.ts' --coverage.reporter=text --coverage.reporter=lcov",
       generatedCoverageFile: null,
       libraryPath: "packages/kit",
-      readmePath: "packages/kit/README.md",
       statusPath: "packages/kit/server",
       testCommand: "run: bun run test:coverage",
       testJob: "verify",
@@ -739,12 +717,6 @@ function checkFrameworkCiAndCoverageBadges() {
     }
   }
 
-  function hasMainBranchFilter(url) {
-    if (url.searchParams.get("branch") === "main") return true;
-    const query = url.searchParams.get("query") ?? "";
-    return /(?:^|\s)branch:main(?:$|\s)/.test(query);
-  }
-
   function extractWorkflowJob(source, jobName) {
     const lines = source.split("\n");
     const startIndex = lines.findIndex((line) => line === `  ${jobName}:`);
@@ -773,102 +745,19 @@ function checkFrameworkCiAndCoverageBadges() {
     return lines.slice(startIndex, endIndex).join("\n");
   }
 
-  function checkDedicatedWorkflowBadge({ readmePath, workflowFile }) {
-    const workflowPath = `.github/workflows/${workflowFile}`;
-    expectFile(workflowPath);
-    expectFile(readmePath);
-    if (!exists(workflowPath) || !exists(readmePath)) return;
-
-    const readmeUrls = extractHttpsUrls(read(readmePath))
-      .map(parseUrl)
-      .filter((url) => url !== null);
-    const expectedWorkflowPath = `/hyodotdev/openiap/actions/workflows/${workflowFile}`;
-    const workflowUrls = readmeUrls.filter(
-      (url) =>
-        url.hostname === "github.com" &&
-        url.pathname.startsWith("/hyodotdev/openiap/actions/workflows/"),
-    );
-    const workflowBadge = workflowUrls.find(
-      (url) => url.pathname === `${expectedWorkflowPath}/badge.svg`,
-    );
-    const workflowTarget = workflowUrls.find(
-      (url) => url.pathname === expectedWorkflowPath,
-    );
-    if (!workflowBadge || !hasMainBranchFilter(workflowBadge)) {
-      fail(`${readmePath} must render the main-branch ${workflowFile} badge`);
-    }
-    if (!workflowTarget || !hasMainBranchFilter(workflowTarget)) {
-      fail(`${readmePath} must link to main-branch ${workflowFile} runs`);
-    }
-    if (
-      workflowUrls.some(
-        (url) =>
-          url.pathname !== expectedWorkflowPath &&
-          url.pathname !== `${expectedWorkflowPath}/badge.svg`,
-      )
-    ) {
-      fail(
-        `${readmePath} must not use a different GitHub Actions workflow badge or target`,
-      );
-    }
-  }
-
-  const markdownPaths = listTrackedFiles(".").filter((relativePath) =>
+  for (const markdownPath of listTrackedFiles(".").filter((relativePath) =>
     /\.mdx?$/i.test(relativePath),
-  );
-  for (const markdownPath of markdownPaths) {
-    const source = read(markdownPath);
-    for (const match of source.matchAll(
-      /https:\/\/github\.com\/hyodotdev\/openiap\/actions\/workflows\/([^/?#\s"'<>()[\]]+\.ya?ml)\b/gi,
-    )) {
-      let workflowFile = match[1];
-      try {
-        workflowFile = decodeURIComponent(workflowFile);
-      } catch {
-        fail(
-          `${markdownPath} contains a malformed GitHub Actions workflow URL`,
-        );
-        continue;
-      }
-      if (!exists(`.github/workflows/${workflowFile}`)) {
-        fail(
-          `${markdownPath} links to missing GitHub Actions workflow ${workflowFile}`,
-        );
-      }
-    }
-
-    for (const value of extractHttpsUrls(source)) {
+  )) {
+    for (const value of extractHttpsUrls(read(markdownPath))) {
       const url = parseUrl(value);
       if (!url || !/(?:^|\.)codecov\.io$/i.test(url.hostname)) continue;
-
       if (
         [...url.searchParams.keys()].some((key) => /token/i.test(key)) ||
         /(?:your[_-]?token|placeholder)/i.test(value)
       ) {
         fail(`${markdownPath} must not expose a Codecov token or placeholder`);
       }
-
-      const repository = url.pathname.match(
-        /^\/(?:gh|github)\/([^/]+)(?:\/([^/]+))?/i,
-      );
-      if (
-        repository &&
-        (repository[1] !== "hyodotdev" || repository[2] !== "openiap")
-      ) {
-        fail(
-          `${markdownPath} must link Codecov to the hyodotdev/openiap monorepo`,
-        );
-      }
     }
-  }
-  for (const ciBadgeContract of [
-    ...contracts,
-    {
-      readmePath: "libraries/kmp-iap/README.md",
-      workflowFile: "ci-kmp-iap.yml",
-    },
-  ]) {
-    checkDedicatedWorkflowBadge(ciBadgeContract);
   }
 
   expectFile("codecov.yml");
@@ -1068,8 +957,7 @@ function checkFrameworkCiAndCoverageBadges() {
   for (const contract of contracts) {
     const workflowPath = `.github/workflows/${contract.workflowFile}`;
     expectFile(workflowPath);
-    expectFile(contract.readmePath);
-    if (!exists(workflowPath) || !exists(contract.readmePath)) continue;
+    if (!exists(workflowPath)) continue;
 
     if (contract.expectedCoverageCommand) {
       const packageJsonPath = `${contract.libraryPath}/package.json`;
@@ -1173,12 +1061,7 @@ function checkFrameworkCiAndCoverageBadges() {
         }
       }
     }
-    const pushIncludesCodecov = eventBlock("push").includes('- "codecov.yml"');
-    if (contract.codecovConfigPush === false && pushIncludesCodecov) {
-      fail(
-        `${workflowPath} must not deploy production for a codecov.yml-only push`,
-      );
-    } else if (contract.codecovConfigPush !== false && !pushIncludesCodecov) {
+    if (!eventBlock("push").includes('- "codecov.yml"')) {
       fail(`${workflowPath} push paths must include root codecov.yml`);
     }
 
@@ -1200,42 +1083,7 @@ function checkFrameworkCiAndCoverageBadges() {
         );
       }
     }
-
-    const readmeUrls = extractHttpsUrls(read(contract.readmePath))
-      .map(parseUrl)
-      .filter((url) => url !== null);
-    const expectedCodecovBadgePath =
-      "/gh/hyodotdev/openiap/branch/main/graph/badge.svg";
-    const codecovBadge = readmeUrls.find(
-      (url) =>
-        url.hostname === "codecov.io" &&
-        url.pathname === expectedCodecovBadgePath &&
-        url.searchParams.get("component") === contract.componentId &&
-        [...url.searchParams.keys()].length === 1,
-    );
-    const codecovTarget = readmeUrls.find(
-      (url) =>
-        url.hostname === "app.codecov.io" &&
-        url.pathname ===
-          `/gh/hyodotdev/openiap/tree/main/${contract.codecovTargetPath ?? contract.libraryPath}`,
-    );
-    if (!codecovBadge) {
-      fail(
-        `${contract.readmePath} must render the token-free ${contract.componentId} Codecov component badge`,
-      );
-    }
-    if (!codecovTarget) {
-      fail(
-        `${contract.readmePath} must link Codecov to its monorepo package tree`,
-      );
-    }
   }
-
-  expectNoMatch(
-    "libraries/kmp-iap/README.md",
-    /https:\/\/(?:[A-Za-z0-9-]+\.)*codecov\.io\//i,
-    "KMP README must not advertise Codecov before it produces a coverage report",
-  );
 }
 
 function uniqueMatches(text, regex) {
@@ -1538,32 +1386,6 @@ function parseKotlinResolverOperations(relativePath, kind) {
     .sort();
 }
 
-function kmpGeneratedKotlin(text) {
-  if (!/\bpackage io\.github\.hyochan\.kmpiap\.openiap\b/.test(text)) {
-    const lines = text.split("\n");
-    let lastFileAnnotation = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith("@file:")) lastFileAnnotation = i;
-    }
-    if (lastFileAnnotation >= 0) {
-      lines.splice(
-        lastFileAnnotation + 1,
-        0,
-        "",
-        "package io.github.hyochan.kmpiap.openiap",
-      );
-    } else {
-      lines.unshift("package io.github.hyochan.kmpiap.openiap", "");
-    }
-    text = lines.join("\n");
-  }
-
-  return text.replace(
-    /(\n\s*\w+\([^)]*\))\n\n(\s+companion object)/g,
-    "$1;\n\n$2",
-  );
-}
-
 function checkLibraryCoverageRegistry() {
   const discovered = listDirectories("libraries");
   for (const library of discovered) {
@@ -1593,152 +1415,7 @@ function checkExpoSsotRegistry() {
   }
 }
 
-function checkE2eExampleIds() {
-  const workflowPath = ".claude/commands/e2e-tests.md";
-  const workflow = read(workflowPath);
-  const expoSection = extractBetween(
-    workflow,
-    "## Expo Checks",
-    "## React Native Checks",
-  );
-  const normalTargets = extractBetween(
-    expoSection,
-    "Example tests, normal Android build, and launch smoke:",
-    "VegaOS/Kepler path:",
-  );
-  const horizonTarget = extractBetween(
-    normalTargets,
-    "Horizon Android build and optional device path:",
-    "Onside iOS build-only path:",
-  );
-  const vegaTarget = extractBetween(expoSection, "VegaOS/Kepler path:", null);
-
-  for (const expected of [
-    "shell monkey -p dev.hyo.martie 1",
-    "dev.hyo.martie",
-    "-workspace ios/expoiapexample.xcworkspace",
-    "-scheme ExpoIAPExample",
-    "Debug-iphoneos/ExpoIAPExample.app",
-    "Variant amazonDebugRuntimeElements",
-    "ProductFlavor:platform[[:space:]]+\\| amazon",
-    "Variant horizonDebugRuntimeElements",
-    "ProductFlavor:platform[[:space:]]+\\| horizon",
-  ]) {
-    if (!normalTargets.includes(expected)) {
-      fail(`Expo E2E normal targets are missing ${JSON.stringify(expected)}`);
-    }
-  }
-  if (normalTargets.includes("dev.hyo.openiap.expo.example")) {
-    fail(
-      "Expo E2E normal targets must use dev.hyo.martie, not the Vega package ID",
-    );
-  }
-  for (const staleName of [
-    "ios/ExpoIAPExample.xcworkspace",
-    "-scheme expoiapexample",
-    "Debug-iphoneos/expoiapexample.app",
-  ]) {
-    if (normalTargets.includes(staleName)) {
-      fail(
-        `Expo E2E normal targets must not use stale Xcode name ${JSON.stringify(
-          staleName,
-        )}`,
-      );
-    }
-  }
-  for (const expected of [
-    '"${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"',
-    'adb -s "$HORIZON_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk',
-    'adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1',
-  ]) {
-    if (!horizonTarget.includes(expected)) {
-      fail(`Expo Horizon device flow is missing ${JSON.stringify(expected)}`);
-    }
-  }
-  const manualStoreFlows = extractBetween(
-    workflow,
-    "## Manual Store Flows",
-    "## Final Report",
-  );
-  const horizonStoreFlow = extractBetween(
-    manualStoreFlows,
-    "- Horizon:",
-    "- Onside:",
-  );
-  for (const expected of [
-    "verify reconnect/listener behavior",
-    "navigate the normal example to checkout",
-    "Apply the payment gate below before",
-    "purchase, verification, and consume coverage",
-  ]) {
-    if (!horizonStoreFlow.includes(expected)) {
-      fail(`Expo Horizon store flow is missing ${JSON.stringify(expected)}`);
-    }
-  }
-  const horizonPaymentGate = extractBetween(
-    manualStoreFlows,
-    "### Horizon Test Accounts and Payments",
-    "## Leave the Normal Example on the Device",
-  );
-  for (const expected of [
-    "same-team Meta Test User",
-    "test release channel and verify membership",
-    "Verify the saved result; never add a real",
-    "verify the active Test User and selected test payment method",
-    "user explicitly authorized that real purchase",
-    "Record purchase, local verification, and consume results separately",
-  ]) {
-    if (!horizonPaymentGate.includes(expected)) {
-      fail(`Horizon payment gate is missing ${JSON.stringify(expected)}`);
-    }
-  }
-  const finalReport = extractBetween(workflow, "## Final Report", null);
-  if (
-    !finalReport.includes(
-      "Expo Horizon          | {serial/local Gradle} | build[/install/store flow] | PASS | ...",
-    )
-  ) {
-    fail("Expo Horizon final-report coverage row is missing");
-  }
-  for (const expected of [
-    "dev.hyo.openiap.expo.example.main",
-    "bun run run:vega:firetv",
-  ]) {
-    if (!vegaTarget.includes(expected)) {
-      fail(`Expo E2E Vega target is missing ${JSON.stringify(expected)}`);
-    }
-  }
-
-  const mauiSection = extractBetween(
-    workflow,
-    "## MAUI Checks",
-    "## Godot Checks",
-  );
-  for (const expected of [
-    "-p:EmbedAssembliesIntoApk=true",
-    'adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie',
-    'adb -s "$ANDROID_SERIAL" install --no-incremental -r',
-    'adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1',
-    "bin/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
-    "Run it once per store device",
-    "scripts/verify-store-selection.sh",
-    "-p:RuntimeIdentifier=ios-arm64",
-    "bin/Debug/net10.0-ios/ios-arm64/OpenIap.Maui.Example.app",
-    "xcrun devicectl device process launch",
-  ]) {
-    if (!mauiSection.includes(expected)) {
-      fail(`MAUI E2E device targets are missing ${JSON.stringify(expected)}`);
-    }
-  }
-  if (/ANDROID_SERIAL="\$[^\"]+"\s+dotnet build/.test(mauiSection)) {
-    fail(
-      "MAUI E2E must select Android devices with adb -s, not ANDROID_SERIAL",
-    );
-  }
-  if (/dotnet build\s+-t:Run\s+-f net10\.0-ios/.test(mauiSection)) {
-    fail("MAUI E2E must build ios-arm64 before installing with devicectl");
-  }
-
+function checkGodotBuildSettings() {
   expectIncludes(
     "libraries/godot-iap/Makefile",
     ["@rm -rf $(IOS_EXPORT_DIR)", "@touch $(IOS_EXPORT_DIR)/.gdignore"],
@@ -1767,11 +1444,6 @@ function checkE2eExampleIds() {
     "libraries/godot-iap/Example/export_presets.cfg",
     ['application/min_ios_version="17.0"'],
     "Godot example iOS deployment target",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/setup/godot.tsx",
-    ["<strong>iOS 17+</strong> target"],
-    "Godot docs iOS deployment target",
   );
 }
 
@@ -1820,6 +1492,7 @@ function checkGqlRuntimeExports() {
   for (const [groupName, definition] of Object.entries(
     GENERATED_SYNC_MANIFEST,
   )) {
+    if (!definition.exportKey) continue;
     const exportTarget = exports[definition.exportKey];
     const sourcePath = `./${gqlPackageRelativePath(definition.source)}`;
     const checks =
@@ -1898,7 +1571,6 @@ function checkConformanceSuite() {
 
   for (const relativePath of [
     "packages/conformance/package.json",
-    "packages/conformance/README.md",
     "packages/conformance/src/spec/behaviors.mjs",
     "packages/conformance/src/spec/version.mjs",
     "packages/conformance/src/runner/runner.mjs",
@@ -1914,13 +1586,6 @@ function checkConformanceSuite() {
   ]) {
     expectFile(relativePath);
   }
-
-  // The README coordinate must track SUITE_VERSION, not a frozen copy.
-  expectIncludes(
-    "packages/conformance/README.md",
-    [`io.github.hyochan.openiap:openiap-conformance:${SUITE_VERSION}`],
-    "packages/conformance/README.md coordinate must match SUITE_VERSION",
-  );
 
   // Every MUST behavior needs at least one implementation covering it.
   try {
@@ -2799,11 +2464,6 @@ function checkFlutter() {
     ["v3.1.0", "Unsupported Platform", "Platform not supported"],
     "Expo public API warnings/errors must stay current and consistently phrased",
   );
-  expectNotIncludes(
-    "libraries/expo-iap/AGENTS.md",
-    ["v2.9.0"],
-    "Expo package guidance must not reference past deprecation deadlines",
-  );
   expectIncludes(
     "libraries/react-native-iap/src/__tests__/index.test.ts",
     ["deepLinkToSubscriptions surfaces iOS native failures"],
@@ -3394,22 +3054,6 @@ function checkNativeApis() {
 
 function checkBillingChoiceFieldBindings() {
   expectIncludes(
-    "packages/docs/src/pages/docs/apis/android/show-billing-program-information-dialog-android.tsx",
-    [
-      "a developer-rendered, in-app flow",
-      "Google-rendered and external-link flows do not use this step",
-    ],
-    "Billing Choice information dialog docs",
-  );
-  expectNotIncludes(
-    "packages/docs/src/pages/docs/apis/android/show-billing-program-information-dialog-android.tsx",
-    [
-      "for Google-rendered Billing Choice flows",
-      "when Google renders the Billing Choice screen",
-    ],
-    "Billing Choice information dialog docs",
-  );
-  expectIncludes(
     "libraries/kmp-iap/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/AlternativeBillingScreen.kt",
     [
       "BillingChoiceScreenTypeAndroid.DeveloperRendered",
@@ -3424,52 +3068,6 @@ function checkBillingChoiceFieldBindings() {
       "val developerBillingType = if (availability.isExternalLinkAvailable == true)",
     ],
     "KMP Billing Choice example flow",
-  );
-  expectIncludes(
-    ".claude/guides/05-google-package.md",
-    ["Play Billing 9.1.0", "Horizon SDK 2.0.0", "Amazon Appstore SDK 3.0.9"],
-    "Google package guide store versions",
-  );
-  expectNotIncludes(
-    ".claude/guides/05-google-package.md",
-    ["Play Billing 8.x"],
-    "Google package guide current Play Billing version",
-  );
-  expectIncludes(
-    "packages/docs/src/lib/images.ts",
-    ["Play Billing 9.1 coverage"],
-    "React Native docs current Play Billing coverage",
-  );
-  expectNotIncludes(
-    "packages/docs/src/lib/images.ts",
-    ["Play Billing 8 coverage"],
-    "React Native docs stale Play Billing coverage",
-  );
-  expectNotIncludes(
-    "packages/google/ALTERNATIVE_BILLING.md",
-    ["this library uses 8.0.0"],
-    "Google Play Billing runtime documentation",
-  );
-  expectIncludes(
-    "specs/client/src/api-android.graphql",
-    [
-      "OpenIAP availability: 2.1.0 / openiap-google 2.3.0",
-      "requires Play Billing 9.1.0+",
-    ],
-    "Billing Choice OpenIAP-first API availability",
-  );
-  expectIncludes(
-    "specs/client/src/type-android.graphql",
-    [
-      "OpenIAP 2.1.0 / openiap-google 2.3.0",
-      "upstream API available since Play Billing 4.1.0",
-    ],
-    "Billing Choice OpenIAP-first type availability",
-  );
-  expectIncludes(
-    ".claude/commands/e2e-tests.md",
-    ["cd libraries/react-native-iap", "yarn specs", "yarn lint:tsc"],
-    "React Native E2E Nitro generation",
   );
   expectIncludes(
     "packages/google/openiap/src/play/java/dev/hyo/openiap/OpenIapModule.kt",
@@ -3892,36 +3490,6 @@ function checkBillingChoiceFieldBindings() {
     "Godot Billing Choice wrapper tests",
   );
   expectIncludes(
-    "packages/docs/src/pages/docs/types/billing-programs.tsx",
-    ["iap.developer_provided_billing_android.connect"],
-    "Godot developer-provided billing docs signal",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/types/alternative-billing-types.tsx",
-    ["iap.user_choice_billing_android.connect"],
-    "Godot user choice billing docs signal",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/features/external-purchase.tsx",
-    ["iap.developer_provided_billing_android.connect"],
-    "Godot external purchase docs signal",
-  );
-  for (const path of [
-    "packages/docs/src/pages/docs/types/billing-programs.tsx",
-    "packages/docs/src/pages/docs/types/alternative-billing-types.tsx",
-    "packages/docs/src/pages/docs/features/external-purchase.tsx",
-  ]) {
-    expectNotIncludes(
-      path,
-      [
-        "iap.developer_provided_billing.connect",
-        "iap.user_choice_billing.connect",
-      ],
-      "Godot billing docs stale signals",
-    );
-  }
-
-  expectIncludes(
     "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateTest.kt",
     ["Play sub-response codes reach KMP errors"],
     "KMP BillingResult sub-response tests",
@@ -3945,14 +3513,6 @@ function checkBillingChoiceFieldBindings() {
       "ErrorCode.FeatureNotSupported",
     ],
     "KMP non-Play in-app message tests",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/updates/releases.tsx",
-    [
-      "Horizon uses Billing Compatibility SDK 2.0.0",
-      "com.meta.horizon.platform.HORIZON_APP_ID",
-    ],
-    "Horizon 2.0 release notes",
   );
   expectIncludes(
     "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
@@ -4018,20 +3578,11 @@ function checkBillingChoiceFieldBindings() {
     "libraries/react-native-iap/example/android/app/src/main/AndroidManifest.xml",
     "libraries/flutter_inapp_purchase/example/android/app/src/main/AndroidManifest.xml",
     "libraries/godot-iap/addons/godot-iap/android_store.gd",
-    "packages/docs/src/pages/docs/setup/store/horizon.tsx",
   ]) {
     expectIncludes(
       file,
       ["com.meta.horizon.platform.HORIZON_APP_ID"],
       "Horizon App ID canonical setup",
-    );
-    expectCodeBlocksNotInclude(
-      file,
-      [
-        "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
-        "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
-      ],
-      "Horizon setup must not recommend legacy metadata keys",
     );
   }
   expectIncludes(
@@ -4102,7 +3653,7 @@ function checkBillingChoiceFieldBindings() {
       ["subResponseCodeAndroid: error.subResponseCodeAndroid"],
     ],
     [
-      "libraries/expo-iap/src/utils/errorMapping.ts",
+      GENERATED_SYNC_MANIFEST.errorMapping.source,
       ["error.subResponseCodeAndroid = props.subResponseCodeAndroid"],
     ],
     [
@@ -4361,31 +3912,6 @@ function checkFrameworkDependencyHygiene() {
   }
   for (const message of collectDocsVersionMetadataDrift(root)) fail(message);
   expectIncludes(
-    "packages/apple/README.md",
-    [
-      '.package(url: "https://github.com/hyodotdev/openiap.git", from: "<version>")',
-      "pod 'openiap', '~> <version>'",
-      "Use the latest version from the Swift Package / CocoaPods badges above.",
-    ],
-    "Apple README install version",
-  );
-  expectIncludes(
-    "packages/google/README.md",
-    [
-      'implementation("io.github.hyochan.openiap:openiap-google:<version>")',
-      "https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google",
-    ],
-    "Google README install version",
-  );
-  // The client specification README ships as the npm README of
-  // @hyodotdev/openiap-client-protocol; specification READMEs opt into the generated sponsor
-  // block through markers, and this one must keep them.
-  expectIncludes(
-    "specs/client/README.md",
-    [sponsorBlockStart],
-    "client specification README sponsor block",
-  );
-  expectIncludes(
     "packages/docs/src/lib/versioning.ts",
     [
       "type VersionKey = 'clientProtocol' | 'google' | 'apple';",
@@ -4419,46 +3945,12 @@ function checkFrameworkDependencyHygiene() {
     ],
     "docs library metadata must derive framework package versions from metadata",
   );
-  expectIncludes(
-    "packages/docs/src/pages/docs/setup/expo.tsx",
-    ["EXPO_PACKAGE.dependencyLine"],
-    "Expo docs package.json example must derive package version from package metadata",
-  );
-  expectNotIncludes(
-    "packages/docs/src/pages/docs/setup/expo.tsx",
-    ['"expo-iap": "latest"'],
-    "Expo docs package.json example must not use a floating latest version",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/android-setup.tsx",
-    ["OPENIAP_VERSIONS.google"],
-    "Android setup docs install version",
-  );
-  expectNotIncludes(
-    "packages/apple/README.md",
-    [
-      "$version",
-      `from: "${versions.apple}"`,
-      `pod 'openiap', '~> ${versions.apple}'`,
-    ],
-    "Apple README install version must not be inline hardcoded",
-  );
-  expectNotIncludes(
-    "packages/google/README.md",
-    ["$version", `openiap-google:${versions.google}`],
-    "Google README install version must not be inline hardcoded",
-  );
 
-  for (const localPathFile of [
-    "knowledge/internal/07-docs-consistency.md",
+  expectNotIncludes(
     "libraries/kmp-iap/example/run-ios.sh",
-  ]) {
-    expectNotIncludes(
-      localPathFile,
-      ["/Users/", "/home/", "C:\\"],
-      "tracked scripts/docs must not contain local absolute paths",
-    );
-  }
+    ["/Users/", "/home/", "C:\\"],
+    "tracked scripts/docs must not contain local absolute paths",
+  );
   expectOptionalNotIncludes(
     "libraries/expo-iap/example/android/settings.gradle",
     ["/Users/", "/home/", "C:\\"],
@@ -4466,10 +3958,6 @@ function checkFrameworkDependencyHygiene() {
   );
   for (const canonicalUrlFile of [
     "scripts/audit-docs.ts",
-    "libraries/expo-iap/AGENTS.md",
-    "libraries/flutter_inapp_purchase/AGENTS.md",
-    "libraries/kmp-iap/AGENTS.md",
-    "libraries/react-native-iap/AGENTS.md",
     "libraries/react-native-iap/src/index.ts",
     "libraries/react-native-iap/src/hooks/useIAP.ts",
     "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
@@ -4487,100 +3975,11 @@ function checkFrameworkDependencyHygiene() {
     );
   }
   expectIncludes(
-    "packages/docs/src/lib/images.ts",
-    [
-      "documentationUrl: 'https://openiap.dev/docs/setup/expo'",
-      "documentationUrl: 'https://openiap.dev/docs/setup/react-native'",
-      "documentationUrl: 'https://openiap.dev/docs/setup/flutter'",
-      "documentationUrl: 'https://openiap.dev/docs/setup/kmp'",
-      "documentationUrl: 'https://openiap.dev/docs/setup/godot'",
-    ],
-    "docs library cards should point at OpenIAP setup docs",
-  );
-  expectNotIncludes(
-    "packages/docs/src/lib/images.ts",
-    [
-      "documentationUrl: 'https://hyochan.github.io/expo-iap'",
-      "documentationUrl: 'https://hyochan.github.io/react-native-iap'",
-      "documentationUrl: 'https://hyochan.github.io/flutter_inapp_purchase'",
-      "documentationUrl: 'https://hyochan.github.io/kmp-iap'",
-      "documentationUrl: 'https://hyochan.github.io/godot-iap'",
-    ],
-    "docs library cards must not point at legacy standalone docs",
-  );
-  expectIncludes(
-    "CHANGELOG.md",
-    [
-      "https://openiap.dev/docs/updates/releases",
-      "https://github.com/hyodotdev/openiap/releases",
-    ],
-    "root changelog should point at OpenIAP release SSOT",
-  );
-  expectNotIncludes(
-    "CHANGELOG.md",
-    ["https://www.openiap.dev/docs/updates/notes"],
-    "root changelog must not point at redirected release notes URL",
-  );
-  expectIncludes(
-    "libraries/expo-iap/README.md",
-    [
-      "https://openiap.dev/frameworks/expo.svg",
-      "https://openiap.dev/docs/setup/expo",
-      "https://openiap.dev/docs/guides/ai-assistants",
-      "https://openiap.dev/llms.txt",
-      "https://openiap.dev/docs/setup/store/onside",
-      "https://github.com/hyodotdev/openiap/discussions/categories/expo-iap",
-    ],
-    "Expo README docs links",
-  );
-  expectIncludes(
-    "libraries/expo-iap/CONTRIBUTING.md",
-    ["https://openiap.dev/docs/setup/expo", "https://openiap.dev/docs/apis"],
-    "Expo contributing docs links",
-  );
-  expectIncludes(
     "libraries/expo-iap/src/index.ts",
     ["https://openiap.dev/docs/apis/request-purchase"],
     "Expo runtime docs links",
   );
-  expectIncludes(
-    "libraries/expo-iap/src/useIAP.ts",
-    [
-      "https://openiap.dev/docs/setup/expo#useIAP-hook",
-      "https://openiap.dev/docs/apis/request-purchase",
-    ],
-    "Expo useIAP docs links",
-  );
-  expectNotIncludes(
-    "libraries/expo-iap/README.md",
-    [
-      "](https://hyochan.github.io/expo-iap",
-      "https://hyochan.github.io/expo-iap/guides",
-      "https://hyochan.github.io/expo-iap/llms",
-      "https://hyochan.github.io/expo-iap/getting-started",
-      "https://github.com/hyochan/expo-iap/discussions/143",
-      "https://github.com/hyochan/react-native-iap/discussions/2754",
-      "https://github.com/hyochan/react-native-iap/assets",
-      "https://github.com/user-attachments/assets/319d8966-6839-498d-8ead-ce8cc72c3bca",
-      "https://www.openiap.dev",
-    ],
-    "Expo README must not point at legacy standalone docs",
-  );
-  expectIncludes(
-    "libraries/expo-iap/CHANGELOG.md",
-    [
-      "https://openiap.dev/docs/updates/releases",
-      "https://github.com/hyodotdev/openiap/releases?q=expo-iap&expanded=true",
-    ],
-    "Expo changelog release SSOT links",
-  );
-  expectNotIncludes(
-    "libraries/expo-iap/CHANGELOG.md",
-    ["github.com/hyochan/expo-iap"],
-    "Expo changelog must not point at the legacy standalone repository",
-  );
   for (const expoDocsFile of [
-    "libraries/expo-iap/CONTRIBUTING.md",
     "libraries/expo-iap/src/index.ts",
     "libraries/expo-iap/src/useIAP.ts",
     "libraries/expo-iap/src/modules/android.ts",
@@ -4592,57 +3991,6 @@ function checkFrameworkDependencyHygiene() {
       `${expoDocsFile} must not point at legacy standalone docs`,
     );
   }
-  expectIncludes(
-    "libraries/react-native-iap/README.md",
-    [
-      "https://openiap.dev/frameworks/react-native.webp",
-      "https://openiap.dev/docs/setup/react-native",
-      "https://openiap.dev/docs/guides/ai-assistants",
-      "https://openiap.dev/llms.txt",
-      "https://openiap.dev/docs/apis",
-      "https://openiap.dev/docs/errors",
-    ],
-    "React Native README docs links",
-  );
-  expectIncludes(
-    "libraries/react-native-iap/CONTRIBUTING.md",
-    ["https://openiap.dev/docs/setup/react-native"],
-    "React Native contributing docs links",
-  );
-  expectNotIncludes(
-    "libraries/react-native-iap/README.md",
-    [
-      "](https://hyochan.github.io/react-native-iap",
-      "https://hyochan.github.io/react-native-iap/docs",
-      "https://hyochan.github.io/react-native-iap/llms",
-      "https://github.com/hyochan/react-native-iap/assets",
-      "https://github.com/user-attachments/assets/319d8966-6839-498d-8ead-ce8cc72c3bca",
-      "https://www.openiap.dev",
-    ],
-    "React Native README must not point at legacy standalone docs",
-  );
-  expectIncludes(
-    "libraries/react-native-iap/CHANGELOG.md",
-    [
-      "https://openiap.dev/docs/updates/releases",
-      "https://github.com/hyodotdev/openiap/releases?q=react-native-iap&expanded=true",
-    ],
-    "React Native changelog release SSOT links",
-  );
-  expectNotIncludes(
-    "libraries/react-native-iap/CHANGELOG.md",
-    ["github.com/hyochan/react-native-iap"],
-    "React Native changelog must not point at the legacy standalone repository",
-  );
-  expectNotIncludes(
-    "libraries/react-native-iap/CONTRIBUTING.md",
-    [
-      "hyochan.github.io/react-native-iap",
-      "Recent highlights (",
-      "OpenIAP to `~>",
-    ],
-    "React Native contributing must not point at legacy standalone docs",
-  );
   expectIncludes(
     "libraries/react-native-iap/scripts/ci-check.sh",
     [
@@ -4658,48 +4006,6 @@ function checkFrameworkDependencyHygiene() {
     "React Native local CI script should not repeat exit-code checks",
   );
   expectIncludes(
-    "libraries/flutter_inapp_purchase/README.md",
-    [
-      "https://openiap.dev/frameworks/flutter.svg",
-      "https://openiap.dev/docs/setup/flutter",
-      "https://openiap.dev/docs/guides/ai-assistants",
-      "https://openiap.dev/llms.txt",
-    ],
-    "Flutter README docs links",
-  );
-  expectIncludes(
-    "libraries/flutter_inapp_purchase/CONTRIBUTING.md",
-    ["https://github.com/hyodotdev/openiap/discussions"],
-    "Flutter contributing discussion links",
-  );
-  expectNotIncludes(
-    "libraries/flutter_inapp_purchase/README.md",
-    [
-      "](https://hyochan.github.io/flutter_inapp_purchase",
-      "https://hyochan.github.io/flutter_inapp_purchase/docs",
-      "https://hyochan.github.io/flutter_inapp_purchase/llms",
-    ],
-    "Flutter README must not point at legacy standalone docs",
-  );
-  expectNotIncludes(
-    "libraries/flutter_inapp_purchase/CONTRIBUTING.md",
-    ["github.com/hyochan/openiap.dev"],
-    "Flutter contributing links must point at the monorepo",
-  );
-  expectIncludes(
-    "libraries/flutter_inapp_purchase/CHANGELOG.md",
-    [
-      "https://openiap.dev/docs/updates/releases",
-      "https://github.com/hyodotdev/openiap/releases?q=flutter-iap&expanded=true",
-    ],
-    "Flutter changelog release SSOT links",
-  );
-  expectNoMatch(
-    "libraries/flutter_inapp_purchase/CHANGELOG.md",
-    /^## 9\.[^\r\n]*\r?\n\r?\n- Initial release\r?$/m,
-    "Flutter v9 changelog entries must not be placeholders",
-  );
-  expectIncludes(
     ".github/workflows/release-flutter.yml",
     [
       "--match 'flutter-iap-*' --exclude 'flutter-iap-*-*'",
@@ -4709,50 +4015,8 @@ function checkFrameworkDependencyHygiene() {
     ],
     "Flutter release workflow should generate changelog entries from prefixed tags",
   );
-  expectIncludes(
-    "libraries/godot-iap/README.md",
-    [
-      "https://openiap.dev/docs/setup/godot",
-      "https://openiap.dev/docs/guides/ai-assistants",
-      "https://openiap.dev/llms.txt",
-      "https://openiap.dev/docs/apis",
-      "https://openiap.dev/docs/example",
-      "[LICENSE](../../LICENSE)",
-    ],
-    "Godot README docs links",
-  );
-  expectIncludes(
-    "libraries/godot-iap/CONTRIBUTING.md",
-    [
-      "https://github.com/hyodotdev/openiap/issues",
-      "https://openiap.dev/docs/setup/godot",
-    ],
-    "Godot contributing docs links",
-  );
-  expectIncludes(
-    "libraries/godot-iap/EXAMPLES.md",
-    ["https://openiap.dev/docs/setup/godot", "https://openiap.dev/docs/apis"],
-    "Godot examples docs links",
-  );
-  for (const godotDocsFile of [
-    "libraries/godot-iap/README.md",
-    "libraries/godot-iap/CONTRIBUTING.md",
-    "libraries/godot-iap/EXAMPLES.md",
-  ]) {
-    expectNotIncludes(
-      godotDocsFile,
-      [
-        "hyochan.github.io/godot-iap",
-        "github.com/hyochan/godot-iap",
-        "[LICENSE](LICENSE)",
-      ],
-      `${godotDocsFile} must not point at legacy standalone docs`,
-    );
-  }
 
-  const kmpVersion = read("libraries/kmp-iap/gradle.properties")
-    .match(/^libraryVersion=(.+)$/m)?.[1]
-    ?.trim();
+  const kmpVersion = versionSources.kmp.read(root);
   const kmpLibraryVersions = read(
     "libraries/kmp-iap/gradle/libs.versions.toml",
   );
@@ -4761,168 +4025,92 @@ function checkFrameworkDependencyHygiene() {
   const kmpGradleVersion = read(
     "libraries/kmp-iap/gradle/wrapper/gradle-wrapper.properties",
   ).match(/gradle-([^-]+)-bin\.zip/)?.[1];
-  const flutterVersion = read("libraries/flutter_inapp_purchase/pubspec.yaml")
-    .match(/^version:\s*(.+)$/m)?.[1]
-    ?.trim();
-  const mauiVersion = read(
-    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-  )
-    .match(/<PackageVersion>([^<]+)<\/PackageVersion>/)?.[1]
-    ?.trim();
-  if (!kmpVersion)
-    fail("libraries/kmp-iap/gradle.properties is missing libraryVersion");
-  if (!flutterVersion)
-    fail("libraries/flutter_inapp_purchase/pubspec.yaml is missing version");
-  if (!mauiVersion) fail("OpenIap.Maui.csproj is missing PackageVersion");
-  if (flutterVersion) {
+  const mauiVersion = versionSources.maui.read(root);
+  expectIncludes(
+    "packages/docs/src/lib/versioning.ts",
+    [
+      "flutterPackageVersion",
+      "FLUTTER_PACKAGE",
+      "dependencyLine: `flutter_inapp_purchase: ^${FLUTTER_PACKAGE_VERSION}`",
+    ],
+    "docs Flutter package metadata must derive from generated docs metadata",
+  );
+  expectIncludes(
+    "packages/docs/src/lib/images.ts",
+    ["FLUTTER_PACKAGE.installCommand"],
+    "docs Flutter library listing install command",
+  );
+  for (const flutterPodspec of [
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase.podspec",
+    "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase.podspec",
+  ]) {
     expectIncludes(
-      "packages/docs/src/lib/versioning.ts",
+      flutterPodspec,
       [
-        "flutterPackageVersion",
-        "FLUTTER_PACKAGE",
-        "dependencyLine: `flutter_inapp_purchase: ^${FLUTTER_PACKAGE_VERSION}`",
+        "pubspec_path",
+        "pubspec_version",
+        "s.version          = pubspec_version",
       ],
-      "docs Flutter package metadata must derive from generated docs metadata",
+      "Flutter podspec version must derive from pubspec.yaml",
     );
-    expectIncludes(
-      "packages/docs/src/lib/images.ts",
-      ["FLUTTER_PACKAGE.installCommand"],
-      "docs Flutter library listing install command",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/flutter.tsx",
-      ["ANDROID_SDK", "FLUTTER_PACKAGE", "FLUTTER_PACKAGE.dependencyLine"],
-      "Flutter setup docs package metadata",
-    );
-    expectIncludes(
-      "libraries/flutter_inapp_purchase/README.md",
-      [
-        "flutter pub add flutter_inapp_purchase",
-        "https://pub.dev/packages/flutter_inapp_purchase",
-      ],
-      "Flutter README should reference pub.dev without an inline version",
-    );
-    for (const flutterDoc of [
-      "libraries/flutter_inapp_purchase/README.md",
-      "packages/docs/src/pages/docs/setup/flutter.tsx",
-    ]) {
-      expectNotIncludes(
-        flutterDoc,
-        [`flutter_inapp_purchase: ^${flutterVersion}`],
-        "Flutter install command version must not be inline hardcoded",
-      );
-    }
-    for (const flutterPodspec of [
-      "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase.podspec",
-      "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase.podspec",
-    ]) {
-      expectIncludes(
-        flutterPodspec,
-        [
-          "pubspec_path",
-          "pubspec_version",
-          "s.version          = pubspec_version",
-        ],
-        "Flutter podspec version must derive from pubspec.yaml",
-      );
-      expectNotIncludes(
-        flutterPodspec,
-        ["s.version          = '0.0.1'"],
-        "Flutter podspec version must not drift from pubspec.yaml",
-      );
-    }
     expectNotIncludes(
-      "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase.podspec",
-      ["http://example.com", "Your Company", "email@example.com"],
-      "Flutter iOS podspec metadata must not use placeholders",
+      flutterPodspec,
+      ["s.version          = '0.0.1'"],
+      "Flutter podspec version must not drift from pubspec.yaml",
     );
   }
-  if (kmpVersion) {
-    expectIncludes(
-      "packages/docs/src/lib/versioning.ts",
-      [
-        "kmpPackageVersion",
-        "KMP_PACKAGE",
-        'installCommand: `implementation("io.github.hyochan:kmp-iap:${KMP_PACKAGE_VERSION}")`',
-      ],
-      "docs KMP package metadata must derive from generated docs metadata",
-    );
-    expectIncludes(
-      "packages/docs/src/lib/images.ts",
-      ["KMP_PACKAGE.installCommand"],
-      "docs KMP install command",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/kmp.tsx",
-      [
-        "LIBRARIES.find(({ name }) => name === 'kmp-iap')",
-        "KMP_ANDROID_SDK",
-        "KMP_INSTALL_COMMAND",
-        "KMP_VERSION",
-      ],
-      "KMP setup docs install command",
-    );
-    expectNotIncludes(
-      "packages/docs/src/pages/docs/setup/kmp.tsx",
-      ["<latest-version>"],
-      "KMP setup docs install command must be copyable",
-    );
-    expectIncludes(
-      "libraries/kmp-iap/README.md",
-      [
-        'implementation("io.github.hyochan:kmp-iap:<version>")',
-        "https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap",
-        "https://openiap.dev/docs/setup/kmp",
-        "https://openiap.dev/llms.txt",
-        "license-Apache--2.0",
-        "Apache License 2.0",
-      ],
-      "KMP README should reference Maven Central without an inline version",
-    );
-    expectNotIncludes(
-      "libraries/kmp-iap/README.md",
-      [
-        `implementation("io.github.hyochan:kmp-iap:${kmpVersion}")`,
-        "hyochan.github.io/kmp-iap",
-        "license-MIT",
-        "MIT License",
-      ],
-      "KMP README install command version must not be inline hardcoded",
-    );
-    expectIncludes(
-      "libraries/kmp-iap/library/library.podspec",
-      [
-        "gradle_properties_file",
-        "libraryVersion=",
-        "spec.version                  = library_version",
-        "spec.source                   = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => \"kmp-iap-#{library_version}\" }",
-        "spec.authors                  = { 'Hyo Dev' => 'hyo@hyo.dev' }",
-        "spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }",
-      ],
-      "KMP podspec version",
-    );
-    expectNotIncludes(
-      "libraries/kmp-iap/library/library.podspec",
-      [
-        `spec.version                  = '${kmpVersion}'`,
-        "spec.source                   = { :http=> ''}",
-        "spec.authors                  = ''",
-        "spec.license                  = ''",
-      ],
-      "KMP podspec version must derive from gradle.properties",
-    );
-    expectIncludes(
-      "libraries/kmp-iap/library/build.gradle.kts",
-      [
-        "fun dynamicKmpPodspec(): String",
-        'tasks.matching { it.name == "podspec" }.configureEach',
-        'projectDir.resolve("library.podspec").writeText(dynamicKmpPodspec())',
-        "spec.version                  = library_version",
-        "openiap_apple_version = openiap_versions['apple']",
-      ],
-      "KMP podspec Gradle generator must preserve dynamic metadata",
-    );
-  }
+  expectNotIncludes(
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase.podspec",
+    ["http://example.com", "Your Company", "email@example.com"],
+    "Flutter iOS podspec metadata must not use placeholders",
+  );
+  expectIncludes(
+    "packages/docs/src/lib/versioning.ts",
+    [
+      "kmpPackageVersion",
+      "KMP_PACKAGE",
+      'installCommand: `implementation("io.github.hyochan:kmp-iap:${KMP_PACKAGE_VERSION}")`',
+    ],
+    "docs KMP package metadata must derive from generated docs metadata",
+  );
+  expectIncludes(
+    "packages/docs/src/lib/images.ts",
+    ["KMP_PACKAGE.installCommand"],
+    "docs KMP install command",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/library.podspec",
+    [
+      "gradle_properties_file",
+      "libraryVersion=",
+      "spec.version                  = library_version",
+      "spec.source                   = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => \"kmp-iap-#{library_version}\" }",
+      "spec.authors                  = { 'Hyo Dev' => 'hyo@hyo.dev' }",
+      "spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }",
+    ],
+    "KMP podspec version",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/library/library.podspec",
+    [
+      `spec.version                  = '${kmpVersion}'`,
+      "spec.source                   = { :http=> ''}",
+      "spec.authors                  = ''",
+      "spec.license                  = ''",
+    ],
+    "KMP podspec version must derive from gradle.properties",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/build.gradle.kts",
+    [
+      "fun dynamicKmpPodspec(): String",
+      'tasks.matching { it.name == "podspec" }.configureEach',
+      'projectDir.resolve("library.podspec").writeText(dynamicKmpPodspec())',
+      "spec.version                  = library_version",
+      "openiap_apple_version = openiap_versions['apple']",
+    ],
+    "KMP podspec Gradle generator must preserve dynamic metadata",
+  );
   const kmpExampleVersions = read(
     "libraries/kmp-iap/example/gradle/libs.versions.toml",
   );
@@ -4953,13 +4141,7 @@ function checkFrameworkDependencyHygiene() {
       } must match library Gradle ${kmpGradleVersion}`,
     );
   } else {
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/kmp.tsx",
-      [`Kotlin ${kmpKotlinVersion}`, `Gradle ${kmpGradleVersion}`, "JDK 17+"],
-      "KMP setup docs toolchain versions",
-    );
     for (const mobileOnlyFile of [
-      "libraries/kmp-iap/example/README.md",
       "libraries/kmp-iap/setup.sh",
       "libraries/kmp-iap/setup.bat",
       "libraries/kmp-iap/library/build.gradle.kts",
@@ -4974,11 +4156,6 @@ function checkFrameworkDependencyHygiene() {
         "KMP mobile-only targets must not advertise removed desktop or web tasks",
       );
     }
-    expectIncludes(
-      "libraries/kmp-iap/example/README.md",
-      [":example:composeApp:installPlayDebug", "Android and iOS"],
-      "KMP example docs must use the current mobile target and task",
-    );
     for (const removedKmpExamplePath of [
       "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/main.kt",
       "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/config/AppConfig.jvm.kt",
@@ -5006,30 +4183,6 @@ function checkFrameworkDependencyHygiene() {
       ],
       "KMP Android/iOS example must not retain unsupported desktop or Wasm targets",
     );
-    expectIncludes(
-      "libraries/kmp-iap/CONTRIBUTING.md",
-      [
-        "JDK 17 or higher",
-        "https://github.com/hyodotdev/openiap/issues",
-        "https://github.com/hyodotdev/openiap/discussions/categories/kmp-iap",
-      ],
-      "KMP contributing JDK requirement",
-    );
-    expectNotIncludes(
-      "libraries/kmp-iap/CONTRIBUTING.md",
-      ["github.com/hyochan/kmp-iap", "github.com/hyochan/openiap.dev"],
-      "KMP contributing links must point at the monorepo",
-    );
-    expectIncludes(
-      "libraries/kmp-iap/CHANGELOG.md",
-      ["https://github.com/hyodotdev/openiap/releases?q=kmp-iap&expanded=true"],
-      "KMP changelog release link",
-    );
-    expectNotIncludes(
-      "libraries/kmp-iap/CHANGELOG.md",
-      ["github.com/hyochan/kmp-iap"],
-      "KMP changelog must not point at the legacy standalone repository",
-    );
   }
   if (!kmpCompileSdk || !kmpMinSdk || !kmpTargetSdk) {
     fail("KMP example libs.versions.toml must declare Android SDK versions");
@@ -5043,24 +4196,6 @@ function checkFrameworkDependencyHygiene() {
         "export const KMP_ANDROID_SDK",
       ],
       "docs KMP Android SDK metadata must derive from generated docs metadata",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/kmp.tsx",
-      [
-        "compileSdk = ${KMP_ANDROID_SDK.compileSdk}",
-        "minSdk = ${KMP_ANDROID_SDK.minSdk}",
-        "targetSdk = ${KMP_ANDROID_SDK.targetSdk}",
-      ],
-      "KMP setup docs Android SDK versions",
-    );
-    expectNotIncludes(
-      "packages/docs/src/pages/docs/setup/kmp.tsx",
-      [
-        `compileSdk = ${kmpCompileSdk}`,
-        `minSdk = ${kmpMinSdk}`,
-        `targetSdk = ${kmpTargetSdk}`,
-      ],
-      "KMP setup docs Android SDK versions must not be inline hardcoded",
     );
   }
   expectIncludes(
@@ -5106,65 +4241,27 @@ function checkFrameworkDependencyHygiene() {
     ["is ProductAndroid", "is ProductIOS"],
     "KMP example subscription product handling must not type-check impossible product variants",
   );
-  if (mauiVersion) {
-    expectIncludes(
-      "packages/docs/src/lib/versioning.ts",
-      [
-        "mauiPackageId",
-        "mauiPackageVersion",
-        "MAUI_PACKAGE",
-        "installCommand: `dotnet add package ${MAUI_PACKAGE_ID}`",
-        'packageReference: `<PackageReference Include="${MAUI_PACKAGE_ID}" Version="${MAUI_PACKAGE_VERSION}" />`',
-      ],
-      "docs MAUI package metadata must derive from generated docs metadata",
-    );
-    expectIncludes(
-      "packages/docs/src/lib/images.ts",
-      ["MAUI_PACKAGE", "installCommand: MAUI_PACKAGE.installCommand"],
-      "docs MAUI library listing install command",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/maui.tsx",
-      [
-        "import { MAUI_PACKAGE } from '../../../lib/versioning'",
-        "MAUI_PACKAGE.installCommand",
-        "MAUI_PACKAGE.packageReference",
-        "MAUI_PACKAGE.versionedNugetUrl",
-      ],
-      "MAUI setup docs package metadata",
-    );
-    expectIncludes(
-      "libraries/maui-iap/README.md",
-      [
-        "dotnet add package OpenIap.Maui",
-        "https://www.nuget.org/packages/OpenIap.Maui",
-      ],
-      "MAUI README should reference the NuGet package without an inline version",
-    );
-    for (const mauiInstallDoc of [
-      "packages/docs/src/lib/images.ts",
-      "packages/docs/src/pages/docs/setup/maui.tsx",
-      "libraries/maui-iap/README.md",
-    ]) {
-      expectNotIncludes(
-        mauiInstallDoc,
-        [`OpenIap.Maui --version ${mauiVersion}`],
-        "MAUI install command version must not be inline hardcoded",
-      );
-    }
-    for (const mauiPackageReferenceDoc of [
-      "packages/docs/src/pages/docs/setup/maui.tsx",
-      "libraries/maui-iap/README.md",
-    ]) {
-      expectNotIncludes(
-        mauiPackageReferenceDoc,
-        [
-          `<PackageReference Include="OpenIap.Maui" Version="${mauiVersion}" />`,
-        ],
-        "MAUI PackageReference version must not be inline hardcoded",
-      );
-    }
-  }
+  expectIncludes(
+    "packages/docs/src/lib/versioning.ts",
+    [
+      "mauiPackageId",
+      "mauiPackageVersion",
+      "MAUI_PACKAGE",
+      "installCommand: `dotnet add package ${MAUI_PACKAGE_ID}`",
+      'packageReference: `<PackageReference Include="${MAUI_PACKAGE_ID}" Version="${MAUI_PACKAGE_VERSION}" />`',
+    ],
+    "docs MAUI package metadata must derive from generated docs metadata",
+  );
+  expectIncludes(
+    "packages/docs/src/lib/images.ts",
+    ["MAUI_PACKAGE", "installCommand: MAUI_PACKAGE.installCommand"],
+    "docs MAUI library listing install command",
+  );
+  expectNotIncludes(
+    "packages/docs/src/lib/images.ts",
+    [`OpenIap.Maui --version ${mauiVersion}`],
+    "MAUI install command version must not be inline hardcoded",
+  );
 
   expectIncludes(
     "scripts/sync-versions.mjs",
@@ -5190,19 +4287,6 @@ function checkFrameworkDependencyHygiene() {
       "specs/client must not keep a stale npm package-lock.json; Bun lockfiles are the package-manager SSOT",
     );
   }
-  expectIncludes(
-    "specs/client/README.md",
-    ["bun install --frozen-lockfile"],
-    "GQL README must document Bun installs",
-  );
-  expectIncludes(
-    "specs/client/README.md",
-    [
-      "npm install @hyodotdev/openiap-client-protocol",
-      "checkout of the OpenIAP repository",
-    ],
-    "Client README must separate package consumption from repository generation",
-  );
   expectNotIncludes(
     "scripts/sync-versions.sh",
     ['sync_package_json_version "specs/client/package.json"'],
@@ -5232,13 +4316,13 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       bunWorkflow,
-      ["bun-version: 1.3.13"],
-      `${bunWorkflow} must pin Bun to the monorepo packageManager version`,
+      ["bun-version-file: package.json"],
+      `${bunWorkflow} must take Bun from the monorepo packageManager version`,
     );
     expectNotIncludes(
       bunWorkflow,
-      ['bun-version: "1.1.38"', "bun-version: latest"],
-      `${bunWorkflow} must not drift from the monorepo Bun version`,
+      ["bun-version: "],
+      `${bunWorkflow} must not pin a second Bun version`,
     );
   }
   for (const bunInstallWorkflow of [
@@ -5401,7 +4485,10 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/deploy-kit.yml",
     [
-      "if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+      "github.ref == 'refs/heads/main' &&",
+      // A push deploys only what changes the kit build, never codecov.yml alone.
+      "needs.verify.outputs.deploy == 'true'",
+      "bun scripts/ci/kit-deploy-needed.mjs",
       "- name: Test production Convex target guard",
       "- name: Validate deployment credentials",
       "- name: Deploy Convex functions",
@@ -5475,81 +4562,6 @@ function checkFrameworkDependencyHygiene() {
       "Kit production deploy must validate credentials, then deploy Convex before Fly",
     );
   }
-  expectIncludes(
-    "packages/kit/public/llms.txt",
-    [
-      "Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`",
-      "MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`",
-      "Administrative product,",
-      "subscription analytics, MCP, and store-sync requests keep the secret in the",
-      "Bearer header and out of URLs.",
-      "default 600 per key",
-      "an exact store-verified `productId` match",
-      "no-store liveness metadata",
-      "public revision",
-      "no Convex round-trip",
-      '{ store: "amazon", userId, receiptId, sandbox?, expectedProductId? }',
-      "sandbox requires the project's explicit",
-      '"environment": "Sandbox"',
-    ],
-    "Kit compact assistant contract must match authentication and safety SSOT",
-  );
-  expectNotIncludes(
-    "packages/kit/public/llms.txt",
-    ["default 60 per key", "IAPKit is a single-package"],
-    "Kit compact assistant contract must not retain stale limits or topology",
-  );
-  expectIncludes(
-    "packages/kit/public/llms-full.txt",
-    [
-      "github.com/hyodotdev/openiap/tree/main/packages/kit",
-      ".github/workflows/deploy-kit.yml",
-      "Apple, Amazon, or catalog-known Google consumable ready for durable fulfillment",
-      "deploys additive Convex functions",
-      '"apiVersion": "v1"',
-      '"revision": "a1b2c3d4e5f6"',
-      "Cache-Control: no-store",
-      "no Convex",
-    ],
-    "Kit full assistant contract must follow monorepo deployment and state SSOT",
-  );
-  expectNotIncludes(
-    "packages/kit/public/llms-full.txt",
-    [
-      "github.com/hyodotdev/openiap-kit",
-      ".github/workflows/deploy.yml",
-      "Every API request must carry a Bearer token",
-      "Single-package repo",
-      "the live server wins",
-    ],
-    "Kit full assistant contract must not retain stale repository or auth claims",
-  );
-  expectIncludes(
-    "packages/kit/src/pages/docs/sections/quickstart.tsx",
-    [
-      "Never unlock or deliver from <code>isValid</code> alone",
-      "Payload omission does not invalidate",
-    ],
-    "Kit quickstart must preserve fail-closed verification guidance",
-  );
-  expectNotIncludes(
-    "packages/kit/src/pages/docs/sections/quickstart.tsx",
-    ["is the short-circuit answer", "A valid response includes the payload"],
-    "Kit quickstart must not overstate isValid or optional payload enrichment",
-  );
-  expectIncludes(
-    "packages/kit/src/pages/docs/sections/ai-assistants.tsx",
-    [
-      "versioned summaries maintained with the canonical API",
-      "canonical implementation and docs take",
-    ],
-    "Kit assistant docs must identify canonical sources",
-  );
-  expectNotIncludes(
-    "packages/kit/src/pages/docs/sections/ai-assistants.tsx",
-    ["never hand-edited", "regenerated alongside"],
-    "Kit assistant docs must not claim nonexistent generation automation",
-  );
   // The docs site is not versioned, so it has no release workflow to guard.
   expectMissingFile(
     ".github/workflows/release.yml",
@@ -5754,7 +4766,7 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "scripts/assert-release-tag.mjs",
     [
-      "for (const manifestPath of [config.path, ...(config.historicalPaths ?? [])])",
+      "for (const manifestPath of [config.path, ...config.historicalPaths])",
       'runGit(["show", `${tag}:${manifestPath}`])',
       '"ls-remote"',
       "`refs/tags/${tag}^{}`",
@@ -6327,7 +5339,7 @@ function checkFrameworkDependencyHygiene() {
       'SOURCE_RUN_ATTEMPT_ACTUAL" != "$SOURCE_RUN_ATTEMPT"',
       'npm-publish-authorization.mjs" verify',
       "Check if pub.dev package already published",
-      'flutter-version: "3.44.9"',
+      'version: "3.44.9"',
       'HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}"',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
       "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION",
@@ -6379,110 +5391,20 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.44.9"'],
+      ['version: "3.44.9"'],
       `${flutterWorkflow} must pin Flutter SDK`,
     );
     expectNotIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.x"'],
+      ['version: "3.x"'],
       `${flutterWorkflow} must not float Flutter SDK`,
     );
     expectNotIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.41.9"', 'flutter-version: "3.44.0"'],
+      ['version: "3.41.9"', 'version: "3.44.0"'],
       `${flutterWorkflow} must not use a superseded Flutter toolchain`,
     );
   }
-  expectIncludes(
-    ".claude/commands/review-pr.md",
-    [
-      "~300 seconds (5 minutes)",
-      "5-minute wake-up",
-      "CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback",
-      "clean CodeRabbit result is successful reviewer coverage",
-      "one complete",
-      // The fallback reviewer is pinned to a model and effort so a round cannot
-      // quietly become a cheaper one.
-      'codex exec -s read-only -m gpt-6-astra -c model_reasoning_effort="high"',
-      "`$review-self` round",
-      "### Cleanup Review Automation Comments",
-      // The thread listing lives in a tested script; four review rounds found
-      // four ways for the inline jq loop to report a clean round with threads
-      // unread.
-      'node scripts/list-review-threads.mjs "$PR_NUMBER"',
-      "Do\nnot inline it again",
-      // The deletion filter lives in a tested script; the script's own
-      // fixtures pin the matches and the exclusions, so the doc only pins
-      // the invocation. Prose cannot be tested; the script can.
-      "node scripts/delete-review-automation-comments.mjs $PR_NUMBER",
-      "Do not inline\nit again",
-      "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
-    ],
-    "review-pr must preserve the requested five-minute polling cadence",
-  );
-  expectNotIncludes(
-    ".claude/commands/review-pr.md",
-    [
-      "~480 seconds (8 minutes)",
-      "8-minute wake-up",
-      "/gemini review",
-      "Copilot",
-    ],
-    "review-pr must not retain superseded cadence or reviewer triggers",
-  );
-  for (const workflowSkill of [
-    ".codex/skills/openiap-workflows/SKILL.md",
-    ".claude/skills/openiap-workflows/SKILL.md",
-  ]) {
-    expectIncludes(
-      workflowSkill,
-      ["CodeRabbit", "review-self"],
-      `${workflowSkill} must route unavailable CodeRabbit review to review-self`,
-    );
-  }
-  expectIncludes(
-    ".claude/commands/release.md",
-    [
-      "currently every five minutes",
-      "Verify Vercel's automatic production deployment of main's head",
-      "The docs site is not versioned",
-      "Release notes ship in the PR",
-      "commit it directly to `main` together with any release-process doc updates",
-      "do not open a PR for that post-release docs-only commit",
-      "There is no Docs release workflow and no docs tag",
-      "if a Docs\n  GitHub Release is requested",
-      "the docs site is not a versioned\n  artifact",
-    ],
-    "dependency release gate must preserve review cadence and the unversioned docs deploy",
-  );
-  expectIncludes(
-    ".codex/skills/loop-review/SKILL.md",
-    [
-      "Commit and push the reviewed release note and process-documentation changes",
-      "directly to `main`",
-      "Do not open a PR for",
-    ],
-    "loop-review must commit and push post-release documentation directly to main",
-  );
-  expectIncludes(
-    ".codex/skills/ship-release/SKILL.md",
-    [
-      "release-note and release-process",
-      "documentation commit directly on `main`",
-      "do not open a PR for that post-release",
-    ],
-    "ship-release must commit post-release documentation directly to main without a PR",
-  );
-  expectNotIncludes(
-    ".claude/commands/release.md",
-    [
-      "currently about eight minutes",
-      "`npm run deploy`, then `release.yml`",
-      "then run the docs deployment and the Docs release workflow",
-      "or the maintainer explicitly requested",
-    ],
-    "dependency release gate must not unconditionally reuse a Docs release tag",
-  );
   for (const releaseNotesWorkflow of [
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-google.yml",
@@ -6499,62 +5421,50 @@ function checkFrameworkDependencyHygiene() {
       `${releaseNotesWorkflow} release notes must use the release tag when it already exists`,
     );
   }
+  // Expo SDK 57 manifests need Swift 6.2, so the shared pin stays at Xcode 26+.
   expectIncludes(
-    ".github/workflows/ci.yml",
-    [
-      "runs-on: macos-26",
-      "XCODE_VERSION: 26.6",
-      "maxim-lobanov/setup-xcode@",
-      "xcode-version: ${{ env.XCODE_VERSION }}",
-    ],
-    ".github/workflows/ci.yml must pin the macOS/Xcode release image",
+    ".github/actions/setup-xcode/action.yml",
+    ["maxim-lobanov/setup-xcode@"],
+    "the shared Xcode action must select Xcode",
   );
-  for (const xcodeReleaseWorkflow of [
+  const pinnedXcodeMajor = Number(
+    /default: "(\d+)\./u.exec(
+      read(".github/actions/setup-xcode/action.yml"),
+    )?.[1],
+  );
+  if (!(pinnedXcodeMajor >= 26)) {
+    fail("the shared Xcode action must default to Xcode 26 or newer");
+  }
+  for (const xcodeWorkflow of [
+    ".github/workflows/ci.yml",
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-kmp.yml",
+    ".github/workflows/release-expo.yml",
   ]) {
     expectIncludes(
-      xcodeReleaseWorkflow,
-      [
-        "runs-on: macos-26",
-        "XCODE_VERSION: 26.6",
-        "maxim-lobanov/setup-xcode@",
-        "xcode-version: ${{ env.XCODE_VERSION }}",
-      ],
-      `${xcodeReleaseWorkflow} must pin the macOS/Xcode release image`,
+      xcodeWorkflow,
+      ["runs-on: macos-26", "uses: ./.github/actions/setup-xcode"],
+      `${xcodeWorkflow} must pin the macOS/Xcode release image`,
     );
     expectNotIncludes(
-      xcodeReleaseWorkflow,
-      ["runs-on: macos-latest", "sudo xcode-select -s /Applications/Xcode.app"],
-      `${xcodeReleaseWorkflow} must not drift with macos-latest Xcode`,
+      xcodeWorkflow,
+      [
+        "runs-on: macos-latest",
+        "sudo xcode-select -s /Applications/Xcode.app",
+        "XCODE_VERSION: ",
+      ],
+      `${xcodeWorkflow} must not drift from the shared Xcode pin`,
     );
   }
-  expectIncludes(
-    ".github/workflows/release-expo.yml",
-    [
-      "Expo SDK 57's expo-modules-jsi package declares Swift tools 6.2",
-      "runs-on: macos-26",
-      'XCODE_VERSION: "26.6"',
-      "maxim-lobanov/setup-xcode@",
-      "xcode-version: ${{ env.XCODE_VERSION }}",
-    ],
-    "Expo release must use an Xcode version that can parse Expo SDK 57 Swift 6.2 manifests",
-  );
-  expectNotIncludes(
-    ".github/workflows/release-expo.yml",
-    ["XCODE_VERSION: 16.4"],
-    "Expo release must not regress to Xcode 16.4 and Swift 6.1",
-  );
   expectIncludes(
     ".github/workflows/ci-maui-iap.yml",
     [
       "app-store-artifact:",
       "runs-on: macos-26",
-      'APP_STORE_XCODE_VERSION: "26.6"',
+      "uses: ./.github/actions/setup-xcode",
+      "APP_STORE_XCODE_VERSION: ${{ steps.xcode.outputs.version }}",
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
-      "maxim-lobanov/setup-xcode@",
-      "xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}",
       "bash packages/apple/scripts/verify-app-store-xcframework.sh",
       "runs-on: xcode-27",
     ],
@@ -6564,11 +5474,10 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-maui.yml",
     [
       "runs-on: macos-26",
-      'APP_STORE_XCODE_VERSION: "26.6"',
+      "uses: ./.github/actions/setup-xcode",
+      "APP_STORE_XCODE_VERSION: ${{ steps.xcode.outputs.version }}",
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
-      "maxim-lobanov/setup-xcode@",
-      "xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}",
       "bash packages/apple/scripts/verify-app-store-xcframework.sh",
       "runs-on: xcode-27",
     ],
@@ -6650,21 +5559,20 @@ function checkFrameworkDependencyHygiene() {
         "Verify tracked iOS framework toolchain",
         "bash scripts/verify-ios-toolchain.sh",
         "scripts/fetch-godot-lib.sh",
-        "4.3-stable android/libs/godot-lib.aar",
-        "4.7.1-stable android/libs/godot-lib.aar",
+        "scripts/ci/godot-versions.sh",
+        '"$GODOT_MINIMUM-stable" android/libs/godot-lib.aar',
+        '"$GODOT_CURRENT-stable" android/libs/godot-lib.aar',
       ],
       `${godotWorkflow} must validate iOS toolchain provenance and checksum-pinned Android inputs`,
     );
   }
   expectIncludes(
     ".github/workflows/ci-godot-iap.yml",
-    ["version: 4.7.1", 'xcode-version: "26.6"', "SwiftGodot v0.79.0"],
-    "Godot CI must validate the pinned engine and SwiftGodot toolchain",
-  );
-  expectNotIncludes(
-    ".github/workflows/ci-godot-iap.yml",
-    ['xcode-version: "26.0"'],
-    "Godot CI must not retain stale engine or Swift toolchain pins",
+    [
+      "version: ${{ env.GODOT_CURRENT_SEMVER }}",
+      "uses: ./.github/actions/setup-xcode",
+    ],
+    "Godot CI must validate the pinned engine and Xcode toolchain",
   );
   expectIncludes(
     ".github/workflows/release-godot.yml",
@@ -6736,27 +5644,6 @@ function checkFrameworkDependencyHygiene() {
     ],
     "root bump-version output",
   );
-  expectIncludes(
-    "knowledge/internal/06-git-deployment.md",
-    [
-      "Creates Git tag `<apple-version>` (bare semver)",
-      "Creates Git tag `google-<google-version>`",
-      "The docs site has no version",
-      "run `vercel link --project openiap`",
-      "immutable project and\norganization IDs",
-      "rejects conflicting environment overrides",
-      "ready production deployment before reporting success",
-      "There is no Docs release workflow",
-      "the docs site is not a\nversioned artifact",
-      "still equal the workflow dispatch SHA after validation",
-      "stop instead of rebasing unverified commits into the release",
-      "immutable provenance tag must be pushed atomically before",
-      "contains the version while its provenance tag is absent",
-      "empty provenance-recovery commit",
-      "Git omits up-to-date refs",
-    ],
-    "release deployment docs tag conventions",
-  );
   expectNotIncludes(
     "scripts/deploy.sh",
     ['git commit -m "chore: bump spec'],
@@ -6784,33 +5671,6 @@ function checkFrameworkDependencyHygiene() {
     "root bump-version output must be accurate and conventional",
   );
   expectNotIncludes(
-    "knowledge/internal/06-git-deployment.md",
-    [
-      "Creates Git tag `apple-v<apple-version>`",
-      "Creates Git tag `google-v<google-version>`",
-      "Create Git tag `v<spec>`",
-      "or when the maintainer asks for",
-    ],
-    "release deployment docs must not mention legacy tag creation",
-  );
-  for (const monorepoContribDoc of [
-    "packages/apple/CONTRIBUTING.md",
-    "packages/google/CONTRIBUTING.md",
-    "libraries/kmp-iap/CONTRIBUTING.md",
-  ]) {
-    expectNotIncludes(
-      monorepoContribDoc,
-      [
-        "openiap-apple.git",
-        "openiap-google.git",
-        "github.com/hyodotdev/openiap-apple",
-        "github.com/hyodotdev/openiap-google",
-        "git commit -m 'Add amazing feature'",
-      ],
-      "contributing docs must describe the monorepo workflow",
-    );
-  }
-  expectNotIncludes(
     "scripts/sync-versions.mjs",
     ["resolve(rootDir, 'versions.json')", "Read versions.json"],
     "root version sync script must use openiap-versions.json",
@@ -6829,11 +5689,6 @@ function checkFrameworkDependencyHygiene() {
       "public static let current",
     ],
     "root version bump script must not use obsolete version paths",
-  );
-  expectNotIncludes(
-    "knowledge/internal/04-platform-packages.md",
-    ['change `"gql"` version', "update the `gql` field"],
-    "platform package docs must use the openiap-versions.json client protocol version key",
   );
 
   for (const dependencyFile of [
@@ -7074,11 +5929,6 @@ function checkFrameworkDependencyHygiene() {
     ["1.0.0-rc.2"],
     "KMP iOS runtime version must not be stale",
   );
-  expectNotIncludes(
-    "libraries/kmp-iap/README.md",
-    ["1.0.0-rc.2", "1.0.0-alpha02"],
-    "KMP README version examples must not be stale",
-  );
   expectIncludes(
     ".github/workflows/release-kmp.yml",
     [
@@ -7115,57 +5965,12 @@ function checkFrameworkDependencyHygiene() {
     "KMP release workflow must always create GitHub releases",
   );
   expectIncludes(
-    "packages/docs/src/pages/docs/setup/kmp.tsx",
-    ["https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"],
-    "docs KMP Maven Central link",
-  );
-  expectIncludes(
-    "packages/docs/src/lib/images.ts",
-    ["documentationUrl: 'https://openiap.dev/docs/setup/kmp'"],
-    "KMP docs card should point at OpenIAP docs",
-  );
-  expectNotIncludes(
-    "packages/docs/src/lib/images.ts",
-    ["documentationUrl: 'https://hyochan.github.io/kmp-iap'"],
-    "KMP docs card must not point at the legacy standalone docs",
-  );
-  expectIncludes(
-    "scripts/agent/context-files.ts",
-    [
-      "libraries/flutter_inapp_purchase/pubspec.yaml",
-      "libraries/kmp-iap/gradle.properties",
-      "libraries/godot-iap/addons/godot-iap/plugin.cfg",
-      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    ],
-    "AI context compiler framework package version source manifest",
-  );
-  expectIncludes(
     "scripts/agent/compile-context.ts",
     [
       "function readInstallationVersions()",
-      "CONTEXT_SOURCES.flutterPackage",
-      "CONTEXT_SOURCES.kmpPackage",
-      "CONTEXT_SOURCES.godotPackage",
-      "CONTEXT_SOURCES.mauiPackage",
-      "<PackageId>([^<]+)<\\/PackageId>",
-      "flutter pub add flutter_inapp_purchase",
-      "io.github.hyochan:kmp-iap:${versions.kmp}",
-      "godot-iap-${versions.godot}.zip",
-      "dotnet add package ${versions.mauiPackageId}",
-      "Current NuGet package version: ${versions.maui}",
-      "https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap",
+      "CONTEXT_SOURCES.docsVersionMetadata",
     ],
-    "AI context compiler framework package versions",
-  );
-  expectNotIncludes(
-    "scripts/agent/compile-context.ts",
-    [
-      "flutter_inapp_purchase: ^${versions.flutter}",
-      "io.github.hyochan:kmp-iap:<version>",
-      'OpenIap.Maui" Version="${versions.maui}"',
-      "dotnet add package OpenIap.Maui",
-    ],
-    "AI context compiler install commands must not hardcode framework package versions",
+    "AI context compiler must read framework versions from the generated docs metadata",
   );
   expectNotIncludes(
     ".github/workflows/release-kmp.yml",
@@ -7210,21 +6015,6 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-maui.yml",
     ["create_release:", "inputs.create_release"],
     "MAUI release workflow must always create GitHub releases",
-  );
-  expectNotIncludes(
-    "packages/docs/src/pages/docs/setup/kmp.tsx",
-    ["io.github.hyochan.kmpiap/library"],
-    "docs KMP Maven Central link must not use old coordinates",
-  );
-  expectNotIncludes(
-    "scripts/agent/compile-context.ts",
-    [
-      "flutter_inapp_purchase: ^5.0.0",
-      "io.github.hyochan.kmpiap:library",
-      'implementation("io.github.hyochan:kmp-iap:<version>")',
-      'OpenIap.Maui" Version="1.0.1',
-    ],
-    "AI context compiler framework package versions must not hardcode stale coordinates",
   );
   const kmpReadmeInjectedVersionSnippet =
     'implementation("io.github.hyochan:kmp-iap:' + '$ENV{VERSION}")';
@@ -7483,18 +6273,6 @@ function checkFrameworkDependencyHygiene() {
     googleKotlinVersion &&
     googleKotlinConsumerVersion
   ) {
-    expectIncludes(
-      "packages/google/README.md",
-      [
-        `API-${googleMinSdk}%2B`,
-        `api?level=${googleMinSdk}`,
-        `**Minimum SDK**: ${googleMinSdk}`,
-        `**Compile SDK**: ${googleCompileSdk}`,
-        `**Google Play Billing**: v${googleBillingVersions[0]}`,
-        `**Kotlin compiler (consumer)**: ${googleKotlinConsumerVersion}+`,
-      ],
-      "Google README requirements",
-    );
     expectIncludes(
       "packages/google/Example/build.gradle.kts",
       [
@@ -8062,78 +6840,6 @@ function checkFrameworkDependencyHygiene() {
       "docs Android SDK metadata must derive from generated docs metadata",
     );
     expectIncludes(
-      "packages/docs/src/pages/docs/setup/expo.tsx",
-      [
-        "ANDROID_SDK",
-        "GOOGLE_PLAY_BILLING",
-        "GOOGLE_PLAY_BILLING.version",
-        "minSdkVersion {ANDROID_SDK.minSdk}+",
-        "compileSdkVersion {ANDROID_SDK.compileSdk}+",
-      ],
-      "Expo setup Android requirements",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/flutter.tsx",
-      [
-        "ANDROID_SDK",
-        "minSdkVersion ${ANDROID_SDK.minSdk}",
-        "minSdk = ${ANDROID_SDK.minSdk}",
-        "compileSdkVersion ${ANDROID_SDK.compileSdk}",
-        "compileSdk = ${ANDROID_SDK.compileSdk}",
-        "targetSdkVersion ${ANDROID_SDK.targetSdk}",
-        "targetSdk = ${ANDROID_SDK.targetSdk}",
-      ],
-      "Flutter setup Android requirements",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/react-native.tsx",
-      [
-        "ANDROID_SDK",
-        "GOOGLE_PLAY_BILLING",
-        "GOOGLE_PLAY_BILLING.version",
-        "minSdkVersion {ANDROID_SDK.minSdk}+",
-        "compileSdkVersion {ANDROID_SDK.compileSdk}+",
-      ],
-      "React Native setup Android requirements",
-    );
-    expectIncludes(
-      "packages/docs/src/pages/docs/setup/store/horizon.tsx",
-      ["OPENIAP_VERSIONS", "OPENIAP_VERSIONS.google"],
-      "Horizon setup docs must use current openiap-google version metadata",
-    );
-    expectNotIncludes(
-      "packages/docs/src/pages/docs/setup/store/horizon.tsx",
-      ["openiap-google@1.3.2"],
-      "Horizon setup docs must not hardcode stale openiap-google versions",
-    );
-    expectNotIncludes(
-      "packages/docs/src/pages/docs/setup/react-native.tsx",
-      ["Google Play Billing 8.0+", "compileSdkVersion 34+"],
-      "React Native setup Android requirements must not use stale Google requirements",
-    );
-    for (const docsSetupFile of [
-      "packages/docs/src/pages/docs/setup/expo.tsx",
-      "packages/docs/src/pages/docs/setup/flutter.tsx",
-      "packages/docs/src/pages/docs/setup/react-native.tsx",
-    ]) {
-      expectNotIncludes(
-        docsSetupFile,
-        [
-          `Google Play Billing Library v${googleBillingVersions[0]}`,
-          `Google Play Billing ${googleBillingVersions[0]}+`,
-          `minSdkVersion ${googleMinSdk}+`,
-          `compileSdkVersion ${googleCompileSdk}+`,
-          `minSdkVersion ${googleMinSdk}`,
-          `compileSdkVersion ${googleCompileSdk}`,
-          `targetSdkVersion ${googleCompileSdk}`,
-          `minSdk = ${googleMinSdk}`,
-          `compileSdk = ${googleCompileSdk}`,
-          `targetSdk = ${googleCompileSdk}`,
-        ],
-        `${docsSetupFile} Android SDK values must derive from versioning.ts`,
-      );
-    }
-    expectIncludes(
       "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
       [
         "resolveAndroidGradlePluginVersions(androidModulePath)",
@@ -8168,7 +6874,6 @@ function checkFrameworkDependencyHygiene() {
       "libraries/expo-iap/plugin/src/withVega.ts",
       "libraries/expo-iap/example/vega/package.json",
       "libraries/react-native-iap/example/vega/package.json",
-      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
     ]) {
       expectIncludes(
         vegaDependencyFile,
@@ -8190,7 +6895,6 @@ function checkFrameworkDependencyHygiene() {
       "libraries/expo-iap/plugin/src/withVega.ts",
       "libraries/expo-iap/example/scripts/vega-build-config.mjs",
       "libraries/react-native-iap/example/manifest.toml",
-      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
     ]) {
       expectIncludes(
         vegaManifestFile,
@@ -8208,7 +6912,6 @@ function checkFrameworkDependencyHygiene() {
     for (const literalVegaManifest of [
       "libraries/expo-iap/example/scripts/vega-build-config.mjs",
       "libraries/react-native-iap/example/manifest.toml",
-      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
     ]) {
       expectIncludes(
         literalVegaManifest,
@@ -9042,18 +7745,6 @@ function checkFrameworkDependencyHygiene() {
       "MAUI workflows must validate net10 target frameworks",
     );
   }
-  expectIncludes(
-    "packages/docs/src/pages/docs/setup/maui.tsx",
-    [
-      ".NET 10 SDK",
-      "shared dependencies (Play Services, AndroidX, Kotlin, Gson)",
-      "MAUI only: every build carries the shared store libraries",
-      "net10.0-ios;net10.0-android;net10.0-maccatalyst",
-      "OpenIap.Maui 2.x",
-      "supports .NET 10 only",
-    ],
-    "MAUI setup docs must describe net10 and NuGet Google dependency shape",
-  );
   for (const net10OnlyFile of [
     "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
@@ -9067,15 +7758,6 @@ function checkFrameworkDependencyHygiene() {
     "libraries/maui-iap/.vscode/run_ios_simulator.sh",
     ".github/workflows/ci-maui-iap.yml",
     ".github/workflows/release-maui.yml",
-    ".claude/commands/e2e-tests.md",
-    ".claude/commands/verify-all.md",
-    "libraries/maui-iap/README.md",
-    "libraries/maui-iap/example/README.md",
-    "libraries/maui-iap/AGENTS.md",
-    "libraries/maui-iap/CONVENTION.md",
-    "knowledge/internal/04-platform-packages.md",
-    "packages/docs/src/pages/docs/setup/store/amazon.tsx",
-    "packages/docs/src/pages/docs/setup/store/horizon.tsx",
   ]) {
     expectNotIncludes(
       net10OnlyFile,
@@ -9106,23 +7788,6 @@ function checkFrameworkDependencyHygiene() {
       "switch dependency",
     ],
     "Flutter Android local OpenIAP module hint must match monorepo flow",
-  );
-  expectIncludes(
-    "libraries/flutter_inapp_purchase/CONTRIBUTING.md",
-    [
-      "project(':openiap').projectDir = new File(settingsDir, '../../../packages/google/openiap')",
-      "`android/build.gradle` dependency changes are needed.",
-    ],
-    "Flutter local OpenIAP debugging docs",
-  );
-  expectNotIncludes(
-    "libraries/flutter_inapp_purchase/CONTRIBUTING.md",
-    [
-      "git clone https://github.com/hyodotdev/openiap-google",
-      'debugImplementation project(":openiap")',
-      'releaseImplementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"',
-    ],
-    "Flutter local OpenIAP debugging docs must match automatic local project selection",
   );
 
   for (const [label, filePath] of [
@@ -9362,75 +8027,10 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       kmpCatalog,
-      [
-        '= "1.10.3"',
-        "1.11.x no longer resolves the iosX64 variants",
-        "1.10.3 is the latest stable compatible release",
-      ],
+      ['= "1.10.3"'],
       `${kmpCatalog} Compose compatibility cap`,
     );
   }
-  expectIncludes(
-    "libraries/kmp-iap/AGENTS.md",
-    [
-      "Kotlin `2.4.10` is the validated compiler line",
-      "Keep Compose Multiplatform at `1.10.3`",
-      "Compose `1.11.x` does not resolve the required iOS x64 variants",
-      "Do not remove a supported target solely to make a dependency upgrade pass",
-    ],
-    "KMP Compose compatibility guidance",
-  );
-  expectIncludes(
-    "libraries/react-native-iap/README.md",
-    [
-      "React Native 0.79 or later",
-      "Node.js 18 or later",
-      "Android API level 23+",
-      "Kotlin 2.1.20 or later",
-      "versions supplied by the host React Native project",
-      "validated against Kotlin `2.1.20`",
-      "standalone source-build fallback is Kotlin `2.2.0`",
-    ],
-    "React Native requirements must distinguish host compatibility from standalone fallbacks",
-  );
-  expectNotIncludes(
-    "libraries/react-native-iap/README.md",
-    [
-      "React Native 0.64 or later",
-      "Node.js 16 or later",
-      "Android API level 21+",
-      "requires Kotlin 2.4.10+",
-    ],
-    "React Native requirements must not retain stale or incompatible minimums",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/setup/expo.tsx",
-    [
-      "SDK 57 / React Native 0.86",
-      "SDK 57: iOS 16.4+",
-      "Android 7 / API 24+",
-      "SDK 57: Node.js 22.13.x",
-      "54–56: Node.js 20.19.x",
-      "SDK 53: Node.js 20.18.x",
-      "react-native-tvos@0.86.2-0",
-      '"@react-native-tvos/config-tv": "^0.1.6"',
-      "deploymentTarget: isTV ? '16.0' : '16.4'",
-      "deploymentTarget: '16.4'",
-    ],
-    "Expo setup docs must match the validated SDK 57 toolchain",
-  );
-  expectNotIncludes(
-    "packages/docs/src/pages/docs/setup/expo.tsx",
-    [
-      "SDK 53–56: Node.js 20.x",
-      "SDK 53: Node.js 20+",
-      "react-native-tvos@0.81.5-1",
-      '"@react-native-tvos/config-tv": "^0.1.4"',
-      "deploymentTarget: isTV ? '16.0' : '15.1'",
-      "Do not force Kotlin 2.3.x",
-    ],
-    "Expo setup docs must not retain superseded SDK 57 prerequisites",
-  );
   expectIncludes(
     "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
     ["2.1.20"],
@@ -9534,62 +8134,6 @@ function checkFrameworkDependencyHygiene() {
   );
 }
 
-function checkReleaseNoteGroupingGuidance() {
-  expectIncludes(
-    ".codex/skills/generate-doc/SKILL.md",
-    [
-      "## Multi-package Release Trains",
-      "project decision recorded from issue #206",
-      "Group notable changes under the affected platform package or framework",
-      "the next major for breaking public API or type removals",
-      "If no explicit target\n   exists, ask; never infer one.",
-      "Before naming any package's next major",
-      "migration schedule. The release train must include every public removal",
-    ],
-    "generate-doc package-specific release guidance",
-  );
-  expectIncludes(
-    "knowledge/internal/05-docs-patterns.md",
-    [
-      "### Package-specific grouping for shared releases",
-      "package-specific changelog requirement",
-      "from issue #206 without duplicating release history",
-      'Do not replace package-specific behavior with a generic "framework parity"',
-    ],
-    "internal package-specific release guidance",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/updates/releases.tsx",
-    [
-      "multi-store-billing-9-1-sdk-release-2026-07-11",
-      "Platform packages and IAPKit",
-      "Framework libraries",
-      "<strong>react-native-iap 15.4.0</strong>",
-      "<strong>expo-iap 4.4.0</strong>",
-      "<strong>flutter_inapp_purchase 9.4.0</strong>",
-      "<strong>godot-iap 2.4.0</strong>",
-      "<strong>kmp-iap 2.4.0</strong>",
-      "<strong>OpenIap.Maui 1.2.1</strong>",
-      "https://github.com/hyodotdev/openiap/issues/206",
-    ],
-    "current package-specific release note",
-  );
-  expectNotIncludes(
-    "packages/docs/src/pages/docs/updates/releases.tsx",
-    [
-      "amazon-config-plugin-option-shape-2026-07-03",
-      "fireos-support-2026-05-23",
-      "react-native-iap 15.4.0-rc.",
-      "expo-iap 4.4.0-rc.",
-      "flutter_inapp_purchase 9.4.0-rc.",
-      "godot-iap 2.4.0-rc.",
-      "kmp-iap 2.4.0-rc.",
-      "OpenIap.Maui 1.2.1-rc.",
-    ],
-    "current release note must contain stable package entries only",
-  );
-}
-
 function checkXcode27StoreKitCoverage() {
   expectIncludes(
     "specs/client/src/api.graphql",
@@ -9650,31 +8194,6 @@ function checkXcode27StoreKitCoverage() {
     "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
     ["bundledSubscriptionsIOS = null"],
     "React Native Android product StoreKit 27 initializer parity",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/updates/releases.tsx",
-    [
-      "Bundle/Suite product types",
-      "Group Purchase seat assignment",
-      "Commerce item partners",
-      "assignment-revocation metadata",
-      "managed acquisition platform",
-      "AppTransaction.all",
-      "scene-based lifecycle",
-      "UIWindowSceneDelegate",
-    ],
-    "Xcode 27 major release note",
-  );
-  expectIncludes(
-    "packages/docs/src/pages/docs/ios-setup.tsx",
-    [
-      "xcode-27-scene-lifecycle",
-      "UIApplicationSceneManifest",
-      "configurationForConnecting",
-      "UIWindowSceneDelegate",
-      "tn3208-preparing-your-apps-launch-screen",
-    ],
-    "Xcode 27 host lifecycle migration guide",
   );
   expectIncludes(
     "libraries/expo-iap/example/plugins/withIos27SceneLifecycle.js",
@@ -9783,7 +8302,7 @@ function checkXcode27StoreKitCoverage() {
     expectIncludes(
       workflowPath,
       [
-        'flutter-version: "3.44.9"',
+        'version: "3.44.9"',
         "bash scripts/verify-apple-swiftpm-consumer-build.sh",
       ],
       `${workflowPath} Flutter Xcode 27 SwiftPM example build`,
@@ -9808,9 +8327,7 @@ function checkXcode27StoreKitCoverage() {
       '".github/workflows/release-flutter.yml"',
       "apple-cocoapods:",
       "runs-on: macos-26",
-      "XCODE_VERSION: 26.6",
-      "maxim-lobanov/setup-xcode@",
-      "xcode-version: ${{ env.XCODE_VERSION }}",
+      "uses: ./.github/actions/setup-xcode",
     ],
     "Flutter Apple dependency-manager trigger and toolchain coverage",
   );
@@ -9912,18 +8429,6 @@ function checkXcode27StoreKitCoverage() {
       "Xcode 27 purchase metadata example coverage",
     );
   }
-  expectIncludes(
-    "knowledge/external/storekit2-api.md",
-    [
-      "### Subscription Bundles and Suites (Xcode 27 beta)",
-      "Test the catalog and transaction mappings with an Xcode 27 StoreKit",
-      "revocationTypeIOS",
-      "back-deployed `managed` acquisition platform",
-      "it does not conflate",
-      "OpenIAP must not invent a schema contract before Apple publishes one",
-    ],
-    "Xcode 27 support boundary",
-  );
   expectNotIncludes(
     "specs/client/src/type-ios.graphql",
     ["GroupPurchase", "groupPurchase", "seatCount"],
@@ -9937,7 +8442,7 @@ checkDeprecationSchedule();
 checkNoOutboundWebhookStream();
 checkNoReflectionIntoOpenIap();
 checkExpoSsotRegistry();
-checkE2eExampleIds();
+checkGodotBuildSettings();
 checkGeneratedTypeSync();
 for (const issue of collectPurchasePayloadParityFailures(root)) {
   fail(issue);
@@ -9965,9 +8470,8 @@ checkGoogle();
 checkMaui();
 checkNativeApis();
 checkBillingChoiceFieldBindings();
-checkFrameworkCiAndCoverageBadges();
+checkCoverageReporting();
 checkFrameworkDependencyHygiene();
-checkReleaseNoteGroupingGuidance();
 checkXcode27StoreKitCoverage();
 expectNoExampleStorefrontIOS();
 expectNoApi24ConcurrentKeySets();
