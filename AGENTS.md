@@ -1,23 +1,23 @@
 # OpenIAP Monorepo - Agent Guidelines
 
-This document provides an overview for AI agents working across the OpenIAP monorepo.
-
-**All detailed rules are in the `knowledge/internal/` folder** - this is the Single Source of Truth (SSOT).
+Instructions for AI agents working in the OpenIAP monorepo. Detailed rules live
+in `knowledge/internal/`, the Single Source of Truth (SSOT); this file routes to
+them. Human contributors start at [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick Reference
 
-| Topic                       | File                                                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Naming Conventions          | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                                                    |
-| Architecture                | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                                                |
-| Coding Style                | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                                                |
-| Platform Packages           | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) (run `bun audit:parity` before commits; pre-commit mirrors CI's SDK parity job)      |
-| Docs Patterns               | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                              |
-| Git & Deployment            | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                            |
-| Docs Consistency / SSOT     | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                               |
-| Fact Graph (Declared Facts) | [`knowledge/internal/08-fact-graph.md`](knowledge/internal/08-fact-graph.md) (run `bun audit:facts` after bumping a tool version or runner image)                               |
-| Community Touchpoints       | [`knowledge/internal/09-community-touchpoints.md`](knowledge/internal/09-community-touchpoints.md) (first-purchase notice, assistant note, README section; one source of truth) |
-| Research References         | [`knowledge/research/README.md`](knowledge/research/README.md) (paper registry and evidence-backed engineering backlog)                                                         |
+| Topic                   | File                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming Conventions      | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                                                    |
+| Architecture            | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                                                |
+| Coding Style            | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                                                |
+| Platform Packages       | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) (run `bun audit:parity` before commits; CI runs the same SDK parity job)             |
+| Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                              |
+| Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                            |
+| Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                               |
+| Community Touchpoints   | [`knowledge/internal/09-community-touchpoints.md`](knowledge/internal/09-community-touchpoints.md) (first-purchase notice, assistant note, README section; one source of truth) |
+| Agent Tooling           | [`knowledge/internal/10-agent-tooling.md`](knowledge/internal/10-agent-tooling.md) (per-tool setup, compiled context, skills and slash commands)                                |
+| Research References     | [`knowledge/research/README.md`](knowledge/research/README.md) (paper registry and evidence-backed engineering backlog)                                                         |
 
 ## Monorepo Structure
 
@@ -75,95 +75,58 @@ openiap/
 
 ## Key Rules Summary
 
-### Public Collaboration Language
+### Code and Docs Quality
 
-All repository-authored public GitHub content must be written in English.
-Before posting or editing issues, pull requests, reviews, discussions, commits,
-release notes, or GitHub Releases, follow the mandatory language guard in
-[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-language).
-
-### GitHub Labels
-
-Creating or updating an issue, Discussion or PR also applies the shared
-[GitHub Labels policy](knowledge/internal/06-git-deployment.md#github-labels).
-Use `$github-labels` for its workflow; label selection is part of completion.
-
-### KISS and SSOT
-
-KISS and SSOT are mandatory release criteria. The canonical rules live in
-[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements).
-Apply that section before implementation and during every review.
-
-### Clean Up Once It Works
-
-Once a change works, reread the diff for code smells — duplication, redundant
-fallbacks, `as any`, stale comments — and fix them without being asked,
-including ones you run into in code the change does not touch. Never write
-`as any`. The checklist is in
-[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#clean-up-once-it-works).
-
-### Repository Layout
-
-Treat the directory ownership rules in
-[`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md#directory-ownership-guardrail)
-as mandatory. Extend the existing owner instead of creating a parallel root
-directory, and run `bun run audit:layout` after adding or moving directories.
-
-### Comment Style
-
-Keep comments short — default to one line — and write them for a person reading
-the code cold: the point first, plain words, one idea. AI-authored comments
-over-explain by default, so trim before committing: no restating the code, no
-narrating the change or its history (that belongs in the commit message), no
-explaining well-known APIs. Keep only what the code cannot show: platform
-quirks, non-obvious constraints, and why an obvious alternative was rejected.
-Trim a verbose comment wherever you meet one, not only in your own change. Full
-checklist in
-[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#keep-them-short--especially-ai-generated-ones).
-
-### Reader-First Documentation
-
-Write every user-facing document for scanning and action. Lead with the outcome,
-state each fact once, and remove filler, implementation narration, repeated
-cross-package boilerplate, and detail that does not change user behavior. Keep
-required compatibility, migration, safety, and platform caveats. Apply the
-canonical standard in
-[`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#reader-first-writing-standard),
-including its stricter release-note limits.
+- **KISS and SSOT** are release criteria; apply
+  [the canonical rules](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements)
+  before implementation and during every review.
+- **Clean up once it works**: reread the diff for duplication, redundant
+  fallbacks, and stale comments, and fix smells you meet even outside the
+  change. Never write `as any`.
+  [Checklist](knowledge/internal/03-coding-style.md#clean-up-once-it-works).
+- **Comments**: one line by default, point first, plain words; keep only what
+  the code cannot show.
+  [Checklist](knowledge/internal/03-coding-style.md#keep-them-short--especially-ai-generated-ones).
+- **Docs**: lead with the outcome, state each fact once, keep required caveats.
+  Apply the
+  [Reader-First Writing Standard](knowledge/internal/05-docs-patterns.md#reader-first-writing-standard).
+- **Layout**: extend the existing owner instead of adding a parallel root
+  directory, per the
+  [Directory Ownership Guardrail](knowledge/internal/02-architecture.md#directory-ownership-guardrail);
+  run `bun run audit:layout` after moving directories.
 
 ### Docs Ship With The Change
 
 A PR into `main` that changes a published package also updates the guides it
 affects and the release card for the next version, written as already
-published. Before creating or updating a PR, declaring review clean, or
-releasing, apply the
-[`Release Note Completeness Gate`](knowledge/internal/05-docs-patterns.md#release-note-completeness-gate),
-including both protocols and the CLI when affected. After the release, verify
-the versions and deploy. Canonical rule in
-[`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#docs-ship-with-the-change).
+published. Apply the
+[Release Note Completeness Gate](knowledge/internal/05-docs-patterns.md#release-note-completeness-gate)
+before creating or updating a PR, declaring review clean, or releasing. On PRs
+from outside contributors the maintainer adds the card.
 
-### GitHub Writing Style
+### Public GitHub Writing
 
-Write pull request bodies, review replies, issue comments, and release text the
-way a maintainer would explain the change to a colleague. Lead with what changed
-and why it matters, keep sentences short and words ordinary, and cut anything
-that does not change what the reader does next. A PR body is a few short
-paragraphs, thirty lines at the outside;
-a review reply is one to three sentences, outcome first. No preamble, no
-investigation narrative, no thanking-and-summarising. Canonical rules in
-[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-style).
+- Everything posted to GitHub (issues, PRs, reviews, Discussions, commits,
+  release notes) is in English; follow the
+  [language guard](knowledge/internal/06-git-deployment.md#public-github-communication-language).
+- Write like a maintainer explaining the change to a colleague: what changed
+  and why, short sentences, no preamble or investigation narrative. A PR body
+  is a few short paragraphs (thirty lines at most); a review reply is one to
+  three sentences. [Style rules](knowledge/internal/06-git-deployment.md#public-github-communication-style).
+- Creating or updating an issue, Discussion, or PR includes choosing its
+  labels with `$github-labels` per the
+  [GitHub Labels policy](knowledge/internal/06-git-deployment.md#github-labels).
 
 ### Opening Pull Requests
 
-Open a new PR only when the maintainer explicitly requests it. Permission for
-one PR, or to continue, merge, or release, does not authorize follow-up PRs.
-Keep small fixes in the relevant open PR and verify them together before
-merging. Leave unrelated PRs alone. A small docs fix with no open PR is a
-one-line question about committing straight to `main`.
-Claude Code holds PR creation for approval in sessions started at the root or
-in a folder with its own `.claude/` (`scripts/guard-pull-request.mjs`).
-Canonical rule in
-[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#opening-pull-requests).
+This rule binds AI agents and maintainer sessions; human contributors are
+welcome to open PRs. Open a new PR only when the maintainer explicitly requests
+it. Permission for one PR, or to continue, merge, or release, does not
+authorize follow-up PRs. Keep small fixes in the relevant open PR, and leave
+unrelated PRs alone. A small docs fix with no open PR is a one-line question
+about committing straight to `main`. Claude Code holds PR creation for approval
+(`scripts/guard-pull-request.mjs`).
+[Canonical rule](knowledge/internal/06-git-deployment.md#opening-pull-requests).
 
 ### Platform Function Naming
 
@@ -180,282 +143,62 @@ Report unavailable checks as `BLOCKED` (unverified), never as passed.
 
 ### Production Data Guardrail
 
-- **Never run a mutation, action, or any write against a production
-  deployment.** This includes the Convex dashboard function runner, the Convex
-  CLI (`npx convex run --prod`), and any HTTP call to a production endpoint that
-  is not a plain read. The dashboard's runner preselects whatever function it
-  used last — which has included destructive mutations such as
-  `drainAccountDeletionBatch` — so confirm the selected function before you
-  press Run, and prefer not opening the runner at all.
-- Reading production is allowed when the user asks for it: table views, row
-  counts, logs, and health. Report aggregates and never copy customer emails or
-  other personal data into a transcript, commit, or issue.
-- Never edit, insert, or delete a document from the production data browser.
-  Schema and data changes ship through a reviewed deploy, not by hand.
-- The **dev** deployment is the place to try things. If a check genuinely needs
-  a query that is not deployed, add it to `packages/kit/convex`, exercise it on
-  dev, and let it reach production through the normal deploy.
-- If you are unsure which deployment is selected, stop and confirm. The Convex
-  dashboard shows it next to the project name, for example
-  `Production • healthy-kudu-836`.
+- **Never write to a production deployment**: no mutation or action from the
+  Convex dashboard runner or `npx convex run --prod`, and no HTTP call that is
+  not a plain read. The dashboard runner preselects the last function used,
+  which has included `drainAccountDeletionBatch`; avoid opening it.
+- Never edit, insert, or delete documents in the production data browser.
+  Schema and data changes ship through a reviewed deploy.
+- Read production only when asked (tables, counts, logs, health), report
+  aggregates, and never copy customer emails or other personal data anywhere.
+- Try things on the **dev** deployment; a missing query is added to
+  `packages/kit/convex` and reaches production through the normal deploy.
+- Unsure which deployment is selected? Stop and confirm; the dashboard shows
+  it next to the project name (e.g. `Production • healthy-kudu-836`).
 
 ### Webhook Direction Guardrail
 
-- Supported webhook directions are **store → IAPKit** (Apple App Store Server
-  Notifications and Google Play RTDN enter IAPKit and update its backend state)
-  and **IAPKit → developer backend** (normalized commerce events pushed to an
-  HTTPS endpoint a project owner registered). Both are server-to-server.
-- Never add an **IAPKit → SDK/mobile** webhook stream, SSE endpoint, WebSocket,
-  push relay, or long-poll event feed. Mobile SDKs use bounded request/response
-  verification and scoped status or entitlement reads. The Commerce Protocol
-  GraphQL binding is bounded request/response too: it defines no Subscription
-  root, and the spec compiler rejects one.
-- If a product needs device push notifications, the developer's authenticated
-  backend owns that delivery. Do not expose project-wide lifecycle events or a
-  secret key to a shipped app.
-- `bun audit:parity` enforces the removed outbound-stream files and public
-  identifiers. Do not weaken that audit to reintroduce the feature.
+Webhooks run server-to-server only: store → IAPKit, and IAPKit → a developer
+backend the project owner registered. Never add an IAPKit → SDK/mobile webhook
+stream, SSE endpoint, WebSocket, push relay, or long-poll feed; device push
+belongs to the developer's backend. `bun audit:parity` enforces this. See
+[IAPKit webhook boundary](knowledge/internal/02-architecture.md#iapkit-webhook-boundary).
 
 ### Auto-Generated Files (DO NOT EDIT)
 
-- `specs/client/src/generated/*` - Generated type outputs; never edit directly
-- `packages/apple/Sources/OpenIapGeneratedVersion.swift` - Synced from `openiap-versions.json`
-- `packages/apple/Sources/Models/Types.swift` - Synced from GQL
-- `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt` - Synced from GQL
-- `libraries/react-native-iap/src/types.ts` - Synced from GQL
-- `libraries/expo-iap/src/types.ts` - Synced from GQL
-- `libraries/flutter_inapp_purchase/lib/types.dart` - Synced from GQL
-- `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
-- `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
-- `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
-- `openiap-versions.json` - Tracks only `clientProtocol`, `google`, and `apple`.
-  All package version upgrades are CI-only, including the Client Protocol
-  manifest and generated mirrors. Feature work must not change version fields.
-  Follow [Version File Management](knowledge/internal/06-git-deployment.md#version-file-management).
-  `specs/client/package.json` remains the Client Protocol version SSOT; release
-  CI regenerates the mirror, lockfile, and derived metadata in one commit.
+Never edit these by hand. `cd specs/client && bun run generate` regenerates
+them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 
-Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
-MAUI) live in their own package metadata / release workflows. Do not add
-framework-library version keys to `openiap-versions.json`.
+- `specs/client/src/generated/*`
+- `packages/apple/Sources/Models/Types.swift`
+- `packages/apple/Sources/OpenIapGeneratedVersion.swift` (from `openiap-versions.json`)
+- `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
+- `libraries/react-native-iap/src/types.ts`
+- `libraries/expo-iap/src/types.ts`
+- `libraries/flutter_inapp_purchase/lib/types.dart`
+- `libraries/godot-iap/addons/godot-iap/types.gd`
+- `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
+- `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
 
-When writing release notes or `Package Releases` lists, verify framework
-versions from each library's metadata and verify published links with GitHub
-release tags. Do not infer framework versions from `openiap-versions.json` or
-copy nearby release blocks without checking the actual package/tag.
+`openiap-versions.json` tracks only `clientProtocol`, `google`, and `apple`, and
+only release CI changes it; feature work never edits version fields. Framework
+library versions live in each library's own metadata. See
+[Version File Management](knowledge/internal/06-git-deployment.md#version-file-management).
 
-Regenerate and sync types:
+### Commits and Releases
 
-```bash
-cd specs/client && bun run generate  # Generate every language and sync every manifest target
-```
+- Commit format: `feat: add new feature` with a tag (lowercase after it),
+  `Add new feature` without one. Scopes are in
+  [Git Commit Message Format](knowledge/internal/06-git-deployment.md#git-commit-message-format).
+- Package releases run from `main` through explicit workflow dispatches;
+  merging publishes nothing, and Vercel deploys docs from `main`. Read
+  `.claude/commands/release.md` before any deployment, and never reset or
+  delete the historical `next` branch without approval. Policy:
+  [Main And Release Channels](knowledge/internal/06-git-deployment.md#main-and-release-channels).
 
-### Client Specification Code Generation System
+## Agent Tooling
 
-Types come from two guarded lanes over the same schema: graphql-codegen for
-TypeScript, and Parser → IR → language plugins for Swift, Kotlin, Dart,
-GDScript, and C#. The lanes, plugins, and sync manifest are documented in
-[`specs/client/CONVENTION.md`](specs/client/CONVENTION.md).
-
-### Git Commit Format
-
-- With tag: `feat: add new feature` (lowercase after tag)
-- Without tag: `Add new feature` (uppercase first letter)
-
-### Release Branch Policy
-
-- `main` owns reviewed source and stable or prerelease package metadata.
-  Stable and RC package releases run from `main` through explicit dispatches.
-- Select the prerelease lane for RC versions and npm `next`, or the stable lane
-  for the target without an RC suffix and npm `latest`. Merging source does not
-  publish a package.
-- Vercel automatically deploys production docs from `main`, including RC
-  metadata. Documentation deployment does not publish packages.
-- Historical `next` tags and their branch remain for verification and SBOM
-  recovery. Do not reset or delete that branch without explicit approval.
-- Read `.claude/commands/release.md` before any package deployment.
-
-## Shared Agent Context
-
-```bash
-cd scripts/agent
-
-# Compile shared context for AI assistants (no Ollama required)
-bun run compile:ai
-
-# Or compile for both AI assistants + Local RAG
-bun run compile
-```
-
-## Shared Agent Configuration
-
-`AGENTS.md` is the root project instruction SSOT. Codex, Grok, and Muse read
-it directly; `CLAUDE.md` and `GEMINI.md` are compatibility symlinks to the same
-file. Every framework library follows the same pattern with a local canonical
-`AGENTS.md`. The `.claude/commands/`, `.claude/skills/`, `.codex/skills/`, and
-`.cursor/rules/` files remain thin tool-discovery adapters where their host
-formats genuinely differ; they must route back to the shared instructions and
-workflow sources instead of copying project policy.
-
-The canonical compiled reference is
-`knowledge/_agent-context/context.md`. It supports audits, local RAG, and
-on-demand reading; assistant project rules are discovered through the root
-instruction files above. The legacy `knowledge/_claude-context` path is a
-compatibility symlink, so existing paths continue to work without creating a
-second generated copy.
-
-## Codex Compatibility
-
-Codex supports Skills through `SKILL.md` folders. This repo provides
-Codex-compatible local skills in `.codex/skills/`, including
-`openiap-workflows` for mapping Claude slash-command workflows and `review-self`
-for repeated self-review of current work.
-
-Codex discovers `review-self` and `loop-review` from this repository. Install
-the globally unique skills (`openiap-workflows` and `generate-doc`) into your
-local Codex home when needed:
-
-```bash
-./.codex/scripts/install-skills.sh
-```
-
-After installation, ask Codex normally (for example, "review PR 65" or
-"resolve issue 88"), or explicitly mention `$openiap-workflows` or
-`$review-self`.
-
-Keep `$review-self`, `$loop-review`, and `$ship-release` repo-local. Their review,
-merge, and release-safety policies are project-specific; globally linking them
-could apply the wrong repository workflow elsewhere.
-
-## Grok Compatibility
-
-Grok Build reads the repository's `AGENTS.md` hierarchy directly and supports
-the Claude Code command, skill, plugin, and marketplace layout. Do not add a
-parallel `GROK.md`; keep shared rules in `AGENTS.md` and tool-specific adapters
-thin. See the [xAI skills and plugins documentation](https://docs.x.ai/build/features/skills-plugins-marketplaces).
-
-## Muse Compatibility
-
-Muse reads the repository's `AGENTS.md` hierarchy directly (`muse init`
-scaffolds `AGENTS.md` as the project-rules file) and auto-discovers
-`.codex/skills/*/SKILL.md` as project skills — verify with
-`muse skills list --source project`; no `muse skills import` step is needed.
-Do not add a parallel `MUSE.md` or a `.muse/skills/` mirror. Keep the
-canonical `.codex/skills/` bodies agent-neutral so Codex, Muse, and the
-Claude adapters read the same text; where a skill names a Codex-only tool
-(Chrome extension, Codex fallback reviewer), Muse reads it as the
-host-surface equivalent, or stops and asks the maintainer when none exists.
-
-To give Muse the IAPKit MCP server, add the endpoint to
-`${XDG_CONFIG_HOME:-$HOME/.config}/muse/settings.json` under `mcpServers`, as
-`type: "streamable-http"` with `url: "https://kit.openiap.dev/mcp"` and
-your literal key in `headers.Authorization`. That file then holds a secret
-admin key in plaintext, so `chmod 600` it and never commit the key or paste it
-anywhere else.
-
-## Claude Code Compatibility
-
-Claude Code gets the same workflow surface without any install step:
-
-- **Slash commands**: `.claude/commands/*.md` load automatically as
-  `/review-pr`, `/verify-all`, and so on.
-- **Skills**: `.claude/skills/<name>/SKILL.md` are Claude Code adapters for
-  the `.codex/skills/<name>/SKILL.md` bodies. The Codex file stays the
-  canonical procedure; the Claude adapter points at it and adds only
-  Claude-specific notes (browser tooling, wake-up mechanism, subagents).
-  When you change a skill under `.codex/skills/`, check whether the matching
-  `.claude/skills/` adapter needs the same update.
-- **MCP server**: the root `.mcp.json` was removed because Muse errors on
-  its `${VAR}` form at every startup and cannot ignore project MCP files.
-  Claude Code users register the hosted IAPKit MCP endpoint
-  (`https://kit.openiap.dev/mcp`) in `~/.claude.json` under `mcpServers`
-  instead. Export `IAPKIT_API_KEY` before launching to authenticate.
-
-For consumers outside this repo, `.claude-plugin/marketplace.json` publishes
-the `plugins/openiap` plugin as a Claude Code marketplace:
-
-```bash
-claude plugin marketplace add hyodotdev/openiap
-claude plugin install openiap@openiap
-```
-
-`plugins/openiap` is dual-manifest: `.codex-plugin/plugin.json` (Codex, MCP
-config at `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (Claude
-Code, inline MCP config). The `skills/` folder is shared by both agents, so
-keep its wording agent-neutral. Bump both manifests' `version` whenever
-`skills/` changes: an installed plugin stays on its manifest version, so an edit
-alone never reaches existing installs.
-
-## Cursor Compatibility
-
-Cursor reads the root `AGENTS.md` and `CLAUDE.md`; because `CLAUDE.md` is a
-symlink, both resolve to this SSOT. `.cursor/rules/openiap-ssot.mdc` is only a
-short always-applied router to the root and docs SSOT. Keep detailed project
-rules in `AGENTS.md` or `knowledge/internal/` instead of copying them into
-Cursor-specific files.
-
-## Available Skills (Slash Commands / Codex Workflows)
-
-| Skill                       | Description                                                     | Usage                                 |
-| --------------------------- | --------------------------------------------------------------- | ------------------------------------- |
-| `$github-labels`            | Apply relevant labels to issues, Discussions and PRs            | `$github-labels`                      |
-| `$review-self`              | Review and improve current work until stable                    | `$review-self` or `$review-self <PR>` |
-| `$loop-review`              | Start from current main, review, PR, and merge                  | `$loop-review`                        |
-| `$ship-release`             | Merge, publish, document, and deploy a release                  | `$ship-release`                       |
-| `$rebase-main`              | Pull main and safely rebase the current branch                  | `$rebase-main`                        |
-| `$generate-doc`             | Write OpenIAP docs and pre-release release notes                | `$generate-doc`                       |
-| `$add-showcase-app`         | Add apps to the "Apps built with OpenIAP" showcase              | `$add-showcase-app`                   |
-| `$opencollective-steward`   | Manage OpenCollective profile and updates                       | `$opencollective-steward`             |
-| `$iapkit-e2e-petgu`         | IAPKit product-sync E2E with the Petgu app                      | `$iapkit-e2e-petgu`                   |
-| `$iapkit-e2e-martie`        | IAPKit local receipt-validation E2E with Martie                 | `$iapkit-e2e-martie`                  |
-| `$e2e-matrix-runner`        | Full device matrix: 6 frameworks x iOS/Play/Amazon/Horizon/Vega | `$e2e-matrix-runner`                  |
-| `$e2e-matrix-runner-google` | Android half: 6 frameworks x Play/Amazon/Horizon + Vega         | `$e2e-matrix-runner-google`           |
-| `$e2e-matrix-runner-apple`  | Apple half: 6 frameworks x iOS + Onside build-only              | `$e2e-matrix-runner-apple`            |
-| `/review-pr`                | Review PR comments, fix issues, resolve threads                 | `/review-pr 65` or `/review-pr <url>` |
-| `/audit-code`               | Audit code against knowledge rules and latest APIs              | `/audit-code`                         |
-| `/audit-security`           | Audit SBOM, provenance, and supply-chain posture                | `/audit-security`                     |
-| `/audit-iapkit`             | Reconcile the IAPKit surface with OpenIAP updates               | `/audit-iapkit`                       |
-| `/compile-knowledge`        | Compile the shared AI agent context                             | `/compile-knowledge`                  |
-| `/resolve-issue`            | Analyze an issue, label it, and fix/comment                     | `/resolve-issue 88`                   |
-| `/verify-all`               | Run the full monorepo health check                              | `/verify-all`                         |
-| `/e2e-tests`                | Run device-backed OpenIAP regression tests                      | `/e2e-tests PR 162`                   |
-| `/e2e-tests-google`         | Run Android-side device regression (Play/Amazon/Horizon/Vega)   | `/e2e-tests-google`                   |
-| `/e2e-tests-apple`          | Run Apple-side device regression (iOS)                          | `/e2e-tests-apple`                    |
-| `/release`                  | Release stable packages or an on-demand RC train                | `/release all stable`                 |
-| `/commit`                   | Branch, commit, push, and optionally create PR                  | `/commit --all --pr`                  |
-
-### $review-self Workflow
-
-1. Reviews the complete current diff, including staged, unstaged, and untracked
-   work, against the original request and repository conventions
-2. Fixes validated in-scope findings and runs path-specific verification
-3. Rechecks through a real recurring wake-up at the user's requested interval,
-   defaulting to five minutes
-4. Finishes after two consecutive clean snapshots, or reports the exact blocker
-
-`review-self` does not grant commit, push, PR, merge, deploy, or release authority
-that was not already present in the user's request.
-
-### /review-pr Workflow
-
-1. Fetches unresolved PR review threads
-2. For each comment:
-   - **Valid issue** → Fix code
-   - **Invalid/wrong** → Reply with explanation (don't resolve)
-3. **Run lint, typecheck, tests** (BEFORE commit)
-4. If all pass → Commit and push
-5. Resolve fixed threads
-
-## For More Details
-
-All comprehensive rules are documented in [`knowledge/internal/`](knowledge/internal/):
-
-1. **01-naming-conventions.md** - Function naming, prefixes, file naming, URL anchors
-2. **02-architecture.md** - Monorepo structure, module patterns, async patterns
-3. **03-coding-style.md** - TypeScript/Swift/Kotlin style rules, error handling
-4. **04-platform-packages.md** - Apple/Google/GQL/Docs package workflows
-5. **05-docs-patterns.md** - Docs writing standard, page patterns, release notes
-6. **06-git-deployment.md** - Commit format, deployment workflows
-7. **07-docs-consistency.md** - Docs/API/type consistency audits
-8. **08-fact-graph.md** - Declared-fact registry and drift audit
-9. **09-community-touchpoints.md** - First-purchase notice, assistant note, and README section
+Per-tool setup (Codex, Claude Code, Grok, Muse, Cursor), the compiled context,
+and the full skill and slash-command list are in
+[`knowledge/internal/10-agent-tooling.md`](knowledge/internal/10-agent-tooling.md).
+After editing `knowledge/`, run `cd scripts/agent && bun run compile:ai`.

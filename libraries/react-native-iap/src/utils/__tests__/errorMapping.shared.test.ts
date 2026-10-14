@@ -1,5 +1,3 @@
-import {readFileSync} from 'fs';
-import {resolve} from 'path';
 import {ErrorCode} from '../../types';
 import {
   ErrorCodeUtils,
@@ -9,21 +7,8 @@ import {
   normalizeErrorCodeFromNative,
 } from '../errorMapping';
 
-// react-native-iap and expo-iap ship one errorMapping.ts and this test.
-const readFromBothLibraries = (path: string): string[] =>
-  ['react-native-iap', 'expo-iap'].map((library) =>
-    readFileSync(resolve(__dirname, '../../../..', library, path), 'utf8'),
-  );
-
+// Mirrored into expo-iap with errorMapping.ts by specs/client `bun run sync`.
 describe('shared errorMapping', () => {
-  it.each([
-    'src/utils/errorMapping.ts',
-    'src/utils/__tests__/errorMapping.shared.test.ts',
-  ])('keeps %s identical in both libraries', (path) => {
-    const [reactNative, expo] = readFromBothLibraries(path);
-    expect(expo).toBe(reactNative);
-  });
-
   it('maps Play response codes on Android only', () => {
     expect(ErrorCodeUtils.fromPlatformCode(1, 'android')).toBe(
       ErrorCode.UserCancelled,

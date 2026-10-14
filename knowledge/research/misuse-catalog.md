@@ -3,8 +3,8 @@
 Concrete OpenIAP misuse patterns, catalogued MUBench-style: misuse is rare but
 almost always severe (amann2016mubench; backlog R6). Each pattern names the
 conformance surface that makes it detectable. Lint tooling is deferred until
-this catalog stabilizes; the mined issue dataset
-(`bun run research:mine-issues`) is the evidence base for adding patterns.
+this catalog stabilizes; the mined issue dataset (backlog R5) is the evidence
+base for adding patterns.
 
 Severity: `revenue` (money lost or feature unlocked for free), `entitlement`
 (paying user loses access), `stability` (crash or stuck state).

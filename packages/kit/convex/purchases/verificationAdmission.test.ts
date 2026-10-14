@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+import { getFunctionName, type FunctionReference } from "convex/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -6,11 +8,17 @@ import {
   evaluateVerificationAdmission,
   VERIFICATION_ADMISSION_CAPACITY,
 } from "./verificationAdmission";
-import { getVerificationProjectByApiKey } from "./shared";
+import { verifyAmazonReceiptInternalV1 } from "./amazon";
+import { verifyGooglePlayReceiptInternalV1 } from "./android";
+import { verifyMetaHorizonReceiptInternalV1 } from "./horizon";
+import { verifyAppStoreReceiptInternalV1 } from "./ios";
 import type { Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const PROJECT_ID = "projects_1" as Id<"projects">;
 
@@ -105,24 +113,6 @@ describe("verification admission", () => {
       admitted: true,
       tokens: VERIFICATION_ADMISSION_CAPACITY - 1,
     });
-  });
-
-  it("admits a project immediately after authoritative key lookup", async () => {
-    const project = { _id: "projects_1" };
-    const ctx = {
-      runQuery: vi.fn().mockResolvedValue(project),
-      runMutation: vi.fn().mockResolvedValue(null),
-    };
-
-    await expect(
-      getVerificationProjectByApiKey(ctx as never, "openiap-kit_pk_project"),
-    ).resolves.toBe(project);
-    expect(ctx.runMutation).toHaveBeenCalledWith(expect.anything(), {
-      projectId: "projects_1",
-    });
-    expect(ctx.runQuery.mock.invocationCallOrder[0]).toBeLessThan(
-      ctx.runMutation.mock.invocationCallOrder[0],
-    );
   });
 
   it("rejects before a store call when the persistent bucket is empty", async () => {
@@ -257,4 +247,164 @@ describe("entitlement recheck admission", () => {
     expect(ctx.db.patch).not.toHaveBeenCalled();
     expect(ctx.db.insert).not.toHaveBeenCalled();
   });
+});
+
+const API_KEY = "openiap-kit_pk_project";
+const APPLE_PROJECT = { iosBundleId: "dev.hyo.martie", iosAppAppleId: 1 };
+
+function appleJws(bundleId: string): string {
+  const payload = { bundleId, environment: "Production", transactionId: "1" };
+  return [
+    "e30",
+    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    "c2ln",
+  ].join(".");
+}
+
+const verifyApple = (jws: string) => (ctx: unknown) =>
+  testableFunction(verifyAppStoreReceiptInternalV1)._handler(ctx, {
+    apiKey: API_KEY,
+    jws,
+  });
+const verifyGoogle = (ctx: unknown) =>
+  testableFunction(verifyGooglePlayReceiptInternalV1)._handler(ctx, {
+    apiKey: API_KEY,
+    purchaseToken: "token",
+  });
+const verifyHorizon = (ctx: unknown) =>
+  testableFunction(verifyMetaHorizonReceiptInternalV1)._handler(ctx, {
+    apiKey: API_KEY,
+    userId: "meta-user",
+    sku: "premium",
+  });
+const verifyAmazon = (sandbox: boolean) => (ctx: unknown) =>
+  testableFunction(verifyAmazonReceiptInternalV1)._handler(ctx, {
+    apiKey: API_KEY,
+    userId: "amzn-user",
+    receiptId: "amzn-receipt",
+    sandbox,
+  });
+
+type StoreCase = {
+  name: string;
+  project: Record<string, unknown>;
+  verify: (ctx: unknown) => Promise<unknown>;
+};
+
+// A store context whose only reachable calls are the key lookup and admission.
+function storeContext(project: Record<string, unknown>) {
+  vi.useFakeTimers({ now: 1_000 });
+  const { ctx: admission } = admissionCtx([
+    { bucket: "verification", tokens: 0, refilledAt: 1_000 },
+  ]);
+  const unexpected = (reference: FunctionReference<"query" | "mutation">) => {
+    throw new Error(`unexpected call: ${getFunctionName(reference)}`);
+  };
+  return {
+    runQuery: vi.fn(async (reference: FunctionReference<"query">) =>
+      getFunctionName(reference) === "projects/internal:getProjectByApiKey"
+        ? { _id: PROJECT_ID, ...project }
+        : unexpected(reference),
+    ),
+    runMutation: vi.fn(
+      async (
+        reference: FunctionReference<"mutation">,
+        args: { projectId: Id<"projects"> },
+      ) =>
+        getFunctionName(reference) === "purchases/verificationAdmission:consume"
+          ? await testableFunction(consume)._handler(admission, args)
+          : unexpected(reference),
+    ),
+  };
+}
+
+describe("verification admission order", () => {
+  const rejected: Array<StoreCase & { errorCode: string }> = [
+    {
+      name: "a malformed Apple JWS",
+      project: APPLE_PROJECT,
+      verify: verifyApple("not-a-jws"),
+      errorCode: "APP_STORE_INVALID_JWS_FORMAT",
+    },
+    {
+      name: "an Apple JWS for another app",
+      project: APPLE_PROJECT,
+      verify: verifyApple(appleJws("com.example.other")),
+      errorCode: "APP_STORE_BUNDLE_ID_MISMATCH",
+    },
+    {
+      name: "a Google request to a project without an Android app",
+      project: {},
+      verify: verifyGoogle,
+      errorCode: "PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED",
+    },
+    {
+      name: "a Horizon request to a project without Horizon",
+      project: {},
+      verify: verifyHorizon,
+      errorCode: "META_HORIZON_NOT_ENABLED",
+    },
+    {
+      name: "an Amazon sandbox request without the opt-in",
+      project: { amazonSharedSecret: "secret" },
+      verify: verifyAmazon(true),
+      errorCode: "AMAZON_SANDBOX_NOT_ENABLED",
+    },
+  ];
+
+  it.each(rejected)(
+    "rejects $name without charging the bucket",
+    async ({ project, verify, errorCode }) => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      const ctx = storeContext(project);
+
+      // An empty bucket would answer RATE_LIMITED if it were charged first.
+      await expect(verify(ctx)).rejects.toMatchObject({ errorCode });
+      expect(ctx.runMutation).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  const admitted: StoreCase[] = [
+    {
+      name: "Apple",
+      project: APPLE_PROJECT,
+      verify: verifyApple(appleJws("dev.hyo.martie")),
+    },
+    {
+      name: "Google",
+      project: { androidPackageName: "com.example.app" },
+      verify: verifyGoogle,
+    },
+    {
+      name: "Horizon",
+      project: {
+        horizonEnabled: true,
+        horizonAppId: "1234567890",
+        horizonAppSecret: "secret",
+      },
+      verify: verifyHorizon,
+    },
+    {
+      name: "Amazon",
+      project: { amazonSharedSecret: "secret" },
+      verify: verifyAmazon(false),
+    },
+  ];
+
+  it.each(admitted)(
+    "charges a well-formed $name request before any store work",
+    async ({ project, verify }) => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      const ctx = storeContext(project);
+
+      await expect(verify(ctx)).rejects.toMatchObject({
+        data: { code: "RATE_LIMITED" },
+      });
+      expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
 });

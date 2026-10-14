@@ -25,6 +25,29 @@ function mcpRequestCost(c: Context): number {
   return c.req.method === "OPTIONS" ? 0 : 1;
 }
 
+// Production is served only over HTTPS (Fly `force_https`).
+const strictTransportSecurity =
+  process.env.APP_ENV === "production" ? "max-age=31536000" : null;
+
+// Every HTML page gets this policy; a route may add a stricter one beside it.
+// script-src and connect-src are left out: the SPA's inline theme script and
+// its Convex, Sentry, and analytics origins have no browser-tested allowlist.
+const HTML_CONTENT_SECURITY_POLICY =
+  "frame-ancestors 'none'; base-uri 'self'; object-src 'none'";
+
+app.use("*", async (c, next) => {
+  await next();
+  const headers = c.res.headers;
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (strictTransportSecurity) {
+    headers.set("Strict-Transport-Security", strictTransportSecurity);
+  }
+  if (headers.get("Content-Type")?.startsWith("text/html")) {
+    headers.append("Content-Security-Policy", HTML_CONTENT_SECURITY_POLICY);
+  }
+});
+
 // Liveness/readiness probe. No DB hit — Fly.io health checks fire
 // frequently and hitting Convex from here would both mask real
 // outages (a slow backend should still report "proc is alive") and

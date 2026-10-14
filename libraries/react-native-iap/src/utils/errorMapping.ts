@@ -1,7 +1,7 @@
 /**
  * Error-code helpers shared by react-native-iap and expo-iap.
- * Edit libraries/react-native-iap/src/utils/errorMapping.ts first and copy it to
- * expo-iap; errorMapping.shared.test.ts keeps the copies identical.
+ * Edit the react-native-iap copy; `bun run sync` in specs/client mirrors it to
+ * expo-iap, and the parity audit fails if the copies drift.
  */
 
 import {

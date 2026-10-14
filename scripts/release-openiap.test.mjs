@@ -214,6 +214,7 @@ test("version sync preserves the npm versions that are independent", (t) => {
   const paths = [
     "scripts/sync-versions.sh",
     "scripts/release-branch-policy.mjs",
+    "scripts/verify-docs-version-metadata.mjs",
     "packages/docs/package.json",
     "packages/apple/package.json",
     "packages/google/package.json",

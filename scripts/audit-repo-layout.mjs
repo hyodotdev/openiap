@@ -21,9 +21,7 @@ const DRAWS_A_BRANCH = /[├└]/u;
 /** Every file carrying a repository tree that agents read as the map. */
 export const DOCUMENTED_TREES = Object.freeze([
   "AGENTS.md",
-  "CONTRIBUTING.md",
   "knowledge/internal/02-architecture.md",
-  ".claude/guides/01-overview.md",
 ]);
 
 export const canonicalContainers = Object.freeze([

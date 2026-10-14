@@ -27,8 +27,8 @@ import {
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_RETRY_MS,
   applyExpectedProductId,
+  assertVerificationAdmission,
   getProjectByApiKey,
-  getVerificationProjectByApiKey,
   receiptResponseValidator,
   type ReceiptResponse,
   type RecheckOptions,
@@ -352,9 +352,7 @@ export async function verifyAmazonReceipt(
   options: RecheckOptions = {},
 ): Promise<ReceiptResponse> {
   const verificationStart = Date.now();
-  const project = options.recheck
-    ? await getProjectByApiKey(ctx, args.apiKey)
-    : await getVerificationProjectByApiKey(ctx, args.apiKey);
+  const project = await getProjectByApiKey(ctx, args.apiKey);
   const sandbox = args.sandbox === true;
   const environment = environmentForSandbox(sandbox);
   const sharedSecret = resolveAmazonSharedSecret({
@@ -362,6 +360,7 @@ export async function verifyAmazonReceipt(
     amazonSandboxEnabled: project.amazonSandboxEnabled === true,
     amazonSharedSecret: project.amazonSharedSecret,
   });
+  if (!options.recheck) await assertVerificationAdmission(ctx, project._id);
   const requestData: AmazonRequestData = {
     store: "amazon",
     userId: args.userId,

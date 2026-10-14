@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 
@@ -51,6 +52,8 @@ describe("apiRoutes", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
+    // The sandboxed Redoc page fetches the spec from an opaque origin.
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
 
     const body = (await response.json()) as {
       openapi: string;
@@ -75,6 +78,24 @@ describe("apiRoutes", () => {
     expect(
       body.paths["/purchase/verify"]?.post?.responses?.["500"],
     ).toHaveProperty("headers.X-RateLimit-Remaining");
+  });
+
+  it("runs Redoc in a sandbox that allows only its shim and the pinned CDN script", async () => {
+    const response = await apiRoutes.request("/");
+
+    expect(response.status).toBe(200);
+    const page = await response.text();
+    const inlineScripts = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+    expect(inlineScripts).toHaveLength(1);
+    const shimHash = createHash("sha256")
+      .update(inlineScripts[0]?.[1] ?? "")
+      .digest("base64");
+    const redocScript =
+      "https://cdn.redoc.ly/redoc/v3.0.0-rc.0/redoc.standalone.js";
+    expect(page).toContain(`<script type="module" src="${redocScript}">`);
+    expect(response.headers.get("Content-Security-Policy")).toBe(
+      `sandbox allow-scripts; script-src 'sha256-${shimHash}' ${redocScript}`,
+    );
   });
 
   it("returns the verified productId from purchase verification", async () => {

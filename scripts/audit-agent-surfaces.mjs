@@ -19,6 +19,7 @@ const CLAUDE_SKILLS_DIR = ".claude/skills";
 const CODEX_ROUTER = ".codex/skills/openiap-workflows/SKILL.md";
 const CLAUDE_ROUTER = ".claude/skills/openiap-workflows/SKILL.md";
 const INSTRUCTIONS = "AGENTS.md";
+const SKILLS_TABLE = "knowledge/internal/10-agent-tooling.md";
 
 // Grok, Codex, and Muse read AGENTS.md directly; these must resolve to it.
 export const instructionSymlinks = Object.freeze(["CLAUDE.md", "GEMINI.md"]);
@@ -200,11 +201,11 @@ export function auditAgentSurfaces(root = repositoryRoot) {
     }
   }
 
-  const instructions = read(root, INSTRUCTIONS);
+  const skillsTable = read(root, SKILLS_TABLE);
 
   for (const command of commands) {
-    if (!instructions.includes(`\`/${command}\``)) {
-      findings.push(`${INSTRUCTIONS} skills table is missing /${command}`);
+    if (!skillsTable.includes(`\`/${command}\``)) {
+      findings.push(`${SKILLS_TABLE} skills table is missing /${command}`);
     }
   }
 
@@ -213,8 +214,8 @@ export function auditAgentSurfaces(root = repositoryRoot) {
       continue;
     }
 
-    if (!instructions.includes(`\`$${skill}\``)) {
-      findings.push(`${INSTRUCTIONS} skills table is missing $${skill}`);
+    if (!skillsTable.includes(`\`$${skill}\``)) {
+      findings.push(`${SKILLS_TABLE} skills table is missing $${skill}`);
     }
   }
 

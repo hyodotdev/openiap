@@ -57,6 +57,14 @@ coverage/
 .env.local
 .env.*.local
 
+# Signing keys and store configs. The RN example re-includes its public debug.keystore.
+*.jks
+*.keystore
+*.p12
+key.properties
+google-services.json
+GoogleService-Info.plist
+
 # IAPKit credential files downloaded from prod for local testing.
 # Apple .p8 keys + Google service-account JSONs must never be
 # committed — they'd grant attackers App Store Server API / Play
@@ -84,9 +92,10 @@ temp/
 .build
 .swiftpm
 
-# RAG Agent generated outputs (benchmark comparisons)
+# Local leftovers of the retired RAG index and issue-mining datasets
 scripts/agent/_generated/
 scripts/agent/.lancedb/
+knowledge/research/_datasets/
 
 # Convex codegen — committed because CI doesn't run `convex dev`,
 # but the AI assistance subdirectory holds dev-machine state and stays ignored.
@@ -178,7 +187,6 @@ libraries/*/docs/build/
 *.maui.bundle/
 # Resx generated designer code (per-build artifact)
 *.resx.designer.cs
-knowledge/research/_datasets/
 # Device E2E run reports (maestro-runner timestamped output, local only)
 /reports/
 

@@ -10,6 +10,11 @@ import { fileURLToPath } from "node:url";
 
 import { parse as parseYaml } from "yaml";
 
+import {
+  CONTEXT_INPUT_PATHS,
+  CONTEXT_OUTPUT_PATHS,
+} from "./agent/context-files.ts";
+
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
 
@@ -30,22 +35,31 @@ export const nativeWorkflows = Object.freeze([
 ]);
 
 export const ciFilterJobs = Object.freeze({
+  agent: ["ci:test-agent"],
   android: ["ci:test-android"],
   cli: ["ci:test-cli"],
+  commerce: ["ci:test-commerce-protocol"],
+  conformance: ["ci:test-conformance"],
+  deps: ["ci:audit-lockfile"],
   docs: ["ci:test-docs"],
   gql: ["ci:test-gql"],
   ios: ["ci:test-ios", "ci:test-ios-compiler-boundaries"],
+  parity: ["ci:audit-parity"],
   web: ["ci:web-e2e"],
 });
 
+// Filters whose jobs ran on every event before path filtering; pushes still run them.
+export const pushAlwaysFilters = Object.freeze([
+  "agent",
+  "commerce",
+  "conformance",
+  "deps",
+  "parity",
+]);
+
 export const unconditionalCiJobs = Object.freeze([
-  "audit-lockfile",
-  "audit-parity",
   "audit-release-state",
   "changes",
-  "test-agent",
-  "test-conformance",
-  "test-commerce-protocol",
 ]);
 
 function readWorkflow(root, name) {
@@ -59,11 +73,16 @@ function dornyStep(document, jobId, stepId) {
   return { step, filters: parseYaml(step.with.filters) };
 }
 
-// The audited vocabulary is exactly three forms, so ordered (GitHub native)
+// The audited vocabulary is exactly four forms, so ordered (GitHub native)
 // and polarity-based (dorny some-with-excludes) evaluation coincide.
 export function matchesPattern(pattern, file) {
   if (pattern === "**/*.md") {
     return file.endsWith(".md");
+  }
+
+  if (isAnyDepthName(pattern)) {
+    const name = pattern.slice(3);
+    return file === name || file.endsWith(`/${name}`);
   }
 
   if (pattern.endsWith("/**")) {
@@ -71,6 +90,11 @@ export function matchesPattern(pattern, file) {
   }
 
   return file === pattern;
+}
+
+// `**/name`: a file with that exact name in any directory, the root included.
+function isAnyDepthName(pattern) {
+  return /^\*\*\/[^*?+[\]{}/!]+$/u.test(pattern);
 }
 
 export function matchesFilter(patterns, files) {
@@ -141,6 +165,8 @@ export const cases = Object.freeze([
     name: "apple-public-provider-conformance",
     files: ["packages/conformance/apple/Sources/ProviderConformance.swift"],
     jobs: [
+      "ci:audit-parity",
+      "ci:test-conformance",
       "ci:test-android",
       "ci:test-gql",
       "ci:test-ios",
@@ -164,12 +190,13 @@ export const cases = Object.freeze([
       "packages/apple/CONVENTION.md",
       "packages/apple/CONTRIBUTING.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     name: "apple-core-source",
     files: ["packages/apple/Sources/OpenIapModule.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
@@ -185,6 +212,7 @@ export const cases = Object.freeze([
     name: "apple-core-generated-types",
     files: ["packages/apple/Sources/Models/Types.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
@@ -200,6 +228,7 @@ export const cases = Object.freeze([
     name: "apple-core-manifest",
     files: ["packages/apple/Package.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
@@ -214,6 +243,7 @@ export const cases = Object.freeze([
     name: "apple-core-podspec",
     files: ["packages/apple/openiap.podspec"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-kmp-iap.yml",
@@ -227,6 +257,7 @@ export const cases = Object.freeze([
     name: "apple-core-build-script",
     files: ["packages/apple/scripts/build-xcframework.sh"],
     jobs: [
+      "ci:audit-parity",
       "ci-maui-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
@@ -238,7 +269,12 @@ export const cases = Object.freeze([
     files: [
       "libraries/kmp-iap/native/InAppPurchaseBridge/Sources/InAppPurchaseBridge/InAppPurchaseBridge.swift",
     ],
-    jobs: ["ci-kmp-iap.yml", "codeql:analyze-swift"],
+    jobs: [
+      "ci:audit-lockfile",
+      "ci:audit-parity",
+      "ci-kmp-iap.yml",
+      "codeql:analyze-swift",
+    ],
   },
   {
     name: "kmp-docs-only",
@@ -247,12 +283,12 @@ export const cases = Object.freeze([
       "libraries/kmp-iap/CLAUDE.md",
       "libraries/kmp-iap/.vscode/README_IOS_DEVICE.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     name: "kmp-vscode-launch-script",
     files: ["libraries/kmp-iap/.vscode/run_ios.sh"],
-    jobs: ["ci-kmp-iap.yml"],
+    jobs: ["ci:audit-parity", "ci-kmp-iap.yml"],
   },
   {
     name: "react-native-docs-only",
@@ -263,12 +299,13 @@ export const cases = Object.freeze([
       "libraries/react-native-iap/LICENSE.md",
       "libraries/react-native-iap/example/README.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     name: "react-native-swift-source",
     files: ["libraries/react-native-iap/ios/HybridRnIap.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci-react-native-iap.yml",
       "codeql:analyze-swift-wrappers/react-native",
     ],
@@ -280,6 +317,7 @@ export const cases = Object.freeze([
       "libraries/react-native-iap/nitro.json",
     ],
     jobs: [
+      "ci:audit-parity",
       "ci-react-native-iap.yml",
       "codeql:analyze-swift-wrappers/react-native",
     ],
@@ -292,12 +330,13 @@ export const cases = Object.freeze([
       "libraries/expo-iap/GEMINI.md",
       "libraries/expo-iap/example/README.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     name: "expo-swift-source",
     files: ["libraries/expo-iap/ios/ExpoIapModule.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "codeql:analyze-swift-wrappers/expo",
       "codeql:analyze-swift-wrappers/expo-onside",
@@ -307,6 +346,7 @@ export const cases = Object.freeze([
     name: "expo-onside-swift-source",
     files: ["libraries/expo-iap/ios/onside/OnsideIapModule.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "codeql:analyze-swift-wrappers/expo",
       "codeql:analyze-swift-wrappers/expo-onside",
@@ -316,6 +356,7 @@ export const cases = Object.freeze([
     name: "expo-onside-podfile-plugin",
     files: ["libraries/expo-iap/plugin/src/onsidePodfile.ts"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "codeql:analyze-swift-wrappers/expo",
       "codeql:analyze-swift-wrappers/expo-onside",
@@ -328,7 +369,7 @@ export const cases = Object.freeze([
       "libraries/flutter_inapp_purchase/CONVENTION.md",
       "libraries/flutter_inapp_purchase/example/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     name: "flutter-build-script",
@@ -336,6 +377,7 @@ export const cases = Object.freeze([
       "libraries/flutter_inapp_purchase/scripts/verify-apple-swiftpm-consumer-build.sh",
     ],
     jobs: [
+      "ci:audit-parity",
       "ci-flutter-inapp-purchase.yml",
       "codeql:analyze-swift-wrappers/flutter",
     ],
@@ -346,19 +388,27 @@ export const cases = Object.freeze([
       "libraries/godot-iap/.claude/guides/03-ios-plugin.md",
       "libraries/godot-iap/EXAMPLES.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     name: "godot-swift-source",
     files: [
       "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
     ],
-    jobs: ["ci-godot-iap.yml", "codeql:analyze-swift-wrappers/godot"],
+    jobs: [
+      "ci:audit-parity",
+      "ci-godot-iap.yml",
+      "codeql:analyze-swift-wrappers/godot",
+    ],
   },
   {
     name: "godot-addon-behind-symlink",
     files: ["libraries/godot-iap/addons/godot-iap/godot_iap.gd"],
-    jobs: ["ci-godot-iap.yml", "codeql:analyze-swift-wrappers/godot"],
+    jobs: [
+      "ci:audit-parity",
+      "ci-godot-iap.yml",
+      "codeql:analyze-swift-wrappers/godot",
+    ],
   },
   {
     name: "google-docs-only",
@@ -366,29 +416,31 @@ export const cases = Object.freeze([
       "packages/google/README.md",
       "packages/google/ALTERNATIVE_BILLING.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity"],
   },
   {
     // Every wrapper's Android build compiles the local openiap-google modules.
     name: "google-source",
     files: ["packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt"],
-    jobs: [...nativeWorkflows, "ci:test-android"],
+    jobs: ["ci:audit-parity", ...nativeWorkflows, "ci:test-android"],
   },
   {
     name: "google-core-module",
     files: ["packages/google/core/build.gradle.kts"],
-    jobs: [...nativeWorkflows, "ci:test-android"],
+    jobs: ["ci:audit-parity", ...nativeWorkflows, "ci:test-android"],
   },
   {
     // Wrappers read plugin and SDK versions from it.
     name: "google-root-build-script",
     files: ["packages/google/build.gradle.kts"],
-    jobs: [...nativeWorkflows, "ci:test-android"],
+    jobs: ["ci:audit-parity", ...nativeWorkflows, "ci:test-android"],
   },
   {
     name: "root-version-manifest",
     files: ["openiap-versions.json"],
     jobs: [
+      "ci:audit-parity",
+      "ci:test-agent",
       ...nativeWorkflows,
       "ci:test-android",
       "ci:test-gql",
@@ -403,6 +455,7 @@ export const cases = Object.freeze([
     name: "google-store-resolver",
     files: ["packages/google/gradle/openiap-store.gradle"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-kmp-iap.yml",
@@ -428,65 +481,93 @@ export const cases = Object.freeze([
   {
     name: "codeql-workflow-edit",
     files: [".github/workflows/codeql.yml"],
-    jobs: ["codeql:analyze-swift", ...ALL_SWIFT_WRAPPERS],
+    jobs: [
+      "ci:audit-lockfile",
+      "ci:audit-parity",
+      "codeql:analyze-swift",
+      ...ALL_SWIFT_WRAPPERS,
+    ],
   },
   {
     // Config-only: guards the `.github/codeql/**` dorny patterns, which the
     // workflow-edit case cannot catch (it matches on the workflow path alone).
     name: "codeql-config-edit",
     files: [".github/codeql/codeql-config.yml"],
-    jobs: ["codeql:analyze-swift", ...ALL_SWIFT_WRAPPERS],
+    jobs: [
+      "ci:audit-lockfile",
+      "ci:audit-parity",
+      "codeql:analyze-swift",
+      ...ALL_SWIFT_WRAPPERS,
+    ],
   },
   {
     name: "maui-binding-source",
     files: ["libraries/maui-iap/src/OpenIap.Maui/Types.cs"],
-    jobs: ["ci-maui-iap.yml", "ci:test-gql"],
+    jobs: ["ci:audit-parity", "ci-maui-iap.yml", "ci:test-gql"],
   },
   {
     // kit ships .md as bundled site content, so `web` keeps every markdown path.
     name: "kit-content-markdown",
     files: ["packages/kit/src/content/privacy-policy.md"],
-    jobs: ["ci:web-e2e"],
+    jobs: ["ci:audit-parity", "ci:test-commerce-protocol", "ci:web-e2e"],
   },
   {
     name: "docs-site-source",
     files: ["packages/docs/src/pages/docs/index.tsx"],
-    jobs: ["ci:test-docs", "ci:web-e2e"],
+    jobs: ["ci:audit-parity", "ci:test-docs", "ci:web-e2e"],
   },
   {
     // Docs and kit import the MCP server's showcase and web modules.
     name: "mcp-server-source",
     files: ["packages/mcp-server/src/showcase.ts"],
-    jobs: ["ci:test-docs", "ci:web-e2e"],
+    jobs: [
+      "ci:audit-parity",
+      "ci:test-commerce-protocol",
+      "ci:test-docs",
+      "ci:web-e2e",
+    ],
   },
   {
     name: "commerce-protocol-source",
     files: ["specs/commerce-protocol/schema/05-operations.graphql"],
     // The kit server embeds the generated protocol artifacts at build time,
     // so a contract change also rebuilds and probes the web binary.
-    jobs: ["ci:test-docs", "ci:web-e2e"],
+    jobs: [
+      "ci:audit-parity",
+      "ci:test-commerce-protocol",
+      "ci:test-docs",
+      "ci:web-e2e",
+    ],
   },
   {
     // docs and web intentionally keep markdown; both are cheap ubuntu jobs.
     name: "docs-markdown",
     files: ["packages/docs/README.md"],
-    jobs: ["ci:test-docs", "ci:web-e2e"],
+    jobs: ["ci:audit-parity", "ci:test-docs", "ci:web-e2e"],
   },
   // Inputs a test or `bun run` script reads; the step text does not name them.
   {
     name: "cli-readme-contract",
     files: ["packages/cli/README.md"],
-    jobs: ["ci:test-cli"],
+    jobs: ["ci:audit-parity", "ci:test-cli"],
   },
   {
     name: "community-touchpoints",
     files: ["packages/docs/community-touchpoints.json"],
-    jobs: ["ci:test-cli", "ci:test-docs", "ci:web-e2e"],
+    jobs: [
+      "ci:audit-parity",
+      "ci:test-agent",
+      "ci:test-cli",
+      "ci:test-docs",
+      "ci:web-e2e",
+    ],
   },
   {
     name: "docs-audit-script",
     files: ["scripts/audit-docs.ts"],
     jobs: [
+      "ci:audit-lockfile",
+      "ci:audit-parity",
       "ci:test-android",
       "ci:test-gql",
       "ci:test-ios",
@@ -498,6 +579,7 @@ export const cases = Object.freeze([
     name: "generated-sync-manifest",
     files: ["specs/client/generated-sync-manifest.mjs"],
     jobs: [
+      "ci:audit-parity",
       "ci-maui-iap.yml",
       "ci:test-android",
       "ci:test-gql",
@@ -510,6 +592,7 @@ export const cases = Object.freeze([
     name: "generated-typescript-types",
     files: ["specs/client/src/generated/types.ts"],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
@@ -524,6 +607,8 @@ export const cases = Object.freeze([
     name: "web-e2e-runner",
     files: ["scripts/e2e-web-sites.mjs"],
     jobs: [
+      "ci:audit-lockfile",
+      "ci:audit-parity",
       "ci:test-android",
       "ci:test-gql",
       "ci:test-ios",
@@ -535,6 +620,8 @@ export const cases = Object.freeze([
     name: "commerce-evidence-audit",
     files: ["scripts/audit-commerce-evidence.mjs"],
     jobs: [
+      "ci:audit-lockfile",
+      "ci:audit-parity",
       "ci:test-android",
       "ci:test-gql",
       "ci:test-ios",
@@ -547,6 +634,8 @@ export const cases = Object.freeze([
     name: "conformance-android-module",
     files: ["packages/conformance/android/build.gradle.kts"],
     jobs: [
+      "ci:audit-parity",
+      "ci:test-conformance",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
       "ci-kmp-iap.yml",
@@ -560,6 +649,7 @@ export const cases = Object.freeze([
     name: "apple-compatibility-fixture",
     files: ["packages/apple/compatibility/community-provider/Package.swift"],
     jobs: [
+      "ci:audit-parity",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
       "codeql:analyze-swift",
@@ -568,7 +658,7 @@ export const cases = Object.freeze([
   {
     name: "scripts-docs-only",
     files: ["scripts/agent/README.md"],
-    jobs: [],
+    jobs: ["ci:audit-lockfile", "ci:audit-parity", "ci:test-agent"],
   },
   {
     name: "mixed-docs-and-source",
@@ -576,7 +666,11 @@ export const cases = Object.freeze([
       "libraries/expo-iap/README.md",
       "libraries/godot-iap/ios-gdextension/Sources/GodotIap/Binder.swift",
     ],
-    jobs: ["ci-godot-iap.yml", "codeql:analyze-swift-wrappers/godot"],
+    jobs: [
+      "ci:audit-parity",
+      "ci-godot-iap.yml",
+      "codeql:analyze-swift-wrappers/godot",
+    ],
   },
   {
     name: "mixed-two-wrappers",
@@ -585,6 +679,7 @@ export const cases = Object.freeze([
       "libraries/godot-iap/ios-gdextension/Package.swift",
     ],
     jobs: [
+      "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-godot-iap.yml",
       "codeql:analyze-swift-wrappers/expo",
@@ -603,7 +698,53 @@ export const cases = Object.freeze([
       "knowledge/internal/02-architecture.md",
       "packages/apple/CONTRIBUTING.md",
     ],
-    jobs: [],
+    jobs: ["ci:audit-parity", "ci:test-agent"],
+  },
+  {
+    // A docs page runs the docs jobs and the parity audit's docs scan, no more.
+    name: "docs-content-page",
+    files: ["packages/docs/src/pages/docs/apis/fetch-products.tsx"],
+    jobs: ["ci:audit-parity", "ci:test-docs", "ci:web-e2e"],
+  },
+  {
+    name: "react-native-typescript-source",
+    files: ["libraries/react-native-iap/src/utils/error.ts"],
+    jobs: [
+      "ci-react-native-iap.yml",
+      "ci:audit-parity",
+      "codeql:analyze-swift-wrappers/react-native",
+    ],
+  },
+  {
+    name: "jdk-pin",
+    files: [".java-version"],
+    jobs: [...nativeWorkflows, "ci:test-android"],
+  },
+  {
+    name: "xcode-pin",
+    files: [".github/actions/setup-xcode/action.yml"],
+    jobs: [
+      "ci-flutter-inapp-purchase.yml",
+      "ci-godot-iap.yml",
+      "ci-maui-iap.yml",
+      "ci:audit-lockfile",
+      "ci:audit-parity",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "codeql:analyze-swift",
+      ...ALL_SWIFT_WRAPPERS,
+    ],
+  },
+  {
+    name: "independent-bun-lock",
+    files: ["libraries/expo-iap/example/bun.lock"],
+    jobs: [
+      "ci-expo-iap.yml",
+      "ci:audit-lockfile",
+      "ci:audit-parity",
+      "codeql:analyze-swift-wrappers/expo",
+      "codeql:analyze-swift-wrappers/expo-onside",
+    ],
   },
 ]);
 
@@ -634,7 +775,11 @@ function findVocabularyViolations(scopes) {
       const body = pattern.startsWith("!") ? pattern.slice(1) : pattern;
       const literal = body.endsWith("/**") ? body.slice(0, -3) : body;
 
-      if (body !== "**/*.md" && /[*?+[\]{}]/u.test(literal)) {
+      if (
+        body !== "**/*.md" &&
+        !isAnyDepthName(body) &&
+        /[*?+[\]{}]/u.test(literal)
+      ) {
         findings.push(
           `${scope}: pattern '${pattern}' is outside the audited vocabulary`,
         );
@@ -953,6 +1098,21 @@ function findConsumedInputViolations(root) {
     );
   }
 
+  // compile:ai reads the inventory in context-files.ts, which no step names.
+  const context = new Map();
+  for (const entry of [...CONTEXT_INPUT_PATHS, ...CONTEXT_OUTPUT_PATHS]) {
+    const { files, directories } = tracked();
+    const members = directories.has(entry)
+      ? [...files.keys()].filter((file) => file.startsWith(`${entry}/`))
+      : [entry];
+    for (const file of members) {
+      context.set(file, "scripts/agent/context-files.ts");
+    }
+  }
+  findings.push(
+    ...coverageFindings("ci.yml agent", filters.agent ?? [], context),
+  );
+
   return findings;
 }
 
@@ -1099,12 +1259,12 @@ function findCoverageViolations(root) {
       }
     }
 
-    if (
-      name in ciFilters &&
-      ci.jobs.changes.outputs[name] !== `\${{ steps.filter.outputs.${name} }}`
-    ) {
+    const output = pushAlwaysFilters.includes(name)
+      ? `\${{ github.event_name != 'pull_request' || steps.filter.outputs.${name} }}`
+      : `\${{ steps.filter.outputs.${name} }}`;
+    if (name in ciFilters && ci.jobs.changes.outputs[name] !== output) {
       findings.push(
-        `ci.yml: changes job must publish the ${name} filter output`,
+        `ci.yml: changes job must publish the ${name} filter output as ${output}`,
       );
     }
   }

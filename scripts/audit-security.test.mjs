@@ -1120,29 +1120,16 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref_name \}\}/u,
   );
   assert.match(workflow, /cancel-in-progress: true/u);
+  // Hosted runners only: a fork PR can add a workflow that targets any
+  // self-hosted label, so no YAML gate can keep one safe.
+  assert.doesNotMatch(workflow, /self-hosted|self-mac|vars\.MAC_CI/u);
   assert.match(scope, /swift_core:/u);
-  assert.match(swiftCore, /needs: \[codeql-scope, pick-mac-runner\]/u);
+  assert.match(swiftCore, /needs: codeql-scope\n/u);
   assert.match(
     swiftCore,
     /if: needs\.codeql-scope\.outputs\.swift_core == 'true'/u,
   );
-  assert.match(
-    swiftCore,
-    /runs-on: \$\{\{ needs\.pick-mac-runner\.outputs\.runner \}\}/u,
-  );
-  // The gate may hand a job to the self-hosted Mac only for the owner's own
-  // pull requests, and it always falls back to the hosted image.
-  const gate = workflow.slice(
-    workflow.indexOf("  pick-mac-runner:"),
-    workflow.indexOf("  analyze-swift:"),
-  );
-  assert.match(
-    gate,
-    /github\.event\.pull_request\.user\.login == 'hyochan' && github\.actor == 'hyochan'/u,
-  );
-  assert.match(gate, /github\.event_name == 'pull_request'/u);
-  assert.match(gate, /runner='macos-26'/u);
-  assert.match(gate, /-lt 900/u);
+  assert.match(swiftCore, /runs-on: macos-26\n/u);
   assert.match(scope, /react-native:/u);
   assert.match(scope, /expo-onside:/u);
   assert.match(scope, /flutter:/u);
@@ -1159,15 +1146,11 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     wrappers,
     /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u,
   );
-  // Pushes stay on the public macos-26 image; PR legs use the runner gate,
-  // which may hand the owner's own PRs to the self-hosted Mac.
-  assert.match(wrappers, /github\.event_name != 'pull_request' && 'macos-26'/u);
-  assert.match(wrappers, /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u);
-  // Only a PR routed to the self-hosted Mac matches that machine's own
-  // Xcode; every hosted leg pins 26.6.
+  assert.match(wrappers, /runs-on: macos-26\n/u);
+  // The Flutter build checks it runs on the Xcode the pinned action selected.
   assert.match(
     wrappers,
-    /EXPECTED_XCODE_MAJOR: >-\s+\$\{\{ \(github\.event_name == 'pull_request'\s+&& needs\.pick-mac-runner\.outputs\.runner == 'self-mac'\)\s+&& '27' \|\| '26' \}\}/u,
+    /EXPECTED_XCODE_MAJOR: \$\{\{ steps\.xcode\.outputs\.major \}\}/u,
   );
   assert.match(
     wrappers,

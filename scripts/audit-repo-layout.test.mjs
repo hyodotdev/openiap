@@ -529,7 +529,7 @@ test("deleting a registered map is a violation, not a quiet loss of coverage", (
     const violations = auditRepositoryLayout(root);
     assert.ok(
       violations.includes(
-        "CONTRIBUTING.md is registered as a documented tree but does not exist",
+        "knowledge/internal/02-architecture.md is registered as a documented tree but does not exist",
       ),
     );
   });

@@ -54,7 +54,7 @@ When reviewing, check these project-specific rules:
   `knowledge/internal/03-coding-style.md`
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`)
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
-- **Generated files**: Do NOT edit `packages/apple/Sources/Models/Types.swift` or `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
+- **Generated files**: Do NOT edit any file in the AGENTS.md "Auto-Generated Files" list
 
 See [AGENTS.md](../../AGENTS.md) and [knowledge/internal/](../../knowledge/internal/) for full conventions.
 

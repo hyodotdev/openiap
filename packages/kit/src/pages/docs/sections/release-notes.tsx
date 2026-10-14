@@ -77,6 +77,16 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "security",
+        topic: "Rate limits",
+        text: "Malformed purchase verifications are rejected with their own error before they use a project's verification budget, so junk requests no longer push real purchases into RATE_LIMITED.",
+      },
+      {
+        kind: "security",
+        topic: "Headers",
+        text: "Responses send nosniff, a referrer policy and HSTS in production, pages cannot be framed, and the /v1 API reference runs in a sandboxed origin that cannot read dashboard sign-in data.",
+      },
+      {
+        kind: "security",
         topic: "Dashboard",
         text: "Only owners and admins can upload .p8 keys or change bundle and package IDs, App Store keys, and Amazon or Horizon secrets. Admins can no longer remove an owner.",
       },

@@ -57,16 +57,17 @@ of the outstanding search.
 
 ## The corpus
 
-Mined with `scripts/mine-iap-issues.mjs` on 2026-09-06. Counts are the full
-issue history of each source repository, not a sample. Medians are the
-conventional median, averaging the two middle values for an even count.
+Mined on 2026-09-06 with `scripts/mine-iap-issues.mjs`, since removed from the
+tree (see git history). Counts are the full issue history of each source
+repository, not a sample. Medians are the conventional median, averaging the
+two middle values for an even count.
 
 The export these numbers come from is not committed and is not preserved: it
 was written to a temporary directory, and the repository's ignored export is
-an older one holding 2,265 issues. Reproduce them by running the miner and
-counting records per `library`, body length in UTF-16 units, and `comments`,
-then compare against this table. Expect small differences: the corpus grows.
-The re-export required before coding must record a retrieval timestamp and a
+an older one holding 2,265 issues. Reproduce them by restoring the miner from
+git history, running it, and counting records per `library`, body length in
+UTF-16 units, and `comments`, then compare against this table. Expect small
+differences: the corpus grows. The re-export required before coding must record a retrieval timestamp and a
 content hash per record precisely so this stops being true.
 
 | Repository               |    n | Closed | Years     | Median body | Median comments |

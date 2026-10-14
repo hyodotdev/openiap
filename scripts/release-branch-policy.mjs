@@ -44,91 +44,98 @@ export const openiapNpmPackages = {
   },
 };
 
-const readCommerceProtocolVersion = (root) => {
-  const candidates = [
-    commerceProtocolManifest.path,
-    ...commerceProtocolManifest.historicalPaths,
-  ];
-  const manifest =
-    candidates.find((candidate) => existsSync(resolve(root, candidate))) ??
-    commerceProtocolManifest.path;
-  return readJson(root, manifest).version;
-};
+const jsonField = (field) => (content) => JSON.parse(content)[field];
+const firstMatch =
+  (...patterns) =>
+  (content) =>
+    patterns
+      .map((pattern) => content.match(pattern)?.[1]?.trim())
+      .find(Boolean);
+
+// Where each released package keeps its version. `historicalPaths` are older
+// manifest locations that release retries and old tags still carry.
+function versionSource(label, path, parse, historicalPaths = []) {
+  return {
+    label,
+    path,
+    historicalPaths,
+    parse,
+    read(root = repoRoot) {
+      const manifest =
+        [path, ...historicalPaths].find((candidate) =>
+          existsSync(resolve(root, candidate)),
+        ) ?? path;
+      const version = parse(readText(root, manifest));
+      if (!version) {
+        throw new Error(`Unable to read ${label} version from ${manifest}`);
+      }
+      return version;
+    },
+  };
+}
 
 export const versionSources = {
   ...Object.fromEntries(
     Object.entries(openiapNpmPackages).map(([id, config]) => [
       id,
-      {
-        label: config.name,
-        read: (root) => readJson(root, config.path).version,
-      },
+      versionSource(config.name, config.path, jsonField("version")),
     ]),
   ),
-  apple: {
-    label: "openiap-apple",
-    read: (root) => readJson(root, "openiap-versions.json").apple,
-  },
-  conformance: {
-    label: "openiap-conformance",
-    read: (root) => readJson(root, "packages/conformance/package.json").version,
-  },
-  "commerce-protocol": {
-    label: "@hyodotdev/openiap-commerce-protocol",
-    read: readCommerceProtocolVersion,
-  },
-  expo: {
-    label: "expo-iap",
-    read: (root) => readJson(root, "libraries/expo-iap/package.json").version,
-  },
-  flutter: {
-    label: "flutter_inapp_purchase",
-    read: (root) =>
-      matchVersion(
-        readText(root, "libraries/flutter_inapp_purchase/pubspec.yaml"),
-        /^version:\s*([^\s]+)$/m,
-        "Flutter version",
-      ),
-  },
-  godot: {
-    label: "godot-iap",
-    read: (root) =>
-      matchVersion(
-        readText(root, "libraries/godot-iap/addons/godot-iap/plugin.cfg"),
-        /^version="([^"]+)"$/m,
-        "Godot version",
-      ),
-  },
-  google: {
-    label: "openiap-google",
-    read: (root) => readJson(root, "openiap-versions.json").google,
-  },
-  kmp: {
-    label: "kmp-iap",
-    read: (root) =>
-      matchVersion(
-        readText(root, "libraries/kmp-iap/gradle.properties"),
-        /^libraryVersion=(.+)$/m,
-        "KMP version",
-      ),
-  },
-  maui: {
-    label: "OpenIap.Maui",
-    read: (root) =>
-      matchVersion(
-        readText(
-          root,
-          "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-        ),
-        /<PackageVersion>([^<]+)<\/PackageVersion>/,
-        "MAUI version",
-      ),
-  },
-  "react-native": {
-    label: "react-native-iap",
-    read: (root) =>
-      readJson(root, "libraries/react-native-iap/package.json").version,
-  },
+  apple: versionSource(
+    "openiap-apple",
+    "openiap-versions.json",
+    jsonField("apple"),
+  ),
+  conformance: versionSource(
+    "openiap-conformance",
+    "packages/conformance/package.json",
+    jsonField("version"),
+  ),
+  "commerce-protocol": versionSource(
+    openiapNpmPackages["commerce-protocol"].name,
+    commerceProtocolManifest.path,
+    jsonField("version"),
+    commerceProtocolManifest.historicalPaths,
+  ),
+  expo: versionSource(
+    "expo-iap",
+    "libraries/expo-iap/package.json",
+    jsonField("version"),
+  ),
+  flutter: versionSource(
+    "flutter_inapp_purchase",
+    "libraries/flutter_inapp_purchase/pubspec.yaml",
+    firstMatch(/^version:\s*([^\s#]+)/m),
+  ),
+  godot: versionSource(
+    "godot-iap",
+    "libraries/godot-iap/addons/godot-iap/plugin.cfg",
+    firstMatch(/^version="([^"]+)"/m),
+  ),
+  google: versionSource(
+    "openiap-google",
+    "openiap-versions.json",
+    jsonField("google"),
+  ),
+  kmp: versionSource(
+    "kmp-iap",
+    "libraries/kmp-iap/gradle.properties",
+    firstMatch(/^libraryVersion=(.+)$/m),
+  ),
+  // Tags cut before PackageVersion carried <Version>.
+  maui: versionSource(
+    "OpenIap.Maui",
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    firstMatch(
+      /<PackageVersion>([^<]+)<\/PackageVersion>/,
+      /<Version>([^<]+)<\/Version>/,
+    ),
+  ),
+  "react-native": versionSource(
+    "react-native-iap",
+    "libraries/react-native-iap/package.json",
+    jsonField("version"),
+  ),
 };
 
 function readText(root, relativePath) {
@@ -139,12 +146,15 @@ function readJson(root, relativePath) {
   return JSON.parse(readText(root, relativePath));
 }
 
-function matchVersion(content, pattern, label) {
-  const match = content.match(pattern);
-  if (!match) {
-    throw new Error(`Unable to read ${label}`);
+/** The validated version a released package declares in its own manifest. */
+export function readPackageVersion(packageId, root = repoRoot) {
+  const source = versionSources[packageId];
+  if (!source) {
+    throw new Error(
+      `Unknown package '${packageId}'. Expected one of: ${Object.keys(versionSources).join(", ")}`,
+    );
   }
-  return match[1].trim();
+  return validateVersion(source.read(root), source.label);
 }
 
 export function validateVersion(version, label) {
@@ -310,10 +320,7 @@ export function findPrereleaseVersions(versions) {
 
 function readAllVersions(root = repoRoot) {
   return Object.fromEntries(
-    Object.entries(versionSources).map(([id, source]) => [
-      id,
-      validateVersion(source.read(root), source.label),
-    ]),
+    Object.keys(versionSources).map((id) => [id, readPackageVersion(id, root)]),
   );
 }
 
@@ -507,21 +514,15 @@ export function assertNativesReleased(versions, options) {
 
 function runGuard(args) {
   const [packageId, versionMode, prerelease, branch, targetVersion = ""] = args;
+  const currentVersion = readPackageVersion(packageId);
   const source = versionSources[packageId];
-  if (!source) {
-    throw new Error(
-      `Unknown package '${packageId}'. Expected one of: ${Object.keys(versionSources).join(", ")}`,
-    );
-  }
   if (!versionMode || !branch) {
     throw new Error(
       "Usage: release-branch-policy.mjs guard <package> <version-mode> <prerelease> <branch> [target-version]",
     );
   }
 
-  const versionManifest = readVersionManifest();
-  assertClientProtocol(versionManifest);
-  const currentVersion = validateVersion(source.read(repoRoot), source.label);
+  assertClientProtocol(readVersionManifest());
   if (Object.hasOwn(openiapNpmPackages, packageId)) {
     if (
       !["current", "patch", "minor", "major", "rc-bump", "exact"].includes(
@@ -635,6 +636,13 @@ function runUpdateNative(args) {
   );
 }
 
+function runVersion(args) {
+  if (args.length !== 1) {
+    throw new Error("Usage: release-branch-policy.mjs version <package>");
+  }
+  console.log(readPackageVersion(args[0]));
+}
+
 function runAudit(args) {
   if (args.length) throw new Error("Usage: release-branch-policy.mjs audit");
   assertClientProtocol(readVersionManifest());
@@ -666,8 +674,12 @@ function main() {
     runAudit(args);
     return;
   }
+  if (command === "version") {
+    runVersion(args);
+    return;
+  }
   throw new Error(
-    "Usage: release-branch-policy.mjs <assert-client-protocol|audit|guard|native-gate|update-native> [arguments]",
+    "Usage: release-branch-policy.mjs <assert-client-protocol|audit|guard|native-gate|update-native|version> [arguments]",
   );
 }
 

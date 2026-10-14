@@ -4,86 +4,48 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import {
-  commerceProtocolManifest,
   libraryReleaseTags,
   nativeReleaseGates,
   openiapNpmPackages,
   validateVersion,
+  versionSources,
 } from "./release-branch-policy.mjs";
 
-export const PACKAGE_CONFIG = {
+const releaseTags = {
   ...Object.fromEntries(
     Object.entries(openiapNpmPackages).map(([id, config]) => [
       id,
-      {
-        path: config.path,
-        tags: (version) => [`${config.tagPrefix}-${version}`],
-        version: (content) => JSON.parse(content).version,
-      },
+      (version) => [`${config.tagPrefix}-${version}`],
     ]),
   ),
-  apple: {
-    path: "openiap-versions.json",
-    tags: (version) => [
-      nativeReleaseGates.apple.tag(version),
-      `apple-v${version}`,
-    ],
-    version: (content) => JSON.parse(content).apple,
-  },
-  conformance: {
-    path: "packages/conformance/package.json",
-    tags: (version) => [`openiap-conformance-${version}`],
-    version: (content) => JSON.parse(content).version,
-  },
-  "commerce-protocol": {
-    ...commerceProtocolManifest,
-    tags: (version) => [
-      `${openiapNpmPackages["commerce-protocol"].tagPrefix}-${version}`,
-      `openiap-commerce-protocol-${version}`,
-    ],
-    version: (content) => JSON.parse(content).version,
-  },
-  expo: {
-    path: "libraries/expo-iap/package.json",
-    tags: (version) => [libraryReleaseTags.expo(version)],
-    version: (content) => JSON.parse(content).version,
-  },
-  flutter: {
-    path: "libraries/flutter_inapp_purchase/pubspec.yaml",
-    tags: (version) => [libraryReleaseTags.flutter(version)],
-    version: (content) => content.match(/^version:\s*([^\s#]+)/mu)?.[1],
-  },
-  godot: {
-    path: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
-    tags: (version) => [libraryReleaseTags.godot(version)],
-    version: (content) => content.match(/^version="([^"]+)"/mu)?.[1],
-  },
-  google: {
-    path: "openiap-versions.json",
-    tags: (version) => [
-      nativeReleaseGates.google.tag(version),
-      `google-v${version}`,
-    ],
-    version: (content) => JSON.parse(content).google,
-  },
-  kmp: {
-    path: "libraries/kmp-iap/gradle.properties",
-    tags: (version) => [libraryReleaseTags.kmp(version)],
-    version: (content) => content.match(/^libraryVersion=(.+)$/mu)?.[1]?.trim(),
-  },
-  maui: {
-    path: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    tags: (version) => [libraryReleaseTags.maui(version)],
-    version: (content) =>
-      content.match(/<PackageVersion>([^<]+)<\/PackageVersion>/u)?.[1] ??
-      content.match(/<Version>([^<]+)<\/Version>/u)?.[1],
-  },
-  "react-native": {
-    path: "libraries/react-native-iap/package.json",
-    tags: (version) => [libraryReleaseTags["react-native"](version)],
-    version: (content) => JSON.parse(content).version,
-  },
+  ...Object.fromEntries(
+    Object.entries(libraryReleaseTags).map(([id, tag]) => [
+      id,
+      (version) => [tag(version)],
+    ]),
+  ),
+  apple: (version) => [
+    nativeReleaseGates.apple.tag(version),
+    `apple-v${version}`,
+  ],
+  conformance: (version) => [`openiap-conformance-${version}`],
+  "commerce-protocol": (version) => [
+    `${openiapNpmPackages["commerce-protocol"].tagPrefix}-${version}`,
+    `openiap-commerce-protocol-${version}`,
+  ],
+  google: (version) => [
+    nativeReleaseGates.google.tag(version),
+    `google-v${version}`,
+  ],
 };
+
+// Each release's tag aliases, plus where its version lives (versionSources).
+export const PACKAGE_CONFIG = Object.fromEntries(
+  Object.entries(releaseTags).map(([id, tags]) => [
+    id,
+    { ...versionSources[id], tags },
+  ]),
+);
 
 function defaultRunGit(args) {
   try {
@@ -137,7 +99,7 @@ export function assertReleaseTag(
 
   let metadata;
   const metadataErrors = [];
-  for (const manifestPath of [config.path, ...(config.historicalPaths ?? [])]) {
+  for (const manifestPath of [config.path, ...config.historicalPaths]) {
     try {
       metadata = runGit(["show", `${tag}:${manifestPath}`]);
       break;
@@ -150,7 +112,7 @@ export function assertReleaseTag(
       `${tag} carries no release manifest:\n${metadataErrors.join("\n")}`,
     );
   }
-  const tagVersion = config.version(metadata);
+  const tagVersion = config.parse(metadata);
   if (expectedName && JSON.parse(metadata).name !== expectedName) {
     throw new Error(
       `${tag} belongs to a different npm package. Release a new version instead of retrying current.`,

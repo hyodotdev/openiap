@@ -1,0 +1,13 @@
+name: Set up Ruby
+description: Install the repository's pinned Ruby.
+inputs:
+  working-directory:
+    description: Directory whose Gemfile.lock selects the Bundler version
+    default: .
+runs:
+  using: composite
+  steps:
+    - uses: ruby/setup-ruby@e81a8fa391b11a595c1b7ed84177cc0fe02faf83 # v1
+      with:
+        ruby-version: "3.3"
+        working-directory: ${{ inputs.working-directory }}

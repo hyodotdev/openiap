@@ -108,7 +108,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -121,7 +121,7 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
@@ -140,8 +140,6 @@ jobs:
     # Xcode 16.4 only ships Swift 6.1 and cannot resolve that manifest.
     runs-on: macos-26
     timeout-minutes: 60
-    env:
-      XCODE_VERSION: "26.6"
     defaults:
       run:
         working-directory: libraries/expo-iap
@@ -159,7 +157,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -169,9 +167,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
+        uses: ./.github/actions/setup-xcode
 
       - name: Generate native projects (expo prebuild)
         working-directory: libraries/expo-iap/example
@@ -226,7 +222,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Checkout release tag (current version)
         if: ${{ inputs.version == 'current' }}
@@ -535,7 +531,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.3.13
+          bun-version-file: package.json
 
       - name: Require the matching release tag
         id: release

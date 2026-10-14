@@ -28,7 +28,9 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
   that a generator projects or aliases specially. Plugins must not maintain
   parallel field lists.
 - `generated-sync-manifest.mjs` is the only generated source/target path map
-  used by platform sync and commit-time drift checks.
+  used by platform sync and commit-time drift checks. Groups without an
+  `exportKey` are library-to-library mirrors (such as react-native-iap's
+  `errorMapping.ts` into expo-iap) that the client package does not publish.
 - `src/store-registry.json` owns provider ids, aliases, tiers, and reports; see
   [02-architecture.md](../../knowledge/internal/02-architecture.md#store-providers)
   and regenerate consumers with `bun run stores:generate` from the repo root.

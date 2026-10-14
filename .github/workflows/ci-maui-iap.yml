@@ -15,6 +15,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/install-xcodegen.sh"
       - ".github/workflows/ci-maui-iap.yml"
+      - ".github/actions/setup-xcode/action.yml"
+      - ".java-version"
       - "!**/*.md"
   push:
     branches: [main, next]
@@ -30,6 +32,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/install-xcodegen.sh"
       - ".github/workflows/ci-maui-iap.yml"
+      - ".github/actions/setup-xcode/action.yml"
+      - ".java-version"
       - "!**/*.md"
 
 permissions:
@@ -40,7 +44,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP_STORE_XCODE_VERSION: "26.6"
   APP_STORE_SDK_VERSION: "26.5"
   APP_STORE_LD_VERSION: "1267.0"
 
@@ -100,11 +103,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Setup JDK 17
+      - name: Setup JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version-file: .java-version
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -155,7 +158,7 @@ jobs:
         run: bash scripts/verify-store-selection.sh --apk
 
   app-store-artifact:
-    name: App Store artifact (Xcode 26.6)
+    name: App Store artifact (pinned Xcode)
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -165,9 +168,8 @@ jobs:
           persist-credentials: false
 
       - name: Set up App Store Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}
+        id: xcode
+        uses: ./.github/actions/setup-xcode
 
       - name: Install xcodegen
         run: bash scripts/install-xcodegen.sh
@@ -176,6 +178,8 @@ jobs:
         run: bash packages/apple/scripts/build-xcframework.sh
 
       - name: Verify App Store toolchain provenance
+        env:
+          APP_STORE_XCODE_VERSION: ${{ steps.xcode.outputs.version }}
         run: bash packages/apple/scripts/verify-app-store-xcframework.sh
 
   ios-binding:

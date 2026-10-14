@@ -96,6 +96,7 @@ attributes and throws when the element is present but unreadable.
 Apply relevant labels by default when creating an issue, Discussion or pull
 request, and recheck them when updating it. An unlabeled artifact is unfinished.
 Inspect its content, existing labels and `gh label list` before selecting them.
+Outside contributors cannot set labels; the maintainer labels their PRs.
 
 Choose the smallest useful set: **one to five labels in total**, including
 existing labels. Five is a ceiling, never a target; one or two is often enough.
@@ -152,6 +153,9 @@ before reporting completion. These steps do not grant authority to create an
 artifact or change an unrelated one.
 
 ## Opening Pull Requests
+
+This section binds AI agents and maintainer sessions. Human contributors are
+welcome to open pull requests; see `CONTRIBUTING.md`.
 
 Open a new pull request only when the maintainer explicitly requests that PR
 in this conversation or starts a workflow that includes it (`/commit --pr`,

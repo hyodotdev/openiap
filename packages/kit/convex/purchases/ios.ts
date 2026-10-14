@@ -16,7 +16,8 @@ import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { loadAppleRootCertificates } from "../certificates/apple_root_certificates";
 import {
-  getVerificationProjectByApiKey,
+  assertVerificationAdmission,
+  getProjectByApiKey,
   mapToAppStoreReceiptResponse,
   applyExpectedProductId,
   AppStoreReceiptData,
@@ -61,7 +62,7 @@ export const verifyAppStoreReceiptInternalV1 = action({
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
     const verificationStart = Date.now();
-    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
+    const project = await getProjectByApiKey(ctx, args.apiKey);
 
     const decodedPayload = decodeJwsPayload(args.jws);
     // The payload is decoded, not verified, so its environment must never
@@ -102,6 +103,8 @@ export const verifyAppStoreReceiptInternalV1 = action({
         decodedPayload.bundleId as string,
       );
     }
+
+    await assertVerificationAdmission(ctx, project._id);
 
     // A failed check stores nothing: a signature failure would let forged bytes
     // grow the table, and a Server API error is no verdict on a transaction

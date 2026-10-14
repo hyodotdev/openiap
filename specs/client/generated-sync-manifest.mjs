@@ -1,7 +1,9 @@
 /**
- * Repository-root-relative source/target graph for canonical GQL sync.
+ * Repository-root-relative source/target graph for canonical source sync.
  * Each target owns its copy/post-process mode here so adding a manifest edge
  * automatically makes it part of synchronization and drift verification.
+ * Groups with an exportKey are published by the client spec package; the rest
+ * mirror a library-owned source into a sibling library.
  */
 const target = (path, label, mode = 'copy') => Object.freeze({ path, label, mode });
 const group = ({ source, generated, exportKey, targets }) =>
@@ -77,6 +79,23 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     targets: {
       reactNative: target('libraries/react-native-iap/src/kit-api.ts', 'kit-api → react-native-iap'),
       expo: target('libraries/expo-iap/src/kit-api.ts', 'kit-api → expo-iap'),
+    },
+  }),
+  errorMapping: group({
+    source: 'libraries/react-native-iap/src/utils/errorMapping.ts',
+    generated: false,
+    targets: {
+      expo: target('libraries/expo-iap/src/utils/errorMapping.ts', 'errorMapping → expo-iap'),
+    },
+  }),
+  errorMappingTests: group({
+    source: 'libraries/react-native-iap/src/utils/__tests__/errorMapping.shared.test.ts',
+    generated: false,
+    targets: {
+      expo: target(
+        'libraries/expo-iap/src/utils/__tests__/errorMapping.shared.test.ts',
+        'errorMapping tests → expo-iap',
+      ),
     },
   }),
 });

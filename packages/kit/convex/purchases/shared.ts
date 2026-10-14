@@ -154,6 +154,8 @@ export async function getProjectByApiKey(
   return project;
 }
 
+// Call after the request's local checks, so malformed input cannot drain the
+// project's budget, and before the first store call or receipt write.
 export async function assertVerificationAdmission(
   ctx: ActionCtx,
   projectId: Id<"projects">,
@@ -161,15 +163,6 @@ export async function assertVerificationAdmission(
   await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
     projectId,
   });
-}
-
-export async function getVerificationProjectByApiKey(
-  ctx: ActionCtx,
-  apiKey: string,
-) {
-  const project = await getProjectByApiKey(ctx, apiKey);
-  await assertVerificationAdmission(ctx, project._id);
-  return project;
 }
 
 // An entitlements read pays once, one token per bound purchase it rechecks.
@@ -185,7 +178,8 @@ export async function assertEntitlementRecheckAdmission(
   });
 }
 
-// A recheck re-asks the store about a purchase IAPKit already holds.
+// A recheck re-asks the store about a purchase IAPKit already holds. Its caller
+// pays the entitlement-recheck bucket, so the verify path skips admission.
 export type RecheckOptions = { recheck?: boolean };
 
 function normalizeAppStoreTransactionReason(

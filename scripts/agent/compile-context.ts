@@ -1,18 +1,7 @@
 /**
- * Shared Agent Context Compiler (No Ollama Required)
- *
- * This script compiles all knowledge files into a single context.md file
- * that can be loaded by any AI assistant.
- *
- * Usage:
- *   bun run compile
- *
- * Output:
- *   knowledge/_agent-context/context.md
- *
- * Repository-aware assistants discover project rules through AGENTS.md and
- * the CLAUDE.md / GEMINI.md compatibility symlinks. This compiled file is a
- * shared reference for audits, local RAG, and on-demand reading.
+ * Compiles knowledge/ into knowledge/_agent-context/context.md and the docs
+ * llms files (`bun run compile:ai`). Agents read project rules from AGENTS.md;
+ * context.md is a shared reference for audits and on-demand reading.
  */
 
 import * as fs from "fs";
@@ -67,55 +56,22 @@ function readJsonFile<T>(relativePath: string): T {
   ) as T;
 }
 
-function readRegexVersion(
-  relativePath: string,
-  pattern: RegExp,
-  label: string,
-): string {
-  const content = fs.readFileSync(
-    path.join(CONFIG.projectRoot, relativePath),
-    "utf-8",
-  );
-  const version = content.match(pattern)?.[1]?.trim();
-  if (!version) {
-    throw new Error(`Unable to resolve ${label} version from ${relativePath}`);
-  }
-  return version;
-}
-
 function readInstallationVersions(): LlmsVersions {
   const openiapVersions = readJsonFile<{ apple: string; google: string }>(
     CONTEXT_SOURCES.openiapVersions,
+  );
+  const metadata = readJsonFile<Record<string, string>>(
+    CONTEXT_SOURCES.docsVersionMetadata,
   );
 
   return {
     apple: openiapVersions.apple,
     google: openiapVersions.google,
-    flutter: readRegexVersion(
-      CONTEXT_SOURCES.flutterPackage,
-      /^version:\s*([^\s]+)/m,
-      "flutter_inapp_purchase",
-    ),
-    godot: readRegexVersion(
-      CONTEXT_SOURCES.godotPackage,
-      /^version="([^"]+)"$/m,
-      "godot-iap",
-    ),
-    kmp: readRegexVersion(
-      CONTEXT_SOURCES.kmpPackage,
-      /^libraryVersion=(.+)$/m,
-      "kmp-iap",
-    ),
-    maui: readRegexVersion(
-      CONTEXT_SOURCES.mauiPackage,
-      /<PackageVersion>([^<]+)<\/PackageVersion>/,
-      "OpenIap.Maui",
-    ),
-    mauiPackageId: readRegexVersion(
-      CONTEXT_SOURCES.mauiPackage,
-      /<PackageId>([^<]+)<\/PackageId>/,
-      "OpenIap.Maui package id",
-    ),
+    flutter: metadata.flutterPackageVersion,
+    godot: metadata.godotPackageVersion,
+    kmp: metadata.kmpPackageVersion,
+    maui: metadata.mauiPackageVersion,
+    mauiPackageId: metadata.mauiPackageId,
   };
 }
 

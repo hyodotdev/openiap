@@ -129,7 +129,7 @@ revocation, and offline-access policy remain application/backend concerns.
 | [Differential test](../../packages/conformance/test/differential.test.mjs) | A reference adapter callback deliberately throws. | This exercises reporting; it is not a mutation in a shipped SDK. |
 | [React Native](../../libraries/react-native-iap/src/__tests__/conformance.test.ts) and [Expo](../../libraries/expo-iap/src/__tests__/conformance.test.ts) bindings | Real TypeScript wrappers over mocked native modules. | Faults below actual Swift/Kotlin bridges need separate execution seams. |
 | [Flutter channel tests](../../libraries/flutter_inapp_purchase/test/flutter_inapp_purchase_channel_test.dart) | Malformed-batch and explicit-empty regression cases. | Shared adapter and native boundary execution. |
-| [Issue mining](../../scripts/mine-iap-issues.mjs) and [misuse catalog](misuse-catalog.md) | Candidate discovery and initial vocabulary. | Root-cause review, deduplication, and reproducible cases. |
+| [Issue mining](backlog.md#r5--issue-mining-pipeline-into-troubleshooting-docs) and [misuse catalog](misuse-catalog.md) | Candidate discovery and initial vocabulary. | Root-cause review, deduplication, and reproducible cases. |
 
 Extend `packages/conformance` for the eventual harness and keep language
 adapters with their owning packages. Reuse existing contracts and validators;
