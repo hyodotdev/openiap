@@ -1,5 +1,11 @@
 # Changelog
 
+## 11.0.2 (2026-10-14)
+
+- fix: remediate the full-repo review findings (#528)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.0.2
+
+
 ## 11.0.1 (2026-10-12)
 
 - feat: add app ownership verification (#524)
