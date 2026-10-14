@@ -18,7 +18,7 @@
     },
     "packages/apple": {
       "name": "@hyodotdev/openiap-ios",
-      "version": "4.0.1",
+      "version": "4.0.2",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },
@@ -90,7 +90,7 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "4.0.1",
+      "version": "4.0.2",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },
@@ -206,7 +206,7 @@
     },
     "specs/commerce-protocol": {
       "name": "@hyodotdev/openiap-commerce-protocol",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "devDependencies": {
         "ajv": "^8.17.1",
         "graphql": "^16.11.0",
