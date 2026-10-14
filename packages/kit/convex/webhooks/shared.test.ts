@@ -554,6 +554,24 @@ const baseRtdnSubscription: GoogleRtdnPayload = {
 };
 
 describe("normalizeGoogleRtdn", () => {
+  it.each([2, 3, 13])(
+    "preserves the store-verified sandbox on lifecycle notification %i",
+    (notificationType) => {
+      const event = normalizeGoogleRtdn({
+        payload: {
+          ...baseRtdnSubscription,
+          subscriptionNotification: {
+            notificationType,
+            purchaseToken: "play-token-abc",
+            subscriptionId: "premium_monthly",
+          },
+        },
+        subscriptionInfo: { environment: "Sandbox" },
+      });
+      expect(event.environment).toBe("Sandbox");
+    },
+  );
+
   it("normalizes SUBSCRIPTION_RENEWED with active state from subscriptionsv2 fetch", () => {
     const info: GoogleSubscriptionInfo = {
       productId: "premium_monthly",

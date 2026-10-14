@@ -128,7 +128,8 @@ export default function VerificationGooglePage() {
         otherwise. IAPKit reads the store&apos;s <code>testPurchase</code> or{" "}
         <code>testPurchaseContext</code> marker; clients cannot select it.
         Environment does not replace the <code>isValid</code> and purchase-state
-        checks.
+        checks. Subscription lifecycle notifications carry the same environment
+        after IAPKit fetches the purchase from Google.
       </p>
 
       <p>

@@ -33,7 +33,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Google verification",
-        text: "Google purchase verification now returns Sandbox or Production from verified store markers, allowing apps to isolate test purchases before granting access.",
+        text: "Google purchase verification and store-enriched subscription notifications preserve Sandbox or Production from verified store markers, allowing apps to isolate test purchases and lifecycle updates.",
       },
       {
         kind: "feature",

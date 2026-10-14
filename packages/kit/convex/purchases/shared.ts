@@ -54,6 +54,14 @@ export type GooglePlayReceiptData = Infer<
   typeof googlePlayReceiptDataValidator
 >;
 
+export type ReceiptEnvironment = Infer<typeof receiptEnvironmentValidator>;
+
+export function googlePlayEnvironment(
+  testPurchase: object | null | undefined,
+): ReceiptEnvironment {
+  return testPurchase != null ? "Sandbox" : "Production";
+}
+
 export const appStoreReceiptDataValidator = v.object({
   transactionId: v.optional(v.string()),
   originalTransactionId: v.optional(v.string()),

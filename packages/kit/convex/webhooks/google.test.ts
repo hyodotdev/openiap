@@ -402,84 +402,92 @@ describe("ingestGoogleRtdn preflight", () => {
     }
   });
 
-  it("reuses one authenticated Play client for OIDC binding and enrichment", async () => {
-    delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
-    const playCallsBefore = playMocks.subscriptionsGet.mock.calls.length;
-    oidcMocks.verifyIdToken.mockResolvedValueOnce({
-      getPayload: () => ({
-        email: "pubsub@project.iam.gserviceaccount.com",
-        email_verified: true,
-      }),
-    });
-    playMocks.subscriptionsGet.mockResolvedValueOnce({
-      data: {
-        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
-        lineItems: [
-          {
-            productId: "premium_monthly",
-            expiryTime: "2027-09-01T00:00:00Z",
-            autoRenewingPlan: {},
-          },
-        ],
-      },
-    });
-    const runQuery = vi
-      .fn()
-      .mockResolvedValueOnce({
-        _id: "project_auth_enrichment",
-        androidPackageName: "dev.openiap.test",
-      })
-      .mockResolvedValueOnce({ _id: "service_account_auth_enrichment" })
-      .mockResolvedValueOnce(null);
-    const runAction = vi.fn().mockResolvedValueOnce({
-      content: serviceAccountContent,
-    });
-    const runMutation = vi
-      .fn()
-      .mockResolvedValueOnce({
-        eventId: "event_auth_enrichment",
-        type: "SubscriptionRenewed",
-        deduped: false,
-      })
-      .mockResolvedValueOnce({ transition: "Renewed", active: true });
+  it.each([
+    { testPurchase: undefined, environment: "Production" },
+    { testPurchase: {}, environment: "Sandbox" },
+  ])(
+    "reuses one authenticated Play client and preserves verified environment %j",
+    async ({ testPurchase, environment }) => {
+      delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+      const playCallsBefore = playMocks.subscriptionsGet.mock.calls.length;
+      oidcMocks.verifyIdToken.mockResolvedValueOnce({
+        getPayload: () => ({
+          email: "pubsub@project.iam.gserviceaccount.com",
+          email_verified: true,
+        }),
+      });
+      playMocks.subscriptionsGet.mockResolvedValueOnce({
+        data: {
+          testPurchase,
+          subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+          lineItems: [
+            {
+              productId: "premium_monthly",
+              expiryTime: "2027-09-01T00:00:00Z",
+              autoRenewingPlan: {},
+            },
+          ],
+        },
+      });
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: `project_auth_enrichment_${environment}`,
+          androidPackageName: "dev.openiap.test",
+        })
+        .mockResolvedValueOnce({ _id: "service_account_auth_enrichment" })
+        .mockResolvedValueOnce(null);
+      const runAction = vi.fn().mockResolvedValueOnce({
+        content: serviceAccountContent,
+      });
+      const runMutation = vi
+        .fn()
+        .mockResolvedValueOnce({
+          eventId: "event_auth_enrichment",
+          type: "SubscriptionRenewed",
+          deduped: false,
+        })
+        .mockResolvedValueOnce({ transition: "Renewed", active: true });
 
-    try {
-      await expect(
-        ingestGoogleRtdn._handler(
-          { runAction, runMutation, runQuery },
-          {
-            apiKey: "openiap-kit_pk_auth_enrichment",
-            oidcToken: "signed-token",
-            rawMessage: "raw",
-            payload: {
-              messageId: "authenticated_renewal",
-              packageName: "dev.openiap.test",
-              eventTimeMillis: 1_000,
-              subscriptionNotification: {
-                notificationType: 2,
-                purchaseToken: "purchase_token",
+      try {
+        await expect(
+          ingestGoogleRtdn._handler(
+            { runAction, runMutation, runQuery },
+            {
+              apiKey: "openiap-kit_pk_auth_enrichment",
+              oidcToken: "signed-token",
+              rawMessage: "raw",
+              payload: {
+                messageId: "authenticated_renewal",
+                packageName: "dev.openiap.test",
+                eventTimeMillis: 1_000,
+                subscriptionNotification: {
+                  notificationType: 2,
+                  purchaseToken: "purchase_token",
+                },
               },
             },
-          },
-        ),
-      ).resolves.toMatchObject({
-        eventId: "event_auth_enrichment",
-        deduped: false,
-      });
-      expect(runQuery).toHaveBeenCalledTimes(3);
-      expect(runAction).toHaveBeenCalledTimes(1);
-      expect(playMocks.subscriptionsGet).toHaveBeenCalledTimes(
-        playCallsBefore + 1,
-      );
-      expect(runMutation).toHaveBeenCalledTimes(2);
-      expect(runMutation.mock.calls[0]?.[1]?.event).toMatchObject({
-        willRenew: false,
-      });
-      expect(runMutation.mock.calls[0]?.[1]?.event?.renewsAt).toBeUndefined();
-    } finally {
-      process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
-    }
-  });
+          ),
+        ).resolves.toMatchObject({
+          eventId: "event_auth_enrichment",
+          deduped: false,
+        });
+        expect(runQuery).toHaveBeenCalledTimes(3);
+        expect(runAction).toHaveBeenCalledTimes(1);
+        expect(playMocks.subscriptionsGet).toHaveBeenCalledTimes(
+          playCallsBefore + 1,
+        );
+        expect(runMutation).toHaveBeenCalledTimes(2);
+        expect(runMutation.mock.calls[0]?.[1]?.event).toMatchObject({
+          environment,
+          willRenew: false,
+        });
+        expect(runMutation.mock.calls[0]?.[1]?.event?.renewsAt).toBeUndefined();
+      } finally {
+        process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+      }
+    },
+  );
 
   it("retries instead of recording a lifecycle event without enrichment", async () => {
     const runQuery = vi

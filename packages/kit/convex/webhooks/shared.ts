@@ -6,6 +6,7 @@
 // Mapping SSOT: `knowledge/external/webhook-mapping.md`.
 
 import type { DataProvenance } from "../commerce/contract";
+import type { ReceiptEnvironment } from "../purchases/shared";
 
 export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -537,6 +538,7 @@ export type GoogleTestNotification = {
 // not embed expiry / price information.
 export type GoogleSubscriptionInfo = {
   productId?: string;
+  environment?: ReceiptEnvironment;
   /** subscriptionsv2 returned a bundle that the singular canonical model cannot split. */
   ambiguousLineItems?: boolean;
   linkedPurchaseToken?: string;
@@ -754,11 +756,10 @@ export function normalizeGoogleRtdn(
     );
   }
 
-  // RTDN does not surface sandbox vs production — testNotification
-  // implies sandbox, otherwise prod.
+  // RTDN omits test-purchase metadata; the verified store fetch supplies it.
   const environment: WebhookEventEnvironment = payload.testNotification
     ? "Sandbox"
-    : "Production";
+    : (subscriptionInfo?.environment ?? "Production");
 
   return {
     type,
