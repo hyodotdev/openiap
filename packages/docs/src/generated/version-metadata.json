@@ -1,6 +1,6 @@
 {
   "_generatedBy": "scripts/sync-versions.sh",
-  "cliPackageVersion": "0.2.0",
+  "cliPackageVersion": "0.2.1",
   "clientProtocolPackageVersion": "1.0.2",
   "commerceProtocolPackageVersion": "0.3.2",
   "expoPackageVersion": "6.0.2",
