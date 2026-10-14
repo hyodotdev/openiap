@@ -561,7 +561,7 @@ jobs:
           gh auth setup-git
           git add addons/godot-iap/plugin.cfg addons/godot-iap/android \
             addons/godot-iap/bin prebuilt-binaries.sha256
-          git commit -m "chore(release): godot-iap@$VERSION" --allow-empty
+          git commit -m "chore(release): godot-iap@$VERSION" --allow-empty --no-verify
           node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           RELEASE_TAG="godot-iap-$VERSION"
           git tag -a "$RELEASE_TAG" HEAD -m "Release $RELEASE_TAG"

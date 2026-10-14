@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-14T14:51:20.884Z
+> Last updated: 2026-10-14T17:28:21.435Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2805,7 +2805,9 @@ Release Git pushes use the private, organization-owned OpenIAP release App.
 Store `RELEASE_APP_CLIENT_ID` as a variable and `RELEASE_APP_PRIVATE_KEY` as a
 secret in the main-only `release` environment. The workflows mint a one-hour,
 repository-scoped token with only Contents write immediately before pushing;
-Google mints a fresh token again after its artifact build. Only this App may
+Google mints a fresh token again after its artifact build. A step holding the
+token never runs Git hooks: hooked commits happen in an earlier step, and any
+commit inside the push step uses `--no-verify`. Only this App may
 bypass main's required CI checks for validated release version commits. Keep
 the checks active for everyone else and give the App no exception to tag
 immutability. Registry publication and workflow dispatch keep their existing

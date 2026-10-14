@@ -19,6 +19,12 @@ const KIT_PATHS = [
   ".github/workflows/deploy-kit.yml",
 ];
 
+// Protocol release commits bump these versions, which no kit build reads.
+const VERSIONED_MANIFESTS = [
+  "specs/client/package.json",
+  "specs/commerce-protocol/package.json",
+];
+
 // Root manifest keys whose effect is already in the lock, or that no build reads.
 const LOCKED_OR_UNUSED_KEYS = [
   "scripts",
@@ -31,15 +37,26 @@ function git(...args) {
   return execFileSync("git", args, { encoding: "utf8" });
 }
 
-function rootManifest(revision) {
-  const manifest = JSON.parse(git("show", `${revision}:package.json`));
-  for (const key of LOCKED_OR_UNUSED_KEYS) delete manifest[key];
-  return JSON.stringify(manifest);
+function manifest(revision, file, ignoredKeys) {
+  const parsed = JSON.parse(git("show", `${revision}:${file}`));
+  for (const key of ignoredKeys) delete parsed[key];
+  return JSON.stringify(parsed);
+}
+
+// Workspace entries are objects; their version is release metadata.
+function withoutWorkspaceVersion(line) {
+  const space = line.indexOf(" ");
+  const entry = JSON.parse(line.slice(space + 1));
+  if (Array.isArray(entry)) return line;
+  delete entry.version;
+  return `${line.slice(0, space)} ${JSON.stringify(entry)}`;
 }
 
 function kitClosure(revision) {
   const lock = Bun.JSONC.parse(git("show", `${revision}:bun.lock`));
-  return workspaceClosure(lock, "packages/kit").join("\n");
+  return workspaceClosure(lock, "packages/kit")
+    .map(withoutWorkspaceVersion)
+    .join("\n");
 }
 
 export function kitDeployNeeded(base, head = "HEAD") {
@@ -47,13 +64,18 @@ export function kitDeployNeeded(base, head = "HEAD") {
     .split("\n")
     .filter(Boolean);
   return (
-    changed.some((file) =>
-      KIT_PATHS.some((path) =>
-        path.endsWith("/") ? file.startsWith(path) : file === path,
-      ),
+    changed.some(
+      (file) =>
+        KIT_PATHS.some((path) =>
+          path.endsWith("/") ? file.startsWith(path) : file === path,
+        ) &&
+        (!VERSIONED_MANIFESTS.includes(file) ||
+          manifest(base, file, ["version"]) !==
+            manifest(head, file, ["version"])),
     ) ||
     (changed.includes("package.json") &&
-      rootManifest(base) !== rootManifest(head)) ||
+      manifest(base, "package.json", LOCKED_OR_UNUSED_KEYS) !==
+        manifest(head, "package.json", LOCKED_OR_UNUSED_KEYS)) ||
     (changed.includes("bun.lock") && kitClosure(base) !== kitClosure(head))
   );
 }

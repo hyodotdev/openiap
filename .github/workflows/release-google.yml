@@ -431,7 +431,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore(release): openiap-google@$VERSION"
+            git commit -m "chore(release): openiap-google@$VERSION" --no-verify
             if ! git push origin "HEAD:$RELEASE_BRANCH"; then
               echo "::error::Release branch moved after verification; rerun the release workflow"
               exit 1
