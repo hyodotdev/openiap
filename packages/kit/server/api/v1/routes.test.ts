@@ -85,7 +85,9 @@ describe("apiRoutes", () => {
 
     expect(response.status).toBe(200);
     const page = await response.text();
-    const inlineScripts = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+    const inlineScripts = [
+      ...page.matchAll(/<script>([\s\S]*?)<\/script[^>]*>/gi),
+    ];
     expect(inlineScripts).toHaveLength(1);
     const shimHash = createHash("sha256")
       .update(inlineScripts[0]?.[1] ?? "")
