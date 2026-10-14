@@ -123,9 +123,9 @@ export default function VerificationGooglePage() {
         one-shot or a subscription.
       </p>
       <p>
-        Verification returns <code>environment</code> as <code>Sandbox</code>
+        Verification returns <code>environment</code> as <code>Sandbox</code>{" "}
         for Google-verified test purchases and <code>Production</code>{" "}
-        otherwise. IAPKit reads the store&apos;s <code>testPurchase</code> or
+        otherwise. IAPKit reads the store&apos;s <code>testPurchase</code> or{" "}
         <code>testPurchaseContext</code> marker; clients cannot select it.
         Environment does not replace the <code>isValid</code> and purchase-state
         checks.
