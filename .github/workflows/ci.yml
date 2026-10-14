@@ -333,6 +333,8 @@ jobs:
               - '.claude/**'
               - '.codecov.yml'
               - '.codecov.yaml'
+              - 'codecov.yaml'
+              - 'dev/**'
               - 'llms.txt'
               - 'llms-full.txt'
               - '.codex/**'

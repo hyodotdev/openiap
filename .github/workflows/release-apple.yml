@@ -186,10 +186,6 @@ jobs:
             echo "✓ Tag $VERSION does not exist, proceeding with release"
           fi
 
-      # Before the tag checkout, which may predate this local action.
-      - name: Setup Ruby
-        uses: ./.github/actions/setup-ruby
-
       - name: Preserve Bundler files
         run: |
           # A current retry checks out a tag that may predate these files.
@@ -197,6 +193,11 @@ jobs:
           mkdir -p "$TOOLING"
           cp packages/apple/Gemfile packages/apple/Gemfile.lock "$TOOLING/"
           echo "BUNDLE_GEMFILE=$TOOLING/Gemfile" >> "$GITHUB_ENV"
+
+      # After BUNDLE_GEMFILE selects the locked Bundler, before the tag
+      # checkout, which may predate this local action.
+      - name: Setup Ruby
+        uses: ./.github/actions/setup-ruby
 
       - name: Checkout release tag (current version)
         if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'

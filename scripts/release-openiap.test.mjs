@@ -624,7 +624,8 @@ test("release steps after a tag checkout use no repository-local setup", () => {
         /git checkout "\$/u.test(step.run ?? ""),
       );
       if (checkout < 0) continue;
-      // Steps gated on the opposite of the checkout's condition never follow it.
+      // A step gated only on the opposite of the checkout's condition never
+      // follows it; an `||` could make both true, so it is checked.
       const opposite = [
         ...String(steps[checkout].if ?? "").matchAll(
           /([\w.-]+) == ('[^']*')/gu,
@@ -633,7 +634,9 @@ test("release steps after a tag checkout use no repository-local setup", () => {
       for (const step of steps
         .slice(checkout + 1)
         .filter(
-          (step) => !opposite.some((guard) => step.if?.includes(guard)),
+          (step) =>
+            String(step.if ?? "").includes("||") ||
+            !opposite.some((guard) => step.if?.includes(guard)),
         )) {
         assert.doesNotMatch(
           JSON.stringify(step),
