@@ -51,6 +51,62 @@ describe("revoked Google token response", () => {
 });
 
 describe("Google Play v2 mappings", () => {
+  it.each([
+    { testPurchase: undefined, environment: "Production" },
+    { testPurchase: {}, environment: "Sandbox" },
+  ])(
+    "derives subscription environment from the verified marker %j",
+    ({ testPurchase, environment }) => {
+      const receipt = mapSubscriptionResponseToReceiptData({
+        packageName,
+        purchaseToken: "environment-subscription",
+        subscriptionResponse: {
+          testPurchase,
+          subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+          acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+          lineItems: [
+            { productId: "premium", expiryTime: "2099-01-01T00:00:00Z" },
+          ],
+        },
+      });
+      expect(mapToGooglePlayReceiptResponse(receipt)).toEqual({
+        isValid: true,
+        state: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+        productId: "premium",
+        environment,
+      });
+    },
+  );
+
+  it.each([
+    { testPurchaseContext: undefined, environment: "Production" },
+    { testPurchaseContext: {}, environment: "Sandbox" },
+    { testPurchaseContext: { fopType: "TEST" }, environment: "Sandbox" },
+    {
+      testPurchaseContext: { fopType: "FOP_TYPE_UNSPECIFIED" },
+      environment: "Sandbox",
+    },
+  ])(
+    "derives product environment from verified context %j",
+    ({ testPurchaseContext, environment }) => {
+      const receipt = mapProductResponseToReceiptData({
+        packageName,
+        purchaseToken: "environment-product",
+        productResponse: {
+          testPurchaseContext,
+          purchaseStateContext: { purchaseState: "PENDING" },
+          productLineItem: [{ productId: "premium" }],
+        },
+      });
+      expect(mapToGooglePlayReceiptResponse(receipt)).toEqual({
+        isValid: false,
+        state: HarmonizedPurchaseState.PENDING,
+        productId: "premium",
+        environment,
+      });
+    },
+  );
+
   it("maps productsv2.getproductpurchasev2 PURCHASED + acknowledged + not consumed to ENTITLED", () => {
     const fixtures = [
       {
@@ -105,6 +161,7 @@ describe("Google Play v2 mappings", () => {
       const response = mapToGooglePlayReceiptResponse(receipt);
 
       expect(response).toEqual({
+        environment: "Production",
         isValid: true,
         state: HarmonizedPurchaseState.ENTITLED,
         productId: productPurchaseV2Response.productLineItem[0].productId,
@@ -142,6 +199,7 @@ describe("Google Play v2 mappings", () => {
     const response = mapToGooglePlayReceiptResponse(receipt);
 
     expect(response).toEqual({
+      environment: "Production",
       isValid: true,
       state: HarmonizedPurchaseState.ENTITLED,
       productId: "untold_premium",
@@ -288,6 +346,7 @@ describe("Google Play v2 mappings", () => {
     const response = mapToGooglePlayReceiptResponse(receipt);
 
     expect(response).toEqual({
+      environment: "Sandbox",
       isValid: false,
       state: HarmonizedPurchaseState.CONSUMED,
       productId: "dev.hyo.martie.10bulbs",
@@ -328,6 +387,7 @@ describe("Google Play v2 mappings", () => {
     expect(receipt.renewsAt).toBeUndefined();
 
     expect(response).toEqual({
+      environment: "Sandbox",
       isValid: false,
       state: HarmonizedPurchaseState.EXPIRED,
       productId: "dev.hyo.martie.premium",
@@ -369,6 +429,7 @@ describe("Google Play v2 mappings", () => {
     const response = mapToGooglePlayReceiptResponse(receipt);
 
     expect(response).toEqual({
+      environment: "Sandbox",
       isValid: true,
       state: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
       productId: "dev.hyo.martie.10bulbs",
@@ -402,6 +463,7 @@ describe("Google Play v2 mappings", () => {
     const response = mapToGooglePlayReceiptResponse(receipt);
 
     expect(response).toEqual({
+      environment: "Production",
       isValid: false,
       state: HarmonizedPurchaseState.PENDING,
       productId: "test.product",
@@ -440,6 +502,7 @@ describe("Google Play v2 mappings", () => {
     const response = mapToGooglePlayReceiptResponse(receipt);
 
     expect(response).toEqual({
+      environment: "Production",
       isValid: false,
       state: HarmonizedPurchaseState.CANCELED,
       productId: "untold_full",
@@ -473,6 +536,7 @@ describe("Google Play v2 mappings", () => {
     const response = mapToGooglePlayReceiptResponse(receipt);
 
     expect(response).toEqual({
+      environment: "Production",
       isValid: false,
       state: HarmonizedPurchaseState.UNKNOWN,
       productId: "test.product",

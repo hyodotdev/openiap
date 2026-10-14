@@ -386,6 +386,8 @@ export function mapSubscriptionResponseToReceiptData(args: {
     purchaseDate,
     quantity: 1,
     type: "Subscription" as const,
+    environment:
+      args.subscriptionResponse.testPurchase != null ? "Sandbox" : "Production",
     orderId:
       lineItem?.latestSuccessfulOrderId ||
       args.subscriptionResponse.latestOrderId ||
@@ -452,6 +454,10 @@ export function mapProductResponseToReceiptData(args: {
     purchaseDate,
     quantity: lineItem?.productOfferDetails?.quantity ?? 1,
     type: "InApp" as const,
+    environment:
+      args.productResponse.testPurchaseContext != null
+        ? "Sandbox"
+        : "Production",
     orderId: args.productResponse.orderId || undefined,
     purchaseState:
       args.productResponse.purchaseStateContext?.purchaseState || undefined,

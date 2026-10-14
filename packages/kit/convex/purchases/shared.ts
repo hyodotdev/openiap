@@ -37,6 +37,7 @@ export const googlePlayReceiptDataValidator = v.object({
   purchaseDate: v.number(),
   quantity: v.number(),
   type: v.union(v.literal("Subscription"), v.literal("InApp")),
+  environment: v.optional(receiptEnvironmentValidator),
   orderId: v.optional(v.string()),
   subscriptionState: v.optional(v.string()),
   purchaseState: v.optional(v.string()),
@@ -247,6 +248,9 @@ export function mapToGooglePlayReceiptResponse(
     isValid: isValidState(state),
     state,
     productId: receiptData.productId,
+    ...(receiptData.environment
+      ? { environment: receiptData.environment }
+      : {}),
   };
 }
 

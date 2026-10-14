@@ -31,6 +31,11 @@ const RELEASES: ReleaseEntry[] = [
       "Amazon subscription lifecycle beta and a security hardening pass.",
     items: [
       {
+        kind: "fix",
+        topic: "Google verification",
+        text: "Google purchase verification now returns Sandbox or Production from verified store markers, allowing apps to isolate test purchases before granting access.",
+      },
+      {
         kind: "feature",
         topic: "Amazon subscriptions",
         text: "Signed Amazon RTN notifications refresh RVS before updating subscriptions. Configure the optional topic ARN and existing store lifecycle URL.",
