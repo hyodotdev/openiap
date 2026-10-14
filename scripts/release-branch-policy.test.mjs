@@ -2277,11 +2277,22 @@ test("release Git pushes use repository-scoped App tokens from the main-only env
         );
         // Hooks run repository and dependency code; keep them away from it.
         if (token) {
-          assert.doesNotMatch(
-            (step.run ?? "").replace(/git commit\b[^\n]*--no-verify/gu, ""),
-            /\bgit commit\b/u,
-            `${filename}: ${step.name} commits while holding the push token`,
-          );
+          const commands = (step.run ?? "")
+            .replace(/\s+#[^\n]*/gu, "")
+            .split(/\n|&&|;|\|/u);
+          for (const command of commands) {
+            if (
+              /\bgit(?:\s+-{1,2}\S+(?:\s+[^-\s]\S*)?)*\s+commit\b/u.test(
+                command,
+              )
+            ) {
+              assert.match(
+                command,
+                /\s--no-verify\b/u,
+                `${filename}: ${step.name} commits while holding the push token`,
+              );
+            }
+          }
         }
         if (!/\bgit\b[^\n]*\bpush\b/u.test(step.run ?? "")) continue;
         pushes += 1;

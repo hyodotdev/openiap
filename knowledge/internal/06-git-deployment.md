@@ -357,9 +357,11 @@ Release Git pushes use the private, organization-owned OpenIAP release App.
 Store `RELEASE_APP_CLIENT_ID` as a variable and `RELEASE_APP_PRIVATE_KEY` as a
 secret in the main-only `release` environment. The workflows mint a one-hour,
 repository-scoped token with only Contents write immediately before pushing;
-Google mints a fresh token again after its artifact build. A step holding the
-token never runs Git hooks: hooked commits happen in an earlier step, and any
-commit inside the push step uses `--no-verify`. Only this App may
+Google mints a fresh token again after its artifact build. The pre-commit hook
+never sees the token: hooked commits happen before it is minted, and any commit
+inside a push step uses `--no-verify`. This keeps the token out of the hook's
+environment; it is not a boundary against code that earlier steps of the same
+job already ran. Only this App may
 bypass main's required CI checks for validated release version commits. Keep
 the checks active for everyone else and give the App no exception to tag
 immutability. Registry publication and workflow dispatch keep their existing
