@@ -353,10 +353,18 @@ jobs:
             fi
           done
 
+      - name: Create release push token
+        id: release-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Create and push tag
         if: success()
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.VERSION }}
           PACKAGE_EXISTS: ${{ steps.check_maven.outputs.exists }}
           VERSION_TYPE: ${{ inputs.version }}

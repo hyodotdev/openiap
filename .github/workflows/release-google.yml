@@ -403,10 +403,18 @@ jobs:
         if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
         run: node scripts/assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"
 
+      - name: Create release push token
+        id: release-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Commit version update
         if: steps.version.outputs.skip_version_commit != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh auth setup-git
@@ -581,9 +589,17 @@ jobs:
           $PROVIDER_ARTIFACTS
           EOF
 
+      - name: Create release tag token
+        id: release-tag-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Create and push tag
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-tag-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh auth setup-git

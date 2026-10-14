@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-14T13:19:55.989Z
+> Last updated: 2026-10-14T14:15:08.550Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2796,6 +2796,16 @@ command from a local terminal.
   `kit-production` for the kit deploy. Keep those secrets in the environment,
   not at repository level. `audit-security.mjs workflows` rejects a job that
   reads a secret without `environment:`; OIDC-only publish jobs stay ungated.
+
+Release Git pushes use the private, organization-owned OpenIAP release App.
+Store `RELEASE_APP_CLIENT_ID` as a variable and `RELEASE_APP_PRIVATE_KEY` as a
+secret in the main-only `release` environment. The workflows mint a one-hour,
+repository-scoped token with only Contents write immediately before pushing;
+Google mints a fresh token again after its artifact build. Only this App may
+bypass main's required CI checks for validated release version commits. Keep
+the checks active for everyone else and give the App no exception to tag
+immutability. Registry publication and workflow dispatch keep their existing
+OIDC and `GITHUB_TOKEN` authentication.
 
 Exact-version `npm deprecate` and retraction through the signed-in pub.dev Admin
 UI are authenticated lifecycle-maintenance exceptions, not package publishing.

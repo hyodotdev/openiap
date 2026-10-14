@@ -427,10 +427,18 @@ jobs:
           overwrite: true
           retention-days: 90
 
+      - name: Create release push token
+        id: release-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Push commit and tag
         if: ${{ inputs.version != 'current' }}
         env:
-          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
         run: |
           gh auth setup-git
           git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
@@ -438,7 +446,7 @@ jobs:
       - name: Push tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           gh auth setup-git

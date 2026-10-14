@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
+import { parse as parseYaml } from "yaml";
 import { fileURLToPath } from "node:url";
 import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
@@ -2246,6 +2247,70 @@ test("release pushes expose credentials only in their owning step", () => {
       assert.match(step, /gh auth setup-git/u, `${filename}:${index + 1}`);
     }
   }
+});
+
+test("release Git pushes use repository-scoped App tokens from the main-only environment", () => {
+  for (const { filename } of Object.values(releaseWorkflows)) {
+    const workflow = parseYaml(readWorkflow(filename));
+    let pushes = 0;
+    for (const job of Object.values(workflow.jobs)) {
+      const steps = job.steps ?? [];
+      const tokenSteps = new Map();
+      for (const [index, step] of steps.entries()) {
+        if (step.uses?.startsWith("actions/create-github-app-token@")) {
+          assert.equal(job.environment, "release", filename);
+          assert.match(step.uses, /@[a-f0-9]{40}$/u, filename);
+          assert.deepEqual(
+            step.with,
+            {
+              "client-id": "${{ vars.RELEASE_APP_CLIENT_ID }}",
+              "private-key": "${{ secrets.RELEASE_APP_PRIVATE_KEY }}",
+              "permission-contents": "write",
+            },
+            filename,
+          );
+          tokenSteps.set(step.id, index);
+        }
+        if (!/^\s*(?:if ! )?git push\b/mu.test(step.run ?? "")) continue;
+        pushes += 1;
+        assert.equal(job.environment, "release", filename);
+        const token = step.env?.GH_TOKEN?.match(
+          /^\$\{\{ steps\.([\w-]+)\.outputs\.token \}\}$/u,
+        );
+        assert.ok(token, `${filename}: ${step.name} must use an App token`);
+        assert.ok(tokenSteps.get(token[1]) < index, filename);
+        assert.match(step.run, /gh auth setup-git/u, filename);
+      }
+      assert.ok(!job.env?.GH_TOKEN, filename);
+      if (job.permissions?.["id-token"] === "write" && !tokenSteps.size) {
+        assert.ok(
+          !steps.some((step) => step.env?.GH_TOKEN?.includes("release-token")),
+          filename,
+        );
+      }
+    }
+    assert.ok(pushes > 0, filename);
+    assert.doesNotMatch(
+      readWorkflow(filename),
+      /secrets\.DEPENDENCY_UPDATE_PAT/u,
+      filename,
+    );
+  }
+});
+
+test("Google renews its App token after building artifacts and before pushing the tag", () => {
+  const workflow = parseYaml(readWorkflow("release-google.yml"));
+  const steps = workflow.jobs.release.steps;
+  const build = steps.findIndex(
+    (step) => step.name === "Build release artifacts",
+  );
+  const token = steps.findIndex((step) => step.id === "release-tag-token");
+  const push = steps.findIndex((step) => step.name === "Create and push tag");
+  assert.ok(build >= 0 && build < token && token < push);
+  assert.equal(
+    steps[push].env.GH_TOKEN,
+    "${{ steps.release-tag-token.outputs.token }}",
+  );
 });
 
 test("Apple release keeps its Bundler files across a current tag checkout", () => {
