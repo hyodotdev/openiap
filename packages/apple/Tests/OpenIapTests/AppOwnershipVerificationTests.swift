@@ -27,10 +27,16 @@ final class AppOwnershipVerificationTests: XCTestCase {
 
     func testRefreshRequiresAnExplicitOption() throws {
         let decoder = JSONDecoder()
-        XCTAssertNil(try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{}".utf8)).refreshIOS)
-        let options = try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"refreshIOS\":true}".utf8))
-        XCTAssertEqual(options.refreshIOS, true)
-        XCTAssertTrue(String(data: try JSONEncoder().encode(options), encoding: .utf8)!.contains("\"refreshIOS\":true"))
+        for payload in ["{}", "{\"apple\":null}", "{\"apple\":{}}", "{\"apple\":{\"refresh\":null}}"] {
+            XCTAssertNil(try decoder.decode(VerifyAppOwnershipProps.self, from: Data(payload.utf8)).apple?.refresh)
+        }
+        let disabled = try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"apple\":{\"refresh\":false}}".utf8))
+        XCTAssertEqual(disabled.apple?.refresh, false)
+        let options = try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"apple\":{\"refresh\":true}}".utf8))
+        XCTAssertEqual(options.apple?.refresh, true)
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(options)) as? [String: Any]
+        XCTAssertEqual((encoded?["apple"] as? [String: Any])?["refresh"] as? Bool, true)
+        XCTAssertThrowsError(try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"apple\":{\"refresh\":\"true\"}}".utf8)))
     }
 
     func testNetworkAndServiceFailuresRemainDistinct() {

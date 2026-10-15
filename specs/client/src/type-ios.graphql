@@ -423,6 +423,12 @@ input PromotionalOfferJWSInputIOS {
   jws: String!
 }
 
+"""Apple app acquisition verification options. Ignored by other stores."""
+input VerifyAppOwnershipOptionsIOS {
+  """Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3."""
+  refresh: Boolean
+}
+
 """
 Apple App Store verification parameters.
 Used for server-side receipt validation via App Store Server API.

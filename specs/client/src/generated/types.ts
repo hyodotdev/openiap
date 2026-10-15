@@ -2185,10 +2185,15 @@ export interface ValidTimeWindowAndroid {
   startTimeMillis: string;
 }
 
+/** Apple app acquisition verification options. Ignored by other stores. */
+export interface VerifyAppOwnershipOptionsIOS {
+  /** Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. */
+  refresh?: (boolean | null);
+}
+
 export interface VerifyAppOwnershipProps {
+  apple?: (VerifyAppOwnershipOptionsIOS | null);
   google?: (PlayIntegrityParamsAndroid | null);
-  /** Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores. */
-  refreshIOS?: (boolean | null);
 }
 
 /**

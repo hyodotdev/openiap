@@ -591,8 +591,8 @@ function Releases() {
           </AnchorLink>
           <p>
             Apps can offer a Retry action after StoreKit&apos;s normal app
-            transaction lookup fails. The optional <code>refreshIOS</code> flag
-            requests fresh signed evidence and may show App Store
+            transaction lookup fails. The optional <code>apple.refresh</code>{' '}
+            flag requests fresh signed evidence and may show App Store
             authentication.
           </p>
           <h5>Framework libraries</h5>

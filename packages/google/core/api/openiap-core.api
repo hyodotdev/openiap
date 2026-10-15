@@ -3997,16 +3997,39 @@ public final class dev/hyo/openiap/ValidTimeWindowAndroid$Companion {
 	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/ValidTimeWindowAndroid;
 }
 
+public final class dev/hyo/openiap/VerifyAppOwnershipOptionsIOS {
+	public static final field $stable I
+	public static final field Companion Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/Boolean;)V
+	public synthetic fun <init> (Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/Boolean;
+	public final fun copy (Ljava/lang/Boolean;)Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;
+	public static synthetic fun copy$default (Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;Ljava/lang/Boolean;ILjava/lang/Object;)Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRefresh ()Ljava/lang/Boolean;
+	public fun hashCode ()I
+	public final fun toJson ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/hyo/openiap/VerifyAppOwnershipOptionsIOS$Companion {
+	public final fun fromJson (Ljava/util/Map;)Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;
+}
+
 public final class dev/hyo/openiap/VerifyAppOwnershipProps {
 	public static final field $stable I
 	public static final field Companion Ldev/hyo/openiap/VerifyAppOwnershipProps$Companion;
 	public fun <init> ()V
 	public fun <init> (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;)V
 	public synthetic fun <init> (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;)V
+	public synthetic fun <init> (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
 	public final fun copy (Ldev/hyo/openiap/PlayIntegrityParamsAndroid;)Ldev/hyo/openiap/VerifyAppOwnershipProps;
 	public static synthetic fun copy$default (Ldev/hyo/openiap/VerifyAppOwnershipProps;Ldev/hyo/openiap/PlayIntegrityParamsAndroid;ILjava/lang/Object;)Ldev/hyo/openiap/VerifyAppOwnershipProps;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApple ()Ldev/hyo/openiap/VerifyAppOwnershipOptionsIOS;
 	public final fun getGoogle ()Ldev/hyo/openiap/PlayIntegrityParamsAndroid;
 	public fun hashCode ()I
 	public final fun toJson ()Ljava/util/Map;

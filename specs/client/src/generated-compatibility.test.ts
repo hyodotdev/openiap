@@ -540,6 +540,23 @@ export interface WrongOwner {
     expect(iapkitPropsPrimary).not.toContain('horizon');
   });
 
+  it('preserves the Kotlin ownership constructor and copies nested Apple options', () => {
+    const kotlin = generated('Types.kt');
+    const ownership = kotlin.slice(kotlin.indexOf('public class VerifyAppOwnershipProps('));
+    const primary = ownership.slice(0, ownership.indexOf(') {'));
+
+    expect(primary).toContain('val google: PlayIntegrityParamsAndroid? = null');
+    expect(primary).not.toContain('apple');
+    expect(ownership).toContain('operator fun component1(): PlayIntegrityParamsAndroid? = google');
+    expect(ownership).toContain(`    fun copy(
+        google: PlayIntegrityParamsAndroid? = this.google,
+    ): VerifyAppOwnershipProps = VerifyAppOwnershipProps(
+        google = google,
+        apple = this.apple,
+    )`);
+    expect(ownership).toContain('var apple: VerifyAppOwnershipOptionsIOS? = null');
+  });
+
   it('keeps store identity consistent in generated Kotlin', () => {
     const kotlin = generated('Types.kt');
     const iapkitResult = kotlin.slice(

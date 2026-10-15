@@ -2245,7 +2245,8 @@ func verify_app_ownership(options = null) -> Variant:
 		return Types.AppOwnershipVerificationResult.from_dict({"status": "unknown", "reason": "unsupported", "storeId": "unknown"})
 	var method := "verifyAppOwnership"
 	var arguments := _as_dictionary(options)
-	var timeout := _apple_async_ui_timeout_seconds if _is_apple() and arguments.get("refreshIOS") == true else 65.0
+	var apple_options := _as_dictionary(arguments.get("apple"))
+	var timeout := _apple_async_ui_timeout_seconds if _is_apple() and apple_options.get("refresh") == true else 65.0
 	var payload = await _call_native_async(method, [JSON.stringify(arguments)], timeout)
 	payload["method"] = method
 	if not payload.get("success", false):

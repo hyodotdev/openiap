@@ -18,10 +18,13 @@ interface ValueRow {
 
 const VERIFY_APP_OWNERSHIP_PROPS_FIELDS: FieldRow[] = [
   {
-    name: 'refreshIOS',
-    type: <code>boolean?</code>,
-    summary:
-      'Client Protocol 1.0.3 / openiap-apple 4.0.3: refresh Apple app transaction evidence after an explicit user action. May show App Store authentication. Never enable during automatic checks.',
+    name: 'apple',
+    type: (
+      <a href="#verify-app-ownership-apple-options">
+        <code>VerifyAppOwnershipOptionsIOS?</code>
+      </a>
+    ),
+    summary: 'Optional Apple settings. Ignored by other stores.',
   },
   {
     name: 'google',
@@ -31,6 +34,15 @@ const VERIFY_APP_OWNERSHIP_PROPS_FIELDS: FieldRow[] = [
       </a>
     ),
     summary: 'Required on Google Play. Ignored on Apple platforms.',
+  },
+];
+
+const VERIFY_APP_OWNERSHIP_APPLE_OPTIONS_FIELDS: FieldRow[] = [
+  {
+    name: 'refresh',
+    type: <code>boolean?</code>,
+    summary:
+      'Client Protocol 1.0.3 / openiap-apple 4.0.3: request fresh signed evidence after a user action. May show App Store authentication. Omitted, null or false keeps the ordinary lookup; never enable during automatic checks.',
   },
 ];
 
@@ -166,9 +178,9 @@ function AppOwnershipVerificationTypes() {
     <div className="doc-page">
       <SEO
         title="App Ownership Verification Types"
-        description="VerifyAppOwnershipProps, PlayIntegrityParamsAndroid, AppOwnershipVerificationResult, AppOwnershipStatus, and AppOwnershipVerificationReason field reference."
+        description="VerifyAppOwnershipProps, VerifyAppOwnershipOptionsIOS, PlayIntegrityParamsAndroid, and AppOwnershipVerificationResult field reference."
         path="/docs/types/app-ownership-verification"
-        keywords="AppOwnershipVerificationResult, VerifyAppOwnershipProps, PlayIntegrityParamsAndroid, AppOwnershipStatus, AppOwnershipVerificationReason, verifyAppOwnership"
+        keywords="AppOwnershipVerificationResult, VerifyAppOwnershipProps, VerifyAppOwnershipOptionsIOS, PlayIntegrityParamsAndroid, AppOwnershipStatus, AppOwnershipVerificationReason, verifyAppOwnership"
       />
       <h1>App Ownership Verification Types</h1>
       <p>
@@ -184,6 +196,13 @@ function AppOwnershipVerificationTypes() {
           VerifyAppOwnershipProps
         </AnchorLink>
         <FieldTable rows={VERIFY_APP_OWNERSHIP_PROPS_FIELDS} />
+      </section>
+
+      <section>
+        <AnchorLink id="verify-app-ownership-apple-options" level="h2">
+          VerifyAppOwnershipOptionsIOS
+        </AnchorLink>
+        <FieldTable rows={VERIFY_APP_OWNERSHIP_APPLE_OPTIONS_FIELDS} />
       </section>
 
       <section>

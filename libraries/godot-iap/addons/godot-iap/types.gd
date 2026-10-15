@@ -5466,15 +5466,31 @@ class SubscriptionProductReplacementParamsAndroid:
 				dict["replacementMode"] = replacement_mode
 		return dict
 
+## Apple app acquisition verification options. Ignored by other stores.
+class VerifyAppOwnershipOptionsIOS:
+	## Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3.
+	var refresh: Variant = null
+
+	static func from_dict(data: Dictionary) -> _Types.VerifyAppOwnershipOptionsIOS:
+		if data.has("refresh") and data["refresh"] != null and not data["refresh"] is bool:
+			push_error("Invalid VerifyAppOwnershipOptionsIOS.refresh value")
+			return null
+		var obj = VerifyAppOwnershipOptionsIOS.new()
+		if data.has("refresh") and data["refresh"] != null:
+			obj.refresh = data["refresh"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if refresh != null:
+			dict["refresh"] = refresh
+		return dict
+
 class VerifyAppOwnershipProps:
 	var google: _Types.PlayIntegrityParamsAndroid
-	## Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.
-	var refresh_ios: Variant = null
+	var apple: _Types.VerifyAppOwnershipOptionsIOS
 
 	static func from_dict(data: Dictionary) -> _Types.VerifyAppOwnershipProps:
-		if data.has("refreshIOS") and data["refreshIOS"] != null and not data["refreshIOS"] is bool:
-			push_error("Invalid VerifyAppOwnershipProps.refreshIOS value")
-			return null
 		var obj = VerifyAppOwnershipProps.new()
 		if data.has("google") and data["google"] != null:
 			if data["google"] is Dictionary:
@@ -5486,8 +5502,16 @@ class VerifyAppOwnershipProps:
 			else:
 				push_error("Expected google to be a PlayIntegrityParamsAndroid dictionary")
 				return null
-		if data.has("refreshIOS") and data["refreshIOS"] != null:
-			obj.refresh_ios = data["refreshIOS"]
+		if data.has("apple") and data["apple"] != null:
+			if data["apple"] is Dictionary:
+				var decoded_apple = VerifyAppOwnershipOptionsIOS.from_dict(data["apple"])
+				if decoded_apple == null:
+					push_error("Invalid input VerifyAppOwnershipOptionsIOS value for apple")
+					return null
+				obj.apple = decoded_apple
+			else:
+				push_error("Expected apple to be a VerifyAppOwnershipOptionsIOS dictionary")
+				return null
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -5497,8 +5521,11 @@ class VerifyAppOwnershipProps:
 				dict["google"] = google.to_dict()
 			else:
 				dict["google"] = google
-		if refresh_ios != null:
-			dict["refreshIOS"] = refresh_ios
+		if apple != null:
+			if apple is Object and apple.has_method("to_dict"):
+				dict["apple"] = apple.to_dict()
+			else:
+				dict["apple"] = apple
 		return dict
 
 ## Apple App Store verification parameters. Used for server-side receipt validation via App Store Server API.

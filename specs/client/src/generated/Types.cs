@@ -5160,13 +5160,20 @@ public sealed record SubscriptionProductReplacementParamsAndroid
     public required SubscriptionReplacementModeAndroid ReplacementMode { get; init; }
 }
 
+/// <summary>Apple app acquisition verification options. Ignored by other stores.</summary>
+public sealed record VerifyAppOwnershipOptionsIOS
+{
+    /// <summary>Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3.</summary>
+    [JsonPropertyName("refresh")]
+    public bool? Refresh { get; init; }
+}
+
 public sealed record VerifyAppOwnershipProps
 {
     [JsonPropertyName("google")]
     public PlayIntegrityParamsAndroid? Google { get; init; }
-    /// <summary>Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.</summary>
-    [JsonPropertyName("refreshIOS")]
-    public bool? RefreshIOS { get; init; }
+    [JsonPropertyName("apple")]
+    public VerifyAppOwnershipOptionsIOS? Apple { get; init; }
 }
 
 /// <summary>

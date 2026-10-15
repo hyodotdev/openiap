@@ -59,7 +59,9 @@ void main() {
           expect(call.method, 'verifyAppOwnership');
           expect(
             call.arguments,
-            const types.VerifyAppOwnershipProps(refreshIOS: true).toJson(),
+            const types.VerifyAppOwnershipProps(
+              apple: types.VerifyAppOwnershipOptionsIOS(refresh: true),
+            ).toJson(),
           );
           return {'status': 'licensed', 'storeId': 'apple'};
         });
@@ -67,7 +69,9 @@ void main() {
       FakePlatform(operatingSystem: 'ios'),
     );
     expect(
-      (await iap.verifyAppOwnership(refreshIOS: true)).status,
+      (await iap.verifyAppOwnership(
+        apple: const types.VerifyAppOwnershipOptionsIOS(refresh: true),
+      )).status,
       types.AppOwnershipStatus.Licensed,
     );
   });

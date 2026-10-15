@@ -1108,7 +1108,7 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
         }
         do {
             let verification: VerificationResult<StoreKit.AppTransaction>
-            if options?.refreshIOS == true {
+            if options?.apple?.refresh == true {
                 verification = try await StoreKit.AppTransaction.refresh()
             } else {
                 verification = try await StoreKit.AppTransaction.shared
