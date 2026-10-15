@@ -637,8 +637,9 @@ function Releases() {
               <strong>react-native-iap 17.1.0 and expo-iap 6.1.0</strong> export{' '}
               <code>createPurchaseFlow</code> and the client payload helpers;
               their Vega entry points leave the flow out because Vega purchases
-              go through Amazon. The expo-iap example adds an App backend option
-              to its purchase flow screen outside Vega.
+              go through Amazon. The expo-iap example adds an App backend
+              option, for one-time products and subscriptions, to its purchase
+              flow screen outside Vega.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
