@@ -597,35 +597,82 @@ function Releases() {
       date: new Date('2026-10-15'),
       element: (
         <div key="app-ownership-recovery-2026-10-15" style={noteCardStyle}>
+          <span id="kmp-swiftpm-2026-10-15" aria-hidden="true" />
           {APP_OWNERSHIP_RECOVERY_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="app-ownership-recovery-2026-10-15" level="h4">
-            October 15, 2026 - Retry Apple app ownership checks
+            October 15, 2026 - Apple ownership retries and KMP SwiftPM
           </AnchorLink>
           <p>
             Apps can offer a Retry action after StoreKit&apos;s normal app
-            transaction lookup fails. The optional <code>apple.refresh</code>{' '}
-            flag requests fresh signed evidence and may show App Store
-            authentication. See{' '}
-            <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>.
+            transaction lookup fails.
           </p>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.0.3</strong> adds optional Apple
+              settings to <code>verifyAppOwnership</code>.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.3</strong> requests fresh signed
+              evidence when <code>apple.refresh</code> is enabled and may prompt
+              for App Store authentication (
+              <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>
+              ).
+            </li>
+          </ul>
           <h5>Framework libraries</h5>
-          <p>
-            All six framework SDKs expose the Apple refresh option. Flutter
-            forwards the nested Apple settings, and godot-iap allows five
-            minutes for the system authentication sheet during a refresh.
-          </p>
+          <p>All six framework SDKs expose the Apple refresh option.</p>
+          <ul>
+            <li>
+              <strong>godot-iap 4.0.3</strong> allows five minutes for the
+              system authentication sheet during a refresh.
+            </li>
+            <li>
+              <strong>kmp-iap 4.0.3</strong> resolves its Apple dependency
+              through Swift Package Manager, including when consumed from Maven,
+              so iOS integration no longer requires CocoaPods (
+              <a href="https://github.com/hyodotdev/openiap/issues/534">#534</a>
+              ).
+            </li>
+          </ul>
           <h5>Integration notes</h5>
-          <p>
-            Rebuild native apps after upgrading. Enable the flag only from a
-            user action; leave automatic startup and resume checks unset.
-            Transaction verification and revocation checks still apply. See the{' '}
-            <Link to="/docs/apis/verify-app-ownership">
-              app ownership guide
-            </Link>
-            .
-          </p>
+          <ul>
+            <li>Rebuild native apps after upgrading.</li>
+            <li>
+              Enable <code>apple.refresh</code> only from a user action; leave
+              automatic startup and resume checks unset, as described in the{' '}
+              <Link to="/docs/apis/verify-app-ownership">
+                app ownership guide
+              </Link>
+              .
+            </li>
+            <li>
+              For <strong>flutter_inapp_purchase 11.0.3</strong>, custom
+              ownership resolvers and handler functions must accept the optional
+              named <code>VerifyAppOwnershipOptionsIOS? apple</code> parameter,
+              even if they ignore it.
+            </li>
+            <li>
+              For KMP, use Kotlin 2.4.20 or newer, a static shared framework,
+              and the generated <code>KotlinMultiplatformLinkedPackage</code> in
+              Xcode.
+            </li>
+            <li>
+              Replace the shared module&apos;s CocoaPods integration and manual
+              OpenIAP embed scripts using the{' '}
+              <Link to="/docs/setup/kmp#ios-config">KMP setup guide</Link>.
+            </li>
+            <li>
+              Older KMP Android toolchains need Kotlin 2.4-compatible Lint and
+              R8; follow the{' '}
+              <Link to="/docs/setup/kmp#android-kotlin-metadata">
+                Android toolchain requirements
+              </Link>
+              .
+            </li>
+          </ul>
           <div
             style={{
               borderTop: '1px solid var(--border-color)',

@@ -775,7 +775,8 @@ Library build and tests:
 
 ```bash
 cd libraries/kmp-iap
-./gradlew :library:build :library:test :library:podspec :library:generateDummyFramework
+./gradlew :library:build
+bash scripts/verify-swiftpm-build.sh
 ```
 
 Normal Android / Play build and launch smoke:

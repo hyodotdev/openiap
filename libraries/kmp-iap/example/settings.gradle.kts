@@ -2,6 +2,16 @@ rootProject.name = "KotlinProject"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+        }
+        dependencies {
+            // AGP 8.13's bundled R8 cannot preserve Kotlin 2.4 metadata.
+            classpath("com.android.tools:r8:9.1.56")
+        }
+    }
     repositories {
         google {
             mavenContent {
