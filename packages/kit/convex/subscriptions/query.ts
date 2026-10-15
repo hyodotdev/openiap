@@ -860,10 +860,10 @@ const revenueMetricsResponse = v.object({
   cohortsComputedAt: v.optional(v.number()),
 });
 
-// Below Convex's 32k per-query scan limit, and above 92 days of 30 SKUs × 3
-// currencies × 2 platforms (~16.5k rows) of one environment. Hitting it sets
+// `days` returns every row, and a Convex array holds at most 8,192 items: about
+// 92 days of 30 SKUs × 3 currencies on one platform. Hitting it sets
 // `truncated`.
-const REVENUE_SCAN_CAP = 20_000;
+const REVENUE_SCAN_CAP = 8_192;
 
 export const getRevenueMetrics = query({
   args: {

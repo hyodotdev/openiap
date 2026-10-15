@@ -3051,6 +3051,33 @@ describe("getRevenueMetrics — data state", () => {
     expect(summary.environment).toBe("Production");
   });
 
+  it("stops at Convex's array limit and says the result is truncated", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    await seedCurrentRunStatus(db, { lastRunAt: NOW });
+    for (let i = 0; i < 8_193; i++) {
+      await db.insert("revenueMetricsDaily", {
+        projectId: PROJECT_ID,
+        day: TODAY,
+        productId: `sku.${i}`,
+        currency: "USD",
+        platform: "IOS",
+        environment: "Production",
+        activeSubs: 1,
+        newSubs: 0,
+        renewals: 0,
+        cancellations: 0,
+        refunds: 0,
+        revenueMicros: 0,
+        updatedAt: NOW,
+      });
+    }
+
+    const result = await getRevenueMetrics._handler({ db }, range);
+    expect(result.days).toHaveLength(8_192);
+    expect(result.truncated).toBe(true);
+  });
+
   it("serves sandbox rows only when asked and keeps legacy rows in production", async () => {
     const db = new MemDb();
     await seedKey(db);
