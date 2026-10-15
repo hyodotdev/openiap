@@ -218,6 +218,56 @@ export default function ApiReferencePage() {
           require that ID to match the product your app expected.
         </p>
       </Callout>
+      <h3 className="mt-6 text-lg font-semibold">Transaction identifiers</h3>
+      <p>
+        Send <code>includeTransactionDetails: true</code> to match a
+        verification with the commerce events your backend receives. The
+        response then adds these fields, named and valued exactly as on{" "}
+        <Link to="/docs/webhooks" className="text-primary underline">
+          commerce events
+        </Link>
+        . A field the store does not supply is absent; without the flag the
+        response is unchanged.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          <code>transactionId</code> — Apple <code>transactionId</code> or the
+          Google Play order id. A Play purchase token is never returned here.
+        </li>
+        <li>
+          <code>originalTransactionId</code> — Apple only: the first transaction
+          of the purchase or subscription chain.
+        </li>
+        <li>
+          <code>expiresAt</code> — epoch milliseconds when access from an Apple
+          or Google subscription transaction ends, as the store reported it at
+          verification.
+        </li>
+        <li>
+          <code>commerceEnvironment</code> — <code>production</code> or{" "}
+          <code>sandbox</code>, the event spelling. <code>environment</code>{" "}
+          keeps its <code>Production</code> / <code>Sandbox</code> spelling.
+        </li>
+        <li>
+          <code>correlationId</code> — this request&apos;s{" "}
+          <code>X-Correlation-Id</code>.
+        </li>
+      </ul>
+      <CodeBlock title="Opt-in transaction identifiers" language="json">
+        {`{
+  "store": "apple",
+  "isValid": true,
+  "state": "ENTITLED",
+  "productId": "premium_monthly",
+  "environment": "Production",
+  "transactionId": "2000000912345678",
+  "originalTransactionId": "2000000900000001",
+  "expiresAt": 1784160000000,
+  "commerceEnvironment": "production",
+  "correlationId": "6ebb9c9e-2e6e-4f9a-9bf2-4a6a9d5f9d20"
+}`}
+      </CodeBlock>
+
       <Callout kind="note" title="Purchase rows are verification snapshots">
         <p>
           Calling <code>finishTransaction</code> updates the app and store; it
@@ -468,9 +518,11 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">
                 POST /v1/subscriptions/bind-user
               </td>
-              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">Publishable or secret</td>
               <td className="px-3 py-2">
-                Links a purchase to your user id. Body up to 32 KB.
+                Links a purchase to your user id. Body up to 32 KB. A secret key
+                also links Apple and Google one-time purchases and receives{" "}
+                <code>reason</code>.
               </td>
             </tr>
             <tr>
@@ -518,16 +570,59 @@ export default function ApiReferencePage() {
         </table>
       </div>
 
+      <h3 className="mt-6 text-lg font-semibold">Binding from your backend</h3>
+      <p>
+        Binding never moves an owner. A publishable key gets{" "}
+        <code>{`{ ok, bound }`}</code> and the same <code>bound: false</code>{" "}
+        whether the purchase is unknown or someone else&apos;s, so an app cannot
+        probe ownership. Call bind-user with{" "}
+        <code>Authorization: Bearer openiap-kit_sk_...</code> from your
+        authenticated backend to get <code>reason</code> and decide what your
+        app does:
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          <code>bound</code> — newly linked to this user.
+        </li>
+        <li>
+          <code>already_bound</code> — already linked to this user.
+        </li>
+        <li>
+          <code>bound_to_other_user</code> — linked to another user. Resolve it
+          under your own policy; a bind never moves it.
+        </li>
+        <li>
+          <code>not_found</code> — IAPKit has not verified this purchase. Verify
+          it first.
+        </li>
+        <li>
+          <code>not_bindable</code> — known but not linkable: not entitled, a
+          consumable, an Amazon subscription token, a user under erasure, or a
+          user already holding 20 linked purchases.
+        </li>
+      </ul>
+      <p>
+        A secret key also links a verified, entitled Apple or Google one-time
+        purchase (send its JWS or purchase token). Linking records ownership for
+        your records and support; it does not add the product to subscription
+        status or entitlement reads, so grant it from the verify response.
+      </p>
+      <CodeBlock title="Secret-key bind-user response" language="json">
+        {`{ "ok": true, "bound": false, "reason": "bound_to_other_user" }`}
+      </CodeBlock>
+
       <h2 className="mt-10 text-2xl font-semibold">Response headers</h2>
       <p>
         Verification requests that pass bearer-token shape validation carry a
-        correlation ID. Requests that reach the multi-axis rate limiter also
-        carry its limit and remaining-token headers:
+        correlation ID, and so do bind-user requests that reach the handler.
+        Requests that reach the multi-axis rate limiter also carry its limit and
+        remaining-token headers:
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           <code>X-Correlation-Id</code> — UUID for this request. Quote it in
-          support tickets so we can locate the matching server log line.
+          support tickets so we can locate the matching log line, purchase, and
+          purchase issue.
         </li>
         <li>
           <code>X-RateLimit-Limit</code> — bucket size for this API key.
@@ -565,7 +660,7 @@ export default function ApiReferencePage() {
             <tr>
               <td className="px-3 py-2 font-mono text-xs">200</td>
               <td className="px-3 py-2">
-                <code>{`{ store, isValid, state, productId?, environment?, clientPayload? }`}</code>
+                <code>{`{ store, isValid, state, productId?, environment?, clientPayload?, …transaction details? }`}</code>
               </td>
               <td className="px-3 py-2">Verification completed.</td>
             </tr>

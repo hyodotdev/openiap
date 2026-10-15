@@ -269,6 +269,7 @@ describe("apiRoutes", () => {
       sandbox: true,
       expectedProductId: "amazon.premium.monthly",
       requestIp: undefined,
+      correlationId: response.headers.get("X-Correlation-Id"),
     });
   });
 
@@ -328,7 +329,11 @@ describe("apiRoutes", () => {
       expect(convexClientMock.action).toHaveBeenCalledOnce();
       const [functionReference, args] = convexClientMock.action.mock.calls[0];
       expect(getFunctionName(functionReference)).toBe(functionName);
-      expect(args).toEqual(expectedArgs);
+      // The persisted correlation id is the one the response header reports.
+      expect(args).toEqual({
+        ...expectedArgs,
+        correlationId: response.headers.get("X-Correlation-Id"),
+      });
     },
   );
 
@@ -720,6 +725,113 @@ describe("apiRoutes", () => {
       state: "ENTITLED",
       productId: "amazon.premium.monthly",
       environment: "Xcode",
+    });
+  });
+
+  describe("includeTransactionDetails", () => {
+    const appleVerdict = {
+      isValid: true,
+      state: "ENTITLED",
+      productId: "premium.monthly",
+      environment: "Sandbox",
+      transactionDetails: {
+        transactionId: "2000000000000002",
+        originalTransactionId: "2000000000000001",
+        expiresAt: 1_800_000_000_000,
+      },
+    };
+    const jws = `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`;
+    const verify = (apiKey: string, body: Record<string, unknown>) =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ store: "apple", jws, ...body }),
+      });
+
+    it("leaves the default response byte-identical", async () => {
+      convexClientMock.action.mockResolvedValueOnce(appleVerdict);
+
+      const response = await verify("route-test-details-default", {});
+
+      expect(response.status).toBe(200);
+      // Golden: the exact body shipped SDKs decode today.
+      expect(await response.text()).toBe(
+        '{"store":"apple","isValid":true,"state":"ENTITLED","productId":"premium.monthly","environment":"Sandbox"}',
+      );
+      expect(response.headers.get("X-Correlation-Id")).toMatch(
+        /^[0-9a-f-]{36}$/,
+      );
+    });
+
+    it("adds the commerce-event identifiers and the correlation id on request", async () => {
+      convexClientMock.action.mockResolvedValueOnce(appleVerdict);
+
+      const response = await verify("route-test-details-on", {
+        includeTransactionDetails: true,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        store: "apple",
+        isValid: true,
+        state: "ENTITLED",
+        productId: "premium.monthly",
+        environment: "Sandbox",
+        transactionId: "2000000000000002",
+        originalTransactionId: "2000000000000001",
+        expiresAt: 1_800_000_000_000,
+        commerceEnvironment: "sandbox",
+        correlationId: response.headers.get("X-Correlation-Id"),
+      });
+    });
+
+    it("adds only what the store supplied", async () => {
+      convexClientMock.action.mockResolvedValueOnce({
+        isValid: true,
+        state: "ENTITLED",
+        productId: "sku",
+      });
+
+      const response = await apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-details-horizon",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "horizon",
+          userId: "123456789",
+          sku: "sku",
+          includeTransactionDetails: true,
+        }),
+      });
+
+      expect(await response.json()).toEqual({
+        store: "horizon",
+        isValid: true,
+        state: "ENTITLED",
+        productId: "sku",
+        correlationId: response.headers.get("X-Correlation-Id"),
+      });
+    });
+
+    it("publishes the flag and the fields in the OpenAPI document", async () => {
+      const spec = JSON.stringify(
+        await (await apiRoutes.request("/openapi")).json(),
+      );
+      for (const name of [
+        "includeTransactionDetails",
+        "transactionId",
+        "originalTransactionId",
+        "expiresAt",
+        "commerceEnvironment",
+        "correlationId",
+      ]) {
+        expect(spec).toContain(`"${name}"`);
+      }
     });
   });
 });

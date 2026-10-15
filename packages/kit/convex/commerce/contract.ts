@@ -135,6 +135,20 @@ export const COMMERCE_ENVIRONMENTS = [
 ] as const;
 export type CommerceEnvironment = (typeof COMMERCE_ENVIRONMENTS)[number];
 
+/** Store environments use TitleCase; the contract uses lowercase. */
+export function normalizeEnvironment(
+  environment: "Production" | "Sandbox" | "Xcode",
+): CommerceEnvironment {
+  switch (environment) {
+    case "Sandbox":
+      return "sandbox";
+    case "Xcode":
+      return "xcode";
+    default:
+      return "production";
+  }
+}
+
 export type CommerceSubscriptionSnapshot = {
   state: SubscriptionState;
   productId: string;

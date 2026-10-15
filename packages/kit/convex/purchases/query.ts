@@ -7,10 +7,35 @@ import { harmonizedPurchaseStateValidator } from "./purchaseState";
 import { purchaseStoreValidator } from "../schema";
 import { readPurchaseStats } from "./stats";
 import { extractProductIdFromRemoteResponse } from "./shared";
+import { evidenceFingerprint } from "../purchaseIssues/evidence";
 import {
   getWritableOrganization,
   getWritableProject,
 } from "../projects/writable";
+
+type MemberRole = Doc<"organizationMembers">["role"];
+
+// Signed JWS, purchase tokens and store responses can be replayed against
+// verify and bind, so only project admins and owners read them.
+function canReadRawEvidence(role: MemberRole): boolean {
+  return role === "owner" || role === "admin";
+}
+
+// remoteId is a Google purchase token, so it goes with the raw evidence.
+function withoutRawEvidence<
+  T extends Pick<
+    Doc<"purchases">,
+    "requestData" | "remoteResponse" | "remoteId"
+  >,
+>(purchase: T): Omit<T, "requestData" | "remoteResponse" | "remoteId"> {
+  const {
+    requestData: _requestData,
+    remoteResponse: _remoteResponse,
+    remoteId: _remoteId,
+    ...rest
+  } = purchase;
+  return rest;
+}
 
 async function getPendingProjectIdsForOrganization(
   ctx: QueryCtx,
@@ -154,18 +179,23 @@ export const getReceiptsByProject = query({
 
     // Rows from before the productId column and its backfill fall back to
     // parsing remoteResponse.
-    const pageWithProductId = paginated.page.map((purchase) => ({
-      ...purchase,
-      productId:
-        purchase.productId ??
-        extractProductIdFromRemoteResponse(
-          purchase.store,
-          purchase.remoteResponse,
-          purchase.requestData.store === "google"
-            ? purchase.requestData.expectedProductId
-            : undefined,
-        ),
-    }));
+    const pageWithProductId = paginated.page.map((purchase) => {
+      const row = {
+        ...purchase,
+        productId:
+          purchase.productId ??
+          extractProductIdFromRemoteResponse(
+            purchase.store,
+            purchase.remoteResponse,
+            purchase.requestData.store === "google"
+              ? purchase.requestData.expectedProductId
+              : undefined,
+          ),
+      };
+      return canReadRawEvidence(membership.role)
+        ? row
+        : withoutRawEvidence(row);
+    });
 
     // Read the maintained per-project counters instead of iterating every
     // receipt. Counters are kept in sync by `savePurchaseInternal`,
@@ -211,7 +241,8 @@ export const getPurchaseById = query({
       throw new ConvexError("Not authorized to view this purchase");
     }
 
-    return {
+    const fingerprint = await evidenceFingerprint(purchase.requestData);
+    const withProductId = {
       ...purchase,
       productId:
         purchase.productId ??
@@ -222,6 +253,18 @@ export const getPurchaseById = query({
             ? purchase.requestData.expectedProductId
             : undefined,
         ),
+    };
+    if (canReadRawEvidence(membership.role)) {
+      return {
+        ...withProductId,
+        rawEvidenceVisible: true as const,
+        evidenceFingerprint: fingerprint,
+      };
+    }
+    return {
+      ...withoutRawEvidence(withProductId),
+      rawEvidenceVisible: false as const,
+      evidenceFingerprint: fingerprint,
     };
   },
 });

@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import * as crypto from "node:crypto";
 
@@ -205,6 +206,13 @@ function collectDebugIdentifiers(
   }
 
   return Object.keys(identifiers).length > 0 ? identifiers : undefined;
+}
+
+/** Issues an X-Correlation-Id on a route the verify logger does not cover. */
+export function issueCorrelationId(c: Context): string {
+  const corrId = crypto.randomUUID();
+  c.header("X-Correlation-Id", corrId);
+  return corrId;
 }
 
 export interface RequestLoggerConfig {

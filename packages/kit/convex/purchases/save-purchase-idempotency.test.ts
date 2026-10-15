@@ -270,6 +270,34 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     });
   });
 
+  it("keeps the correlation id of the request that last wrote the row", async () => {
+    const first = "0f8fad5b-d9cb-469f-a165-70867728950e";
+    const second = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({ remoteId: TOKEN }),
+      correlationId: first,
+    });
+    expect((await db.query("purchases").collect())[0].correlationId).toBe(
+      first,
+    );
+
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({ remoteId: TOKEN }),
+      correlationId: second,
+    });
+    // A direct Convex caller's free text is not a correlation id.
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({ remoteId: TOKEN }),
+      correlationId: "x".repeat(4_000),
+    });
+    expect((await db.query("purchases").collect())[0].correlationId).toBe(
+      second,
+    );
+  });
+
   it("bootstraps both sentinels before transitioning an uncounted legacy row", async () => {
     await db.insert("purchases", {
       projectId: PROJECT_ID,

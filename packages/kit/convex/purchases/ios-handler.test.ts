@@ -134,6 +134,10 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
       state: "ENTITLED",
       productId: "premium_forever",
       environment: "Production",
+      transactionDetails: {
+        transactionId: "2000001177054625",
+        originalTransactionId: "2000001177054625",
+      },
     });
 
     expect(appleMocks.verifierConstructor).toHaveBeenCalledTimes(2);

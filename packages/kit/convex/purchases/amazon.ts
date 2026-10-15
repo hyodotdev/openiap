@@ -33,6 +33,7 @@ import {
   type ReceiptResponse,
   type RecheckOptions,
 } from "./shared";
+import { verifyRecordingIssues } from "../purchaseIssues/shared";
 
 const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
 const AMAZON_RVS_VERSION = "1.0";
@@ -74,6 +75,7 @@ interface PersistAmazonVerdictArgs {
   requestIp?: string;
   verificationDurationMs?: number;
   amazonRvsSequence: number;
+  correlationId?: string;
 }
 
 function describeError(error: unknown): string {
@@ -267,6 +269,7 @@ async function persistAmazonVerdict(
     requestIp: args.requestIp,
     verificationDurationMs: args.verificationDurationMs,
     amazonRvsSequence: args.amazonRvsSequence,
+    correlationId: args.correlationId,
   });
 }
 
@@ -338,12 +341,27 @@ const amazonVerificationArgs = v.object({
   sandbox: v.optional(v.boolean()),
   expectedProductId: v.optional(v.string()),
   requestIp: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
 });
 
 export const verifyAmazonReceiptInternalV1 = action({
   args: amazonVerificationArgs.fields,
   returns: receiptResponseValidator,
-  handler: verifyAmazonReceipt,
+  handler: (ctx, args) =>
+    verifyRecordingIssues(
+      ctx,
+      {
+        apiKey: args.apiKey,
+        evidence: {
+          store: "amazon",
+          userId: args.userId,
+          receiptId: args.receiptId,
+        },
+        expectedProductId: args.expectedProductId,
+        correlationId: args.correlationId,
+      },
+      () => verifyAmazonReceipt(ctx, args),
+    ),
 });
 
 export async function verifyAmazonReceipt(
@@ -408,6 +426,7 @@ export async function verifyAmazonReceipt(
         state,
         requestIp: args.requestIp,
         verificationDurationMs: Date.now() - verificationStart,
+        correlationId: args.correlationId,
       });
       return applyExpectedProductId(verdict, args.expectedProductId);
     }
@@ -431,6 +450,7 @@ export async function verifyAmazonReceipt(
     amazonRvsSequence,
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
+    correlationId: args.correlationId,
   });
   return applyExpectedProductId(verdict, args.expectedProductId);
 }

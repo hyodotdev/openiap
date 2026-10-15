@@ -2,6 +2,7 @@
 // oversized bodies, GraphQL bounds, introspection agreement, and the
 // evidence-normalization paths of bindPurchase.
 
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { buildSchema, getIntrospectionQuery, printSchema } from "graphql";
@@ -57,6 +58,9 @@ const { replayGuardMiddleware } = await import("../v1/replay-guard");
 const { commerceGraphqlSchema } = await import("./graphql");
 
 const SERVER_KEY = "openiap-kit_sk_unit";
+
+const sha256 = (value: string): string =>
+  createHash("sha256").update(value).digest("hex");
 const CLIENT_KEY = "openiap-kit_pk_unit";
 const GOOGLE_TOKEN = "unit-google-purchase-token-0000000001";
 
@@ -306,6 +310,8 @@ describe("commerce REST adapter", () => {
       apiKey: SERVER_KEY,
       purchaseToken: "2000000123456789",
       userId: "user-1",
+      // The JWS is hashed before it is reduced to its transaction id.
+      evidenceFingerprint: sha256(jws),
     });
   });
 
@@ -338,6 +344,7 @@ describe("commerce REST adapter", () => {
         userId: "user-1",
         store: "horizon",
         remoteId: "1234567890:premium",
+        evidenceFingerprint: sha256("1234567890:premium"),
       },
     );
   });
@@ -358,6 +365,8 @@ describe("commerce REST adapter", () => {
         userId: "user-1",
         store: "amazon",
         remoteId: "sandbox:amzn1.account.X:rcpt%2F1",
+        // Amazon evidence is the receipt id, as on verification.
+        evidenceFingerprint: sha256("rcpt/1"),
       },
     );
   });

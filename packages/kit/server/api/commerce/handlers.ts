@@ -15,6 +15,8 @@ import {
   buildAmazonRemoteId,
   buildHorizonRemoteId,
 } from "../../../convex/purchases/identity";
+import { evidenceFingerprint } from "../../../convex/purchaseIssues/evidence";
+import { sha256Hex } from "../../../convex/utils/sha256";
 
 export interface ProtocolContext {
   apiKey: string;
@@ -346,16 +348,20 @@ export async function bindPurchase(
 ): Promise<{ bound: boolean }> {
   const userId = requireUserId(input.userId);
   if (input.store === "amazon" || input.store === "horizon") {
-    const remoteId =
-      input.store === "amazon"
-        ? buildAmazonRemoteId({
-            ...requireEvidence(input, input.amazon),
-            sandbox: input.amazon?.sandbox === true,
-          })
-        : buildHorizonRemoteId(
-            requireEvidence(input, input.horizon).userId,
-            requireEvidence(input, input.horizon).sku,
-          );
+    let remoteId: string;
+    let fingerprint: string;
+    if (input.store === "amazon") {
+      const amazon = requireEvidence(input, input.amazon);
+      remoteId = buildAmazonRemoteId({
+        ...amazon,
+        sandbox: amazon.sandbox === true,
+      });
+      fingerprint = await evidenceFingerprint({ store: "amazon", ...amazon });
+    } else {
+      const horizon = requireEvidence(input, input.horizon);
+      remoteId = buildHorizonRemoteId(horizon.userId, horizon.sku);
+      fingerprint = await evidenceFingerprint({ store: "horizon", ...horizon });
+    }
     try {
       return await client.mutation(
         api.purchases.mutation.bindVerifiedPurchaseAsServer,
@@ -364,6 +370,7 @@ export async function bindPurchase(
           userId,
           store: input.store,
           remoteId,
+          evidenceFingerprint: fingerprint,
         },
       );
     } catch (error) {
@@ -401,6 +408,7 @@ export async function bindPurchase(
         apiKey: context.apiKey,
         purchaseToken: normalized.purchaseToken,
         userId,
+        evidenceFingerprint: await sha256Hex(rawToken),
       },
     );
     return { bound: result.bound };

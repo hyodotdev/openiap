@@ -291,7 +291,8 @@ type StoreCase = {
   verify: (ctx: unknown) => Promise<unknown>;
 };
 
-// A store context whose only reachable calls are the key lookup and admission.
+// A store context whose only reachable calls are the key lookup, admission,
+// and the purchase-issue record a rejection writes.
 function storeContext(project: Record<string, unknown>) {
   vi.useFakeTimers({ now: 1_000 });
   const { ctx: admission } = admissionCtx([
@@ -300,7 +301,11 @@ function storeContext(project: Record<string, unknown>) {
   const unexpected = (reference: FunctionReference<"query" | "mutation">) => {
     throw new Error(`unexpected call: ${getFunctionName(reference)}`);
   };
+  const issues: Array<{ cause: string }> = [];
+  let admissionCalls = 0;
   return {
+    issues,
+    admissionCalls: () => admissionCalls,
     runQuery: vi.fn(async (reference: FunctionReference<"query">) =>
       getFunctionName(reference) === "projects/internal:getProjectByApiKey"
         ? { _id: PROJECT_ID, ...project }
@@ -309,59 +314,73 @@ function storeContext(project: Record<string, unknown>) {
     runMutation: vi.fn(
       async (
         reference: FunctionReference<"mutation">,
-        args: { projectId: Id<"projects"> },
-      ) =>
-        getFunctionName(reference) === "purchases/verificationAdmission:consume"
-          ? await testableFunction(consume)._handler(admission, args)
-          : unexpected(reference),
+        args: { projectId: Id<"projects"> } & { issue?: { cause: string } },
+      ) => {
+        const name = getFunctionName(reference);
+        if (name === "purchases/verificationAdmission:consume") {
+          admissionCalls += 1;
+          return await testableFunction(consume)._handler(admission, args);
+        }
+        if (name === "purchaseIssues/internal:record" && args.issue) {
+          issues.push(args.issue);
+          return null;
+        }
+        return unexpected(reference);
+      },
     ),
   };
 }
 
 describe("verification admission order", () => {
-  const rejected: Array<StoreCase & { errorCode: string }> = [
+  const rejected: Array<StoreCase & { errorCode: string; cause: string }> = [
     {
       name: "a malformed Apple JWS",
       project: APPLE_PROJECT,
       verify: verifyApple("not-a-jws"),
       errorCode: "APP_STORE_INVALID_JWS_FORMAT",
+      cause: "MALFORMED_EVIDENCE",
     },
     {
       name: "an Apple JWS for another app",
       project: APPLE_PROJECT,
       verify: verifyApple(appleJws("com.example.other")),
       errorCode: "APP_STORE_BUNDLE_ID_MISMATCH",
+      cause: "APP_MISMATCH",
     },
     {
       name: "a Google request to a project without an Android app",
       project: {},
       verify: verifyGoogle,
       errorCode: "PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED",
+      cause: "STORE_NOT_CONFIGURED",
     },
     {
       name: "a Horizon request to a project without Horizon",
       project: {},
       verify: verifyHorizon,
       errorCode: "META_HORIZON_NOT_ENABLED",
+      cause: "STORE_NOT_CONFIGURED",
     },
     {
       name: "an Amazon sandbox request without the opt-in",
       project: { amazonSharedSecret: "secret" },
       verify: verifyAmazon(true),
       errorCode: "AMAZON_SANDBOX_NOT_ENABLED",
+      cause: "SANDBOX_NOT_ALLOWED",
     },
   ];
 
   it.each(rejected)(
     "rejects $name without charging the bucket",
-    async ({ project, verify, errorCode }) => {
+    async ({ project, verify, errorCode, cause }) => {
       const fetch = vi.fn();
       vi.stubGlobal("fetch", fetch);
       const ctx = storeContext(project);
 
       // An empty bucket would answer RATE_LIMITED if it were charged first.
       await expect(verify(ctx)).rejects.toMatchObject({ errorCode });
-      expect(ctx.runMutation).not.toHaveBeenCalled();
+      expect(ctx.admissionCalls()).toBe(0);
+      expect(ctx.issues.map((issue) => issue.cause)).toEqual([cause]);
       expect(fetch).not.toHaveBeenCalled();
     },
   );
@@ -403,7 +422,8 @@ describe("verification admission order", () => {
       await expect(verify(ctx)).rejects.toMatchObject({
         data: { code: "RATE_LIMITED" },
       });
-      expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+      expect(ctx.admissionCalls()).toBe(1);
+      expect(ctx.issues.map((issue) => issue.cause)).toEqual(["RATE_LIMITED"]);
       expect(fetch).not.toHaveBeenCalled();
     },
   );

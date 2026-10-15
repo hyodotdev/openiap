@@ -338,6 +338,8 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     await ctx.db.insert("products", { projectId });
     await ctx.db.insert("productSyncJobs", { projectId });
     await ctx.db.insert("purchaseStats", { projectId });
+    await ctx.db.insert("purchaseIssues", { projectId });
+    await ctx.db.insert("purchaseIssueCounts", { projectId });
 
     // User-deletion path completes immediately, leaving the org flagged
     // `pendingDeletion: true` for the global cron to clean up later.
@@ -377,6 +379,8 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("products")).toBe(0);
     expect(ctx.db.countRows("productSyncJobs")).toBe(0);
     expect(ctx.db.countRows("purchaseStats")).toBe(0);
+    expect(ctx.db.countRows("purchaseIssues")).toBe(0);
+    expect(ctx.db.countRows("purchaseIssueCounts")).toBe(0);
     expect(ctx.db.countRows("projects")).toBe(0);
     expect(ctx.db.countRows("organizations")).toBe(0);
     expect(ctx.storage.deleted).toContain("storage_1");

@@ -173,6 +173,30 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const purchaseIssues = await ctx.db
+    .query("purchaseIssues")
+    .withIndex("by_project_and_lastSeenAt", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const issue of purchaseIssues) {
+    await ctx.db.delete(issue._id);
+  }
+  if (purchaseIssues.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const purchaseIssueCounts = await ctx.db
+    .query("purchaseIssueCounts")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const counter of purchaseIssueCounts) {
+    await ctx.db.delete(counter._id);
+  }
+  if (purchaseIssueCounts.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const files = await ctx.db
     .query("files")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

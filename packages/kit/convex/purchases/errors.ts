@@ -285,6 +285,9 @@ function isConvexWriteConflict(error: unknown): boolean {
 // Only curated messages reach `/v1`. Store outages and Convex write conflicts
 // are temporary; anything else stays permanent.
 export class PlayStoreVerificationError extends ReceiptVerificationError {
+  /** The classified store error this wraps, when there is one. */
+  public readonly inner?: ReceiptVerificationError;
+
   constructor(originalError: unknown) {
     const inner =
       originalError instanceof ReceiptVerificationError
@@ -305,6 +308,7 @@ export class PlayStoreVerificationError extends ReceiptVerificationError {
           ? STORE_OUTAGE_RETRY_AFTER_SEC
           : undefined,
     );
+    this.inner = inner;
   }
 }
 
@@ -367,11 +371,13 @@ export class AppStoreTransactionVerificationFailedError extends ReceiptVerificat
   constructor(
     message: string = "Unknown verification error",
     retryAfterSec?: number,
+    // App Store Server API HTTP status, when the API answered.
+    status?: number,
   ) {
     super(
       "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
       `App Store transaction verification failed: ${message}`,
-      undefined,
+      status === undefined ? undefined : { status },
       retryAfterSec,
     );
   }

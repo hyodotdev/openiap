@@ -127,7 +127,20 @@ export const receiptResponseValidator = v.object({
   // fetched future Play state can also map to UNKNOWN and must stay
   // retryable. The HTTP route consumes this without returning it publicly.
   stableRejection: v.optional(v.boolean()),
+  // Store identifiers named as commerce events name them. /v1 returns them
+  // only when the request sets includeTransactionDetails.
+  transactionDetails: v.optional(
+    v.object({
+      transactionId: v.optional(v.string()),
+      originalTransactionId: v.optional(v.string()),
+      expiresAt: v.optional(v.number()),
+    }),
+  ),
 });
+
+export type TransactionDetails = NonNullable<
+  ReceiptResponse["transactionDetails"]
+>;
 
 // Amazon asks developers to revisit every active receipt within 72 hours.
 // Rows become due at 48 hours; this is a scheduling cadence, not a completion

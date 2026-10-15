@@ -122,12 +122,13 @@ export default function OperationsPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">Correlation IDs</h2>
       <p>
-        Every verify response after the auth-header shape check carries an{" "}
-        <code>X-Correlation-Id</code> header — a UUIDv4 IAPKit generates at the
-        logger middleware level. The same id appears in the structured log line
-        for that request, so support can pivot from a customer report straight
-        to the exact log entry. Missing or malformed Authorization headers
-        return before the logger runs.
+        Verify and bind-user responses carry an <code>X-Correlation-Id</code>{" "}
+        header — a UUIDv4 IAPKit generates for the request. The same id appears
+        in the verify log line, on the purchase row the request wrote, and on
+        any purchase issue it recorded, so support can pivot from a customer
+        report straight to the exact entry. A request rejected before it is
+        handled — a missing or malformed Authorization header, or a bind-user
+        rate limit — carries none.
       </p>
       <CodeBlock title="Sample response headers" language="http">
         {`HTTP/1.1 200 OK

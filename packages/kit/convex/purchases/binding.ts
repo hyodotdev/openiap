@@ -2,7 +2,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { amazonSubscriptionToken } from "../subscriptions/amazon";
 import { isUserErasureRequested } from "../subscriptions/erasure";
+import type { BindOutcome } from "../subscriptions/internal";
 import { MAX_BOUND_PURCHASES_PER_USER } from "../subscriptions/limits";
+import { HarmonizedPurchaseState } from "./purchaseState";
+import { AppStoreProductType } from "./shared";
 
 export async function makePurchaseBindingRoom(
   ctx: MutationCtx,
@@ -85,4 +88,132 @@ export async function bindAmazonPurchaseOwner(
     accountErased: undefined,
   });
   return true;
+}
+
+// Apple and Google one-time purchases have no subscription row, so a server
+// links the verified purchase row instead. Auto-renewing purchases link through
+// their subscription row and are never matched here.
+async function findOneTimeStorePurchase(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  purchaseToken: string,
+): Promise<Doc<"purchases"> | null> {
+  for (const store of ["apple", "google"] as const) {
+    const purchase = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_remote", (q) =>
+        q.eq("projectId", projectId).eq("remoteId", purchaseToken),
+      )
+      .filter((q) => q.eq(q.field("store"), store))
+      .first();
+    if (purchase) return isOneTimePurchase(purchase) ? purchase : null;
+  }
+  return null;
+}
+
+// Reads the stored store response: Apple's transaction type, or Google's
+// productsv2 shape. Anything unreadable is not linked.
+function isOneTimePurchase(purchase: Doc<"purchases">): boolean {
+  let response: unknown;
+  try {
+    response = JSON.parse(purchase.remoteResponse ?? "");
+  } catch {
+    return false;
+  }
+  if (!response || typeof response !== "object") return false;
+  if (purchase.store === "google") return "productLineItem" in response;
+  const type = (response as { type?: unknown }).type;
+  return (
+    typeof type === "string" &&
+    (type as AppStoreProductType) !==
+      AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION
+  );
+}
+
+// Same rule as Amazon and Horizon: only a currently entitled purchase links; a
+// consumable is fulfilled by the app's own ledger.
+function isLinkable(purchase: Doc<"purchases">): boolean {
+  return (
+    purchase.state === HarmonizedPurchaseState.ENTITLED &&
+    purchase.isValid === true &&
+    Boolean(purchase.productId)
+  );
+}
+
+/** Links a verified Apple or Google one-time purchase; never moves an owner. */
+export async function bindOneTimePurchaseToUser(
+  ctx: MutationCtx,
+  project: Doc<"projects">,
+  purchaseToken: string,
+  userId: string,
+): Promise<BindOutcome> {
+  if (await isUserErasureRequested(ctx, project, userId))
+    return { reason: "not_bindable" };
+  const purchase = await findOneTimeStorePurchase(
+    ctx,
+    project._id,
+    purchaseToken,
+  );
+  if (!purchase) return { reason: "not_found" };
+  const target = {
+    store: purchase.store,
+    ...(purchase.productId ? { productId: purchase.productId } : {}),
+  };
+  if (purchase.appUserId === userId)
+    return { reason: "already_bound", ...target };
+  if (purchase.appUserId) return { reason: "bound_to_other_user", ...target };
+  if (!isLinkable(purchase)) return { reason: "not_bindable", ...target };
+  if (
+    !(await makePurchaseBindingRoom(
+      ctx,
+      project._id,
+      userId,
+      purchase.store,
+      purchaseToken,
+    ))
+  )
+    return { reason: "not_bindable", limitReached: true, ...target };
+  // Erasure only unlinked the previous owner; this is a new association.
+  await ctx.db.patch(purchase._id, {
+    appUserId: userId,
+    accountErased: undefined,
+  });
+  return { reason: "bound", ...target };
+}
+
+/** Moves an Apple or Google one-time purchase link. Secret-key callers only. */
+export async function rebindOneTimePurchaseToUser(
+  ctx: MutationCtx,
+  project: Doc<"projects">,
+  purchaseToken: string,
+  userId: string,
+): Promise<{ moved: boolean } | null> {
+  if (await isUserErasureRequested(ctx, project, userId)) return null;
+  const purchase = await findOneTimeStorePurchase(
+    ctx,
+    project._id,
+    purchaseToken,
+  );
+  if (!purchase || !isLinkable(purchase)) return null;
+  if (purchase.appUserId === userId) return { moved: false };
+  if (
+    purchase.appUserId &&
+    (await isUserErasureRequested(ctx, project, purchase.appUserId))
+  )
+    return null;
+  if (
+    !(await makePurchaseBindingRoom(
+      ctx,
+      project._id,
+      userId,
+      purchase.store,
+      purchaseToken,
+    ))
+  )
+    return null;
+  await ctx.db.patch(purchase._id, {
+    appUserId: userId,
+    accountErased: undefined,
+  });
+  return { moved: true };
 }

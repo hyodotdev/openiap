@@ -23,6 +23,7 @@ import {
   type ReceiptResponse,
   type RecheckOptions,
 } from "./shared";
+import { verifyRecordingIssues } from "../purchaseIssues/shared";
 import {
   extractHttpStatus,
   isTransientHttpError,
@@ -158,12 +159,22 @@ const horizonVerificationArgs = v.object({
   userId: v.string(),
   sku: v.string(),
   requestIp: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
 });
 
 export const verifyMetaHorizonReceiptInternalV1 = action({
   args: horizonVerificationArgs.fields,
   returns: receiptResponseValidator,
-  handler: verifyHorizonReceipt,
+  handler: (ctx, args) =>
+    verifyRecordingIssues(
+      ctx,
+      {
+        apiKey: args.apiKey,
+        evidence: { store: "horizon", userId: args.userId, sku: args.sku },
+        correlationId: args.correlationId,
+      },
+      () => verifyHorizonReceipt(ctx, args),
+    ),
 });
 
 export async function verifyHorizonReceipt(
@@ -243,6 +254,7 @@ export async function verifyHorizonReceipt(
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
     persistIfChanged: options.recheck,
+    correlationId: args.correlationId,
   });
 
   return { isValid: isValidState(state), state, productId: args.sku };

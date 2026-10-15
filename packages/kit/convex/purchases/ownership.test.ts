@@ -314,6 +314,39 @@ it("refreshes both stores and returns only current, still-bound products", async
   );
 });
 
+it("neither rechecks nor grants an Apple or Google one-time link", async () => {
+  const rows = [
+    {
+      _id: "g",
+      isValid: true,
+      productId: "lifetime",
+      requestData: { store: "google", purchaseToken: "play-token" },
+    },
+    {
+      _id: "h",
+      isValid: true,
+      productId: "quest-premium",
+      requestData: { store: "horizon", userId: "meta-alice", sku: "q" },
+    },
+  ];
+  const runQuery = vi.fn().mockResolvedValue(rows);
+  const runMutation = vi.fn();
+  expect(
+    await refresh(
+      { runQuery, runMutation },
+      { apiKey: "server", userId: "alice" },
+    ),
+  ).toEqual({ productIds: ["quest-premium"] });
+  // Only the Horizon row is rechecked, so only it is charged.
+  expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
+    projectId: "p1",
+    bucket: "entitlementRecheck",
+    cost: 1,
+  });
+  expect(stubs.horizon).toHaveBeenCalledTimes(1);
+  expect(stubs.amazon).not.toHaveBeenCalled();
+});
+
 it("fails the entire read on upstream failure, preserving the saved verdict", async () => {
   stubs.horizon.mockRejectedValue(new Error("upstream unavailable"));
   const rows = [

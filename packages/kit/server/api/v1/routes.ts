@@ -15,6 +15,8 @@ import {
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
 import { enforceVerifyResponseContract } from "./response-contract";
+import { normalizeEnvironment } from "../../../convex/commerce/contract";
+import type { TransactionDetails } from "../../../convex/purchases/shared";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import {
@@ -234,6 +236,12 @@ const verifyPurchaseRouteDescription = describeRoute({
     "products on app-facing publishable keys, " +
     "and Horizon or Amazon requests. Client payloads are public app data, " +
     "not secrets or server-authoritative entitlement rules.\n\n" +
+    "Set `includeTransactionDetails: true` to add `transactionId`, " +
+    "`originalTransactionId`, `expiresAt`, `commerceEnvironment` and " +
+    "`correlationId`, named and valued as on commerce events. Apple returns " +
+    "the transaction ids; Google returns its order id as `transactionId`; " +
+    "`expiresAt` is set for subscriptions only. Without the flag the body " +
+    "is unchanged. Raw JWS, tokens and receipts are never returned.\n\n" +
     "Rate limit: each Fly process enforces bounded, in-memory token buckets " +
     "for API key (600-request burst, 600 req/min sustained), source IP " +
     "(600-request burst, 300 req/min sustained), and the whole process " +
@@ -384,33 +392,21 @@ const verifyPurchaseRouteDescription = describeRoute({
   },
 });
 
-type VerifyPurchaseJson =
-  | {
-      store: "apple";
-      jws: string;
-      expectedProductId?: string;
-      includeClientPayload?: boolean;
-    }
-  | {
-      store: "google";
-      purchaseToken: string;
-      expectedProductId?: string;
-      includeClientPayload?: boolean;
-    }
-  | {
-      store: "horizon";
-      userId: string;
-      sku: string;
-      includeClientPayload?: boolean;
-    }
+type VerifyPurchaseJson = {
+  includeClientPayload?: boolean;
+  includeTransactionDetails?: boolean;
+} & (
+  | { store: "apple"; jws: string; expectedProductId?: string }
+  | { store: "google"; purchaseToken: string; expectedProductId?: string }
+  | { store: "horizon"; userId: string; sku: string }
   | {
       store: "amazon";
       userId: string;
       receiptId: string;
       sandbox?: boolean;
       expectedProductId?: string;
-      includeClientPayload?: boolean;
-    };
+    }
+);
 
 type ProductClientPayload = {
   format: "toml" | "json" | "text";
@@ -432,6 +428,7 @@ const verifyPurchaseHandler = async (
   const json = c.req.valid("json");
   const apiKey = c.var.apiKey;
   const requestIp = getRequestIp(c);
+  const correlationId = c.var.corrId;
 
   const setOutcome = (outcome: V1AppVariables["verifyOutcome"]) => {
     c.set("verifyOutcome", outcome);
@@ -444,9 +441,10 @@ const verifyPurchaseHandler = async (
       productId?: string;
       environment?: "Sandbox" | "Production";
       stableRejection?: boolean;
+      transactionDetails?: TransactionDetails;
     },
   ) => {
-    const { stableRejection, ...publicReceipt } = receipt;
+    const { stableRejection, transactionDetails, ...publicReceipt } = receipt;
     const outcome = {
       isValid: receipt.isValid,
       state: receipt.state,
@@ -487,6 +485,19 @@ const verifyPurchaseHandler = async (
       store,
       ...publicReceipt,
       ...(clientPayload ? { clientPayload } : {}),
+      ...(json.includeTransactionDetails === true
+        ? {
+            ...transactionDetails,
+            ...(receipt.environment
+              ? {
+                  commerceEnvironment: normalizeEnvironment(
+                    receipt.environment,
+                  ),
+                }
+              : {}),
+            correlationId,
+          }
+        : {}),
     });
     if (contract.violations.length > 0) {
       // Field names only — never values.
@@ -538,6 +549,7 @@ const verifyPurchaseHandler = async (
             jws: json.jws,
             expectedProductId: json.expectedProductId,
             requestIp,
+            correlationId,
           },
         );
 
@@ -551,6 +563,7 @@ const verifyPurchaseHandler = async (
             purchaseToken: json.purchaseToken,
             expectedProductId: json.expectedProductId,
             requestIp,
+            correlationId,
           },
         );
 
@@ -567,6 +580,7 @@ const verifyPurchaseHandler = async (
             userId: json.userId,
             sku: json.sku,
             requestIp,
+            correlationId,
           },
         );
 
@@ -582,6 +596,7 @@ const verifyPurchaseHandler = async (
             sandbox: json.sandbox,
             expectedProductId: json.expectedProductId,
             requestIp,
+            correlationId,
           },
         );
 

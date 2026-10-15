@@ -4,6 +4,7 @@ import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
   dataProvenanceValidator,
+  purchaseIssueCauseValidator,
   subscriptionStateValidator,
 } from "./utils/validation";
 
@@ -449,6 +450,8 @@ const schema = defineSchema({
     // start marked; the migration marks each legacy row atomically with its delta.
     storeStatsCounted: v.optional(v.boolean()),
     updatedAt: v.optional(v.number()),
+    // X-Correlation-Id of the /v1 request that last wrote this row.
+    correlationId: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_store", ["projectId", "store"])
@@ -498,6 +501,47 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_organization", ["organizationId"]),
+
+  // Verification and linking failures, for support. One row per (project,
+  // fingerprint, cause) counts repeats; rows are capped per project and expire
+  // after 30 days. Holds a hash of the evidence, never the evidence.
+  purchaseIssues: defineTable({
+    projectId: v.id("projects"),
+    cause: purchaseIssueCauseValidator,
+    store: purchaseStoreValidator,
+    fingerprint: v.string(),
+    // Store-verified product id.
+    productId: v.optional(v.string()),
+    // Product id the caller asserted; not verified by the store.
+    claimedProductId: v.optional(v.string()),
+    // App user a failed link named.
+    appUserId: v.optional(v.string()),
+    environment: v.optional(receiptEnvironmentValidator),
+    retryAfterSec: v.optional(v.number()),
+    correlationId: v.optional(v.string()),
+    count: v.number(),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_project_and_fingerprint_and_cause", [
+      "projectId",
+      "fingerprint",
+      "cause",
+    ])
+    .index("by_project_and_lastSeenAt", ["projectId", "lastSeenAt"])
+    .index("by_project_and_appUserId_and_lastSeenAt", [
+      "projectId",
+      "appUserId",
+      "lastSeenAt",
+    ])
+    .index("by_lastSeenAt", ["lastSeenAt"]),
+
+  // Row count per project behind the purchaseIssues cap, off the projects row
+  // so a failure never rewrites the project document.
+  purchaseIssueCounts: defineTable({
+    projectId: v.id("projects"),
+    rows: v.number(),
+  }).index("by_project", ["projectId"]),
 
   // Persistent per-project admission backstop for public verification and
   // entitlement rechecks. Off the `projects` row so every verification does
