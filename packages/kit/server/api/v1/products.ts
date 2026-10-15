@@ -514,6 +514,13 @@ products.put(
         "expectedDraftRevision must be a non-negative safe integer",
       );
     }
+    const expectedVersion = parseOptionalBodyVersion(payload.expectedVersion);
+    if (expectedVersion === null) {
+      return invalidInput(
+        c,
+        "expectedVersion must be a non-negative safe integer",
+      );
+    }
     try {
       const result = await client.mutation(
         api.products.mutation.saveProductClientPayloadDraftWithApiKey,
@@ -526,6 +533,7 @@ products.put(
           ...(expectedDraftRevision !== undefined
             ? { expectedDraftRevision }
             : {}),
+          ...(expectedVersion !== undefined ? { expectedVersion } : {}),
         },
       );
       return c.json(result);

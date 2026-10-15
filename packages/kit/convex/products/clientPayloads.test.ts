@@ -30,9 +30,11 @@ import {
 import {
   discardProductClientPayloadDraft as registeredDiscardDraft,
   publishProductClientPayloadDraft as registeredPublishDraft,
+  publishProductClientPayloadDraftWithApiKey as registeredPublishDraftWithApiKey,
   removeProductClientPayload as registeredRemove,
   rollbackProductClientPayload as registeredRollback,
   saveProductClientPayloadDraft as registeredSaveDraft,
+  saveProductClientPayloadDraftWithApiKey as registeredSaveDraftWithApiKey,
   upsertProductClientPayloadWithApiKey as registeredUpsertWithApiKey,
 } from "./mutation";
 import {
@@ -40,10 +42,16 @@ import {
   getProductClientPayloadSdkPreview as registeredSdkPreview,
   getProductClientPayloadWorkspace as registeredWorkspace,
   listProductClientPayloadHistory as registeredHistory,
+  listProductClientPayloadHistoryWithApiKey as registeredApiKeyHistory,
 } from "./query";
+import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import { testableFunction } from "../test.setup";
 
 const saveDraft = testableFunction(registeredSaveDraft);
+const saveDraftWithApiKey = testableFunction(registeredSaveDraftWithApiKey);
+const publishDraftWithApiKey = testableFunction(
+  registeredPublishDraftWithApiKey,
+);
 const discardDraft = testableFunction(registeredDiscardDraft);
 const publishDraft = testableFunction(registeredPublishDraft);
 const rollback = testableFunction(registeredRollback);
@@ -53,108 +61,7 @@ const ifChanged = testableFunction(registeredIfChanged);
 const sdkPreview = testableFunction(registeredSdkPreview);
 const workspace = testableFunction(registeredWorkspace);
 const history = testableFunction(registeredHistory);
-
-type Row = Record<string, unknown> & { _id: string };
-
-class IndexBuilder {
-  predicates: Array<(row: Row) => boolean> = [];
-
-  eq(field: string, value: unknown) {
-    this.predicates.push((row) => row[field] === value);
-    return this;
-  }
-
-  lte(field: string, value: number) {
-    this.predicates.push((row) => Number(row[field]) <= value);
-    return this;
-  }
-}
-
-class MemQuery {
-  constructor(private readonly rows: Row[]) {}
-
-  withIndex(_name: string, build?: (q: IndexBuilder) => IndexBuilder) {
-    if (!build) return this;
-    const builder = build(new IndexBuilder());
-    return new MemQuery(
-      this.rows.filter((row) => builder.predicates.every((test) => test(row))),
-    );
-  }
-
-  // Only the versions index is read in order; it sorts by `version`.
-  order(direction: "asc" | "desc") {
-    const sorted = [...this.rows].sort(
-      (a, b) => Number(a.version) - Number(b.version),
-    );
-    return new MemQuery(direction === "desc" ? sorted.reverse() : sorted);
-  }
-
-  async take(limit: number) {
-    return this.rows.slice(0, limit);
-  }
-
-  async collect() {
-    return [...this.rows];
-  }
-
-  async unique() {
-    if (this.rows.length > 1) throw new Error("Expected unique row");
-    return this.rows[0] ?? null;
-  }
-}
-
-class MemDb {
-  tables = new Map<string, Row[]>();
-  private nextId = 0;
-
-  rows(table: string): Row[] {
-    let rows = this.tables.get(table);
-    if (!rows) {
-      rows = [];
-      this.tables.set(table, rows);
-    }
-    return rows;
-  }
-
-  query(table: string) {
-    return new MemQuery(this.rows(table));
-  }
-
-  async get(id: string) {
-    for (const rows of this.tables.values()) {
-      const row = rows.find((candidate) => candidate._id === id);
-      if (row) return row;
-    }
-    return null;
-  }
-
-  async insert(table: string, value: Record<string, unknown>) {
-    this.nextId += 1;
-    const id = `${table}_${this.nextId}`;
-    this.rows(table).push({ ...value, _id: id });
-    return id;
-  }
-
-  async patch(id: string, value: Record<string, unknown>) {
-    const row = await this.get(id);
-    if (!row) throw new Error(`Unknown row: ${id}`);
-    for (const [field, fieldValue] of Object.entries(value)) {
-      if (fieldValue === undefined) delete row[field];
-      else row[field] = fieldValue;
-    }
-  }
-
-  async delete(id: string) {
-    for (const rows of this.tables.values()) {
-      const index = rows.findIndex((row) => row._id === id);
-      if (index >= 0) {
-        rows.splice(index, 1);
-        return;
-      }
-    }
-    throw new Error(`Unknown row: ${id}`);
-  }
-}
+const apiKeyHistory = testableFunction(registeredApiKeyHistory);
 
 const PROJECT_ID = "projects_a" as Id<"projects">;
 const USER_ID = "users_admin" as Id<"users">;
@@ -167,16 +74,16 @@ const DASHBOARD_ARGS = { ...KEY };
 const AUTHOR = { userId: USER_ID };
 
 function makeCtx() {
-  const db = new MemDb();
-  db.rows("products").push({
+  const db = new MemoryDb();
+  db.seed("products", {
     _id: "products_premium",
     projectId: PROJECT_ID,
     platform: "IOS",
     productId: "premium_monthly",
     state: "Active",
   });
-  db.rows("users").push({ _id: USER_ID, name: "Hyo" });
-  return { db };
+  db.seed("users", { _id: USER_ID, name: "Hyo" });
+  return memoryCtx(db);
 }
 
 function errorCode(error: unknown): unknown {
@@ -293,8 +200,10 @@ describe("client payload drafts", () => {
     );
   });
 
-  it("refuses to publish a draft over a version published after it was saved", async () => {
+  it("never publishes a draft over a version published after its base", async () => {
     const ctx = makeCtx();
+    const conflict = (error: unknown) =>
+      errorCode(error) === "CLIENT_PAYLOAD_VERSION_CONFLICT";
     await saveClientPayloadDraft(ctx as never, KEY, {
       format: "text",
       body: "draft",
@@ -305,16 +214,97 @@ describe("client payload drafts", () => {
       author: AUTHOR,
     });
 
+    // Neither the caller's view of the live version nor a re-save moves the
+    // draft's base.
     await expect(
       publishClientPayloadDraft(ctx as never, KEY, { author: AUTHOR }),
-    ).rejects.toSatisfy(
-      (error) => errorCode(error) === "CLIENT_PAYLOAD_VERSION_CONFLICT",
-    );
+    ).rejects.toSatisfy(conflict);
     await expect(
       publishClientPayloadDraft(ctx as never, KEY, {
         expectedVersion: 1,
         author: AUTHOR,
       }),
+    ).rejects.toSatisfy(conflict);
+    await expect(
+      saveClientPayloadDraft(ctx as never, KEY, {
+        format: "text",
+        body: "draft, edited",
+      }),
+    ).resolves.toMatchObject({ changed: true, baseVersion: 0 });
+    await expect(
+      publishClientPayloadDraft(ctx as never, KEY, {
+        expectedVersion: 1,
+        author: AUTHOR,
+      }),
+    ).rejects.toSatisfy(conflict);
+
+    // Rebasing needs the current version, then publish goes through.
+    await expect(
+      saveClientPayloadDraft(ctx as never, KEY, {
+        format: "text",
+        body: "draft, edited",
+        expectedVersion: 0,
+      }),
+    ).rejects.toSatisfy(conflict);
+    await expect(
+      saveClientPayloadDraft(ctx as never, KEY, {
+        format: "text",
+        body: "draft, edited",
+        expectedVersion: 1,
+      }),
+    ).resolves.toMatchObject({ changed: true, baseVersion: 1 });
+    await expect(
+      publishClientPayloadDraft(ctx as never, KEY, {
+        expectedVersion: 0,
+        author: AUTHOR,
+      }),
+    ).rejects.toSatisfy(conflict);
+    await expect(
+      publishClientPayloadDraft(ctx as never, KEY, {
+        expectedVersion: 1,
+        author: AUTHOR,
+      }),
+    ).resolves.toMatchObject({ version: 2 });
+    await expect(publicRead(ctx)).resolves.toMatchObject({
+      clientPayload: { body: "draft, edited", version: 2 },
+    });
+  });
+
+  it("guards an API key's draft the same way, as MCP calls it", async () => {
+    const ctx = makeCtx();
+    const target = {
+      apiKey: "openiap-kit_sk_ci",
+      platform: "IOS" as const,
+      productId: "premium_monthly",
+    };
+    await saveDraftWithApiKey._handler(ctx, {
+      ...target,
+      format: "text",
+      body: "agent draft",
+    });
+    await upsertWithApiKey._handler(ctx, {
+      ...target,
+      format: "text",
+      body: "hotfix",
+    });
+
+    await expect(
+      publishDraftWithApiKey._handler(ctx, { ...target, expectedVersion: 1 }),
+    ).rejects.toSatisfy(
+      (error) =>
+        errorCode(error) === "CLIENT_PAYLOAD_VERSION_CONFLICT" &&
+        /rebase/.test(
+          String((error as { data?: { message?: string } }).data?.message),
+        ),
+    );
+    await saveDraftWithApiKey._handler(ctx, {
+      ...target,
+      format: "text",
+      body: "agent draft",
+      expectedVersion: 1,
+    });
+    await expect(
+      publishDraftWithApiKey._handler(ctx, target),
     ).resolves.toMatchObject({ version: 2 });
   });
 
@@ -399,7 +389,11 @@ describe("client payload history", () => {
       clientPayload: { body: 'tier = "one"', version: 4 },
     });
 
-    const versions = await listClientPayloadVersions(ctx as never, KEY);
+    const versions = await listClientPayloadVersions(
+      ctx as never,
+      KEY,
+      "member",
+    );
     expect(versions.map((entry) => [entry.version, entry.action])).toEqual([
       [4, "rollback"],
       [3, "remove"],
@@ -446,7 +440,9 @@ describe("client payload history", () => {
         author: AUTHOR,
       }),
     ).resolves.toMatchObject({ changed: false, version: 1 });
-    expect(await listClientPayloadVersions(ctx as never, KEY)).toHaveLength(1);
+    expect(
+      await listClientPayloadVersions(ctx as never, KEY, "member"),
+    ).toHaveLength(1);
   });
 
   it(`retains the newest ${MAX_CLIENT_PAYLOAD_HISTORY} versions`, async () => {
@@ -459,15 +455,22 @@ describe("client payload history", () => {
       });
     }
 
-    const versions = await listClientPayloadVersions(ctx as never, KEY);
+    const versions = await listClientPayloadVersions(
+      ctx as never,
+      KEY,
+      "member",
+    );
     expect(versions).toHaveLength(MAX_CLIENT_PAYLOAD_HISTORY);
     expect(versions[0]?.version).toBe(MAX_CLIENT_PAYLOAD_HISTORY + 5);
     expect(versions.at(-1)?.version).toBe(6);
     expect(ctx.db.rows("productClientPayloadVersions")).toHaveLength(
       MAX_CLIENT_PAYLOAD_HISTORY,
     );
+    expect(ctx.db.rows("productClientPayloadVersionBodies")).toHaveLength(
+      MAX_CLIENT_PAYLOAD_HISTORY,
+    );
     await expect(
-      getClientPayloadVersion(ctx as never, KEY, 5),
+      getClientPayloadVersion(ctx as never, KEY, 5, "member"),
     ).resolves.toBeNull();
     await expect(
       rollbackClientPayload(ctx as never, KEY, {
@@ -478,13 +481,108 @@ describe("client payload history", () => {
       (error) => errorCode(error) === "CLIENT_PAYLOAD_VERSION_NOT_FOUND",
     );
     await expect(
-      getClientPayloadVersion(ctx as never, KEY, 6),
+      getClientPayloadVersion(ctx as never, KEY, 6, "member"),
     ).resolves.toMatchObject({ version: 6, body: "v6" });
+  });
+
+  it("lists history from metadata and reads only the selected body", async () => {
+    const ctx = makeCtx();
+    for (const body of ["one", "two", "three"]) {
+      await publishClientPayload(ctx as never, KEY, {
+        format: "text",
+        body,
+        author: AUTHOR,
+      });
+    }
+    await removeClientPayload(ctx as never, KEY, { author: AUTHOR });
+    const tablesRead: string[] = [];
+    const watched = {
+      ...ctx,
+      db: {
+        query: (table: Parameters<MemoryDb["query"]>[0]) => {
+          tablesRead.push(table);
+          return ctx.db.query(table);
+        },
+        get: (id: string) => {
+          tablesRead.push(id.slice(0, id.indexOf("_")));
+          return ctx.db.get(id);
+        },
+      },
+    };
+
+    const versions = await listClientPayloadVersions(
+      watched as never,
+      KEY,
+      "member",
+    );
+
+    expect(
+      versions.map(({ version, byteLength }) => [version, byteLength]),
+    ).toEqual([
+      [4, undefined],
+      [3, 5],
+      [2, 3],
+      [1, 3],
+    ]);
+    expect(tablesRead).not.toContain("productClientPayloadVersionBodies");
+    for (const row of ctx.db.rows("productClientPayloadVersions")) {
+      expect(row).not.toHaveProperty("body");
+    }
+
+    tablesRead.length = 0;
+    await expect(
+      getClientPayloadVersion(watched as never, KEY, 2, "member"),
+    ).resolves.toMatchObject({ version: 2, body: "two", byteLength: 3 });
+    expect(
+      tablesRead.filter(
+        (table) => table === "productClientPayloadVersionBodies",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("shows API keys an author's name but never an email", async () => {
+    const ctx = makeCtx();
+    ctx.db.seed("users", { _id: "users_noname", email: "dev@example.com" });
+    await publishClientPayload(ctx as never, KEY, {
+      format: "text",
+      body: "v1",
+      author: { userId: "users_noname" as Id<"users"> },
+    });
+    await publishClientPayload(ctx as never, KEY, {
+      format: "text",
+      body: "v2",
+      author: AUTHOR,
+    });
+    const apiKeyArgs = {
+      apiKey: "openiap-kit_sk_ci",
+      platform: "IOS" as const,
+      productId: "premium_monthly",
+    };
+
+    const forApiKey = await apiKeyHistory._handler(ctx, apiKeyArgs);
+    expect(forApiKey?.map(({ author }) => author)).toEqual([
+      { type: "user", name: "Hyo" },
+      { type: "user" },
+    ]);
+    expect(JSON.stringify(forApiKey)).not.toContain("dev@example.com");
+    await expect(
+      getClientPayloadVersion(ctx as never, KEY, 1, "apiKey"),
+    ).resolves.toMatchObject({ author: { type: "user" } });
+    await expect(
+      getClientPayloadVersion(ctx as never, KEY, 1, "apiKey"),
+    ).resolves.not.toHaveProperty("author.name");
+
+    // Members already see each other's emails on the members page.
+    const forMember = await history._handler(ctx, DASHBOARD_ARGS);
+    expect(forMember.map(({ author }) => author?.name)).toEqual([
+      "Hyo",
+      "dev@example.com",
+    ]);
   });
 
   it("records the direct secret-key PUT with its API key as author", async () => {
     const ctx = makeCtx();
-    ctx.db.rows("apiKeys").push({ _id: "apiKeys_ci", name: "CI deploy" });
+    ctx.db.seed("apiKeys", { _id: "apiKeys_ci", name: "CI deploy" });
 
     await expect(
       upsertWithApiKey._handler(ctx, {
@@ -508,8 +606,8 @@ describe("client payload history", () => {
 
   it("keeps a payload published before history existed restorable", async () => {
     const ctx = makeCtx();
-    ctx.db.rows("productClientPayloads").push({
-      _id: "payload_legacy",
+    ctx.db.seed("productClientPayloads", {
+      _id: "productClientPayloads_legacy",
       ...KEY,
       format: "text",
       body: "legacy",
@@ -517,8 +615,8 @@ describe("client payload history", () => {
       createdAt: 1,
       updatedAt: 2,
     });
-    ctx.db.rows("productClientPayloadSummaries").push({
-      _id: "summary_legacy",
+    ctx.db.seed("productClientPayloadSummaries", {
+      _id: "productClientPayloadSummaries_legacy",
       ...KEY,
       format: "text",
       version: 7,
@@ -532,7 +630,11 @@ describe("client payload history", () => {
       expectedVersion: 7,
       author: AUTHOR,
     });
-    const versions = await listClientPayloadVersions(ctx as never, KEY);
+    const versions = await listClientPayloadVersions(
+      ctx as never,
+      KEY,
+      "member",
+    );
     expect(versions).toEqual([
       expect.objectContaining({ version: 8, action: "publish" }),
       {
@@ -555,7 +657,7 @@ describe("client payload history", () => {
 describe("client payload permissions", () => {
   it("lets members change payloads and records them as authors", async () => {
     const ctx = makeCtx();
-    ctx.db.rows("users").push({ _id: "users_member", name: "Member" });
+    ctx.db.seed("users", { _id: "users_member", name: "Member" });
     await publishClientPayload(ctx as never, KEY, {
       format: "text",
       body: "v1",
@@ -592,7 +694,11 @@ describe("client payload permissions", () => {
       remove._handler(ctx, { ...DASHBOARD_ARGS, expectedVersion: 3 }),
     ).resolves.toEqual({ ok: true });
 
-    const versions = await listClientPayloadVersions(ctx as never, KEY);
+    const versions = await listClientPayloadVersions(
+      ctx as never,
+      KEY,
+      "member",
+    );
     expect(
       versions.map(({ version, action, author }) => [
         version,
@@ -633,7 +739,7 @@ describe("client payload permissions", () => {
 describe("client payload SDK preview", () => {
   it("matches the public GET's ETag for the project's publishable key", async () => {
     const ctx = makeCtx();
-    ctx.db.rows("apiKeys").push({
+    ctx.db.seed("apiKeys", {
       _id: "apiKeys_pk",
       projectId: PROJECT_ID,
       key: "openiap-kit_pk_golden",
@@ -657,6 +763,7 @@ describe("client payload SDK preview", () => {
     const preview = await sdkPreview._handler(ctx, DASHBOARD_ARGS);
     expect(preview).toMatchObject({
       etagScope: "SqWgLnewTVKwyBe5",
+      productServed: true,
       response: {
         status: 200,
         headers: {
@@ -673,7 +780,7 @@ describe("client payload SDK preview", () => {
 
   it("shows the 404 an app gets while the product is a Draft", async () => {
     const ctx = makeCtx();
-    ctx.db.rows("apiKeys").push({
+    ctx.db.seed("apiKeys", {
       _id: "apiKeys_pk",
       projectId: PROJECT_ID,
       key: "openiap-kit_pk_golden",
@@ -690,8 +797,35 @@ describe("client payload SDK preview", () => {
 
     await expect(
       sdkPreview._handler(ctx, DASHBOARD_ARGS),
-    ).resolves.toMatchObject({ response: { status: 404 } });
+    ).resolves.toMatchObject({
+      productServed: false,
+      response: { status: 404 },
+    });
   });
+
+  it.each([
+    ["Draft", false],
+    ["Removed", false],
+    ["Ready", true],
+  ])(
+    "tells the editor whether publishing reaches apps for a %s product",
+    async (state, productServed) => {
+      const ctx = makeCtx();
+      ctx.db.seed("apiKeys", {
+        projectId: PROJECT_ID,
+        key: "openiap-kit_pk_golden",
+        keyType: "publishable",
+        isActive: true,
+        createdAt: 1,
+      });
+      ctx.db.rows("products")[0].state = state;
+
+      // Nothing is published yet, so both answer 404 now.
+      await expect(
+        sdkPreview._handler(ctx, DASHBOARD_ARGS),
+      ).resolves.toMatchObject({ productServed, response: { status: 404 } });
+    },
+  );
 
   it("keeps the ETag format and If-None-Match parsing stable", async () => {
     const scope = await clientPayloadEtagScope(

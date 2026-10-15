@@ -1252,39 +1252,30 @@ function PurchaseFlowContainer({
   );
 
   const handleChangeVerificationMethod = useCallback(() => {
-    const options = [
-      'Local (Device)',
-      'Local (IAPKit)',
-      'IAPKit',
-      'None (Skip)',
-      'App backend',
-      'Cancel',
+    const method = (value: VerificationMethod) => () => {
+      setVerificationSelection((selection) => selection + 1);
+      setVerificationMethod(value);
+    };
+    const choices: {label: string; select: () => void}[] = [
+      {label: 'Local (Device)', select: method('local')},
+      {label: 'Local (IAPKit)', select: method('iapkit-localhost')},
+      {label: 'IAPKit', select: method('iapkit')},
+      {label: 'None (Skip)', select: method('ignore')},
+      // The Vega entry point of expo-iap has no createPurchaseFlow.
+      ...(String(Platform.OS) === 'kepler'
+        ? []
+        : [{label: 'App backend', select: onSelectAppBackend}]),
     ];
-    const cancelButtonIndex = 5;
 
     showActionSheetWithOptions(
       {
-        options,
-        cancelButtonIndex,
+        options: [...choices.map(({label}) => label), 'Cancel'],
+        cancelButtonIndex: choices.length,
         title: 'Select Verification Method',
         message: 'Verify purchases before completing the transaction',
       },
       (buttonIndex) => {
-        if (buttonIndex == null || buttonIndex > 4) return;
-        if (buttonIndex === 4) {
-          onSelectAppBackend();
-          return;
-        }
-        setVerificationSelection((selection) => selection + 1);
-        if (buttonIndex === 0) {
-          setVerificationMethod('local');
-        } else if (buttonIndex === 1) {
-          setVerificationMethod('iapkit-localhost');
-        } else if (buttonIndex === 2) {
-          setVerificationMethod('iapkit');
-        } else if (buttonIndex === 3) {
-          setVerificationMethod('ignore');
-        }
+        if (buttonIndex != null) choices[buttonIndex]?.select();
       },
     );
   }, [onSelectAppBackend, showActionSheetWithOptions]);

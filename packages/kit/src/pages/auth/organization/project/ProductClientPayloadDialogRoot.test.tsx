@@ -189,6 +189,7 @@ describe("ProductClientPayloadDialogRoot", () => {
       format: "toml",
       body: "max_items = 12",
       expectedDraftRevision: 0,
+      expectedVersion: 4,
     });
   });
 

@@ -12,6 +12,7 @@ import {
   type ApiKeyType,
 } from "../apiKeys/helpers";
 import { deleteFileAndStorageIfUnreferenced } from "../files/storage";
+import { deleteClientPayloadVersion } from "../products/clientPayloads";
 export {
   getWritableOrganization as getOrganizationById,
   getWritableProject as getProjectById,
@@ -240,7 +241,7 @@ export async function deleteProjectWithData(
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
     .take(PROJECT_DELETION_PAGE);
   for (const version of productClientPayloadVersions) {
-    await ctx.db.delete(version._id);
+    await deleteClientPayloadVersion(ctx, version);
   }
   if (productClientPayloadVersions.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);

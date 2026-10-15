@@ -25,12 +25,13 @@ const STATES: {
   {
     status: "ownership_conflict",
     meaning:
-      "The purchase belongs to another account in your app. Ask the user to sign in to that account or contact support.",
+      "The purchase belongs to another account in your app. alreadyGranted is true once that account has access, and the app then finishes the purchase. Ask the user to sign in to that account or contact support.",
     guidance: "owned_by_another_account",
   },
   {
     status: "test_account_restricted",
-    meaning: "A sandbox or test purchase your backend does not accept.",
+    meaning:
+      "A sandbox or test purchase your backend does not accept. Settled, like invalid.",
     guidance: "test_purchase_not_accepted",
   },
   {
@@ -67,7 +68,7 @@ export default function PurchaseFlowPage() {
     <DocsPage
       slug="purchase-flow"
       title="Purchase flow"
-      description="Confirm purchases through your backend: verify with IAPKit, link to the user, grant once, then finish."
+      description="Confirm purchases through your backend: verify with IAPKit, link to the user, grant access, then finish."
     >
       <p>
         Use this flow when your backend owns user accounts and grants access.
@@ -95,7 +96,8 @@ export default function PurchaseFlowPage() {
         </li>
         <li>
           <strong>Your backend</strong> — authenticates the user, decides
-          ownership policy, and grants access once per purchase.
+          ownership policy, and grants access: once per purchase, per period for
+          a subscription.
         </li>
       </ul>
       <p>
@@ -105,9 +107,9 @@ export default function PurchaseFlowPage() {
       <CodeBlock language="text">{`app ──purchase──▶ your backend ──verify──────▶ IAPKit
                                ──ownerOf─────▶ your ledger
                                ──bind-user───▶ IAPKit
-                               ──grantOnce───▶ your ledger
+                               ──grant───────▶ your ledger
 app ◀──status──── your backend
-app: finishTransaction when status is "entitled", or "invalid" on iOS`}</CodeBlock>
+app: finishTransaction when access is granted, or the purchase is rejected on iOS`}</CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">Client</h2>
       <CodeBlock title="Expo IAP (React Native IAP is identical)" language="ts">
@@ -149,7 +151,9 @@ const outcomes = await flow.recoverPurchases();`}
         <code>describePurchaseFlowStatus(status)</code> returns a neutral{" "}
         <code>key</code> to map to your own copy, <code>offerPurchase</code>{" "}
         (false whenever the user may already have paid), and{" "}
-        <code>retryAfterMs</code> when a retry can help. The{" "}
+        <code>retryAfterMs</code> when a retry can help. Pass{" "}
+        <code>getPendingTransactionsIOS</code> on iOS: recovery throws without
+        it rather than miss an unfinished transaction. The{" "}
         <a
           href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/src/components/BackendEntitlementFlow.tsx"
           className="text-primary underline"
@@ -185,25 +189,34 @@ const outcomes = await flow.recoverPurchases();`}
       </div>
       <p>
         <code>verified</code>, <code>linked</code>, and <code>entitled</code>{" "}
-        are successive steps. Only <code>invalid</code> lets the app offer the
-        product again. iOS Ask to Buy arrives as a <code>deferred-payment</code>{" "}
-        purchase error rather than a purchase; show it as{" "}
-        <code>store_pending</code>.
+        are successive steps. Only an <code>invalid</code> purchase the user
+        just made offers the product again: recovery marks its{" "}
+        <code>invalid</code> outcomes <code>recovered</code>, so an old expired
+        renewal never asks a subscriber to buy twice. iOS Ask to Buy arrives as
+        a <code>deferred-payment</code> purchase error rather than a purchase;
+        show it as <code>store_pending</code>.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Finish rules</h2>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          Finish only <code>entitled</code>, with <code>isConsumable</code> from
-          your product config. iOS finishes the transaction; Android consumes a
+          Finish <code>entitled</code>, with <code>isConsumable</code> from your
+          product config. iOS finishes the transaction; Android consumes a
           consumable and acknowledges everything else. A wrong answer on Android
           consumes a non-consumable or blocks rebuying a consumable.
         </li>
         <li>
-          Finish <code>invalid</code> on iOS only. It is a settled rejection, so
-          finishing grants nothing and stops iOS from delivering it again at
-          every launch. On Google Play leave it unacknowledged: Google refunds a
-          purchase that is not acknowledged within three days.
+          Finish <code>ownership_conflict</code> when{" "}
+          <code>alreadyGranted</code> is true. The other account already has
+          access, so finishing grants the signed-in user nothing, and Google
+          Play no longer refunds the purchase after three days.
+        </li>
+        <li>
+          Finish <code>invalid</code> and <code>test_account_restricted</code>{" "}
+          on iOS only. They are settled rejections, so finishing grants nothing
+          and stops iOS from delivering them again at every launch. On Google
+          Play leave them unacknowledged: Google refunds a purchase that is not
+          acknowledged within three days.
         </li>
         <li>
           Never finish any other status, so iOS and Google Play deliver it again
@@ -229,20 +242,21 @@ const outcomes = await flow.recoverPurchases();`}
         transferred.
       </p>
       <p>
-        Repeating is safe: your backend grants once per purchase, finishing
-        twice is harmless, and concurrent deliveries of one transaction share a
-        backend call. IAPKit replay-limits each receipt to about one
-        verification a minute after a burst, so respect{" "}
-        <code>retryAfterMs</code> instead of looping. A receipt IAPKit rejected
-        in the last five minutes gets <code>429 REPEATED_FAILURE</code>, which
-        the reference backend reports as <code>invalid</code>.
+        Repeating is safe: your backend grants a purchase once and records each
+        subscription period once, finishing twice is harmless, and concurrent
+        deliveries of one transaction share a backend call. IAPKit replay-limits
+        each receipt to about one verification a minute after a burst, so
+        respect <code>retryAfterMs</code> instead of looping. The reference
+        backend reports <code>429 REPEATED_FAILURE</code>, a receipt IAPKit
+        rejected in the last five minutes, as <code>invalid</code>.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Ownership</h2>
       <p>
         A link in IAPKit never moves, so your backend first checks its own
         ledger: a purchase already granted to another user returns{" "}
-        <code>ownership_conflict</code> without binding. Otherwise it calls{" "}
+        <code>ownership_conflict</code> with <code>alreadyGranted: true</code>{" "}
+        without binding. Otherwise it calls{" "}
         <code>POST /v1/subscriptions/bind-user</code> with the secret key and
         acts on <code>reason</code>:
       </p>
@@ -260,6 +274,10 @@ const outcomes = await flow.recoverPurchases();`}
           <code>not_found</code>, <code>not_bindable</code> — IAPKit keeps no
           link, for example for a user at the link limit; your ledger is the
           only owner record.
+        </li>
+        <li>
+          Any other reason — fail closed: the reference backend throws and
+          grants nothing.
         </li>
       </ul>
       <p>
@@ -300,7 +318,11 @@ const outcomes = await flow.recoverPurchases();`}
       </ul>
       <p>
         Key grants by a value that never changes: Apple{" "}
-        <code>originalTransactionId</code>, Google purchase token.
+        <code>originalTransactionId</code>, Google purchase token. Grant a
+        one-time purchase once. A subscription is a period instead: a verify
+        that returns <code>expiresAt</code> moves the row to that period and
+        product, so renewals and plan changes are not lost, and an older
+        transaction never shortens it.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Test purchases</h2>
@@ -309,7 +331,9 @@ const outcomes = await flow.recoverPurchases();`}
         production backend, so the reference backend accepts sandbox and test
         purchases by default. Refusing them fails App Review. To limit who gets
         free test purchases, pass <code>acceptSandbox</code> an allow-list check
-        that includes your App Review demo account.
+        that includes your App Review demo account. Any{" "}
+        <code>commerceEnvironment</code> other than <code>production</code>{" "}
+        counts as a test purchase.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Reference backend</h2>

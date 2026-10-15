@@ -334,6 +334,7 @@ describe("kitClient", () => {
       format: "json",
       body: "{}",
       expectedDraftRevision: 0,
+      expectedVersion: 3,
     });
     await client.publishClientPayload({
       ...target,
@@ -358,6 +359,7 @@ describe("kitClient", () => {
           format: "json",
           body: "{}",
           expectedDraftRevision: 0,
+          expectedVersion: 3,
         }),
       ],
       [

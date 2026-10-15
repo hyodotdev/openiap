@@ -1411,6 +1411,7 @@ describe("productsRoutes", () => {
         format: "json",
         body: '{"a":1}',
         expectedDraftRevision: 0,
+        expectedVersion: 4,
       }),
     });
     expect(saved.status).toBe(200);
@@ -1464,6 +1465,7 @@ describe("productsRoutes", () => {
           format: "json",
           body: '{"a":1}',
           expectedDraftRevision: 0,
+          expectedVersion: 4,
         },
       ],
       [
@@ -1540,6 +1542,18 @@ describe("productsRoutes", () => {
             format: "text",
             body: "a",
             expectedDraftRevision: -1,
+          }),
+        },
+      ],
+      [
+        `${base}/draft?platform=IOS`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            format: "text",
+            body: "a",
+            expectedVersion: "4",
           }),
         },
       ],

@@ -8,7 +8,9 @@ import {
   confirmPurchase,
   type BindReason,
   type EntitlementGrant,
+  type EntitlementLedger,
   type GrantResult,
+  type SubscriptionGrant,
   type VerifyResult,
 } from "./confirm-purchase";
 
@@ -64,15 +66,43 @@ function setup(
   const grantOnce = vi.fn(
     async (_grant: EntitlementGrant) => ledger.grant ?? "granted",
   );
+  const upsertSubscription = vi.fn(
+    async (_grant: SubscriptionGrant) => ledger.grant ?? "granted",
+  );
   const ownerOf = vi.fn(async (_purchaseKey: string) => ledger.owner ?? null);
   const run = (body: unknown = APPLE) =>
     confirmPurchase("user-1", body, {
       secretKey: "openiap-kit_sk_test",
-      ledger: { ownerOf, grantOnce },
+      ledger: { ownerOf, grantOnce, upsertSubscription },
       ...(acceptSandbox ? { acceptSandbox } : {}),
       fetch,
     });
-  return { run, sent, grantOnce, ownerOf };
+  return { run, sent, grantOnce, upsertSubscription, ownerOf };
+}
+
+// A ledger that keeps one subscription period per purchase, never shortened.
+function subscriptionLedger(): EntitlementLedger & {
+  periods: Map<string, SubscriptionGrant>;
+} {
+  const periods = new Map<string, SubscriptionGrant>();
+  return {
+    periods,
+    ownerOf: async (key) => periods.get(key)?.userId ?? null,
+    grantOnce: async () => {
+      throw new Error("a subscription is never granted once");
+    },
+    upsertSubscription: async (grant) => {
+      const current = periods.get(grant.purchaseKey);
+      if (current && current.userId !== grant.userId) {
+        return "granted_to_other_user";
+      }
+      if (current && current.expiresAt >= grant.expiresAt) {
+        return "already_granted";
+      }
+      periods.set(grant.purchaseKey, grant);
+      return "granted";
+    },
+  };
 }
 
 const iapkitError = (code: string) => ({
@@ -89,8 +119,8 @@ describe("confirmPurchase", () => {
     >();
   });
 
-  it("verifies, links, and grants an Apple purchase once", async () => {
-    const { run, sent, grantOnce } = setup({
+  it("verifies, links, and records an Apple subscription period", async () => {
+    const { run, sent, grantOnce, upsertSubscription } = setup({
       verify: { body: { ...VALID, expiresAt: 1_800_000_000_000 } },
       bind: { body: { ok: true, bound: true, reason: "bound" } },
     });
@@ -114,13 +144,54 @@ describe("confirmPurchase", () => {
         body: { purchaseToken: "jws.a.b", userId: "user-1" },
       },
     ]);
-    expect(grantOnce).toHaveBeenCalledWith({
+    expect(upsertSubscription).toHaveBeenCalledWith({
       purchaseKey: "2000000000000001",
       userId: "user-1",
       productId: "pro",
       store: "apple",
       transactionId: "2000000000000002",
       expiresAt: 1_800_000_000_000,
+    });
+    expect(grantOnce).not.toHaveBeenCalled();
+  });
+
+  it("moves a subscription to each renewal's period and plan", async () => {
+    const ledger = subscriptionLedger();
+    const confirm = (verify: Record<string, unknown>) =>
+      confirmPurchase("user-1", APPLE, {
+        secretKey: "openiap-kit_sk_test",
+        ledger,
+        fetch: async (url) =>
+          Response.json(
+            new URL(url).pathname === "/v1/purchase/verify"
+              ? { ...VALID, ...verify }
+              : { ok: true, bound: true, reason: "already_bound" },
+          ),
+      });
+    const first = { transactionId: "2000000000000002", expiresAt: 1_000 };
+    const renewal = {
+      productId: "pro_yearly",
+      transactionId: "2000000000000003",
+      expiresAt: 2_000,
+    };
+
+    await expect(confirm(first)).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: false,
+    });
+    await expect(confirm(renewal)).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: false,
+    });
+    // The older transaction arriving late keeps the renewed period.
+    await expect(confirm(first)).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+    });
+    expect(ledger.periods.get("2000000000000001")).toMatchObject({
+      productId: "pro_yearly",
+      transactionId: "2000000000000003",
+      expiresAt: 2_000,
     });
   });
 
@@ -230,6 +301,24 @@ describe("confirmPurchase", () => {
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
+  it.each([undefined, "xcode"])(
+    "treats a %s environment as a test purchase",
+    async (commerceEnvironment) => {
+      const { run } = setup(
+        {
+          verify: { body: { ...VALID, commerceEnvironment } },
+          bind: { body: { ok: true, bound: true, reason: "bound" } },
+        },
+        {},
+        () => false,
+      );
+
+      await expect(run()).resolves.toEqual({
+        status: "test_account_restricted",
+      });
+    },
+  );
+
   it("accepts sandbox purchases unless acceptSandbox refuses the user", async () => {
     const sandbox = { ...VALID, commerceEnvironment: "sandbox" };
     const bound = { body: { ok: true, bound: true, reason: "bound" } };
@@ -251,13 +340,16 @@ describe("confirmPurchase", () => {
     expect(restricted.sent).toHaveLength(1);
   });
 
-  it("reports an IAPKit owner conflict and never grants", async () => {
+  it("reports an IAPKit owner conflict nobody was granted and never grants", async () => {
     const { run, grantOnce } = setup({
       verify: { body: VALID },
       bind: { body: { ok: true, bound: false, reason: "bound_to_other_user" } },
     });
 
-    await expect(run()).resolves.toEqual({ status: "ownership_conflict" });
+    await expect(run()).resolves.toEqual({
+      status: "ownership_conflict",
+      alreadyGranted: false,
+    });
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
@@ -270,7 +362,10 @@ describe("confirmPurchase", () => {
       { owner: "user-2" },
     );
 
-    await expect(run()).resolves.toEqual({ status: "ownership_conflict" });
+    await expect(run()).resolves.toEqual({
+      status: "ownership_conflict",
+      alreadyGranted: true,
+    });
     expect(ownerOf).toHaveBeenCalledWith("2000000000000001");
     expect(sent.map(({ path }) => path)).toEqual(["/v1/purchase/verify"]);
     expect(grantOnce).not.toHaveBeenCalled();
@@ -285,7 +380,10 @@ describe("confirmPurchase", () => {
       { grant: "granted_to_other_user" },
     );
 
-    await expect(run()).resolves.toEqual({ status: "ownership_conflict" });
+    await expect(run()).resolves.toEqual({
+      status: "ownership_conflict",
+      alreadyGranted: true,
+    });
   });
 
   it.each([
@@ -330,6 +428,13 @@ describe("confirmPurchase", () => {
     ],
     [
       {
+        verify: { body: VALID },
+        bind: { body: { ok: true, bound: false, reason: "suspended" } },
+      },
+      "unknown reason: suspended",
+    ],
+    [
+      {
         verify: {
           body: {
             ...VALID,
@@ -341,10 +446,11 @@ describe("confirmPurchase", () => {
       "no transaction details",
     ],
   ])("throws on unexpected IAPKit answers", async (replies, message) => {
-    const { run, grantOnce } = setup(replies);
+    const { run, grantOnce, upsertSubscription } = setup(replies);
 
     await expect(run()).rejects.toThrow(message);
     expect(grantOnce).not.toHaveBeenCalled();
+    expect(upsertSubscription).not.toHaveBeenCalled();
   });
 
   it.each([

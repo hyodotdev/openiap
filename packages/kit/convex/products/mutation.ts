@@ -143,6 +143,8 @@ const draftArgs = {
   format: clientPayloadFormatValidator,
   body: v.string(),
   expectedDraftRevision: v.optional(v.number()),
+  // Rebases the draft onto this version, which must be the current one.
+  expectedVersion: v.optional(v.number()),
 };
 const publishArgs = {
   expectedVersion: v.optional(v.number()),
@@ -214,6 +216,7 @@ export const saveProductClientPayloadDraft = mutation({
       format: args.format,
       body: args.body,
       expectedDraftRevision: args.expectedDraftRevision,
+      expectedVersion: args.expectedVersion,
       userId: author.userId,
     });
   },
@@ -228,6 +231,7 @@ export const saveProductClientPayloadDraftWithApiKey = mutation({
       format: args.format,
       body: args.body,
       expectedDraftRevision: args.expectedDraftRevision,
+      expectedVersion: args.expectedVersion,
     });
   },
 });

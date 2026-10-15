@@ -116,7 +116,7 @@ describe('BackendEntitlementFlow', () => {
   });
 
   it('shows an ownership conflict without finishing', async () => {
-    replyWith({status: 'ownership_conflict'});
+    replyWith({status: 'ownership_conflict', alreadyGranted: false});
     const {findByText, getByText} = await renderReady();
 
     await act(async () => {
@@ -128,6 +128,23 @@ describe('BackendEntitlementFlow', () => {
     ).toBeDefined();
     expect(getByText('ownership_conflict')).toBeDefined();
     expect(ExpoIap.finishTransaction).not.toHaveBeenCalled();
+  });
+
+  it('finishes a purchase another account was already granted', async () => {
+    replyWith({status: 'ownership_conflict', alreadyGranted: true});
+    const {findByText} = await renderReady();
+
+    await act(async () => {
+      mockIap.options?.onPurchaseSuccess?.(bulbs);
+    });
+
+    expect(
+      await findByText(/This purchase belongs to another account/),
+    ).toBeDefined();
+    expect(ExpoIap.finishTransaction).toHaveBeenCalledWith({
+      purchase: bulbs,
+      isConsumable: true,
+    });
   });
 
   it('shows the retry hint for a delayed verification', async () => {

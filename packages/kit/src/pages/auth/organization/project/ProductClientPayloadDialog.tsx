@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
@@ -40,6 +47,8 @@ type Target = { platform: "IOS" | "Android"; productId: string };
 export type SaveDraftInput = Target & {
   body: string;
   expectedDraftRevision: number;
+  /** Bases the draft on this version; omitted, a saved draft keeps its base. */
+  expectedVersion?: number;
   format: ClientPayloadFormat;
 };
 export type PublishInput = Target & {
@@ -95,6 +104,15 @@ const FORMAT_OPTIONS: Array<{
 
 const EMPTY_SNAPSHOT: Snapshot = { draftRevision: 0, expectedVersion: 0 };
 
+function snapshotOf(product: ClientPayloadProduct): Snapshot {
+  return {
+    draftRevision: product.expectedDraftRevision,
+    expectedVersion: product.expectedVersion,
+    published: product.clientPayload,
+    savedDraft: product.draft,
+  };
+}
+
 export function ProductClientPayloadDialog({
   history,
   isLoading = false,
@@ -139,12 +157,7 @@ export function ProductClientPayloadDialog({
     // must not overwrite these edits or silently advance the OCC guards.
     initializedTargetRef.current = targetKey;
     const start = product.draft ?? product.clientPayload;
-    setSnapshot({
-      draftRevision: product.expectedDraftRevision,
-      expectedVersion: product.expectedVersion,
-      published: product.clientPayload,
-      savedDraft: product.draft,
-    });
+    setSnapshot(snapshotOf(product));
     setFormat(start?.format ?? "toml");
     setBody(start?.body ?? "");
     setNote("");
@@ -177,6 +190,11 @@ export function ProductClientPayloadDialog({
     format !== (baseline?.format ?? "toml") || body !== (baseline?.body ?? "");
   const differsFromPublished =
     !published || published.format !== format || published.body !== body;
+  // Publish refuses a draft written against an older version until rebased.
+  const staleDraftBase =
+    savedDraft && savedDraft.baseVersion !== snapshot.expectedVersion
+      ? savedDraft.baseVersion
+      : undefined;
   const isBusy = busyAction !== null;
   const isInputDisabled = isBusy || isLoading;
   const changedElsewhere =
@@ -212,12 +230,16 @@ export function ProductClientPayloadDialog({
     }
   }
 
-  async function saveDraft(): Promise<number> {
+  // A first save, or a rebase, bases the draft on the version shown here.
+  async function saveDraft(rebase = false): Promise<number> {
     const saved = await onSaveDraft({
       ...target,
       format,
       body,
       expectedDraftRevision: snapshot.draftRevision,
+      ...(rebase || !savedDraft
+        ? { expectedVersion: snapshot.expectedVersion }
+        : {}),
     });
     setSnapshot((current) => ({
       ...current,
@@ -237,6 +259,23 @@ export function ProductClientPayloadDialog({
     return run("save", "Could not save the draft.", async () => {
       await saveDraft();
     });
+  }
+
+  function handleRebase(): Promise<void> {
+    return run("save", "Could not rebase the draft.", async () => {
+      await saveDraft(true);
+    });
+  }
+
+  // Loads what changed elsewhere and keeps any unsaved edits.
+  function handleRefresh(): void {
+    setSnapshot(snapshotOf(selected));
+    if (!hasUnsavedEdits) {
+      const start = selected.draft ?? selected.clientPayload;
+      setFormat(start?.format ?? "toml");
+      setBody(start?.body ?? "");
+    }
+    setSubmitError(null);
   }
 
   function handlePublish(): Promise<void> {
@@ -419,23 +458,28 @@ export function ProductClientPayloadDialog({
             ? `Published v${published.version} · ${new Date(published.updatedAt).toLocaleString()}`
             : "Nothing is published yet."}
           {savedDraft
-            ? ` · Draft saved, based on v${savedDraft.baseVersion}${
-                published && published.version !== savedDraft.baseVersion
-                  ? ` (published changed since)`
-                  : ""
-              }`
+            ? ` · Draft saved, based on v${savedDraft.baseVersion}`
             : ""}
           {hasUnsavedEdits ? " · Unsaved edits" : ""}
         </p>
 
         {changedElsewhere ? (
-          <p
-            role="status"
-            className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200"
+          <PayloadNotice
+            action="Load latest"
+            disabled={isBusy}
+            onAction={handleRefresh}
           >
-            This payload changed in another session. Close and reopen to load
-            the latest version before publishing.
-          </p>
+            This payload changed in another session. Load the latest version
+            before publishing; your unsaved edits stay.
+          </PayloadNotice>
+        ) : staleDraftBase !== undefined ? (
+          <PayloadNotice
+            action={`Rebase onto v${snapshot.expectedVersion}`}
+            disabled={isInputDisabled || !validation.valid}
+            onAction={() => void handleRebase()}
+          >
+            {`This draft is based on v${staleDraftBase}, but v${snapshot.expectedVersion} is the current version. Check the Preview diff, then rebase the draft to publish it.`}
+          </PayloadNotice>
         ) : null}
 
         <div>
@@ -595,7 +639,8 @@ export function ProductClientPayloadDialog({
                   disabled={
                     isInputDisabled ||
                     !validation.valid ||
-                    !differsFromPublished
+                    !differsFromPublished ||
+                    staleDraftBase !== undefined
                   }
                   onClick={() => void handlePublish()}
                   className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -751,6 +796,39 @@ export function ProductClientPayloadDialogRoot() {
         );
       }}
     />
+  );
+}
+
+function PayloadNotice({
+  action,
+  children,
+  disabled,
+  onAction,
+}: {
+  action: string;
+  children: ReactNode;
+  disabled: boolean;
+  onAction: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className="contained-action-card rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200"
+    >
+      <div className="contained-action-card__content">
+        <p className="contained-action-card__text">{children}</p>
+      </div>
+      <div className="contained-action-card__actions">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onAction}
+          className="rounded border border-amber-500/40 px-3 py-1.5 hover:bg-amber-500/10 disabled:opacity-60"
+        >
+          {action}
+        </button>
+      </div>
+    </div>
   );
 }
 
