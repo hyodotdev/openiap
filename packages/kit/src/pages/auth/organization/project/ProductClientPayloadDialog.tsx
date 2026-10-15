@@ -792,7 +792,9 @@ export function ProductClientPayloadDialogRoot() {
       onRollback={async (input) => {
         const result = await rollback(withProject(input));
         toast.success(
-          `Rolled ${input.productId} back to v${input.toVersion} as v${result.version}`,
+          result.changed
+            ? `Rolled ${input.productId} back to v${input.toVersion} as v${result.version}`
+            : `v${result.version} of ${input.productId} already matches v${input.toVersion}`,
         );
       }}
     />
