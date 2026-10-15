@@ -162,6 +162,26 @@ describe("addSubscriptionToCohorts", () => {
     expect(buckets.size).toBe(5);
   });
 
+  it("counts a resubscribe after a lapsed trial as a direct start, not a conversion", () => {
+    const buckets = cohorts([
+      sub({
+        state: "Active",
+        expiresAt: at("2026-04-01"),
+        analytics: paidFacts(at("2026-03-01"), PRICE, {
+          trialStartedAt: at("2026-01-05"),
+        }),
+      }),
+    ]);
+    expect(buckets.get("Production|2026-01|USD")).toMatchObject({
+      trialStarts: 1,
+      trialConversions: 0,
+      trialsPending: 0,
+    });
+    expect(buckets.get("Production|2026-03|USD")).toMatchObject({
+      members: 1,
+    });
+  });
+
   it("leaves out cohorts older than 24 months", () => {
     const buckets = cohorts([
       sub({

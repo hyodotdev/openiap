@@ -57,10 +57,18 @@ export const paidStartValidator = v.union(
   v.literal("direct"),
 );
 
-// Analytics split production from everything else; Xcode joins Sandbox.
-export const analyticsEnvironmentValidator = v.union(
+// A verified receipt's environment. Analytics use the same two values, with
+// Xcode counted as Sandbox.
+export const receiptEnvironmentValidator = v.union(
+  v.literal("Sandbox"),
+  v.literal("Production"),
+);
+
+// The environment a store notification or subscription reports.
+export const storeEnvironmentValidator = v.union(
   v.literal("Production"),
   v.literal("Sandbox"),
+  v.literal("Xcode"),
 );
 
 // Why a verification or link failed. Each value maps from an error or verdict

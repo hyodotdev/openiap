@@ -24,8 +24,8 @@ import {
 import { storeOf } from "../commerce/internal";
 import { purchaseStoreValidator } from "../schema";
 import {
-  analyticsEnvironmentValidator,
   purchaseIssueCauseValidator,
+  receiptEnvironmentValidator,
   subscriptionStateValidator,
 } from "../utils/validation";
 
@@ -609,13 +609,14 @@ async function projectForAdminRead(
 // Live counts and MRR come from `subscriptionStats` (one row per currency), the
 // 30-day counters from a bounded indexed scan. A project with no stats rows yet
 // is computed on the fly until `recomputeSubscriptionStats` fills them. All of
-// it is production-only.
+// it is production-only, which `environment` states.
 export const metricsSummary = query({
   args: {
     apiKey: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
   },
   returns: v.object({
+    environment: v.literal("Production"),
     activeSubs: v.number(),
     inGracePeriod: v.number(),
     inBillingRetry: v.number(),
@@ -639,6 +640,7 @@ export const metricsSummary = query({
     const project = await projectForAdminRead(ctx, args);
     if (!project) {
       return {
+        environment: "Production" as const,
         activeSubs: 0,
         inGracePeriod: 0,
         inBillingRetry: 0,
@@ -763,6 +765,7 @@ export const metricsSummary = query({
     );
 
     return {
+      environment: "Production" as const,
       activeSubs,
       inGracePeriod,
       inBillingRetry,
@@ -783,7 +786,7 @@ export const metricsSummary = query({
 // per (day, currency, productId, platform) of one environment, production by
 // default; rows in different currencies need an FX rate to add. Definitions
 // are in `revenueMetrics.ts`; the optional counters are absent on rows written
-// before `definitionsFromDay`.
+// before `definitionsFromDay`, and the trial split before `trialSplitFromDay`.
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 
 // not_collected: no store notification has reached the project.
@@ -839,12 +842,16 @@ const revenueMetricsResponse = v.object({
   platforms: v.array(platformValidator),
   // The scan hit REVENUE_SCAN_CAP; the dashboard shows a banner.
   truncated: v.boolean(),
-  environment: analyticsEnvironmentValidator,
+  environment: receiptEnvironmentValidator,
   dataState: analyticsDataStateValidator,
   lastRunAt: v.optional(v.number()),
   // Days from here on follow the current definitions; earlier rows mix
   // sandbox into production and have no trial split.
   definitionsFromDay: v.optional(v.string()),
+  // Days from here on separate free trials, trial conversions, unpaid trial
+  // expirations and refund reversals. Earlier days omit the counters that
+  // need them; unset when every day has them.
+  trialSplitFromDay: v.optional(v.string()),
   // Notifications that arrived after their day's rollup and are waiting for
   // a catch-up recompute.
   pendingLateEvents: v.number(),
@@ -852,6 +859,11 @@ const revenueMetricsResponse = v.object({
   cohorts: v.optional(v.array(revenueCohortShape)),
   cohortsComputedAt: v.optional(v.number()),
 });
+
+// Below Convex's 32k per-query scan limit, and above 92 days of 30 SKUs × 3
+// currencies × 2 platforms (~16.5k rows) of one environment. Hitting it sets
+// `truncated`.
+const REVENUE_SCAN_CAP = 20_000;
 
 export const getRevenueMetrics = query({
   args: {
@@ -862,7 +874,7 @@ export const getRevenueMetrics = query({
     // No product, currency or platform args: the dashboard filters client-side
     // and fills its dropdowns from the unfiltered rows. Add a separate query if
     // another caller needs narrowing.
-    environment: v.optional(analyticsEnvironmentValidator),
+    environment: v.optional(receiptEnvironmentValidator),
     includeCohorts: v.optional(v.boolean()),
   },
   returns: revenueMetricsResponse,
@@ -904,33 +916,38 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Below Convex's 32k per-query scan limit, and above 92 days of 30 SKUs
-    // × 3 currencies × 2 platforms (~16.5k rows). Hitting it sets `truncated`.
-    const REVENUE_SCAN_CAP = 20_000;
-    const scanned = await ctx.db
-      .query("revenueMetricsDaily")
-      .withIndex("by_project_and_day_and_currency", (q) =>
-        q
-          .eq("projectId", project._id)
-          .gte("day", args.fromDay)
-          .lte("day", args.toDay),
-      )
-      .take(REVENUE_SCAN_CAP);
-    const truncated = scanned.length === REVENUE_SCAN_CAP;
-    if (truncated) {
-      console.warn(
-        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} range=${args.fromDay}..${args.toDay}; chart will undercount the tail.`,
+    // Rows from before the environment split have none and count as
+    // production.
+    const environmentKeys =
+      environment === "Production"
+        ? (["Production", undefined] as const)
+        : (["Sandbox"] as const);
+    const rows: Doc<"revenueMetricsDaily">[] = [];
+    for (const key of environmentKeys) {
+      rows.push(
+        ...(await ctx.db
+          .query("revenueMetricsDaily")
+          .withIndex("by_project_and_environment_and_day", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("environment", key)
+              .gte("day", args.fromDay)
+              .lte("day", args.toDay),
+          )
+          .take(REVENUE_SCAN_CAP - rows.length)),
       );
     }
-    // Rows from before the environment split count as production.
-    const allRows = scanned.filter(
-      (row) => (row.environment ?? "Production") === environment,
-    );
+    const truncated = rows.length === REVENUE_SCAN_CAP;
+    if (truncated) {
+      console.warn(
+        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} environment=${environment} range=${args.fromDay}..${args.toDay}; chart will undercount the tail.`,
+      );
+    }
 
     const currencies = new Set<string>();
     const productIds = new Set<string>();
     const platforms = new Set<"IOS" | "Android">();
-    for (const row of allRows) {
+    for (const row of rows) {
       if (row.currency) currencies.add(row.currency);
       productIds.add(row.productId);
       platforms.add(row.platform);
@@ -942,32 +959,39 @@ export const getRevenueMetrics = query({
       .unique();
     const dataState = await revenueDataState(ctx, {
       projectId: project._id,
-      hasRows: allRows.length > 0,
+      hasRows: rows.length > 0,
       toDay: args.toDay,
       status,
     });
     const cohorts = args.includeCohorts
       ? await revenueCohorts(ctx, project._id, environment)
       : undefined;
+    const trialSplitFromDay = status?.trialSplitFromDay;
 
     return {
-      days: allRows.map((row) => ({
+      days: rows.map((row) => ({
         day: row.day,
         currency: row.currency,
         productId: row.productId,
         platform: row.platform,
         activeSubs: row.activeSubs,
-        activeTrials: row.activeTrials,
         newSubs: row.newSubs,
-        trialStarts: row.trialStarts,
-        trialConversions: row.trialConversions,
-        directPaidStarts: row.directPaidStarts,
         renewals: row.renewals,
         cancellations: row.cancellations,
-        expirations: row.expirations,
         refunds: row.refunds,
         revenueMicros: row.revenueMicros,
         refundedMicros: row.refundedMicros,
+        // These need the free-trial flags notifications carry from
+        // `trialSplitFromDay` on, so earlier days omit them.
+        ...(trialSplitFromDay === undefined || row.day >= trialSplitFromDay
+          ? {
+              activeTrials: row.activeTrials,
+              trialStarts: row.trialStarts,
+              trialConversions: row.trialConversions,
+              directPaidStarts: row.directPaidStarts,
+              expirations: row.expirations,
+            }
+          : {}),
       })),
       currencies: Array.from(currencies).sort(),
       productIds: Array.from(productIds).sort(),
@@ -977,6 +1001,7 @@ export const getRevenueMetrics = query({
       dataState,
       lastRunAt: status?.lastRunAt,
       definitionsFromDay: status?.definitionsFromDay,
+      trialSplitFromDay,
       pendingLateEvents: status?.pendingLateEvents ?? 0,
       oldestPendingLateDay: status?.oldestPendingLateDay,
       ...(cohorts
@@ -986,6 +1011,8 @@ export const getRevenueMetrics = query({
   },
 });
 
+// Rows alone never mean collected: a project that only calls verify still gets
+// activeSubs rows, but its event counters would read as real zeros.
 async function revenueDataState(
   ctx: QueryCtx,
   args: {
@@ -995,25 +1022,22 @@ async function revenueDataState(
     status: Doc<"revenueMetricsRunStatus"> | null;
   },
 ): Promise<Infer<typeof analyticsDataStateValidator>> {
-  if (args.hasRows) return "ready";
-  // Oldest rows only, so new notifications never invalidate this query.
-  const anyRollup = await ctx.db
-    .query("revenueMetricsDaily")
-    .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-    .first();
-  const anyEvent = anyRollup
-    ? null
-    : await ctx.db
-        .query("webhookEvents")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .first();
-  if (!anyRollup && !anyEvent) return "not_collected";
   const status = args.status;
   if (
-    !status ||
-    status.definitionsVersion !== ROLLUP_DEFINITIONS_VERSION ||
-    args.toDay > new Date(status.lastRunAt).toISOString().slice(0, 10)
+    status?.lastRunAt === undefined ||
+    status.definitionsVersion !== ROLLUP_DEFINITIONS_VERSION
   ) {
+    // No finished run has looked for store notifications yet. Oldest rows
+    // only, so new notifications never invalidate this query.
+    const anyEvent = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .first();
+    return anyEvent ? "processing" : "not_collected";
+  }
+  if (status.lastStoreNotificationAt === undefined) return "not_collected";
+  if (args.hasRows) return "ready";
+  if (args.toDay > new Date(status.lastRunAt).toISOString().slice(0, 10)) {
     return "processing";
   }
   return "zero";
@@ -1022,7 +1046,7 @@ async function revenueDataState(
 async function revenueCohorts(
   ctx: QueryCtx,
   projectId: Id<"projects">,
-  environment: "Production" | "Sandbox",
+  environment: Infer<typeof receiptEnvironmentValidator>,
 ): Promise<Array<Infer<typeof revenueCohortShape>>> {
   // Rebuilt as a whole each day: at most COHORT_MONTHS × 2 × currencies rows.
   const rows = await ctx.db

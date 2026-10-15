@@ -1684,13 +1684,15 @@ const REVENUE_DEFINITIONS = {
   purchaseEvents:
     "Paid charges: direct paid starts, trial conversions, renewals and billing recoveries. Free trial starts and restores are not purchases.",
   trials:
-    "trialStarts: free trials started. trialConversions: a subscription's first paid charge after its free trial.",
+    "trialStarts: free trials started. trialConversions: the paid charge that ends a free trial; a purchase after a lapsed trial is a direct paid start.",
   churn:
-    "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended.",
+    "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended; a free trial that ended unpaid is not counted.",
   refunds:
-    "refunds: store refunds less refund reversals. Apple Family Sharing revocations are not refunds.",
+    "refunds: store refunds less refund reversals, one per refund. Revocations are not refunds: Apple's are Family Sharing removals, and Play's accompany a voided purchase that is counted instead. Google refunds carry no amount.",
   environment:
-    "Production only unless environment is sandbox. Rows before definitionsFromDay mix sandbox into production and have no trial split; trial classification starts with notifications received after the release.",
+    "Production only unless environment is sandbox. Rows before definitionsFromDay mix sandbox into production and have no trial split.",
+  trialSplit:
+    "Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations, and their totals here cover later days only; on those days Google free trials count as paid starts and Apple refund reversals as new subscriptions.",
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:
@@ -1833,6 +1835,7 @@ function summarizeRevenueMetrics(
         ? null
         : new Date(metrics.lastRunAt).toISOString(),
     definitionsFromDay: metrics.definitionsFromDay ?? null,
+    trialSplitFromDay: metrics.trialSplitFromDay ?? null,
     pendingLateEvents: metrics.pendingLateEvents,
     rowCount: rows.length,
     totalsByCurrency: Object.fromEntries(totalsByCurrency),

@@ -3,14 +3,17 @@
 // late, out-of-order and replayed notifications converge to the same facts.
 // Nothing here is read by verification, restore or entitlement code.
 
+import type { Infer } from "convex/values";
+
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
+import type { receiptEnvironmentValidator } from "../utils/validation";
 
 export type SubscriptionAnalytics = NonNullable<
   Doc<"subscriptions">["analytics"]
 >;
 export type PaidStart = NonNullable<Doc<"webhookEvents">["paidStart"]>;
-export type AnalyticsEnvironment = "Production" | "Sandbox";
+export type AnalyticsEnvironment = Infer<typeof receiptEnvironmentValidator>;
 
 type FactEvent = Pick<
   Doc<"webhookEvents">,
@@ -52,13 +55,13 @@ export function isTrialStart(event: FactEvent): boolean {
   );
 }
 
-// Money returned to the buyer. Apple REVOKE is a Family Sharing removal, not a
-// refund, and carries no `Refunded` reason.
+// Money returned to the buyer: Apple REFUND or Play's voided purchase. A
+// revocation is never counted: Apple REVOKE is a Family Sharing removal, and
+// Play sends SUBSCRIPTION_REVOKED alongside the voided purchase of the same
+// refund.
 export function isRefund(event: FactEvent): boolean {
   return (
-    (event.type === "PurchaseRefunded" ||
-      event.type === "SubscriptionRevoked") &&
-    event.cancellationReason === "Refunded"
+    event.type === "PurchaseRefunded" && event.cancellationReason === "Refunded"
   );
 }
 
@@ -80,20 +83,18 @@ export function subscriptionEnvironment(
   );
 }
 
-// How the first paid charge began. Undefined when it was a plain renewal: the
-// subscription started paying before IAPKit saw it, so its start is unknown.
+// How the first paid charge began. A trial converts only through the renewal
+// that ends it; a paid start after a lapsed trial is a new direct start.
+// Undefined for a plain renewal: the subscription started paying before IAPKit
+// saw it, so its start is unknown.
 export function paidStartKind(
   facts: SubscriptionAnalytics | undefined,
 ): PaidStart | undefined {
   if (facts?.firstPaidAt === undefined) return undefined;
-  if (
-    facts.trialStartedAt !== undefined &&
+  if (facts.firstPaidEventType === "SubscriptionStarted") return "direct";
+  return facts.trialStartedAt !== undefined &&
     facts.trialStartedAt <= facts.firstPaidAt
-  ) {
-    return "trial_conversion";
-  }
-  return facts.firstPaidEventType === "SubscriptionStarted"
-    ? "direct"
+    ? "trial_conversion"
     : undefined;
 }
 
@@ -106,6 +107,15 @@ export function isInTrialAt(
     facts.trialStartedAt <= at &&
     (facts.firstPaidAt === undefined || facts.firstPaidAt > at)
   );
+}
+
+// An expiry that ends a free trial with no paid charge is not churn. Apple
+// flags the period that ended; Play does not, so the facts decide.
+export function endedInFreeTrial(
+  event: Pick<Doc<"webhookEvents">, "freeTrial" | "occurredAt">,
+  facts: SubscriptionAnalytics | undefined,
+): boolean {
+  return event.freeTrial ?? isInTrialAt(facts, event.occurredAt);
 }
 
 // Null when the event changes nothing.

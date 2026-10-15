@@ -34,7 +34,10 @@ export interface KitProductListParams {
 }
 
 export type KitProductsResponse = SharedKitProductsResponse;
-export type KitMetricsResponse = SharedKitMetricsResponse;
+// Live counts and MRR are production only; the response says so.
+export interface KitMetricsResponse extends SharedKitMetricsResponse {
+  environment: "Production";
+}
 export type KitMrrCurrencyEntry = SharedKitMrrCurrencyEntry;
 
 // `/v1/subscriptions/revenue` with its additive analytics fields. App SDKs read
@@ -81,6 +84,7 @@ export type KitRevenueMetricsResponse = {
   dataState: "not_collected" | "processing" | "zero" | "ready";
   lastRunAt?: number;
   definitionsFromDay?: string;
+  trialSplitFromDay?: string;
   pendingLateEvents: number;
   oldestPendingLateDay?: string;
   cohorts?: KitRevenueCohort[];
