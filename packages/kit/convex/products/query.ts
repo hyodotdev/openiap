@@ -422,6 +422,23 @@ export const getProductClientPayloadWorkspace = query({
   },
 });
 
+// The pre-draft dashboard's editor read; see upsertProductClientPayload.
+export const getProductClientPayloadEditorState = query({
+  args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
+  returns: v.union(clientPayloadEditorStateShape, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    if (!resolved) return null;
+    return await loadClientPayloadEditorState(
+      ctx,
+      clientPayloadKey(resolved.project, args),
+    );
+  },
+});
+
 /** Secret-key editor read: the durable revision survives deletion. */
 export const getProductClientPayloadEditorStateWithApiKey = query({
   args: { apiKey: v.string(), ...clientPayloadKeyArgs },

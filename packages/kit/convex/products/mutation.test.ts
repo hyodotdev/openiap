@@ -16,6 +16,7 @@ import {
   removeProduct as registeredRemoveProduct,
   upsertProduct as registeredUpsertProduct,
   removeProductClientPayload as registeredRemoveProductClientPayload,
+  upsertProductClientPayload as registeredUpsertProductClientPayload,
   removeProductClientPayloadWithApiKey as registeredRemoveProductClientPayloadWithApiKey,
   upsertProductClientPayloadWithApiKey as registeredUpsertProductClientPayloadWithApiKey,
 } from "./mutation";
@@ -36,6 +37,9 @@ const removeProductClientPayloadWithApiKey = testableFunction(
 );
 const upsertProductClientPayloadWithApiKey = testableFunction(
   registeredUpsertProductClientPayloadWithApiKey,
+);
+const upsertProductClientPayload = testableFunction(
+  registeredUpsertProductClientPayload,
 );
 
 type Row = Record<string, unknown> & { _id: string };
@@ -269,6 +273,31 @@ describe("product client payload mutations", () => {
     projectMocks.byApiKey.mockImplementation(
       async (_ctx: unknown, apiKey: string) =>
         apiKey === ADMIN_KEY ? { project: { _id: PROJECT_ID } } : null,
+    );
+  });
+
+  it("still publishes from a dashboard bundle open across the deploy", async () => {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_ios",
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "premium.monthly",
+    });
+    const publish = (expectedVersion: number) =>
+      upsertProductClientPayload._handler(ctx, {
+        projectId: PROJECT_ID,
+        platform: "IOS",
+        productId: "premium.monthly",
+        format: "json",
+        body: '{"tier":"premium"}',
+        expectedVersion,
+      });
+
+    await expect(publish(0)).resolves.toMatchObject({ version: 1 });
+    await expect(publish(0)).rejects.toSatisfy(
+      (error: unknown) =>
+        convexErrorData(error).code === "CLIENT_PAYLOAD_VERSION_CONFLICT",
     );
   });
 

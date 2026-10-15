@@ -155,7 +155,7 @@ describe("appleStatusSnapshot", () => {
         status: 5,
         transaction: { ...transaction, revocationReason: 1 },
       }),
-    ).toMatchObject({ state: "Revoked", cancellationReason: "Refunded" });
+    ).toMatchObject({ state: "Refunded", cancellationReason: "Refunded" });
     expect(
       appleStatusSnapshot({ status: 5, transaction: { ...transaction } }),
     ).toMatchObject({ state: "Revoked", clearCancellationReason: true });
@@ -565,7 +565,12 @@ describe("a verify after a re-sync", () => {
   const appleResync = (
     observedAt: number,
     snapshot: {
-      state: "Active" | "Revoked" | "InBillingRetry" | "InGracePeriod";
+      state:
+        | "Active"
+        | "Revoked"
+        | "Refunded"
+        | "InBillingRetry"
+        | "InGracePeriod";
       expiresAt: number;
       cancellationReason?: "Refunded";
     },
@@ -704,8 +709,12 @@ describe("a verify after a re-sync", () => {
     evidenceAt: now - 30 * DAY,
   });
 
-  it("takes an Expired transaction as agreeing with billing retry and grace", async () => {
-    for (const state of ["InBillingRetry", "InGracePeriod"] as const) {
+  it("takes an Expired transaction as agreeing with billing retry and grace, and a revoked one with a refund", async () => {
+    for (const [state, verified] of [
+      ["InBillingRetry", HarmonizedPurchaseState.EXPIRED],
+      ["InGracePeriod", HarmonizedPurchaseState.EXPIRED],
+      ["Refunded", HarmonizedPurchaseState.CANCELED],
+    ] as const) {
       const db = new MemoryDb();
       seedProject(db, "admin");
       const { ctx, runAfter } = schedulingCtx(db);
@@ -723,7 +732,7 @@ describe("a verify after a re-sync", () => {
       for (const signedAt of [1, 2, 3]) {
         await recordVerifiedSubscriptionHandler(ctx, {
           ...latestTransaction(now),
-          purchaseState: HarmonizedPurchaseState.EXPIRED,
+          purchaseState: verified,
           verifiedSignedDate: now + signedAt,
         });
       }

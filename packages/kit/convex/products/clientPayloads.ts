@@ -772,7 +772,7 @@ export async function publishClientPayloadDraft(
     throw clientPayloadError(
       "CLIENT_PAYLOAD_VERSION_CONFLICT",
       `The draft is based on v${baseVersion}, but the current version is v${revision}. Review v${revision}, then save the draft with expectedVersion ${revision} to rebase it before publishing.`,
-      { draftBaseVersion: baseVersion, actualVersion: revision },
+      { expectedVersion: baseVersion, actualVersion: revision },
     );
   }
   const result = await publishClientPayload(ctx, key, {

@@ -216,10 +216,9 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       // finished purchase is safe, so every owned Apple purchase stands in.
       pendingIOSFailed = true;
     }
-    const available =
-      includeFinished || !pendingIOS
-        ? await options.getAvailablePurchases()
-        : [];
+    // Read even beside a pending list: a pending-list function that answers []
+    // off iOS must not hide unacknowledged Android purchases.
+    const available = await options.getAvailablePurchases();
     if (
       !getPendingTransactionsIOS &&
       available.some((purchase) => purchase.store === "apple")

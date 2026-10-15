@@ -38,6 +38,16 @@ export const deliveryErrorClassValidator = v.union(
   v.literal("network"),
 );
 
+export const deliveryStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("delivering"),
+  v.literal("delivered"),
+  v.literal("failed"),
+);
+export const DELIVERY_STATUSES = deliveryStatusValidator.members.map(
+  (member) => member.value,
+);
+
 export const deliveryAttemptValidator = v.object({
   at: v.number(),
   outcome: v.union(

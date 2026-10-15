@@ -177,6 +177,30 @@ export const upsertProductClientPayloadWithApiKey = mutation({
   },
 });
 
+// Convex deploys before Fly, so an open pre-draft dashboard still publishes
+// through this. Remove once no Fly release that serves that dashboard remains.
+export const upsertProductClientPayload = mutation({
+  args: {
+    ...dashboardKeyArgs,
+    format: clientPayloadFormatValidator,
+    body: v.string(),
+    expectedVersion: v.number(),
+  },
+  returns: clientPayloadWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key, author } = await resolveDashboardClientPayloadWriter(
+      ctx,
+      args,
+    );
+    return await publishClientPayload(ctx, key, {
+      format: args.format,
+      body: args.body,
+      expectedVersion: args.expectedVersion,
+      author,
+    });
+  },
+});
+
 export const removeProductClientPayload = mutation({
   args: { ...dashboardKeyArgs, expectedVersion: v.number() },
   returns: v.object({ ok: v.boolean() }),

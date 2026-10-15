@@ -1689,7 +1689,7 @@ function addUtcDays(date: Date, days: number): Date {
 const REVENUE_DEFINITIONS = {
   timezone: "UTC days and months.",
   revenue:
-    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. Free trials, free offer periods and refund reversals add nothing; billing recoveries count. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
+    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. Free trials, free offer periods, refund reversals and Google plan changes Play did not charge at once add nothing; billing recoveries count. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
   purchaseEvents:
     "Paid charges: paid starts, trial conversions, renewals and billing recoveries. Free trials, free promotional periods and restores are not purchases. An Apple immediate upgrade adds nothing until the next charge. A Google plan change is a renewal only when Play charges it at once (a prepaid top-up, or the CHARGE_FULL_PRICE or CHARGE_PRORATED_PRICE mode), booked at the new plan's list price; otherwise its next renewal is the first charge counted.",
   newSubs:

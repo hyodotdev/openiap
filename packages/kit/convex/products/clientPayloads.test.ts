@@ -313,13 +313,15 @@ describe("client payload drafts", () => {
 
     await expect(
       publishDraftWithApiKey._handler(ctx, { ...target, expectedVersion: 1 }),
-    ).rejects.toSatisfy(
-      (error) =>
-        errorCode(error) === "CLIENT_PAYLOAD_VERSION_CONFLICT" &&
-        /rebase/.test(
-          String((error as { data?: { message?: string } }).data?.message),
-        ),
-    );
+    ).rejects.toMatchObject({
+      data: {
+        code: "CLIENT_PAYLOAD_VERSION_CONFLICT",
+        message: expect.stringMatching(/rebase/),
+        // The fields the API's error allow-list keeps.
+        expectedVersion: 0,
+        actualVersion: 1,
+      },
+    });
     await saveDraftWithApiKey._handler(ctx, {
       ...target,
       format: "text",

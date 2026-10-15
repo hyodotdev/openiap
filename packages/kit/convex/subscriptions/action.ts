@@ -335,7 +335,7 @@ type AppleApi = {
  * Runs `request` in the known environment, or tries production then sandbox
  * when the row does not say, as Apple recommends for an unknown environment.
  */
-async function withAppleEnvironment<T>(
+export async function withAppleEnvironment<T>(
   apple: AppleApi,
   known: "Production" | "Sandbox" | undefined,
   request: (environment: Environment) => Promise<T>,
@@ -346,7 +346,7 @@ async function withAppleEnvironment<T>(
       : known === "Production"
         ? [Environment.PRODUCTION]
         : [Environment.PRODUCTION, Environment.SANDBOX];
-  for (const [index, environment] of environments.entries()) {
+  for (const environment of environments) {
     // The signed-data verifier needs the App Apple ID in production.
     if (
       environment === Environment.PRODUCTION &&
@@ -366,8 +366,7 @@ async function withAppleEnvironment<T>(
     } catch (error) {
       const notFound =
         error instanceof APIException && error.httpStatusCode === 404;
-      if (notFound && index < environments.length - 1) continue;
-      throw appleRequestError(error);
+      if (!notFound) throw appleRequestError(error);
     }
   }
   throw new ConvexError({

@@ -32,6 +32,7 @@ import {
 import {
   deliveryAttemptValidator,
   deliveryErrorClassValidator,
+  deliveryStatusValidator,
 } from "../utils/validation";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
@@ -645,13 +646,6 @@ export async function resendDeliveryHandler(
   await requeueDelivery(ctx, delivery, { lastResendAt: now });
   return { deliveryId: delivery._id, eventId: event._id, status: "pending" };
 }
-
-const deliveryStatusValidator = v.union(
-  v.literal("pending"),
-  v.literal("delivering"),
-  v.literal("delivered"),
-  v.literal("failed"),
-);
 
 const deliveryViewValidator = v.object({
   _id: v.id("outboundDeliveries"),

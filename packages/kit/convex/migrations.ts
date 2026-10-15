@@ -353,10 +353,11 @@ export const disableLegacyApiKeyFallbackForScopedProjects = migrations.define({
 /** Copies the event type onto deliveries fanned out before the column existed. */
 export const backfillOutboundDeliveryEventTypes = migrations.define({
   table: "outboundDeliveries",
+  // Undefined skips the write, so typed rows are left untouched.
   migrateOne: async (ctx, doc) => {
-    if (doc.eventType !== undefined) return doc;
+    if (doc.eventType !== undefined) return undefined;
     const event = await ctx.db.get(doc.eventId);
-    return event ? { ...doc, eventType: event.eventType } : doc;
+    return event ? { eventType: event.eventType } : undefined;
   },
 });
 

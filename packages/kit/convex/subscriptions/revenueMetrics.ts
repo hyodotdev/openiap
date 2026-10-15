@@ -66,6 +66,7 @@ import {
   findSubscriptionByToken,
   findSupersedingSubscription,
 } from "./internal";
+import { REVENUE_COUNTERS, zeroRevenueCounters } from "./revenueCounters";
 import { STATS_DEFINITIONS_VERSION } from "./stats";
 import { receiptEnvironmentValidator } from "../utils/validation";
 
@@ -160,21 +161,6 @@ const bucketValidator = v.object({
   refundedMicros: v.number(),
 });
 export type RollupBucket = Infer<typeof bucketValidator>;
-
-const COUNTERS = [
-  "activeSubs",
-  "activeTrials",
-  "newSubs",
-  "trialStarts",
-  "trialConversions",
-  "directPaidStarts",
-  "renewals",
-  "cancellations",
-  "expirations",
-  "refunds",
-  "revenueMicros",
-  "refundedMicros",
-] as const;
 
 // Pagination cursors index into this list: append new states at the end, or
 // in-flight cursors break. `Expired` and `InBillingRetry` rows count on the
@@ -1104,7 +1090,7 @@ async function continueRun(
 // A computed day with no rows is a real zero; `definitionsFromDay` and
 // `lastRunAt` tell readers which days were computed.
 function isAllZeroBucket(bucket: RollupBucket): boolean {
-  return COUNTERS.every((counter) => bucket[counter] === 0);
+  return REVENUE_COUNTERS.every((counter) => bucket[counter] === 0);
 }
 
 function keyOf(
@@ -1132,21 +1118,7 @@ function getOrCreateBucket(
   const key = keyOf(identity);
   let bucket = buckets.get(key);
   if (!bucket) {
-    bucket = {
-      ...identity,
-      activeSubs: 0,
-      activeTrials: 0,
-      newSubs: 0,
-      trialStarts: 0,
-      trialConversions: 0,
-      directPaidStarts: 0,
-      renewals: 0,
-      cancellations: 0,
-      expirations: 0,
-      refunds: 0,
-      revenueMicros: 0,
-      refundedMicros: 0,
-    };
+    bucket = { ...identity, ...zeroRevenueCounters() };
     buckets.set(key, bucket);
   }
   return bucket;

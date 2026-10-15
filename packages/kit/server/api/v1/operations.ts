@@ -2,7 +2,10 @@ import { Hono, type Context } from "hono";
 
 import { api } from "@/convex";
 import { COMMERCE_STORES } from "../../../convex/commerce/contract";
-import { purchaseIssueCauseValidator } from "../../../convex/utils/validation";
+import {
+  DELIVERY_STATUSES,
+  purchaseIssueCauseValidator,
+} from "../../../convex/utils/validation";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyMiddleware, secretAdminApiKeyMiddleware } from "./middleware";
 import { multiAxisRateLimitMiddleware } from "./rate-limit";
@@ -22,12 +25,6 @@ const MAX_PAGE_SIZE = 100;
 const MAX_ID_LENGTH = 256;
 const MAX_CURSOR_LENGTH = 4096;
 const MAX_RESYNC_BODY_BYTES = 4 * 1024;
-const DELIVERY_STATUSES = [
-  "pending",
-  "delivering",
-  "delivered",
-  "failed",
-] as const;
 const ISSUE_CAUSES = purchaseIssueCauseValidator.members.map(
   (member) => member.value,
 );

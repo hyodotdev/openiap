@@ -7,6 +7,7 @@ import {
   cancellationReasonValidator,
   dataProvenanceValidator,
   deliveryAttemptValidator,
+  deliveryStatusValidator,
   paidStartValidator,
   purchaseIssueCauseValidator,
   receiptEnvironmentValidator,
@@ -1467,12 +1468,7 @@ const schema = defineSchema({
     projectId: v.id("projects"),
     eventId: v.id("commerceEvents"),
     destinationId: v.id("outboundDestinations"),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("delivering"),
-      v.literal("delivered"),
-      v.literal("failed"),
-    ),
+    status: deliveryStatusValidator,
     // Copied from the event at fan-out for the type filter. Absent on rows
     // created before the column existed.
     eventType: v.optional(v.string()),

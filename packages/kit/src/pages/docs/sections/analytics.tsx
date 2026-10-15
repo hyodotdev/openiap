@@ -291,7 +291,8 @@ export default function AnalyticsPage() {
           </li>
           <li>
             <code>revenueMicros</code> excludes free trials, free offer periods,
-            and refund reversals, and counts billing recoveries.
+            refund reversals, and Google plan changes Play did not charge at
+            once, and counts billing recoveries.
           </li>
           <li>
             <code>newSubs</code> excludes Apple refund reversals, Apple

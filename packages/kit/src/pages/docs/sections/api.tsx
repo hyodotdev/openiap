@@ -267,7 +267,8 @@ export default function ApiReferencePage() {
           <code>EXPIRED</code> once its period ends but returns on the same
           token when the user fixes payment or resumes; and every Horizon
           rejection: Meta checks current ownership, so the user can buy right
-          after.
+          after. A refund Apple later reverses reaches your backend as a
+          commerce event, not through a retry.
         </li>
       </ul>
       <CodeBlock title="Opt-in transaction identifiers" language="json">

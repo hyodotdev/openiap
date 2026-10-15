@@ -357,7 +357,10 @@ describe("recoverPurchases", () => {
     const unfinished = purchase({ id: "tx-9", productId: "coins_100" });
     const { flow, options } = flowWith(
       async () => ({ status: "entitled", alreadyGranted: false }),
-      { getPendingTransactionsIOS: vi.fn(async () => [unfinished]) },
+      {
+        getPendingTransactionsIOS: vi.fn(async () => [unfinished]),
+        getAvailablePurchases: vi.fn(async () => [purchase({ id: "tx-1" })]),
+      },
     );
 
     await expect(flow.recoverPurchases()).resolves.toEqual([
@@ -366,11 +369,32 @@ describe("recoverPurchases", () => {
         status: { status: "entitled", alreadyGranted: false },
       },
     ]);
-    expect(options.getAvailablePurchases).not.toHaveBeenCalled();
     expect(options.finishTransaction).toHaveBeenCalledWith({
       purchase: unfinished,
       isConsumable: true,
     });
+  });
+
+  it("still finds unacknowledged Android purchases beside a pending list that answers []", async () => {
+    const unacknowledged = purchase({
+      id: "GPA.1",
+      store: "google",
+      isAcknowledgedAndroid: false,
+    });
+    const { flow } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: false }),
+      {
+        getPendingTransactionsIOS: vi.fn(async () => []),
+        getAvailablePurchases: vi.fn(async () => [unacknowledged]),
+      },
+    );
+
+    await expect(flow.recoverPurchases()).resolves.toEqual([
+      {
+        purchase: unacknowledged,
+        status: { status: "entitled", alreadyGranted: false },
+      },
+    ]);
   });
 
   it("confirms every owned Apple purchase when the pending list fails", async () => {

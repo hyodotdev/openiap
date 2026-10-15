@@ -32,7 +32,7 @@ export const PURCHASE_ISSUE_CAUSES: Record<
   INAUTHENTIC: {
     label: "Not recognized by the store",
     meaning:
-      "The store does not know this purchase: the token or JWS is forged, belongs to another app, or was never issued.",
+      "The store does not know this purchase: the token or JWS is forged, belongs to another app, or was never issued. For Meta Horizon, the user does not own the SKU now, for example after a consume or refund.",
     nextStep:
       "Grant nothing. If real customers see this, check the app uses this project's key and store identifiers.",
   },

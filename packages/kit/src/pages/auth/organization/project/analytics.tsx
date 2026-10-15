@@ -35,6 +35,11 @@ import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn, formatMicros, normalizeCurrencyCode } from "@/lib/utils";
+import {
+  REVENUE_COUNTERS,
+  type RevenueCounters,
+  zeroRevenueCounters,
+} from "../../../../../convex/subscriptions/revenueCounters";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -52,51 +57,19 @@ type Cohort = NonNullable<RevenueMetrics["cohorts"]>[number];
 
 const DAY_MS = 86_400_000;
 
-// Every counter a rollup row carries. Rows written before the current
-// definitions lack the newer ones, and days before `trialSplitFromDay` lack
-// the trial counters and expirations; both read as 0.
-const COUNTERS = [
-  "activeSubs",
-  "activeTrials",
-  "newSubs",
-  "trialStarts",
-  "trialConversions",
-  "directPaidStarts",
-  "renewals",
-  "cancellations",
-  "expirations",
-  "refunds",
-  "revenueMicros",
-  "refundedMicros",
-] as const;
-type Counters = Record<(typeof COUNTERS)[number], number>;
-type DailyRow = Counters & { day: string };
+type DailyRow = RevenueCounters & { day: string };
 type MetricRow = DailyRow & {
   currency: string;
   productId: string;
   platform: Platform;
 };
 
-function zeroCounters(): Counters {
-  return {
-    activeSubs: 0,
-    activeTrials: 0,
-    newSubs: 0,
-    trialStarts: 0,
-    trialConversions: 0,
-    directPaidStarts: 0,
-    renewals: 0,
-    cancellations: 0,
-    expirations: 0,
-    refunds: 0,
-    revenueMicros: 0,
-    refundedMicros: 0,
-  };
-}
-
+// Rows written before the current definitions lack the newer counters, and
+// days before `trialSplitFromDay` lack the trial counters and expirations;
+// both read as 0.
 function withDefaults(row: RevenueMetrics["days"][number]): MetricRow {
-  const counters = zeroCounters();
-  for (const key of COUNTERS) counters[key] = row[key] ?? 0;
+  const counters = zeroRevenueCounters();
+  for (const key of REVENUE_COUNTERS) counters[key] = row[key] ?? 0;
   return {
     ...counters,
     day: row.day,
@@ -343,9 +316,9 @@ export default function ProjectAnalytics() {
   );
 
   const totals = useMemo(() => {
-    const sum = zeroCounters();
+    const sum = zeroRevenueCounters();
     for (const row of lifecycleDaily) {
-      for (const key of COUNTERS) sum[key] += row[key];
+      for (const key of REVENUE_COUNTERS) sum[key] += row[key];
     }
     const revenue = reportingRevenueDaily.reduce(
       (acc, row) => ({
@@ -519,9 +492,8 @@ export default function ProjectAnalytics() {
         // The scan hit `REVENUE_SCAN_CAP`, so the chart is partial; flat
         // numbers here are truncation, not a revenue trough.
         <Notice icon={AlertCircle} title="Analytics partially loaded">
-          This range exceeded the per-query scan limit. Numbers below cover the
-          most-recent slice of the window; tighten the range (7d / 30d) to load
-          every row, or narrow by product / currency.
+          This range exceeded the per-query scan limit, so some days are
+          missing. Pick a shorter range to load every row.
         </Notice>
       )}
 
@@ -1155,10 +1127,10 @@ function aggregateByDay(
   for (const row of rows) {
     const existing = byDay.get(row.day);
     if (existing) {
-      for (const key of COUNTERS) existing[key] += row[key];
+      for (const key of REVENUE_COUNTERS) existing[key] += row[key];
     } else {
-      const fresh: DailyRow = { ...zeroCounters(), day: row.day };
-      for (const key of COUNTERS) fresh[key] = row[key];
+      const fresh: DailyRow = { ...zeroRevenueCounters(), day: row.day };
+      for (const key of REVENUE_COUNTERS) fresh[key] = row[key];
       byDay.set(row.day, fresh);
     }
   }
@@ -1196,7 +1168,7 @@ function aggregateByDay(
       // Carry the snapshot forward (no event = no change that period). For
       // event-driven counters a no-event period is genuinely zero.
       result.push({
-        ...zeroCounters(),
+        ...zeroRevenueCounters(),
         day: dayKey,
         dayKey,
         activeSubs: lastActive,
@@ -1254,7 +1226,7 @@ function bucketByPeriod(
       continue;
     }
     daysByBucket.get(bucketKey)?.push(row);
-    for (const key of COUNTERS) {
+    for (const key of REVENUE_COUNTERS) {
       if (key === "activeSubs" || key === "activeTrials") continue;
       existing[key] += row[key];
     }

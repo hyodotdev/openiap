@@ -242,7 +242,7 @@ const verifyPurchaseRouteDescription = describeRoute({
     "`originalTransactionId`, `expiresAt`, `commerceEnvironment` and " +
     "`correlationId`, named and valued as on commerce events. A rejection " +
     "also carries `finalVerdict`: true when retrying the same evidence " +
-    "cannot change it. Apple returns " +
+    "will not change it. Apple returns " +
     "the transaction ids; Google returns its order id as `transactionId`; " +
     "`expiresAt` is set for subscriptions only. Without the flag the body " +
     "is unchanged. Raw JWS, tokens and receipts are never returned.\n\n" +

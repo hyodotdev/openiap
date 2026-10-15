@@ -70,6 +70,32 @@ const isBrowser = typeof window !== "undefined";
 // in its own VITE_KIT_MIXPANEL_TOKEN AND extend this list.
 const ALLOWED_HOSTS = new Set(["kit.openiap.dev", "localhost", "127.0.0.1"]);
 
+// Dashboard URLs can carry app user IDs and IPs, so events keep only the route.
+const URL_PROPERTIES = [
+  "$current_url",
+  "current_url_path",
+  "current_url_search",
+  "$el_attr__href",
+  "$referrer",
+  "$initial_referrer",
+];
+
+export function redactUrl(url: string): string {
+  return url
+    .split(/[?#]/)[0]
+    .replace(/(\/purchases\/user\/)[^/]+/, "$1:appUserId");
+}
+
+export function redactEventUrls<
+  T extends { properties: Record<string, unknown> },
+>(event: T): T {
+  for (const key of URL_PROPERTIES) {
+    const value = event.properties[key];
+    if (typeof value === "string") event.properties[key] = redactUrl(value);
+  }
+  return event;
+}
+
 function initMixpanel() {
   if (!isBrowser) {
     return false;
@@ -107,6 +133,7 @@ function initMixpanel() {
     // Surface auto-pageviews (no-op with autocapture already on, but
     // keeps the intent explicit if someone tunes autocapture later).
     track_pageview: "url-with-path",
+    hooks: { before_send_events: redactEventUrls },
   });
   initialized = true;
 

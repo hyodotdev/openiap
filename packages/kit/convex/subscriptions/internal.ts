@@ -999,7 +999,8 @@ function predatesResync(
 export const RESYNC_DISPUTE_COOLDOWN_MS = 60 * 60 * 1_000;
 
 // A transaction cannot show billing retry or grace: there its period simply
-// ended, so Expired evidence agrees with both. A real dispute re-reads the
+// ended, so Expired evidence agrees with both. An Apple refund verifies as
+// Revoked, which the re-sync stores as Refunded. A real dispute re-reads the
 // store at most once per cooldown, however often the app verifies.
 function disputesResync(
   stored: Pick<Doc<"subscriptions">, "state" | "resyncDisputedAt">,
@@ -1013,6 +1014,7 @@ function disputesResync(
   ) {
     return false;
   }
+  if (verifiedState === "Revoked" && stored.state === "Refunded") return false;
   return (stored.resyncDisputedAt ?? 0) + RESYNC_DISPUTE_COOLDOWN_MS <= now;
 }
 

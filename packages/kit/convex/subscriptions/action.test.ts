@@ -1,3 +1,4 @@
+import { APIException, Environment } from "@apple/app-store-server-library";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
@@ -8,6 +9,7 @@ import {
   readGooglePurchase,
   resyncDisputedSubscription,
   resyncFromStore,
+  withAppleEnvironment,
 } from "./action";
 
 const TOKEN = "play-token-SECRET";
@@ -55,6 +57,42 @@ describe("readGooglePurchase", () => {
       message: "Purchase verification failed (HTTP 400)",
     });
     expect(JSON.stringify(error.data)).not.toContain(TOKEN);
+  });
+});
+
+describe("withAppleEnvironment", () => {
+  const apple = {
+    bundleId: "dev.example",
+    appAppleId: 1,
+    clientFor: () => ({}) as never,
+  };
+  const appleError = (
+    known: "Production" | "Sandbox" | undefined,
+    statuses: number[],
+  ) => {
+    const tried: Environment[] = [];
+    return withAppleEnvironment(apple, known, async (environment) => {
+      tried.push(environment);
+      throw new APIException(statuses[tried.length - 1]);
+    }).catch((caught: unknown) => ({
+      tried,
+      code: (caught as ConvexError<{ code: string }>).data.code,
+    }));
+  };
+
+  it("answers NOT_FOUND only when every environment it tried has none", async () => {
+    await expect(appleError(undefined, [404, 404])).resolves.toEqual({
+      tried: [Environment.PRODUCTION, Environment.SANDBOX],
+      code: "NOT_FOUND",
+    });
+    await expect(appleError("Sandbox", [404])).resolves.toEqual({
+      tried: [Environment.SANDBOX],
+      code: "NOT_FOUND",
+    });
+    await expect(appleError(undefined, [500])).resolves.toEqual({
+      tried: [Environment.PRODUCTION],
+      code: "STORE_REQUEST_FAILED",
+    });
   });
 });
 

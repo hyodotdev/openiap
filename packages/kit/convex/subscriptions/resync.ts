@@ -150,15 +150,21 @@ export function appleStatusSnapshot(input: {
         clearCancellationReason: true,
       };
     case 5:
-      // Only revocationReason 1 is a refund; 0 also covers Family Sharing.
-      return {
-        ...base,
-        state: "Revoked",
-        willRenew: false,
-        ...(transaction.revocationReason === 1
-          ? { cancellationReason: "Refunded" as const }
-          : { clearCancellationReason: true }),
-      };
+      // Only revocationReason 1 is a refund, stored as the REFUND webhook
+      // stores it; 0 also covers Family Sharing.
+      return transaction.revocationReason === 1
+        ? {
+            ...base,
+            state: "Refunded",
+            willRenew: false,
+            cancellationReason: "Refunded",
+          }
+        : {
+            ...base,
+            state: "Revoked",
+            willRenew: false,
+            clearCancellationReason: true,
+          };
     default:
       return null;
   }

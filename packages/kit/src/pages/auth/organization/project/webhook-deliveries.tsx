@@ -15,14 +15,14 @@ import { PageLoading } from "@/components/LoadingSpinner";
 import { convexErrorMessage } from "@/lib/appError";
 import { formatUtcDateTime } from "@/lib/utils";
 import { COMMERCE_EVENT_TYPES } from "../../../../../convex/commerce/contract";
+import { DELIVERY_STATUSES } from "../../../../../convex/utils/validation";
 
 type OutletContext = { project: { _id: Id<"projects"> } };
 type Delivery = FunctionReturnType<
   typeof api.commerce.deliveryState.listDeliveries
 >["page"][number];
 
-const STATUSES = ["pending", "delivering", "delivered", "failed"] as const;
-type Status = (typeof STATUSES)[number];
+type Status = (typeof DELIVERY_STATUSES)[number];
 const STATUS_VARIANT: Record<Status, BadgeVariant> = {
   pending: "warning",
   delivering: "primary",
@@ -38,7 +38,7 @@ export default function WebhookDeliveries() {
   }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const statusParam = searchParams.get("status");
-  const status = STATUSES.find((value) => value === statusParam);
+  const status = DELIVERY_STATUSES.find((value) => value === statusParam);
   const eventType = searchParams.get("eventType") ?? undefined;
   const eventId = searchParams.get("eventId") ?? undefined;
   const destinationId = searchParams.get("destinationId") ?? undefined;
@@ -98,7 +98,7 @@ export default function WebhookDeliveries() {
           className="rounded border border-border bg-background px-2 py-1 text-sm"
         >
           <option value="">{"All statuses"}</option>
-          {STATUSES.map((value) => (
+          {DELIVERY_STATUSES.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
