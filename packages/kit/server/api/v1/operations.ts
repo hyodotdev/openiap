@@ -285,7 +285,11 @@ const STATUS_BY_CODE: Record<string, 403 | 404 | 409 | 429 | 502> = {
   INVALID_API_KEY: 403,
   INSUFFICIENT_SCOPE: 403,
   NOT_FOUND: 404,
+  // The delivery exists but cannot be re-sent now.
   NOT_RESENDABLE: 409,
+  EVENT_PRUNED: 409,
+  DESTINATION_DISABLED: 409,
+  EVENT_TYPE_FILTERED: 409,
   RATE_LIMITED: 429,
   // An upstream store failure, not a bad request: retry later.
   STORE_REQUEST_FAILED: 502,

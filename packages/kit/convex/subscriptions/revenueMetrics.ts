@@ -108,11 +108,10 @@ const PROGRESS_STAMP_MS = 5 * 60 * 1000;
 const COHORTS_INTERVAL_MS = DAY_MS;
 
 // Only these reach IAPKit from the stores; re-syncs and reconciliation do not
-// show that notifications are set up.
+// show that notifications are set up. Amazon's count nowhere in analytics.
 const STORE_NOTIFICATION_SOURCES = new Set<Doc<"webhookEvents">["source"]>([
   "AppleAppStoreServerNotificationsV2",
   "GooglePlayRealTimeDeveloperNotifications",
-  "AmazonRealTimeNotifications",
 ]);
 
 // UTC YYYY-MM-DD, the format `revenueMetricsDaily.day` stores; a local timezone
@@ -1170,6 +1169,12 @@ export function applyEventToBucket(
     } else {
       bucket.renewals += 1;
     }
+    return;
+  }
+  // A free start stored before the trial flag existed may be a trial or a free
+  // offer, so it counts as a new subscription, as it did then.
+  if (startsSubscription(event) && event.freeTrial === undefined) {
+    bucket.newSubs += 1;
     return;
   }
   if (isRefund(event)) {

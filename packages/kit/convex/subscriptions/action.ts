@@ -379,6 +379,17 @@ export async function withAppleEnvironment<T>(
 }
 
 function appleRequestError(error: unknown): unknown {
+  // The store could not answer, so a retry may succeed: an upstream failure.
+  if (
+    error instanceof ReceiptVerificationError &&
+    error.retryAfterSec !== undefined
+  ) {
+    return new ConvexError({
+      code: "STORE_REQUEST_FAILED",
+      message: error.errorMessage,
+      retryAfterSec: error.retryAfterSec,
+    });
+  }
   if (error instanceof ConvexError) return error;
   if (error instanceof APIException) {
     return new ConvexError({

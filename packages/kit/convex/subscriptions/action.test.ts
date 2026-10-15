@@ -4,6 +4,7 @@ import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
+import { AppStoreTransactionVerificationFailedError } from "../purchases/errors";
 import { testableFunction } from "../test.setup";
 import {
   readGooglePurchase,
@@ -92,6 +93,16 @@ describe("withAppleEnvironment", () => {
     await expect(appleError(undefined, [500])).resolves.toEqual({
       tried: [Environment.PRODUCTION],
       code: "STORE_REQUEST_FAILED",
+    });
+  });
+
+  it("reports a verifier outage as a store failure to retry", async () => {
+    const error = await withAppleEnvironment(apple, "Production", async () => {
+      throw new AppStoreTransactionVerificationFailedError("outage", 30);
+    }).catch((caught: unknown) => caught);
+    expect((error as ConvexError<{ code: string }>).data).toMatchObject({
+      code: "STORE_REQUEST_FAILED",
+      retryAfterSec: 30,
     });
   });
 

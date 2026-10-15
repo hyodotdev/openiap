@@ -184,21 +184,16 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       bound: false,
     });
     expect(purchase.appUserId).toBeUndefined();
-    // Known and unknown evidence take the same path and log the same line.
+    // Known and unknown evidence take the same path and log the same line,
+    // but only a purchase IAPKit knows reaches the issue log, keyed as its
+    // purchase page is.
     expect(warn).toHaveBeenCalledTimes(2);
-    expect(scheduledCauses(ctx)).toEqual([
-      "BIND_LIMIT_REACHED",
-      "BIND_LIMIT_REACHED",
-    ]);
-    // Keyed on the purchase id, as the purchase page is, with no lookup.
+    expect(scheduledCauses(ctx)).toEqual(["BIND_LIMIT_REACHED"]);
     const digests = ctx.scheduler.runAfter.mock.calls.map(
       ([, , scheduled]) =>
         (scheduled as { issue: { digest: string } }).issue.digest,
     );
-    expect(digests).toEqual([
-      await sha256Hex(`${store}:store-proof`),
-      await sha256Hex(`${store}:nobody-knows`),
-    ]);
+    expect(digests).toEqual([await sha256Hex(`${store}:store-proof`)]);
     expect(warn.mock.calls[0]).toEqual([
       expect.stringContaining("bound purchase limit"),
       { projectId: "p1", store },

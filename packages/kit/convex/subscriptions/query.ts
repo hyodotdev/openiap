@@ -938,6 +938,11 @@ export const getRevenueMetrics = query({
           .take(REVENUE_SCAN_CAP - rows.length)),
       );
     }
+    // Each environment key is scanned separately; return main's day order.
+    rows.sort(
+      (a, b) =>
+        a.day.localeCompare(b.day) || a.currency.localeCompare(b.currency),
+    );
     const truncated = rows.length === REVENUE_SCAN_CAP;
     if (truncated) {
       console.warn(

@@ -219,16 +219,20 @@ describe("operations routes", () => {
     });
     expect(failed.status).toBe(502);
 
-    mocks.mutation.mockRejectedValueOnce(new Error("queued"));
-    mocks.handleConvexError.mockReturnValueOnce({
-      code: "NOT_RESENDABLE",
-      message: "This delivery is already queued.",
-    });
-    const queued = await call(
-      "/webhooks/deliveries/outboundDeliveries_1/resend",
-      { method: "POST" },
-    );
-    expect(queued.status).toBe(409);
+    for (const code of [
+      "NOT_RESENDABLE",
+      "EVENT_PRUNED",
+      "DESTINATION_DISABLED",
+      "EVENT_TYPE_FILTERED",
+    ]) {
+      mocks.mutation.mockRejectedValueOnce(new Error(code));
+      mocks.handleConvexError.mockReturnValueOnce({ code, message: code });
+      const refused = await call(
+        "/webhooks/deliveries/outboundDeliveries_1/resend",
+        { method: "POST" },
+      );
+      expect(refused.status, code).toBe(409);
+    }
   });
 
   it("maps a missing row to 404 and reads one user's timeline", async () => {

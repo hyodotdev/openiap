@@ -486,6 +486,26 @@ describe("listDeliveries", () => {
       delivered.deliveryId,
     ]);
     expect(await list({ eventId: "not-an-id" })).toEqual([]);
+    // An event id still honors the other filters.
+    expect(
+      await list({
+        eventId: delivered.eventId,
+        destinationId: failed.destinationId,
+      }),
+    ).toEqual([]);
+    expect(
+      await list({
+        eventId: delivered.eventId,
+        eventType: "entitlement.revoked",
+      }),
+    ).toEqual([]);
+    expect(
+      await list({
+        eventId: delivered.eventId,
+        destinationId: delivered.destinationId,
+        eventType: "subscription.renewed",
+      }),
+    ).toEqual([delivered.deliveryId]);
   });
 
   it("rejects non-members", async () => {

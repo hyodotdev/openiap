@@ -1705,7 +1705,7 @@ const REVENUE_DEFINITIONS = {
   environment:
     "Production only unless environment is sandbox. Rows from definitionsFromDay on follow these definitions; earlier rows mix sandbox into production and have no trial split.",
   trialSplit:
-    "Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations, and their totals here cover later days only; on those days Google free trials count as paid starts, and Apple refund reversals and resubscribes as new subscriptions. Unset when every day has the split.",
+    "Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations, and their totals here cover later days only; on those days Google free trials count as paid starts, and Apple free trials, free offers, refund reversals and resubscribes as new subscriptions. Unset when every day has the split.",
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:

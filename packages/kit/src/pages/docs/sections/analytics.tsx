@@ -229,11 +229,10 @@ export default function AnalyticsPage() {
       <p className="mt-3">Each response says which state a window is in:</p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          <code>not_collected</code>: no Apple, Google or Amazon notification
-          for the selected environment has reached the project. Test
-          notifications and re-syncs don&apos;t count, so a project that only
-          verifies purchases stays here even though its active subscriptions
-          have rows.
+          <code>not_collected</code>: no Apple or Google notification for the
+          selected environment has reached the project. Test notifications and
+          re-syncs don&apos;t count, so a project that only verifies purchases
+          stays here even though its active subscriptions have rows.
         </li>
         <li>
           <code>processing</code>: notifications arrived but the window is not
@@ -258,10 +257,11 @@ export default function AnalyticsPage() {
         free-trial, refund-reversal, and resubscribe flags. Those days omit
         trial starts, conversions, direct paid starts, active trials, and
         expirations; on them, Google free trials count as paid starts, and Apple
-        refund reversals and resubscribes as new subscriptions. A trial that
-        started earlier counts as paid until it ends. Churn starts the day after{" "}
-        <code>trialSplitFromDay</code>, the first whose starting paid count
-        excludes trials. It is unset when every day has the flags.
+        free trials, free offers, refund reversals, and resubscribes as new
+        subscriptions. A trial that started earlier counts as paid until it
+        ends. Churn starts the day after <code>trialSplitFromDay</code>, the
+        first whose starting paid count excludes trials. It is unset when every
+        day has the flags.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">API and MCP</h2>
@@ -285,7 +285,8 @@ export default function AnalyticsPage() {
         </p>
         <ul className="my-2 list-disc space-y-1 pl-6">
           <li>
-            Every row is production only by default. Pass{" "}
+            Rows are production by default; rows from before{" "}
+            <code>definitionsFromDay</code> still include sandbox. Pass{" "}
             <code>environment=sandbox</code> for Sandbox and Xcode purchases.{" "}
             <code>/v1/subscriptions/metrics</code> is production only.
           </li>

@@ -721,7 +721,11 @@ export async function listDeliveriesHandler(
   let rows: PaginationResult<Doc<"outboundDeliveries">>;
   if (args.eventId !== undefined) {
     const eventId = ctx.db.normalizeId("commerceEvents", args.eventId);
-    if (!eventId) return empty;
+    const destinationId =
+      args.destinationId === undefined
+        ? undefined
+        : ctx.db.normalizeId("outboundDestinations", args.destinationId);
+    if (!eventId || destinationId === null) return empty;
     rows = await ctx.db
       .query("outboundDeliveries")
       .withIndex("by_event", (q) => q.eq("eventId", eventId))
@@ -730,6 +734,12 @@ export async function listDeliveriesHandler(
         q.and(
           q.eq(q.field("projectId"), project._id),
           status === undefined ? true : q.eq(q.field("status"), status),
+          destinationId === undefined
+            ? true
+            : q.eq(q.field("destinationId"), destinationId),
+          eventType === undefined
+            ? true
+            : q.eq(q.field("eventType"), eventType),
         ),
       )
       .paginate(args.paginationOpts);

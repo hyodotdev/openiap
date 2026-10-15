@@ -57,28 +57,13 @@ export const bindVerifiedPurchaseAsServer = mutation({
       return { bound: false };
     // The cap is decided from the caller's own rows before any evidence lookup,
     // so the answer never depends on someone else's purchase.
-    if (
-      !(await makePurchaseBindingRoom(
-        ctx,
-        resolved.project._id,
-        args.userId,
-        args.store,
-        args.remoteId,
-      ))
-    ) {
-      await recordBindIssue(
-        ctx,
-        resolved.project._id,
-        {
-          reason: "not_bindable",
-          limitReached: true,
-          store: args.store,
-          remoteId: args.remoteId,
-        },
-        { evidence: args.remoteId, userId: args.userId },
-      );
-      return { bound: false };
-    }
+    const hasRoom = await makePurchaseBindingRoom(
+      ctx,
+      resolved.project._id,
+      args.userId,
+      args.store,
+      args.remoteId,
+    );
     const purchase = await ctx.db
       .query("purchases")
       .withIndex("by_project_and_remote", (q) =>
@@ -86,6 +71,25 @@ export const bindVerifiedPurchaseAsServer = mutation({
       )
       .filter((q) => q.eq(q.field("store"), args.store))
       .unique();
+    if (!hasRoom) {
+      // Only a purchase IAPKit verified is logged, so random ids cannot fill
+      // the issue log.
+      if (purchase) {
+        await recordBindIssue(
+          ctx,
+          resolved.project._id,
+          {
+            reason: "not_bindable",
+            limitReached: true,
+            store: args.store,
+            productId: purchase.productId,
+            remoteId: args.remoteId,
+          },
+          { evidence: args.remoteId, userId: args.userId },
+        );
+      }
+      return { bound: false };
+    }
     if (!purchase) return { bound: false };
     if (purchase.appUserId && purchase.appUserId !== args.userId) {
       await recordBindIssue(

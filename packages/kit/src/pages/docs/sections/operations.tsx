@@ -228,8 +228,9 @@ X-RateLimit-Remaining: 599`}
           has no <code>fingerprint</code>.
         </li>
         <li>
-          <code>correlationId</code> is the latest failing request&apos;s{" "}
-          <code>X-Correlation-Id</code>.
+          <code>correlationId</code> is the <code>X-Correlation-Id</code> of the
+          latest <code>/v1</code> request the row recorded. A shared row records
+          at most one failure a minute.
         </li>
         <li>
           <code>productId</code> is store-verified;{" "}
@@ -333,8 +334,10 @@ POST /v1/subscriptions/resync  {"purchaseId"} or {"subscriptionId"}
 GET  /v1/subscriptions/timeline?userId=`}</CodeBlock>
       <p>
         Errors use <code>{"{ errors: [{ code, message }] }"}</code>:{" "}
-        <code>404 NOT_FOUND</code>, <code>409 NOT_RESENDABLE</code> for a
-        delivery that is already queued, <code>429 RATE_LIMITED</code> with{" "}
+        <code>404 NOT_FOUND</code>; <code>409</code> for a delivery that cannot
+        be re-sent now: <code>NOT_RESENDABLE</code> (already queued),{" "}
+        <code>EVENT_PRUNED</code>, <code>DESTINATION_DISABLED</code>, or{" "}
+        <code>EVENT_TYPE_FILTERED</code>; <code>429 RATE_LIMITED</code> with{" "}
         <code>Retry-After</code>, and <code>502 STORE_REQUEST_FAILED</code> when
         the store call fails; retry it later. A notification&apos;s{" "}
         <code>status</code> is <code>applied</code>, <code>pending</code>, or{" "}

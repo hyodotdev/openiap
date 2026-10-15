@@ -38,7 +38,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Linking",
-        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, these links do not count toward the per-user link cap, and publishable keys keep the old response.",
+        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, these links do not count toward the per-user link cap, and publishable keys keep the old response. An operator's secret-key rebind can move a one-time link; it reports notified: false, since one-time purchases send no commerce events.",
       },
       {
         kind: "feature",
@@ -63,7 +63,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "ops",
         topic: "Analytics API",
-        text: "/v1/subscriptions/revenue returns production data unless environment=sandbox is passed. newSubs, renewals, refunds, revenueMicros and activeSubs follow the corrected definitions, and the new expirations field counts paid access that ended; the Analytics page lists each change.",
+        text: "/v1/subscriptions/revenue returns production data unless environment=sandbox is passed. newSubs, renewals, refunds, revenueMicros and activeSubs follow the corrected definitions, and the new expirations field counts paid access that ended; the Analytics page lists each change. An unknown API key now gets 400 INVALID_API_KEY, as documented, instead of empty results.",
       },
       {
         kind: "feature",

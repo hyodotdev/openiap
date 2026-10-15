@@ -242,9 +242,10 @@ one token per requested product, so a 50-payload page costs 50. Responses carry
 
 The verify endpoint also has a per-(API key, payload) replay guard for
 the exact same receipt: **30-request burst, ~1/min sustained**, plus a
-5-minute cooldown after the upstream store rejects a payload as
-invalid. Those paths return `429 DUPLICATE_PAYLOAD` or
-`429 REPEATED_FAILURE` with `Retry-After`.
+5-minute cooldown after the upstream store settles a payload as invalid (a
+response with `finalVerdict: true`; a Google subscription on hold, paused or in
+grace can come back, so it gets no cooldown). Those paths return
+`429 DUPLICATE_PAYLOAD` or `429 REPEATED_FAILURE` with `Retry-After`.
 
 Accepted verification work is also capped at **8 concurrent handlers per API
 key, 16 per trusted source IP, and 32 per process** by default. The key and

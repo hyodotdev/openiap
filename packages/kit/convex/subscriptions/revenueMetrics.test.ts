@@ -383,6 +383,15 @@ describe("applyEventToBucket", () => {
     expect(bucket.expirations).toBe(0);
   });
 
+  it("counts a free start stored before the trial flag as a new subscription", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({ type: "SubscriptionStarted", priceAmountMicros: 0 }),
+    );
+    expect(bucket).toEqual({ ...emptyBucket(), newSubs: 1 });
+  });
+
   it("books a Google replacement Play charged at once as a renewal, never a start", () => {
     const replacement = {
       type: "SubscriptionStarted" as const,
@@ -2621,6 +2630,23 @@ describe("rollup run — production and sandbox", () => {
     });
   });
 
+  it("never marks data collected from Amazon, which no counter reads", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db, { lastNotificationAt: {} });
+    await seedEvent(db, {
+      platform: "Android",
+      source: "AmazonRealTimeNotifications",
+      store: "amazon",
+      environment: "Production",
+      type: "SubscriptionRenewed",
+      receivedAt: Date.parse(`${D1}T08:00:00Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    expect((await runStatus(db))?.lastNotificationAt).toEqual({});
+  });
+
   it("counts a Play event without a reported environment in its subscription's", async () => {
     const db = new MemDb();
     await seedCurrentRunStatus(db);
@@ -3057,6 +3083,15 @@ describe("getRevenueMetrics — data state", () => {
     expect(production.days.map((day) => day.revenueMicros)).toEqual([5]);
     expect(sandbox.days.map((day) => day.revenueMicros)).toEqual([1]);
     expect(sandbox.environment).toBe("Sandbox");
+
+    // Legacy rows are scanned after production ones yet keep day order.
+    await db.insert("revenueMetricsDaily", {
+      ...row,
+      environment: "Production",
+    });
+    await db.insert("revenueMetricsDaily", { ...row, day: D2 });
+    const ordered = await getRevenueMetrics._handler({ db }, range);
+    expect(ordered.days.map((day) => day.day)).toEqual([D2, TODAY, TODAY]);
   });
 });
 
