@@ -18,6 +18,12 @@ interface ValueRow {
 
 const VERIFY_APP_OWNERSHIP_PROPS_FIELDS: FieldRow[] = [
   {
+    name: 'refreshIOS',
+    type: <code>boolean?</code>,
+    summary:
+      'Client Protocol 1.0.3 / openiap-apple 4.0.3: refresh Apple app transaction evidence after an explicit user action. May show App Store authentication. Never enable during automatic checks.',
+  },
+  {
     name: 'google',
     type: (
       <a href="#play-integrity-params-android">

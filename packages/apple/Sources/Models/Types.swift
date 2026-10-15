@@ -4010,11 +4010,15 @@ extension SubscriptionProductReplacementParamsAndroid {
 
 public struct VerifyAppOwnershipProps: Codable {
     public var google: PlayIntegrityParamsAndroid?
+    /// Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.
+    public var refreshIOS: Bool?
 
     public init(
-        google: PlayIntegrityParamsAndroid? = nil
+        google: PlayIntegrityParamsAndroid? = nil,
+        refreshIOS: Bool? = nil
     ) {
         self.google = google
+        self.refreshIOS = refreshIOS
     }
 }
 

@@ -5706,19 +5706,24 @@ class SubscriptionProductReplacementParamsAndroid {
 class VerifyAppOwnershipProps {
   const VerifyAppOwnershipProps({
     this.google,
+    this.refreshIOS,
   });
 
   final PlayIntegrityParamsAndroid? google;
+  /// Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.
+  final bool? refreshIOS;
 
   factory VerifyAppOwnershipProps.fromJson(Map<String, dynamic> json) {
     return VerifyAppOwnershipProps(
       google: json['google'] != null ? PlayIntegrityParamsAndroid.fromJson(json['google'] as Map<String, dynamic>) : null,
+      refreshIOS: json['refreshIOS'] as bool?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'google': google?.toJson(),
+      'refreshIOS': refreshIOS,
     };
   }
 }
@@ -6350,6 +6355,7 @@ abstract class QueryResolver {
   /// See: https://openiap.dev/docs/apis/verify-app-ownership
   Future<AppOwnershipVerificationResult> verifyAppOwnership({
     PlayIntegrityParamsAndroid? google,
+    bool? refreshIOS,
   }) => Future.error(UnsupportedError('verifyAppOwnership is not supported by this resolver'));
 }
 
@@ -6540,6 +6546,7 @@ typedef QueryLatestTransactionIOSHandler = Future<PurchaseIOS?> Function(String 
 typedef QuerySubscriptionStatusIOSHandler = Future<List<SubscriptionStatusIOS>> Function(String sku);
 typedef QueryVerifyAppOwnershipHandler = Future<AppOwnershipVerificationResult> Function({
   PlayIntegrityParamsAndroid? google,
+  bool? refreshIOS,
 });
 
 class QueryHandlers {

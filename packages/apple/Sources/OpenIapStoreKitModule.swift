@@ -1107,7 +1107,12 @@ final class OpenIapStoreKitModule: NSObject, OpenIapModuleProtocol {
             return AppOwnershipVerificationResult(reason: .unsupported, status: .unknown, storeId: StoreIds.Apple)
         }
         do {
-            let verification = try await StoreKit.AppTransaction.shared
+            let verification: VerificationResult<StoreKit.AppTransaction>
+            if options?.refreshIOS == true {
+                verification = try await StoreKit.AppTransaction.refresh()
+            } else {
+                verification = try await StoreKit.AppTransaction.shared
+            }
             switch verification {
             case .verified(let transaction):
                 #if compiler(>=6.4)

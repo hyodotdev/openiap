@@ -5164,6 +5164,9 @@ public sealed record VerifyAppOwnershipProps
 {
     [JsonPropertyName("google")]
     public PlayIntegrityParamsAndroid? Google { get; init; }
+    /// <summary>Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.</summary>
+    [JsonPropertyName("refreshIOS")]
+    public bool? RefreshIOS { get; init; }
 }
 
 /// <summary>

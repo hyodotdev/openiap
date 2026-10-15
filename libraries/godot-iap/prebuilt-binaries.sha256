@@ -13,7 +13,7 @@
 #   node scripts/audit-godot-binary-digests.mjs --write
 868d9b7896917566c15b3e15da536dc53e1dbec35b0cd7a213c5be2b509e7b8e  addons/godot-iap/android/GodotIap.debug.aar
 edcfa32eb5e7f4ac1a172b0a48f679c01a6be109fb03b1ea454720f51971be2a  addons/godot-iap/android/GodotIap.release.aar
-c4561f6ddb1e84ca4a525b2841daf47e284f63f6f8ad441c5ce1050135f8ec62  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
-335242be996a2d7055ab680fd2489963a5099c713c320708e0e8c9435cba950c  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
-674663370d7afc8b1fec350e3a5cce0d51d9ff9849b9e0ae9f4c1be1318e5372  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
-cd720e0626842b8943eddd6df9f60dafb3d172624179229d54abe3cf8787b432  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime
+2375b587f2f0e46509d61d735007f1a413542cc6f8477099e8312473a5992faa  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+38e8c325d8a515a3af7fff6154b87ec06fc19e19318175979325ab212fd351b0  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
+df8cdd519e3ca18b50ac599c51b9c6a43c9276681a4307e52a741005133afc0c  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
+a60e37c6bc68cc5a025751354afa6859658f4a1f325dd5e2162ef41f2f713e83  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime

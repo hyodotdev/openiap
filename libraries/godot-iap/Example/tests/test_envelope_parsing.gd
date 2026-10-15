@@ -1888,6 +1888,8 @@ func test_app_ownership_evidence() -> void:
 		var typed_options = Types.VerifyAppOwnershipProps.from_dict({"google": {"cloudProjectNumber": "123", "requestHash": "typed-digest"}})
 		await GodotIapPlugin.verify_app_ownership(typed_options)
 		_assert_equal(JSON.parse_string(fake.last_args[0]).google.requestHash, "typed-digest", "Ownership accepts generated options")
+		await GodotIapPlugin.verify_app_ownership({"refreshIOS": true})
+		_assert_equal(JSON.parse_string(fake.last_args[0]).refreshIOS, true, "User-initiated Apple refresh reaches the native bridge")
 		await GodotIapPlugin.verify_app_ownership(null)
 		_assert_equal(JSON.parse_string(fake.last_args[0]), {}, "Null ownership options are optional")
 		_uninstall_fake()

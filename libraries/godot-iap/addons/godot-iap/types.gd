@@ -5468,8 +5468,13 @@ class SubscriptionProductReplacementParamsAndroid:
 
 class VerifyAppOwnershipProps:
 	var google: _Types.PlayIntegrityParamsAndroid
+	## Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.
+	var refresh_ios: Variant = null
 
 	static func from_dict(data: Dictionary) -> _Types.VerifyAppOwnershipProps:
+		if data.has("refreshIOS") and data["refreshIOS"] != null and not data["refreshIOS"] is bool:
+			push_error("Invalid VerifyAppOwnershipProps.refreshIOS value")
+			return null
 		var obj = VerifyAppOwnershipProps.new()
 		if data.has("google") and data["google"] != null:
 			if data["google"] is Dictionary:
@@ -5481,6 +5486,8 @@ class VerifyAppOwnershipProps:
 			else:
 				push_error("Expected google to be a PlayIntegrityParamsAndroid dictionary")
 				return null
+		if data.has("refreshIOS") and data["refreshIOS"] != null:
+			obj.refresh_ios = data["refreshIOS"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -5490,6 +5497,8 @@ class VerifyAppOwnershipProps:
 				dict["google"] = google.to_dict()
 			else:
 				dict["google"] = google
+		if refresh_ios != null:
+			dict["refreshIOS"] = refresh_ios
 		return dict
 
 ## Apple App Store verification parameters. Used for server-side receipt validation via App Store Server API.

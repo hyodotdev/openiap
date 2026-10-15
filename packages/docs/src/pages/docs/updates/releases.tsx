@@ -569,6 +569,31 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'app-ownership-recovery-2026-10-15',
+      date: new Date('2026-10-15'),
+      element: (
+        <div key="app-ownership-recovery-2026-10-15" style={noteCardStyle}>
+          <h2>Recover a failed Apple app ownership check</h2>
+          <p>
+            Client Protocol 1.0.3, openiap-apple 4.0.3, and godot-iap 4.0.3 add
+            <code> refreshIOS: true</code> to <code>verifyAppOwnership</code>.
+            Use it from an explicit Retry action to refresh the signed app
+            transaction when the normal lookup fails. It may show App Store
+            authentication; automatic startup and resume checks keep using the
+            normal lookup.
+          </p>
+          <p>
+            Rebuild native apps after upgrading. Unknown checks remain unknown,
+            and a refresh never bypasses transaction verification or revocation.
+            Godot allows time for the authentication sheet to complete.
+          </p>
+          <Link to="/docs/apis/verify-app-ownership">
+            App ownership recovery
+          </Link>
+        </div>
+      ),
+    },
+    {
       id: 'purchase-accuracy-2026-10-13',
       date: new Date('2026-10-13'),
       element: (

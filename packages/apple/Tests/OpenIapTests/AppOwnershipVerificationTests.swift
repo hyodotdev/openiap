@@ -25,6 +25,14 @@ final class AppOwnershipVerificationTests: XCTestCase {
         XCTAssertEqual(revoked.appTransactionIOS?.revocationDate, 3000)
     }
 
+    func testRefreshRequiresAnExplicitOption() throws {
+        let decoder = JSONDecoder()
+        XCTAssertNil(try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{}".utf8)).refreshIOS)
+        let options = try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"refreshIOS\":true}".utf8))
+        XCTAssertEqual(options.refreshIOS, true)
+        XCTAssertTrue(String(data: try JSONEncoder().encode(options), encoding: .utf8)!.contains("\"refreshIOS\":true"))
+    }
+
     func testNetworkAndServiceFailuresRemainDistinct() {
         XCTAssertEqual(appOwnershipFailureReasonIOS(URLError(.notConnectedToInternet)), .networkError)
         XCTAssertEqual(appOwnershipFailureReasonIOS(NSError(domain: "store", code: 1)), .serviceError)

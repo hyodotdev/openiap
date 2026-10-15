@@ -5738,18 +5738,24 @@ public data class SubscriptionProductReplacementParamsAndroid(
 }
 
 public data class VerifyAppOwnershipProps(
-    val google: PlayIntegrityParamsAndroid? = null
+    val google: PlayIntegrityParamsAndroid? = null,
+    /**
+     * Refresh the signed Apple app transaction after an explicit user action. May prompt for App Store authentication; never enable during automatic startup checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3. Ignored by other stores.
+     */
+    val refreshIOS: Boolean? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyAppOwnershipProps {
             return VerifyAppOwnershipProps(
                 google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { PlayIntegrityParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for PlayIntegrityParamsAndroid") },
+                refreshIOS = json["refreshIOS"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
         "google" to google?.toJson(),
+        "refreshIOS" to refreshIOS,
     )
 }
 
