@@ -279,6 +279,58 @@ describe("processPurchase", () => {
     expect(options.finishTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    [undefined, 30_000],
+    [5_000, 5_000],
+  ])(
+    "fails a backend call still hanging after confirmTimeoutMs %s, then retries it",
+    async (confirmTimeoutMs, timeoutMs) => {
+      vi.useFakeTimers();
+      try {
+        const { flow, options } = flowWith(() => new Promise(() => {}), {
+          ...(confirmTimeoutMs !== undefined ? { confirmTimeoutMs } : {}),
+        });
+        let settled: PurchaseFlowStatus | undefined;
+        void flow.processPurchase(purchase()).then((status) => {
+          settled = status;
+        });
+
+        await vi.advanceTimersByTimeAsync(timeoutMs - 1);
+        expect(settled).toBeUndefined();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(settled).toEqual({
+          status: "failed",
+          error: new Error(
+            `confirmWithBackend did not answer within ${timeoutMs} ms`,
+          ),
+        });
+        expect(options.finishTransaction).not.toHaveBeenCalled();
+
+        // The hung call no longer holds the transaction.
+        void flow.processPurchase(purchase());
+        expect(options.confirmWithBackend).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("leaves no timer behind once the backend answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const { flow } = flowWith(async () => ({
+        status: "entitled",
+        alreadyGranted: false,
+      }));
+
+      await flow.processPurchase(purchase());
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shares one backend call between concurrent deliveries of a transaction", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -319,6 +371,24 @@ describe("recoverPurchases", () => {
       purchase: unfinished,
       isConsumable: true,
     });
+  });
+
+  it("confirms every owned Apple purchase when the pending list fails", async () => {
+    const owned = purchase({ id: "tx-7" });
+    const { flow, options } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: true }),
+      {
+        getPendingTransactionsIOS: vi.fn(async () => {
+          throw new Error("Transaction 7 failed StoreKit verification");
+        }),
+        getAvailablePurchases: vi.fn(async () => [owned]),
+      },
+    );
+
+    await expect(flow.recoverPurchases()).resolves.toEqual([
+      { purchase: owned, status: { status: "entitled", alreadyGranted: true } },
+    ]);
+    expect(options.finishTransaction).toHaveBeenCalledOnce();
   });
 
   it("stops rechecking an expired iOS renewal once it is finished", async () => {

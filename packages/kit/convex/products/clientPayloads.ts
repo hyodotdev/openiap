@@ -412,10 +412,19 @@ async function loadVersionBody(
   return row.bodyId ? (await ctx.db.get(row.bodyId))?.body : undefined;
 }
 
-/**
- * Append version history for a new revision. The current published body gets
- * an author-less entry first when it predates history, so it stays restorable.
- */
+// The author-less entry for a live payload published before history existed.
+// The next write records it; reads show it until then.
+function baselineEntry(live: PublishedSnapshot): VersionEntry {
+  return {
+    version: live.version,
+    action: "publish",
+    format: live.format,
+    body: live.body,
+    createdAt: live.updatedAt,
+  };
+}
+
+/** Append version history for a new revision, recording a missing baseline first. */
 async function appendVersion(
   ctx: MutationCtx,
   key: ClientPayloadKey,
@@ -423,13 +432,7 @@ async function appendVersion(
   entry: VersionEntry,
 ): Promise<void> {
   if (previous && !(await loadVersion(ctx, key, previous.version))) {
-    await insertVersion(ctx, key, {
-      version: previous.version,
-      action: "publish",
-      format: previous.format,
-      body: previous.body,
-      createdAt: previous.updatedAt,
-    });
+    await insertVersion(ctx, key, baselineEntry(previous));
   }
   await insertVersion(ctx, key, entry);
 
@@ -842,8 +845,13 @@ async function resolveAuthorNames(
   return names;
 }
 
+type VersionRow = Omit<
+  Doc<"productClientPayloadVersions">,
+  "_id" | "_creationTime" | "bodyId" | keyof ClientPayloadKey
+>;
+
 function shapeVersion(
-  row: Doc<"productClientPayloadVersions">,
+  row: VersionRow,
   names: Map<string, string | undefined>,
 ): ClientPayloadVersionSummary {
   const authorId = row.authorUserId ?? row.authorApiKeyId;
@@ -869,24 +877,38 @@ function shapeVersion(
   };
 }
 
+function baselineSummary(live: PublishedSnapshot): ClientPayloadVersionSummary {
+  return shapeVersion(
+    { ...baselineEntry(live), byteLength: utf8ByteLength(live.body) },
+    new Map(),
+  );
+}
+
 /** Retained versions, newest first, without bodies. */
 export async function listClientPayloadVersions(
   ctx: QueryCtx,
   key: ClientPayloadKey,
   viewer: ClientPayloadHistoryViewer,
 ): Promise<ClientPayloadVersionSummary[]> {
-  const rows = await ctx.db
-    .query("productClientPayloadVersions")
-    .withIndex("by_project_and_platform_and_product_and_version", (q) =>
-      q
-        .eq("projectId", key.projectId)
-        .eq("platform", key.platform)
-        .eq("productId", key.productId),
-    )
-    .order("desc")
-    .take(MAX_CLIENT_PAYLOAD_HISTORY);
+  const [rows, { live }] = await Promise.all([
+    ctx.db
+      .query("productClientPayloadVersions")
+      .withIndex("by_project_and_platform_and_product_and_version", (q) =>
+        q
+          .eq("projectId", key.projectId)
+          .eq("platform", key.platform)
+          .eq("productId", key.productId),
+      )
+      .order("desc")
+      .take(MAX_CLIENT_PAYLOAD_HISTORY),
+    loadPublished(ctx, key),
+  ]);
   const names = await resolveAuthorNames(ctx, rows, viewer);
-  return rows.map((row) => shapeVersion(row, names));
+  const versions = rows.map((row) => shapeVersion(row, names));
+  if (live && !rows.some((row) => row.version === live.version)) {
+    versions.unshift(baselineSummary(live));
+  }
+  return versions;
 }
 
 export async function getClientPayloadVersion(
@@ -898,7 +920,12 @@ export async function getClientPayloadVersion(
   const row = Number.isSafeInteger(version)
     ? await loadVersion(ctx, key, version)
     : null;
-  if (!row) return null;
+  if (!row) {
+    const { live } = await loadPublished(ctx, key);
+    return live?.version === version
+      ? { ...baselineSummary(live), body: live.body }
+      : null;
+  }
   const [names, body] = await Promise.all([
     resolveAuthorNames(ctx, [row], viewer),
     loadVersionBody(ctx, row),

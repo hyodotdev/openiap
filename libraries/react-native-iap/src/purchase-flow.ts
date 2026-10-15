@@ -67,6 +67,11 @@ export interface PurchaseFlowOutcome<P extends PurchaseFlowPurchase> {
 export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
   /** Sends the purchase to the app backend, which holds the IAPKit secret key. */
   confirmWithBackend: (purchase: P) => Promise<PurchaseConfirmation>;
+  /**
+   * Milliseconds `confirmWithBackend` may take before the purchase ends as
+   * `failed`, so a hung call cannot hold it for the session. Default 30000.
+   */
+  confirmTimeoutMs?: number;
   finishTransaction: (args: {
     purchase: P;
     isConsumable: boolean;
@@ -80,7 +85,8 @@ export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
   /**
    * The SDK's `getPendingTransactionsIOS` on iOS, `undefined` elsewhere.
    * Recovery reads unfinished StoreKit transactions, consumables included,
-   * only from it.
+   * from it. If it throws, recovery confirms every Apple purchase
+   * `getAvailablePurchases` lists instead.
    */
   getPendingTransactionsIOS: (() => Promise<P[]>) | undefined;
 }
@@ -114,6 +120,7 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
 ): PurchaseFlow<P> {
   // A listener and a recovery pass can deliver the same transaction at once.
   const inFlight = new Map<string, Promise<PurchaseFlowStatus>>();
+  const confirmTimeoutMs = options.confirmTimeoutMs ?? 30_000;
 
   function processPurchase(purchase: P): Promise<PurchaseFlowStatus> {
     // Payment is not complete; the store delivers the purchase again once it is.
@@ -130,12 +137,24 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
 
     async function confirmAndFinish(): Promise<PurchaseFlowStatus> {
       let confirmation: PurchaseConfirmation | null;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              new Error(
+                `confirmWithBackend did not answer within ${confirmTimeoutMs} ms`,
+              ),
+            );
+          }, confirmTimeoutMs);
+        });
         confirmation = readConfirmation(
-          await options.confirmWithBackend(purchase),
+          await Promise.race([options.confirmWithBackend(purchase), timeout]),
         );
       } catch (error) {
         return { status: "failed", error };
+      } finally {
+        clearTimeout(timer);
       }
       if (!confirmation) {
         return {
@@ -188,12 +207,19 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     const { getPendingTransactionsIOS } = options;
     // Finished means settled. iOS lists unfinished transactions directly;
     // Android marks finished ones acknowledged and stops listing consumed ones.
-    const [pendingIOS = [], available] = await Promise.all([
-      getPendingTransactionsIOS?.(),
-      includeFinished || !getPendingTransactionsIOS
-        ? options.getAvailablePurchases()
-        : [],
-    ]);
+    let pendingIOS: P[] | undefined;
+    let pendingIOSFailed = false;
+    try {
+      pendingIOS = await getPendingTransactionsIOS?.();
+    } catch {
+      // One unverified transaction fails the whole list. Re-confirming a
+      // finished purchase is safe, so every owned Apple purchase stands in.
+      pendingIOSFailed = true;
+    }
+    const available =
+      includeFinished || !pendingIOS
+        ? await options.getAvailablePurchases()
+        : [];
     if (
       !getPendingTransactionsIOS &&
       available.some((purchase) => purchase.store === "apple")
@@ -202,13 +228,14 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
         "recoverPurchases needs getPendingTransactionsIOS on iOS to find unfinished transactions",
       );
     }
-    const unfinished = includeFinished
-      ? available
-      : available.filter(
-          (purchase) => purchase.isAcknowledgedAndroid === false,
-        );
+    const unfinished = available.filter(
+      (purchase) =>
+        includeFinished ||
+        purchase.isAcknowledgedAndroid === false ||
+        (pendingIOSFailed && purchase.store === "apple"),
+    );
     const purchases = new Map<string, P>();
-    for (const purchase of [...pendingIOS, ...unfinished]) {
+    for (const purchase of [...(pendingIOS ?? []), ...unfinished]) {
       if (!purchases.has(purchase.id)) purchases.set(purchase.id, purchase);
     }
     const outcomes: PurchaseFlowOutcome<P>[] = [];

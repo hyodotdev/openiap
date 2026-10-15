@@ -12,6 +12,7 @@ export type GrantResult =
   | "granted_to_other_user"
   | "deferred";
 
+/** A one-time purchase to grant. */
 export interface EntitlementGrant {
   /**
    * Stable for the purchase's lifetime: Apple originalTransactionId, Google
@@ -26,29 +27,24 @@ export interface EntitlementGrant {
   transactionId?: string;
 }
 
-export interface SubscriptionGrant extends EntitlementGrant {
-  /** End of the verified paid period, epoch milliseconds. */
-  expiresAt: number;
-}
-
-/** Your entitlement store. Both writes must be atomic per `purchaseKey`. */
+/**
+ * Your record of one-time purchases; `grantOnce` must be atomic per
+ * `purchaseKey`. Subscriptions are not stored here: IAPKit tracks them.
+ */
 export interface EntitlementLedger {
   /** The user this purchase was granted to, or null if it never was. */
   ownerOf(purchaseKey: string): Promise<string | null>;
-  /** A one-time purchase: grant it once. */
   grantOnce(grant: EntitlementGrant): Promise<GrantResult>;
-  /**
-   * A subscription: create its entitlement, or move it to this period's
-   * product and `expiresAt`. Never shorten a later `expiresAt`, since an older
-   * transaction can arrive after a renewal. `already_granted` means the period
-   * was already recorded.
-   */
-  upsertSubscription(grant: SubscriptionGrant): Promise<GrantResult>;
 }
 
-export interface ConfirmPurchaseOptions {
+export interface IapkitOptions {
   /** IAPKit secret key, `openiap-kit_sk_...`. */
   secretKey: string;
+  baseUrl?: string;
+  fetch?: (url: string, init: RequestInit) => Promise<Response>;
+}
+
+export interface ConfirmPurchaseOptions extends IapkitOptions {
   ledger: EntitlementLedger;
   /**
    * Whether `userId` may get sandbox and test purchases; everyone may by
@@ -57,8 +53,6 @@ export interface ConfirmPurchaseOptions {
    * App Review demo account instead of refusing the sandbox.
    */
   acceptSandbox?: (userId: string) => boolean | Promise<boolean>;
-  baseUrl?: string;
-  fetch?: (url: string, init: RequestInit) => Promise<Response>;
 }
 
 /** The `/v1/purchase/verify` fields this backend reads. */
@@ -87,13 +81,30 @@ interface BindResult {
   reason?: BindReason;
 }
 
+/** The body is not `{ store, purchaseToken, productId }`: answer 400. */
+export class InvalidConfirmationRequestError extends Error {}
+
 const DEFAULT_RETRY_MS = 30_000;
 
+// Verify errors no retry changes: a receipt IAPKit rejected moments ago (429)
+// and evidence this project can never verify (400). Other 400s are
+// configuration, such as missing credentials or an App Store Server API key
+// Apple refuses (a forged signature shares that code), so they throw: fixing
+// them makes the same purchase valid.
+const SETTLED_VERIFY_ERRORS = new Set([
+  "REPEATED_FAILURE",
+  "INVALID_INPUT",
+  "APP_STORE_INVALID_JWS_FORMAT",
+  "APP_STORE_BUNDLE_ID_MISMATCH",
+]);
+
 /**
- * Verifies a purchase with IAPKit, links it to `userId`, and grants it: once
- * for a one-time purchase, per period for a subscription. Take `userId` from
- * your authenticated session, never from the body. Throws on a malformed body
- * (answer 400) and on unexpected IAPKit answers (answer 5xx).
+ * Verifies a purchase with IAPKit and links it to `userId`. A one-time
+ * purchase is then granted once in your ledger; a subscription's access is
+ * IAPKit's, read with `activeSubscriptionProductIds`. Take `userId` from your
+ * authenticated session, never from the body. Throws
+ * `InvalidConfirmationRequestError` for a malformed body (answer 400) and
+ * other errors for unexpected IAPKit answers (answer 502).
  */
 export async function confirmPurchase(
   userId: string,
@@ -101,13 +112,9 @@ export async function confirmPurchase(
   options: ConfirmPurchaseOptions,
 ): Promise<PurchaseConfirmation> {
   const request = readRequest();
-  const baseUrl = (options.baseUrl ?? "https://kit.openiap.dev").replace(
-    /\/$/,
-    "",
-  );
-  const fetchImpl = options.fetch ?? fetch;
 
-  const verify = await post<VerifyResult>("/v1/purchase/verify", {
+  const verifyPath = "/v1/purchase/verify";
+  const verify = await callIapkit<VerifyResult>(options, verifyPath, {
     store: request.store,
     ...(request.store === "apple"
       ? { jws: request.purchaseToken }
@@ -115,15 +122,14 @@ export async function confirmPurchase(
     expectedProductId: request.productId,
     includeTransactionDetails: true,
   });
-  if ("retryAfterMs" in verify) {
-    // IAPKit rejected this exact receipt moments ago and replays that verdict.
-    if (verify.code === "REPEATED_FAILURE") {
-      return { status: "invalid", reason: "REPEATED_FAILURE" };
+  if ("failure" in verify) {
+    const { code, retryAfterMs } = verify.failure;
+    if (code !== undefined && SETTLED_VERIFY_ERRORS.has(code)) {
+      return { status: "invalid", reason: code };
     }
-    return {
-      status: "verification_delayed",
-      retryAfterMs: verify.retryAfterMs,
-    };
+    if (retryAfterMs === undefined)
+      throw unexpected(verifyPath, verify.failure);
+    return { status: "verification_delayed", retryAfterMs };
   }
   const result = verify.body;
   if (!result.isValid) {
@@ -145,8 +151,12 @@ export async function confirmPurchase(
   ) {
     return { status: "test_account_restricted" };
   }
-  // Google assigns an order id only after acknowledgement, and every Apple
-  // renewal gets a new transaction id, so neither keys a grant.
+  // IAPKit follows a subscription through renewals (Google's keep the same
+  // token and never reach the app again), plan changes, and refunds, so the
+  // link is its grant. A one-time purchase is granted once in your ledger.
+  const subscription = result.expiresAt !== undefined;
+  // Google assigns an order id only after acknowledgement, so it cannot key a
+  // grant.
   const purchaseKey =
     request.store === "google"
       ? request.purchaseToken
@@ -155,34 +165,44 @@ export async function confirmPurchase(
     throw new Error("IAPKit returned no transaction details");
   }
   // A bind is permanent, so check your own owner record before linking.
-  const owner = await options.ledger.ownerOf(purchaseKey);
+  const owner = subscription ? null : await options.ledger.ownerOf(purchaseKey);
   if (owner !== null && owner !== userId) {
     return { status: "ownership_conflict", alreadyGranted: true };
   }
 
-  const bind = await post<BindResult>("/v1/subscriptions/bind-user", {
+  const bindPath = "/v1/subscriptions/bind-user";
+  const bind = await callIapkit<BindResult>(options, bindPath, {
     purchaseToken: request.purchaseToken,
     userId,
   });
-  if ("retryAfterMs" in bind) {
-    return { status: "verified", retryAfterMs: bind.retryAfterMs };
+  if ("failure" in bind) {
+    const { retryAfterMs } = bind.failure;
+    if (retryAfterMs === undefined) throw unexpected(bindPath, bind.failure);
+    return { status: "verified", retryAfterMs };
   }
   const { reason } = bind.body;
-  let linked: boolean;
   switch (reason) {
-    // A bind never moves an owner, and neither does this handler. The app may
-    // finish the purchase only if the ledger already granted it.
-    case "bound_to_other_user":
-      return { status: "ownership_conflict", alreadyGranted: owner !== null };
     case "bound":
     case "already_bound":
-      linked = true;
       break;
-    // Say, a user at the link limit: IAPKit keeps no link and the ledger
-    // alone holds the owner.
+    // A bind never moves an owner, and neither does this handler.
+    case "bound_to_other_user":
+      // IAPKit keeps the subscription's access with its owner.
+      if (subscription) {
+        return { status: "ownership_conflict", alreadyGranted: true };
+      }
+      // Your ledger owns one-time purchases: a grant to this user stands.
+      if (owner === null) {
+        return { status: "ownership_conflict", alreadyGranted: false };
+      }
+      break;
+    // A user whose data erasure you requested, for example: IAPKit keeps no
+    // link, so it cannot give this user the subscription.
     case "not_found":
     case "not_bindable":
-      linked = false;
+      if (subscription) {
+        return { status: "verified", retryAfterMs: DEFAULT_RETRY_MS };
+      }
       break;
     // Publishable keys get no reason; an unknown one may be a new refusal.
     default:
@@ -192,22 +212,18 @@ export async function confirmPurchase(
           : `bind-user returned an unknown reason: ${String(reason)}`,
       );
   }
+  if (subscription) {
+    return { status: "entitled", alreadyGranted: reason === "already_bound" };
+  }
 
-  const entitlement: EntitlementGrant = {
+  const linked = reason === "bound" || reason === "already_bound";
+  const grant = await options.ledger.grantOnce({
     purchaseKey,
     userId,
     productId: result.productId,
     store: request.store,
     ...(result.transactionId ? { transactionId: result.transactionId } : {}),
-  };
-  // Every renewal moves the subscription's period, so it is not granted once.
-  const grant =
-    result.expiresAt === undefined
-      ? await options.ledger.grantOnce(entitlement)
-      : await options.ledger.upsertSubscription({
-          ...entitlement,
-          expiresAt: result.expiresAt,
-        });
+  });
   switch (grant) {
     case "granted_to_other_user":
       return { status: "ownership_conflict", alreadyGranted: true };
@@ -238,38 +254,78 @@ export async function confirmPurchase(
     ) {
       return { store, purchaseToken, productId };
     }
-    throw new TypeError("Expected { store, purchaseToken, productId }");
+    throw new InvalidConfirmationRequestError(
+      "Expected { store, purchaseToken, productId }",
+    );
   }
+}
 
-  async function post<T>(
-    path: string,
-    payload: object,
-  ): Promise<{ body: T } | { retryAfterMs: number; code: unknown }> {
-    const response = await fetchImpl(`${baseUrl}${path}`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${options.secretKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    // A rate limit, or IAPKit or the store could not answer yet.
-    if (response.status === 429 || response.status === 503) {
-      const seconds = Number(response.headers.get("retry-after"));
-      const error = (await response.json().catch(() => null)) as {
-        errors?: { code?: unknown }[];
-      } | null;
-      return {
-        retryAfterMs:
-          Number.isFinite(seconds) && seconds > 0
-            ? seconds * 1000
-            : DEFAULT_RETRY_MS,
-        code: error?.errors?.[0]?.code,
-      };
-    }
-    if (!response.ok) {
-      throw new Error(`IAPKit ${path} returned ${response.status}`);
-    }
-    return { body: (await response.json()) as T };
-  }
+/**
+ * Product ids of `userId`'s active subscriptions. IAPKit keeps them current
+ * from App Store and Google Play server notifications, so gate subscription
+ * access on this, or on commerce events, instead of a period you stored.
+ */
+export async function activeSubscriptionProductIds(
+  userId: string,
+  options: IapkitOptions,
+): Promise<string[]> {
+  const path = "/v2/subscriptions/entitlements";
+  const reply = await callIapkit<{ productIds: string[] }>(
+    options,
+    `${path}?userId=${encodeURIComponent(userId)}`,
+  );
+  if ("failure" in reply) throw unexpected(path, reply.failure);
+  return reply.body.productIds;
+}
+
+interface IapkitFailure {
+  status: number;
+  code?: string;
+  /** Set for 429 and 503: a rate limit, or IAPKit or the store could not answer yet. */
+  retryAfterMs?: number;
+}
+
+async function callIapkit<T>(
+  options: IapkitOptions,
+  path: string,
+  payload?: object,
+): Promise<{ body: T } | { failure: IapkitFailure }> {
+  const baseUrl = (options.baseUrl ?? "https://kit.openiap.dev").replace(
+    /\/$/,
+    "",
+  );
+  const response = await (options.fetch ?? fetch)(`${baseUrl}${path}`, {
+    method: payload ? "POST" : "GET",
+    headers: {
+      authorization: `Bearer ${options.secretKey}`,
+      "content-type": "application/json",
+    },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+  if (response.ok) return { body: (await response.json()) as T };
+  const error = (await response.json().catch(() => null)) as {
+    errors?: { code?: unknown }[];
+  } | null;
+  const code = error?.errors?.[0]?.code;
+  const seconds = Number(response.headers.get("retry-after"));
+  return {
+    failure: {
+      status: response.status,
+      ...(typeof code === "string" ? { code } : {}),
+      ...(response.status === 429 || response.status === 503
+        ? {
+            retryAfterMs:
+              Number.isFinite(seconds) && seconds > 0
+                ? seconds * 1000
+                : DEFAULT_RETRY_MS,
+          }
+        : {}),
+    },
+  };
+}
+
+function unexpected(path: string, failure: IapkitFailure): Error {
+  return new Error(
+    `IAPKit ${path} returned ${failure.status}${failure.code ? ` ${failure.code}` : ""}`,
+  );
 }

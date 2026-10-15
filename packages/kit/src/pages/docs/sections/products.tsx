@@ -227,7 +227,8 @@ export default function ProductsPage() {
         display name or API key name, never an email. Rolling back republishes
         an older body as a <em>new</em> version, so history stays append-only
         and apps see a newer ETag. Versions older than the newest 50 are pruned
-        and cannot be restored.
+        and cannot be restored. A payload published before history existed shows
+        its live version without an author.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
