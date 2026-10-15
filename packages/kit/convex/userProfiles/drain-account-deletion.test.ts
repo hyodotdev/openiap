@@ -351,6 +351,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     await ctx.db.insert("subscriptionTokenAliases", { projectId });
     await ctx.db.insert("subscriptions", { projectId });
     await ctx.db.insert("subscriptionStats", { projectId });
+    await ctx.db.insert("subscriptionStatsRebuilds", { projectId });
     await ctx.db.insert("revenueMetricsDaily", { projectId });
     await ctx.db.insert("revenueMetricsRunStatus", { projectId });
     await ctx.db.insert("revenueCohortsMonthly", { projectId });
@@ -395,6 +396,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("subscriptionTokenAliases")).toBe(0);
     expect(ctx.db.countRows("subscriptions")).toBe(0);
     expect(ctx.db.countRows("subscriptionStats")).toBe(0);
+    expect(ctx.db.countRows("subscriptionStatsRebuilds")).toBe(0);
     expect(ctx.db.countRows("revenueMetricsDaily")).toBe(0);
     expect(ctx.db.countRows("revenueMetricsRunStatus")).toBe(0);
     expect(ctx.db.countRows("revenueCohortsMonthly")).toBe(0);

@@ -623,19 +623,23 @@ class IndexBuilder {
   }
 }
 
+type PageHook = (numItems: number, page: Row[]) => void;
+
 class MemQuery {
   constructor(
     private rows: Row[],
     private indexName?: string,
+    private onPage?: PageHook,
   ) {}
 
   withIndex(_name: string, cb?: (q: IndexBuilder) => IndexBuilder): MemQuery {
-    if (!cb) return new MemQuery(this.rows, _name);
+    if (!cb) return new MemQuery(this.rows, _name, this.onPage);
     const builder = new IndexBuilder();
     cb(builder);
     return new MemQuery(
       this.rows.filter((row) => builder.predicates.every((p) => p(row))),
       _name,
+      this.onPage,
     );
   }
 
@@ -654,7 +658,7 @@ class MemQuery {
     const sorted = [...this.rows].sort((a, b) =>
       direction === "asc" ? value(a) - value(b) : value(b) - value(a),
     );
-    return new MemQuery(sorted, this.indexName);
+    return new MemQuery(sorted, this.indexName, this.onPage);
   }
 
   filter(_cb: unknown): MemQuery {
@@ -694,6 +698,7 @@ class MemQuery {
     const start = opts.cursor === null ? 0 : Number.parseInt(opts.cursor, 10);
     const end = start + opts.numItems;
     const page = this.rows.slice(start, end);
+    this.onPage?.(opts.numItems, page);
     const isDone = end >= this.rows.length;
     return { page, isDone, continueCursor: String(end) };
   }
@@ -702,6 +707,8 @@ class MemQuery {
 class MemDb {
   tables = new Map<string, Map<string, Row>>();
   private counter = 0;
+  // Sees every page read; a throw fails the reading mutation.
+  onPage?: (table: string, numItems: number, page: Row[]) => void;
 
   constructor() {
     this.table("organizations").set("organizations_test", {
@@ -725,7 +732,11 @@ class MemDb {
   }
 
   query(tableName: string): MemQuery {
-    return new MemQuery([...this.table(tableName).values()]);
+    return new MemQuery(
+      [...this.table(tableName).values()],
+      undefined,
+      (numItems, page) => this.onPage?.(tableName, numItems, page),
+    );
   }
 
   async insert(
@@ -754,7 +765,11 @@ class MemDb {
     for (const table of this.tables.values()) {
       const row = table.get(id);
       if (row) {
-        Object.assign(row, patch);
+        // As in Convex, an undefined value removes the field.
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === undefined) delete row[key];
+          else row[key] = value;
+        }
         return;
       }
     }
@@ -1007,7 +1022,7 @@ async function seedCurrentRunStatus(
     runStartedAt: NOW - 10 * 60 * 1000,
     definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
     definitionsFromDay: "2026-02-14",
-    lastStoreNotificationAt: NOW - 10 * 60 * 1000,
+    lastNotificationAt: { Production: NOW - 10 * 60 * 1000 },
     cohortsRequestedAt: NOW,
     statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
     ...fields,
@@ -1016,6 +1031,62 @@ async function seedCurrentRunStatus(
 
 async function runStatus(db: MemDb): Promise<Row | null> {
   return db.query("revenueMetricsRunStatus").first();
+}
+
+// One mutation as Convex runs it: a throw rolls back its writes alone.
+async function transaction(
+  db: MemDb,
+  mutation: () => Promise<unknown>,
+): Promise<void> {
+  const saved = structuredClone(db.tables);
+  try {
+    await mutation();
+  } catch (error) {
+    db.tables = saved;
+    throw error;
+  }
+}
+
+// One rollup run at `at`, each scheduled mutation in its own transaction. A
+// failed mutation ends the chain, as a throwing scheduled function does.
+async function runChain(db: MemDb, at: number = NOW): Promise<boolean> {
+  vi.setSystemTime(at);
+  const queue: ScheduledCall[] = [];
+  const ctx = {
+    db,
+    scheduler: {
+      runAfter: async (
+        _delayMs: number,
+        fn: SchedulableFunctionReference,
+        args: Record<string, unknown>,
+      ) => {
+        queue.push({ name: getFunctionName(fn), args });
+      },
+    },
+  };
+  try {
+    await transaction(db, () =>
+      kickoff._handler(ctx, { projectId: PROJECT_ID }),
+    );
+    for (let call = queue.shift(); call; call = queue.shift()) {
+      const { name, args } = call;
+      if (name.endsWith(":recomputeRevenueMetricsPage")) {
+        await transaction(db, () =>
+          chainedPage._handler(ctx, args as RecomputeRevenueMetricsPageArgs),
+        );
+      } else if (name.endsWith(":commitRevenueMetricsDays")) {
+        await transaction(db, () =>
+          chainedCommit._handler(
+            ctx,
+            args as Parameters<typeof chainedCommit._handler>[1],
+          ),
+        );
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 describe("rollup run — round-trip integration", () => {
@@ -1820,7 +1891,93 @@ describe("rollup run — definitions rebuild", () => {
   });
 });
 
+describe("rollup run — event reads", () => {
+  it("reads each event once in a 30-day rebuild and adds a late one to its day", async () => {
+    const db = new MemDb();
+    let eventsRead = 0;
+    db.onPage = (table, _numItems, page) => {
+      if (table === "webhookEvents") eventsRead += page.length;
+    };
+    // One renewal on each retained day.
+    for (let i = 0; i < 30; i++) {
+      const day = Date.parse("2026-02-14T10:00:00Z") + i * 86_400_000;
+      await seedEvent(db, {
+        type: "SubscriptionRenewed",
+        priceAmountMicros: 9_990_000,
+        receivedAt: day,
+      });
+    }
+    // Happened in the first slice, arrived in the last.
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse("2026-02-15T10:00:00Z"),
+      receivedAt: Date.parse(`${TODAY}T11:00:00Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    expect(eventsRead).toBe(31);
+    const renewals = async (day: string) =>
+      (await rollupRows(db)).find((row) => row.day === day)?.renewals;
+    expect(await renewals("2026-02-14")).toBe(1);
+    expect(await renewals("2026-02-15")).toBe(2);
+    expect(await renewals(TODAY)).toBe(1);
+    expect(await runStatus(db)).toMatchObject({
+      lastRunAt: NOW,
+      pendingLateEvents: 0,
+    });
+  });
+});
+
 describe("rollup run — failures and follow-ups", () => {
+  it("keeps a failed first page's run stamp, so the picker waits", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    db.onPage = (table) => {
+      if (table === "webhookEvents") throw new Error("Too many bytes read");
+    };
+
+    expect(await runChain(db)).toBe(false);
+
+    expect(await runStatus(db)).toMatchObject({ runStartedAt: NOW });
+    expect(await pickProjects(db, 10, NOW + 10 * 60 * 1000)).toEqual([]);
+  });
+
+  it("halves its pages after each failed run and waits longer to retry", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+    // Pages above 100 events exceed the read limit.
+    const pageSizes: number[] = [];
+    db.onPage = (table, numItems) => {
+      if (table !== "webhookEvents") return;
+      pageSizes.push(numItems);
+      if (numItems > 100) throw new Error("Too many bytes read");
+    };
+    const HOUR = 60 * 60 * 1000;
+
+    expect(await runChain(db, NOW)).toBe(false);
+    expect(await pickProjects(db, 10, NOW + 59 * 60 * 1000)).toEqual([]);
+    expect(await pickProjects(db, 10, NOW + HOUR)).toEqual([PROJECT_ID]);
+
+    expect(await runChain(db, NOW + HOUR)).toBe(false);
+    expect(await pickProjects(db, 10, NOW + 2.9 * HOUR)).toEqual([]);
+    expect(await pickProjects(db, 10, NOW + 3 * HOUR)).toEqual([PROJECT_ID]);
+
+    expect(await runChain(db, NOW + 3 * HOUR)).toBe(true);
+    expect(pageSizes).toEqual([400, 200, 100]);
+    expect(await runStatus(db)).toMatchObject({ lastRunAt: NOW + 3 * HOUR });
+    expect(await runStatus(db)).not.toHaveProperty("failedRuns");
+    expect(
+      (await rollupRows(db)).find((row) => row.day === TODAY),
+    ).toMatchObject({ newSubs: 1 });
+  });
+
   it("backs a failed run off for an hour instead of re-picking it every tick", async () => {
     const db = new MemDb();
     // Started at NOW and never finished: a later page threw.
@@ -2046,7 +2203,135 @@ describe("rollup run — churn", () => {
   });
 });
 
+describe("rollup run — Google replacements", () => {
+  // Play replaced "old-token" (sub.monthly) with "new-token" (sub.yearly).
+  async function seedReplacement(db: MemDb): Promise<void> {
+    await db.insert("subscriptionTokenAliases", {
+      projectId: PROJECT_ID,
+      purchaseToken: "old-token",
+      successorPurchaseToken: "new-token",
+      predecessorProductId: "sub.monthly",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await seedSub(db, {
+      state: "Active",
+      purchaseToken: "new-token",
+      platform: "Android",
+      productId: "sub.yearly",
+      expiresAt: Date.UTC(2027, 0, 1),
+      analytics: {
+        firstPaidAt: Date.parse("2026-02-01T08:00:00Z"),
+        firstPaidEventType: "SubscriptionStarted",
+        currency: "USD",
+        paidMicros: 9_990_000,
+        refundedMicros: 0,
+      },
+    });
+  }
+  const google = {
+    platform: "Android" as const,
+    source: "GooglePlayRealTimeDeveloperNotifications" as const,
+  };
+
+  it("counts a plan change as neither churn nor a new subscription", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedReplacement(db);
+    await seedEvent(db, {
+      ...google,
+      type: "SubscriptionStarted",
+      purchaseToken: "new-token",
+      linkedPurchaseToken: "old-token",
+      productId: "sub.yearly",
+      priceAmountMicros: 99_990_000,
+      receivedAt: Date.parse(`${D1}T08:00:00Z`),
+    });
+    await seedEvent(db, {
+      ...google,
+      type: "SubscriptionExpired",
+      purchaseToken: "old-token",
+      productId: "sub.monthly",
+      receivedAt: Date.parse(`${D1}T08:00:01Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    const day = (await rollupRows(db)).filter((row) => row.day === D1);
+    const total = (counter: string) =>
+      day.reduce((sum, row) => sum + (row[counter] as number), 0);
+    expect(total("expirations")).toBe(0);
+    expect(total("newSubs")).toBe(0);
+    expect(total("directPaidStarts")).toBe(0);
+    expect(total("revenueMicros")).toBe(0);
+    expect(total("activeSubs")).toBe(1);
+  });
+
+  it("counts a refund of the replaced token under the product it was for", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedReplacement(db);
+    // A voided purchase names no product and no environment.
+    await seedEvent(db, {
+      ...google,
+      type: "PurchaseRefunded",
+      cancellationReason: "Refunded",
+      purchaseToken: "old-token",
+      productId: undefined,
+      currency: undefined,
+      environmentDefaulted: true,
+      receivedAt: Date.parse(`${D1}T09:00:00Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    expect(
+      (await rollupRows(db)).find((row) => row.refunds === 1),
+    ).toMatchObject({
+      day: D1,
+      productId: "sub.monthly",
+      currency: "USD",
+      environment: "Production",
+    });
+  });
+});
+
 describe("rollup run — production and sandbox", () => {
+  it("counts a Play event without a reported environment in its subscription's", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedSub(db, {
+      state: "Expired",
+      purchaseToken: "tester",
+      platform: "Android",
+      environment: "Sandbox",
+      expiresAt: Date.parse(`${D1}T08:00:00Z`),
+      analytics: {
+        firstPaidAt: Date.parse("2026-02-01T08:00:00Z"),
+        firstPaidEventType: "SubscriptionStarted",
+        currency: "USD",
+        paidMicros: 9_990_000,
+        refundedMicros: 0,
+      },
+    });
+    // An expiry recorded without a service account: no Play fetch.
+    await seedEvent(db, {
+      type: "SubscriptionExpired",
+      platform: "Android",
+      source: "GooglePlayRealTimeDeveloperNotifications",
+      purchaseToken: "tester",
+      environmentDefaulted: true,
+      receivedAt: Date.parse(`${D1}T08:00:01Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    const expiries = (await rollupRows(db)).filter(
+      (row) => row.expirations === 1,
+    );
+    expect(expiries).toMatchObject([{ day: D1, environment: "Sandbox" }]);
+  });
+
   it("keeps sandbox events and subscriptions in their own rows", async () => {
     const db = new MemDb();
     const ctx = makeCtx(db);
@@ -2244,6 +2529,27 @@ describe("getRevenueMetrics — data state", () => {
       organizationId: "organizations_test",
     });
   }
+
+  it("tracks whether notifications arrived per environment", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    // Verify-only production subscription, sandbox notifications only.
+    await seedSub(db, { state: "Active", expiresAt: Date.UTC(2026, 3, 1) });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      environment: "Sandbox",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    const state = async (environment: "Production" | "Sandbox") =>
+      (await getRevenueMetrics._handler({ db }, { ...range, environment }))
+        .dataState;
+    expect(await state("Production")).toBe("not_collected");
+    expect(await state("Sandbox")).toBe("ready");
+  });
 
   it("rejects an unknown secret key instead of answering zeros", async () => {
     const db = new MemDb();

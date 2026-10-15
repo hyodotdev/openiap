@@ -143,6 +143,7 @@ export interface PersistSubscriptionSnapshotArgs {
     | "occurredAt"
     | "sourceNotificationId"
     | "environment"
+    | "environmentDefaulted"
     | "productId"
     | "applicationId"
     | "transactionId"
@@ -368,6 +369,7 @@ async function applyLifecycleEvent(
       args.projectId,
       statsContributionFor(removed, removedPeriod, now),
       null,
+      removed._creationTime,
     );
     await ctx.db.delete(removed._id);
     existing = {
@@ -1011,6 +1013,11 @@ export async function persistSubscriptionSnapshot(
   const beforeContribution = args.existing
     ? statsContributionFor(args.existing, beforeBillingPeriod, args.now)
     : null;
+  // An event Play sent without an environment keeps the row's known one.
+  const environment = args.lastEvent?.environmentDefaulted
+    ? (args.existing?.environment ??
+      args.existing?.lastEventSource?.environment)
+    : (args.lastEvent?.environment ?? args.environment);
 
   const row = {
     purchaseToken: args.purchaseToken,
@@ -1026,11 +1033,7 @@ export async function persistSubscriptionSnapshot(
     cancellationReason: args.next.cancellationReason,
     currency: args.next.currency,
     priceAmountMicros: args.next.priceAmountMicros,
-    ...(args.lastEvent
-      ? { environment: args.lastEvent.environment }
-      : args.environment
-        ? { environment: args.environment }
-        : {}),
+    ...(environment ? { environment } : {}),
     updatedAt: args.now,
     ...(args.resyncedAt !== undefined ? { resyncedAt: args.resyncedAt } : {}),
     // The pair is written together so a signing date never outlives its purchase date.
@@ -1084,6 +1087,7 @@ export async function persistSubscriptionSnapshot(
     args.projectId,
     beforeContribution,
     afterContribution,
+    updatedRow._creationTime,
   );
 
   return subscriptionId;
@@ -1112,7 +1116,8 @@ type SupersedingSubscriptionResolution =
       productId?: string;
     };
 
-async function findSupersedingSubscription(
+// Follows a token Google replaced to the row that holds it now.
+export async function findSupersedingSubscription(
   ctx: Pick<QueryCtx, "db">,
   projectId: Id<"projects">,
   purchaseToken: string,

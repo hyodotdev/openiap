@@ -74,6 +74,8 @@ export type NormalizedWebhookEvent = {
   source: WebhookEventSource;
   platform: IapPlatform;
   environment: WebhookEventEnvironment;
+  /** The store sent no environment; `environment` is the Production default. */
+  environmentDefaulted?: boolean;
   // TestNotification carries no transaction; all other event types
   // populate this. The purchaseToken-or-throw guard lives in the
   // platform-specific normalizers (normalizeAppleEvent /
@@ -794,6 +796,9 @@ export function normalizeGoogleRtdn(
   }
 
   // RTDN omits test-purchase metadata; the verified store fetch supplies it.
+  // Without one (a voided purchase, or no service account) it is unknown.
+  const environmentDefaulted =
+    !payload.testNotification && subscriptionInfo?.environment === undefined;
   const environment: WebhookEventEnvironment = payload.testNotification
     ? "Sandbox"
     : (subscriptionInfo?.environment ?? "Production");
@@ -803,6 +808,7 @@ export function normalizeGoogleRtdn(
     source: "GooglePlayRealTimeDeveloperNotifications",
     platform: "Android",
     environment,
+    ...(environmentDefaulted ? { environmentDefaulted } : {}),
     purchaseToken: purchaseToken ?? undefined,
     linkedPurchaseToken: subscriptionInfo?.linkedPurchaseToken,
     transactionId,

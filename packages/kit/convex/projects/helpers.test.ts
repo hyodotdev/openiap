@@ -147,6 +147,7 @@ describe("deleteProjectWithData", () => {
       subscriptionTokenAliases: rows("subscription_alias"),
       subscriptions: rows("subscription"),
       subscriptionStats: rows("subscription_stats"),
+      subscriptionStatsRebuilds: rows("subscription_stats_rebuild"),
       revenueMetricsDaily: rows("revenue_daily"),
       revenueMetricsRunStatus: rows("revenue_run"),
       revenueCohortsMonthly: rows("revenue_cohort"),
@@ -167,7 +168,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(49);
+    expect(calls).toBe(51);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

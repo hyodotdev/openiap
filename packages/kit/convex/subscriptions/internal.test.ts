@@ -3417,6 +3417,66 @@ describe("user binding authorization", () => {
   });
 });
 
+describe("subscription environment", () => {
+  async function apply(db: MemDb, eventId: string) {
+    return applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+  }
+
+  it("keeps a known environment when Play sends none", async () => {
+    const db = new MemDb();
+    const started = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "tester-start",
+      occurredAt: 1_000,
+      environment: "Sandbox",
+    });
+    await apply(db, started);
+    // An expiry recorded without a service account.
+    const expired = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "tester-expiry",
+      occurredAt: 2_000,
+    });
+    await db.patch(expired, { environmentDefaulted: true });
+    await apply(db, expired);
+
+    expect(db.rows("subscriptions")[0]).toMatchObject({
+      state: "Expired",
+      environment: "Sandbox",
+    });
+  });
+
+  it("keeps a legacy row's environment from its last store event", async () => {
+    const db = new MemDb();
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      purchaseToken: TOKEN,
+      productKind: "subscription",
+      productId: "premium_monthly",
+      platform: "Android",
+      state: "Active",
+      startedAt: 500,
+      updatedAt: 500,
+      lastEventSource: { environment: "Sandbox" },
+    });
+    const expired = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "legacy-expiry",
+      occurredAt: 2_000,
+    });
+    await db.patch(expired, { environmentDefaulted: true });
+    await apply(db, expired);
+
+    expect(db.rows("subscriptions")[0]).toMatchObject({
+      state: "Expired",
+      environment: "Sandbox",
+    });
+  });
+});
+
 describe("subscription analytics facts", () => {
   async function apply(db: MemDb, eventId: string) {
     return applySubscriptionEventHandler(makeCtx(db), {

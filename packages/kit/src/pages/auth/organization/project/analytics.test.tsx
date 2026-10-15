@@ -109,37 +109,49 @@ describe("ProjectAnalytics data states", () => {
     );
   });
 
-  it("counts trials and churn only from the trial split day, and says why", () => {
-    const yesterday = new Date(Date.now() - 86_400_000)
-      .toISOString()
-      .slice(0, 10);
+  it("counts trials from the split day and churn once its base is known", () => {
+    const dayKey = (daysAgo: number) =>
+      new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+    const [twoDaysAgo, yesterday] = [dayKey(2), dayKey(1)];
     const row = {
       currency: "USD",
       productId: "premium",
       platform: "IOS",
-      activeSubs: 4,
       renewals: 0,
       cancellations: 0,
       refunds: 0,
       revenueMicros: 0,
       refundedMicros: 0,
+      newSubs: 0,
+    };
+    const split = {
+      trialStarts: 0,
+      trialConversions: 0,
+      directPaidStarts: 0,
     };
     mocks.state.metrics = response({
       dataState: "ready",
       lastRunAt: Date.now(),
-      trialSplitFromDay: today,
+      trialSplitFromDay: yesterday,
       currencies: ["USD"],
       days: [
         // Before the split the trial counters and expirations are omitted.
-        { ...row, day: yesterday, newSubs: 3 },
+        { ...row, day: twoDaysAgo, activeSubs: 4, newSubs: 3 },
         {
           ...row,
-          day: today,
+          ...split,
+          day: yesterday,
+          activeSubs: 4,
           activeTrials: 1,
-          newSubs: 1,
           trialStarts: 1,
-          trialConversions: 0,
-          directPaidStarts: 0,
+          expirations: 1,
+        },
+        {
+          ...row,
+          ...split,
+          day: today,
+          activeSubs: 3,
+          activeTrials: 1,
           expirations: 1,
         },
       ],
@@ -147,11 +159,12 @@ describe("ProjectAnalytics data states", () => {
     render(<ProjectAnalytics />);
     expect(screen.getByText("Trial split starts mid-range")).toBeTruthy();
     expect(screen.getByText("Trials started").parentElement?.textContent).toBe(
-      `Trials started1From ${today}`,
+      `Trials started1From ${yesterday}`,
     );
-    // One paid expiry of the four paid subscriptions the split day started with.
+    // The split day's base would count yesterday's trials as paid, so churn
+    // starts the day after: one expiry of three paid subscriptions.
     expect(screen.getByText("Churn").parentElement?.textContent).toBe(
-      `Churn25.0%1 expired of 4 paid at start, from ${today}`,
+      `Churn33.3%1 expired of 3 paid at start, from ${today}`,
     );
   });
 

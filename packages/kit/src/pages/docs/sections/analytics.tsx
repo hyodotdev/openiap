@@ -157,7 +157,16 @@ export default function AnalyticsPage() {
           <strong>Sandbox.</strong> The daily series and cohorts are production
           by default; Sandbox and Xcode purchases appear when you switch the tab
           or pass <code>environment=sandbox</code>. Live counts and MRR are
-          production only, with no sandbox view.
+          production only, with no sandbox view. A Google notification Play
+          sends without an environment, such as a voided purchase, keeps its
+          subscription&apos;s.
+        </li>
+        <li>
+          <strong>Google plan changes.</strong> An upgrade, downgrade,
+          re-signup, or prepaid top-up continues the subscription: it is not a
+          new subscription, and the replaced purchase expiring is not churn.
+          Play prorates the change, so it books no revenue; the next renewal
+          does.
         </li>
         <li>
           <strong>Google intro prices.</strong> Play reports a base plan&apos;s
@@ -212,9 +221,10 @@ export default function AnalyticsPage() {
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           <code>not_collected</code>: no Apple, Google or Amazon notification
-          has reached the project. Test notifications and re-syncs don&apos;t
-          count, so a project that only verifies purchases stays here even
-          though its active subscriptions have rows.
+          for the selected environment has reached the project. Test
+          notifications and re-syncs don&apos;t count, so a project that only
+          verifies purchases stays here even though its active subscriptions
+          have rows.
         </li>
         <li>
           <code>processing</code>: notifications arrived but the window is not
@@ -239,7 +249,8 @@ export default function AnalyticsPage() {
         conversions, direct paid starts, active trials, and expirations; on
         them, Google free trials count as paid starts and Apple refund reversals
         as new subscriptions. A trial that started earlier counts as paid until
-        it ends.
+        it ends. Churn starts the day after <code>trialSplitFromDay</code>, the
+        first whose starting paid count excludes trials.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">API and MCP</h2>

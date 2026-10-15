@@ -105,15 +105,23 @@ them, and the dashboard reads the small rollup and cohort tables, one
 environment at a time.
 
 - **Daily rows.** The 10-minute cron picks at most 100 projects per tick. Each
-  run stamps its start on the project's run status, pages the last 3 UTC days
-  of `webhookEvents` (5,000 per mutation), then the counted-state
-  subscriptions, and replaces those days' rows. Google expirations without a
-  trial flag and Play voided purchases each add one indexed subscription read.
+  run stamps its start in its own mutation, then pages the `webhookEvents`
+  received on the last 3 UTC days, then the counted-state subscriptions, and
+  replaces those days' rows. An event page holds 400 rows: an Apple
+  notification keeps its signed payload, about 20 KB, so a page stays under
+  12.5 MiB of the 16 MiB a mutation may read even at 32 KB per event.
+  Subscription pages hold 5,000 rows of about 1 KB. Google expirations without
+  a trial flag, Play voided purchases, and Google notifications without a
+  Play-reported environment each add an alias lookup and a subscription read.
 - **Slices.** A wider run covers its window in 3-day slices, one after
-  another, each rereading events from its first day and the counted-state
-  subscriptions. The 30-day rebuild therefore costs about ten regular runs.
-- **Failed runs.** A run that started without finishing is not picked again
-  for an hour.
+  another. Each slice reads only the events received on its own days; one that
+  arrived after its day's slice was written adds one indexed read and one
+  write to that day's row. A run therefore reads each event once: the 30-day
+  rebuild reads the retained events once and the counted-state subscriptions
+  ten times.
+- **Failed runs.** A run that started without finishing is picked again after
+  an hour, then after 2, 4, and so on up to 24 hours while it keeps failing.
+  Each failed run in a row also halves both page sizes, down to 25 rows.
 - **Definitions rebuild.** When `ROLLUP_DEFINITIONS_VERSION` changes, each
   project's next run covers the retained 30 days once instead of 3.
 - **Late-event catch-up.** Only when a run finds notifications that no
@@ -122,7 +130,11 @@ environment at a time.
 - **Stats rebuild.** When `STATS_DEFINITIONS_VERSION` changes, each project's
   next rollup requests one `subscriptionStats` rebuild, retried at most every
   6 hours until it commits. The upgrade that excluded sandbox triggers this
-  once per project.
+  once per project. The rebuild pages subscriptions in creation order, 5,000
+  per mutation, into one `subscriptionStatsRebuilds` row. Every subscription
+  write that changes the live totals also reads that row (one indexed read)
+  and, during a rebuild, updates it for rows the scan has passed, so a rebuild
+  commits on its first pass however busy the project is.
 - **Cohorts.** At most once a day per project: one paginated pass over its
   `subscriptions` and a replace of at most 24 months × 2 environments ×
   currencies rows.

@@ -66,11 +66,14 @@ export function statsContributionFor(
 
 // Applies one transition to the stats: `before` null is an insert, `after` null
 // a delete. Reads the stats rows itself so callers never handle the aggregate.
+// While a rebuild runs, a row its scan has passed also moves the rebuild's
+// totals; the scan reads any other row as it is.
 export async function applyStatsTransition(
   ctx: MutationCtx,
   projectId: Id<"projects">,
   before: StatsContribution | null,
   after: StatsContribution | null,
+  subscriptionCreationTime: number,
 ): Promise<void> {
   // No-op when neither side counts.
   if (before === null && after === null) return;
@@ -86,25 +89,33 @@ export async function applyStatsTransition(
   }
 
   const now = Date.now();
-
-  // A currency change touches two rows.
+  // One row unless the currency changed.
   if (before && after && before.currency === after.currency) {
-    await touchStatsRow(ctx, projectId, before.currency, now, (row) => {
-      const next = applyDelta(row, before, "subtract");
-      return applyDelta(next, after, "add");
-    });
-    return;
+    await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
+      applyDelta(applyDelta(row, before, "subtract"), after, "add"),
+    );
+  } else {
+    if (before) {
+      await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
+        applyDelta(row, before, "subtract"),
+      );
+    }
+    if (after) {
+      await touchStatsRow(ctx, projectId, after.currency, now, (row) =>
+        applyDelta(row, after, "add"),
+      );
+    }
   }
 
-  if (before) {
-    await touchStatsRow(ctx, projectId, before.currency, now, (row) =>
-      applyDelta(row, before, "subtract"),
-    );
-  }
-  if (after) {
-    await touchStatsRow(ctx, projectId, after.currency, now, (row) =>
-      applyDelta(row, after, "add"),
-    );
+  const rebuild = await getStatsRebuild(ctx, projectId);
+  if (
+    rebuild?.scannedThrough !== undefined &&
+    subscriptionCreationTime <= rebuild.scannedThrough
+  ) {
+    const totals = totalsFromRows(rebuild.totals);
+    if (before) addToTotals(totals, before, "subtract");
+    if (after) addToTotals(totals, after, "add");
+    await ctx.db.patch(rebuild._id, { totals: totalsToRows(totals) });
   }
 }
 
@@ -149,6 +160,49 @@ function applyDelta(
   return next;
 }
 
+type StatsTotals = Map<string, StatsRowShape>;
+type StatsTotalRows = Doc<"subscriptionStatsRebuilds">["totals"];
+
+const ZERO_STATS: StatsRowShape = {
+  activeSubs: 0,
+  inGracePeriod: 0,
+  inBillingRetry: 0,
+  mrrMicros: 0,
+};
+
+function addToTotals(
+  totals: StatsTotals,
+  contribution: StatsContribution,
+  op: "add" | "subtract",
+): void {
+  totals.set(
+    contribution.currency,
+    applyDelta(
+      totals.get(contribution.currency) ?? ZERO_STATS,
+      contribution,
+      op,
+    ),
+  );
+}
+
+function totalsFromRows(rows: StatsTotalRows): StatsTotals {
+  return new Map(rows.map(({ currency, ...row }) => [currency, row]));
+}
+
+function totalsToRows(totals: StatsTotals): StatsTotalRows {
+  return Array.from(totals, ([currency, row]) => ({ currency, ...row }));
+}
+
+function getStatsRebuild(
+  ctx: Pick<MutationCtx, "db">,
+  projectId: Id<"projects">,
+): Promise<Doc<"subscriptionStatsRebuilds"> | null> {
+  return ctx.db
+    .query("subscriptionStatsRebuilds")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .unique();
+}
+
 async function touchStatsRow(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -162,20 +216,7 @@ async function touchStatsRow(
       q.eq("projectId", projectId).eq("currency", currency),
     )
     .unique();
-  const start: StatsRowShape = existing
-    ? {
-        activeSubs: existing.activeSubs,
-        inGracePeriod: existing.inGracePeriod,
-        inBillingRetry: existing.inBillingRetry,
-        mrrMicros: existing.mrrMicros,
-      }
-    : {
-        activeSubs: 0,
-        inGracePeriod: 0,
-        inBillingRetry: 0,
-        mrrMicros: 0,
-      };
-  const next = mutate(start);
+  const next = mutate(existing ?? ZERO_STATS);
   if (existing) {
     await ctx.db.patch(existing._id, { ...next, updatedAt: now });
   } else {
@@ -231,54 +272,30 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
 });
 
-// Subscriptions per page: well under the 40k read budget with room for the
-// product and stats reads. Pages chain, so any project size completes.
+// Subscriptions per page: about 5 MiB of the 16 MiB a mutation may read, with
+// room for the product and stats reads. Pages chain, so any project size
+// completes.
 const RECOMPUTE_PAGE_SIZE = 5_000;
 
-type RecomputeBucket = {
-  activeSubs: number;
-  inGracePeriod: number;
-  inBillingRetry: number;
-  mrrMicros: number;
-};
-
-// Convex value form of `Map<currency, RecomputeBucket>` so it survives
-// scheduler-arg serialization between pages.
-const recomputeAccumulator = v.array(
-  v.object({
-    currency: v.string(),
-    activeSubs: v.number(),
-    inGracePeriod: v.number(),
-    inBillingRetry: v.number(),
-    mrrMicros: v.number(),
-  }),
-);
-
-async function runRecompute(
-  ctx: MutationCtx,
-  projectId: Id<"projects">,
-): Promise<void> {
-  // `runStartedAt` lets the commit detect writes made during the recompute.
-  await runRecomputePageInline(ctx, {
-    projectId,
-    cursor: null,
-    accumulator: [],
-    runStartedAt: Date.now(),
-  });
-}
-
+// Scans subscriptions in creation order, which writes never reorder, so each
+// row is read once; concurrent writes reach the totals through
+// `applyStatsTransition`. The last page replaces the project's stats.
 async function runRecomputePageInline(
   ctx: MutationCtx,
   args: {
     projectId: Id<"projects">;
+    startedAt: number;
     cursor: string | null;
-    accumulator: Array<RecomputeBucket & { currency: string }>;
-    runStartedAt: number;
   },
 ): Promise<void> {
   // Every scheduled page is a fresh transaction and can run after project or
   // account deletion starts. Stop before reading/rewriting aggregate rows.
   if (!(await getWritableProject(ctx, args.projectId))) return;
+
+  const rebuild = await getStatsRebuild(ctx, args.projectId);
+  const ours = rebuild?.startedAt === args.startedAt ? rebuild : null;
+  // A newer rebuild replaced this one.
+  if (args.cursor !== null && !ours) return;
 
   // Keyed by platform too: one SKU can have a different period per store.
   // Re-read on every page; catalogs are small and cheaper to read than to pass
@@ -299,27 +316,12 @@ async function runRecomputePageInline(
     }
   }
 
-  // Read one page of subscriptions oldest-first via the
-  // by_project_and_updated index. Order is deterministic so the
-  // continuation cursor stays valid across mutations.
   const result = await ctx.db
     .query("subscriptions")
-    .withIndex("by_project_and_updated", (q) =>
-      q.eq("projectId", args.projectId),
-    )
-    .order("asc")
+    .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
     .paginate({ numItems: RECOMPUTE_PAGE_SIZE, cursor: args.cursor });
 
-  // Hydrate the carry-in accumulator into a Map for fast lookup.
-  const buckets = new Map<string, RecomputeBucket>();
-  for (const row of args.accumulator) {
-    buckets.set(row.currency, {
-      activeSubs: row.activeSubs,
-      inGracePeriod: row.inGracePeriod,
-      inBillingRetry: row.inBillingRetry,
-      mrrMicros: row.mrrMicros,
-    });
-  }
+  const totals: StatsTotals = ours ? totalsFromRows(ours.totals) : new Map();
   const now = Date.now();
   for (const sub of result.page) {
     const contribution = statsContributionFor(
@@ -327,64 +329,37 @@ async function runRecomputePageInline(
       periodByPlatformProduct.get(`${sub.platform}:${sub.productId}`),
       now,
     );
-    if (!contribution || contribution.state === null) continue;
-    const bucket = buckets.get(contribution.currency) ?? {
-      activeSubs: 0,
-      inGracePeriod: 0,
-      inBillingRetry: 0,
-      mrrMicros: 0,
-    };
-    switch (contribution.state) {
-      case "Active":
-        bucket.activeSubs += 1;
-        bucket.mrrMicros += contribution.mrrMicros;
-        break;
-      case "InGracePeriod":
-        bucket.inGracePeriod += 1;
-        break;
-      case "InBillingRetry":
-        bucket.inBillingRetry += 1;
-        break;
-    }
-    buckets.set(contribution.currency, bucket);
+    if (contribution) addToTotals(totals, contribution, "add");
   }
 
   if (!result.isDone) {
-    // Re-serialize buckets and chain the next page in a fresh
-    // mutation so each page gets its own 40k document-read budget.
-    const nextAccumulator: Array<RecomputeBucket & { currency: string }> = [];
-    for (const [currency, bucket] of buckets) {
-      nextAccumulator.push({ currency, ...bucket });
+    const lastRead = result.page[result.page.length - 1];
+    const fields = {
+      totals: totalsToRows(totals),
+      scannedThrough: lastRead?._creationTime ?? ours?.scannedThrough,
+    };
+    if (ours) {
+      await ctx.db.patch(ours._id, fields);
+    } else {
+      if (rebuild) await ctx.db.delete(rebuild._id);
+      await ctx.db.insert("subscriptionStatsRebuilds", {
+        projectId: args.projectId,
+        startedAt: args.startedAt,
+        ...fields,
+      });
     }
     await ctx.scheduler.runAfter(
       0,
       internal.subscriptions.stats.runRecomputePage,
       {
         projectId: args.projectId,
+        startedAt: args.startedAt,
         cursor: result.continueCursor,
-        accumulator: nextAccumulator,
-        runStartedAt: args.runStartedAt,
       },
     );
     return;
   }
-
-  // A write since `runStartedAt` was already applied incrementally, so this
-  // snapshot is stale: skip the commit and let the next tick retry. The check
-  // shares the transaction with the writes below, so no race remains.
-  const concurrentWrite = await ctx.db
-    .query("subscriptions")
-    .withIndex("by_project_and_updated", (q) =>
-      q.eq("projectId", args.projectId).gt("updatedAt", args.runStartedAt),
-    )
-    .first();
-  // Known limit: a very large project written to on every run never commits and stays first in line.
-  if (concurrentWrite) {
-    console.info(
-      `[subscriptionStats] aborting recompute commit for project=${args.projectId} — subscription updated at ${concurrentWrite.updatedAt} > runStartedAt=${args.runStartedAt}; incremental path is authoritative.`,
-    );
-    return;
-  }
+  if (rebuild) await ctx.db.delete(rebuild._id);
 
   // Last page — commit the totals to subscriptionStats. Replace rather than
   // patch: the drift-correction picker orders projects by row creation.
@@ -395,25 +370,22 @@ async function runRecomputePageInline(
   for (const row of existing) {
     await ctx.db.delete(row._id);
   }
-  if (buckets.size === 0) {
+  if (totals.size === 0) {
     // Zero-row sentinel: the picker finds projects only through
     // subscriptionStats, so a project with no counted subs would drop out of
     // drift correction for good. metricsSummary ignores the "" currency.
     await ctx.db.insert("subscriptionStats", {
       projectId: args.projectId,
       currency: "",
-      activeSubs: 0,
-      inGracePeriod: 0,
-      inBillingRetry: 0,
-      mrrMicros: 0,
+      ...ZERO_STATS,
       updatedAt: now,
     });
   } else {
-    for (const [currency, bucket] of buckets) {
+    for (const [currency, row] of totals) {
       await ctx.db.insert("subscriptionStats", {
         projectId: args.projectId,
         currency,
-        ...bucket,
+        ...row,
         updatedAt: now,
       });
     }
@@ -433,14 +405,12 @@ async function runRecomputePageInline(
   }
 }
 
-// Scheduler entry for chained pages; the kickoff calls runRecomputePageInline
-// directly.
+// Scheduler entry for chained pages; the kickoff runs the first page itself.
 export const runRecomputePage = internalMutation({
   args: {
     projectId: v.id("projects"),
+    startedAt: v.number(),
     cursor: v.union(v.string(), v.null()),
-    accumulator: recomputeAccumulator,
-    runStartedAt: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -459,7 +429,11 @@ export const recomputeSubscriptionStats = internalMutation({
   // afterwards for the result.
   returns: v.null(),
   handler: async (ctx, args) => {
-    await runRecompute(ctx, args.projectId);
+    await runRecomputePageInline(ctx, {
+      projectId: args.projectId,
+      startedAt: Date.now(),
+      cursor: null,
+    });
     return null;
   },
 });

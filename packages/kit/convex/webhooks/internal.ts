@@ -8,6 +8,7 @@ import { assertProjectWritable } from "../projects/writable";
 import {
   cancellationReasonValidator,
   dataProvenanceValidator,
+  storeEnvironmentValidator,
   subscriptionStateValidator,
 } from "../utils/validation";
 
@@ -172,11 +173,8 @@ const recordWebhookEventArgs = v.object({
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     store: v.optional(purchaseStoreValidator),
-    environment: v.union(
-      v.literal("Production"),
-      v.literal("Sandbox"),
-      v.literal("Xcode"),
-    ),
+    environment: storeEnvironmentValidator,
+    environmentDefaulted: v.optional(v.boolean()),
     // Optional because TestNotification payloads carry no transaction.
     // Real lifecycle event types always populate this.
     purchaseToken: v.optional(v.string()),
@@ -236,6 +234,7 @@ export async function recordWebhookEventHandler(
     platform: args.event.platform,
     store: args.event.store,
     environment: args.event.environment,
+    environmentDefaulted: args.event.environmentDefaulted,
     purchaseToken: args.event.purchaseToken,
     linkedPurchaseToken: args.event.linkedPurchaseToken,
     transactionId: args.event.transactionId,

@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compareValues, type Value } from "convex/values";
 
-import type { Id, TableNames } from "../_generated/dataModel";
+import type { Doc, Id, TableNames } from "../_generated/dataModel";
 import schema from "../schema";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
+import { MemoryDb } from "../test.memoryDb";
 import { testableFunction } from "../test.setup";
-import { recordVerifiedSubscription } from "./internal";
+import {
+  findSubscriptionByToken,
+  persistSubscriptionSnapshot,
+  recordVerifiedSubscription,
+} from "./internal";
 import {
   recomputeAllSubscriptionStats,
   recomputeSubscriptionStats,
+  runRecomputePage,
 } from "./stats";
 
 type Row = Record<string, Value | undefined> & {
@@ -277,5 +283,139 @@ describe("recomputeAllSubscriptionStats", () => {
     expect(db.rows("subscriptionStats")).toContainEqual(
       expect.objectContaining({ projectId: PROJECT_A, activeSubs: 2 }),
     );
+  });
+});
+
+describe("recomputeSubscriptionStats under concurrent writes", () => {
+  const PROJECT = "projects_busy" as Id<"projects">;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DAY);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  type PageArgs = {
+    projectId: Id<"projects">;
+    startedAt: number;
+    cursor: string | null;
+  };
+
+  // Records each chained page instead of running it, so writes can land
+  // between pages.
+  function memoryCtx(db: MemoryDb, pages: PageArgs[]) {
+    return {
+      db,
+      scheduler: {
+        runAfter: async (_delayMs: number, _fn: unknown, args: PageArgs) => {
+          pages.push(args);
+        },
+      },
+    };
+  }
+
+  // A store event moving `token` to `state`, as the webhook path writes it.
+  async function write(
+    ctx: ReturnType<typeof memoryCtx>,
+    token: string,
+    state: Doc<"subscriptions">["state"],
+  ): Promise<void> {
+    await persistSubscriptionSnapshot(ctx as never, {
+      projectId: PROJECT,
+      platform: "Android",
+      purchaseToken: token,
+      existing: await findSubscriptionByToken(ctx as never, PROJECT, token),
+      next: {
+        state,
+        productId: "premium",
+        expiresAt: 40 * DAY,
+        currency: "USD",
+        priceAmountMicros: 1_000_000,
+      },
+      now: Date.now(),
+    });
+  }
+
+  async function rebuild(ctx: ReturnType<typeof memoryCtx>): Promise<void> {
+    await testableFunction(recomputeSubscriptionStats)._handler(ctx, {
+      projectId: PROJECT,
+    });
+  }
+
+  it("commits totals that include writes made while it ran", async () => {
+    const db = new MemoryDb();
+    db.seed("organizations", { _id: "organizations_busy" });
+    db.seed("projects", {
+      _id: PROJECT,
+      organizationId: "organizations_busy",
+    });
+    db.seed("products", {
+      projectId: PROJECT,
+      platform: "Android",
+      productId: "premium",
+      type: "Subscription",
+      billingPeriod: "P1M",
+    });
+    const sub = {
+      projectId: PROJECT,
+      productKind: "subscription",
+      productId: "premium",
+      platform: "Android",
+      state: "Active",
+      expiresAt: 40 * DAY,
+      currency: "USD",
+      priceAmountMicros: 1_000_000,
+      environment: "Production",
+      startedAt: 0,
+      updatedAt: 0,
+    };
+    // Two pages of production subscriptions and a sandbox tester that an
+    // earlier release counted.
+    for (let i = 0; i < 5_001; i++) {
+      db.seed("subscriptions", { ...sub, purchaseToken: `token-${i}` });
+    }
+    db.seed("subscriptions", {
+      ...sub,
+      purchaseToken: "tester",
+      environment: "Sandbox",
+    });
+    db.seed("subscriptionStats", {
+      projectId: PROJECT,
+      currency: "USD",
+      activeSubs: 5_002,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 5_002_000_000,
+      updatedAt: 0,
+    });
+    const pages: PageArgs[] = [];
+    const ctx = memoryCtx(db, pages);
+
+    await rebuild(ctx);
+    expect(pages).toHaveLength(1);
+    // Between pages: a scanned row expires, an unscanned one enters grace,
+    // and a new subscription starts.
+    await write(ctx, "token-0", "Expired");
+    await write(ctx, "token-5000", "InGracePeriod");
+    await write(ctx, "token-new", "Active");
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+
+    const committed = db.rows("subscriptionStats");
+    expect(committed).toMatchObject([
+      {
+        currency: "USD",
+        activeSubs: 5_000,
+        inGracePeriod: 1,
+        mrrMicros: 5_000_000_000,
+      },
+    ]);
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual([]);
+
+    // A quiet rebuild agrees.
+    await rebuild(ctx);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 5_000, inGracePeriod: 1, mrrMicros: 5_000_000_000 },
+    ]);
   });
 });

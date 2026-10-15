@@ -26,12 +26,14 @@
 // are counted as pending and trigger a bounded catch-up over the retained
 // event window (see `markRevenueMetricsRun`).
 //
-// A run is a chain of scheduled mutations, each with its own read budget. It
-// covers its window in slices of at most TRAILING_DAYS days, one after
-// another: per slice, events in the kickoff, then counted-state subscriptions
-// via `by_project_and_state_and_updated`, newest first, then the commit. A
-// slice carries only its own buckets between mutations, so a 30-day rebuild
-// never carries more than a regular run does.
+// A run is a chain of scheduled mutations, each with its own read budget. The
+// kickoff stamps the run; then the window goes in slices of at most
+// TRAILING_DAYS days, one after another: per slice, the events received on its
+// days, then counted-state subscriptions via
+// `by_project_and_state_and_updated`, newest first, then the commit. An event
+// received after its day's slice was written is added to that day's rows, so a
+// run reads each event once. A slice carries only its own buckets between
+// mutations, so a 30-day rebuild never carries more than a regular run does.
 
 import { internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
@@ -52,7 +54,10 @@ import {
   type AnalyticsEnvironment,
   type SubscriptionAnalytics,
 } from "./analyticsFacts";
-import { findSubscriptionByToken } from "./internal";
+import {
+  findSubscriptionByToken,
+  findSupersedingSubscription,
+} from "./internal";
 import { STATS_DEFINITIONS_VERSION } from "./stats";
 import { receiptEnvironmentValidator } from "../utils/validation";
 
@@ -78,8 +83,13 @@ export const ROLLUP_DEFINITIONS_VERSION = 3;
 const WIDE_RECOMPUTE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 // Runs finish within minutes. One started this long ago without finishing
-// failed, so the picker retries it hourly rather than on every tick.
+// failed, so the picker retries it after an hour rather than on every tick,
+// doubling the wait for each further failure in a row, up to a day.
 const RUN_RETRY_MS = 60 * 60 * 1000;
+
+function runRetryMs(failedRuns: number): number {
+  return Math.min(RUN_RETRY_MS * 2 ** failedRuns, DAY_MS);
+}
 
 const COHORTS_INTERVAL_MS = DAY_MS;
 
@@ -209,15 +219,25 @@ async function getRunStatus(
     .unique();
 }
 
-// In flight, or failed less than RUN_RETRY_MS ago.
+// The start of a run that has not finished: in flight, or failed.
+function unfinishedRunStart(
+  status: Doc<"revenueMetricsRunStatus">,
+): number | undefined {
+  return status.runStartedAt !== undefined &&
+    status.runStartedAt > (status.lastRunAt ?? -Infinity)
+    ? status.runStartedAt
+    : undefined;
+}
+
+// In flight, or failed less than its retry wait ago.
 function isRunPending(
   status: Doc<"revenueMetricsRunStatus">,
   now: number,
 ): boolean {
+  const startedAt = unfinishedRunStart(status);
   return (
-    status.runStartedAt !== undefined &&
-    status.runStartedAt > (status.lastRunAt ?? -Infinity) &&
-    now - status.runStartedAt < RUN_RETRY_MS
+    startedAt !== undefined &&
+    now - startedAt < runRetryMs(status.failedRuns ?? 0)
   );
 }
 
@@ -316,8 +336,8 @@ async function pickRevenueMetricsProjects(
 }
 
 // Per-project kickoff; chains `recomputeRevenueMetricsPage` mutations so any
-// number of subscriptions fits the per-mutation read limit. `fromDay` widens
-// the window for a late-event catch-up.
+// number of events and subscriptions fits the per-mutation read limits.
+// `fromDay` widens the window for a late-event catch-up.
 export const recomputeRevenueMetricsForProject = internalMutation({
   args: { projectId: v.id("projects"), fromDay: v.optional(v.string()) },
   returns: v.null(),
@@ -327,15 +347,25 @@ export const recomputeRevenueMetricsForProject = internalMutation({
   },
 });
 
-// Reads per mutation, not per project: 50k events take ~10 chained pages, each
-// well under the 32k read budget.
-const EVENTS_PAGE_SIZE = 5_000;
+// Reads per mutation, not per project. An Apple event stores its signed
+// payload, about 20 KB with its certificate chains, so 400 events read at most
+// ~12.5 MiB even at 32 KB each, under the 16 MiB a mutation may read. Each
+// event adds at most three index reads (alias, subscription, an earlier day's
+// row): 1,200 of the 4,096 allowed.
+const EVENTS_PAGE_SIZE = 400;
 
-// Same for subscriptions: 50k active subs take ~10 chained pages.
+// Subscription rows are about 1 KB: 50k active subs take ~10 chained pages.
 const SUBS_PAGE_SIZE = 5_000;
 
+// Each failed run in a row halves both page sizes, down to this floor.
+const MIN_PAGE_SIZE = 25;
+
+function pageSize(base: number, run: RunSummary): number {
+  return Math.max(MIN_PAGE_SIZE, Math.floor(base / 2 ** run.failedRuns));
+}
+
 // Above this many buckets a slice commits one day per mutation. Each bucket is
-// a delete plus an insert against Convex's 8,192-write limit; a day of the
+// a delete plus an insert against Convex's 16,000-write limit; a day of the
 // largest slice the array limit allows (about 2,700 buckets) fits.
 const COMMIT_INLINE_BUCKET_LIMIT = 500;
 
@@ -356,17 +386,24 @@ const cursorValidator = v.union(
   }),
 );
 const coverageValidator = v.object({ at: v.number(), fromDay: v.string() });
+const notificationTimesValidator = v.object({
+  Production: v.optional(v.number()),
+  Sandbox: v.optional(v.number()),
+});
 // One run of every slice: its window starts at `firstDay` and ends today.
 const runValidator = v.object({
   runStartedAt: v.number(),
   firstDay: v.string(),
-  // Late events the first slice found that no finished run covered.
+  // Late events found that no finished run covered.
   late: v.object({ count: v.number(), oldestDay: v.optional(v.string()) }),
   coverage: v.array(coverageValidator),
-  lastStoreNotificationAt: v.optional(v.number()),
+  lastNotificationAt: notificationTimesValidator,
+  // Runs in a row that failed before this one; see `pageSize`.
+  failedRuns: v.number(),
 });
 
 type Coverage = Infer<typeof coverageValidator>;
+type NotificationTimes = Infer<typeof notificationTimesValidator>;
 type RunSummary = Infer<typeof runValidator>;
 
 export type RecomputeRevenueMetricsPageArgs = {
@@ -461,13 +498,10 @@ async function markRevenueMetricsRun(
     (upgradedFromOldDefinitions
       ? addUtcDays(utcDayKey(run.runStartedAt), 1)
       : undefined);
-  const lastStoreNotificationAt =
-    run.lastStoreNotificationAt === undefined
-      ? existing?.lastStoreNotificationAt
-      : Math.max(
-          existing?.lastStoreNotificationAt ?? 0,
-          run.lastStoreNotificationAt,
-        );
+  const lastNotificationAt = latestNotifications(
+    existing?.lastNotificationAt ?? {},
+    run.lastNotificationAt,
+  );
 
   const catchUpDue =
     run.late.count > 0 &&
@@ -490,7 +524,8 @@ async function markRevenueMetricsRun(
     definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
     definitionsFromDay,
     trialSplitFromDay,
-    lastStoreNotificationAt,
+    lastNotificationAt,
+    failedRuns: undefined,
     pendingLateEvents: run.late.count,
     oldestPendingLateDay: run.late.oldestDay,
     coverage: addCoverage(
@@ -531,8 +566,23 @@ async function markRevenueMetricsRun(
   }
 }
 
-// Stamps the run's start, so the picker leaves the project alone while it
-// runs or after it fails, and starts the first slice.
+function latestNotifications(
+  a: NotificationTimes,
+  b: NotificationTimes,
+): NotificationTimes {
+  const latest: NotificationTimes = { ...a };
+  for (const environment of ["Production", "Sandbox"] as const) {
+    const at = b[environment];
+    if (at !== undefined) {
+      latest[environment] = Math.max(latest[environment] ?? at, at);
+    }
+  }
+  return latest;
+}
+
+// Stamps the run's start and schedules the first slice. The stamp commits on
+// its own, so a first page that fails still leaves the project to the
+// picker's retry wait.
 //
 // The window is the trailing 3 days, widened to the retained event window
 // when the project's rows follow older definitions (or none exist yet), or
@@ -553,25 +603,29 @@ async function startRun(
   if (fromDay !== undefined && fromDay < firstDay) {
     firstDay = fromDay < retainedFirst ? retainedFirst : fromDay;
   }
+  const failedRuns =
+    status && unfinishedRunStart(status) !== undefined
+      ? (status.failedRuns ?? 0) + 1
+      : 0;
+  const stamp = { runStartedAt: now, failedRuns: failedRuns || undefined };
   if (status) {
-    await ctx.db.patch(status._id, { runStartedAt: now });
+    await ctx.db.patch(status._id, stamp);
   } else {
-    await ctx.db.insert("revenueMetricsRunStatus", {
-      projectId,
-      runStartedAt: now,
-    });
+    await ctx.db.insert("revenueMetricsRunStatus", { projectId, ...stamp });
   }
 
-  await processEventsPage(ctx, {
+  await scheduleRecomputePage(ctx, {
     projectId,
     days: sliceDays(firstDay, utcDayKey(now)),
-    buckets: new Map(),
-    paginationCursor: null,
+    buckets: [],
+    cursor: { phase: "events", paginationCursor: null },
     run: {
       runStartedAt: now,
       firstDay,
       late: { count: 0 },
       coverage: status?.coverage ?? [],
+      lastNotificationAt: {},
+      failedRuns,
     },
   });
 }
@@ -583,8 +637,8 @@ async function startRun(
 // Scans by `receivedAt` (the indexed field) but buckets by `occurredAt`, so a
 // renewal delivered a day late stays on its own day. Receivers set `receivedAt`
 // at HTTP receipt and `occurredAt` from the store (Apple `signedDate`, Google
-// `eventTimeMillis`), so `receivedAt >= occurredAt` and every event that
-// belongs in the slice is scanned.
+// `eventTimeMillis`), so `receivedAt >= occurredAt`: an event received on the
+// slice's days belongs to them or to an earlier day.
 async function processEventsPage(
   ctx: MutationCtx,
   args: {
@@ -598,11 +652,12 @@ async function processEventsPage(
   const { projectId, days, buckets } = args;
   const sliceFirst = days[0];
   const sliceLast = days[days.length - 1];
-  // The first slice scans every event of the window, so it alone looks for
-  // late ones.
-  const findsLate = sliceFirst === args.run.firstDay;
   const retainedFirst = retainedFirstDay(args.run.runStartedAt);
-  const run: RunSummary = { ...args.run, late: { ...args.run.late } };
+  const run: RunSummary = {
+    ...args.run,
+    late: { ...args.run.late },
+    lastNotificationAt: { ...args.run.lastNotificationAt },
+  };
 
   const result = await ctx.db
     .query("webhookEvents")
@@ -610,12 +665,18 @@ async function processEventsPage(
       q
         .eq("projectId", projectId)
         .gte("receivedAt", Date.parse(`${sliceFirst}T00:00:00.000Z`))
-        .lte("receivedAt", run.runStartedAt),
+        .lte(
+          "receivedAt",
+          Math.min(Date.parse(`${sliceLast}T23:59:59.999Z`), run.runStartedAt),
+        ),
     )
-    .paginate({ numItems: EVENTS_PAGE_SIZE, cursor: args.paginationCursor });
+    .paginate({
+      numItems: pageSize(EVENTS_PAGE_SIZE, run),
+      cursor: args.paginationCursor,
+    });
   const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
-  const inSlice: Array<{
+  const counted: Array<{
     event: Doc<"webhookEvents">;
     day: string;
     catalogType?: Doc<"products">["type"];
@@ -625,8 +686,9 @@ async function processEventsPage(
       STORE_NOTIFICATION_SOURCES.has(event.source) &&
       event.type !== "TestNotification"
     ) {
-      run.lastStoreNotificationAt = Math.max(
-        run.lastStoreNotificationAt ?? 0,
+      const environment = analyticsEnvironment(event.environment);
+      run.lastNotificationAt[environment] = Math.max(
+        run.lastNotificationAt[environment] ?? 0,
         event.receivedAt,
       );
     }
@@ -641,13 +703,12 @@ async function processEventsPage(
       : undefined;
     if (!isSubscriptionAnalyticsEvent(event, catalogType)) continue;
     const day = utcDayKey(event.occurredAt);
-    // Outside the slice its commit does not rewrite the row, so writing here
-    // would double-count or clobber it. A late event no finished run covered
-    // is counted so the next catch-up can fold it in; one older than the
+    // Before the window its row is not rewritten, so writing here would
+    // double-count or clobber it. A late event no finished run covered is
+    // counted so the next catch-up can fold it in; one older than the
     // retained window can never be, and is left out.
-    if (day < sliceFirst) {
+    if (day < run.firstDay) {
       if (
-        findsLate &&
         day >= retainedFirst &&
         !isCovered(run.coverage, day, event.receivedAt)
       ) {
@@ -658,28 +719,39 @@ async function processEventsPage(
       }
       continue;
     }
+    // Only a store clock ahead of ours dates an event after its arrival.
     if (day > sliceLast) continue;
-    inSlice.push({ event, day, catalogType });
+    counted.push({ event, day, catalogType });
   }
 
-  const subscriptions = await subscriptionsByToken(
+  const tokens = await resolveTokens(
     ctx,
     projectId,
-    inSlice.map(({ event }) => event).filter(needsSubscription),
+    counted.map(({ event }) => event).filter(needsSubscription),
   );
-  for (const { event, day, catalogType } of inSlice) {
-    const subscription = event.purchaseToken
-      ? subscriptions.get(event.purchaseToken)
+  // Days before the slice belong to an earlier slice of this run, already
+  // written.
+  const earlier = new Map<BucketKey, RollupBucket>();
+  for (const { event, day, catalogType } of counted) {
+    const token = event.purchaseToken
+      ? tokens.get(event.purchaseToken)
       : undefined;
-    const subject = bucketSubject(event, subscription);
+    // The token Play replaced expires with the plan change: no churn.
+    if (token?.replaced && event.type === "SubscriptionExpired") continue;
+    const subject = bucketSubject(event, token);
     if (!subject) continue;
     applyEventToBucket(
-      getOrCreateBucket(buckets, { day, platform: event.platform, ...subject }),
+      getOrCreateBucket(day < sliceFirst ? earlier : buckets, {
+        day,
+        platform: event.platform,
+        ...subject,
+      }),
       event,
       catalogType,
-      subscription?.analytics,
+      token?.subscription?.analytics,
     );
   }
+  await addToWrittenDays(ctx, projectId, earlier.values(), run);
 
   // New mutation either way: this one already used its paginated query.
   await scheduleRecomputePage(ctx, {
@@ -693,21 +765,31 @@ async function processEventsPage(
   });
 }
 
-// Play's voided-purchase refund names no product, price or test flag, and an
+// Play's voided-purchase refund names no product, price or test flag, an
 // expiry without Apple's trial flag needs the facts to tell a lapsed free
-// trial from paid churn.
+// trial from paid churn, and an event without a Play-reported environment
+// takes its subscription's.
 function needsSubscription(event: Doc<"webhookEvents">): boolean {
   return (
     (!event.productId && isRefund(event)) ||
-    (event.type === "SubscriptionExpired" && event.freeTrial === undefined)
+    (event.type === "SubscriptionExpired" && event.freeTrial === undefined) ||
+    event.environmentDefaulted === true
   );
 }
 
-async function subscriptionsByToken(
+// A token Play replaced resolves to its successor's row; `productId` is the
+// product the replaced token was for.
+type ResolvedToken = {
+  subscription: Doc<"subscriptions"> | null;
+  replaced: boolean;
+  productId?: string;
+};
+
+async function resolveTokens(
   ctx: MutationCtx,
   projectId: Id<"projects">,
   events: Doc<"webhookEvents">[],
-): Promise<Map<string, Doc<"subscriptions">>> {
+): Promise<Map<string, ResolvedToken>> {
   const tokens = [
     ...new Set(
       events.flatMap((event) =>
@@ -715,35 +797,90 @@ async function subscriptionsByToken(
       ),
     ),
   ];
-  const rows = await Promise.all(
-    tokens.map((token) => findSubscriptionByToken(ctx, projectId, token)),
+  const resolved = await Promise.all(
+    tokens.map(async (token): Promise<ResolvedToken> => {
+      const alias = await findSupersedingSubscription(ctx, projectId, token);
+      return alias.aliased
+        ? {
+            subscription: alias.subscription,
+            replaced: true,
+            productId: alias.productId,
+          }
+        : {
+            subscription: await findSubscriptionByToken(ctx, projectId, token),
+            replaced: false,
+          };
+    }),
   );
-  return new Map(
-    rows
-      .filter((row): row is Doc<"subscriptions"> => row !== null)
-      .map((row) => [row.purchaseToken, row]),
-  );
+  return new Map(tokens.map((token, i) => [token, resolved[i]]));
 }
 
 // The product, currency and environment an event is counted under. An event
-// without a product takes them from its subscription.
+// without a product or a Play-reported environment takes them from its
+// subscription.
 function bucketSubject(
   event: Doc<"webhookEvents">,
-  subscription: Doc<"subscriptions"> | undefined,
+  token: ResolvedToken | undefined,
 ): Pick<RollupBucket, "productId" | "currency" | "environment"> | null {
+  const subscription = token?.subscription;
+  const environment =
+    subscription && (event.environmentDefaulted || !event.productId)
+      ? subscriptionEnvironment(subscription)
+      : analyticsEnvironment(event.environment);
   if (event.productId) {
     return {
       productId: event.productId,
       currency: event.currency ?? "",
-      environment: analyticsEnvironment(event.environment),
+      environment,
     };
   }
   if (!subscription) return null;
   return {
-    productId: subscription.productId,
+    productId: token?.productId ?? subscription.productId,
     currency: subscription.currency ?? "",
-    environment: subscriptionEnvironment(subscription),
+    environment,
   };
+}
+
+// Adds events a later slice received to the rows an earlier slice of the same
+// run wrote for their day.
+async function addToWrittenDays(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  buckets: Iterable<RollupBucket>,
+  run: RunSummary,
+): Promise<void> {
+  for (const bucket of buckets) {
+    if (isAllZeroBucket(bucket)) continue;
+    const rows = await ctx.db
+      .query("revenueMetricsDaily")
+      .withIndex("by_project_and_day_and_currency", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("day", bucket.day)
+          .eq("currency", bucket.currency),
+      )
+      .collect();
+    const row = rows.find(
+      (candidate) =>
+        candidate.productId === bucket.productId &&
+        candidate.platform === bucket.platform &&
+        candidate.environment === bucket.environment,
+    );
+    if (!row) {
+      await ctx.db.insert("revenueMetricsDaily", {
+        projectId,
+        ...bucket,
+        updatedAt: run.runStartedAt,
+      });
+      continue;
+    }
+    const sums: Partial<Record<(typeof COUNTERS)[number], number>> = {};
+    for (const counter of COUNTERS) {
+      sums[counter] = (row[counter] ?? 0) + bucket[counter];
+    }
+    await ctx.db.patch(row._id, sums);
+  }
 }
 
 // One page of one counted state per mutation; even an empty state chains to the
@@ -772,7 +909,10 @@ async function processSubsPage(
       q.eq("projectId", projectId).eq("state", state),
     )
     .order("desc")
-    .paginate({ numItems: SUBS_PAGE_SIZE, cursor: paginationCursor });
+    .paginate({
+      numItems: pageSize(SUBS_PAGE_SIZE, run),
+      cursor: paginationCursor,
+    });
   const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
   for (const sub of result.page) {

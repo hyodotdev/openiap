@@ -106,6 +106,37 @@ describe("nextAnalyticsFacts", () => {
     ).toBeNull();
   });
 
+  it("treats a Google replacement as a plan change, not a start or a charge", () => {
+    const trial = nextAnalyticsFacts(
+      undefined,
+      event({
+        type: "SubscriptionStarted",
+        platform: "Android",
+        freeTrial: true,
+      }),
+    );
+    for (const freeTrial of [false, true]) {
+      expect(
+        nextAnalyticsFacts(
+          trial ?? undefined,
+          event({
+            type: "SubscriptionStarted",
+            platform: "Android",
+            freeTrial,
+            linkedPurchaseToken: "replaced-token",
+            occurredAt: 2_000,
+          }),
+        ),
+      ).toBeNull();
+    }
+    // The trial still converts on the first charge after the change.
+    expect(trial).toEqual({
+      trialStartedAt: 1_000,
+      paidMicros: 0,
+      refundedMicros: 0,
+    });
+  });
+
   it("never mixes currencies", () => {
     const usd = nextAnalyticsFacts(
       undefined,
