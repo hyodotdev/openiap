@@ -608,29 +608,30 @@ function Releases() {
             Apps can offer a Retry action after StoreKit&apos;s normal app
             transaction lookup fails. The optional <code>apple.refresh</code>{' '}
             flag requests fresh signed evidence and may show App Store
-            authentication. See{' '}
-            <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>.
+            authentication (
+            <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>).
           </p>
           <h5>Framework libraries</h5>
-          <p>
-            All six framework SDKs expose the Apple refresh option. Flutter
-            forwards the nested Apple settings, and godot-iap allows five
-            minutes for the system authentication sheet during a refresh.
-          </p>
-          <h5>KMP iOS</h5>
-          <p>
-            kmp-iap resolves its Apple dependency through Swift Package Manager,
-            including when consumed from Maven. CocoaPods is no longer required
-            for KMP&apos;s iOS integration. See{' '}
-            <a href="https://github.com/hyodotdev/openiap/issues/534">#534</a>.
-          </p>
-          <h5>Integration notes</h5>
+          <p>All six framework SDKs expose the Apple refresh option.</p>
           <ul>
             <li>
-              Rebuild native apps after upgrading. Enable{' '}
-              <code>apple.refresh</code> only from a user action; leave
-              automatic startup and resume checks unset. Transaction
-              verification and revocation checks still apply. See the{' '}
+              <strong>godot-iap 4.0.3</strong> allows five minutes for the
+              system authentication sheet during a refresh.
+            </li>
+            <li>
+              <strong>kmp-iap 4.0.3</strong> resolves its Apple dependency
+              through Swift Package Manager, including when consumed from Maven,
+              so iOS integration no longer requires CocoaPods (
+              <a href="https://github.com/hyodotdev/openiap/issues/534">#534</a>
+              ).
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
+          <ul>
+            <li>Rebuild native apps after upgrading.</li>
+            <li>
+              Enable <code>apple.refresh</code> only from a user action; leave
+              automatic startup and resume checks unset, as described in the{' '}
               <Link to="/docs/apis/verify-app-ownership">
                 app ownership guide
               </Link>
@@ -645,8 +646,11 @@ function Releases() {
             <li>
               For KMP, use Kotlin 2.4.20 or newer, a static shared framework,
               and the generated <code>KotlinMultiplatformLinkedPackage</code> in
-              Xcode. Replace the shared module&apos;s CocoaPods integration and
-              manual OpenIAP embed scripts using the{' '}
+              Xcode.
+            </li>
+            <li>
+              Replace the shared module&apos;s CocoaPods integration and manual
+              OpenIAP embed scripts using the{' '}
               <Link to="/docs/setup/kmp#ios-config">KMP setup guide</Link>.
             </li>
             <li>

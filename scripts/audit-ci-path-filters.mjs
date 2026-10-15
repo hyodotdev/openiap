@@ -721,6 +721,7 @@ export const cases = Object.freeze([
     jobs: [
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
+      "ci-kmp-iap.yml",
       "ci-maui-iap.yml",
       "ci:audit-lockfile",
       "ci:audit-parity",

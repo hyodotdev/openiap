@@ -13,6 +13,7 @@ on:
       - "openiap-versions.json"
       - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-xcode/**"
       - ".github/workflows/ci-kmp-iap.yml"
       - ".java-version"
       - "!**/*.md"
@@ -28,6 +29,7 @@ on:
       - "openiap-versions.json"
       - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-xcode/**"
       - ".github/workflows/ci-kmp-iap.yml"
       - ".java-version"
       - "!**/*.md"
@@ -110,6 +112,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:
           cache-read-only: true
+
+      - name: Set up Xcode
+        uses: ./.github/actions/setup-xcode
 
       - name: Verify SwiftPM library, Xcode app, and Maven consumer without CocoaPods
         run: bash scripts/verify-swiftpm-build.sh
