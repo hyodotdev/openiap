@@ -156,4 +156,40 @@ describe("purchase list filters", () => {
       await list(db, { store: "amazon", createdFrom: second._creationTime }),
     ).toEqual(["gems"]);
   });
+
+  it("reads a product filter from its own index, whatever else is set", async () => {
+    const db = new MemoryDb();
+    await seed(db);
+    const [, second] = db.rows("purchases");
+    const query = db.query.bind(db);
+    const indexes: string[] = [];
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const scan = query(table);
+      const withIndex = scan.withIndex.bind(scan);
+      vi.spyOn(scan, "withIndex").mockImplementation((name, range) => {
+        if (table === "purchases") indexes.push(name);
+        return withIndex(name, range);
+      });
+      return scan;
+    });
+
+    expect(
+      await list(db, {
+        productId: "gems",
+        state: "ENTITLED",
+        sortField: "updatedAt",
+        createdFrom: second._creationTime,
+      }),
+    ).toEqual(["gems"]);
+    expect(
+      await list(db, {
+        productId: "gems",
+        createdTo: second._creationTime - 1,
+      }),
+    ).toEqual([]);
+    expect(indexes).toEqual([
+      "by_project_and_productId",
+      "by_project_and_productId",
+    ]);
+  });
 });

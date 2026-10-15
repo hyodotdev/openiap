@@ -12,6 +12,7 @@ import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import { MAX_BOUND_PURCHASES_PER_USER } from "./limits";
 import { drainSubscriptionUserErasurePage } from "./internal";
 import { testableFunction } from "../test.setup";
+import { getPurchaseById as registeredGetPurchaseById } from "../purchases/query";
 import {
   bindUser as registeredBindUser,
   bindUserAsServer as registeredBindUserAsServer,
@@ -21,6 +22,7 @@ import {
 const bindUser = testableFunction(registeredBindUser);
 const bindUserAsServer = testableFunction(registeredBindUserAsServer);
 const rebindUser = testableFunction(registeredRebindUser);
+const getPurchaseById = testableFunction(registeredGetPurchaseById);
 
 const PROJECT = "projects_1" as Id<"projects">;
 const PK = "openiap-kit_pk_app";
@@ -269,6 +271,39 @@ describe("bindUser with a secret key", () => {
     );
   });
 
+  it("fingerprints a conflict as the purchase's detail page does", async () => {
+    const { db, ctx } = setup();
+    db.seed("organizationMembers", {
+      organizationId: "organizations_1",
+      userId: "users_1",
+      role: "member",
+    });
+    // Verify saved the JWS; the server bind sent the originalTransactionId.
+    const purchaseId = db.seed(
+      "purchases",
+      oneTimePurchase("sub-owned", {
+        remoteResponse: JSON.stringify({ type: "Auto-Renewable Subscription" }),
+      }),
+    ) as Id<"purchases">;
+    await bind(ctx, SK, "sub-owned");
+    await bind(ctx, SK, "lifetime-1", "carol");
+    await bind(ctx, SK, "lifetime-1", "dave");
+
+    const [subscriptionIssue, oneTimeIssue] = db.rows("purchaseIssues");
+    const detail = await getPurchaseById._handler(memoryCtx(db, "users_1"), {
+      purchaseId,
+    });
+    expect(subscriptionIssue).toMatchObject({ cause: "OWNERSHIP_CONFLICT" });
+    expect(subscriptionIssue.fingerprint).toBe(detail?.evidenceFingerprint);
+    expect(subscriptionIssue.fingerprint).toBe(
+      fingerprint("jws-for-sub-owned"),
+    );
+    expect(oneTimeIssue).toMatchObject({
+      cause: "OWNERSHIP_CONFLICT",
+      fingerprint: fingerprint("jws-for-lifetime-1"),
+    });
+  });
+
   it("links Apple and Google one-time purchases outside the Amazon and Horizon cap", async () => {
     const { db, ctx } = setup();
     for (let index = 0; index < MAX_BOUND_PURCHASES_PER_USER; index += 1) {
@@ -328,7 +363,17 @@ describe("bindUserAsServer", () => {
   });
 
   function seedAmazonSubscription(db: MemoryDb) {
-    db.seed("purchases", oneTimePurchase("rvs-1", { store: "amazon" }));
+    db.seed(
+      "purchases",
+      oneTimePurchase("rvs-1", {
+        store: "amazon",
+        requestData: {
+          store: "amazon",
+          userId: "amzn-user",
+          receiptId: "receipt-1",
+        },
+      }),
+    );
     db.seed("subscriptions", {
       projectId: PROJECT,
       purchaseToken: "amazon:rvs-1",
@@ -365,6 +410,8 @@ describe("bindUserAsServer", () => {
         cause: "BIND_LIMIT_REACHED",
         store: "amazon",
         appUserId: "alice",
+        // The receipt id the purchase page fingerprints, not the bind token.
+        fingerprint: fingerprint("receipt-1"),
       }),
     ]);
   });

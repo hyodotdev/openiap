@@ -9,7 +9,7 @@ import { hashApiKey } from "../v1/rate-limit";
 import { acquireInFlightSlot } from "../v1/in-flight-limit";
 import {
   hashPayload,
-  isStableRejection,
+  isSettledRejection,
   isStoreOutageError,
   markPayloadFailure,
   refundReplayToken,
@@ -119,15 +119,8 @@ export function admitVerification({
     run: async (verify) => {
       try {
         const verdict = await verify();
-        // Match /v1: arm the negative cooldown only for a stable INVALID
-        // verdict, and never for Horizon — its (userId, sku) ownership can flip
-        // the moment the user buys again, so a `false` must stay retryable. An
-        // `isValid: true` verdict never arms the cooldown.
-        if (
-          store !== "horizon" &&
-          verdict.isValid === false &&
-          isStableRejection(verdict.state, verdict.stableRejection === true)
-        ) {
+        // Same rule as /v1: only a settled rejection arms the cooldown.
+        if (isSettledRejection(store, verdict)) {
           markPayloadFailure(
             REPLAY_GUARD.store,
             bucketKey,

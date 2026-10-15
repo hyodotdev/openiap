@@ -209,17 +209,26 @@ X-RateLimit-Remaining: 599`}
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           A repeat of the same failure raises its <code>count</code> and{" "}
-          <code>lastSeenAt</code> instead of adding a row. Causes about the
-          project rather than one purchase, such as credentials, rate limits,
-          and outages, share one row per store and cause, rewritten at most once
-          a minute, so their <code>count</code> is a lower bound.
+          <code>lastSeenAt</code> instead of adding a row. Only{" "}
+          <code>PRODUCT_MISMATCH</code>, <code>STORE_PENDING</code>,{" "}
+          <code>OWNERSHIP_CONFLICT</code>, and <code>BIND_LIMIT_REACHED</code>{" "}
+          get a row per purchase. Every other cause, including evidence no store
+          recognized, shares one row per store and cause, rewritten at most once
+          a minute, so its <code>count</code> is a lower bound.
         </li>
         <li>
-          A row holds a <code>fingerprint</code> of the purchase evidence, keyed
-          with a per-project secret so short identifiers cannot be guessed back,
-          never the token, JWS, or receipt. The purchase detail page shows the
-          same value. Its <code>correlationId</code> is the latest failing
-          request&apos;s <code>X-Correlation-Id</code>.
+          A per-purchase row holds a <code>fingerprint</code> of the purchase
+          evidence, keyed with a per-project secret so short identifiers cannot
+          be guessed back, never the token, JWS, or receipt. It equals the
+          fingerprint on the purchase&apos;s detail page while that purchase
+          holds the same evidence; a later verify, such as an Apple renewal,
+          replaces it. A bind issue fingerprints the purchase it matched, or the
+          bind&apos;s token when IAPKit saved no purchase for it. A shared
+          row&apos;s fingerprint matches no purchase.
+        </li>
+        <li>
+          <code>correlationId</code> is the latest failing request&apos;s{" "}
+          <code>X-Correlation-Id</code>.
         </li>
         <li>
           <code>productId</code> is store-verified;{" "}
@@ -266,8 +275,9 @@ X-RateLimit-Remaining: 599`}
         <li>
           Apple reads the App Store Server API subscription status or
           transaction; Google reads the Play Developer API. Each re-sync draws
-          one token from the project&apos;s entitlement recheck bucket, though
-          it may make several store calls.
+          one token from the project&apos;s own re-sync bucket (a burst of 60,
+          then one per second), so re-syncs never hold up entitlement reads,
+          though one re-sync may make several store calls.
         </li>
         <li>
           The purchase row is saved through the verification path. A changed
@@ -283,7 +293,10 @@ X-RateLimit-Remaining: 599`}
           Repeating it is a no-op until the store changes. It never binds,
           unbinds, or moves a purchase or subscription owner. A store
           notification signed after the read still applies; one signed before it
-          still emits its lifecycle event but keeps the re-synced state.
+          still emits its lifecycle event but keeps the re-synced state. A later
+          verify replaces that state only with newer evidence: an Apple
+          transaction bought or refunded after the read, or a Google read made
+          after it.
         </li>
         <li>
           Amazon is rechecked automatically through RVS; Horizon has no

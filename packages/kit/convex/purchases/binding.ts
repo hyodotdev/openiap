@@ -71,6 +71,17 @@ export async function makePurchaseBindingRoom(
   return false;
 }
 
+/** The `remoteId` of the purchase row a subscription mirrors. */
+export function subscriptionPurchaseRemoteId(
+  sub: Pick<Doc<"subscriptions">, "store" | "purchaseToken">,
+): string | undefined {
+  if (sub.store !== "amazon") return sub.purchaseToken;
+  const prefix = amazonSubscriptionToken("");
+  return sub.purchaseToken.startsWith(prefix)
+    ? sub.purchaseToken.slice(prefix.length)
+    : undefined;
+}
+
 /** "limit" is the bound-purchase cap; "refused" covers every other refusal. */
 export async function bindAmazonPurchaseOwner(
   ctx: MutationCtx,
@@ -80,9 +91,8 @@ export async function bindAmazonPurchaseOwner(
   allowRebind = false,
 ): Promise<"linked" | "refused" | "limit"> {
   if (sub.store !== "amazon") return "linked";
-  const prefix = amazonSubscriptionToken("");
-  if (!sub.purchaseToken.startsWith(prefix)) return "refused";
-  const remoteId = sub.purchaseToken.slice(prefix.length);
+  const remoteId = subscriptionPurchaseRemoteId(sub);
+  if (remoteId === undefined) return "refused";
   const purchase = await ctx.db
     .query("purchases")
     .withIndex("by_project_and_remote", (q) =>
@@ -183,6 +193,7 @@ export async function bindOneTimePurchaseToUser(
   if (!purchase) return { reason: "not_found" };
   const target = {
     store: purchase.store,
+    remoteId: purchaseToken,
     ...(purchase.productId ? { productId: purchase.productId } : {}),
   };
   if (purchase.appUserId === userId)

@@ -4,7 +4,8 @@
 // A re-sync sees current state, not the lifecycle events in between, so it
 // emits only the entitlement delta and never invents a lifecycle event. It
 // stamps `resyncedAt`, not the store-event ordering, so a notification it
-// overtook still emits its lifecycle event without rolling the state back.
+// overtook still emits its lifecycle event without rolling the state back, and
+// a verify of older evidence leaves it alone.
 // It never binds, unbinds or moves an owner: `persistSubscriptionSnapshot`
 // keeps the row's `userId`.
 

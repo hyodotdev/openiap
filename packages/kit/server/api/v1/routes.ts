@@ -502,7 +502,7 @@ const verifyPurchaseHandler = async (
             correlationId,
             ...(receipt.isValid
               ? {}
-              : { finalVerdict: isSettledRejection(receipt) }),
+              : { finalVerdict: isSettledRejection(store, receipt) }),
           }
         : {}),
     });

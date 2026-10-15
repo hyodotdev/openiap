@@ -6,6 +6,7 @@ import {
   consume,
   ENTITLEMENT_RECHECK_CAPACITY,
   evaluateVerificationAdmission,
+  STORE_RESYNC_CAPACITY,
   VERIFICATION_ADMISSION_CAPACITY,
 } from "./verificationAdmission";
 import { verifyAmazonReceiptInternalV1 } from "./amazon";
@@ -173,6 +174,28 @@ describe("entitlement recheck admission", () => {
       PROJECT_ID,
       expect.anything(),
     );
+  });
+
+  it("is never drained by a burst of store re-syncs", async () => {
+    vi.useFakeTimers({ now: 5_000 });
+    const { ctx, buckets } = admissionCtx([
+      { bucket: "entitlementRecheck", tokens: 30, refilledAt: 5_000 },
+    ]);
+    const resync = () =>
+      testableFunction(consume)._handler(ctx, {
+        projectId: PROJECT_ID,
+        bucket: "storeResync",
+      });
+    for (let index = 0; index < STORE_RESYNC_CAPACITY; index += 1) {
+      await resync();
+    }
+    await expect(resync()).rejects.toMatchObject({
+      data: { code: "RATE_LIMITED" },
+    });
+    expect(buckets).toEqual([
+      expect.objectContaining({ bucket: "entitlementRecheck", tokens: 30 }),
+      expect.objectContaining({ bucket: "storeResync", tokens: 0 }),
+    ]);
   });
 
   it("creates a project's bucket on first use without writing the project", async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { testableFunction } from "../test.setup";
-import { hmacSha256Hex } from "../utils/sha256";
+import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
 import { HarmonizedPurchaseState } from "./purchaseState";
 
 const stubs = vi.hoisted(() => ({
@@ -58,6 +58,9 @@ function database(rows: Record<string, Row[]>) {
           if (current.length > 1) throw Error("Ambiguous rows");
           return current[0] ?? null;
         },
+        async first() {
+          return current[0] ?? null;
+        },
         async take(count: number) {
           return current.slice(0, count);
         },
@@ -103,7 +106,7 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       remoteId: "store-proof",
       requestData:
         store === "amazon"
-          ? { store, userId: "store-alice", receiptId: "store-proof" }
+          ? { store, userId: "store-alice", receiptId: "receipt-proof" }
           : { store, userId: "store-alice", sku: "premium" },
       productId: "premium",
       state: HarmonizedPurchaseState.ENTITLED,
@@ -186,6 +189,17 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     expect(scheduledCauses(ctx)).toEqual([
       "BIND_LIMIT_REACHED",
       "BIND_LIMIT_REACHED",
+    ]);
+    // A known purchase is fingerprinted from its evidence, as its page is.
+    const digests = ctx.scheduler.runAfter.mock.calls.map(
+      ([, , scheduled]) =>
+        (scheduled as { issue: { digest: string } }).issue.digest,
+    );
+    expect(digests).toEqual([
+      await sha256Hex(
+        store === "amazon" ? "receipt-proof" : "store-alice:premium",
+      ),
+      await sha256Hex("nobody-knows"),
     ]);
     expect(warn.mock.calls[0]).toEqual([
       expect.stringContaining("bound purchase limit"),

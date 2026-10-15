@@ -71,6 +71,13 @@ export const storeEnvironmentValidator = v.union(
   v.literal("Xcode"),
 );
 
+// The per-project admission buckets in convex/purchases/verificationAdmission.ts.
+export const admissionBucketValidator = v.union(
+  v.literal("verification"),
+  v.literal("entitlementRecheck"),
+  v.literal("storeResync"),
+);
+
 // Why a verification or link failed. Each value maps from an error or verdict
 // IAPKit already produces; see convex/purchaseIssues/shared.ts.
 export const purchaseIssueCauseValidator = v.union(

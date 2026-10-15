@@ -16,7 +16,12 @@ import { isValidSubscriptionUserId } from "../subscriptions/limits";
 import { correlationIdOrUndefined } from "../utils/correlationId";
 import { sha256Hex } from "../utils/sha256";
 import { purchaseIssueCauseValidator } from "../utils/validation";
-import { evidenceFingerprint, fingerprintSalt, isSha256Hex } from "./evidence";
+import {
+  evidenceFingerprint,
+  fingerprintSalt,
+  isSha256Hex,
+  purchaseEvidence,
+} from "./evidence";
 
 // A project's rows split into 16 shards by the fingerprint's first hex digit,
 // each capped at 64 rows (1,024 in all). A new row reads only its own shard,
@@ -156,8 +161,8 @@ export async function recordPurchaseIssue(
 
 /**
  * Schedules the record of a failed secret-key link, so it can neither fail the
- * bind nor slow it. `evidence` is what the bind matched: the normalized token,
- * or the purchase's evidence.
+ * bind nor slow it. It fingerprints the matched purchase's evidence, as the
+ * purchase page does; `evidence`, the bind's token, only when no row matches.
  */
 export async function recordBindIssue(
   ctx: MutationCtx,
@@ -171,13 +176,26 @@ export async function recordBindIssue(
       : outcome.limitReached
         ? "BIND_LIMIT_REACHED"
         : null;
-  if (!cause || !outcome.store) return;
+  const { store, remoteId } = outcome;
+  if (!cause || !store) return;
+  const purchase =
+    remoteId === undefined
+      ? null
+      : await ctx.db
+          .query("purchases")
+          .withIndex("by_project_and_remote", (q) =>
+            q.eq("projectId", projectId).eq("remoteId", remoteId),
+          )
+          .filter((q) => q.eq(q.field("store"), store))
+          .first();
   await ctx.scheduler.runAfter(0, internal.purchaseIssues.internal.record, {
     projectId,
     issue: {
       cause,
-      store: outcome.store,
-      digest: await sha256Hex(request.evidence),
+      store,
+      digest: await sha256Hex(
+        purchase ? purchaseEvidence(purchase.requestData) : request.evidence,
+      ),
       ...(outcome.productId ? { productId: outcome.productId } : {}),
       appUserId: request.userId,
       ...(request.correlationId

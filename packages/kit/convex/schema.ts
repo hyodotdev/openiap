@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
+  admissionBucketValidator,
   cancellationReasonValidator,
   dataProvenanceValidator,
   deliveryAttemptValidator,
@@ -476,6 +477,7 @@ const schema = defineSchema({
       "appUserId",
       "store",
     ])
+    .index("by_project_and_productId", ["projectId", "productId"])
     .index("by_project_app_orderId", ["projectId", "applicationId", "orderId"])
     .index("by_store_isValid_nextAmazonReconcileAt", [
       "store",
@@ -554,12 +556,13 @@ const schema = defineSchema({
     ])
     .index("by_lastSeenAt", ["lastSeenAt"]),
 
-  // Persistent per-project admission backstop for public verification and
-  // entitlement rechecks. Off the `projects` row so every verification does
-  // not rewrite the document its own mutations and the dashboard read.
+  // Persistent per-project admission backstop for public verification,
+  // entitlement rechecks and store re-syncs. Off the `projects` row so every
+  // verification does not rewrite the document its own mutations and the
+  // dashboard read.
   verificationAdmissionBuckets: defineTable({
     projectId: v.id("projects"),
-    bucket: v.union(v.literal("verification"), v.literal("entitlementRecheck")),
+    bucket: admissionBucketValidator,
     tokens: v.number(),
     refilledAt: v.number(),
   }).index("by_project_and_bucket", ["projectId", "bucket"]),
@@ -762,7 +765,8 @@ const schema = defineSchema({
     lastEventSourceNotificationId: v.optional(v.string()),
     // When an operator re-sync last read the store. It does not move the
     // lastEvent* ordering stamp, so an older notification still emits its
-    // lifecycle event; it keeps that event from rolling the state back.
+    // lifecycle event; it keeps that event, or a verify of older evidence,
+    // from rolling the state back.
     resyncedAt: v.optional(v.number()),
     // Snapshot of the source event, so a late user binding can still emit its
     // entitlement grant after the webhook event is pruned.

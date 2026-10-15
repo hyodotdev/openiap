@@ -76,14 +76,8 @@ describe("classifyVerificationError", () => {
       new AmazonReceiptVerificationError("TypeError", { outage: true }),
       "STORE_UNAVAILABLE",
     ],
-  ])("keys project-level %s as %s on the project", (error, cause) => {
-    expect(classifyVerificationError(error)).toEqual({
-      cause,
-      scope: "project",
-    });
-  });
-
-  it.each([
+    // No store confirmed these as purchases: a signature that failed locally,
+    // a token Google does not know, or a request the store refused.
     [new AppStoreTransactionVerificationFailedError("forged"), "INAUTHENTIC"],
     // Google wraps the classified error; the wrapped one decides.
     [
@@ -98,11 +92,8 @@ describe("classifyVerificationError", () => {
     ],
     [new MetaHorizonVerificationError("bad json"), "VERIFICATION_FAILED"],
     [new AmazonReceiptVerificationError("bad json"), "VERIFICATION_FAILED"],
-  ])("keys a store answer %s as %s on the evidence", (error, cause) => {
-    expect(classifyVerificationError(error)).toEqual({
-      cause,
-      scope: "evidence",
-    });
+  ])("classifies %s as %s", (error, cause) => {
+    expect(classifyVerificationError(error)).toEqual({ cause });
   });
 
   it("reports a store outage as retryable with its delay", () => {
@@ -115,7 +106,6 @@ describe("classifyVerificationError", () => {
     );
     expect(classifyVerificationError(outage)).toEqual({
       cause: "STORE_UNAVAILABLE",
-      scope: "project",
       retryAfterSec: STORE_OUTAGE_RETRY_AFTER_SEC,
     });
   });
@@ -128,7 +118,6 @@ describe("classifyVerificationError", () => {
     });
     expect(classifyVerificationError(limited)).toEqual({
       cause: "RATE_LIMITED",
-      scope: "project",
       retryAfterSec: 3,
     });
   });
@@ -236,7 +225,7 @@ describe("verifyRecordingIssues", () => {
     };
   }
 
-  it("rethrows the original error and keys a store rejection on a hash of the evidence", async () => {
+  it("rethrows the original error and records it on the project row, never the evidence", async () => {
     const { ctx, scheduled } = actionCtx();
     const failure = new AppStoreTransactionVerificationFailedError("forged");
 
@@ -259,14 +248,113 @@ describe("verifyRecordingIssues", () => {
         issue: {
           cause: "INAUTHENTIC",
           store: "apple",
-          digest: sha256(jws),
-          claimedProductId: "premium",
+          digest: await projectIssueDigest("apple", "INAUTHENTIC"),
           correlationId,
         },
       },
     ]);
-    expect(JSON.stringify(scheduled)).not.toContain(jws);
+    expect(JSON.stringify(scheduled)).not.toContain(sha256(jws));
     expect(JSON.stringify(scheduled)).not.toContain("openiap-kit_pk_app");
+  });
+
+  it("keeps a real purchase's row through a flood of evidence no store recognized", async () => {
+    vi.useFakeTimers({ now: 1_000_000 });
+    const { ctx, db, runAfter } = actionCtx();
+    // A store's answer about a real purchase: keyed by its evidence.
+    await verifyRecordingIssues(
+      ctx,
+      {
+        apiKey: "k",
+        evidence: { store: "google", purchaseToken: "real-token" },
+        expectedProductId: "other",
+      },
+      () =>
+        Promise.resolve({
+          isValid: false,
+          state: HarmonizedPurchaseState.INAUTHENTIC,
+          productId: "premium",
+        }),
+    );
+    const random = (): string => randomBytes(24).toString("hex");
+    const unrecognized: Array<() => Promise<unknown>> = [
+      () =>
+        verifyRecordingIssues(
+          ctx,
+          { apiKey: "k", evidence: { store: "apple", jws: random() } },
+          () =>
+            Promise.reject(
+              new AppStoreTransactionVerificationFailedError("forged"),
+            ),
+        ),
+      () =>
+        verifyRecordingIssues(
+          ctx,
+          {
+            apiKey: "k",
+            evidence: { store: "google", purchaseToken: random() },
+          },
+          () =>
+            Promise.reject(
+              new PlayStoreVerificationError(
+                new PlayStorePurchaseNotFoundError(),
+              ),
+            ),
+        ),
+      () =>
+        verifyRecordingIssues(
+          ctx,
+          {
+            apiKey: "k",
+            evidence: { store: "horizon", userId: random(), sku: "gem" },
+          },
+          () =>
+            Promise.resolve({
+              isValid: false,
+              state: HarmonizedPurchaseState.INAUTHENTIC,
+              productId: "gem",
+            }),
+        ),
+      () =>
+        verifyRecordingIssues(
+          ctx,
+          {
+            apiKey: "k",
+            evidence: { store: "amazon", userId: "u", receiptId: random() },
+          },
+          () =>
+            Promise.resolve({
+              isValid: false,
+              state: HarmonizedPurchaseState.INAUTHENTIC,
+            }),
+        ),
+    ];
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      for (const fail of unrecognized) await fail().catch(() => undefined);
+    }
+    vi.useRealTimers();
+
+    // One evidence row plus one throttled row per store.
+    expect(runAfter).toHaveBeenCalledTimes(5);
+    const rows = db.rows("purchaseIssues");
+    expect(rows.map((row) => [row.store, row.cause])).toEqual([
+      ["google", "PRODUCT_MISMATCH"],
+      ["apple", "INAUTHENTIC"],
+      ["google", "INAUTHENTIC"],
+      ["horizon", "INAUTHENTIC"],
+      ["amazon", "INAUTHENTIC"],
+    ]);
+    expect(rows[0]).toMatchObject({
+      fingerprint: fingerprint(sha256("real-token")),
+      productId: "premium",
+      claimedProductId: "other",
+    });
+    expect(rows[3].fingerprint).toBe(
+      fingerprint(await projectIssueDigest("horizon", "INAUTHENTIC")),
+    );
+    // A project row names no purchase, so it keeps no product.
+    expect(rows.slice(1).every((row) => row.productId === undefined)).toBe(
+      true,
+    );
   });
 
   it("collapses failures before admission into one row per store and cause", async () => {
@@ -365,31 +453,6 @@ describe("verifyRecordingIssues", () => {
           productId: "premium",
           claimedProductId: "other",
           environment: "Sandbox",
-        },
-      },
-    ]);
-  });
-
-  it("treats a Horizon sku as a claim, never a verified product", async () => {
-    const { ctx, scheduled } = actionCtx();
-    await verifyRecordingIssues(
-      ctx,
-      { apiKey: "k", evidence: { store: "horizon", userId: "42", sku: "gem" } },
-      () =>
-        Promise.resolve({
-          isValid: false,
-          state: HarmonizedPurchaseState.INAUTHENTIC,
-          productId: "gem",
-        }),
-    );
-    expect(scheduled).toEqual([
-      {
-        projectId: PROJECT,
-        issue: {
-          cause: "INAUTHENTIC",
-          store: "horizon",
-          digest: sha256("42:gem"),
-          claimedProductId: "gem",
         },
       },
     ]);

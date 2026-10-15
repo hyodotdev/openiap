@@ -1,9 +1,13 @@
+import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { readGooglePurchase } from "./action";
+import type { Id } from "../_generated/dataModel";
+import { testableFunction } from "../test.setup";
+import { readGooglePurchase, resyncFromStore } from "./action";
 
 const TOKEN = "play-token-SECRET";
+const PROJECT = "projects_1" as Id<"projects">;
 
 // A Play client whose product and subscription lookups both fail.
 function failingPublisher(status: number, message: string) {
@@ -47,5 +51,32 @@ describe("readGooglePurchase", () => {
       message: "Purchase verification failed (HTTP 400)",
     });
     expect(JSON.stringify(error.data)).not.toContain(TOKEN);
+  });
+});
+
+describe("resyncFromStore", () => {
+  it("draws on its own bucket, not the one entitlement reads use", async () => {
+    const limited = new ConvexError({
+      code: "RATE_LIMITED",
+      message: "Too many store re-syncs",
+      retryAfterSec: 1,
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({ _id: "projects_1" })
+      .mockResolvedValueOnce({ kind: "subscription", store: "apple" });
+    const runMutation = vi.fn().mockRejectedValue(limited);
+
+    await expect(
+      testableFunction(resyncFromStore)._handler(
+        { runQuery, runMutation },
+        { projectId: PROJECT, subscriptionId: "subscriptions_1" },
+      ),
+    ).rejects.toBe(limited);
+    const [reference, args] = runMutation.mock.calls[0];
+    expect(getFunctionName(reference)).toBe(
+      "purchases/verificationAdmission:consume",
+    );
+    expect(args).toEqual({ projectId: "projects_1", bucket: "storeResync" });
   });
 });
