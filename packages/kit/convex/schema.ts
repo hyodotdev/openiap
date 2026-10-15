@@ -768,10 +768,15 @@ const schema = defineSchema({
     lastEventCreationTime: v.optional(v.number()),
     lastEventSourceNotificationId: v.optional(v.string()),
     // When an operator re-sync last read the store. It does not move the
-    // lastEvent* ordering stamp, so an older notification still emits its
-    // lifecycle event; it keeps that event, or a verify of older evidence,
-    // from rolling the state back.
+    // lastEvent* ordering stamp; it keeps an older notification, or a verify
+    // of older evidence, from rolling the state back.
     resyncedAt: v.optional(v.number()),
+    // A re-sync told the current owner this row's entitlement, so later
+    // entitlement deltas compare with it. Cleared when the owner changes.
+    resyncReported: v.optional(v.boolean()),
+    // When a verify last asked the store to settle a dispute with the
+    // re-synced state; it may ask again an hour later.
+    resyncDisputedAt: v.optional(v.number()),
     // Snapshot of the source event, so a late user binding can still emit its
     // entitlement grant after the webhook event is pruned.
     lastEventSource: v.optional(
@@ -1498,6 +1503,19 @@ const schema = defineSchema({
       "updatedAt",
     ])
     .index("by_project_and_event_type", ["projectId", "eventType"])
+    // History filters: each combination reads only its own rows, newest first.
+    .index("by_project_and_event_type_and_status", [
+      "projectId",
+      "eventType",
+      "status",
+    ])
+    .index("by_destination_and_status", ["destinationId", "status"])
+    .index("by_destination_and_event_type", ["destinationId", "eventType"])
+    .index("by_destination_and_event_type_and_status", [
+      "destinationId",
+      "eventType",
+      "status",
+    ])
     .index("by_project_and_last_resend", ["projectId", "lastResendAt"])
     .index("by_status_and_updated", ["status", "updatedAt"])
     // Worker claim scan.

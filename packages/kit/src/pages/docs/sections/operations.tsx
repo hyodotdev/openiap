@@ -292,18 +292,24 @@ X-RateLimit-Remaining: 599`}
         <li>
           A re-sync sees current state, not the events in between, so it emits{" "}
           <code>entitlement.granted</code> or <code>entitlement.revoked</code>{" "}
-          only when access flips. It never invents a lifecycle event.
+          only when access flips from what the owner was last told. A verify
+          tells nobody, so re-syncing a verify-only subscription grants access
+          once; the next store notification does not grant it again. It never
+          invents a lifecycle event.
         </li>
         <li>
           Repeating it is a no-op until the store changes. It never binds,
           unbinds, or moves a purchase or subscription owner. A store
-          notification signed after the read still applies; one signed before it
-          still emits its lifecycle event but keeps the re-synced state. A later
+          notification signed after the read still applies. One signed before it
+          keeps the re-synced state and emits its lifecycle event only when the
+          event names that state, so a late renewal is reported while the
+          subscription is still active and dropped once it has expired. A later
           verify replaces that state only with newer evidence: an Apple
           transaction bought or refunded after the read, or a Google read made
           after it. A verify that disagrees but cannot prove it is newer, such
           as an Apple refund reversal, triggers one more store read from the
-          same bucket instead.
+          same bucket, at most once an hour per subscription. An expired Apple
+          transaction agrees with billing retry and grace, so it triggers none.
         </li>
         <li>
           Amazon is rechecked automatically through RVS; Horizon has no

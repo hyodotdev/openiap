@@ -3,9 +3,9 @@
 //
 // A re-sync sees current state, not the lifecycle events in between, so it
 // emits only the entitlement delta and never invents a lifecycle event. It
-// stamps `resyncedAt`, not the store-event ordering, so a notification it
-// overtook still emits its lifecycle event without rolling the state back, and
-// a verify that cannot prove it is newer asks the store again instead.
+// stamps `resyncedAt`, not the store-event ordering: a notification it
+// overtook cannot roll the state back and is reported only when it names that
+// state, and a verify that cannot prove it is newer asks the store again.
 // It never binds, unbinds or moves an owner: `persistSubscriptionSnapshot`
 // keeps the row's `userId`.
 
@@ -33,6 +33,7 @@ import {
   findSubscriptionByToken,
   mergeVerifiedSubscriptionSnapshot,
   persistSubscriptionSnapshot,
+  reportedEntitlement,
   type VerifiedSubscriptionSnapshot,
 } from "./internal";
 import { entitlementActive, type CurrentSubscription } from "./stateMachine";
@@ -455,10 +456,7 @@ export async function applyStoreResyncHandler(
   if (!event) throw new Error("Re-sync event was not persisted");
 
   const now = Date.now();
-  // The gate as last persisted; today's clock may already have closed it.
-  const previouslyActive = existing
-    ? entitlementActive(existing, existing.updatedAt)
-    : false;
+  const previouslyActive = reportedEntitlement(existing) ?? false;
   const subscriptionId: Id<"subscriptions"> = await persistSubscriptionSnapshot(
     ctx,
     {
@@ -472,6 +470,10 @@ export async function applyStoreResyncHandler(
       resyncedAt: args.observedAt,
     },
   );
+  // The delta below tells the owner, so a later store event compares with it.
+  if (existing?.userId) {
+    await ctx.db.patch(subscriptionId, { resyncReported: true });
+  }
   await ctx.db.patch(event._id, { appliedAt: now });
   // The row's id is IAPKit's own, so it must not pose as a store
   // notification id (Commerce Protocol SPEC 9.3).

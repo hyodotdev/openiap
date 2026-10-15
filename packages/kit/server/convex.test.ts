@@ -101,6 +101,26 @@ describe("handleConvexError", () => {
     });
   });
 
+  it("names draft revisions in a draft conflict", () => {
+    expect(
+      handleConvexError(
+        new ConvexError({
+          code: "CLIENT_PAYLOAD_DRAFT_CONFLICT",
+          message: "Client payload draft was changed by another request",
+          expectedDraftRevision: 1,
+          actualDraftRevision: 2,
+          // Not on the allow-list, so it stays server-side.
+          internalDetail: "drafts_1",
+        }),
+      ),
+    ).toEqual({
+      code: "CLIENT_PAYLOAD_DRAFT_CONFLICT",
+      message: "Client payload draft was changed by another request",
+      expectedDraftRevision: 1,
+      actualDraftRevision: 2,
+    });
+  });
+
   it("never returns Play upstream or Convex internals, and marks only outages temporary", () => {
     const socketHangUp = Object.assign(
       new Error(

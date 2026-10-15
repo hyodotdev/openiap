@@ -181,25 +181,27 @@ export function validateProductClientPayloadBody(
   }
 }
 
+// A conflict names the counter it compared, so a client retries with the
+// right one: `actualVersion` for a version, `actualDraftRevision` for a draft.
 function assertRevision(
   expected: number,
   actual: number | null,
   conflict: {
     code: "CLIENT_PAYLOAD_VERSION_CONFLICT" | "CLIENT_PAYLOAD_DRAFT_CONFLICT";
     message: string;
+    counter: "Version" | "DraftRevision";
   },
-  name: string,
 ): void {
   if (!Number.isSafeInteger(expected) || expected < 0) {
     throw clientPayloadError(
       "CLIENT_PAYLOAD_INVALID",
-      `${name} must be a non-negative safe integer`,
+      `expected${conflict.counter} must be a non-negative safe integer`,
     );
   }
   if (expected !== (actual ?? 0)) {
     throw clientPayloadError(conflict.code, conflict.message, {
-      expectedVersion: expected,
-      actualVersion: actual,
+      [`expected${conflict.counter}`]: expected,
+      [`actual${conflict.counter}`]: actual,
     });
   }
 }
@@ -208,27 +210,19 @@ export function assertProductClientPayloadVersion(
   expectedVersion: number,
   actualVersion: number | null,
 ): void {
-  assertRevision(
-    expectedVersion,
-    actualVersion,
-    {
-      code: "CLIENT_PAYLOAD_VERSION_CONFLICT",
-      message: "Client payload was changed by another request",
-    },
-    "expectedVersion",
-  );
+  assertRevision(expectedVersion, actualVersion, {
+    code: "CLIENT_PAYLOAD_VERSION_CONFLICT",
+    message: "Client payload was changed by another request",
+    counter: "Version",
+  });
 }
 
 function assertDraftRevision(expected: number, actual: number): void {
-  assertRevision(
-    expected,
-    actual === 0 ? null : actual,
-    {
-      code: "CLIENT_PAYLOAD_DRAFT_CONFLICT",
-      message: "Client payload draft was changed by another request",
-    },
-    "expectedDraftRevision",
-  );
+  assertRevision(expected, actual === 0 ? null : actual, {
+    code: "CLIENT_PAYLOAD_DRAFT_CONFLICT",
+    message: "Client payload draft was changed by another request",
+    counter: "DraftRevision",
+  });
 }
 
 function normalizeNote(note: string | undefined): string | undefined {
@@ -791,7 +785,7 @@ export async function publishClientPayloadDraft(
   return result;
 }
 
-/** Republish a retained version's body as a new version. */
+/** Republish a version history lists, with its body, as a new version. */
 export async function rollbackClientPayload(
   ctx: MutationCtx,
   key: ClientPayloadKey,
@@ -802,11 +796,13 @@ export async function rollbackClientPayload(
     author: ClientPayloadAuthor;
   },
 ): Promise<ClientPayloadWriteResult> {
-  const entry = Number.isSafeInteger(input.toVersion)
-    ? await loadVersion(ctx, key, input.toVersion)
-    : null;
-  const body = entry ? await loadVersionBody(ctx, entry) : undefined;
-  if (!entry || entry.format === undefined || body === undefined) {
+  const entry = await getClientPayloadVersion(
+    ctx,
+    key,
+    input.toVersion,
+    "apiKey",
+  );
+  if (!entry?.format || entry.body === undefined) {
     throw clientPayloadError(
       "CLIENT_PAYLOAD_VERSION_NOT_FOUND",
       `Version ${input.toVersion} is not a retained client payload version with a body`,
@@ -814,7 +810,7 @@ export async function rollbackClientPayload(
   }
   return await publishClientPayload(ctx, key, {
     format: entry.format,
-    body,
+    body: entry.body,
     expectedVersion: input.expectedVersion,
     action: "rollback",
     rolledBackFrom: entry.version,

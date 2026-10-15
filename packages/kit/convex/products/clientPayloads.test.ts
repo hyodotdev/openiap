@@ -380,6 +380,33 @@ describe("client payload drafts", () => {
   });
 });
 
+describe("client payload conflicts", () => {
+  it("names the draft revisions a draft conflict compared", async () => {
+    const ctx = makeCtx();
+    await publishClientPayload(ctx as never, KEY, {
+      format: "text",
+      body: "live",
+      author: AUTHOR,
+    });
+    for (const body of ["a", "b"]) {
+      await saveClientPayloadDraft(ctx as never, KEY, { format: "text", body });
+    }
+    // v1 is published and the draft is at revision 2; neither is the other.
+    await expect(
+      saveClientPayloadDraft(ctx as never, KEY, {
+        format: "text",
+        body: "c",
+        expectedDraftRevision: 1,
+      }),
+    ).rejects.toHaveProperty("data", {
+      code: "CLIENT_PAYLOAD_DRAFT_CONFLICT",
+      message: "Client payload draft was changed by another request",
+      expectedDraftRevision: 1,
+      actualDraftRevision: 2,
+    });
+  });
+});
+
 describe("client payload history", () => {
   it("keeps versions monotonic across publish, remove, and rollback", async () => {
     const ctx = makeCtx();
@@ -671,6 +698,13 @@ describe("client payload history", () => {
     await expect(
       getClientPayloadVersion(ctx as never, KEY, 6, "member"),
     ).resolves.toBeNull();
+    // History lists it, so it can be rolled back to; it is the live body.
+    await expect(
+      rollbackClientPayload(ctx as never, KEY, {
+        toVersion: 7,
+        author: AUTHOR,
+      }),
+    ).resolves.toMatchObject({ changed: false, version: 7 });
     expect(ctx.db.rows("productClientPayloadVersions")).toEqual([]);
 
     await publishClientPayload(ctx as never, KEY, {

@@ -115,9 +115,9 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         Each row keeps its last 20 attempts: time, outcome, HTTP status,
         latency, and an error class such as <code>timeout</code> or{" "}
         <code>tls</code>. Response bodies and secrets are never stored. Members
-        can read it; destination URLs show only their host, and the last error
-        text, which can name hosts and addresses, reaches only owners, admins
-        and secret keys.
+        can read it and see only each destination&apos;s host. Destination
+        descriptions and the last error text, which can name hosts and
+        addresses, reach only owners, admins and secret keys.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>

@@ -662,6 +662,7 @@ const deliveryViewValidator = v.object({
   // Host only: a destination URL can carry a receiver token, and the full URL
   // is admin-only.
   destinationHost: v.string(),
+  // Owners, admins and secret keys only, like the URL it describes.
   destinationDescription: v.optional(v.string()),
   status: deliveryStatusValidator,
   resendable: v.boolean(),
@@ -721,7 +722,8 @@ export async function listDeliveriesHandler(
   };
   const { status, eventType } = args;
 
-  // The most selective filter picks the index; the others filter that scan.
+  // Every filter combination has its own index, so a page never scans rows it
+  // drops. An event has one delivery per destination, so that filter is small.
   let rows: PaginationResult<Doc<"outboundDeliveries">>;
   if (args.eventId !== undefined) {
     const eventId = ctx.db.normalizeId("commerceEvents", args.eventId);
@@ -744,31 +746,46 @@ export async function listDeliveriesHandler(
     );
     const destination = destinationId ? await ctx.db.get(destinationId) : null;
     if (!destination || destination.projectId !== project._id) return empty;
-    rows = await ctx.db
-      .query("outboundDeliveries")
-      .withIndex("by_destination", (q) =>
-        q.eq("destinationId", destination._id),
-      )
+    const deliveries = ctx.db.query("outboundDeliveries");
+    rows = await (
+      eventType !== undefined && status !== undefined
+        ? deliveries.withIndex(
+            "by_destination_and_event_type_and_status",
+            (q) =>
+              q
+                .eq("destinationId", destination._id)
+                .eq("eventType", eventType)
+                .eq("status", status),
+          )
+        : eventType !== undefined
+          ? deliveries.withIndex("by_destination_and_event_type", (q) =>
+              q.eq("destinationId", destination._id).eq("eventType", eventType),
+            )
+          : status !== undefined
+            ? deliveries.withIndex("by_destination_and_status", (q) =>
+                q.eq("destinationId", destination._id).eq("status", status),
+              )
+            : deliveries.withIndex("by_destination", (q) =>
+                q.eq("destinationId", destination._id),
+              )
+    )
       .order("desc")
-      .filter((q) =>
-        q.and(
-          eventType === undefined
-            ? true
-            : q.eq(q.field("eventType"), eventType),
-          status === undefined ? true : q.eq(q.field("status"), status),
-        ),
-      )
       .paginate(args.paginationOpts);
   } else if (eventType !== undefined) {
-    rows = await ctx.db
-      .query("outboundDeliveries")
-      .withIndex("by_project_and_event_type", (q) =>
-        q.eq("projectId", project._id).eq("eventType", eventType),
-      )
+    const deliveries = ctx.db.query("outboundDeliveries");
+    rows = await (
+      status !== undefined
+        ? deliveries.withIndex("by_project_and_event_type_and_status", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("eventType", eventType)
+              .eq("status", status),
+          )
+        : deliveries.withIndex("by_project_and_event_type", (q) =>
+            q.eq("projectId", project._id).eq("eventType", eventType),
+          )
+    )
       .order("desc")
-      .filter((q) =>
-        status === undefined ? true : q.eq(q.field("status"), status),
-      )
       .paginate(args.paginationOpts);
   } else if (status !== undefined) {
     rows = await ctx.db
@@ -817,7 +834,7 @@ export async function listDeliveriesHandler(
         eventAvailable: event !== null,
         destinationId: delivery.destinationId,
         destinationHost: destination ? hostOf(destination.url) : "removed",
-        ...(destination?.description
+        ...(adminView && destination?.description
           ? { destinationDescription: destination.description }
           : {}),
         status: delivery.status,

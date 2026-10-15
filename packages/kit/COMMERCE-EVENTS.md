@@ -252,7 +252,7 @@ Open the project's **Webhooks** tab to create, disable, rotate, or remove a
 destination and to replay dead letters. All actions require organization admin:
 a destination holds a signing secret and names an endpoint IAPKit will POST to,
 so member access is not enough. Members can read delivery history, which shows
-only each destination's host.
+only each destination's host, not its description.
 
 `create` returns the secret exactly once. No query ever returns it again —
 `list` projects a fixed allow-list of fields that excludes both the secret and
@@ -355,6 +355,10 @@ authoritative, so it may update webhook-governed state. It is recorded as a
 `StoreResync` source event, emits only `entitlement.granted` or
 `entitlement.revoked` when the gate flips, and never moves an owner. Those
 events carry no `sourceStoreEventId`, because no store notification caused them.
+The gate flips against what the owner was last told: a store event or a re-sync
+that reached the owner reports it, a verify reports nothing. A notification
+older than the re-sync keeps the re-synced state and emits its lifecycle event
+only when the event names that state (Commerce Protocol SPEC §9.1).
 
 ## Integrating without touching IAPKit core
 

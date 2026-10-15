@@ -33,6 +33,8 @@ interface ApiError {
   message: string;
   actualVersion?: number | null;
   expectedVersion?: number;
+  actualDraftRevision?: number | null;
+  expectedDraftRevision?: number;
   byteLength?: number;
   maxBytes?: number;
   retryAfterSec?: number;
@@ -68,33 +70,16 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
         message: v.string(),
         actualVersion: v.optional(v.nullable(v.number())),
         expectedVersion: v.optional(v.number()),
+        actualDraftRevision: v.optional(v.nullable(v.number())),
+        expectedDraftRevision: v.optional(v.number()),
         byteLength: v.optional(v.number()),
         maxBytes: v.optional(v.number()),
         retryAfterSec: v.optional(v.number()),
       }),
       error.data,
     );
-    if (objectResult.success) {
-      return {
-        code: objectResult.output.code,
-        message: objectResult.output.message,
-        ...(objectResult.output.actualVersion !== undefined
-          ? { actualVersion: objectResult.output.actualVersion }
-          : {}),
-        ...(objectResult.output.expectedVersion !== undefined
-          ? { expectedVersion: objectResult.output.expectedVersion }
-          : {}),
-        ...(objectResult.output.byteLength !== undefined
-          ? { byteLength: objectResult.output.byteLength }
-          : {}),
-        ...(objectResult.output.maxBytes !== undefined
-          ? { maxBytes: objectResult.output.maxBytes }
-          : {}),
-        ...(objectResult.output.retryAfterSec !== undefined
-          ? { retryAfterSec: objectResult.output.retryAfterSec }
-          : {}),
-      };
-    }
+    // The schema is the allow-list: valibot drops every other key.
+    if (objectResult.success) return objectResult.output;
     // Fall through to legacy `{ error, message }` shape for backward
     // compat with any callers that didn't migrate to `{ code, message }`.
     const legacyResult = v.safeParse(

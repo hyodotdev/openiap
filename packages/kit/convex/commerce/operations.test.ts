@@ -323,11 +323,11 @@ describe("listDeliveries", () => {
       expect.objectContaining({
         _id: deliveryId,
         destinationHost: "hooks.example.com",
-        destinationDescription: "Billing backend",
         resendable: true,
         attemptHistory: [{ at: 1, outcome: "delivered", statusCode: 200 }],
       }),
     ]);
+    expect(result.page[0]).not.toHaveProperty("destinationDescription");
     expect(JSON.stringify(result)).not.toContain("receiver-secret");
     expect(JSON.stringify(result)).not.toContain("whsec_");
   });
@@ -363,8 +363,99 @@ describe("listDeliveries", () => {
     expect(await list("admin")).toMatchObject({
       lastError,
       lastErrorClass: "connection_refused",
+      destinationDescription: "Billing backend",
     });
-    expect(await list("member", "secret")).toMatchObject({ lastError });
+    expect(await list("member", "secret")).toMatchObject({
+      lastError,
+      destinationDescription: "Billing backend",
+    });
+  });
+
+  it("reads each filter combination from its own index", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const first = await seedDelivery(db);
+    const delivery = (eventType: string, status: string) =>
+      db.insert("outboundDeliveries", {
+        projectId: "projects_1",
+        eventId: first.eventId,
+        destinationId: first.destinationId,
+        eventType,
+        status,
+        attempts: 1,
+        nextAttemptAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    const failedRenewed = await delivery("subscription.renewed", "failed");
+    const failedRevoked = await delivery("entitlement.revoked", "failed");
+    const deliveredRevoked = await delivery("entitlement.revoked", "delivered");
+    const elsewhere = await seedDelivery(db, { status: "failed" });
+
+    // Which index each delivery query used, and whether it dropped rows after.
+    const reads: { index?: string; filtered: boolean }[] = [];
+    const query = db.query.bind(db);
+    db.query = (table) => {
+      const q = query(table);
+      if (table !== "outboundDeliveries") return q;
+      const read: (typeof reads)[number] = { filtered: false };
+      reads.push(read);
+      const withIndex = q.withIndex.bind(q);
+      const filter = q.filter.bind(q);
+      q.withIndex = (name, range) => {
+        read.index = name;
+        return withIndex(name, range);
+      };
+      q.filter = (build) => {
+        read.filtered = true;
+        return filter(build);
+      };
+      return q;
+    };
+    const list = async (filters: Record<string, unknown>) => {
+      reads.length = 0;
+      const result = await listDeliveriesHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        paginationOpts: page,
+        ...filters,
+      });
+      return { ids: result.page.map((row) => row._id), reads: [...reads] };
+    };
+    const destinationId = first.destinationId;
+
+    expect(await list({ destinationId, status: "failed" })).toEqual({
+      ids: [failedRevoked, failedRenewed],
+      reads: [{ index: "by_destination_and_status", filtered: false }],
+    });
+    expect(
+      await list({ destinationId, eventType: "entitlement.revoked" }),
+    ).toEqual({
+      ids: [deliveredRevoked, failedRevoked],
+      reads: [{ index: "by_destination_and_event_type", filtered: false }],
+    });
+    expect(
+      await list({
+        destinationId,
+        eventType: "entitlement.revoked",
+        status: "failed",
+      }),
+    ).toEqual({
+      ids: [failedRevoked],
+      reads: [
+        {
+          index: "by_destination_and_event_type_and_status",
+          filtered: false,
+        },
+      ],
+    });
+    expect(
+      await list({ eventType: "subscription.renewed", status: "failed" }),
+    ).toEqual({
+      ids: [elsewhere.deliveryId, failedRenewed],
+      reads: [
+        { index: "by_project_and_event_type_and_status", filtered: false },
+      ],
+    });
   });
 
   it("filters by status, event type, destination and event id", async () => {
