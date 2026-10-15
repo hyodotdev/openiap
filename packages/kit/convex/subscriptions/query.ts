@@ -941,7 +941,7 @@ export const getRevenueMetrics = query({
     const truncated = rows.length === REVENUE_SCAN_CAP;
     if (truncated) {
       console.warn(
-        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} environment=${environment} range=${args.fromDay}..${args.toDay}; some days are missing.`,
+        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} environment=${environment} range=${args.fromDay}..${args.toDay}; the numbers are incomplete.`,
       );
     }
 

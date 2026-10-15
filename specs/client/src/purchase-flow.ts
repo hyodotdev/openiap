@@ -83,7 +83,8 @@ export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
   isConsumable: (productId: string) => boolean;
   getAvailablePurchases: () => Promise<P[]>;
   /**
-   * The SDK's `getPendingTransactionsIOS` on iOS, `undefined` elsewhere.
+   * The SDK's `getPendingTransactionsIOS` on iOS, `undefined` elsewhere: off
+   * iOS it answers `[]`, which would hide unacknowledged Android purchases.
    * Recovery reads unfinished StoreKit transactions, consumables included,
    * from it. If it throws, recovery confirms every Apple purchase
    * `getAvailablePurchases` lists instead.
@@ -216,9 +217,10 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
       // finished purchase is safe, so every owned Apple purchase stands in.
       pendingIOSFailed = true;
     }
-    // Read even beside a pending list: a pending-list function that answers []
-    // off iOS must not hide unacknowledged Android purchases.
-    const available = await options.getAvailablePurchases();
+    const available =
+      includeFinished || !pendingIOS
+        ? await options.getAvailablePurchases()
+        : [];
     if (
       !getPendingTransactionsIOS &&
       available.some((purchase) => purchase.store === "apple")

@@ -1481,17 +1481,24 @@ export async function rebindSubscriptionToUserHandler(
   // the purchase moved: without these it keeps the wrong user entitled and
   // never entitles the real one. Decide before writing, so the caller is never
   // told a rebind succeeded when the notification half of it could not.
+  // The old owner loses what it was told, which a silent verify may have
+  // already changed; the new owner gains what the row grants now.
   const entitled = isActive({ ...sub, userId: args.userId }, now);
-  const sourceEvent = entitled
-    ? await retainedSourceEventFor(ctx, args.projectId, sub)
-    : null;
+  const revokeFromPrevious =
+    previousUserId !== undefined && reportedEntitlement(sub) === true;
+  const sourceEvent =
+    entitled || revokeFromPrevious
+      ? await retainedSourceEventFor(ctx, args.projectId, sub)
+      : null;
   await ctx.db.patch(sub._id, {
     userId: args.userId,
     accountErased: undefined,
     resyncReportedActive: undefined,
     updatedAt: now,
   });
-  if (!entitled) return { subscriptionId: sub._id, notified: true };
+  if (!entitled && !revokeFromPrevious) {
+    return { subscriptionId: sub._id, notified: true };
+  }
   if (!sourceEvent) {
     // Every retained trace of the originating notification is gone, so no
     // event can be attributed. The binding moved; the operator must reconcile
@@ -1513,10 +1520,10 @@ export async function rebindSubscriptionToUserHandler(
       : {}),
   };
   for (const [userId, active, previouslyActive] of [
-    ...(previousUserId
+    ...(revokeFromPrevious && previousUserId
       ? ([[previousUserId, false, true]] as const)
       : ([] as const)),
-    [args.userId, true, false] as const,
+    ...(entitled ? ([[args.userId, true, false]] as const) : ([] as const)),
   ]) {
     await emitCommerceEvent(ctx, {
       projectId: args.projectId,

@@ -24,6 +24,7 @@ import {
   isSha256Hex,
   purchaseDigest,
 } from "./evidence";
+import { isPurchaseScopedIssue, PROJECT_ISSUE_THROTTLE_MS } from "./shared";
 
 // A project's rows split into 16 shards by the fingerprint's first hex digit,
 // each capped at 64 rows (1,024 in all). A new row reads only its own shard,
@@ -129,6 +130,13 @@ export async function recordPurchaseIssue(
     )
     .unique();
   if (existing) {
+    // Concurrent verifies can all pass the action's throttle check.
+    if (
+      !isPurchaseScopedIssue(input.cause) &&
+      existing.lastSeenAt > now - PROJECT_ISSUE_THROTTLE_MS
+    ) {
+      return;
+    }
     await ctx.db.patch(existing._id, {
       ...fields,
       count: existing.count + 1,

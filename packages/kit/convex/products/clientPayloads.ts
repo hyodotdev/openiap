@@ -832,7 +832,7 @@ async function isCurrentMember(
     .withIndex("by_org_and_user", (q) =>
       q.eq("organizationId", project.organizationId).eq("userId", userId),
     )
-    .unique();
+    .first();
   return membership !== null;
 }
 

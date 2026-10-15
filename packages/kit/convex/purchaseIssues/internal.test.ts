@@ -54,7 +54,12 @@ describe("recordPurchaseIssue", () => {
     vi.useFakeTimers({ now: 1_000 });
     const { db, ctx } = setup();
     await recordPurchaseIssue(ctx as never, PROJECT, issue());
+    // Inside the throttle window a concurrent write is dropped.
     vi.setSystemTime(5_000);
+    await recordPurchaseIssue(ctx as never, PROJECT, issue());
+    expect(db.rows("purchaseIssues")).toMatchObject([{ count: 1 }]);
+
+    vi.setSystemTime(62_000);
     await recordPurchaseIssue(
       ctx as never,
       PROJECT,
@@ -68,7 +73,7 @@ describe("recordPurchaseIssue", () => {
         shard: SHARD,
         count: 2,
         firstSeenAt: 1_000,
-        lastSeenAt: 5_000,
+        lastSeenAt: 62_000,
         correlationId: CORRELATION_ID,
       }),
     ]);

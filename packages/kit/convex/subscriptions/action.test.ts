@@ -94,6 +94,24 @@ describe("withAppleEnvironment", () => {
       code: "STORE_REQUEST_FAILED",
     });
   });
+
+  it("asks for the App Apple ID when only sandbox could be read", async () => {
+    const tried: Environment[] = [];
+    const code = await withAppleEnvironment(
+      { ...apple, appAppleId: undefined },
+      undefined,
+      async (environment) => {
+        tried.push(environment);
+        throw new APIException(404);
+      },
+    ).catch(
+      (caught: unknown) => (caught as ConvexError<{ code: string }>).data.code,
+    );
+    expect({ tried, code }).toEqual({
+      tried: [Environment.SANDBOX],
+      code: "IOS_NOT_CONFIGURED",
+    });
+  });
 });
 
 describe("resyncFromStore", () => {

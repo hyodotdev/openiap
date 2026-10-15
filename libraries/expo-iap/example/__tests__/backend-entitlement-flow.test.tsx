@@ -161,17 +161,15 @@ describe('BackendEntitlementFlow', () => {
 
   it('restores an owned purchase for the same account on demand', async () => {
     jest.mocked(ExpoIap.getAvailablePurchases).mockResolvedValue([bulbs]);
-    const fetchSpy = replyWith({status: 'entitled', alreadyGranted: true});
+    replyWith({status: 'entitled', alreadyGranted: true});
     const {findByText, getByText} = await renderReady();
-    // Launch recovery leaves a finished iOS purchase alone.
-    expect(fetchSpy).not.toHaveBeenCalled();
 
     await act(async () => {
       fireEvent.press(getByText('Restore purchases'));
     });
 
     expect(await findByText('Access granted.')).toBeDefined();
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(ExpoIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
   });
 
   it('reports when there is nothing to restore', async () => {

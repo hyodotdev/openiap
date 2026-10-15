@@ -518,6 +518,34 @@ describe("the entitlement baseline after a re-sync", () => {
     ]);
   });
 
+  it("owes the previous owner a revoke when a verify ended access silently", async () => {
+    const db = new MemoryDb();
+    await verifiedRow(db);
+    await bind(db, "owner-1");
+    await resyncActive(db);
+    // A refund bought after the read moves the row without telling anyone.
+    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      platform: "IOS",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      revocationReasonIOS: 1,
+      expiresAt: Date.now() + 30 * DAY,
+      verifiedPurchaseDate: Date.now() + 1_000,
+      evidenceAt: Date.now() + 1_000,
+    });
+
+    // No store event to attribute the revoke to, so the operator is told.
+    await expect(
+      rebindSubscriptionToUserHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        purchaseToken: TOKEN,
+        userId: "owner-2",
+      }),
+    ).resolves.toMatchObject({ notified: false });
+  });
+
   it("is closed again for an owner the row moved to", async () => {
     for (const move of ["rebind", "erase and bind"] as const) {
       const db = new MemoryDb();

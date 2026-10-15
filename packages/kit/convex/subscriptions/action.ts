@@ -346,19 +346,20 @@ export async function withAppleEnvironment<T>(
       : known === "Production"
         ? [Environment.PRODUCTION]
         : [Environment.PRODUCTION, Environment.SANDBOX];
+  const productionNotConfigured = new ConvexError({
+    code: "IOS_NOT_CONFIGURED",
+    message:
+      "Set the App Apple ID in Settings to re-sync production purchases.",
+  });
+  let skippedProduction = false;
   for (const environment of environments) {
     // The signed-data verifier needs the App Apple ID in production.
     if (
       environment === Environment.PRODUCTION &&
       apple.appAppleId === undefined
     ) {
-      if (known === "Production") {
-        throw new ConvexError({
-          code: "IOS_NOT_CONFIGURED",
-          message:
-            "Set the App Apple ID in Settings to re-sync production purchases.",
-        });
-      }
+      if (known === "Production") throw productionNotConfigured;
+      skippedProduction = true;
       continue;
     }
     try {
@@ -369,6 +370,8 @@ export async function withAppleEnvironment<T>(
       if (!notFound) throw appleRequestError(error);
     }
   }
+  // Production may hold it; only the missing App Apple ID kept it unread.
+  if (skippedProduction) throw productionNotConfigured;
   throw new ConvexError({
     code: "NOT_FOUND",
     message: "The App Store has no record of this transaction.",

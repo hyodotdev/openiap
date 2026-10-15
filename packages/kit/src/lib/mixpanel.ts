@@ -70,28 +70,30 @@ const isBrowser = typeof window !== "undefined";
 // in its own VITE_KIT_MIXPANEL_TOKEN AND extend this list.
 const ALLOWED_HOSTS = new Set(["kit.openiap.dev", "localhost", "127.0.0.1"]);
 
-// Dashboard URLs can carry app user IDs and IPs, so events keep only the route.
-const URL_PROPERTIES = [
-  "$current_url",
-  "current_url_path",
-  "current_url_search",
-  "$el_attr__href",
-  "$referrer",
-  "$initial_referrer",
-];
+// Dashboard URLs can carry app user IDs, IPs and cursors over them, so event
+// strings keep the route and the query parameter names only.
+export function redactUrls(text: string): string {
+  return text
+    .replace(/(\/purchases\/user\/)[^/?#\s"']+/gi, "$1:appUserId")
+    .replace(/([?&][^=&#\s"']+=)[^&#\s"']*/g, "$1");
+}
 
-export function redactUrl(url: string): string {
-  return url
-    .split(/[?#]/)[0]
-    .replace(/(\/purchases\/user\/)[^/]+/, "$1:appUserId");
+function redactDeep(value: unknown): unknown {
+  if (typeof value === "string") return redactUrls(value);
+  if (Array.isArray(value)) return value.map(redactDeep);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, redactDeep(item)]),
+    );
+  }
+  return value;
 }
 
 export function redactEventUrls<
   T extends { properties: Record<string, unknown> },
 >(event: T): T {
-  for (const key of URL_PROPERTIES) {
-    const value = event.properties[key];
-    if (typeof value === "string") event.properties[key] = redactUrl(value);
+  for (const [key, value] of Object.entries(event.properties)) {
+    event.properties[key] = redactDeep(value);
   }
   return event;
 }
