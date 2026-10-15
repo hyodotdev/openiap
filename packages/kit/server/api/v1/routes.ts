@@ -240,7 +240,7 @@ const verifyPurchaseRouteDescription = describeRoute({
     "not secrets or server-authoritative entitlement rules.\n\n" +
     "Set `includeTransactionDetails: true` to add `transactionId`, " +
     "`originalTransactionId`, `expiresAt`, `commerceEnvironment` and " +
-    "`correlationId`, named and valued as on commerce events. A rejection " +
+    "`correlationId`, to match a verification with commerce events. A rejection " +
     "also carries `finalVerdict`: true when retrying the same evidence " +
     "will not change it. Apple returns " +
     "the transaction ids; Google returns its order id as `transactionId`; " +

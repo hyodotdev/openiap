@@ -33,7 +33,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Verification",
-        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final (never for Meta Horizon or a Google subscription the store can still revive), matching commerce events. Responses without the flag are unchanged.",
+        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final (never for Meta Horizon or a Google subscription the store can still revive), to match a verification with commerce events. Responses without the flag are unchanged.",
       },
       {
         kind: "feature",

@@ -91,8 +91,7 @@ export const environmentSchema = v.pipe(
   ),
 );
 
-// The fields below are returned only with `includeTransactionDetails: true`,
-// named and valued as COMMERCE-EVENTS.md defines them on commerce events.
+// The fields below are returned only with `includeTransactionDetails: true`.
 export const transactionIdSchema = v.pipe(
   v.string(),
   v.description(

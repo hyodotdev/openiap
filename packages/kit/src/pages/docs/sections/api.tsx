@@ -225,9 +225,9 @@ export default function ApiReferencePage() {
         <Link to="/docs/webhooks" className="text-primary underline">
           commerce events
         </Link>{" "}
-        your backend receives. The response then adds these fields, under the
-        names events use. A field the store does not supply is absent; without
-        the flag the response is unchanged. Horizon and Amazon return only{" "}
+        your backend receives. The response then adds these fields. A field the
+        store does not supply is absent; without the flag the response is
+        unchanged. Horizon and Amazon return only{" "}
         <code>commerceEnvironment</code> (Amazon), <code>correlationId</code>{" "}
         and, on a rejection, <code>finalVerdict</code>.
       </p>
