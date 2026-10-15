@@ -18,6 +18,7 @@ import {
 } from "../purchases/ios";
 import { AppStoreProductType } from "../purchases/shared";
 import { playPublisher } from "../purchases/android";
+import { canReadRawStoreEvidence } from "../projects/helpers";
 import { extractHttpStatus, retryOnTransient } from "../purchases/retry";
 import type { AppStoreReceiptData } from "../purchases/shared";
 import {
@@ -48,23 +49,31 @@ export const lookupOrder = action({
   },
   returns: orderLookupResponseValidator,
   handler: async (ctx, args): Promise<OrderLookupResponse> => {
-    const project = await getProjectForMember(ctx, args.projectId);
+    const { project, role } = await getProjectForMember(ctx, args.projectId);
     const orderId = args.orderId.trim();
     if (!orderId) {
       throw new ConvexError("Order ID is required");
     }
 
-    if (args.store === "apple") {
-      return await lookupAppleOrder(ctx, project, orderId);
-    }
-    return await lookupGoogleOrder(ctx, project, orderId);
+    const result =
+      args.store === "apple"
+        ? await lookupAppleOrder(ctx, project, orderId)
+        : await lookupGoogleOrder(ctx, project, orderId);
+    if (canReadRawStoreEvidence(role)) return result;
+    // A purchase token or store response can be replayed against verify and
+    // bind, so members get only the summary.
+    const { purchaseToken: _token, ...summary } = result;
+    return { ...summary, raw: "{}" };
   },
 });
 
 async function getProjectForMember(
   ctx: ActionCtx,
   projectId: Id<"projects">,
-): Promise<Doc<"projects">> {
+): Promise<{
+  project: Doc<"projects">;
+  role: "owner" | "admin" | "member";
+}> {
   const userId: Id<"users"> | null = await getAuthUserId(ctx);
   if (!userId) {
     throw new ConvexError("Not authenticated");
@@ -86,7 +95,7 @@ async function getProjectForMember(
     throw new ConvexError("Not a member of this organization");
   }
 
-  return project;
+  return { project, role: membership.role };
 }
 
 async function lookupAppleOrder(
