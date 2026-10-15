@@ -8,6 +8,7 @@ import {
   dataProvenanceValidator,
   deliveryAttemptValidator,
   paidStartValidator,
+  purchaseIssueCauseValidator,
   subscriptionStateValidator,
 } from "./utils/validation";
 
@@ -453,6 +454,9 @@ const schema = defineSchema({
     // start marked; the migration marks each legacy row atomically with its delta.
     storeStatsCounted: v.optional(v.boolean()),
     updatedAt: v.optional(v.number()),
+    // X-Correlation-Id of the latest /v1 verify that wrote this row. Writes
+    // without one (rechecks, Commerce verify, webhooks) leave it unchanged.
+    correlationId: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_store", ["projectId", "store"])
@@ -502,6 +506,47 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_organization", ["organizationId"]),
+
+  // Verification and linking failures, for support. One row per (project,
+  // fingerprint, cause) counts repeats; rows are capped per project shard and
+  // expire after 30 days. Holds a hash of the evidence, never the evidence.
+  purchaseIssues: defineTable({
+    projectId: v.id("projects"),
+    cause: purchaseIssueCauseValidator,
+    store: purchaseStoreValidator,
+    fingerprint: v.string(),
+    // First hex digit of the fingerprint, 0-15; the cap applies per shard.
+    shard: v.number(),
+    // Store-verified product id.
+    productId: v.optional(v.string()),
+    // Product id the caller asserted; not verified by the store.
+    claimedProductId: v.optional(v.string()),
+    // App user a failed link named.
+    appUserId: v.optional(v.string()),
+    environment: v.optional(receiptEnvironmentValidator),
+    retryAfterSec: v.optional(v.number()),
+    correlationId: v.optional(v.string()),
+    count: v.number(),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_project_and_fingerprint_and_cause", [
+      "projectId",
+      "fingerprint",
+      "cause",
+    ])
+    .index("by_project_and_lastSeenAt", ["projectId", "lastSeenAt"])
+    .index("by_project_and_shard_and_lastSeenAt", [
+      "projectId",
+      "shard",
+      "lastSeenAt",
+    ])
+    .index("by_project_and_appUserId_and_lastSeenAt", [
+      "projectId",
+      "appUserId",
+      "lastSeenAt",
+    ])
+    .index("by_lastSeenAt", ["lastSeenAt"]),
 
   // Persistent per-project admission backstop for public verification and
   // entitlement rechecks. Off the `projects` row so every verification does

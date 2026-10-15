@@ -106,6 +106,12 @@ keeps its binding until the cap is actually contended, so the entitlements read
 is unchanged until then; a released row needs a fresh `bindPurchase` before it
 is read again.
 
+A secret-key `/v1/subscriptions/bind-user` also links an Apple or Google
+one-time purchase row that verify called valid, including a Google purchase
+awaiting acknowledgment. Those links count toward the same cap but never
+appear in `entitlements`: IAPKit cannot recheck them with the store, so
+`bindPurchase` stays subscription-only for Apple and Google.
+
 The read fails closed rather than answering partially, so a store it cannot
 reach fails the whole operation with `VERIFICATION_FAILED`. Disabling a store
 the project already sells through has the same effect: the rows it granted stay

@@ -40,6 +40,7 @@ import {
   HarmonizedPurchaseState,
 } from "./purchaseState";
 import { recordVerificationUsageForOrganization } from "../organizations/internal";
+import { correlationIdOrUndefined } from "../utils/correlationId";
 import {
   applyPurchaseStatsDelta,
   deltaForCountedPurchaseRemoval,
@@ -79,6 +80,7 @@ export type SavePurchaseArgs = {
   persistIfChanged?: boolean;
   amazonRvsSequence?: number;
   amazonNotice?: AmazonLifecycleNotice;
+  correlationId?: string;
 };
 
 export async function savePurchaseInternal({
@@ -97,6 +99,7 @@ export async function savePurchaseInternal({
   persistIfChanged,
   amazonRvsSequence,
   amazonNotice,
+  correlationId: requestCorrelationId,
 }: SavePurchaseArgs) {
   // Verification can outlive the request that resolved its API key. Recheck
   // deletion here so a late write cannot recreate purchases the project or
@@ -111,6 +114,7 @@ export async function savePurchaseInternal({
   }
 
   const now = Date.now();
+  const correlationId = correlationIdOrUndefined(requestCorrelationId);
   const nextAmazonReconcileAt =
     store === "amazon" && isValid
       ? now + AMAZON_RECONCILE_INTERVAL_MS
@@ -202,6 +206,7 @@ export async function savePurchaseInternal({
           orderId,
           verificationDurationMs,
           requestIp,
+          correlationId,
         },
         conflictDelta,
       );
@@ -252,6 +257,7 @@ export async function savePurchaseInternal({
           orderId,
           verificationDurationMs,
           requestIp,
+          correlationId,
         },
       );
       await maybeEmitFirstReceiptEvent(ctx, projectId, store, result);
@@ -285,6 +291,7 @@ export async function savePurchaseInternal({
     ...(orderId !== null ? { orderId } : {}),
     ...(verificationDurationMs !== undefined ? { verificationDurationMs } : {}),
     ...(requestIp !== undefined ? { requestIp } : {}),
+    ...(correlationId !== undefined ? { correlationId } : {}),
   });
 
   const result = await applyPurchaseStatsDelta(
@@ -319,6 +326,7 @@ type PurchasePatchArgs = {
   orderId: string | null;
   verificationDurationMs?: number;
   requestIp?: string;
+  correlationId?: string;
 };
 
 /** Stats rollback for the row collapseConflictingOrderIdRow deletes. */
@@ -412,6 +420,9 @@ async function patchExistingPurchase(
       ? { verificationDurationMs: args.verificationDurationMs }
       : {}),
     ...(args.requestIp !== undefined ? { requestIp: args.requestIp } : {}),
+    ...(args.correlationId !== undefined
+      ? { correlationId: args.correlationId }
+      : {}),
   });
   // Merge every delta so purchaseStats is read and written once per save.
   const patchDelta = deltaForUpdate(
@@ -496,6 +507,7 @@ const amazonVerdictArgs = v.object({
   amazonNotice: v.optional(amazonLifecycleNoticeValidator),
   requestIp: v.optional(v.string()),
   verificationDurationMs: v.optional(v.number()),
+  correlationId: v.optional(v.string()),
 });
 
 export async function saveAmazonVerdictHandler(
@@ -660,6 +672,7 @@ export const saveReceiptInternal = internalMutation({
     requestIp: v.optional(v.string()),
     verificationDurationMs: v.optional(v.number()),
     persistIfChanged: v.optional(v.boolean()),
+    correlationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     assertStoreMatchesRequest(args.store, args.requestData);
@@ -678,6 +691,7 @@ export const saveReceiptInternal = internalMutation({
       requestIp: args.requestIp,
       verificationDurationMs: args.verificationDurationMs,
       persistIfChanged: args.persistIfChanged,
+      correlationId: args.correlationId,
     });
   },
 });

@@ -47,6 +47,25 @@ describe("enforceVerifyResponseContract", () => {
     expect(result.violations).toEqual([]);
   });
 
+  test("keeps opt-in transaction details and drops a malformed one", () => {
+    const details = {
+      transactionId: "2000000000000002",
+      originalTransactionId: "2000000000000001",
+      commerceEnvironment: "production",
+      correlationId: "0f8fad5b-d9cb-469f-a165-70867728950e",
+    };
+
+    const result = enforceVerifyResponseContract({
+      ...ENTITLED,
+      ...details,
+      expiresAt: "tomorrow",
+    });
+
+    expect(result.violations).toEqual(["expiresAt"]);
+    expect(result.ok && result.response).toEqual({ ...ENTITLED, ...details });
+    assertMatchesPublishedSchema(result.ok && result.response);
+  });
+
   test("degrades an unpublished state to UNKNOWN without touching the verdict", () => {
     const result = enforceVerifyResponseContract({
       ...ENTITLED,

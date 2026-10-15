@@ -4,7 +4,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 
@@ -27,6 +27,7 @@ import {
   mergeAnalyticsFacts,
   recordSubscriptionAnalyticsFacts,
 } from "./analyticsFacts";
+import type { bindReasonValidator } from "../utils/validation";
 
 export const USER_ERASURE_BATCH_SIZE = 100;
 export const USER_ERASURE_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -1380,7 +1381,10 @@ export async function rebindSubscriptionToUserHandler(
     (await isUserErasureRequested(ctx, project, sub.userId))
   )
     return null;
-  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)))
+  if (
+    (await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)) !==
+    "linked"
+  )
     return null;
   if (sub.userId === args.userId) {
     return { subscriptionId: sub._id, notified: true };
@@ -1445,11 +1449,31 @@ export async function bindSubscriptionToUserHandler(
   ctx: MutationCtx,
   args: BindSubscriptionToUserArgs,
 ): Promise<Id<"subscriptions"> | null> {
+  return (
+    (await bindSubscriptionToUserOutcome(ctx, args)).subscriptionId ?? null
+  );
+}
+
+/** Why a bind did or did not link; see bindReasonValidator. */
+export type BindOutcome = {
+  reason: Infer<typeof bindReasonValidator>;
+  subscriptionId?: Id<"subscriptions">;
+  // The purchase the bind resolved to, for the issue log.
+  store?: Doc<"purchases">["store"];
+  productId?: string;
+  limitReached?: boolean;
+};
+
+export async function bindSubscriptionToUserOutcome(
+  ctx: MutationCtx,
+  args: BindSubscriptionToUserArgs,
+): Promise<BindOutcome> {
   if (!isValidSubscriptionUserId(args.userId)) {
     throw new ConvexError("userId must be nonblank and at most 256 characters");
   }
   const project = await assertProjectWritable(ctx, args.projectId);
-  if (await isUserErasureRequested(ctx, project, args.userId)) return null;
+  if (await isUserErasureRequested(ctx, project, args.userId))
+    return { reason: "not_bindable" };
   const supersedingResolution = await findSupersedingSubscription(
     ctx,
     args.projectId,
@@ -1458,20 +1482,35 @@ export async function bindSubscriptionToUserHandler(
   const sub = supersedingResolution.aliased
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
-  if (!sub) return null;
+  if (!sub) return { reason: "not_found" };
+  const target: Pick<BindOutcome, "store" | "productId"> = {
+    store: sub.store ?? (sub.platform === "IOS" ? "apple" : "google"),
+    productId: sub.productId,
+  };
   if (sub.userId && sub.userId !== args.userId) {
-    // Reported the same as an unknown token. A distinct error would tell any
-    // holder of the app-embedded publishable key whether a token exists and
-    // whether someone owns it. The operator still sees the collision.
+    // Publishable callers get the same answer as for an unknown token: a
+    // distinct one would tell any holder of the app-embedded key whether a
+    // token exists and whether someone owns it.
     console.warn(
       "[subscriptions/bind] rejected a bind for an already-bound subscription",
       { projectId: args.projectId, subscriptionId: sub._id },
     );
-    return null;
+    return { reason: "bound_to_other_user", ...target };
   }
-  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId)))
-    return null;
-  if (sub.userId === args.userId) return sub._id;
+  const amazonOwner = await bindAmazonPurchaseOwner(
+    ctx,
+    project,
+    sub,
+    args.userId,
+  );
+  if (amazonOwner !== "linked")
+    return {
+      reason: "not_bindable",
+      ...(amazonOwner === "limit" ? { limitReached: true } : {}),
+      ...target,
+    };
+  if (sub.userId === args.userId)
+    return { reason: "already_bound", subscriptionId: sub._id, ...target };
   const now = Date.now();
   // Erasure only unlinked the previous owner; this is a new association, and
   // the pending-erasure gate above still refuses a user who is being erased.
@@ -1540,7 +1579,7 @@ export async function bindSubscriptionToUserHandler(
       });
     }
   }
-  return sub._id;
+  return { reason: "bound", subscriptionId: sub._id, ...target };
 }
 
 export async function drainSubscriptionUserErasurePage(
@@ -1562,7 +1601,7 @@ export async function drainSubscriptionUserErasurePage(
 
   const now = Date.now();
   await ctx.db.patch(jobId, { status: "running", updatedAt: now });
-  const [subscriptions, commerceEvents, purchases] = await Promise.all([
+  const [subscriptions, commerceEvents, purchases, issues] = await Promise.all([
     ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_user", (q) =>
@@ -1581,6 +1620,12 @@ export async function drainSubscriptionUserErasurePage(
         q.eq("projectId", job.projectId).eq("appUserId", job.userId),
       )
       .take(USER_ERASURE_BATCH_SIZE),
+    ctx.db
+      .query("purchaseIssues")
+      .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
+        q.eq("projectId", job.projectId).eq("appUserId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
   ]);
 
   for (const subscription of subscriptions) {
@@ -1594,6 +1639,9 @@ export async function drainSubscriptionUserErasurePage(
       appUserId: undefined,
       accountErased: true,
     });
+  }
+  for (const issue of issues) {
+    await ctx.db.patch(issue._id, { appUserId: undefined });
   }
   let commerceEventsErasedThisPage = 0;
   let waitingForClaimedDelivery = false;
@@ -1622,6 +1670,7 @@ export async function drainSubscriptionUserErasurePage(
     !waitingForClaimedDelivery &&
     subscriptions.length < USER_ERASURE_BATCH_SIZE &&
     purchases.length < USER_ERASURE_BATCH_SIZE &&
+    issues.length < USER_ERASURE_BATCH_SIZE &&
     commerceEvents.length < USER_ERASURE_BATCH_SIZE;
 
   if (done) {

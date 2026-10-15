@@ -2,6 +2,7 @@ import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
 import { COMMERCE_EVENT_RETENTION_MS } from "./commerce/signing";
+import { PURCHASE_ISSUE_RETENTION_MS } from "./purchaseIssues/internal";
 
 const crons = cronJobs();
 
@@ -67,6 +68,14 @@ crons.interval(
   { hours: 1 },
   internal.webhooks.internal.pruneWebhookEvents,
   { olderThanMs: WEBHOOK_RETENTION_MS },
+);
+
+// 30-day retention; the per-project cap bounds the table between runs.
+crons.interval(
+  "prune purchase issues past retention",
+  { hours: 1 },
+  internal.purchaseIssues.internal.prunePurchaseIssues,
+  { olderThanMs: PURCHASE_ISSUE_RETENTION_MS },
 );
 
 // Outbound delivery of normalized commerce events to developer-registered

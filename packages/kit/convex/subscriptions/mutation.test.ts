@@ -64,7 +64,7 @@ describe("rebindUser authorization", () => {
             return q;
           };
           fn(q);
-          return {
+          const result = {
             first: async () =>
               rows.find((r) =>
                 Object.entries(captured).every(([k, v]) => r[k] === v),
@@ -74,7 +74,10 @@ describe("rebindUser authorization", () => {
                 Object.entries(captured).every(([k, v]) => r[k] === v),
               ) ?? null,
             collect: async () => [],
+            // Only the store filter of the one-time purchase lookup uses this.
+            filter: () => result,
           };
+          return result;
         },
       };
       return api;

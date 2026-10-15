@@ -13,27 +13,11 @@ import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   commerceEventTypeForTransition,
   commerceEventTypesToEmit,
+  normalizeEnvironment,
   sanitizeExtensions,
-  type CommerceEnvironment,
   type CommerceEventType,
   type LifecycleTransition,
 } from "./contract";
-
-type WebhookEnvironment = Doc<"webhookEvents">["environment"];
-
-/** Store notification environments use TitleCase; the contract uses lowercase. */
-function normalizeEnvironment(
-  environment: WebhookEnvironment,
-): CommerceEnvironment {
-  switch (environment) {
-    case "Sandbox":
-      return "sandbox";
-    case "Xcode":
-      return "xcode";
-    default:
-      return "production";
-  }
-}
 
 /** Inbound platform enum predates Horizon/Amazon lifecycle support. */
 function storeForPlatform(

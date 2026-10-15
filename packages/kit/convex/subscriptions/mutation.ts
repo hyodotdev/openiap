@@ -4,12 +4,19 @@ import { internal } from "../_generated/api";
 
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import {
-  bindSubscriptionToUserHandler,
+  bindOneTimePurchaseToUser,
+  rebindOneTimePurchaseToUser,
+} from "../purchases/binding";
+import { recordBindIssue } from "../purchaseIssues/internal";
+import {
+  bindSubscriptionToUserOutcome,
   findSubscriptionByToken,
   rebindSubscriptionToUserHandler,
+  type BindOutcome,
 } from "./internal";
 import { isValidSubscriptionUserId } from "./limits";
 import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
+import { bindReasonValidator } from "../utils/validation";
 
 function generateUserErasureHashKey(): string {
   const bytes = new Uint8Array(32);
@@ -19,23 +26,40 @@ function generateUserErasureHashKey(): string {
   );
 }
 
+const bindArgs = {
+  apiKey: v.string(),
+  purchaseToken: v.string(),
+  userId: v.string(),
+  // SHA-256 of the evidence the caller sent, taken at the edge before an
+  // Apple JWS is reduced to its transaction id. Used only for issue records.
+  evidenceFingerprint: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
+};
+
+function isBound(outcome: BindOutcome): boolean {
+  return outcome.reason === "bound" || outcome.reason === "already_bound";
+}
+
 // Apple and Google SDKs can link a verified token without moving its owner.
+// Only a secret key learns why a bind did not link, and only a secret key can
+// link an Apple or Google one-time purchase: that is the backend's decision.
 export const bindUser = mutation({
-  args: {
-    apiKey: v.string(),
-    purchaseToken: v.string(),
-    userId: v.string(),
-  },
-  returns: v.object({ ok: v.boolean(), bound: v.boolean() }),
+  args: bindArgs,
+  returns: v.object({
+    ok: v.boolean(),
+    bound: v.boolean(),
+    reason: v.optional(bindReasonValidator),
+  }),
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
-    const project = resolved?.project ?? null;
-    if (!project) return { ok: false, bound: false };
+    if (!resolved) return { ok: false, bound: false };
+    const { project } = resolved;
     if (!isValidSubscriptionUserId(args.userId)) {
       throw new ConvexError(
         "userId must be nonblank and at most 256 characters",
       );
     }
+    const server = resolved.keyType === "secret";
 
     const sub = await findSubscriptionByToken(
       ctx,
@@ -43,15 +67,28 @@ export const bindUser = mutation({
       args.purchaseToken,
     );
     // Amazon store identity is linked by the authenticated developer backend.
-    if (sub?.store === "amazon") return { ok: true, bound: false };
+    let outcome: BindOutcome =
+      sub?.store === "amazon"
+        ? { reason: "not_bindable" }
+        : await bindSubscriptionToUserOutcome(ctx, {
+            projectId: project._id,
+            purchaseToken: args.purchaseToken,
+            userId: args.userId,
+          });
+    if (server && outcome.reason === "not_found") {
+      outcome = await bindOneTimePurchaseToUser(
+        ctx,
+        project,
+        args.purchaseToken,
+        args.userId,
+      );
+    }
+    await recordBindIssue(ctx, project._id, outcome, args);
 
-    const subscriptionId = await bindSubscriptionToUserHandler(ctx, {
-      projectId: project._id,
-      purchaseToken: args.purchaseToken,
-      userId: args.userId,
-    });
-
-    return { ok: true, bound: subscriptionId !== null };
+    const bound = isBound(outcome);
+    return server
+      ? { ok: true, bound, reason: outcome.reason }
+      : { ok: true, bound };
   },
 });
 
@@ -59,13 +96,11 @@ export const bindUser = mutation({
 // bindUser, but server-role only. The protocol says a shipped app must not
 // reach an account mutation, and the edge prefix check alone cannot classify
 // a legacy no-prefix key, so the admin access is asserted here in Convex where
-// the stored key type is authoritative.
+// the stored key type is authoritative. Apple and Google stay subscription-only
+// here: a bound one-time purchase would have to appear in Commerce
+// entitlements, which IAPKit cannot recheck with those stores (SPEC §4.3).
 export const bindUserAsServer = mutation({
-  args: {
-    apiKey: v.string(),
-    purchaseToken: v.string(),
-    userId: v.string(),
-  },
+  args: bindArgs,
   returns: v.object({ ok: v.boolean(), bound: v.boolean() }),
   handler: async (ctx, args) => {
     // resolveProjectByApiKeyFromDb throws INSUFFICIENT_SCOPE for a valid but
@@ -85,17 +120,18 @@ export const bindUserAsServer = mutation({
       });
     }
 
-    const subscriptionId = await bindSubscriptionToUserHandler(ctx, {
+    const outcome = await bindSubscriptionToUserOutcome(ctx, {
       projectId: resolved.project._id,
       purchaseToken: args.purchaseToken,
       userId: args.userId,
     });
+    await recordBindIssue(ctx, resolved.project._id, outcome, args);
 
-    return { ok: true, bound: subscriptionId !== null };
+    return { ok: true, bound: isBound(outcome) };
   },
 });
 
-// Recovery for a subscription bound to the wrong user. `bindUser` deliberately
+// Recovery for a purchase bound to the wrong user. `bindUser` deliberately
 // refuses to move an existing binding — token possession is not proof of
 // ownership — so without this an operator has no way to correct one.
 // Secret key only: this reassigns who owns a purchase.
@@ -127,11 +163,21 @@ export const rebindUser = mutation({
       purchaseToken: args.purchaseToken,
       userId: args.userId,
     });
+    if (result) {
+      return { ok: true, rebound: true, notified: result.notified };
+    }
 
+    // One-time purchases emit no commerce events, so a move is never notified.
+    const oneTime = await rebindOneTimePurchaseToUser(
+      ctx,
+      project,
+      args.purchaseToken,
+      args.userId,
+    );
     return {
       ok: true,
-      rebound: result !== null,
-      notified: result?.notified ?? true,
+      rebound: oneTime !== null,
+      notified: oneTime?.moved !== true,
     };
   },
 });

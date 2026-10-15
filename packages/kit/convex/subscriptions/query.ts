@@ -3,6 +3,7 @@ import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import {
+  canReadRawStoreEvidence,
   resolveOperatorProject,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
@@ -240,6 +241,34 @@ async function projectForReadArgs(
   }
 
   throw new Error("apiKey or projectId is required.");
+}
+
+// A dashboard member reads the list without store tokens; secret API keys
+// keep them for reconciliation.
+async function listReadAccess(
+  ctx: QueryCtx,
+  args: { apiKey?: string; projectId?: Id<"projects"> },
+): Promise<{ project: Doc<"projects">; storeTokens: boolean } | null> {
+  if (args.projectId) {
+    const access = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    return access
+      ? {
+          project: access.project,
+          storeTokens: canReadRawStoreEvidence(access.role),
+        }
+      : null;
+  }
+  const project = await projectForReadArgs(ctx, args, "admin");
+  return project ? { project, storeTokens: true } : null;
+}
+
+// purchaseToken stays present but empty: the field is required (see above).
+function withoutStoreToken(row: SubscriptionRow): SubscriptionRow {
+  const { originalTransactionId: _originalTransactionId, ...rest } = row;
+  return { ...rest, purchaseToken: "" };
 }
 
 export interface MrrCurrencyEntry {
@@ -484,8 +513,13 @@ export const listSubscriptions = query({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args, "admin");
-    if (!project) return { items: [], total: 0 };
+    const access = await listReadAccess(ctx, args);
+    if (!access) return { items: [], total: 0 };
+    const { project } = access;
+    const shape = access.storeTokens
+      ? shapeSubscriptionRow
+      : (sub: Doc<"subscriptions">) =>
+          withoutStoreToken(shapeSubscriptionRow(sub));
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
@@ -505,7 +539,7 @@ export const listSubscriptions = query({
         return true;
       });
       return {
-        items: filtered.slice(0, limit).map(shapeSubscriptionRow),
+        items: filtered.slice(0, limit).map(shape),
         total: filtered.length,
       };
     }
@@ -553,7 +587,7 @@ export const listSubscriptions = query({
     // `total` counts the rows loaded, not every match; a true count would need
     // an unbounded scan.
     return {
-      items: rows.slice(0, limit).map(shapeSubscriptionRow),
+      items: rows.slice(0, limit).map(shape),
       total: rows.length,
     };
   },

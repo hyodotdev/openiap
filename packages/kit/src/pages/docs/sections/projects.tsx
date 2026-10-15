@@ -35,6 +35,14 @@ export default function ProjectsPage() {
         one has its own store credentials, keys, purchase history, and
         entitlement state.
       </p>
+      <p>
+        Every organization member can read a project&apos;s purchases and
+        subscriptions. Raw store evidence — the request payload (JWS, purchase
+        token or receipt), the store response, and subscription purchase tokens
+        — reaches only admins and owners in the dashboard, because it can be
+        replayed against verify and bind. Members see a purchase&apos;s SHA-256
+        evidence fingerprint instead.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>
       <p>

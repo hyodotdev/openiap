@@ -9,12 +9,13 @@ import {
   VerificationStatus,
   APIException,
 } from "@apple/app-store-server-library";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 
 import { action, ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { loadAppleRootCertificates } from "../certificates/apple_root_certificates";
+import { verifyRecordingIssues } from "../purchaseIssues/shared";
 import {
   assertVerificationAdmission,
   getProjectByApiKey,
@@ -25,6 +26,8 @@ import {
   receiptResponseValidator,
   isValidState,
   narrowAppleEnvironment,
+  type ReceiptResponse,
+  type TransactionDetails,
 } from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
@@ -52,129 +55,169 @@ function appStorePriceToMicros(price: number | undefined): number | undefined {
   return price * 1000;
 }
 
-export const verifyAppStoreReceiptInternalV1 = action({
-  args: {
-    apiKey: v.string(),
-    jws: v.string(),
-    expectedProductId: v.optional(v.string()),
-    requestIp: v.optional(v.string()),
-  },
-  returns: receiptResponseValidator,
-  handler: async (ctx, args) => {
-    const verificationStart = Date.now();
-    const project = await getProjectByApiKey(ctx, args.apiKey);
-
-    const decodedPayload = decodeJwsPayload(args.jws);
-    // The payload is decoded, not verified, so its environment must never
-    // select a value that turns verification off: SignedDataVerifier returns
-    // the decoded JWT unverified under XCODE and LOCAL_TESTING. Only the two
-    // environments Apple actually signs are reachable.
-    const environment =
-      decodedPayload.environment === Environment.SANDBOX
-        ? Environment.SANDBOX
-        : Environment.PRODUCTION;
-
-    const requestData: {
-      store: "apple";
-      jws: string;
-      expectedProductId?: string;
-    } = {
-      store: "apple" as const,
-      jws: args.jws,
-      ...(args.expectedProductId !== undefined
-        ? { expectedProductId: args.expectedProductId }
-        : {}),
-    };
-
-    if (project.iosBundleId === undefined) {
-      throw new ProjectAppStoreBundleIdNotConfiguredError();
-    }
-
-    if (
-      environment === Environment.PRODUCTION &&
-      project.iosAppAppleId === undefined
-    ) {
-      throw new ProjectAppStoreAppleIdNotConfiguredError();
-    }
-
-    if (decodedPayload.bundleId !== project.iosBundleId) {
-      throw new AppStoreBundleIdMismatchError(
-        project.iosBundleId,
-        decodedPayload.bundleId as string,
-      );
-    }
-
-    await assertVerificationAdmission(ctx, project._id);
-
-    // A failed check stores nothing: a signature failure would let forged bytes
-    // grow the table, and a Server API error is no verdict on a transaction
-    // Apple already signed. Verdicts come from the store-verified path below.
-    const serverCredentials = await getAppStoreServerCredentials(ctx, project);
-
-    // Prove the caller holds an Apple-signed transaction before asking the
-    // App Store about it. Without this, `decodeJwsPayload` above accepts any
-    // base64 the caller assembles, and every downstream check compares
-    // Apple's answer to the caller's own request — so knowing a
-    // transactionId would be enough to obtain a verified verdict.
-    await verifyJWSTransaction(
-      args.jws,
-      project.iosBundleId,
-      environment,
-      project.iosAppAppleId,
-    );
-
-    const transactionData = await verifyTransactionWithServerApi({
-      ctx,
-      decodedJwsPayload: decodedPayload,
-      bundleId: project.iosBundleId,
-      environment,
-      appAppleId: project.iosAppAppleId,
-      credentials: serverCredentials,
-    });
-
-    assertVerifiedTransactionBinding({
-      requestedTransactionId: decodedPayload.transactionId,
-      requestedEnvironment: environment,
-      expectedBundleId: project.iosBundleId,
-      verified: transactionData,
-    });
-
-    const remoteId =
-      transactionData.originalTransactionId ||
-      transactionData.transactionId ||
-      hashJws(args.jws);
-
-    const serializedResponse = JSON.stringify(transactionData);
-    // Persist the store-verified purchase state; `expectedProductId`
-    // mismatch is caller-scoped and should not corrupt purchase logs.
-    const storeReceiptResponse = mapToAppStoreReceiptResponse(transactionData);
-    const receiptResponse = applyExpectedProductId(
-      storeReceiptResponse,
-      args.expectedProductId,
-    );
-
-    await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-      projectId: project._id,
-      store: "apple",
-      applicationId: transactionData.bundleId ?? project.iosBundleId,
-      remoteId,
-      requestData,
-      remoteResponse: serializedResponse,
-      state: storeReceiptResponse.state,
-      isValid: isValidState(storeReceiptResponse.state),
-      requestIp: args.requestIp,
-      verificationDurationMs: Date.now() - verificationStart,
-    });
-    await recordAppStoreVerifiedSubscription(ctx, {
-      projectId: project._id,
-      remoteId,
-      transactionData,
-      purchaseState: storeReceiptResponse.state,
-    });
-
-    return receiptResponse;
-  },
+const appStoreVerificationArgs = v.object({
+  apiKey: v.string(),
+  jws: v.string(),
+  expectedProductId: v.optional(v.string()),
+  requestIp: v.optional(v.string()),
+  correlationId: v.optional(v.string()),
 });
+
+export const verifyAppStoreReceiptInternalV1 = action({
+  args: appStoreVerificationArgs.fields,
+  returns: receiptResponseValidator,
+  handler: (ctx, args) =>
+    verifyRecordingIssues(
+      ctx,
+      {
+        apiKey: args.apiKey,
+        evidence: { store: "apple", jws: args.jws },
+        expectedProductId: args.expectedProductId,
+        correlationId: args.correlationId,
+      },
+      () => verifyAppStoreReceipt(ctx, args),
+    ),
+});
+
+async function verifyAppStoreReceipt(
+  ctx: ActionCtx,
+  args: Infer<typeof appStoreVerificationArgs>,
+): Promise<ReceiptResponse> {
+  const verificationStart = Date.now();
+  const project = await getProjectByApiKey(ctx, args.apiKey);
+
+  const decodedPayload = decodeJwsPayload(args.jws);
+  // The payload is decoded, not verified, so its environment must never
+  // select a value that turns verification off: SignedDataVerifier returns
+  // the decoded JWT unverified under XCODE and LOCAL_TESTING. Only the two
+  // environments Apple actually signs are reachable.
+  const environment =
+    decodedPayload.environment === Environment.SANDBOX
+      ? Environment.SANDBOX
+      : Environment.PRODUCTION;
+
+  const requestData: {
+    store: "apple";
+    jws: string;
+    expectedProductId?: string;
+  } = {
+    store: "apple" as const,
+    jws: args.jws,
+    ...(args.expectedProductId !== undefined
+      ? { expectedProductId: args.expectedProductId }
+      : {}),
+  };
+
+  if (project.iosBundleId === undefined) {
+    throw new ProjectAppStoreBundleIdNotConfiguredError();
+  }
+
+  if (
+    environment === Environment.PRODUCTION &&
+    project.iosAppAppleId === undefined
+  ) {
+    throw new ProjectAppStoreAppleIdNotConfiguredError();
+  }
+
+  if (decodedPayload.bundleId !== project.iosBundleId) {
+    throw new AppStoreBundleIdMismatchError(
+      project.iosBundleId,
+      decodedPayload.bundleId as string,
+    );
+  }
+
+  await assertVerificationAdmission(ctx, project._id);
+
+  // A failed check stores nothing: a signature failure would let forged bytes
+  // grow the table, and a Server API error is no verdict on a transaction
+  // Apple already signed. Verdicts come from the store-verified path below.
+  const serverCredentials = await getAppStoreServerCredentials(ctx, project);
+
+  // Prove the caller holds an Apple-signed transaction before asking the
+  // App Store about it. Without this, `decodeJwsPayload` above accepts any
+  // base64 the caller assembles, and every downstream check compares
+  // Apple's answer to the caller's own request — so knowing a
+  // transactionId would be enough to obtain a verified verdict.
+  await verifyJWSTransaction(
+    args.jws,
+    project.iosBundleId,
+    environment,
+    project.iosAppAppleId,
+  );
+
+  const transactionData = await verifyTransactionWithServerApi({
+    ctx,
+    decodedJwsPayload: decodedPayload,
+    bundleId: project.iosBundleId,
+    environment,
+    appAppleId: project.iosAppAppleId,
+    credentials: serverCredentials,
+  });
+
+  assertVerifiedTransactionBinding({
+    requestedTransactionId: decodedPayload.transactionId,
+    requestedEnvironment: environment,
+    expectedBundleId: project.iosBundleId,
+    verified: transactionData,
+  });
+
+  const remoteId =
+    transactionData.originalTransactionId ||
+    transactionData.transactionId ||
+    hashJws(args.jws);
+
+  const serializedResponse = JSON.stringify(transactionData);
+  // Persist the store-verified purchase state; `expectedProductId`
+  // mismatch is caller-scoped and should not corrupt purchase logs.
+  const storeReceiptResponse = mapToAppStoreReceiptResponse(transactionData);
+  const receiptResponse = applyExpectedProductId(
+    storeReceiptResponse,
+    args.expectedProductId,
+  );
+
+  await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+    projectId: project._id,
+    store: "apple",
+    applicationId: transactionData.bundleId ?? project.iosBundleId,
+    remoteId,
+    requestData,
+    remoteResponse: serializedResponse,
+    state: storeReceiptResponse.state,
+    isValid: isValidState(storeReceiptResponse.state),
+    requestIp: args.requestIp,
+    verificationDurationMs: Date.now() - verificationStart,
+    correlationId: args.correlationId,
+  });
+  await recordAppStoreVerifiedSubscription(ctx, {
+    projectId: project._id,
+    remoteId,
+    transactionData,
+    purchaseState: storeReceiptResponse.state,
+  });
+
+  return {
+    ...receiptResponse,
+    transactionDetails: appStoreTransactionDetails(transactionData),
+  };
+}
+
+// Same transaction fields as Apple commerce events. expiresAt is the paid
+// period's end: a grace deadline is renewal info, which only events carry.
+export function appStoreTransactionDetails(
+  transaction: AppStoreReceiptData,
+): TransactionDetails {
+  return {
+    ...(transaction.transactionId
+      ? { transactionId: transaction.transactionId }
+      : {}),
+    ...(transaction.originalTransactionId
+      ? { originalTransactionId: transaction.originalTransactionId }
+      : {}),
+    ...(transaction.expiresDate !== undefined
+      ? { expiresAt: transaction.expiresDate }
+      : {}),
+  };
+}
 
 export async function recordAppStoreVerifiedSubscription(
   ctx: Pick<ActionCtx, "runMutation">,
@@ -458,6 +501,7 @@ async function verifyTransactionWithServerApi(params: {
       throw new AppStoreTransactionVerificationFailedError(
         formatAppStoreServerApiError(error),
         isStoreOutage(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
+        error.httpStatusCode,
       );
     }
 

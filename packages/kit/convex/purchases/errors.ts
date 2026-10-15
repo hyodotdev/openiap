@@ -71,11 +71,12 @@ export class ProjectMetaHorizonAppSecretNotConfiguredError extends ReceiptVerifi
 }
 
 export class MetaHorizonVerificationError extends ReceiptVerificationError {
-  constructor(detail: string, retryAfterSec?: number) {
+  // `status` is Meta's HTTP status, when Meta answered.
+  constructor(detail: string, retryAfterSec?: number, status?: number) {
     super(
       "META_HORIZON_VERIFICATION_ERROR",
       `Meta Horizon verification failed: ${detail}`,
-      { originalError: detail },
+      { originalError: detail, ...(status !== undefined ? { status } : {}) },
       retryAfterSec,
     );
   }
@@ -285,11 +286,17 @@ function isConvexWriteConflict(error: unknown): boolean {
 // Only curated messages reach `/v1`. Store outages and Convex write conflicts
 // are temporary; anything else stays permanent.
 export class PlayStoreVerificationError extends ReceiptVerificationError {
+  /** The classified store error this wraps, when there is one. */
+  public readonly inner?: ReceiptVerificationError;
+  /** IAPKit's own write conflict, retryable but not a store outage. */
+  public readonly writeConflict: boolean;
+
   constructor(originalError: unknown) {
     const inner =
       originalError instanceof ReceiptVerificationError
         ? originalError
         : undefined;
+    const writeConflict = !inner && isConvexWriteConflict(originalError);
     super(
       "PLAY_STORE_VERIFICATION_ERROR",
       `Failed to verify Google Play purchase: ${inner?.errorMessage ?? "Google Play verification did not complete"}`,
@@ -301,10 +308,12 @@ export class PlayStoreVerificationError extends ReceiptVerificationError {
       },
       inner
         ? inner.retryAfterSec
-        : isStoreOutage(originalError) || isConvexWriteConflict(originalError)
+        : isStoreOutage(originalError) || writeConflict
           ? STORE_OUTAGE_RETRY_AFTER_SEC
           : undefined,
     );
+    this.inner = inner;
+    this.writeConflict = writeConflict;
   }
 }
 
@@ -367,11 +376,13 @@ export class AppStoreTransactionVerificationFailedError extends ReceiptVerificat
   constructor(
     message: string = "Unknown verification error",
     retryAfterSec?: number,
+    // App Store Server API HTTP status, when the API answered.
+    status?: number,
   ) {
     super(
       "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
       `App Store transaction verification failed: ${message}`,
-      undefined,
+      status === undefined ? undefined : { status },
       retryAfterSec,
     );
   }

@@ -213,32 +213,39 @@ export default function PurchaseDetail() {
   const productId =
     (purchase as { productId?: string | null }).productId ?? null;
 
-  const remoteResponse = purchase.remoteResponse
-    ? parseJson(purchase.remoteResponse)
-    : undefined;
+  const formattedRemoteResponse: string | null =
+    purchase.rawEvidenceVisible && purchase.remoteResponse
+      ? formatJson(parseJson(purchase.remoteResponse))
+      : null;
 
-  const formattedRemoteResponse: string | null = (() => {
-    if (!purchase.remoteResponse) {
-      return null;
-    }
-    return formatJson(remoteResponse);
-  })();
+  const requestPayload = purchase.rawEvidenceVisible
+    ? formatJson(purchase.requestData)
+    : null;
 
-  const requestPayload = (() => {
-    return formatJson(purchase.requestData);
-  })();
-
-  const requestItems: DetailItem[] = [
-    {
-      label: "Request payload",
-      value: requestPayload ? (
-        <pre className="whitespace-pre-wrap break-words text-xs text-muted-foreground">
-          {requestPayload}
-        </pre>
-      ) : undefined,
-      monospace: Boolean(requestPayload),
-    },
-  ];
+  const requestItems: DetailItem[] = purchase.rawEvidenceVisible
+    ? [
+        {
+          label: "Request payload",
+          value: requestPayload ? (
+            <pre className="whitespace-pre-wrap break-words text-xs text-muted-foreground">
+              {requestPayload}
+            </pre>
+          ) : undefined,
+          monospace: Boolean(requestPayload),
+        },
+      ]
+    : [
+        {
+          label: "Store evidence",
+          value:
+            "Hidden. Only project admins and owners can view the request payload and store response.",
+        },
+        {
+          label: "Evidence fingerprint (SHA-256)",
+          value: purchase.evidenceFingerprint,
+          monospace: true,
+        },
+      ];
 
   const remoteResponseItems: DetailItem[] | null = formattedRemoteResponse
     ? [

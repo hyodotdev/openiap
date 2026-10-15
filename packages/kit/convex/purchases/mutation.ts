@@ -23,6 +23,7 @@ import {
 import { getProjectById } from "../projects/helpers";
 import { reserveAmazonRvsSequenceHandler } from "./internal";
 import { makePurchaseBindingRoom } from "./binding";
+import { recordBindIssue } from "../purchaseIssues/internal";
 
 export const bindVerifiedPurchaseAsServer = mutation({
   args: {
@@ -30,6 +31,8 @@ export const bindVerifiedPurchaseAsServer = mutation({
     userId: v.string(),
     store: v.union(v.literal("amazon"), v.literal("horizon")),
     remoteId: v.string(),
+    // SHA-256 of the evidence, for issue records only.
+    evidenceFingerprint: v.optional(v.string()),
   },
   returns: v.object({ bound: v.boolean() }),
   handler: async (ctx, args) => {
@@ -54,6 +57,11 @@ export const bindVerifiedPurchaseAsServer = mutation({
       });
     if (await isUserErasureRequested(ctx, resolved.project, args.userId))
       return { bound: false };
+    const issueRequest = {
+      purchaseToken: args.remoteId,
+      userId: args.userId,
+      evidenceFingerprint: args.evidenceFingerprint,
+    };
     // The cap is decided from the caller's own rows before any evidence lookup,
     // so neither the answer nor the log depends on someone else's purchase.
     if (
@@ -64,8 +72,15 @@ export const bindVerifiedPurchaseAsServer = mutation({
         args.store,
         args.remoteId,
       ))
-    )
+    ) {
+      await recordBindIssue(
+        ctx,
+        resolved.project._id,
+        { reason: "not_bindable", limitReached: true, store: args.store },
+        issueRequest,
+      );
       return { bound: false };
+    }
     const purchase = await ctx.db
       .query("purchases")
       .withIndex("by_project_and_remote", (q) =>
@@ -74,8 +89,19 @@ export const bindVerifiedPurchaseAsServer = mutation({
       .filter((q) => q.eq(q.field("store"), args.store))
       .unique();
     if (!purchase) return { bound: false };
-    if (purchase.appUserId && purchase.appUserId !== args.userId)
+    if (purchase.appUserId && purchase.appUserId !== args.userId) {
+      await recordBindIssue(
+        ctx,
+        resolved.project._id,
+        {
+          reason: "bound_to_other_user",
+          store: args.store,
+          productId: purchase.productId,
+        },
+        issueRequest,
+      );
       return { bound: false };
+    }
     // Only a currently entitled purchase binds; an Amazon consumable is
     // fulfilled once by the app's own ledger.
     if (

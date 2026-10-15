@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 
@@ -41,6 +42,9 @@ function buildApp() {
   app.route("/subscriptions", subscriptionsRoutes);
   return app;
 }
+
+const sha256 = (value: string): string =>
+  createHash("sha256").update(value).digest("hex");
 
 function compactJws(payload: Record<string, unknown>): string {
   return compactJwsFromRawPayload(JSON.stringify(payload));
@@ -154,6 +158,8 @@ describe("subscriptionsRoutes", () => {
       apiKey: "openiap-kit_sk_admin",
       purchaseToken: "token",
       userId: "user-1",
+      evidenceFingerprint: sha256("token"),
+      correlationId: responses[5].headers.get("x-correlation-id"),
     });
   });
 
@@ -318,6 +324,8 @@ describe("subscriptionsRoutes", () => {
       apiKey: "openiap-kit_pk_mobile",
       purchaseToken: "purchase-token",
       userId: "user-1",
+      evidenceFingerprint: sha256("purchase-token"),
+      correlationId: responses[2].headers.get("x-correlation-id"),
     });
   });
 
@@ -1023,6 +1031,9 @@ describe("subscriptionsRoutes", () => {
       apiKey: "key",
       purchaseToken: "1000000000000001",
       userId: "user-1",
+      // Hashed before the JWS is reduced to its transaction id.
+      evidenceFingerprint: sha256(jws),
+      correlationId: response.headers.get("x-correlation-id"),
     });
   });
 
@@ -1049,6 +1060,8 @@ describe("subscriptionsRoutes", () => {
       apiKey: "key",
       purchaseToken: "2000000000000001",
       userId: "user-1",
+      evidenceFingerprint: sha256(jws),
+      correlationId: response.headers.get("x-correlation-id"),
     });
   });
 
@@ -1075,6 +1088,8 @@ describe("subscriptionsRoutes", () => {
       apiKey: "key",
       purchaseToken: transactionId,
       userId: "user-1",
+      evidenceFingerprint: sha256(jws),
+      correlationId: response.headers.get("x-correlation-id"),
     });
   });
 
@@ -1128,6 +1143,8 @@ describe("subscriptionsRoutes", () => {
       apiKey: "key",
       purchaseToken,
       userId: "user-1",
+      evidenceFingerprint: sha256(purchaseToken),
+      correlationId: response.headers.get("x-correlation-id"),
     });
   });
 
