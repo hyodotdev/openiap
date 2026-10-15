@@ -59,13 +59,27 @@ export const lookupOrder = action({
       args.store === "apple"
         ? await lookupAppleOrder(ctx, project, orderId)
         : await lookupGoogleOrder(ctx, project, orderId);
-    if (canReadRawStoreEvidence(role)) return result;
-    // A purchase token or store response can be replayed against verify and
-    // bind, so members get only the summary.
-    const { purchaseToken: _token, ...summary } = result;
-    return { ...summary, raw: "{}" };
+    return canReadRawStoreEvidence(role) ? result : memberOrderView(result);
   },
 });
+
+/**
+ * Tokens, signed transactions and store responses can be replayed against
+ * verify and bind, so members get only the summary.
+ */
+export function memberOrderView(
+  result: OrderLookupResponse,
+): OrderLookupResponse {
+  const {
+    purchaseToken: _token,
+    transactions: _transactions,
+    subscription,
+    ...summary
+  } = result;
+  if (!subscription) return { ...summary, raw: "" };
+  const { raw: _raw, ...status } = subscription;
+  return { ...summary, subscription: status, raw: "" };
+}
 
 async function getProjectForMember(
   ctx: ActionCtx,

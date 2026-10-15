@@ -572,11 +572,19 @@ async function hasNotificationBefore(
   projectId: Id<"projects">,
   before: number,
 ): Promise<boolean> {
+  // Only a store notification shows the flags are missing; a test
+  // notification or a re-sync carries none.
   const oldest = await ctx.db
     .query("webhookEvents")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .first();
-  return oldest !== null && oldest._creationTime < before;
+    .withIndex("by_project", (q) =>
+      q.eq("projectId", projectId).lt("_creationTime", before),
+    )
+    .take(100);
+  return oldest.some(
+    (event) =>
+      STORE_NOTIFICATION_SOURCES.has(event.source) &&
+      event.type !== "TestNotification",
+  );
 }
 
 function latestNotifications(

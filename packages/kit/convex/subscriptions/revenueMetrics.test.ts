@@ -2644,6 +2644,13 @@ describe("rollup run — production and sandbox", () => {
     await seedEvent(fresh, { type: "SubscriptionStarted" });
     await recompute(makeCtx(fresh));
     expect((await runStatus(fresh))?.trialSplitFromDay).toBeUndefined();
+
+    // A store test notification is not a purchase notification.
+    const tested = new MemDb();
+    vi.setSystemTime(NOW - 2 * 24 * 60 * 60 * 1000);
+    await seedEvent(tested, { type: "TestNotification" });
+    await recompute(makeCtx(tested));
+    expect((await runStatus(tested))?.trialSplitFromDay).toBeUndefined();
   });
 
   it("never marks data collected from Amazon, which no counter reads", async () => {
@@ -3071,7 +3078,23 @@ describe("getRevenueMetrics — data state", () => {
     const db = new MemDb();
     await seedKey(db);
     await seedCurrentRunStatus(db, { lastRunAt: NOW });
-    for (let i = 0; i < 8_193; i++) {
+    // One more row than fits, on an older day, is the one left out.
+    await db.insert("revenueMetricsDaily", {
+      projectId: PROJECT_ID,
+      day: D2,
+      productId: "sku.old",
+      currency: "USD",
+      platform: "IOS",
+      environment: "Production",
+      activeSubs: 1,
+      newSubs: 0,
+      renewals: 0,
+      cancellations: 0,
+      refunds: 0,
+      revenueMicros: 0,
+      updatedAt: NOW,
+    });
+    for (let i = 0; i < 8_192; i++) {
       await db.insert("revenueMetricsDaily", {
         projectId: PROJECT_ID,
         day: TODAY,
@@ -3091,6 +3114,7 @@ describe("getRevenueMetrics — data state", () => {
 
     const result = await getRevenueMetrics._handler({ db }, range);
     expect(result.days).toHaveLength(8_192);
+    expect(result.days.every((day) => day.day === TODAY)).toBe(true);
     expect(result.truncated).toBe(true);
   });
 

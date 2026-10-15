@@ -399,3 +399,26 @@ describe("orderLookupResponseValidator", () => {
     expect(response.summary).toBeUndefined();
   });
 });
+
+describe("memberOrderView", () => {
+  it("drops every replayable token, signed transaction and store response", async () => {
+    const { memberOrderView } = await import("./action");
+    const view = memberOrderView({
+      store: "google",
+      found: true,
+      orderId: "GPA.1",
+      purchaseToken: "token-SECRET",
+      transactions: [{ transactionId: "tx-SECRET" }],
+      subscription: {
+        state: "ACTIVE",
+        raw: '{"linkedPurchaseToken":"old-SECRET"}',
+      },
+      raw: '{"purchaseToken":"token-SECRET"}',
+    });
+    expect(JSON.stringify(view)).not.toContain("SECRET");
+    expect(view).toMatchObject({
+      found: true,
+      subscription: { state: "ACTIVE" },
+    });
+  });
+});

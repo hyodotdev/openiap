@@ -492,8 +492,8 @@ export default function ProjectAnalytics() {
         // The scan hit `REVENUE_SCAN_CAP`, so the chart is partial; flat
         // numbers here are truncation, not a revenue trough.
         <Notice icon={AlertCircle} title="Analytics partially loaded">
-          This range exceeded the per-query scan limit, so the numbers below are
-          incomplete. Pick a shorter range to load every row.
+          This window has more rows than one read returns, so its oldest days
+          are missing.
         </Notice>
       )}
 

@@ -923,6 +923,8 @@ export const getRevenueMetrics = query({
       environment === "Production"
         ? (["Production", undefined] as const)
         : (["Sandbox"] as const);
+    // Newest first, so a full window drops its oldest days, and legacy rows,
+    // the oldest of all, go before any current one.
     const rows: Doc<"revenueMetricsDaily">[] = [];
     for (const key of environmentKeys) {
       rows.push(
@@ -935,18 +937,20 @@ export const getRevenueMetrics = query({
               .gte("day", args.fromDay)
               .lte("day", args.toDay),
           )
-          .take(REVENUE_SCAN_CAP - rows.length)),
+          .order("desc")
+          .take(REVENUE_SCAN_CAP + 1 - rows.length)),
       );
     }
-    // Each environment key is scanned separately; return main's day order.
+    const truncated = rows.length > REVENUE_SCAN_CAP;
+    rows.splice(REVENUE_SCAN_CAP);
+    // Return main's day order.
     rows.sort(
       (a, b) =>
         a.day.localeCompare(b.day) || a.currency.localeCompare(b.currency),
     );
-    const truncated = rows.length === REVENUE_SCAN_CAP;
     if (truncated) {
       console.warn(
-        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} environment=${environment} range=${args.fromDay}..${args.toDay}; the numbers are incomplete.`,
+        `[getRevenueMetrics] revenueMetricsDaily scan hit REVENUE_SCAN_CAP=${REVENUE_SCAN_CAP} for project=${project._id} environment=${environment} range=${args.fromDay}..${args.toDay}; the oldest days are missing.`,
       );
     }
 
