@@ -90,12 +90,12 @@ const DEFAULT_RETRY_MS = 30_000;
 // and evidence this project can never verify (400). Other 400s are
 // configuration, such as missing credentials or an App Store Server API key
 // Apple refuses (a forged signature shares that code), so they throw: fixing
-// them makes the same purchase valid.
+// them makes the same purchase valid. A bundle ID mismatch is one: a project
+// with the wrong bundle ID rejects real purchases.
 const SETTLED_VERIFY_ERRORS = new Set([
   "REPEATED_FAILURE",
   "INVALID_INPUT",
   "APP_STORE_INVALID_JWS_FORMAT",
-  "APP_STORE_BUNDLE_ID_MISMATCH",
 ]);
 
 /**

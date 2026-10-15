@@ -536,11 +536,7 @@ describe("confirmPurchase", () => {
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
-  it.each([
-    "INVALID_INPUT",
-    "APP_STORE_INVALID_JWS_FORMAT",
-    "APP_STORE_BUNDLE_ID_MISMATCH",
-  ])(
+  it.each(["INVALID_INPUT", "APP_STORE_INVALID_JWS_FORMAT"])(
     "reports evidence verify can never accept (400 %s) as invalid",
     async (code) => {
       const { run, sent } = setup({
@@ -555,6 +551,7 @@ describe("confirmPurchase", () => {
   // Fixing the configuration makes the same purchase valid, so none settles it.
   it.each([
     [400, "APP_STORE_SERVER_CREDENTIALS_MISSING"],
+    [400, "APP_STORE_BUNDLE_ID_MISMATCH"],
     [400, "APP_STORE_TRANSACTION_VERIFICATION_FAILED"],
     [400, "PLAY_STORE_VERIFICATION_ERROR"],
     [400, "INVALID_API_KEY"],

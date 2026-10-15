@@ -37,7 +37,7 @@ const STATES: {
   {
     status: "invalid",
     meaning:
-      "The store rejected the purchase for good; reason carries the IAPKit state, such as INAUTHENTIC or EXPIRED, or the verify error code for evidence IAPKit can never accept, such as APP_STORE_BUNDLE_ID_MISMATCH. Anything that may still change is verification_delayed.",
+      "The store rejected the purchase for good; reason carries the IAPKit state, such as INAUTHENTIC or EXPIRED, or the verify error code for evidence IAPKit can never accept, such as APP_STORE_INVALID_JWS_FORMAT. Anything that may still change is verification_delayed.",
     guidance: "purchase_not_valid",
   },
   {
@@ -375,12 +375,12 @@ const outcomes = await flow.recoverPurchases();`}
         <code>@hyodotdev/openiap-client-protocol/purchase-flow</code>.
       </p>
       <p>
-        Verify answers 400 with <code>INVALID_INPUT</code>,{" "}
-        <code>APP_STORE_INVALID_JWS_FORMAT</code>, or{" "}
-        <code>APP_STORE_BUNDLE_ID_MISMATCH</code> for evidence it can never
+        Verify answers 400 with <code>INVALID_INPUT</code> or{" "}
+        <code>APP_STORE_INVALID_JWS_FORMAT</code> for evidence it can never
         accept; the reference returns <code>invalid</code>, so iOS finishes it.
         Every other 400 is configuration and throws, so nothing finishes until
-        you fix it. That includes{" "}
+        you fix it. That includes <code>APP_STORE_BUNDLE_ID_MISMATCH</code>,
+        which a project with the wrong bundle ID returns for real purchases, and{" "}
         <code>APP_STORE_TRANSACTION_VERIFICATION_FAILED</code>, which a forged
         signature shares with an App Store Server API key Apple refuses.
       </p>
