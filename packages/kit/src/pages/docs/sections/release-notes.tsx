@@ -58,7 +58,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Analytics",
-        text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, churn counts only paid access that ended, Google plan changes are not new subscriptions or churn (immediate-charge changes count as renewals at list price), and Apple promotional, offer-code and win-back offers are not trials.",
+        text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, churn counts only paid access that ended, Google plan changes are not new subscriptions or churn (immediate-charge changes count as renewals at list price), Apple promotional, offer-code and win-back offers are not trials, and an Apple resubscribe counts as a renewal.",
+      },
+      {
+        kind: "ops",
+        topic: "Analytics API",
+        text: "/v1/subscriptions/revenue returns production data unless environment=sandbox is passed. newSubs, renewals, refunds, revenueMicros and activeSubs follow the corrected definitions, and the new expirations field counts paid access that ended; the Analytics page lists each change.",
       },
       {
         kind: "feature",
