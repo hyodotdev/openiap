@@ -33,6 +33,16 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const APP_OWNERSHIP_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.0.3',
+    tag: 'openiap-client-protocol-1.0.3',
+  },
+  { name: 'openiap-apple', version: '4.0.3', tag: '4.0.3' },
+  { name: 'godot-iap', version: '4.0.3', tag: 'godot-iap-4.0.3' },
+];
+
 const PURCHASE_ACCURACY_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -573,23 +583,57 @@ function Releases() {
       date: new Date('2026-10-15'),
       element: (
         <div key="app-ownership-recovery-2026-10-15" style={noteCardStyle}>
-          <h2>Recover a failed Apple app ownership check</h2>
+          {APP_OWNERSHIP_RECOVERY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="app-ownership-recovery-2026-10-15" level="h4">
+            October 15, 2026 - Retry Apple app ownership checks
+          </AnchorLink>
           <p>
-            Client Protocol 1.0.3, openiap-apple 4.0.3, and godot-iap 4.0.3 add
-            <code> refreshIOS: true</code> to <code>verifyAppOwnership</code>.
-            Use it from an explicit Retry action to refresh the signed app
-            transaction when the normal lookup fails. It may show App Store
-            authentication; automatic startup and resume checks keep using the
-            normal lookup.
+            Apps can offer a Retry action after StoreKit&apos;s normal app
+            transaction lookup fails. The optional <code>refreshIOS</code> flag
+            requests fresh signed evidence and may show App Store
+            authentication.
           </p>
+          <h5>Framework libraries</h5>
+          <ul>
+            <li>
+              <strong>godot-iap 4.0.3</strong> allows five minutes for the
+              system authentication sheet to finish during an explicit refresh.
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
           <p>
-            Rebuild native apps after upgrading. Unknown checks remain unknown,
-            and a refresh never bypasses transaction verification or revocation.
-            Godot allows time for the authentication sheet to complete.
+            Rebuild native apps after upgrading. Enable the flag only from a
+            user action; leave automatic startup and resume checks unset.
+            Transaction verification and revocation checks still apply. See the{' '}
+            <Link to="/docs/apis/verify-app-ownership">
+              app ownership guide
+            </Link>
+            .
           </p>
-          <Link to="/docs/apis/verify-app-ownership">
-            App ownership recovery
-          </Link>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {APP_OWNERSHIP_RECOVERY_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ),
     },
