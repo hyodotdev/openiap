@@ -1448,6 +1448,23 @@ export type {
   StatusResponse,
 } from './kit-api';
 export {
+  createPurchaseFlow,
+  describePurchaseFlowStatus,
+  toPurchaseConfirmationRequest,
+} from './purchase-flow';
+export type {
+  PurchaseConfirmation,
+  PurchaseConfirmationRequest,
+  PurchaseFlow,
+  PurchaseFlowGuidance,
+  PurchaseFlowGuidanceKey,
+  PurchaseFlowOptions,
+  PurchaseFlowOutcome,
+  PurchaseFlowPurchase,
+  PurchaseFlowStatus,
+  RecoverPurchasesOptions,
+} from './purchase-flow';
+export {
   ErrorCodeUtils,
   ErrorCodeMapping,
   createPurchaseError,

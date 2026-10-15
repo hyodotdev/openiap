@@ -30,6 +30,7 @@ import {
 } from 'expo-iap';
 import Loading from '../src/components/Loading';
 import AppOwnershipCard from '../src/components/AppOwnershipCard';
+import BackendEntitlementFlow from '../src/components/BackendEntitlementFlow';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
@@ -686,7 +687,11 @@ function PurchaseFlow({
  * 5. grant entitlement  - Update availablePurchases state
  * 6. finish transaction - Call finishTransaction to complete
  */
-function PurchaseFlowContainer() {
+function PurchaseFlowContainer({
+  onSelectAppBackend,
+}: {
+  onSelectAppBackend: () => void;
+}) {
   // ============================================================
   // State Management
   // ============================================================
@@ -1252,9 +1257,10 @@ function PurchaseFlowContainer() {
       'Local (IAPKit)',
       'IAPKit',
       'None (Skip)',
+      'App backend',
       'Cancel',
     ];
-    const cancelButtonIndex = 4;
+    const cancelButtonIndex = 5;
 
     showActionSheetWithOptions(
       {
@@ -1264,7 +1270,11 @@ function PurchaseFlowContainer() {
         message: 'Verify purchases before completing the transaction',
       },
       (buttonIndex) => {
-        if (buttonIndex == null || buttonIndex > 3) return;
+        if (buttonIndex == null || buttonIndex > 4) return;
+        if (buttonIndex === 4) {
+          onSelectAppBackend();
+          return;
+        }
         setVerificationSelection((selection) => selection + 1);
         if (buttonIndex === 0) {
           setVerificationMethod('local');
@@ -1277,7 +1287,7 @@ function PurchaseFlowContainer() {
         }
       },
     );
-  }, [showActionSheetWithOptions]);
+  }, [onSelectAppBackend, showActionSheetWithOptions]);
 
   const loadStorefront = useCallback(() => {
     return getStorefront()
@@ -1330,8 +1340,15 @@ function PurchaseFlowContainer() {
   );
 }
 
-// Note: This is the default export required by Expo Router
-export default PurchaseFlowContainer;
+// "App backend" swaps the screen so only one purchase listener is mounted.
+export default function PurchaseFlowScreen() {
+  const [appBackend, setAppBackend] = useState(false);
+  return appBackend ? (
+    <BackendEntitlementFlow onExit={() => setAppBackend(false)} />
+  ) : (
+    <PurchaseFlowContainer onSelectAppBackend={() => setAppBackend(true)} />
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

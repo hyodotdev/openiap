@@ -1,4 +1,5 @@
 src/types.ts
 src/kit-api.ts
+src/purchase-flow.ts
 docs/**
 .claude/commands/**

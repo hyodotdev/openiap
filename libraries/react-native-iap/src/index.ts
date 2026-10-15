@@ -158,6 +158,23 @@ export type {
   EntitlementsResponse,
   StatusResponse,
 } from './kit-api';
+export {
+  createPurchaseFlow,
+  describePurchaseFlowStatus,
+  toPurchaseConfirmationRequest,
+} from './purchase-flow';
+export type {
+  PurchaseConfirmation,
+  PurchaseConfirmationRequest,
+  PurchaseFlow,
+  PurchaseFlowGuidance,
+  PurchaseFlowGuidanceKey,
+  PurchaseFlowOptions,
+  PurchaseFlowOutcome,
+  PurchaseFlowPurchase,
+  PurchaseFlowStatus,
+  RecoverPurchasesOptions,
+} from './purchase-flow';
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
 let attachingPendingNativeListeners = false;

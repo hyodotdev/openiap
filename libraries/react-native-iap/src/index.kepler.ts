@@ -60,6 +60,23 @@ export type {
   KitSubscription,
   StatusResponse,
 } from './kit-api';
+export {
+  createPurchaseFlow,
+  describePurchaseFlowStatus,
+  toPurchaseConfirmationRequest,
+} from './purchase-flow';
+export type {
+  PurchaseConfirmation,
+  PurchaseConfirmationRequest,
+  PurchaseFlow,
+  PurchaseFlowGuidance,
+  PurchaseFlowGuidanceKey,
+  PurchaseFlowOptions,
+  PurchaseFlowOutcome,
+  PurchaseFlowPurchase,
+  PurchaseFlowStatus,
+  RecoverPurchasesOptions,
+} from './purchase-flow';
 
 /** Product type accepted by the Amazon Vega entry point. */
 export type ProductTypeInput = 'in-app' | 'subs';

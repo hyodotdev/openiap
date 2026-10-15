@@ -11,6 +11,9 @@
     "*": {
       "kit-api": [
         "./dist/kit-api.d.ts"
+      ],
+      "purchase-flow": [
+        "./dist/purchase-flow.d.ts"
       ]
     }
   },
@@ -27,6 +30,12 @@
       "import": "./dist/kit-api.js",
       "default": "./dist/kit-api.js"
     },
+    "./purchase-flow": {
+      "openiap-source": "./src/purchase-flow.ts",
+      "types": "./dist/purchase-flow.d.ts",
+      "import": "./dist/purchase-flow.js",
+      "default": "./dist/purchase-flow.js"
+    },
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
     "./dart": "./src/generated/types.dart",
@@ -37,6 +46,7 @@
     "dist/",
     "src/*.graphql",
     "src/kit-api.ts",
+    "src/purchase-flow.ts",
     "src/generated/"
   ],
   "scripts": {

@@ -58,6 +58,7 @@ const mockUseIAP = {
 };
 
 jest.mock('../../src', () => ({
+  ...jest.requireActual('../../src/purchase-flow'),
   ErrorCode: jest.requireActual('../../src/types').ErrorCode,
   useIAP: jest.fn(
     (options?: {onPurchaseSuccess?: typeof mockOnPurchaseSuccess}) => {
@@ -137,12 +138,30 @@ describe('PurchaseFlow Component', () => {
           'Local (IAPKit)',
           'IAPKit',
           'None (Skip)',
+          'App backend',
           'Cancel',
         ],
-        cancelButtonIndex: 4,
+        cancelButtonIndex: 5,
       }),
       expect.any(Function),
     );
+  });
+
+  it('hands off to the app backend flow and back', async () => {
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(4),
+    );
+    const screen = await render(<PurchaseFlow />);
+    await waitFor(() => expect(getStorefront).toHaveBeenCalled());
+
+    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+
+    expect(screen.getByText('App Backend Verification')).toBeTruthy();
+    expect(screen.getByText('Set up your app backend')).toBeTruthy();
+    await fireEvent.press(
+      screen.getByText('Choose another verification method'),
+    );
+    expect(screen.getByText('In-App Purchase Flow')).toBeTruthy();
   });
 
   it('retains a receipt in None mode and retries it after selecting verification', async () => {

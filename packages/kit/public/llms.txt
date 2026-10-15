@@ -188,6 +188,7 @@ assuming DAU implies safe request volume.
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
 - [/docs/verification/amazon](https://kit.openiap.dev/docs/verification/amazon) — RVS shared secret, App Tester sandbox, and background rechecks
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
+- [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases: responsibility split, status model, finish rules, recovery, ownership, and a reference backend
 - [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
 - [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
