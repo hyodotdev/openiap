@@ -11,6 +11,11 @@ const INDEX_FIELDS: Record<string, string[]> = {
   by_project_and_last_resend: ["projectId", "lastResendAt"],
   by_project_and_received: ["projectId", "receivedAt"],
   by_project_and_user_and_updated: ["projectId", "userId", "updatedAt"],
+  by_project_and_appUserId_and_lastSeenAt: [
+    "projectId",
+    "appUserId",
+    "lastSeenAt",
+  ],
 };
 
 function compare(a: unknown, b: unknown): number {

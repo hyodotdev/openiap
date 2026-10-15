@@ -43,7 +43,8 @@ export interface ConfirmPurchaseOptions {
   fetch?: (url: string, init: RequestInit) => Promise<Response>;
 }
 
-interface VerifyResult {
+/** The `/v1/purchase/verify` fields this backend reads. */
+export interface VerifyResult {
   isValid: boolean;
   state: string;
   productId?: string;
@@ -53,9 +54,17 @@ interface VerifyResult {
   commerceEnvironment?: string;
 }
 
+export type BindReason =
+  | "bound"
+  | "already_bound"
+  | "bound_to_other_user"
+  | "not_found"
+  | "not_bindable";
+
 interface BindResult {
   bound: boolean;
-  reason?: string;
+  /** Returned to secret keys only. */
+  reason?: BindReason;
 }
 
 const DEFAULT_RETRY_MS = 30_000;
@@ -127,8 +136,8 @@ export async function confirmPurchase(
   }
   // A bind never moves an owner, and neither does this handler.
   if (reason === "bound_to_other_user") return { status: "ownership_conflict" };
-  // Otherwise (a consumable, say) IAPKit keeps no link and the ledger alone
-  // holds the owner.
+  // not_found or not_bindable (say, a user at the link limit): IAPKit keeps no
+  // link and the ledger alone holds the owner.
   const linked = reason === "bound" || reason === "already_bound";
 
   const grant = await options.ledger.grantOnce({

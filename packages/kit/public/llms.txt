@@ -36,7 +36,8 @@ Bearer header and out of URLs.
 - [POST /v2/subscriptions/user-erasure](https://kit.openiap.dev/docs/api) — schedule durable removal of an app user ID from IAPKit subscription and commerce-event rows; erase downstream copies separately
 - [GET /v1/subscriptions/{list|metrics|revenue}](https://kit.openiap.dev/docs/api) — administrative subscription data with `Authorization: Bearer <secret-key>`
 - [GET /v1/webhooks/{deliveries|notifications}, POST /v1/webhooks/deliveries/{deliveryId}/resend](https://kit.openiap.dev/docs/webhooks) — secret-key outbound delivery history with attempts, re-send with the same `eventId` (30 per project per minute), and inbound store notification history without raw payloads
-- [POST /v1/subscriptions/resync, GET /v1/subscriptions/timeline?userId=...](https://kit.openiap.dev/docs/operations) — secret-key Apple/Google re-sync of one purchase or subscription, and one app user's purchases, subscriptions, and commerce events
+- [POST /v1/subscriptions/resync, GET /v1/subscriptions/timeline?userId=...](https://kit.openiap.dev/docs/operations) — secret-key Apple/Google re-sync of one purchase or subscription, and one app user's purchases, subscriptions, commerce events, and purchase issues
+- [GET /v1/purchase/issues](https://kit.openiap.dev/docs/operations#purchase-issues) — secret-key log of failed verifications and links from the last 30 days, with cause, count, and correlation ID; filters `cause`, `store`, `productId`, `appUserId`, `from`/`to` (epoch ms); evidence appears only as a SHA-256 fingerprint
 - [POST /v1/webhooks/{apiKey}](https://kit.openiap.dev/docs/webhooks) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v2/openapi](https://kit.openiap.dev/v2/openapi) — secret-only account API OpenAPI spec
@@ -191,7 +192,7 @@ assuming DAU implies safe request volume.
 - [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases: responsibility split, status model, finish rules, recovery, ownership, and a reference backend
 - [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
 - [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
-- [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
+- [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, purchase issues, store re-sync, logs, `/health`, graceful shutdown
 - [OpenIAP Commerce Protocol webhook contract](https://openiap.dev/commerce-protocol/webhooks) — vendor-neutral signed outbound delivery semantics; IAPKit setup remains in the local guide above
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option

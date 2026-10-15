@@ -306,11 +306,17 @@ Secret-key routes; publishable keys get 403. Lists page up to 100 rows with
   minute; `EVENT_PRUNED` after the event's 30-day retention.
 - `GET /v1/webhooks/notifications` — inbound store notifications with applied
   state and a payload fingerprint; raw payloads are never returned.
+- `GET /v1/purchase/issues` — failed verifications and links from the last 30
+  days, most recently seen first, with cause, count, store-verified and
+  claimed product, correlation ID, and a SHA-256 evidence fingerprint; never
+  the token, JWS, or receipt. Filters: `cause`, `store`, `productId` (verified
+  or claimed), `appUserId`, `from`/`to` (epoch ms on `lastSeenAt`).
 - `POST /v1/subscriptions/resync` — body `{"purchaseId"}` or
   `{"subscriptionId"}`; re-reads Apple or Google, applies current state, and
   emits only an entitlement delta. Never moves ownership.
 - `GET /v1/subscriptions/timeline?userId=` — one app user's purchases,
-  subscriptions, and commerce events, newest first, 50 of each kind.
+  subscriptions, commerce events, and purchase issues, newest first, 50 of
+  each kind.
 
 ### POST /mcp
 
@@ -319,7 +325,8 @@ Requires a secret admin key and exposes tools with the `iapkit_` prefix: setup
 snippets, revenue analytics, status checks, diagnostics, product catalog and
 client-payload reads/writes, store-sync jobs, subscriber views, sandbox
 guidance, webhook simulation, project inspection, delivery history and
-re-send, inbound notification history, store re-sync, and user timelines.
+re-send, inbound notification history, purchase issues, store re-sync, and
+user timelines.
 Setup guides:
 `/docs/ai-assistants/codex-plugin` and
 `/docs/ai-assistants/claude-plugin`.
@@ -524,6 +531,7 @@ Domains under `convex/` follow a CQRS layout — each has `query.ts`,
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google)
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon)
 - [/docs/api](https://kit.openiap.dev/docs/api)
+- [/docs/purchase-flow](https://kit.openiap.dev/docs/purchase-flow) — backend-confirmed purchases and a reference backend
 - [/docs/operations](https://kit.openiap.dev/docs/operations)
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to consume this file
 - [/docs/release-notes](https://kit.openiap.dev/docs/release-notes)

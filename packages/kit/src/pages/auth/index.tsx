@@ -20,6 +20,7 @@ import ProjectWebhooks from "./organization/project/webhooks";
 import ProjectWebhookDeliveries from "./organization/project/webhook-deliveries";
 import ProjectWebhookNotifications from "./organization/project/webhook-notifications";
 import ProjectUserTimeline from "./organization/project/user-timeline";
+import ProjectPurchaseIssues from "./organization/project/purchase-issues";
 import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
 import ProjectOrders from "./organization/project/orders";
@@ -244,6 +245,14 @@ export default function AuthenticatedPages() {
             element={
               <PageWithTitle title={"Purchase details"}>
                 <ProjectPurchaseDetail />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="purchases/issues"
+            element={
+              <PageWithTitle title="Purchase issues">
+                <ProjectPurchaseIssues />
               </PageWithTitle>
             }
           />

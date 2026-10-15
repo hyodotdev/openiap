@@ -20,6 +20,7 @@ vi.mock("@/convex", () => ({
     webhooks: {
       inbound: { listInboundNotifications: "listInboundNotifications" },
     },
+    purchaseIssues: { query: { listPurchaseIssues: "listPurchaseIssues" } },
     subscriptions: {
       action: { resyncFromStore: "resyncFromStore" },
       query: { userTimeline: "userTimeline" },
@@ -142,6 +143,44 @@ describe("operations routes", () => {
       apiKey: SECRET,
       paginationOpts: { numItems: 25, cursor: null },
     });
+  });
+
+  it("pages purchase issues with validated filters", async () => {
+    mocks.query.mockResolvedValueOnce({
+      page: [{ _id: "purchaseIssues_1", cause: "OWNERSHIP_CONFLICT" }],
+      isDone: false,
+      continueCursor: "next",
+    });
+    const response = await call(
+      "/purchase/issues?cause=OWNERSHIP_CONFLICT&store=google&productId=gold&appUserId=u1&from=100&to=200&limit=5",
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      issues: [{ _id: "purchaseIssues_1", cause: "OWNERSHIP_CONFLICT" }],
+      hasMore: true,
+      nextCursor: "next",
+    });
+    expect(mocks.query).toHaveBeenCalledWith("listPurchaseIssues", {
+      apiKey: SECRET,
+      cause: "OWNERSHIP_CONFLICT",
+      store: "google",
+      productId: "gold",
+      appUserId: "u1",
+      from: 100,
+      to: 200,
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+
+    for (const query of [
+      "cause=LOST",
+      "store=steam",
+      "from=yesterday",
+      "to=-1",
+      `appUserId=${"u".repeat(257)}`,
+    ]) {
+      expect((await call(`/purchase/issues?${query}`)).status).toBe(400);
+    }
+    expect(mocks.query).toHaveBeenCalledTimes(1);
   });
 
   it("re-syncs exactly one target", async () => {

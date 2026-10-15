@@ -24,6 +24,7 @@ import {
 import { purchaseStoreValidator } from "../schema";
 import {
   analyticsEnvironmentValidator,
+  purchaseIssueCauseValidator,
   subscriptionStateValidator,
 } from "../utils/validation";
 
@@ -1104,12 +1105,22 @@ const timelineItemValidator = v.union(
     eventType: v.string(),
     productId: v.optional(v.string()),
   }),
+  v.object({
+    kind: v.literal("issue"),
+    id: v.id("purchaseIssues"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    cause: purchaseIssueCauseValidator,
+    productId: v.optional(v.string()),
+    count: v.number(),
+  }),
 );
 export type TimelineItem = Infer<typeof timelineItemValidator>;
 
 /**
- * One app user's purchases, subscriptions and commerce events, newest first.
- * Each kind is capped at 50 rows; `truncated` says a cap was reached.
+ * One app user's purchases, subscriptions, commerce events and purchase
+ * issues, newest first. Each kind is capped at 50 rows; `truncated` says a cap
+ * was reached.
  */
 export const userTimeline = query({
   args: {
@@ -1131,7 +1142,7 @@ export const userTimeline = query({
       });
     }
     const take = TIMELINE_ROWS_PER_KIND + 1;
-    const [purchases, subscriptions, events] = await Promise.all([
+    const [purchases, subscriptions, events, issues] = await Promise.all([
       ctx.db
         .query("purchases")
         .withIndex("by_project_and_app_user", (q) =>
@@ -1150,6 +1161,13 @@ export const userTimeline = query({
         .query("commerceEvents")
         .withIndex("by_project_and_user", (q) =>
           q.eq("projectId", project._id).eq("userId", args.appUserId),
+        )
+        .order("desc")
+        .take(take),
+      ctx.db
+        .query("purchaseIssues")
+        .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
+          q.eq("projectId", project._id).eq("appUserId", args.appUserId),
         )
         .order("desc")
         .take(take),
@@ -1194,11 +1212,22 @@ export const userTimeline = query({
           ...(event.productId ? { productId: event.productId } : {}),
         }),
       ),
+      ...issues.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (issue): TimelineItem => ({
+          kind: "issue",
+          id: issue._id,
+          at: issue.lastSeenAt,
+          store: issue.store,
+          cause: issue.cause,
+          ...(issue.productId ? { productId: issue.productId } : {}),
+          count: issue.count,
+        }),
+      ),
     ].sort((a, b) => b.at - a.at);
     return {
       appUserId: args.appUserId,
       items,
-      truncated: [purchases, subscriptions, events].some(
+      truncated: [purchases, subscriptions, events, issues].some(
         (rows) => rows.length > TIMELINE_ROWS_PER_KIND,
       ),
     };

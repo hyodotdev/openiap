@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import type { Infer } from "convex/values";
+import type * as v from "valibot";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
+import type { bindReasonValidator } from "../../../../../convex/utils/validation";
+import type { verifyPurchaseSuccessResponseSchema } from "../../../../../server/api/v1/route-response-schemas";
 import {
   confirmPurchase,
+  type BindReason,
   type EntitlementGrant,
   type GrantResult,
+  type VerifyResult,
 } from "./confirm-purchase";
 
 interface Reply {
@@ -63,6 +69,16 @@ function setup(
 }
 
 describe("confirmPurchase", () => {
+  it("reads only what IAPKit returns", () => {
+    type VerifyBody = v.InferOutput<typeof verifyPurchaseSuccessResponseSchema>;
+    expectTypeOf<
+      Pick<VerifyBody, keyof VerifyResult>
+    >().toExtend<VerifyResult>();
+    expectTypeOf<BindReason>().toEqualTypeOf<
+      Infer<typeof bindReasonValidator>
+    >();
+  });
+
   it("verifies, links, and grants an Apple purchase once", async () => {
     const { run, sent, grantOnce } = setup({
       verify: { body: { ...VALID, expiresAt: 1_800_000_000_000 } },
@@ -98,7 +114,7 @@ describe("confirmPurchase", () => {
     });
   });
 
-  it("keys a Google grant by purchase token, before an order id exists", async () => {
+  it("links and grants an unacknowledged Google purchase by its token", async () => {
     const { run, sent, grantOnce } = setup({
       verify: {
         body: {
@@ -108,7 +124,7 @@ describe("confirmPurchase", () => {
           productId: "pro",
         },
       },
-      bind: { body: { ok: true, bound: false, reason: "not_bindable" } },
+      bind: { body: { ok: true, bound: true, reason: "bound" } },
     });
 
     await expect(run(GOOGLE)).resolves.toEqual({

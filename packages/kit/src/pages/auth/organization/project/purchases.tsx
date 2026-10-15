@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Link,
   useNavigate,
   useOutletContext,
   useParams,
@@ -8,8 +9,8 @@ import {
 import { useQuery } from "convex/react";
 import { api, HarmonizedPurchaseState, Id } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
-import { cn } from "@/lib/utils";
-import { History, Search } from "lucide-react";
+import { cn, utcDayEnd, utcDayStart } from "@/lib/utils";
+import { AlertTriangle, History, Search } from "lucide-react";
 import { getPurchaseStateDisplay } from "./receipt-utils";
 import { PurchasesTable } from "./PurchasesTable";
 import { Select, Input } from "antd";
@@ -57,15 +58,6 @@ type CardKey =
   | "invalid";
 type StoreFilter = "apple" | "google" | "horizon" | "amazon";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Epoch ms for a `YYYY-MM-DD` date input, read as a UTC day. */
-function utcDayStart(day: string): number | undefined {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return undefined;
-  const value = Date.parse(`${day}T00:00:00.000Z`);
-  return Number.isFinite(value) ? value : undefined;
-}
-
 const STATS_LABELS: Record<CardKey, string> = {
   total: "Total Purchases",
   apple: "App Store",
@@ -111,9 +103,7 @@ export default function ProjectPurchases() {
   const createdFromDay = searchParams.get("from") ?? "";
   const createdToDay = searchParams.get("to") ?? "";
   const createdFrom = utcDayStart(createdFromDay);
-  const createdToStart = utcDayStart(createdToDay);
-  const createdTo =
-    createdToStart === undefined ? undefined : createdToStart + DAY_MS - 1;
+  const createdTo = utcDayEnd(createdToDay);
   const storeParam = searchParams.get("store");
   const storeFilter =
     storeParam === "apple" ||
@@ -338,13 +328,22 @@ export default function ProjectPurchases() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold mb-1">{"Purchases"}</h2>
-        <p className="text-muted-foreground">
-          {
-            "View each purchase's latest store state. Apple and Google subscriptions also appear in Subscriptions; Amazon lifecycle stays here through RVS rechecks."
-          }
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold mb-1">{"Purchases"}</h2>
+          <p className="text-muted-foreground">
+            {
+              "View each purchase's latest store state. Apple and Google subscriptions also appear in Subscriptions; Amazon lifecycle stays here through RVS rechecks."
+            }
+          </p>
+        </div>
+        <Link
+          to={`/${orgSlug}/project/${projectSlug}/purchases/issues`}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        >
+          <AlertTriangle className="h-4 w-4" />
+          {"Purchase issues"}
+        </Link>
       </div>
 
       <p className="text-xs text-muted-foreground -mt-4">

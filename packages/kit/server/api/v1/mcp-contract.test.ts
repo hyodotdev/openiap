@@ -82,6 +82,9 @@ type McpNotificationsResponse = Awaited<
 >;
 type McpResyncResponse = Awaited<ReturnType<McpClient["resyncFromStore"]>>;
 type McpTimelineResponse = Awaited<ReturnType<McpClient["userTimeline"]>>;
+type McpPurchaseIssuesResponse = Awaited<
+  ReturnType<McpClient["listPurchaseIssues"]>
+>;
 
 type ServerProductsResponse = FunctionReturnType<
   typeof api.products.query.listProductsPage
@@ -166,6 +169,9 @@ type ServerResyncResponse = FunctionReturnType<
 >;
 type ServerTimelineResponse = FunctionReturnType<
   typeof api.subscriptions.query.userTimeline
+>;
+type ServerPurchaseIssuesPage = FunctionReturnType<
+  typeof api.purchaseIssues.query.listPurchaseIssues
 >;
 
 // Kit's Convex layer returns payload `format` as its enum; the shared client
@@ -353,6 +359,9 @@ describe("MCP Kit response contracts", () => {
     expectTypeOf<McpTimelineResponse>().toEqualTypeOf<
       NormalizeContract<ServerTimelineResponse>
     >();
+    expectTypeOf<McpPurchaseIssuesResponse["issues"][number]>().toEqualTypeOf<
+      NormalizeContract<ServerPurchaseIssuesPage["page"][number]>
+    >();
   });
 
   it("calls the operations handlers through the real routes", async () => {
@@ -364,7 +373,8 @@ describe("MCP Kit response contracts", () => {
     mocks.query
       .mockResolvedValueOnce(emptyPage)
       .mockResolvedValueOnce(emptyPage)
-      .mockResolvedValueOnce({ appUserId: "u1", items: [], truncated: false });
+      .mockResolvedValueOnce({ appUserId: "u1", items: [], truncated: false })
+      .mockResolvedValueOnce(emptyPage);
     mocks.mutation.mockResolvedValueOnce({
       deliveryId: "outboundDeliveries_1",
       eventId: "commerceEvents_1",
@@ -383,6 +393,9 @@ describe("MCP Kit response contracts", () => {
       nextCursor: null,
     });
     await client.userTimeline("u1");
+    await expect(
+      client.listPurchaseIssues({ cause: "STORE_PENDING", from: 1, to: 2 }),
+    ).resolves.toEqual({ issues: [], hasMore: false, nextCursor: null });
     await client.resendDelivery("outboundDeliveries_1");
     await client.resyncFromStore({ purchaseId: "purchases_1" });
 
@@ -392,6 +405,13 @@ describe("MCP Kit response contracts", () => {
       { apiKey, status: "failed", paginationOpts: firstPage },
       { apiKey, paginationOpts: firstPage },
       { apiKey, appUserId: "u1" },
+      {
+        apiKey,
+        cause: "STORE_PENDING",
+        from: 1,
+        to: 2,
+        paginationOpts: firstPage,
+      },
     ]);
     expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
       apiKey,

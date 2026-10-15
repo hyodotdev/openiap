@@ -62,6 +62,7 @@ describe("operations tools", () => {
       expect(hint("iapkit_list_deliveries")).toBe(true);
       expect(hint("iapkit_list_inbound_notifications")).toBe(true);
       expect(hint("iapkit_user_timeline")).toBe(true);
+      expect(hint("iapkit_list_purchase_issues")).toBe(true);
       expect(hint("iapkit_resend_delivery")).toBe(false);
       expect(hint("iapkit_resync_from_store")).toBe(false);
     } finally {
@@ -87,6 +88,13 @@ describe("operations tools", () => {
         subscriptionId: "subscriptions_1",
       });
       await call("iapkit_user_timeline", { userId: "user a" });
+      await call("iapkit_list_purchase_issues", {
+        cause: "OWNERSHIP_CONFLICT",
+        appUserId: "user a",
+        from: "2026-10-01T00:00:00Z",
+        to: "2026-10-02T00:00:00.000+09:00",
+        limit: 5,
+      });
       expect(calls).toEqual([
         {
           method: "GET",
@@ -114,7 +122,28 @@ describe("operations tools", () => {
           path: "/v1/subscriptions/timeline?userId=user%20a",
           auth: `Bearer ${SECRET}`,
         },
+        {
+          method: "GET",
+          path: "/v1/purchase/issues?cause=OWNERSHIP_CONFLICT&appUserId=user+a&from=1790812800000&to=1790866800000&limit=5",
+          auth: `Bearer ${SECRET}`,
+        },
       ]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("rejects an unknown purchase issue cause or a bare date", async () => {
+    const { client, calls, close } = await connect();
+    try {
+      for (const args of [{ cause: "LOST" }, { from: "2026-10-01" }]) {
+        const result = await client.callTool({
+          name: "iapkit_list_purchase_issues",
+          arguments: { apiKey: SECRET, ...args },
+        });
+        expect(result.isError).toBe(true);
+      }
+      expect(calls).toEqual([]);
     } finally {
       await close();
     }

@@ -1,14 +1,17 @@
 import { Hono, type Context } from "hono";
 
 import { api } from "@/convex";
+import { COMMERCE_STORES } from "../../../convex/commerce/contract";
+import { purchaseIssueCauseValidator } from "../../../convex/utils/validation";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyMiddleware, secretAdminApiKeyMiddleware } from "./middleware";
 import { multiAxisRateLimitMiddleware } from "./rate-limit";
 import { JsonBodyTooLargeError, readJsonBodyWithLimit } from "./request-body";
 
 // Operator routes for secret keys: outbound delivery history and re-send,
-// inbound notification history, store re-sync, and one app user's timeline.
-// Each is a bounded request/response call; none of them streams to an app.
+// inbound notification history, purchase issues, store re-sync, and one app
+// user's timeline. Each is a bounded request/response call; none of them
+// streams to an app.
 
 const operations = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
@@ -25,10 +28,15 @@ const DELIVERY_STATUSES = [
   "delivered",
   "failed",
 ] as const;
-type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
+const ISSUE_CAUSES = purchaseIssueCauseValidator.members.map(
+  (member) => member.value,
+);
 
-function isDeliveryStatus(value: string): value is DeliveryStatus {
-  return (DELIVERY_STATUSES as readonly string[]).includes(value);
+function oneOf<T extends string>(
+  values: readonly T[],
+  value: string,
+): value is T {
+  return (values as readonly string[]).includes(value);
 }
 
 operations.get(
@@ -40,7 +48,7 @@ operations.get(
     const pageOptions = parsePage(c);
     if (typeof pageOptions === "string") return invalidInput(c, pageOptions);
     const status = c.req.query("status");
-    if (status !== undefined && !isDeliveryStatus(status)) {
+    if (status !== undefined && !oneOf(DELIVERY_STATUSES, status)) {
       return invalidInput(c, `status must be ${DELIVERY_STATUSES.join(", ")}`);
     }
     const filters: Record<string, string> = {};
@@ -117,6 +125,63 @@ operations.get(
       });
     } catch (error) {
       return operationError(c, error, "NOTIFICATION_LIST_FAILED");
+    }
+  },
+);
+
+operations.get(
+  "/purchase/issues",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  rateLimit,
+  async (c) => {
+    const pageOptions = parsePage(c);
+    if (typeof pageOptions === "string") return invalidInput(c, pageOptions);
+    const cause = c.req.query("cause");
+    if (cause !== undefined && !oneOf(ISSUE_CAUSES, cause)) {
+      return invalidInput(c, `cause must be ${ISSUE_CAUSES.join(", ")}`);
+    }
+    const store = c.req.query("store");
+    if (store !== undefined && !oneOf(COMMERCE_STORES, store)) {
+      return invalidInput(c, `store must be ${COMMERCE_STORES.join(", ")}`);
+    }
+    const filters: Record<string, string> = {};
+    for (const name of ["productId", "appUserId"] as const) {
+      const value = c.req.query(name);
+      if (value === undefined) continue;
+      if (!isBoundedText(value, MAX_ID_LENGTH)) {
+        return invalidInput(c, `${name} must be 1 to ${MAX_ID_LENGTH} chars`);
+      }
+      filters[name] = value;
+    }
+    const range: { from?: number; to?: number } = {};
+    for (const name of ["from", "to"] as const) {
+      const value = c.req.query(name);
+      if (value === undefined) continue;
+      if (!/^\d{1,15}$/.test(value)) {
+        return invalidInput(c, `${name} must be epoch milliseconds`);
+      }
+      range[name] = Number(value);
+    }
+    try {
+      const result = await client.query(
+        api.purchaseIssues.query.listPurchaseIssues,
+        {
+          apiKey: c.var.apiKey,
+          ...(cause !== undefined ? { cause } : {}),
+          ...(store !== undefined ? { store } : {}),
+          ...filters,
+          ...range,
+          paginationOpts: pageOptions,
+        },
+      );
+      return c.json({
+        issues: result.page,
+        hasMore: !result.isDone,
+        nextCursor: result.isDone ? null : result.continueCursor,
+      });
+    } catch (error) {
+      return operationError(c, error, "PURCHASE_ISSUE_LIST_FAILED");
     }
   },
 );

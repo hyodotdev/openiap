@@ -48,8 +48,9 @@ any file. Do not report those as passing.
   proposing code changes.
 - Use read-only tools first, including `iapkit_inspect_state`,
   `iapkit_list_products`, `iapkit_revenue_analytics`, `iapkit_check_status`,
-  `iapkit_user_timeline`, `iapkit_list_deliveries`,
-  `iapkit_list_inbound_notifications`, and `iapkit_setup`.
+  `iapkit_user_timeline`, `iapkit_list_purchase_issues`,
+  `iapkit_list_deliveries`, `iapkit_list_inbound_notifications`, and
+  `iapkit_setup`.
 - Treat product management, store sync, delivery re-send, and store re-sync
   tools as real writes.
 - Use `dryRun: true` for store sync previews first.

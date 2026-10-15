@@ -218,6 +218,58 @@ export interface KitResyncResponse {
   subscription?: KitResyncOutcome;
 }
 
+export const KIT_PURCHASE_ISSUE_CAUSES = [
+  "STORE_PENDING",
+  "STORE_UNAVAILABLE",
+  "RATE_LIMITED",
+  "INAUTHENTIC",
+  "PRODUCT_MISMATCH",
+  "APP_MISMATCH",
+  "MALFORMED_EVIDENCE",
+  "SANDBOX_NOT_ALLOWED",
+  "STORE_NOT_CONFIGURED",
+  "CREDENTIALS_MISSING",
+  "CREDENTIALS_REJECTED",
+  "VERIFICATION_FAILED",
+  "OWNERSHIP_CONFLICT",
+  "BIND_LIMIT_REACHED",
+] as const;
+export type KitPurchaseIssueCause = (typeof KIT_PURCHASE_ISSUE_CAUSES)[number];
+
+export interface KitPurchaseIssue {
+  _id: string;
+  cause: KitPurchaseIssueCause;
+  store: KitStore;
+  fingerprint: string;
+  productId?: string;
+  claimedProductId?: string;
+  appUserId?: string;
+  environment?: "Sandbox" | "Production";
+  retryAfterSec?: number;
+  correlationId?: string;
+  count: number;
+  firstSeenAt: number;
+  lastSeenAt: number;
+}
+
+export interface KitPurchaseIssuesResponse {
+  issues: KitPurchaseIssue[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export type KitPurchaseIssuesParams = {
+  cause?: KitPurchaseIssueCause;
+  store?: KitStore;
+  productId?: string;
+  appUserId?: string;
+  /** Epoch ms; bounds lastSeenAt, inclusive. */
+  from?: number;
+  to?: number;
+  limit?: number;
+  cursor?: string;
+};
+
 export type KitTimelineItem =
   | {
       kind: "purchase";
@@ -245,6 +297,15 @@ export type KitTimelineItem =
       store: KitStore;
       eventType: string;
       productId?: string;
+    }
+  | {
+      kind: "issue";
+      id: string;
+      at: number;
+      store: KitStore;
+      cause: KitPurchaseIssueCause;
+      productId?: string;
+      count: number;
     };
 
 export interface KitUserTimelineResponse {
@@ -397,6 +458,18 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       ...extraQuery,
     });
     return `/v1/products/client-payload/${encodeURIComponent(params.productId)}${suffix}?${query.toString()}`;
+  }
+
+  function withQuery(
+    path: string,
+    params: Record<string, string | number | undefined>,
+  ): string {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    const qs = query.toString();
+    return qs ? `${path}?${qs}` : path;
   }
 
   function adminCall<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -629,30 +702,23 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       eventId?: string;
       limit?: number;
       cursor?: string;
-    }) => {
-      const usp = new URLSearchParams();
-      for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined) usp.set(key, String(value));
-      }
-      const qs = usp.toString();
-      return adminCall<KitDeliveriesResponse>(
-        `/v1/webhooks/deliveries${qs ? `?${qs}` : ""}`,
-      );
-    },
+    }) =>
+      adminCall<KitDeliveriesResponse>(
+        withQuery("/v1/webhooks/deliveries", params),
+      ),
     resendDelivery: (deliveryId: string) =>
       adminCall<KitResendResponse>(
         `/v1/webhooks/deliveries/${encodeURIComponent(deliveryId)}/resend`,
         { method: "POST" },
       ),
-    listInboundNotifications: (params: { limit?: number; cursor?: string }) => {
-      const usp = new URLSearchParams();
-      if (params.limit !== undefined) usp.set("limit", String(params.limit));
-      if (params.cursor !== undefined) usp.set("cursor", params.cursor);
-      const qs = usp.toString();
-      return adminCall<KitInboundNotificationsResponse>(
-        `/v1/webhooks/notifications${qs ? `?${qs}` : ""}`,
-      );
-    },
+    listInboundNotifications: (params: { limit?: number; cursor?: string }) =>
+      adminCall<KitInboundNotificationsResponse>(
+        withQuery("/v1/webhooks/notifications", params),
+      ),
+    listPurchaseIssues: (params: KitPurchaseIssuesParams) =>
+      adminCall<KitPurchaseIssuesResponse>(
+        withQuery("/v1/purchase/issues", params),
+      ),
     resyncFromStore: (
       target: { purchaseId: string } | { subscriptionId: string },
     ) =>

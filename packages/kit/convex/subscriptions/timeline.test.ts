@@ -73,6 +73,19 @@ async function seed(db: Db): Promise<void> {
     occurredAt: 200,
     processedAt: 201,
   });
+  await db.insert("purchaseIssues", {
+    projectId: "projects_1",
+    cause: "OWNERSHIP_CONFLICT",
+    store: "google",
+    fingerprint: "a".repeat(64),
+    shard: 10,
+    productId: "premium",
+    appUserId: "user-a",
+    correlationId: "corr-1",
+    count: 2,
+    firstSeenAt: 240,
+    lastSeenAt: 250,
+  });
 }
 
 describe("userTimeline", () => {
@@ -85,9 +98,19 @@ describe("userTimeline", () => {
     });
     expect(result.items.map((item) => [item.kind, item.at])).toEqual([
       ["subscription", 300],
+      ["issue", 250],
       ["event", 200],
       ["purchase", 100],
     ]);
+    expect(result.items[1]).toEqual({
+      kind: "issue",
+      id: db.rows("purchaseIssues")[0]._id,
+      at: 250,
+      store: "google",
+      cause: "OWNERSHIP_CONFLICT",
+      productId: "premium",
+      count: 2,
+    });
     expect(result.truncated).toBe(false);
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("receipt-secret");

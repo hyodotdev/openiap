@@ -1,3 +1,4 @@
+import { PURCHASE_ISSUE_CAUSES } from "@/lib/purchaseIssues";
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
@@ -7,7 +8,7 @@ export default function OperationsPage() {
     <DocsPage
       slug="operations"
       title="Operations"
-      description="Fair use, capacity, rate limits, store re-sync, the operator API, correlation IDs, /health, structured logs, and graceful shutdown."
+      description="Fair use, capacity, rate limits, purchase issues, store re-sync, the operator API, correlation IDs, /health, structured logs, and graceful shutdown."
     >
       <h2 className="mt-8 text-2xl font-semibold">Rate limits</h2>
       <p>
@@ -195,6 +196,62 @@ X-RateLimit-Remaining: 599`}
         value is exposed.
       </p>
 
+      <h2 id="purchase-issues" className="mt-10 text-2xl font-semibold">
+        Purchase issues
+      </h2>
+      <p>
+        IAPKit records why a verification failed or returned a pending,
+        unrecognized, or mismatched purchase, and why a bind-user call found
+        another owner or the link limit. Find them under Purchases → Purchase
+        issues, on a user&apos;s timeline, through the API, or through MCP. Any
+        organization member can read them.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          A repeat of the same failure raises its <code>count</code> and{" "}
+          <code>lastSeenAt</code> instead of adding a row. Causes about the
+          project rather than one purchase, such as credentials, rate limits,
+          and outages, share one row per store and cause.
+        </li>
+        <li>
+          A row holds a SHA-256 <code>fingerprint</code> of the purchase
+          evidence, never the token, JWS, or receipt. Its{" "}
+          <code>correlationId</code> is the latest failing request&apos;s{" "}
+          <code>X-Correlation-Id</code>.
+        </li>
+        <li>
+          <code>productId</code> is store-verified;{" "}
+          <code>claimedProductId</code> is what the app asserted and is not
+          verified.
+        </li>
+        <li>
+          Rows are kept for 30 days, up to 1,024 per project; the least recently
+          seen go first.
+        </li>
+      </ul>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[42rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">cause</th>
+              <th className="px-3 py-2 text-left font-medium">Meaning</th>
+              <th className="px-3 py-2 text-left font-medium">Next step</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {Object.entries(PURCHASE_ISSUE_CAUSES).map(
+              ([cause, { meaning, nextStep }]) => (
+                <tr key={cause}>
+                  <td className="px-3 py-2 font-mono text-xs">{cause}</td>
+                  <td className="px-3 py-2">{meaning}</td>
+                  <td className="px-3 py-2">{nextStep}</td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
+
       <h2 id="store-resync" className="mt-10 text-2xl font-semibold">
         Re-sync from store
       </h2>
@@ -241,12 +298,19 @@ X-RateLimit-Remaining: 599`}
       <CodeBlock language="text">{`GET  /v1/webhooks/deliveries?status=&eventType=&destinationId=&eventId=&limit=&cursor=
 POST /v1/webhooks/deliveries/{deliveryId}/resend      → 202
 GET  /v1/webhooks/notifications?limit=&cursor=
+GET  /v1/purchase/issues?cause=&store=&productId=&appUserId=&from=&to=&limit=&cursor=
 POST /v1/subscriptions/resync  {"purchaseId"} or {"subscriptionId"}
 GET  /v1/subscriptions/timeline?userId=`}</CodeBlock>
       <p>
-        The timeline returns one app user&apos;s purchases, subscriptions, and
-        commerce events, newest first, capped at 50 of each kind. It carries no
-        receipt evidence, purchase token, or request IP.
+        Purchase issues come most recently seen first. <code>from</code> and{" "}
+        <code>to</code> are epoch milliseconds that bound{" "}
+        <code>lastSeenAt</code>; <code>productId</code> matches the verified or
+        the claimed product.
+      </p>
+      <p>
+        The timeline returns one app user&apos;s purchases, subscriptions,
+        commerce events, and purchase issues, newest first, capped at 50 of each
+        kind. It carries no receipt evidence, purchase token, or request IP.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Graceful shutdown</h2>

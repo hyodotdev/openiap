@@ -35,6 +35,10 @@ const filterBuilder = {
     (...operands: Operand[]): Predicate =>
     (row) =>
       operands.every((operand) => read(operand, row) === true),
+  or:
+    (...operands: Operand[]): Predicate =>
+    (row) =>
+      operands.some((operand) => read(operand, row) === true),
 };
 
 function indexFields(table: TableNames, name: string): string[] {

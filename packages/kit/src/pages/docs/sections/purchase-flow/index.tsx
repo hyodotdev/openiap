@@ -238,6 +238,8 @@ const outcomes = await flow.recoverPurchases();`}
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           <code>bound</code>, <code>already_bound</code> — linked to this user.
+          Every purchase verify called valid links, including a Google purchase
+          still awaiting acknowledgment and an unconsumed consumable.
         </li>
         <li>
           <code>bound_to_other_user</code> — return{" "}
@@ -245,8 +247,8 @@ const outcomes = await flow.recoverPurchases();`}
         </li>
         <li>
           <code>not_found</code>, <code>not_bindable</code> — IAPKit keeps no
-          link (a consumable, for example); your ledger is the only owner
-          record.
+          link, for example for a user at the link limit; your ledger is the
+          only owner record.
         </li>
       </ul>
       <p>

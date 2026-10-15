@@ -13,6 +13,7 @@ import { z } from "zod";
 import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
 import {
   fetchKit,
+  KIT_PURCHASE_ISSUE_CAUSES,
   kitClient,
   KitHttpError,
   normalizeKitBaseUrl,
@@ -84,6 +85,7 @@ const TITLE_PARAM = kitTextParam("title");
 const ISO_DAY_PARAM = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD");
+const ISO_TIME_PARAM = z.string().datetime({ offset: true });
 const PRICE_AMOUNT_MICROS_PARAM = z
   .number()
   .int()
@@ -1259,7 +1261,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "user_timeline",
-    "Look up one app user's purchases, subscriptions and commerce events, newest first.",
+    "Look up one app user's purchases, subscriptions, commerce events and purchase issues, newest first.",
     {
       userId: USER_ID_PARAM,
       apiKey: OPTIONAL_API_KEY,
@@ -1269,6 +1271,52 @@ function registerIapKitTools(
     async (args, extra) => {
       try {
         return ok(await withClient(args, extra).userTimeline(args.userId));
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 27. list_purchase_issues — failed verifications and links.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "list_purchase_issues",
+    "List failed purchase verifications and links from the last 30 days, most recently seen first, with cause, count and correlationId. Rows carry an evidence fingerprint, never the token, JWS or receipt. Page with nextCursor.",
+    {
+      cause: z.enum(KIT_PURCHASE_ISSUE_CAUSES).optional(),
+      store: z.enum(["apple", "google", "horizon", "amazon"]).optional(),
+      productId: PRODUCT_ID_PARAM.optional().describe(
+        "Matches the store-verified or the claimed product id.",
+      ),
+      appUserId: USER_ID_PARAM.optional(),
+      from: ISO_TIME_PARAM.optional().describe(
+        "ISO 8601 date-time; lastSeenAt at or after it.",
+      ),
+      to: ISO_TIME_PARAM.optional().describe(
+        "ISO 8601 date-time; lastSeenAt at or before it.",
+      ),
+      limit: z.number().int().min(1).max(MAX_OPERATIONS_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).listPurchaseIssues({
+            cause: args.cause,
+            store: args.store,
+            productId: args.productId,
+            appUserId: args.appUserId,
+            from: args.from === undefined ? undefined : Date.parse(args.from),
+            to: args.to === undefined ? undefined : Date.parse(args.to),
+            limit: args.limit,
+            cursor: args.cursor,
+          }),
+        );
       } catch (error) {
         return err(error, resolveApiKey(args, extra));
       }

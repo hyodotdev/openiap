@@ -2,25 +2,45 @@ import {
   paginationOptsValidator,
   paginationResultValidator,
 } from "convex/server";
-import { v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import { query } from "../_generated/server";
-import { resolveProjectByIdForCurrentUserFromDb } from "../projects/helpers";
+import {
+  resolveOperatorProject,
+  resolveProjectByIdForCurrentUserFromDb,
+} from "../projects/helpers";
 import schema, { purchaseStoreValidator } from "../schema";
-import { createError, ErrorCode } from "../utils/errors";
 import { purchaseIssueCauseValidator } from "../utils/validation";
 
-const purchaseIssueDoc = schema.doc("purchaseIssues");
+const MAX_ISSUE_PAGE_SIZE = 100;
+
+// The stored row without the project and shard the log cap uses.
+const purchaseIssueValidator = schema
+  .doc("purchaseIssues")
+  .omit("projectId", "shard", "_creationTime");
+export type PurchaseIssue = Infer<typeof purchaseIssueValidator>;
+
+function toPurchaseIssue({
+  projectId: _projectId,
+  shard: _shard,
+  _creationTime,
+  ...issue
+}: Doc<"purchaseIssues">): PurchaseIssue {
+  return issue;
+}
 
 /**
- * A project's purchase issues, most recently seen first. Any organization
- * member may read them: a row holds a hash of the evidence, never the evidence.
- * `from` and `to` bound `lastSeenAt` in epoch ms, inclusive. The other filters
- * scan at most one project's rows, which the per-project cap bounds.
+ * A project's purchase issues, most recently seen first, for any member or a
+ * secret key. A row holds a hash of the evidence, never the evidence.
+ * `from` and `to` bound `lastSeenAt` in epoch ms, inclusive; `productId`
+ * matches the verified or the claimed product. The filters scan at most one
+ * project's rows, which the per-project cap bounds.
  */
 export const listPurchaseIssues = query({
   args: {
-    projectId: v.id("projects"),
+    projectId: v.optional(v.id("projects")),
+    apiKey: v.optional(v.string()),
     paginationOpts: paginationOptsValidator,
     cause: v.optional(purchaseIssueCauseValidator),
     store: v.optional(purchaseStoreValidator),
@@ -29,49 +49,57 @@ export const listPurchaseIssues = query({
     from: v.optional(v.number()),
     to: v.optional(v.number()),
   },
-  returns: paginationResultValidator(purchaseIssueDoc),
+  returns: paginationResultValidator(purchaseIssueValidator),
   handler: async (ctx, args) => {
-    if (!(await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId))) {
-      throw createError(ErrorCode.NOT_AUTHORIZED);
+    const project = await resolveOperatorProject(ctx, args, "read");
+    if (args.paginationOpts.numItems > MAX_ISSUE_PAGE_SIZE) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `A page holds at most ${MAX_ISSUE_PAGE_SIZE} issues.`,
+      });
     }
-    const { from, to } = args;
-    return await ctx.db
+    const { from, to, productId } = args;
+    const rows = await ctx.db
       .query("purchaseIssues")
       .withIndex("by_project_and_lastSeenAt", (q) => {
-        const project = q.eq("projectId", args.projectId);
+        const scoped = q.eq("projectId", project._id);
         if (from !== undefined && to !== undefined) {
-          return project.gte("lastSeenAt", from).lte("lastSeenAt", to);
+          return scoped.gte("lastSeenAt", from).lte("lastSeenAt", to);
         }
-        if (from !== undefined) return project.gte("lastSeenAt", from);
-        if (to !== undefined) return project.lte("lastSeenAt", to);
-        return project;
+        if (from !== undefined) return scoped.gte("lastSeenAt", from);
+        if (to !== undefined) return scoped.lte("lastSeenAt", to);
+        return scoped;
       })
       .order("desc")
       .filter((q) =>
         q.and(
           args.cause === undefined || q.eq(q.field("cause"), args.cause),
           args.store === undefined || q.eq(q.field("store"), args.store),
-          args.productId === undefined ||
-            q.eq(q.field("productId"), args.productId),
+          productId === undefined ||
+            q.or(
+              q.eq(q.field("productId"), productId),
+              q.eq(q.field("claimedProductId"), productId),
+            ),
           args.appUserId === undefined ||
             q.eq(q.field("appUserId"), args.appUserId),
         ),
       )
       .paginate(args.paginationOpts);
+    return { ...rows, page: rows.page.map(toPurchaseIssue) };
   },
 });
 
-/** One purchase issue, or null when it is missing or not the caller's. */
+/** One of the project's issues, or null when it is missing or not the caller's. */
 export const getPurchaseIssue = query({
-  args: { issueId: v.id("purchaseIssues") },
-  returns: v.union(purchaseIssueDoc, v.null()),
+  args: { projectId: v.id("projects"), issueId: v.id("purchaseIssues") },
+  returns: v.union(purchaseIssueValidator, v.null()),
   handler: async (ctx, args) => {
     const issue = await ctx.db.get(args.issueId);
-    if (!issue) return null;
+    if (issue?.projectId !== args.projectId) return null;
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,
-      issue.projectId,
+      args.projectId,
     );
-    return resolved ? issue : null;
+    return resolved ? toPurchaseIssue(issue) : null;
   },
 });
