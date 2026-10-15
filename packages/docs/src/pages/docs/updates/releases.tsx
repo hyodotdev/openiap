@@ -614,10 +614,10 @@ function Releases() {
                   <code>PurchaseConfirmation</code> types. Payment pending,
                   delayed verification, another account&apos;s purchase and
                   delayed access are separate states, and none of them asks the
-                  user to buy again. A purchase another account already holds is
-                  finished, not refunded. A backend call that runs past{' '}
-                  <code>confirmTimeoutMs</code> (30 seconds by default) ends as
-                  failed, and iOS recovery falls back to{' '}
+                  user to buy again. A purchase already granted to another
+                  account is finished, not refunded. A backend call that runs
+                  past <code>confirmTimeoutMs</code> (30 seconds by default)
+                  ends as failed, and iOS recovery falls back to{' '}
                   <code>getAvailablePurchases</code> when{' '}
                   <code>getPendingTransactionsIOS</code> fails.
                 </li>

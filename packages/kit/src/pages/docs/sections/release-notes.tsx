@@ -63,7 +63,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "ops",
         topic: "Analytics API",
-        text: "/v1/subscriptions/revenue returns production data unless environment=sandbox is passed. newSubs, renewals, refunds, revenueMicros and activeSubs follow the corrected definitions, and the new expirations field counts paid access that ended; the Analytics page lists each change. An unknown API key now gets 400 INVALID_API_KEY, as documented, instead of empty results.",
+        text: "/v1/subscriptions/revenue returns production data unless environment=sandbox is passed. newSubs, renewals, refunds, revenueMicros and activeSubs follow the corrected definitions, and the new expirations field counts paid access that ended; the Analytics page lists each change. An unknown API key on /v1/subscriptions/revenue or /v1/subscriptions/metrics now gets 400 INVALID_API_KEY, as documented, instead of empty results.",
       },
       {
         kind: "feature",
