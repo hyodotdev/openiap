@@ -615,8 +615,11 @@ function Releases() {
                   delayed verification, another account&apos;s purchase and
                   delayed access are separate states, and none of them asks the
                   user to buy again. A purchase another account already holds is
-                  finished, not refunded, and iOS recovery needs{' '}
-                  <code>getPendingTransactionsIOS</code>.
+                  finished, not refunded. A backend call that runs past{' '}
+                  <code>confirmTimeoutMs</code> (30 seconds by default) ends as
+                  failed, and iOS recovery falls back to{' '}
+                  <code>getAvailablePurchases</code> when{' '}
+                  <code>getPendingTransactionsIOS</code> fails.
                 </li>
                 <li>
                   Client payload reads return the cached copy with{' '}
@@ -642,8 +645,9 @@ function Releases() {
           <p>
             Your backend verifies with its secret key and{' '}
             <code>includeTransactionDetails</code>, links the purchase with
-            bind-user, grants a one-time purchase once and records each
-            subscription period; the{' '}
+            bind-user, grants a one-time purchase once, and reads subscription
+            access from IAPKit, which follows renewals through store
+            notifications; the{' '}
             <a href="https://kit.openiap.dev/docs/purchase-flow">
               Purchase flow guide
             </a>{' '}

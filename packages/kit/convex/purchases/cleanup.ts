@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import { internalMutation, MutationCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
+import { inheritPurchaseOwner } from "./internal";
 import {
   applyPurchaseStatsDelta,
   deltaForCountedPurchaseRemoval,
@@ -90,6 +91,12 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
       continue;
     }
 
+    // Collapsing rows linked to two different users would drop one owner.
+    const owners = new Set(siblings.flatMap((r) => r.appUserId ?? []));
+    if (owners.size > 1) {
+      continue;
+    }
+
     if (siblings.some((sibling) => sibling.statsCounted !== true)) {
       throw new Error(
         "Complete migrations:backfillPurchaseStatsFromPurchases before running purchases/cleanup:collapseDuplicatePurchasesByOrderId.",
@@ -98,7 +105,7 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
 
     duplicateGroupsProcessed += 1;
 
-    const newest = siblings.reduce((acc, candidate) =>
+    let newest = siblings.reduce((acc, candidate) =>
       candidate._creationTime > acc._creationTime ? candidate : acc,
     );
 
@@ -112,6 +119,8 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
         continue;
       }
 
+      await inheritPurchaseOwner(ctx, newest, sibling);
+      newest = (await ctx.db.get(newest._id)) ?? newest;
       await ctx.db.delete(sibling._id);
 
       const isValid = sibling.isValid ?? false;

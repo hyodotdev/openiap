@@ -373,8 +373,21 @@ async function collapseConflictingOrderIdRow(
   row: Doc<"purchases">,
   survivor: Doc<"purchases">,
 ): Promise<PurchaseStatsDelta> {
-  // As in the subscription merge: a live owner wins, and the erasure marker
-  // carries only when neither row has one.
+  await inheritPurchaseOwner(ctx, survivor, row);
+  await ctx.db.delete(row._id);
+  return deltaForConflictingRowRemoval(row);
+}
+
+/**
+ * Moves a row's owner onto the row that replaces it. As in the subscription
+ * merge, a live owner wins and the erasure marker carries only when neither
+ * row has one. Callers must not merge rows owned by two different users.
+ */
+export async function inheritPurchaseOwner(
+  ctx: MutationCtx,
+  survivor: Doc<"purchases">,
+  row: Doc<"purchases">,
+): Promise<void> {
   if (!survivor.appUserId && row.appUserId) {
     await ctx.db.patch(survivor._id, {
       appUserId: row.appUserId,
@@ -383,8 +396,6 @@ async function collapseConflictingOrderIdRow(
   } else if (!survivor.appUserId && row.accountErased) {
     await ctx.db.patch(survivor._id, { accountErased: true });
   }
-  await ctx.db.delete(row._id);
-  return deltaForConflictingRowRemoval(row);
 }
 
 async function patchExistingPurchase(
