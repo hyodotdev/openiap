@@ -789,7 +789,7 @@ export const metricsSummary = query({
 // before `definitionsFromDay`, and the trial split before `trialSplitFromDay`.
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 
-// not_collected: no store notification has reached the project.
+// not_collected: no store notification has reached the environment.
 // processing: notifications exist but the window is not rolled up yet.
 // zero: the window was rolled up and nothing happened.
 // ready: the window has rows.
@@ -959,6 +959,7 @@ export const getRevenueMetrics = query({
       .unique();
     const dataState = await revenueDataState(ctx, {
       projectId: project._id,
+      environment,
       hasRows: rows.length > 0,
       toDay: args.toDay,
       status,
@@ -1017,6 +1018,7 @@ async function revenueDataState(
   ctx: QueryCtx,
   args: {
     projectId: Id<"projects">;
+    environment: Infer<typeof receiptEnvironmentValidator>;
     hasRows: boolean;
     toDay: string;
     status: Doc<"revenueMetricsRunStatus"> | null;
@@ -1035,7 +1037,9 @@ async function revenueDataState(
       .first();
     return anyEvent ? "processing" : "not_collected";
   }
-  if (status.lastStoreNotificationAt === undefined) return "not_collected";
+  if (status.lastNotificationAt?.[args.environment] === undefined) {
+    return "not_collected";
+  }
   if (args.hasRows) return "ready";
   if (args.toDay > new Date(status.lastRunAt).toISOString().slice(0, 10)) {
     return "processing";

@@ -259,6 +259,7 @@ export default function ProjectAnalytics() {
       (platformFilter === "all" || row.platform === platformFilter),
     [selectedProduct, platformFilter],
   );
+  const trialSplitFromDay = metrics?.trialSplitFromDay;
   const revenueDaily = useMemo(
     () =>
       aggregateByDay(
@@ -267,8 +268,16 @@ export default function ProjectAnalytics() {
         ),
         range.days,
         fromDay,
+        trialSplitFromDay,
       ),
-    [metricsDays, currency, matchesFilters, range.days, fromDay],
+    [
+      metricsDays,
+      currency,
+      matchesFilters,
+      range.days,
+      fromDay,
+      trialSplitFromDay,
+    ],
   );
   const reportingRevenueDaily = useMemo(
     () =>
@@ -278,13 +287,26 @@ export default function ProjectAnalytics() {
         ),
         range.days,
         fromDay,
+        trialSplitFromDay,
       ),
-    [metricsDays, reportingCurrency, matchesFilters, range.days, fromDay],
+    [
+      metricsDays,
+      reportingCurrency,
+      matchesFilters,
+      range.days,
+      fromDay,
+      trialSplitFromDay,
+    ],
   );
   const lifecycleDaily = useMemo(
     () =>
-      aggregateByDay(metricsDays.filter(matchesFilters), range.days, fromDay),
-    [metricsDays, matchesFilters, range.days, fromDay],
+      aggregateByDay(
+        metricsDays.filter(matchesFilters),
+        range.days,
+        fromDay,
+        trialSplitFromDay,
+      ),
+    [metricsDays, matchesFilters, range.days, fromDay, trialSplitFromDay],
   );
   const revenueSeries = useMemo(
     () => bucketByPeriod(revenueDaily, periodId),
@@ -309,9 +331,7 @@ export default function ProjectAnalytics() {
     }));
   }, [lifecycleSeries, revenueSeries]);
 
-  // Days before the split omit trial counters and expirations, so churn
-  // starts from the first day that has them.
-  const trialSplitFromDay = metrics?.trialSplitFromDay;
+  // Days before the split omit trial counters and expirations.
   const splitDaily = useMemo(
     () =>
       trialSplitFromDay === undefined
@@ -339,16 +359,12 @@ export default function ProjectAnalytics() {
       refundedMicros: revenue.refunded,
       activeSubsLast: last?.activeSubs ?? 0,
       activeTrialsLast: last?.activeTrials ?? 0,
-      paidAtStart: splitDaily[0]?.paidAtStart ?? 0,
     };
-  }, [lifecycleDaily, splitDaily, reportingRevenueDaily]);
+  }, [lifecycleDaily, reportingRevenueDaily]);
 
   // Churn counts paid access that actually ended, not auto-renew turned off
   // or a free trial that ran out.
-  const churnRate =
-    totals.paidAtStart > 0
-      ? (totals.expirations / totals.paidAtStart) * 100
-      : 0;
+  const churn = useMemo(() => churnOver(lifecycleDaily), [lifecycleDaily]);
 
   // Same split as above: counts span currencies, revenue is one currency.
   const platformTotals = useMemo(() => {
@@ -680,11 +696,11 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={LogOut}
           label="Churn"
-          value={hasSplitNumbers ? `${churnRate.toFixed(1)}%` : "—"}
+          value={hasNumbers && churn ? `${churn.rate.toFixed(1)}%` : "—"}
           detail={
-            hasSplitNumbers
-              ? `${totals.expirations} expired of ${totals.paidAtStart} paid at start${
-                  unsplitDays ? `, from ${trialSplitFromDay}` : ""
+            hasNumbers && churn
+              ? `${churn.expirations} expired of ${churn.paidAtStart} paid at start${
+                  churn.fromDay > fromDay ? `, from ${churn.fromDay}` : ""
                 }`
               : undefined
           }
@@ -1120,15 +1136,17 @@ function CohortTable({
   );
 }
 
-type DayPoint = DailyRow & { dayKey: string; paidAtStart: number };
+type DayPoint = DailyRow & { dayKey: string; paidAtStart: number | null };
 
 // Collapses rollup rows (one per currency, product, and platform) into one
 // row per day. Callers filter first, so summing here is safe. `paidAtStart`,
-// the churn denominator, is the previous day's paid (not in trial) snapshot.
+// the churn denominator, is the previous day's paid (not in trial) snapshot;
+// null when that day predates the trial split and its trials are unknown.
 function aggregateByDay(
   rows: MetricRow[],
   rangeDays: number,
   fromDay: string,
+  trialSplitFromDay: string | undefined,
 ): DayPoint[] {
   const byDay = new Map<string, DailyRow>();
   for (const row of rows) {
@@ -1148,11 +1166,11 @@ function aggregateByDay(
   // to zero.
   let lastActive = 0;
   let lastTrials = 0;
-  let seedDay = "";
+  let snapshotDay = "";
   for (const [day, row] of byDay) {
     if (day >= fromDay) continue;
-    if (day > seedDay) {
-      seedDay = day;
+    if (day > snapshotDay) {
+      snapshotDay = day;
       lastActive = row.activeSubs;
       lastTrials = row.activeTrials;
     }
@@ -1160,11 +1178,15 @@ function aggregateByDay(
 
   for (let i = 0; i < rangeDays; i++) {
     const dayKey = utcDayKey(fromTs + i * DAY_MS);
-    const paidAtStart = lastActive - lastTrials;
+    const paidAtStart =
+      trialSplitFromDay === undefined || snapshotDay >= trialSplitFromDay
+        ? lastActive - lastTrials
+        : null;
     const entry = byDay.get(dayKey);
     if (entry) {
       lastActive = entry.activeSubs;
       lastTrials = entry.activeTrials;
+      snapshotDay = dayKey;
       result.push({ ...entry, dayKey, paidAtStart });
     } else {
       // Carry the snapshot forward (no event = no change that period). For
@@ -1182,14 +1204,36 @@ function aggregateByDay(
   return result;
 }
 
+// Churn over consecutive days: expirations from the first day with a known
+// paid base, over that base.
+function churnOver(days: DayPoint[]): {
+  rate: number;
+  expirations: number;
+  paidAtStart: number;
+  fromDay: string;
+} | null {
+  const first = days.findIndex((day) => day.paidAtStart !== null);
+  const paidAtStart = days[first]?.paidAtStart;
+  if (paidAtStart === undefined || paidAtStart === null) return null;
+  let expirations = 0;
+  for (const day of days.slice(first)) expirations += day.expirations;
+  return {
+    rate: paidAtStart > 0 ? (expirations / paidAtStart) * 100 : 0,
+    expirations,
+    paidAtStart,
+    fromDay: days[first].dayKey,
+  };
+}
+
 // Weeks are ISO (Mon–Sun), months are calendar months. Counters and revenue
-// are summed; snapshots take the bucket's last day and `paidAtStart` its
-// first, since summing a snapshot would multiply it by the number of days.
+// are summed; snapshots take the bucket's last day, since summing a snapshot
+// would multiply it by the number of days.
 function bucketByPeriod(
   daily: DayPoint[],
   period: PeriodId,
 ): Array<DayPoint & { label: string; churnPct: number }> {
   const buckets = new Map<string, DayPoint & { label: string }>();
+  const daysByBucket = new Map<string, DayPoint[]>();
   for (const row of daily) {
     const { bucketKey, label, sortKey } =
       period === "daily"
@@ -1202,8 +1246,10 @@ function bucketByPeriod(
     const existing = buckets.get(bucketKey);
     if (!existing) {
       buckets.set(bucketKey, { ...row, day: label, dayKey: sortKey, label });
+      daysByBucket.set(bucketKey, [row]);
       continue;
     }
+    daysByBucket.get(bucketKey)?.push(row);
     for (const key of COUNTERS) {
       if (key === "activeSubs" || key === "activeTrials") continue;
       existing[key] += row[key];
@@ -1212,15 +1258,10 @@ function bucketByPeriod(
     existing.activeTrials = row.activeTrials;
   }
 
-  return Array.from(buckets.values())
-    .sort((a, b) => a.dayKey.localeCompare(b.dayKey))
-    .map((bucket) => ({
-      ...bucket,
-      churnPct:
-        bucket.paidAtStart > 0
-          ? (bucket.expirations / bucket.paidAtStart) * 100
-          : 0,
-    }));
+  return Array.from(buckets, ([bucketKey, bucket]) => ({
+    ...bucket,
+    churnPct: churnOver(daysByBucket.get(bucketKey) ?? [])?.rate ?? 0,
+  })).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }
 
 // `sortKey` keeps buckets in order across years; `label` is the x-axis text.

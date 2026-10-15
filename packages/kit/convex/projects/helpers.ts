@@ -403,6 +403,18 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const subscriptionStatsRebuilds = await ctx.db
+    .query("subscriptionStatsRebuilds")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const rebuild of subscriptionStatsRebuilds) {
+    await ctx.db.delete(rebuild._id);
+  }
+  if (subscriptionStatsRebuilds.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const revenueMetricsDaily = await ctx.db
     .query("revenueMetricsDaily")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

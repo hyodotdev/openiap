@@ -25,6 +25,7 @@ type FactEvent = Pick<
   | "cancellationReason"
   | "currency"
   | "priceAmountMicros"
+  | "linkedPurchaseToken"
 >;
 
 type PaidChargeType = NonNullable<SubscriptionAnalytics["firstPaidEventType"]>;
@@ -37,13 +38,24 @@ function isPaidChargeType(type: string): type is PaidChargeType {
   );
 }
 
+// A Google replacement (upgrade, downgrade, re-signup or prepaid top-up) names
+// the token it replaces. It continues that subscription, so it is no new
+// start, and Play prorates it, so it is no list-price charge either.
+function isPlanChange(event: FactEvent): boolean {
+  return (
+    event.type === "SubscriptionStarted" &&
+    event.linkedPurchaseToken !== undefined
+  );
+}
+
 // A store charge: a paid start, renewal or billing recovery. Free trial
-// periods and refund reversals are not charges.
+// periods, refund reversals and plan changes are not charges.
 export function isPaidCharge(event: FactEvent): boolean {
   return (
     isPaidChargeType(event.type) &&
     event.freeTrial !== true &&
-    event.refundReversal !== true
+    event.refundReversal !== true &&
+    !isPlanChange(event)
   );
 }
 
@@ -51,7 +63,8 @@ export function isTrialStart(event: FactEvent): boolean {
   return (
     event.type === "SubscriptionStarted" &&
     event.freeTrial === true &&
-    event.refundReversal !== true
+    event.refundReversal !== true &&
+    !isPlanChange(event)
   );
 }
 

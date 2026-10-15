@@ -21,6 +21,7 @@ import { assertProjectWritable } from "../projects/writable";
 import { purchaseRequestDataValidator } from "../schema";
 import {
   cancellationReasonValidator,
+  receiptEnvironmentValidator,
   subscriptionStateValidator,
 } from "../utils/validation";
 import { recordWebhookEventHandler } from "../webhooks/internal";
@@ -46,7 +47,7 @@ export const storeSnapshotValidator = v.object({
 });
 
 const storeContextValidator = v.object({
-  environment: v.union(v.literal("Production"), v.literal("Sandbox")),
+  environment: receiptEnvironmentValidator,
   applicationId: v.optional(v.string()),
   transactionId: v.optional(v.string()),
   originalTransactionId: v.optional(v.string()),
@@ -188,9 +189,7 @@ export const getResyncTarget = internalQuery({
       store: v.union(v.literal("apple"), v.literal("google")),
       purchaseToken: v.string(),
       productId: v.string(),
-      environment: v.optional(
-        v.union(v.literal("Production"), v.literal("Sandbox")),
-      ),
+      environment: v.optional(receiptEnvironmentValidator),
     }),
   ),
   handler: async (ctx, args) => {

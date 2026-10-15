@@ -444,6 +444,7 @@ export const ingestGoogleRtdn = action({
           sourceFull: normalized.source,
           platform: normalized.platform,
           environment: normalized.environment,
+          environmentDefaulted: normalized.environmentDefaulted,
           purchaseToken: normalized.purchaseToken,
           linkedPurchaseToken: normalized.linkedPurchaseToken,
           transactionId: normalized.transactionId,

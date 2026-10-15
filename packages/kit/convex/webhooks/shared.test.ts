@@ -729,6 +729,27 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.cancellationReason).toBe("Refunded");
   });
 
+  it("flags an environment Play did not report", () => {
+    const unfetched = normalizeGoogleRtdn({ payload: baseRtdnSubscription });
+    expect(unfetched).toMatchObject({
+      environment: "Production",
+      environmentDefaulted: true,
+    });
+    const fetched = normalizeGoogleRtdn({
+      payload: baseRtdnSubscription,
+      subscriptionInfo: { environment: "Production" },
+    });
+    expect(fetched).not.toHaveProperty("environmentDefaulted");
+    const test = normalizeGoogleRtdn({
+      payload: {
+        messageId: "rtdn-test-flag",
+        eventTimeMillis: 1_711_000_000_000,
+        testNotification: { version: "1.0" },
+      },
+    });
+    expect(test).not.toHaveProperty("environmentDefaulted");
+  });
+
   it("normalizes a voidedPurchase to PurchaseRefunded", () => {
     const event = normalizeGoogleRtdn({
       payload: {
@@ -749,6 +770,7 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.transactionId).toBe("GPA.1234-5678-9012-34567");
     expect(event.productKind).toBe("subscription");
     expect(event.cancellationReason).toBe("Refunded");
+    expect(event.environmentDefaulted).toBe(true);
   });
 
   it.each([undefined, 3])(

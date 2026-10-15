@@ -644,6 +644,9 @@ const schema = defineSchema({
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     store: v.optional(purchaseStoreValidator),
     environment: storeEnvironmentValidator,
+    // Play sent no environment, so `environment` is the Production default.
+    // Such an event never changes a subscription's environment.
+    environmentDefaulted: v.optional(v.boolean()),
     // Absent only on TestNotification, which carries no transaction; every
     // lifecycle event sets it (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
@@ -861,6 +864,25 @@ const schema = defineSchema({
     // `pickRevenueMetricsProjects` finds recently active projects.
     .index("by_updated_at", ["updatedAt"]),
 
+  // A `subscriptionStats` rebuild in progress, at most one per project.
+  // Subscription writes during it also update `totals` for rows the scan has
+  // passed, so its commit is current however busy the project is.
+  subscriptionStatsRebuilds: defineTable({
+    projectId: v.id("projects"),
+    startedAt: v.number(),
+    // `_creationTime` of the last subscription the scan read.
+    scannedThrough: v.optional(v.number()),
+    totals: v.array(
+      v.object({
+        currency: v.string(),
+        activeSubs: v.number(),
+        inGracePeriod: v.number(),
+        inBillingRetry: v.number(),
+        mrrMicros: v.number(),
+      }),
+    ),
+  }).index("by_project", ["projectId"]),
+
   // Daily revenue rollup per (projectId, day, productId, currency, platform,
   // environment), so the dashboard never scans the event log. The
   // `recomputeRevenueMetrics` cron rebuilds the trailing window to pick up
@@ -930,9 +952,18 @@ const schema = defineSchema({
     // refund-reversal flags, so the counters that need them are not reported
     // for earlier days. Unset when every computed day has them.
     trialSplitFromDay: v.optional(v.string()),
-    // Latest real Apple, Google or Amazon notification a run has seen. Unset
-    // means none reached the project: its counters are not collected.
-    lastStoreNotificationAt: v.optional(v.number()),
+    // Latest real Apple, Google or Amazon notification a run has seen, per
+    // environment. Unset means none reached that environment: its counters
+    // are not collected.
+    lastNotificationAt: v.optional(
+      v.object({
+        Production: v.optional(v.number()),
+        Sandbox: v.optional(v.number()),
+      }),
+    ),
+    // Failed runs in a row before the latest start. Each halves the page
+    // sizes and doubles the picker's wait before retrying.
+    failedRuns: v.optional(v.number()),
     // Notifications that arrived after their day left the trailing window and
     // no finished run has folded in yet. A catch-up recomputes from the oldest
     // such day.
