@@ -5735,19 +5735,75 @@ public data class SubscriptionProductReplacementParamsAndroid(
     )
 }
 
-public data class VerifyAppOwnershipProps(
+/**
+ * Apple app acquisition verification options. Ignored by other stores.
+ */
+public data class VerifyAppOwnershipOptionsIOS(
+    /**
+     * Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3.
+     */
+    val refresh: Boolean? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyAppOwnershipOptionsIOS {
+            return VerifyAppOwnershipOptionsIOS(
+                refresh = json["refresh"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "refresh" to refresh,
+    )
+}
+
+public class VerifyAppOwnershipProps(
     val google: PlayIntegrityParamsAndroid? = null
 ) {
+
+    var apple: VerifyAppOwnershipOptionsIOS? = null
+        private set
+
+    constructor(
+        google: PlayIntegrityParamsAndroid? = null,
+        apple: VerifyAppOwnershipOptionsIOS?,
+    ) : this(
+        google = google,
+    ) {
+        this.apple = apple
+    }
+
+    operator fun component1(): PlayIntegrityParamsAndroid? = google
+
+    fun copy(
+        google: PlayIntegrityParamsAndroid? = this.google,
+    ): VerifyAppOwnershipProps = VerifyAppOwnershipProps(
+        google = google,
+        apple = this.apple,
+    )
+
+    override fun equals(other: Any?): Boolean = other is VerifyAppOwnershipProps &&
+        google == other.google && apple == other.apple
+    override fun hashCode(): Int {
+        var result = 1
+        result = 31 * result + (google?.hashCode() ?: 0)
+        result = 31 * result + (apple?.hashCode() ?: 0)
+        return result
+    }
+    override fun toString(): String = "VerifyAppOwnershipProps(google=$google, apple=$apple)"
+
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyAppOwnershipProps {
             return VerifyAppOwnershipProps(
                 google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { PlayIntegrityParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for PlayIntegrityParamsAndroid") },
+                apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { VerifyAppOwnershipOptionsIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for VerifyAppOwnershipOptionsIOS") },
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
         "google" to google?.toJson(),
+        "apple" to apple?.toJson(),
     )
 }
 

@@ -4008,12 +4008,27 @@ extension SubscriptionProductReplacementParamsAndroid {
     }
 }
 
+/// Apple app acquisition verification options. Ignored by other stores.
+public struct VerifyAppOwnershipOptionsIOS: Codable {
+    /// Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3.
+    public var refresh: Bool?
+
+    public init(
+        refresh: Bool? = nil
+    ) {
+        self.refresh = refresh
+    }
+}
+
 public struct VerifyAppOwnershipProps: Codable {
+    public var apple: VerifyAppOwnershipOptionsIOS?
     public var google: PlayIntegrityParamsAndroid?
 
     public init(
+        apple: VerifyAppOwnershipOptionsIOS? = nil,
         google: PlayIntegrityParamsAndroid? = nil
     ) {
+        self.apple = apple
         self.google = google
     }
 }

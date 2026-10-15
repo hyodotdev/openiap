@@ -25,6 +25,20 @@ final class AppOwnershipVerificationTests: XCTestCase {
         XCTAssertEqual(revoked.appTransactionIOS?.revocationDate, 3000)
     }
 
+    func testRefreshRequiresAnExplicitOption() throws {
+        let decoder = JSONDecoder()
+        for payload in ["{}", "{\"apple\":null}", "{\"apple\":{}}", "{\"apple\":{\"refresh\":null}}"] {
+            XCTAssertNil(try decoder.decode(VerifyAppOwnershipProps.self, from: Data(payload.utf8)).apple?.refresh)
+        }
+        let disabled = try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"apple\":{\"refresh\":false}}".utf8))
+        XCTAssertEqual(disabled.apple?.refresh, false)
+        let options = try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"apple\":{\"refresh\":true}}".utf8))
+        XCTAssertEqual(options.apple?.refresh, true)
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(options)) as? [String: Any]
+        XCTAssertEqual((encoded?["apple"] as? [String: Any])?["refresh"] as? Bool, true)
+        XCTAssertThrowsError(try decoder.decode(VerifyAppOwnershipProps.self, from: Data("{\"apple\":{\"refresh\":\"true\"}}".utf8)))
+    }
+
     func testNetworkAndServiceFailuresRemainDistinct() {
         XCTAssertEqual(appOwnershipFailureReasonIOS(URLError(.notConnectedToInternet)), .networkError)
         XCTAssertEqual(appOwnershipFailureReasonIOS(NSError(domain: "store", code: 1)), .serviceError)

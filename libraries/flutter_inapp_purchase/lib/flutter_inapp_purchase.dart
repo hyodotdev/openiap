@@ -1937,12 +1937,16 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           };
 
   /// Verify app acquisition; Android evidence requires backend verification.
-  gentype.QueryVerifyAppOwnershipHandler get verifyAppOwnership =>
-      ({gentype.PlayIntegrityParamsAndroid? google}) async {
+  gentype.QueryVerifyAppOwnershipHandler get verifyAppOwnership => (
+          {gentype.PlayIntegrityParamsAndroid? google,
+          gentype.VerifyAppOwnershipOptionsIOS? apple}) async {
         try {
           final result = await _channel.invokeMethod<dynamic>(
               'verifyAppOwnership',
-              gentype.VerifyAppOwnershipProps(google: google).toJson());
+              gentype.VerifyAppOwnershipProps(
+                google: google,
+                apple: apple,
+              ).toJson());
           final map = normalizeDynamicMap(
               result is String ? jsonDecode(result) : result);
           if (map == null) {
