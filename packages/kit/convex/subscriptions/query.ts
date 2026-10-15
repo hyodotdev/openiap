@@ -894,8 +894,9 @@ export const getRevenueMetrics = query({
       };
     }
 
-    // Cap at the dashboard's longest preset (`RANGES` in analytics.tsx; change
-    // both together) so a client cannot load every rollup row.
+    // Cap at the dashboard's longest preset plus the day before it (`RANGES`
+    // in analytics.tsx; change both together) so a client cannot load every
+    // rollup row.
     const MAX_RANGE_DAYS = 92;
     if (args.fromDay > args.toDay) {
       throw new Error(

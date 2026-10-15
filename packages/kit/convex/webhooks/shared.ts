@@ -101,6 +101,8 @@ export type NormalizedWebhookEvent = {
   freeTrial?: boolean;
   /** Apple REFUND_REVERSED. State handling treats it as a start; analytics must not. */
   refundReversal?: boolean;
+  /** A Google replacement Play charged at once; analytics only. */
+  replacementCharged?: boolean;
   occurredAt: number;
   // Stable per-notification identifier used for idempotency. ASN v2
   // `notificationUUID` or RTDN `messageId`.
@@ -369,16 +371,17 @@ function deriveAppleSubscriptionState(
   }
 }
 
-// A signed transaction without an offer is a full-price charge. Payloads that
-// predate `offerDiscountType` still mark a free intro period with price 0.
+// Only an introductory offer (`offerType` 1) is a free trial: a free
+// promotional, offer-code or win-back period is not. Payloads that predate
+// `offerDiscountType` mark a free intro period with price 0.
 export function appleTransactionIsFreeTrial(
   transaction: AppleDecodedTransaction | null | undefined,
 ): boolean | undefined {
   if (!transaction) return undefined;
+  if (transaction.offerType !== 1) return false;
   if (transaction.offerDiscountType != null) {
     return transaction.offerDiscountType === "FREE_TRIAL";
   }
-  if (transaction.offerType == null) return false;
   return typeof transaction.price === "number"
     ? transaction.price === 0
     : undefined;
@@ -591,6 +594,8 @@ export type GoogleSubscriptionInfo = {
   amountProvenance?: DataProvenance;
   /** From the line item's offer and the synced Play catalog; see google.ts. */
   freeTrial?: boolean;
+  /** A replacement Play charged at once; see google.ts. */
+  replacementCharged?: boolean;
 };
 
 // RTDN numeric codes per
@@ -832,6 +837,7 @@ export function normalizeGoogleRtdn(
     priceAmountMicros: subscriptionInfo?.priceAmountMicros,
     amountProvenance: subscriptionInfo?.amountProvenance,
     freeTrial: subscriptionInfo?.freeTrial,
+    replacementCharged: subscriptionInfo?.replacementCharged,
     occurredAt: payload.eventTimeMillis,
     sourceNotificationId: payload.messageId,
   };

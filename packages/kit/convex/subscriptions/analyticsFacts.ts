@@ -26,6 +26,7 @@ type FactEvent = Pick<
   | "currency"
   | "priceAmountMicros"
   | "linkedPurchaseToken"
+  | "replacementCharged"
 >;
 
 type PaidChargeType = NonNullable<SubscriptionAnalytics["firstPaidEventType"]>;
@@ -39,23 +40,24 @@ function isPaidChargeType(type: string): type is PaidChargeType {
 }
 
 // A Google replacement (upgrade, downgrade, re-signup or prepaid top-up) names
-// the token it replaces. It continues that subscription, so it is no new
-// start, and Play prorates it, so it is no list-price charge either.
-function isPlanChange(event: FactEvent): boolean {
+// the token it replaces. It continues that subscription, so it is no new start.
+export function isPlanChange(event: FactEvent): boolean {
   return (
     event.type === "SubscriptionStarted" &&
     event.linkedPurchaseToken !== undefined
   );
 }
 
-// A store charge: a paid start, renewal or billing recovery. Free trial
-// periods, refund reversals and plan changes are not charges.
+// A store charge: a paid start, renewal or billing recovery, or a replacement
+// Play charged at once. A free period (a trial, or a free offer the store
+// prices at 0) and a refund reversal are not charges.
 export function isPaidCharge(event: FactEvent): boolean {
   return (
     isPaidChargeType(event.type) &&
     event.freeTrial !== true &&
+    event.priceAmountMicros !== 0 &&
     event.refundReversal !== true &&
-    !isPlanChange(event)
+    (!isPlanChange(event) || event.replacementCharged === true)
   );
 }
 
@@ -122,12 +124,16 @@ export function isInTrialAt(
   );
 }
 
-// An expiry that ends a free trial with no paid charge is not churn. Apple
-// flags the period that ended; Play does not, so the facts decide.
-export function endedInFreeTrial(
-  event: Pick<Doc<"webhookEvents">, "freeTrial" | "occurredAt">,
+// An expiry that ends a free period is not churn. Apple flags a free trial and
+// prices a free offer at 0; Play does neither, so the facts decide.
+export function endedInFreePeriod(
+  event: Pick<
+    Doc<"webhookEvents">,
+    "freeTrial" | "priceAmountMicros" | "occurredAt"
+  >,
   facts: SubscriptionAnalytics | undefined,
 ): boolean {
+  if (event.priceAmountMicros === 0) return true;
   return event.freeTrial ?? isInTrialAt(facts, event.occurredAt);
 }
 
@@ -141,20 +147,29 @@ export function nextAnalyticsFacts(
     : { paidMicros: 0, refundedMicros: 0 };
   let changed = false;
 
+  // A trial starts before the first paid charge, in whichever order they
+  // arrive.
   if (
     isTrialStart(event) &&
-    (next.trialStartedAt === undefined ||
-      event.occurredAt < next.trialStartedAt)
+    event.occurredAt < (next.trialStartedAt ?? Infinity) &&
+    event.occurredAt <= (next.firstPaidAt ?? Infinity)
   ) {
     next.trialStartedAt = event.occurredAt;
     changed = true;
   }
 
   if (isPaidCharge(event) && isPaidChargeType(event.type)) {
-    if (next.firstPaidAt === undefined || event.occurredAt < next.firstPaidAt) {
+    // A replacement continues a subscription, so it never starts its cohort.
+    if (
+      !isPlanChange(event) &&
+      event.occurredAt < (next.firstPaidAt ?? Infinity)
+    ) {
       next.firstPaidAt = event.occurredAt;
       next.firstPaidEventId = event._id;
       next.firstPaidEventType = event.type;
+      if ((next.trialStartedAt ?? -Infinity) > event.occurredAt) {
+        delete next.trialStartedAt;
+      }
       changed = true;
     }
     changed = addMoney(next, "paidMicros", event, 1) || changed;
@@ -200,13 +215,16 @@ export function mergeAnalyticsFacts(
     a.trialStartedAt ?? Infinity,
     b.trialStartedAt ?? Infinity,
   );
+  const trialBeforePaid =
+    Number.isFinite(trialStartedAt) &&
+    trialStartedAt <= (firstPaid.firstPaidAt ?? Infinity);
   const currency = a.currency ?? b.currency;
   const sameCurrency =
     a.currency === undefined ||
     b.currency === undefined ||
     a.currency === b.currency;
   return {
-    ...(Number.isFinite(trialStartedAt) ? { trialStartedAt } : {}),
+    ...(trialBeforePaid ? { trialStartedAt } : {}),
     ...(firstPaid.firstPaidAt !== undefined
       ? {
           firstPaidAt: firstPaid.firstPaidAt,

@@ -855,6 +855,11 @@ describe("analytics facts on normalized events", () => {
     [{ offerType: 1, price: 0 }, true],
     [{ offerType: 1, price: 2_990 }, false],
     [{ offerType: 1, price: null }, undefined],
+    // Promotional, offer-code and win-back offers are never trials.
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 2, price: 0 }, false],
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 3, price: 0 }, false],
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 4, price: 0 }, false],
+    [{ offerType: 3, price: 0 }, false],
     // No offer on a signed transaction is a full-price charge.
     [{}, false],
   ])("Apple transaction %j → freeTrial %s", (offer, expected) => {

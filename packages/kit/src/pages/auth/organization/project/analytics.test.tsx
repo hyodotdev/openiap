@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => {
   const state: { metrics: unknown; lastArgs: unknown } = {
@@ -66,6 +66,23 @@ beforeAll(() => {
     disconnect(): void {}
   };
 });
+
+const churnRow = {
+  currency: "USD",
+  productId: "premium",
+  platform: "IOS",
+  activeTrials: 0,
+  newSubs: 0,
+  trialStarts: 0,
+  trialConversions: 0,
+  directPaidStarts: 0,
+  renewals: 0,
+  cancellations: 0,
+  expirations: 0,
+  refunds: 0,
+  revenueMicros: 0,
+  refundedMicros: 0,
+};
 
 describe("ProjectAnalytics data states", () => {
   afterEach(cleanup);
@@ -165,6 +182,38 @@ describe("ProjectAnalytics data states", () => {
     // starts the day after: one expiry of three paid subscriptions.
     expect(screen.getByText("Churn").parentElement?.textContent).toBe(
       `Churn33.3%1 expired of 3 paid at start, from ${today}`,
+    );
+  });
+
+  it("shows churn as unknown until a day has a starting paid count", () => {
+    mocks.state.metrics = response({
+      dataState: "ready",
+      lastRunAt: Date.now(),
+      currencies: ["USD"],
+      days: [{ ...churnRow, day: today, activeSubs: 3, expirations: 1 }],
+    });
+    render(<ProjectAnalytics />);
+    expect(screen.getByText("Churn").parentElement?.textContent).toBe("Churn—");
+  });
+
+  it("fetches the day before the 90-day range for its starting paid count", () => {
+    const dayBefore = new Date(Date.now() - 90 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    mocks.state.metrics = response({
+      dataState: "ready",
+      lastRunAt: Date.now(),
+      currencies: ["USD"],
+      days: [
+        { ...churnRow, day: dayBefore, activeSubs: 4 },
+        { ...churnRow, day: today, activeSubs: 3, expirations: 1 },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    expect(mocks.state.lastArgs).toMatchObject({ fromDay: dayBefore });
+    fireEvent.click(screen.getByText("Last 90 days"));
+    expect(screen.getByText("Churn").parentElement?.textContent).toBe(
+      "Churn25.0%1 expired of 4 paid at start",
     );
   });
 

@@ -186,9 +186,11 @@ export default function ProjectAnalytics() {
     return () => clearInterval(id);
   }, []);
 
+  // From the day before the longest range: its snapshot is the first day's
+  // starting paid count, the churn denominator.
   const { maxFromDay, toDay } = useMemo(() => {
     const today = utcDayKey(now);
-    const from = utcDayKey(now - (MAX_RANGE_DAYS - 1) * DAY_MS);
+    const from = utcDayKey(now - MAX_RANGE_DAYS * DAY_MS);
     return { maxFromDay: from, toDay: today };
   }, [now, MAX_RANGE_DAYS]);
 
@@ -1141,7 +1143,8 @@ type DayPoint = DailyRow & { dayKey: string; paidAtStart: number | null };
 // Collapses rollup rows (one per currency, product, and platform) into one
 // row per day. Callers filter first, so summing here is safe. `paidAtStart`,
 // the churn denominator, is the previous day's paid (not in trial) snapshot;
-// null when that day predates the trial split and its trials are unknown.
+// null until a row has been seen, or while it predates the trial split and its
+// trials are unknown.
 function aggregateByDay(
   rows: MetricRow[],
   rangeDays: number,
@@ -1179,7 +1182,8 @@ function aggregateByDay(
   for (let i = 0; i < rangeDays; i++) {
     const dayKey = utcDayKey(fromTs + i * DAY_MS);
     const paidAtStart =
-      trialSplitFromDay === undefined || snapshotDay >= trialSplitFromDay
+      snapshotDay !== "" &&
+      (trialSplitFromDay === undefined || snapshotDay >= trialSplitFromDay)
         ? lastActive - lastTrials
         : null;
     const entry = byDay.get(dayKey);

@@ -6,15 +6,17 @@
 // Metric definitions (UTC days; list price in the store's currency, before
 // store fees; IAPKit never converts currencies):
 // - revenueMicros: gross list price of paid charges (paid starts, trial
-//   conversions, renewals, billing recoveries). Free trial periods add 0.
+//   conversions, renewals, billing recoveries). Free periods add 0.
 // - refundedMicros: store-reported amount of refunds, less refund reversals.
-// - newSubs: subscription starts, free trials included, refund reversals not.
+// - newSubs: paid and free-trial starts; not refund reversals, Google plan
+//   changes or free offer periods.
 // - trialStarts / trialConversions / directPaidStarts: see `applyEventToBucket`.
-// - renewals: paid renewals and billing recoveries, except a trial's first
-//   paid charge, which is a conversion.
+// - renewals: paid renewals, billing recoveries and Google plan changes Play
+//   charged at once (at list price), except a trial's first paid charge,
+//   which is a conversion.
 // - cancellations: auto-renew turned off, less turned back on. Not churn.
 // - expirations: paid access actually ended (store expiry notification). A
-//   free trial that ended unpaid is not churn.
+//   free period that ended unpaid is not churn.
 // - refunds: refunds, less refund reversals. One per refund: revocations are
 //   never counted (see `isRefund`).
 // - activeSubs / activeTrials: end-of-day snapshot of subscriptions with
@@ -28,11 +30,13 @@
 //
 // A run is a chain of scheduled mutations, each with its own read budget. The
 // kickoff stamps the run; then the window goes in slices of at most
-// TRAILING_DAYS days, one after another: per slice, the events received on its
-// days, then counted-state subscriptions via
-// `by_project_and_state_and_updated`, newest first, then the commit. An event
-// received after its day's slice was written is added to that day's rows, so a
-// run reads each event once. A slice carries only its own buckets between
+// TRAILING_DAYS days, one after another: per slice, the events received from
+// its first day until the run started, then counted-state subscriptions via
+// `by_project_and_state_and_updated`, newest first, then the commit, which
+// replaces the slice's days. A slice counts every event that occurred on its
+// days, so a day is only ever replaced with a complete count, never added to:
+// a retried or overlapping run cannot double-count. Each page also stops once
+// a newer run has started. A slice carries only its own buckets between
 // mutations, so a 30-day rebuild never carries more than a regular run does.
 
 import { internalMutation } from "../_generated/server";
@@ -45,9 +49,10 @@ import { WEBHOOK_RETENTION_MS } from "../webhooks/shared";
 import { isMisrecordedApplePass } from "./stateMachine";
 import {
   analyticsEnvironment,
-  endedInFreeTrial,
+  endedInFreePeriod,
   isInTrialAt,
   isPaidCharge,
+  isPlanChange,
   isRefund,
   isTrialStart,
   subscriptionEnvironment,
@@ -350,8 +355,8 @@ export const recomputeRevenueMetricsForProject = internalMutation({
 // Reads per mutation, not per project. An Apple event stores its signed
 // payload, about 20 KB with its certificate chains, so 400 events read at most
 // ~12.5 MiB even at 32 KB each, under the 16 MiB a mutation may read. Each
-// event adds at most three index reads (alias, subscription, an earlier day's
-// row): 1,200 of the 4,096 allowed.
+// event adds at most two index reads (alias, subscription): 800 of the 4,096
+// allowed.
 const EVENTS_PAGE_SIZE = 400;
 
 // Subscription rows are about 1 KB: 50k active subs take ~10 chained pages.
@@ -519,8 +524,7 @@ async function markRevenueMetricsRun(
     run.runStartedAt - existing.cohortsRequestedAt >= COHORTS_INTERVAL_MS;
 
   const fields = {
-    // Overlapping runs may finish out of order; keep the newest.
-    lastRunAt: Math.max(existing?.lastRunAt ?? -Infinity, run.runStartedAt),
+    lastRunAt: run.runStartedAt,
     definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
     definitionsFromDay,
     trialSplitFromDay,
@@ -582,11 +586,12 @@ function latestNotifications(
 
 // Stamps the run's start and schedules the first slice. The stamp commits on
 // its own, so a first page that fails still leaves the project to the
-// picker's retry wait.
+// picker's retry wait, and it stops any older run still in flight.
 //
 // The window is the trailing 3 days, widened to the retained event window
-// when the project's rows follow older definitions (or none exist yet), or
-// back to `fromDay` for a catch-up.
+// when the project's rows follow older definitions (or none exist yet), back
+// to `fromDay` for a catch-up, and back to an unfinished run's first day, so
+// a retry still covers what that run was asked to.
 async function startRun(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -595,19 +600,23 @@ async function startRun(
 ): Promise<void> {
   if (!(await getWritableProject(ctx, projectId))) return;
   const status = await getRunStatus(ctx, projectId);
+  const unfinished =
+    status !== null && unfinishedRunStart(status) !== undefined;
   const retainedFirst = retainedFirstDay(now);
   let firstDay =
     status?.definitionsVersion === ROLLUP_DEFINITIONS_VERSION
       ? trailingFirstDay(now)
       : retainedFirst;
-  if (fromDay !== undefined && fromDay < firstDay) {
-    firstDay = fromDay < retainedFirst ? retainedFirst : fromDay;
+  for (const day of [fromDay, unfinished ? status.runFirstDay : undefined]) {
+    if (day !== undefined && day < firstDay) firstDay = day;
   }
-  const failedRuns =
-    status && unfinishedRunStart(status) !== undefined
-      ? (status.failedRuns ?? 0) + 1
-      : 0;
-  const stamp = { runStartedAt: now, failedRuns: failedRuns || undefined };
+  if (firstDay < retainedFirst) firstDay = retainedFirst;
+  const failedRuns = unfinished ? (status.failedRuns ?? 0) + 1 : 0;
+  const stamp = {
+    runStartedAt: now,
+    runFirstDay: firstDay,
+    failedRuns: failedRuns || undefined,
+  };
   if (status) {
     await ctx.db.patch(status._id, stamp);
   } else {
@@ -637,8 +646,8 @@ async function startRun(
 // Scans by `receivedAt` (the indexed field) but buckets by `occurredAt`, so a
 // renewal delivered a day late stays on its own day. Receivers set `receivedAt`
 // at HTTP receipt and `occurredAt` from the store (Apple `signedDate`, Google
-// `eventTimeMillis`), so `receivedAt >= occurredAt`: an event received on the
-// slice's days belongs to them or to an earlier day.
+// `eventTimeMillis`), so `receivedAt >= occurredAt`: the events received from
+// the slice's first day on include every event of its days.
 async function processEventsPage(
   ctx: MutationCtx,
   args: {
@@ -652,6 +661,9 @@ async function processEventsPage(
   const { projectId, days, buckets } = args;
   const sliceFirst = days[0];
   const sliceLast = days[days.length - 1];
+  // The first slice reads every event the run reads, so it alone records
+  // notification times and late events.
+  const firstSlice = sliceFirst === args.run.firstDay;
   const retainedFirst = retainedFirstDay(args.run.runStartedAt);
   const run: RunSummary = {
     ...args.run,
@@ -665,10 +677,7 @@ async function processEventsPage(
       q
         .eq("projectId", projectId)
         .gte("receivedAt", Date.parse(`${sliceFirst}T00:00:00.000Z`))
-        .lte(
-          "receivedAt",
-          Math.min(Date.parse(`${sliceLast}T23:59:59.999Z`), run.runStartedAt),
-        ),
+        .lte("receivedAt", run.runStartedAt),
     )
     .paginate({
       numItems: pageSize(EVENTS_PAGE_SIZE, run),
@@ -676,22 +685,15 @@ async function processEventsPage(
     });
   const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
+  const notifications = firstSlice
+    ? result.page.filter(isStoreNotification)
+    : [];
   const counted: Array<{
     event: Doc<"webhookEvents">;
     day: string;
     catalogType?: Doc<"products">["type"];
   }> = [];
   for (const event of result.page) {
-    if (
-      STORE_NOTIFICATION_SOURCES.has(event.source) &&
-      event.type !== "TestNotification"
-    ) {
-      const environment = analyticsEnvironment(event.environment);
-      run.lastNotificationAt[environment] = Math.max(
-        run.lastNotificationAt[environment] ?? 0,
-        event.receivedAt,
-      );
-    }
     // Android revenue metrics are the Google Play series.
     if (event.store === "amazon") continue;
     // Legacy events from the removed Horizon reconciler were synthetic guesses
@@ -703,12 +705,12 @@ async function processEventsPage(
       : undefined;
     if (!isSubscriptionAnalyticsEvent(event, catalogType)) continue;
     const day = utcDayKey(event.occurredAt);
-    // Before the window its row is not rewritten, so writing here would
-    // double-count or clobber it. A late event no finished run covered is
-    // counted so the next catch-up can fold it in; one older than the
-    // retained window can never be, and is left out.
+    // This run leaves days before its window alone. A late event no finished
+    // run covered is counted so the next catch-up can fold it in; one older
+    // than the retained window can never be, and is left out.
     if (day < run.firstDay) {
       if (
+        firstSlice &&
         day >= retainedFirst &&
         !isCovered(run.coverage, day, event.receivedAt)
       ) {
@@ -719,19 +721,27 @@ async function processEventsPage(
       }
       continue;
     }
-    // Only a store clock ahead of ours dates an event after its arrival.
-    if (day > sliceLast) continue;
+    // Another slice counts other days. Only a store clock ahead of ours dates
+    // an event after its arrival.
+    if (day < sliceFirst || day > sliceLast) continue;
     counted.push({ event, day, catalogType });
   }
 
-  const tokens = await resolveTokens(
-    ctx,
-    projectId,
-    counted.map(({ event }) => event).filter(needsSubscription),
-  );
-  // Days before the slice belong to an earlier slice of this run, already
-  // written.
-  const earlier = new Map<BucketKey, RollupBucket>();
+  const tokens = await resolveTokens(ctx, projectId, [
+    ...counted.map(({ event }) => event).filter(needsSubscription),
+    // A one-time purchase has no subscription to take an environment from.
+    ...notifications.filter(
+      (event) => event.environmentDefaulted && event.productKind !== "one_time",
+    ),
+  ]);
+  for (const event of notifications) {
+    const environment = notificationEnvironment(event, tokens);
+    if (environment === undefined) continue;
+    run.lastNotificationAt[environment] = Math.max(
+      run.lastNotificationAt[environment] ?? 0,
+      event.receivedAt,
+    );
+  }
   for (const { event, day, catalogType } of counted) {
     const token = event.purchaseToken
       ? tokens.get(event.purchaseToken)
@@ -741,17 +751,12 @@ async function processEventsPage(
     const subject = bucketSubject(event, token);
     if (!subject) continue;
     applyEventToBucket(
-      getOrCreateBucket(day < sliceFirst ? earlier : buckets, {
-        day,
-        platform: event.platform,
-        ...subject,
-      }),
+      getOrCreateBucket(buckets, { day, platform: event.platform, ...subject }),
       event,
       catalogType,
       token?.subscription?.analytics,
     );
   }
-  await addToWrittenDays(ctx, projectId, earlier.values(), run);
 
   // New mutation either way: this one already used its paginated query.
   await scheduleRecomputePage(ctx, {
@@ -763,6 +768,29 @@ async function processEventsPage(
       : { phase: "events", paginationCursor: result.continueCursor },
     run,
   });
+}
+
+function isStoreNotification(event: Doc<"webhookEvents">): boolean {
+  return (
+    STORE_NOTIFICATION_SOURCES.has(event.source) &&
+    event.type !== "TestNotification"
+  );
+}
+
+// A notification Play sent without an environment shows that its
+// subscription's environment receives notifications; without a subscription
+// it shows neither.
+function notificationEnvironment(
+  event: Doc<"webhookEvents">,
+  tokens: Map<string, ResolvedToken>,
+): AnalyticsEnvironment | undefined {
+  if (!event.environmentDefaulted) {
+    return analyticsEnvironment(event.environment);
+  }
+  const subscription = event.purchaseToken
+    ? tokens.get(event.purchaseToken)?.subscription
+    : undefined;
+  return subscription ? subscriptionEnvironment(subscription) : undefined;
 }
 
 // Play's voided-purchase refund names no product, price or test flag, an
@@ -842,47 +870,6 @@ function bucketSubject(
   };
 }
 
-// Adds events a later slice received to the rows an earlier slice of the same
-// run wrote for their day.
-async function addToWrittenDays(
-  ctx: MutationCtx,
-  projectId: Id<"projects">,
-  buckets: Iterable<RollupBucket>,
-  run: RunSummary,
-): Promise<void> {
-  for (const bucket of buckets) {
-    if (isAllZeroBucket(bucket)) continue;
-    const rows = await ctx.db
-      .query("revenueMetricsDaily")
-      .withIndex("by_project_and_day_and_currency", (q) =>
-        q
-          .eq("projectId", projectId)
-          .eq("day", bucket.day)
-          .eq("currency", bucket.currency),
-      )
-      .collect();
-    const row = rows.find(
-      (candidate) =>
-        candidate.productId === bucket.productId &&
-        candidate.platform === bucket.platform &&
-        candidate.environment === bucket.environment,
-    );
-    if (!row) {
-      await ctx.db.insert("revenueMetricsDaily", {
-        projectId,
-        ...bucket,
-        updatedAt: run.runStartedAt,
-      });
-      continue;
-    }
-    const sums: Partial<Record<(typeof COUNTERS)[number], number>> = {};
-    for (const counter of COUNTERS) {
-      sums[counter] = (row[counter] ?? 0) + bucket[counter];
-    }
-    await ctx.db.patch(row._id, sums);
-  }
-}
-
 // One page of one counted state per mutation; even an empty state chains to the
 // next, since each `paginate()` uses the mutation's one allowance. Adds
 // activeSubs to the event buckets and commits after the last page.
@@ -958,6 +945,17 @@ async function processSubsPage(
   });
 }
 
+// A page of a run a newer one replaced, or of a deleted project, does nothing.
+async function isCurrentRun(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  run: RunSummary,
+): Promise<boolean> {
+  if (!(await getWritableProject(ctx, projectId))) return false;
+  const status = await getRunStatus(ctx, projectId);
+  return status?.runStartedAt === run.runStartedAt;
+}
+
 async function scheduleRecomputePage(
   ctx: MutationCtx,
   args: RecomputeRevenueMetricsPageArgs,
@@ -980,7 +978,7 @@ export const recomputeRevenueMetricsPage = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!(await getWritableProject(ctx, args.projectId))) return null;
+    if (!(await isCurrentRun(ctx, args.projectId, args.run))) return null;
     const buckets = new Map<BucketKey, RollupBucket>();
     for (const row of args.buckets) {
       buckets.set(keyOf(row), { ...row });
@@ -1037,7 +1035,7 @@ export const commitRevenueMetricsDays = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!(await getWritableProject(ctx, args.projectId))) return null;
+    if (!(await isCurrentRun(ctx, args.projectId, args.run))) return null;
     const [day, ...rest] = args.days;
     await commitBuckets(
       ctx,
@@ -1142,6 +1140,7 @@ function getOrCreateBucket(
 // - trialStarts: starts whose store offer data says free trial (revenue 0).
 // - trialConversions: a subscription's first paid charge after a free trial.
 // - directPaidStarts: a first paid charge delivered as a start with no trial.
+// - A Google replacement is no start; one Play charged at once is a renewal.
 // Restores never reach here: only store notifications are counted, and a
 // restore re-verifies an existing purchase without one.
 export function applyEventToBucket(
@@ -1169,7 +1168,7 @@ export function applyEventToBucket(
     bucket.revenueMicros += price;
     if (event.paidStart === "trial_conversion") {
       bucket.trialConversions += 1;
-    } else if (event.type === "SubscriptionStarted") {
+    } else if (event.type === "SubscriptionStarted" && !isPlanChange(event)) {
       bucket.newSubs += 1;
       if (event.paidStart === "direct") bucket.directPaidStarts += 1;
     } else {
@@ -1190,11 +1189,12 @@ export function applyEventToBucket(
       bucket.cancellations -= 1;
       break;
     case "SubscriptionExpired":
-      if (!endedInFreeTrial(event, facts)) bucket.expirations += 1;
+      if (!endedInFreePeriod(event, facts)) bucket.expirations += 1;
       break;
     default:
       // Lifecycle-only events (grace period, billing retry, price change, a
-      // free promotional renewal, ...) carry no counter.
+      // free promotional period, an uncharged plan change, ...) carry no
+      // counter.
       break;
   }
 }

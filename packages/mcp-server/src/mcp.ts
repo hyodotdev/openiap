@@ -1691,11 +1691,11 @@ const REVENUE_DEFINITIONS = {
   revenue:
     "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
   purchaseEvents:
-    "Paid charges: direct paid starts, trial conversions, renewals and billing recoveries. Free trial starts, restores and Google plan changes are not purchases: Play prorates a plan change, so its next renewal is the first charge counted.",
+    "Paid charges: direct paid starts, trial conversions, renewals and billing recoveries. Free trials, free promotional periods and restores are not purchases. An Apple immediate upgrade adds nothing until the next charge. A Google plan change is a renewal only when Play charges it at once (a prepaid top-up, or the CHARGE_FULL_PRICE or CHARGE_PRORATED_PRICE mode), booked at the new plan's list price; otherwise its next renewal is the first charge counted.",
   trials:
-    "trialStarts: free trials started. trialConversions: the paid charge that ends a free trial; a purchase after a lapsed trial is a direct paid start.",
+    "trialStarts: free trials started; on Apple only introductory offers, not promotional, offer-code or win-back offers. trialConversions: the paid charge that ends a free trial; a purchase after a lapsed trial is a direct paid start.",
   churn:
-    "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended; a free trial that ended unpaid, or a purchase Google replaced in a plan change, is not counted.",
+    "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended; a free trial or free offer period that ended unpaid, or a purchase Google replaced in a plan change, is not counted.",
   refunds:
     "refunds: store refunds less refund reversals, one per refund. Revocations are not refunds: Apple's are Family Sharing removals, and Play's accompany a voided purchase that is counted instead. Google refunds carry no amount.",
   environment:

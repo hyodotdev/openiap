@@ -7,7 +7,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Revenue",
     definition:
-      "Gross store list price of paid charges: direct paid starts, trial conversions, renewals, and billing recoveries. Free trial periods add 0. Before store fees and refunds.",
+      "Gross store list price of paid charges: direct paid starts, trial conversions, renewals, and billing recoveries. Free trials and free offer periods add 0. Before store fees and refunds.",
   },
   {
     name: "Refunded / net revenue",
@@ -17,12 +17,12 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "New subscriptions",
     definition:
-      "Subscription starts, free trials included. An Apple refund reversal restores access but is not a new subscription.",
+      "Paid and free-trial subscription starts. An Apple refund reversal restores access but is not a new subscription, and neither is a Google plan change or a free offer period.",
   },
   {
     name: "Trials started",
     definition:
-      "Starts whose store offer data says free trial: Apple's offerDiscountType, Google's purchased offer matched against the synced Play catalog.",
+      "Starts whose store offer data says free trial: an Apple introductory offer with offerDiscountType FREE_TRIAL, or Google's purchased offer matched against the synced Play catalog.",
   },
   {
     name: "Trial conversions",
@@ -36,7 +36,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Renewals",
     definition:
-      "Paid renewals and billing recoveries, except a trial's first charge.",
+      "Paid renewals, billing recoveries, and Google plan changes Play charged at once, except a trial's first charge.",
   },
   {
     name: "Auto-renew off",
@@ -46,7 +46,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Expirations / churn",
     definition:
-      "Expirations count paid access that actually ended; a free trial that ended unpaid is not churn. Churn is expirations in the period divided by paid subscriptions active at its start.",
+      "Expirations count paid access that actually ended; a free trial or free offer period that ended unpaid is not churn. Churn is expirations in the period divided by paid subscriptions active at its start; it shows — until a day with rows sets that start.",
   },
   {
     name: "Refunds",
@@ -164,9 +164,17 @@ export default function AnalyticsPage() {
         <li>
           <strong>Google plan changes.</strong> An upgrade, downgrade,
           re-signup, or prepaid top-up continues the subscription: it is not a
-          new subscription, and the replaced purchase expiring is not churn.
-          Play prorates the change, so it books no revenue; the next renewal
-          does.
+          new subscription, and the replaced purchase expiring is not churn. A
+          prepaid top-up, or a change in the <code>CHARGE_FULL_PRICE</code> or{" "}
+          <code>CHARGE_PRORATED_PRICE</code> mode, is a renewal at the new
+          plan&apos;s list price, so a prorated charge is overstated. Other
+          modes book nothing until the new plan renews.
+        </li>
+        <li>
+          <strong>Apple upgrades and offers.</strong> An immediate upgrade adds
+          no revenue until the next charge. Promotional, offer-code, and
+          win-back offers are not trials: a free period from one books nothing,
+          is not churn when it ends, and the charge after it is a renewal.
         </li>
         <li>
           <strong>Google intro prices.</strong> Play reports a base plan&apos;s

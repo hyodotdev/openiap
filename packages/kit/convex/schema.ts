@@ -678,6 +678,10 @@ const schema = defineSchema({
     refundReversal: v.optional(v.boolean()),
     // Set on the subscription's first paid charge by `analyticsFacts.ts`.
     paidStart: v.optional(paidStartValidator),
+    // A Google replacement Play charged at once: a prepaid top-up or an
+    // immediate-charge replacement mode. Other replacements charge nothing
+    // until they renew.
+    replacementCharged: v.optional(v.boolean()),
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
@@ -943,7 +947,11 @@ const schema = defineSchema({
     lastRunAt: v.optional(v.number()),
     // Start of the latest run. Past `lastRunAt` while a run is in flight or
     // after it failed; the picker leaves such a project alone for a while.
+    // Each page of a run checks it, so a newer run stops an older one.
     runStartedAt: v.optional(v.number()),
+    // First day of the latest run's window. A retry of a run that did not
+    // finish starts there too, so a failed catch-up is not narrowed.
+    runFirstDay: v.optional(v.string()),
     // Rows from `definitionsFromDay` on follow definitions version
     // `definitionsVersion`; a run that finds an older version rebuilds the
     // retained event window first.

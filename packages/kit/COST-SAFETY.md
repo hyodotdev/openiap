@@ -111,17 +111,21 @@ environment at a time.
   notification keeps its signed payload, about 20 KB, so a page stays under
   12.5 MiB of the 16 MiB a mutation may read even at 32 KB per event.
   Subscription pages hold 5,000 rows of about 1 KB. Google expirations without
-  a trial flag, Play voided purchases, and Google notifications without a
-  Play-reported environment each add an alias lookup and a subscription read.
+  a trial flag, Play voided purchases, and Google subscription notifications
+  without a Play-reported environment each add an alias lookup and a
+  subscription read. Every page also reads the project's run status row.
 - **Slices.** A wider run covers its window in 3-day slices, one after
-  another. Each slice reads only the events received on its own days; one that
-  arrived after its day's slice was written adds one indexed read and one
-  write to that day's row. A run therefore reads each event once: the 30-day
-  rebuild reads the retained events once and the counted-state subscriptions
-  ten times.
+  another. Each slice reads the events received from its first day until the
+  run started, so it replaces its days with complete counts and a day is never
+  incremented. An event is read once per slice that starts on or before the
+  day it arrived: once in a regular run, up to 10 times and 5.5 on average in
+  the 30-day rebuild, which also reads the counted-state subscriptions ten
+  times. A catch-up from 7 days back reads its events about 1.7 times.
 - **Failed runs.** A run that started without finishing is picked again after
   an hour, then after 2, 4, and so on up to 24 hours while it keeps failing.
-  Each failed run in a row also halves both page sizes, down to 25 rows.
+  Each failed run in a row also halves both page sizes, down to 25 rows. The
+  retry covers the unfinished run's window, and the older run's remaining
+  pages stop when they see the newer start, so two runs never write at once.
 - **Definitions rebuild.** When `ROLLUP_DEFINITIONS_VERSION` changes, each
   project's next run covers the retained 30 days once instead of 3.
 - **Late-event catch-up.** Only when a run finds notifications that no

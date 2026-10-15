@@ -357,17 +357,56 @@ describe("applyEventToBucket", () => {
     });
   });
 
-  it("a free promotional renewal is not a charge", () => {
+  it("a free promotional period is neither a trial nor a charge", () => {
+    // Apple prices a free promotional, offer-code or win-back period at 0.
+    for (const type of [
+      "SubscriptionStarted",
+      "SubscriptionRenewed",
+    ] as const) {
+      const bucket = emptyBucket();
+      applyEventToBucket(
+        bucket,
+        makeEvent({ type, freeTrial: false, priceAmountMicros: 0 }),
+      );
+      expect(bucket).toEqual(emptyBucket());
+    }
+    // Its end is not churn either.
     const bucket = emptyBucket();
     applyEventToBucket(
       bucket,
       makeEvent({
-        type: "SubscriptionRenewed",
-        freeTrial: true,
+        type: "SubscriptionExpired",
+        freeTrial: false,
         priceAmountMicros: 0,
       }),
     );
-    expect(bucket).toEqual(emptyBucket());
+    expect(bucket.expirations).toBe(0);
+  });
+
+  it("books a Google replacement Play charged at once as a renewal, never a start", () => {
+    const replacement = {
+      type: "SubscriptionStarted" as const,
+      platform: "Android" as const,
+      linkedPurchaseToken: "old-token",
+      priceAmountMicros: 9_990_000,
+    };
+    const charged = emptyBucket("2026-03-15", "sub.monthly", "USD", "Android");
+    applyEventToBucket(
+      charged,
+      makeEvent({ ...replacement, replacementCharged: true }),
+    );
+    expect(charged).toMatchObject({
+      newSubs: 0,
+      directPaidStarts: 0,
+      renewals: 1,
+      revenueMicros: 9_990_000,
+    });
+    // Other modes charge the new plan when it renews.
+    const deferred = emptyBucket("2026-03-15", "sub.monthly", "USD", "Android");
+    applyEventToBucket(deferred, makeEvent(replacement));
+    expect(deferred).toEqual(
+      emptyBucket("2026-03-15", "sub.monthly", "USD", "Android"),
+    );
   });
 
   it("SubscriptionExpired → expirations++ and no money", () => {
@@ -1047,10 +1086,9 @@ async function transaction(
   }
 }
 
-// One rollup run at `at`, each scheduled mutation in its own transaction. A
-// failed mutation ends the chain, as a throwing scheduled function does.
-async function runChain(db: MemDb, at: number = NOW): Promise<boolean> {
-  vi.setSystemTime(at);
+// A rollup run's chain, one scheduled mutation per step, each in its own
+// transaction. Other follow-ups (catch-ups, stats and cohort jobs) are dropped.
+function rollupChain(db: MemDb) {
   const queue: ScheduledCall[] = [];
   const ctx = {
     db,
@@ -1064,11 +1102,20 @@ async function runChain(db: MemDb, at: number = NOW): Promise<boolean> {
       },
     },
   };
-  try {
-    await transaction(db, () =>
-      kickoff._handler(ctx, { projectId: PROJECT_ID }),
-    );
-    for (let call = queue.shift(); call; call = queue.shift()) {
+  return {
+    queue,
+    async start(at: number, fromDay?: string): Promise<void> {
+      vi.setSystemTime(at);
+      await transaction(db, () =>
+        kickoff._handler(ctx, {
+          projectId: PROJECT_ID,
+          ...(fromDay !== undefined ? { fromDay } : {}),
+        }),
+      );
+    },
+    async step(): Promise<void> {
+      const call = queue.shift();
+      if (!call) return;
       const { name, args } = call;
       if (name.endsWith(":recomputeRevenueMetricsPage")) {
         await transaction(db, () =>
@@ -1082,12 +1129,28 @@ async function runChain(db: MemDb, at: number = NOW): Promise<boolean> {
           ),
         );
       }
-    }
+    },
+  };
+}
+
+// One rollup run at `at` to its end. A failed mutation ends the chain, as a
+// throwing scheduled function does.
+async function runChain(
+  db: MemDb,
+  at: number = NOW,
+  fromDay?: string,
+): Promise<boolean> {
+  const chain = rollupChain(db);
+  try {
+    await chain.start(at, fromDay);
+    while (chain.queue.length > 0) await chain.step();
     return true;
   } catch {
     return false;
   }
 }
+
+const HOUR = 60 * 60 * 1000;
 
 describe("rollup run — round-trip integration", () => {
   let db: MemDb;
@@ -1892,7 +1955,7 @@ describe("rollup run — definitions rebuild", () => {
 });
 
 describe("rollup run — event reads", () => {
-  it("reads each event once in a 30-day rebuild and adds a late one to its day", async () => {
+  it("counts a late event on its day in a 30-day rebuild", async () => {
     const db = new MemDb();
     let eventsRead = 0;
     db.onPage = (table, _numItems, page) => {
@@ -1917,7 +1980,9 @@ describe("rollup run — event reads", () => {
 
     await recompute(makeCtx(db));
 
-    expect(eventsRead).toBe(31);
+    // Each slice reads the events received from its first day on: the event
+    // of day d in ⌊d/3⌋ + 1 slices, and the late one in all 10.
+    expect(eventsRead).toBe((3 * (10 * 11)) / 2 + 10);
     const renewals = async (day: string) =>
       (await rollupRows(db)).find((row) => row.day === day)?.renewals;
     expect(await renewals("2026-02-14")).toBe(1);
@@ -1959,7 +2024,6 @@ describe("rollup run — failures and follow-ups", () => {
       pageSizes.push(numItems);
       if (numItems > 100) throw new Error("Too many bytes read");
     };
-    const HOUR = 60 * 60 * 1000;
 
     expect(await runChain(db, NOW)).toBe(false);
     expect(await pickProjects(db, 10, NOW + 59 * 60 * 1000)).toEqual([]);
@@ -2082,7 +2146,110 @@ describe("rollup run — failures and follow-ups", () => {
   });
 });
 
+describe("rollup run — overlapping runs", () => {
+  // A first 30-day rebuild stalls after its first slice (2026-02-14 to 16) is
+  // written; the picker's retry an hour later runs to the end; then the
+  // stalled run resumes.
+  async function stallRetryResume(db: MemDb): Promise<void> {
+    const stalled = rollupChain(db);
+    await stalled.start(NOW);
+    const nextSliceFirst = () =>
+      (stalled.queue[0]?.args.days as string[] | undefined)?.[0];
+    while (stalled.queue.length > 0 && nextSliceFirst() !== "2026-02-17") {
+      await stalled.step();
+    }
+    expect(nextSliceFirst()).toBe("2026-02-17");
+
+    expect(await runChain(db, NOW + HOUR)).toBe(true);
+
+    while (stalled.queue.length > 0) await stalled.step();
+  }
+  const renewalsOn = async (db: MemDb, day: string) =>
+    (await rollupRows(db))
+      .filter((row) => row.day === day)
+      .reduce((sum, row) => sum + (row.renewals as number), 0);
+
+  it("never counts an event twice", async () => {
+    const db = new MemDb();
+    // Happened in the first slice, arrived in the second.
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse("2026-02-15T10:00:00Z"),
+      receivedAt: Date.parse("2026-02-18T10:00:00Z"),
+    });
+
+    await stallRetryResume(db);
+
+    expect(await renewalsOn(db, "2026-02-15")).toBe(1);
+  });
+
+  it("stops the replaced run before it overwrites newer counts", async () => {
+    const db = new MemDb();
+    // Arrived after the stalled run started, before the retry did.
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      priceAmountMicros: 9_990_000,
+      receivedAt: NOW + 30 * 60 * 1000,
+    });
+
+    await stallRetryResume(db);
+
+    expect(await renewalsOn(db, TODAY)).toBe(1);
+    expect(await runStatus(db)).toMatchObject({
+      lastRunAt: NOW + HOUR,
+      runStartedAt: NOW + HOUR,
+    });
+  });
+});
+
 describe("rollup run — late events", () => {
+  it("counts a late event once however many slices read it", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    // Before the catch-up's window; every one of its four slices reads it.
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse("2026-03-02T10:00:00Z"),
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await recompute(makeCtx(db), NOW, "2026-03-05");
+
+    expect(await runStatus(db)).toMatchObject({
+      pendingLateEvents: 1,
+      oldestPendingLateDay: "2026-03-02",
+    });
+  });
+
+  it("retries a failed catch-up over its whole window", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse("2026-03-05T03:00:00Z"),
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+    db.onPage = (table) => {
+      if (table === "subscriptions") throw new Error("Too many bytes read");
+    };
+    expect(await runChain(db, NOW, "2026-03-05")).toBe(false);
+    db.onPage = undefined;
+
+    // The picker's retry passes no `fromDay`.
+    expect(await runChain(db, NOW + HOUR)).toBe(true);
+
+    expect(
+      (await rollupRows(db)).find((row) => row.day === "2026-03-05"),
+    ).toMatchObject({ newSubs: 1, revenueMicros: 9_990_000 });
+    expect(await runStatus(db)).toMatchObject({
+      pendingLateEvents: 0,
+      coverage: [{ at: NOW + HOUR, fromDay: "2026-03-05" }],
+    });
+  });
+
   it("does not hold an event that a run counted while its day was in the window", async () => {
     // Occurred the day before D2 and arrived on D2: the run on D2 counted it.
     const db = new MemDb();
@@ -2297,6 +2464,52 @@ describe("rollup run — Google replacements", () => {
 });
 
 describe("rollup run — production and sandbox", () => {
+  it("marks a Play notification without an environment collected only for its subscription's", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db, { lastNotificationAt: {} });
+    await seedSub(db, {
+      state: "Active",
+      purchaseToken: "tester",
+      platform: "Android",
+      environment: "Sandbox",
+      expiresAt: Date.UTC(2026, 3, 1),
+    });
+    const defaulted = {
+      platform: "Android" as const,
+      source: "GooglePlayRealTimeDeveloperNotifications" as const,
+      environment: "Production" as const,
+      environmentDefaulted: true,
+    };
+    await seedEvent(db, {
+      ...defaulted,
+      type: "SubscriptionCanceled",
+      purchaseToken: "tester",
+      receivedAt: Date.parse(`${D1}T08:00:00Z`),
+    });
+    // Neither has a subscription to take an environment from.
+    await seedEvent(db, {
+      ...defaulted,
+      type: "PurchaseRefunded",
+      cancellationReason: "Refunded",
+      purchaseToken: "unknown",
+      productId: undefined,
+      receivedAt: Date.parse(`${D1}T09:00:00Z`),
+    });
+    await seedEvent(db, {
+      ...defaulted,
+      type: "SubscriptionStarted",
+      productKind: "one_time",
+      purchaseToken: "consumable",
+      receivedAt: Date.parse(`${D1}T10:00:00Z`),
+    });
+
+    await recompute(makeCtx(db));
+
+    expect((await runStatus(db))?.lastNotificationAt).toEqual({
+      Sandbox: Date.parse(`${D1}T08:00:00Z`),
+    });
+  });
+
   it("counts a Play event without a reported environment in its subscription's", async () => {
     const db = new MemDb();
     await seedCurrentRunStatus(db);
