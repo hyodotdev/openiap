@@ -4,13 +4,14 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type { bindReasonValidator } from "../../../../../convex/utils/validation";
 import type { verifyPurchaseSuccessResponseSchema } from "../../../../../server/api/v1/route-response-schemas";
+import type { subscriptionEntitlementsResponseSchemaV2 } from "../../../../../server/api/v2/route-schemas";
 import {
+  activeSubscriptionProductIds,
   confirmPurchase,
+  InvalidConfirmationRequestError,
   type BindReason,
   type EntitlementGrant,
-  type EntitlementLedger,
   type GrantResult,
-  type SubscriptionGrant,
   type VerifyResult,
 } from "./confirm-purchase";
 
@@ -35,12 +36,15 @@ const VALID = {
   originalTransactionId: "2000000000000001",
   commerceEnvironment: "production",
 };
+// verify reports expiresAt only for a subscription.
+const SUBSCRIPTION = { ...VALID, expiresAt: 1_800_000_000_000 };
 
 // Fake IAPKit: one reply per path, recording what the backend sent.
 function setup(
   replies: { verify?: Reply; bind?: Reply },
   ledger: { grant?: GrantResult; owner?: string } = {},
   acceptSandbox?: (userId: string) => boolean,
+  userId = "user-1",
 ) {
   const sent: { path: string; body: Record<string, unknown> }[] = [];
   const fetch = vi.fn(async (url: string, init: RequestInit) => {
@@ -66,43 +70,15 @@ function setup(
   const grantOnce = vi.fn(
     async (_grant: EntitlementGrant) => ledger.grant ?? "granted",
   );
-  const upsertSubscription = vi.fn(
-    async (_grant: SubscriptionGrant) => ledger.grant ?? "granted",
-  );
   const ownerOf = vi.fn(async (_purchaseKey: string) => ledger.owner ?? null);
   const run = (body: unknown = APPLE) =>
-    confirmPurchase("user-1", body, {
+    confirmPurchase(userId, body, {
       secretKey: "openiap-kit_sk_test",
-      ledger: { ownerOf, grantOnce, upsertSubscription },
+      ledger: { ownerOf, grantOnce },
       ...(acceptSandbox ? { acceptSandbox } : {}),
       fetch,
     });
-  return { run, sent, grantOnce, upsertSubscription, ownerOf };
-}
-
-// A ledger that keeps one subscription period per purchase, never shortened.
-function subscriptionLedger(): EntitlementLedger & {
-  periods: Map<string, SubscriptionGrant>;
-} {
-  const periods = new Map<string, SubscriptionGrant>();
-  return {
-    periods,
-    ownerOf: async (key) => periods.get(key)?.userId ?? null,
-    grantOnce: async () => {
-      throw new Error("a subscription is never granted once");
-    },
-    upsertSubscription: async (grant) => {
-      const current = periods.get(grant.purchaseKey);
-      if (current && current.userId !== grant.userId) {
-        return "granted_to_other_user";
-      }
-      if (current && current.expiresAt >= grant.expiresAt) {
-        return "already_granted";
-      }
-      periods.set(grant.purchaseKey, grant);
-      return "granted";
-    },
-  };
+  return { run, sent, grantOnce, ownerOf };
 }
 
 const iapkitError = (code: string) => ({
@@ -117,11 +93,15 @@ describe("confirmPurchase", () => {
     expectTypeOf<BindReason>().toEqualTypeOf<
       Infer<typeof bindReasonValidator>
     >();
+    type Entitlements = v.InferOutput<
+      typeof subscriptionEntitlementsResponseSchemaV2
+    >;
+    expectTypeOf<Entitlements["productIds"]>().toEqualTypeOf<string[]>();
   });
 
-  it("verifies, links, and records an Apple subscription period", async () => {
-    const { run, sent, grantOnce, upsertSubscription } = setup({
-      verify: { body: { ...VALID, expiresAt: 1_800_000_000_000 } },
+  it("links an Apple subscription and leaves its periods to IAPKit", async () => {
+    const { run, sent, grantOnce, ownerOf } = setup({
+      verify: { body: SUBSCRIPTION },
       bind: { body: { ok: true, bound: true, reason: "bound" } },
     });
 
@@ -144,55 +124,141 @@ describe("confirmPurchase", () => {
         body: { purchaseToken: "jws.a.b", userId: "user-1" },
       },
     ]);
-    expect(upsertSubscription).toHaveBeenCalledWith({
-      purchaseKey: "2000000000000001",
-      userId: "user-1",
-      productId: "pro",
-      store: "apple",
-      transactionId: "2000000000000002",
-      expiresAt: 1_800_000_000_000,
-    });
+    expect(ownerOf).not.toHaveBeenCalled();
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
-  it("moves a subscription to each renewal's period and plan", async () => {
-    const ledger = subscriptionLedger();
-    const confirm = (verify: Record<string, unknown>) =>
-      confirmPurchase("user-1", APPLE, {
-        secretKey: "openiap-kit_sk_test",
-        ledger,
-        fetch: async (url) =>
-          Response.json(
-            new URL(url).pathname === "/v1/purchase/verify"
-              ? { ...VALID, ...verify }
-              : { ok: true, bound: true, reason: "already_bound" },
-          ),
-      });
-    const first = { transactionId: "2000000000000002", expiresAt: 1_000 };
-    const renewal = {
-      productId: "pro_yearly",
-      transactionId: "2000000000000003",
-      expiresAt: 2_000,
-    };
+  it("restores the same account's subscription as already granted", async () => {
+    const { run } = setup({
+      verify: { body: SUBSCRIPTION },
+      bind: { body: { ok: true, bound: true, reason: "already_bound" } },
+    });
 
-    await expect(confirm(first)).resolves.toEqual({
-      status: "entitled",
-      alreadyGranted: false,
-    });
-    await expect(confirm(renewal)).resolves.toEqual({
-      status: "entitled",
-      alreadyGranted: false,
-    });
-    // The older transaction arriving late keeps the renewed period.
-    await expect(confirm(first)).resolves.toEqual({
+    await expect(run()).resolves.toEqual({
       status: "entitled",
       alreadyGranted: true,
     });
-    expect(ledger.periods.get("2000000000000001")).toMatchObject({
-      productId: "pro_yearly",
-      transactionId: "2000000000000003",
-      expiresAt: 2_000,
+  });
+
+  it("gates a Google subscription on IAPKit through renewals the app never confirms", async () => {
+    // Google renews under the same, already acknowledged token, so only
+    // IAPKit's RTDN-driven state moves; the app never confirms it again.
+    let expiresAt = 1_000;
+    const now = 1_500;
+    const requests: { url: URL; method?: string }[] = [];
+    const options = {
+      secretKey: "openiap-kit_sk_test",
+      ledger: {
+        ownerOf: vi.fn(async () => null),
+        grantOnce: vi.fn(async (): Promise<GrantResult> => "granted"),
+      },
+      fetch: async (url: string, init: RequestInit) => {
+        const parsed = new URL(url);
+        requests.push({ url: parsed, method: init.method });
+        if (parsed.pathname === "/v1/purchase/verify") {
+          return Response.json({
+            ...VALID,
+            store: "google",
+            transactionId: "GPA.1",
+            originalTransactionId: undefined,
+            expiresAt,
+          });
+        }
+        if (parsed.pathname === "/v1/subscriptions/bind-user") {
+          return Response.json({ ok: true, bound: true, reason: "bound" });
+        }
+        return Response.json({
+          userId: parsed.searchParams.get("userId"),
+          productIds: expiresAt > now ? ["pro"] : [],
+          subscriptions: [],
+        });
+      },
+    };
+
+    await expect(confirmPurchase("user-1", GOOGLE, options)).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: false,
     });
+    await expect(
+      activeSubscriptionProductIds("user-1", options),
+    ).resolves.toEqual([]);
+    expiresAt = 2_000; // SUBSCRIPTION_RENEWED reached IAPKit.
+    await expect(
+      activeSubscriptionProductIds("user-1", options),
+    ).resolves.toEqual(["pro"]);
+
+    expect(options.ledger.ownerOf).not.toHaveBeenCalled();
+    expect(options.ledger.grantOnce).not.toHaveBeenCalled();
+    expect(requests.at(-1)).toMatchObject({ method: "GET" });
+    expect(requests.at(-1)?.url.pathname).toBe(
+      "/v2/subscriptions/entitlements",
+    );
+    expect(requests.at(-1)?.url.searchParams.get("userId")).toBe("user-1");
+  });
+
+  it("finishes an Apple renewal delivered to another signed-in account", async () => {
+    // The device's Apple ID renews user-1's subscription while user-2 is
+    // signed in; IAPKit still advances user-1's period from the store.
+    const { run, ownerOf, grantOnce } = setup(
+      {
+        verify: {
+          body: { ...SUBSCRIPTION, transactionId: "2000000000000003" },
+        },
+        bind: {
+          body: { ok: true, bound: false, reason: "bound_to_other_user" },
+        },
+      },
+      {},
+      undefined,
+      "user-2",
+    );
+
+    await expect(run()).resolves.toEqual({
+      status: "ownership_conflict",
+      alreadyGranted: true,
+    });
+    expect(ownerOf).not.toHaveBeenCalled();
+    expect(grantOnce).not.toHaveBeenCalled();
+  });
+
+  it.each(["not_found", "not_bindable"])(
+    "keeps a subscription IAPKit cannot link (%s) unfinished",
+    async (reason) => {
+      const { run, grantOnce } = setup({
+        verify: { body: SUBSCRIPTION },
+        bind: { body: { ok: true, bound: false, reason } },
+      });
+
+      await expect(run()).resolves.toEqual({
+        status: "verified",
+        retryAfterMs: 30_000,
+      });
+      expect(grantOnce).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reads active subscriptions with the secret key and fails on an IAPKit error", async () => {
+    const fetch = vi.fn(async (url: string, init: RequestInit) => {
+      expect(new Headers(init.headers).get("authorization")).toBe(
+        "Bearer openiap-kit_sk_test",
+      );
+      expect(new URL(url).searchParams.get("userId")).toBe("user 1/2");
+      return Response.json(
+        {
+          errors: [{ code: "SUBSCRIPTION_ENTITLEMENTS_FAILED", message: "x" }],
+        },
+        { status: 500 },
+      );
+    });
+
+    await expect(
+      activeSubscriptionProductIds("user 1/2", {
+        secretKey: "openiap-kit_sk_test",
+        fetch,
+      }),
+    ).rejects.toThrow(
+      "/v2/subscriptions/entitlements returned 500 SUBSCRIPTION_ENTITLEMENTS_FAILED",
+    );
   });
 
   it("links and grants an unacknowledged Google purchase by its token", async () => {
@@ -353,6 +419,24 @@ describe("confirmPurchase", () => {
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
+  it("follows the ledger when it granted the purchase to the caller IAPKit says is not its owner", async () => {
+    const { run, grantOnce } = setup(
+      {
+        verify: { body: VALID },
+        bind: {
+          body: { ok: true, bound: false, reason: "bound_to_other_user" },
+        },
+      },
+      { owner: "user-1", grant: "already_granted" },
+    );
+
+    await expect(run()).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+    });
+    expect(grantOnce).toHaveBeenCalledOnce();
+  });
+
   it("refuses another user's purchase before linking it in IAPKit", async () => {
     const { run, sent, ownerOf, grantOnce } = setup(
       {
@@ -446,11 +530,44 @@ describe("confirmPurchase", () => {
       "no transaction details",
     ],
   ])("throws on unexpected IAPKit answers", async (replies, message) => {
-    const { run, grantOnce, upsertSubscription } = setup(replies);
+    const { run, grantOnce } = setup(replies);
 
     await expect(run()).rejects.toThrow(message);
     expect(grantOnce).not.toHaveBeenCalled();
-    expect(upsertSubscription).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "INVALID_INPUT",
+    "APP_STORE_INVALID_JWS_FORMAT",
+    "APP_STORE_BUNDLE_ID_MISMATCH",
+  ])(
+    "reports evidence verify can never accept (400 %s) as invalid",
+    async (code) => {
+      const { run, sent } = setup({
+        verify: { status: 400, body: iapkitError(code) },
+      });
+
+      await expect(run()).resolves.toEqual({ status: "invalid", reason: code });
+      expect(sent).toHaveLength(1);
+    },
+  );
+
+  // Fixing the configuration makes the same purchase valid, so none settles it.
+  it.each([
+    [400, "APP_STORE_SERVER_CREDENTIALS_MISSING"],
+    [400, "APP_STORE_TRANSACTION_VERIFICATION_FAILED"],
+    [400, "PLAY_STORE_VERIFICATION_ERROR"],
+    [400, "INVALID_API_KEY"],
+    [500, "UNKNOWN_ERROR"],
+  ])("throws for a %i %s from verify", async (status, code) => {
+    const { run, sent } = setup({
+      verify: { status, body: iapkitError(code) },
+    });
+
+    await expect(run()).rejects.toThrow(
+      `/v1/purchase/verify returned ${status} ${code}`,
+    );
+    expect(sent).toHaveLength(1);
   });
 
   it.each([
@@ -461,7 +578,24 @@ describe("confirmPurchase", () => {
   ])("rejects a malformed body before calling IAPKit: %j", async (body) => {
     const { run, sent } = setup({});
 
-    await expect(run(body)).rejects.toThrow(TypeError);
+    await expect(run(body)).rejects.toThrow(InvalidConfirmationRequestError);
     expect(sent).toHaveLength(0);
+  });
+
+  it("keeps a network failure apart from a malformed body", async () => {
+    const offline = new TypeError("fetch failed");
+
+    const confirm = confirmPurchase("user-1", APPLE, {
+      secretKey: "openiap-kit_sk_test",
+      ledger: { ownerOf: async () => null, grantOnce: async () => "granted" },
+      fetch: async () => {
+        throw offline;
+      },
+    });
+
+    await expect(confirm).rejects.toBe(offline);
+    await expect(confirm).rejects.not.toBeInstanceOf(
+      InvalidConfirmationRequestError,
+    );
   });
 });

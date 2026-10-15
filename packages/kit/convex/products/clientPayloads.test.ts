@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
+import { assertApiKeyAccess, type ApiKeyAccess } from "../apiKeys/helpers";
 
 const projectMocks = vi.hoisted(() => ({
   byApiKey: vi.fn(),
@@ -29,15 +30,21 @@ import {
 } from "./clientPayloadHttp";
 import {
   discardProductClientPayloadDraft as registeredDiscardDraft,
+  discardProductClientPayloadDraftWithApiKey as registeredDiscardDraftWithApiKey,
   publishProductClientPayloadDraft as registeredPublishDraft,
   publishProductClientPayloadDraftWithApiKey as registeredPublishDraftWithApiKey,
   removeProductClientPayload as registeredRemove,
+  removeProductClientPayloadWithApiKey as registeredRemoveWithApiKey,
   rollbackProductClientPayload as registeredRollback,
+  rollbackProductClientPayloadWithApiKey as registeredRollbackWithApiKey,
   saveProductClientPayloadDraft as registeredSaveDraft,
   saveProductClientPayloadDraftWithApiKey as registeredSaveDraftWithApiKey,
   upsertProductClientPayloadWithApiKey as registeredUpsertWithApiKey,
 } from "./mutation";
 import {
+  getProductClientPayloadDraftWithApiKey as registeredDraftWithApiKey,
+  getProductClientPayloadEditorStateWithApiKey as registeredEditorStateWithApiKey,
+  getProductClientPayloadHistoryVersionWithApiKey as registeredApiKeyHistoryVersion,
   getProductClientPayloadIfChanged as registeredIfChanged,
   getProductClientPayloadSdkPreview as registeredSdkPreview,
   getProductClientPayloadWorkspace as registeredWorkspace,
@@ -62,6 +69,14 @@ const sdkPreview = testableFunction(registeredSdkPreview);
 const workspace = testableFunction(registeredWorkspace);
 const history = testableFunction(registeredHistory);
 const apiKeyHistory = testableFunction(registeredApiKeyHistory);
+const apiKeyHistoryVersion = testableFunction(registeredApiKeyHistoryVersion);
+const draftWithApiKey = testableFunction(registeredDraftWithApiKey);
+const editorStateWithApiKey = testableFunction(registeredEditorStateWithApiKey);
+const discardDraftWithApiKey = testableFunction(
+  registeredDiscardDraftWithApiKey,
+);
+const rollbackWithApiKey = testableFunction(registeredRollbackWithApiKey);
+const removeWithApiKey = testableFunction(registeredRemoveWithApiKey);
 
 const PROJECT_ID = "projects_a" as Id<"projects">;
 const USER_ID = "users_admin" as Id<"users">;
@@ -106,16 +121,24 @@ beforeEach(() => {
   projectMocks.byApiKey.mockReset();
   projectMocks.byProjectId.mockReset();
   projectMocks.byApiKey.mockImplementation(
-    async (_ctx: unknown, apiKey: string) =>
-      apiKey.startsWith("openiap-kit_pk_")
-        ? { project: { _id: PROJECT_ID }, keyType: "publishable" }
+    async (
+      _ctx: unknown,
+      apiKey: string,
+      requiredAccess: ApiKeyAccess = "client",
+    ) => {
+      const resolved = apiKey.startsWith("openiap-kit_pk_")
+        ? { project: { _id: PROJECT_ID }, keyType: "publishable" as const }
         : apiKey === "openiap-kit_sk_ci"
           ? {
               project: { _id: PROJECT_ID },
-              keyType: "secret",
+              keyType: "secret" as const,
               keyId: "apiKeys_ci",
             }
-          : null,
+          : null;
+      // The real resolver's role gate, so a call that drops "admin" fails.
+      if (resolved) assertApiKeyAccess(resolved.keyType, requiredAccess);
+      return resolved;
+    },
   );
   projectMocks.byProjectId.mockResolvedValue({
     project: { _id: PROJECT_ID },
@@ -604,7 +627,7 @@ describe("client payload history", () => {
     ]);
   });
 
-  it("keeps a payload published before history existed restorable", async () => {
+  it("shows and keeps a payload published before history existed", async () => {
     const ctx = makeCtx();
     ctx.db.seed("productClientPayloads", {
       _id: "productClientPayloads_legacy",
@@ -623,6 +646,32 @@ describe("client payload history", () => {
       createdAt: 1,
       updatedAt: 2,
     });
+    const baseline = {
+      version: 7,
+      action: "publish",
+      format: "text",
+      byteLength: 6,
+      createdAt: 2,
+    };
+
+    // Shown from the live payload before any write records it.
+    await expect(history._handler(ctx, DASHBOARD_ARGS)).resolves.toEqual([
+      baseline,
+    ]);
+    await expect(
+      apiKeyHistory._handler(ctx, {
+        apiKey: "openiap-kit_sk_ci",
+        platform: "IOS",
+        productId: "premium_monthly",
+      }),
+    ).resolves.toEqual([baseline]);
+    await expect(
+      getClientPayloadVersion(ctx as never, KEY, 7, "apiKey"),
+    ).resolves.toEqual({ ...baseline, body: "legacy" });
+    await expect(
+      getClientPayloadVersion(ctx as never, KEY, 6, "member"),
+    ).resolves.toBeNull();
+    expect(ctx.db.rows("productClientPayloadVersions")).toEqual([]);
 
     await publishClientPayload(ctx as never, KEY, {
       format: "text",
@@ -637,13 +686,7 @@ describe("client payload history", () => {
     );
     expect(versions).toEqual([
       expect.objectContaining({ version: 8, action: "publish" }),
-      {
-        version: 7,
-        action: "publish",
-        format: "text",
-        byteLength: 6,
-        createdAt: 2,
-      },
+      baseline,
     ]);
     await expect(
       rollbackClientPayload(ctx as never, KEY, {
@@ -713,26 +756,77 @@ describe("client payload permissions", () => {
     ]);
   });
 
-  it("rejects publishable keys before any secret-key write", async () => {
+  const PUBLISHABLE = {
+    apiKey: "openiap-kit_pk_app",
+    platform: "IOS" as const,
+    productId: "premium_monthly",
+  };
+  it.each<[string, (ctx: ReturnType<typeof makeCtx>) => Promise<unknown>]>([
+    ["read a draft", (ctx) => draftWithApiKey._handler(ctx, PUBLISHABLE)],
+    [
+      "read editor state",
+      (ctx) => editorStateWithApiKey._handler(ctx, PUBLISHABLE),
+    ],
+    ["list history", (ctx) => apiKeyHistory._handler(ctx, PUBLISHABLE)],
+    [
+      "read a history version",
+      (ctx) =>
+        apiKeyHistoryVersion._handler(ctx, { ...PUBLISHABLE, version: 1 }),
+    ],
+    [
+      "publish directly",
+      (ctx) =>
+        upsertWithApiKey._handler(ctx, {
+          ...PUBLISHABLE,
+          format: "text",
+          body: "x",
+        }),
+    ],
+    [
+      "save a draft",
+      (ctx) =>
+        saveDraftWithApiKey._handler(ctx, {
+          ...PUBLISHABLE,
+          format: "text",
+          body: "x",
+        }),
+    ],
+    [
+      "publish a draft",
+      (ctx) => publishDraftWithApiKey._handler(ctx, PUBLISHABLE),
+    ],
+    [
+      "discard a draft",
+      (ctx) => discardDraftWithApiKey._handler(ctx, PUBLISHABLE),
+    ],
+    [
+      "roll back",
+      (ctx) =>
+        rollbackWithApiKey._handler(ctx, { ...PUBLISHABLE, toVersion: 1 }),
+    ],
+    ["remove", (ctx) => removeWithApiKey._handler(ctx, PUBLISHABLE)],
+  ])("refuses a publishable key to %s", async (_action, call) => {
     const ctx = makeCtx();
-    projectMocks.byApiKey.mockRejectedValueOnce(
-      new Error("INSUFFICIENT_SCOPE"),
+    await publishClientPayload(ctx as never, KEY, {
+      format: "text",
+      body: "v1",
+      author: AUTHOR,
+    });
+    await saveClientPayloadDraft(ctx as never, KEY, {
+      format: "text",
+      body: "unpublished",
+    });
+    const before = JSON.stringify(ctx.db.rows("productClientPayloadDrafts"));
+
+    await expect(call(ctx)).rejects.toSatisfy(
+      (error) => errorCode(error) === "INSUFFICIENT_SCOPE",
     );
-    await expect(
-      upsertWithApiKey._handler(ctx, {
-        apiKey: "openiap-kit_pk_app",
-        platform: "IOS",
-        productId: "premium_monthly",
-        format: "text",
-        body: "x",
-      }),
-    ).rejects.toThrow("INSUFFICIENT_SCOPE");
-    expect(projectMocks.byApiKey).toHaveBeenCalledWith(
-      ctx,
-      "openiap-kit_pk_app",
-      "admin",
+    expect(JSON.stringify(ctx.db.rows("productClientPayloadDrafts"))).toBe(
+      before,
     );
-    expect(ctx.db.rows("productClientPayloads")).toEqual([]);
+    await expect(publicRead(ctx)).resolves.toMatchObject({
+      clientPayload: { body: "v1", version: 1 },
+    });
   });
 });
 
