@@ -460,6 +460,121 @@ describe("remote MCP HTTP server", () => {
     }
   });
 
+  it("reports trials, net revenue, data state and cohorts for a sandbox window", async () => {
+    const apiKey = "openiap-kit_sk_revenue_cohorts";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      expect(req.url).toBe(
+        "/v1/subscriptions/revenue?fromDay=2026-06-01&toDay=2026-06-04&environment=sandbox&cohorts=true",
+      );
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          days: [
+            {
+              day: "2026-06-01",
+              currency: "USD",
+              productId: "premium_monthly",
+              platform: "Android",
+              activeSubs: 3,
+              activeTrials: 1,
+              newSubs: 2,
+              trialStarts: 1,
+              trialConversions: 1,
+              directPaidStarts: 1,
+              renewals: 1,
+              cancellations: 1,
+              expirations: 1,
+              refunds: 1,
+              revenueMicros: 3 * 9_990_000,
+              refundedMicros: 9_990_000,
+            },
+          ],
+          currencies: ["USD"],
+          productIds: ["premium_monthly"],
+          platforms: ["Android"],
+          truncated: false,
+          environment: "Sandbox",
+          dataState: "ready",
+          lastRunAt: Date.parse("2026-06-04T00:10:00Z"),
+          definitionsFromDay: "2026-05-06",
+          pendingLateEvents: 0,
+          cohorts: [
+            {
+              month: "2026-05",
+              currency: "USD",
+              members: 4,
+              revenueMicros: 8 * 9_990_000,
+              refundedMicros: 9_990_000,
+              realizedLtvMicros: 2 * 9_990_000,
+              retained: [4, 2],
+              trialStarts: 5,
+              trialConversions: 2,
+              trialsPending: 1,
+              observedThrough: "2026-06-04",
+            },
+          ],
+          cohortsComputedAt: Date.parse("2026-06-04T00:10:00Z"),
+        }),
+      );
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_revenue_analytics",
+            arguments: {
+              period: "custom",
+              fromDay: "2026-06-01",
+              toDay: "2026-06-04",
+              environment: "sandbox",
+              includeCohorts: true,
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const payload = JSON.parse(
+        parseSseJson(await response.text()).result.content[0].text,
+      );
+
+      expect(payload).toMatchObject({
+        environment: "Sandbox",
+        dataState: "ready",
+        lastRunAt: "2026-06-04T00:10:00.000Z",
+        pendingLateEvents: 0,
+      });
+      // Paid charges: one direct start, one conversion, one renewal.
+      expect(payload.totalsByCurrency.USD).toMatchObject({
+        purchaseEvents: 3,
+        trialStarts: 1,
+        trialConversions: 1,
+        expirations: 1,
+        netRevenueMicros: 2 * 9_990_000,
+      });
+      expect(payload.cohorts).toEqual([
+        expect.objectContaining({
+          month: "2026-05",
+          realizedLtvMicros: 2 * 9_990_000,
+          netRealizedLtvMicros: Math.round((7 * 9_990_000) / 4),
+          retentionRates: [1, 0.5],
+          trialToPaidRate: 0.5,
+        }),
+      ]);
+      expect(payload.definitions.revenue).toContain("before store fees");
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
   it("generates Expo setup snippets compatible with current SDK types", async () => {
     const apiKey = "openiap-kit_sk_setup";
     const { baseUrl, sessionId } = await initializeMcpSession(apiKey);

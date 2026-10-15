@@ -9,6 +9,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
 import { isMisrecordedApplePass } from "./stateMachine";
+import { subscriptionEnvironment } from "./analyticsFacts";
 import { getWritableProject } from "../projects/writable";
 
 // Other states carry no MRR; metricsSummary counts the recent ones in its
@@ -28,13 +29,15 @@ type StatsContribution = {
   mrrMicros: number;
 };
 
-// What one row adds to the stats; null for a non-counted state.
+// What one row adds to the stats; null for a non-counted state. The stats are
+// production-only: sandbox testers never reach live counts or MRR.
 export function statsContributionFor(
   sub: Doc<"subscriptions">,
   billingPeriod: string | undefined,
   now: number = Date.now(),
 ): StatsContribution | null {
   if (!isCountedState(sub.state) || isMisrecordedApplePass(sub)) return null;
+  if (subscriptionEnvironment(sub) !== "Production") return null;
   // Active subs whose `expiresAt` has passed but webhook hasn't yet
   // marked them Expired don't contribute (matches the read-path
   // `isActive` semantics).

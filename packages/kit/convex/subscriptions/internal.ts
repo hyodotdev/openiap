@@ -9,6 +9,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
+import type { ReceiptEnvironment } from "../purchases/shared";
+import { receiptEnvironmentValidator } from "../schema";
 import { bindAmazonPurchaseOwner } from "../purchases/binding";
 import {
   applySubscriptionTransition,
@@ -20,6 +22,11 @@ import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
 import { isValidSubscriptionUserId } from "./limits";
 import { isUserErasureRequested } from "./erasure";
+import { emitCommerceEvent } from "../commerce/internal";
+import {
+  mergeAnalyticsFacts,
+  recordSubscriptionAnalyticsFacts,
+} from "./analyticsFacts";
 
 export const USER_ERASURE_BATCH_SIZE = 100;
 export const USER_ERASURE_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -101,6 +108,7 @@ type RecordVerifiedSubscriptionArgs = {
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
   verifiedSignedDate?: number;
+  environment?: ReceiptEnvironment;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -119,6 +127,7 @@ export interface PersistSubscriptionSnapshotArgs {
   now: number;
   verifiedPurchaseDate?: number;
   verifiedSignedDate?: number;
+  environment?: ReceiptEnvironment;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
@@ -152,8 +161,6 @@ interface ApplySubscriptionEventResult {
 // commits in the same transaction as the subscription and stats writes, so a
 // crash before this mutation can be repaired and a processed event is never
 // replayed after a newer lastEventId.
-import { emitCommerceEvent } from "../commerce/internal";
-
 export const applySubscriptionEvent = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -167,7 +174,22 @@ export const applySubscriptionEvent = internalMutation({
   handler: async (ctx, args) => applySubscriptionEventHandler(ctx, args),
 });
 
+// Analytics facts follow the lifecycle transition and only on the event's
+// first application, so a redelivery never counts its money twice.
 export async function applySubscriptionEventHandler(
+  ctx: MutationCtx,
+  args: ApplySubscriptionEventArgs,
+): Promise<ApplySubscriptionEventResult> {
+  const event = await ctx.db.get(args.eventId);
+  const firstApplication = event !== null && event.appliedAt === undefined;
+  const result = await applyLifecycleEvent(ctx, args);
+  if (firstApplication && result.subscriptionId) {
+    await recordSubscriptionAnalyticsFacts(ctx, result.subscriptionId, event);
+  }
+  return result;
+}
+
+async function applyLifecycleEvent(
   ctx: MutationCtx,
   args: ApplySubscriptionEventArgs,
 ): Promise<ApplySubscriptionEventResult> {
@@ -348,12 +370,14 @@ export async function applySubscriptionEventHandler(
       accountErased: accountErased || undefined,
       userId: boundUserId,
       startedAt: Math.min(survivor.startedAt, removed.startedAt),
+      analytics: mergeAnalyticsFacts(survivor.analytics, removed.analytics),
     };
     await ctx.db.patch(survivor._id, {
       purchaseToken: existing.purchaseToken,
       accountErased: existing.accountErased,
       userId: existing.userId,
       startedAt: existing.startedAt,
+      analytics: existing.analytics,
       updatedAt: now,
     });
     await recordSubscriptionTokenAlias(ctx, {
@@ -836,6 +860,7 @@ export const recordVerifiedSubscription = internalMutation({
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
     verifiedSignedDate: v.optional(v.number()),
+    environment: v.optional(receiptEnvironmentValidator),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
@@ -891,6 +916,7 @@ export async function recordVerifiedSubscriptionHandler(
     now,
     verifiedPurchaseDate: args.verifiedPurchaseDate,
     verifiedSignedDate: args.verifiedSignedDate,
+    environment: args.environment,
   });
 }
 
@@ -971,6 +997,11 @@ export async function persistSubscriptionSnapshot(
     cancellationReason: args.next.cancellationReason,
     currency: args.next.currency,
     priceAmountMicros: args.next.priceAmountMicros,
+    ...(args.lastEvent
+      ? { environment: args.lastEvent.environment }
+      : args.environment
+        ? { environment: args.environment }
+        : {}),
     updatedAt: args.now,
     // The pair is written together so a signing date never outlives its purchase date.
     ...(args.verifiedPurchaseDate !== undefined

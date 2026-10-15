@@ -17,6 +17,19 @@ export const dataProvenanceValidator = v.union(
   v.literal("inferred"),
 );
 
+// How a subscription's first paid charge began: after a free trial, or as a
+// paid start with no trial.
+export const paidStartValidator = v.union(
+  v.literal("trial_conversion"),
+  v.literal("direct"),
+);
+
+// Analytics split production from everything else; Xcode joins Sandbox.
+export const analyticsEnvironmentValidator = v.union(
+  v.literal("Production"),
+  v.literal("Sandbox"),
+);
+
 export const userSchema = {
   email: v.string(),
   name: v.string(),

@@ -1338,3 +1338,103 @@ describe("ingestGoogleRtdn preflight", () => {
     });
   });
 });
+
+describe("ingestGoogleRtdn free trial facts", () => {
+  async function ingestPurchase(
+    lineItem: Record<string, unknown>,
+    catalogAnswer: boolean | null,
+  ) {
+    playMocks.subscriptionsGet.mockResolvedValueOnce({
+      data: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: "2027-09-01T00:00:00Z",
+            autoRenewingPlan: {
+              autoRenewEnabled: true,
+              recurringPrice: {
+                currencyCode: "USD",
+                units: "9",
+                nanos: 990000000,
+              },
+            },
+            ...lineItem,
+          },
+        ],
+      },
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "project_trial",
+        androidPackageName: "dev.openiap.test",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "files_service_account" })
+      .mockResolvedValueOnce(catalogAnswer);
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ eventId: "event_trial", deduped: false })
+      .mockResolvedValueOnce({ transition: "Started", active: true });
+
+    await ingestGoogleRtdn._handler(
+      {
+        runAction: vi
+          .fn()
+          .mockResolvedValue({ content: serviceAccountContent }),
+        runMutation,
+        runQuery,
+      },
+      {
+        apiKey: "test_key",
+        rawMessage: "raw",
+        payload: {
+          messageId: `message_${JSON.stringify(lineItem)}`,
+          packageName: "dev.openiap.test",
+          eventTimeMillis: 1_000,
+          subscriptionNotification: {
+            notificationType: 4,
+            purchaseToken: "trial_token",
+          },
+        },
+      },
+    );
+    return { runQuery, event: runMutation.mock.calls[0]?.[1]?.event };
+  }
+
+  it("asks the synced catalog whether the purchased offer opens with a free trial", async () => {
+    const { runQuery, event } = await ingestPurchase(
+      { offerDetails: { basePlanId: "monthly", offerId: "trial-7d" } },
+      true,
+    );
+    expect(runQuery).toHaveBeenNthCalledWith(4, expect.anything(), {
+      projectId: "project_trial",
+      productId: "premium_monthly",
+      basePlanId: "monthly",
+      offerId: "trial-7d",
+    });
+    // The list price still drives subscription state; analytics book 0.
+    expect(event).toMatchObject({
+      freeTrial: true,
+      priceAmountMicros: 9_990_000,
+    });
+  });
+
+  it("treats a base-plan purchase as paid without a catalog read", async () => {
+    const { runQuery, event } = await ingestPurchase(
+      { offerDetails: { basePlanId: "monthly" } },
+      null,
+    );
+    expect(runQuery).toHaveBeenCalledTimes(3);
+    expect(event).toMatchObject({ freeTrial: false });
+  });
+
+  it("leaves the trial unknown when the catalog does not list the offer", async () => {
+    const { event } = await ingestPurchase(
+      { offerDetails: { basePlanId: "monthly", offerId: "retired" } },
+      null,
+    );
+    expect(event?.freeTrial).toBeUndefined();
+  });
+});

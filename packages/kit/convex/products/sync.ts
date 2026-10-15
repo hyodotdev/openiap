@@ -62,6 +62,15 @@ export function coerceBillingPeriod(
     : undefined;
 }
 
+// Catalog id of one phase of a Play subscription offer.
+export function playOfferPhaseId(
+  basePlanId: string,
+  offerId: string,
+  phaseIndex: number,
+): string {
+  return `${basePlanId}/${offerId}#${phaseIndex}`;
+}
+
 export function isSafePriceAmountMicros(value: number | undefined): boolean {
   return value === undefined || (Number.isSafeInteger(value) && value >= 0);
 }

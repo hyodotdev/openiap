@@ -459,6 +459,7 @@ export const ingestGoogleRtdn = action({
           currency: normalized.currency,
           priceAmountMicros: normalized.priceAmountMicros,
           amountProvenance: normalized.amountProvenance,
+          freeTrial: normalized.freeTrial,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.rawMessage,
         },
@@ -699,6 +700,25 @@ async function maybeFetchSubscriptionInfo(
           })
         : null;
     const usesStorePrice = storePriceAmountMicros !== undefined;
+    // subscriptionsv2 names the line item's offer but not its current phase.
+    // A purchase starts in the offer's first phase, so the synced catalog says
+    // whether that is a free trial. No offerId means the base plan, a paid start.
+    const offerDetails = matched?.offerDetails;
+    const freeTrial =
+      payload.subscriptionNotification.notificationType !== 4 ||
+      !matched?.productId
+        ? undefined
+        : !offerDetails?.offerId || !offerDetails.basePlanId
+          ? false
+          : ((await ctx.runQuery(
+              internal.products.query.getCatalogOfferFreeTrialInternal,
+              {
+                projectId,
+                productId: matched.productId,
+                basePlanId: offerDetails.basePlanId,
+                offerId: offerDetails.offerId,
+              },
+            )) ?? undefined);
 
     return {
       productId: matched?.productId ?? undefined,
@@ -728,6 +748,7 @@ async function maybeFetchSubscriptionInfo(
           : usesStorePrice
             ? "store"
             : "catalog",
+      freeTrial,
     };
   } catch (error) {
     // Structured config errors pass through for the route to map to a 4xx;

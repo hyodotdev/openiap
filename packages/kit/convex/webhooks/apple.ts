@@ -173,6 +173,8 @@ export const ingestAppleAsnIOS = action({
           currency: normalized.currency,
           priceAmountMicros: normalized.priceAmountMicros,
           amountProvenance: normalized.amountProvenance,
+          freeTrial: normalized.freeTrial,
+          refundReversal: normalized.refundReversal,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.signedPayload,
         },
@@ -292,6 +294,8 @@ function toDecodedTransaction(
     revocationReason: transaction.revocationReason ?? null,
     currency: transaction.currency ?? null,
     price: transaction.price ?? null,
+    offerType: transaction.offerType ?? null,
+    offerDiscountType: transaction.offerDiscountType ?? null,
   };
 }
 

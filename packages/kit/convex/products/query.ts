@@ -1,5 +1,6 @@
 import { productLocalizationsValidator } from "./localizations";
 import { productRegionsValidator } from "./regions";
+import { playOfferPhaseId } from "./sync";
 import { internalQuery, query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -94,6 +95,34 @@ export const getCatalogPriceInternal = internalQuery({
       currency: product.currency,
       priceAmountMicros: product.priceAmountMicros,
     };
+  },
+});
+
+// Whether a Play offer opens with a free trial phase, from the synced catalog.
+// Null when the catalog does not list the offer.
+export const getCatalogOfferFreeTrialInternal = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    productId: v.string(),
+    basePlanId: v.string(),
+    offerId: v.string(),
+  },
+  returns: v.union(v.boolean(), v.null()),
+  handler: async (ctx, args) => {
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", "Android")
+          .eq("productId", args.productId),
+      )
+      .unique();
+    const firstPhase = product?.offers?.find(
+      (offer) =>
+        offer.id === playOfferPhaseId(args.basePlanId, args.offerId, 0),
+    );
+    return firstPhase ? firstPhase.kind === "FreeTrial" : null;
   },
 });
 

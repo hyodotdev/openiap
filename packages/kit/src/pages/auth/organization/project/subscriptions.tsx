@@ -79,7 +79,7 @@ export default function ProjectSubscriptions() {
         <p className="text-sm text-muted-foreground">
           Authoritative state derived from IAPKit&apos;s internal lifecycle
           events. Rows update when kit ingests an Apple ASN v2 or Google RTDN
-          notification.
+          notification. Counts and MRR cover production purchases only.
         </p>
       </div>
 
@@ -148,7 +148,7 @@ export default function ProjectSubscriptions() {
         />
         <MetricCard
           icon={PauseCircle}
-          label="Canceled (30d)"
+          label="Auto-renew off (30d)"
           value={metrics.canceled30d}
         />
         <MetricCard

@@ -3,7 +3,9 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
+  analyticsEnvironmentValidator,
   dataProvenanceValidator,
+  paidStartValidator,
   subscriptionStateValidator,
 } from "./utils/validation";
 
@@ -624,6 +626,13 @@ const schema = defineSchema({
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     amountProvenance: v.optional(dataProvenanceValidator),
+    // Analytics-only facts; lifecycle state and commerce events ignore them.
+    // `freeTrial` is unset when the store gave no offer data to decide.
+    freeTrial: v.optional(v.boolean()),
+    // Apple REFUND_REVERSED, which state handling treats as a fresh start.
+    refundReversal: v.optional(v.boolean()),
+    // Set on the subscription's first paid charge by `analyticsFacts.ts`.
+    paidStart: v.optional(paidStartValidator),
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
@@ -682,6 +691,38 @@ const schema = defineSchema({
     ),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
+    // Store environment of the governing event or verified transaction.
+    // Unset on rows written before it existed; metrics treat those as
+    // production.
+    environment: v.optional(
+      v.union(
+        v.literal("Production"),
+        v.literal("Sandbox"),
+        v.literal("Xcode"),
+      ),
+    ),
+    // Analytics facts accumulated from verified store events. Order
+    // independent (earliest timestamps, summed money), and never read by
+    // entitlement or verification paths.
+    analytics: v.optional(
+      v.object({
+        trialStartedAt: v.optional(v.number()),
+        firstPaidAt: v.optional(v.number()),
+        firstPaidEventId: v.optional(v.id("webhookEvents")),
+        firstPaidEventType: v.optional(
+          v.union(
+            v.literal("SubscriptionStarted"),
+            v.literal("SubscriptionRenewed"),
+            v.literal("SubscriptionRecovered"),
+          ),
+        ),
+        // Currency of `paidMicros` / `refundedMicros`: the first priced
+        // charge's. Charges in another currency are left out, never converted.
+        currency: v.optional(v.string()),
+        paidMicros: v.number(),
+        refundedMicros: v.number(),
+      }),
+    ),
     startedAt: v.number(),
     updatedAt: v.number(),
     // Apple purchaseDate and signedDate of the transaction a verify last
@@ -793,14 +834,18 @@ const schema = defineSchema({
     // `pickRevenueMetricsProjects` finds recently active projects.
     .index("by_updated_at", ["updatedAt"]),
 
-  // Daily revenue rollup per (projectId, day, productId, currency), so the
-  // dashboard never scans the event log. The `recomputeRevenueMetrics` cron
-  // rebuilds the trailing window from `subscriptions` to pick up late webhooks.
+  // Daily revenue rollup per (projectId, day, productId, currency, platform,
+  // environment), so the dashboard never scans the event log. The
+  // `recomputeRevenueMetrics` cron rebuilds the trailing window to pick up
+  // late webhooks. Metric definitions live in `revenueMetrics.ts`.
   //
   // Currency is in the key because one SKU can sell in several currencies on
   // the same UTC day; without it, totals would mix or overwrite each other.
   // IAPKit never converts currencies; accounting-grade conversion belongs
   // outside the dashboard.
+  //
+  // Rows written before the current definitions have no `environment` and
+  // none of the optional counters: they mix sandbox into production.
   revenueMetricsDaily: defineTable({
     projectId: v.id("projects"),
     day: v.string(), // ISO date (YYYY-MM-DD), UTC
@@ -809,12 +854,19 @@ const schema = defineSchema({
     // Also part of the key, so the dashboard can chart revenue per store.
     // Strict because `webhookEvents` and `subscriptions` allow only these two.
     platform: v.union(v.literal("IOS"), v.literal("Android")),
+    environment: v.optional(analyticsEnvironmentValidator),
     activeSubs: v.number(),
+    activeTrials: v.optional(v.number()),
     newSubs: v.number(),
+    trialStarts: v.optional(v.number()),
+    trialConversions: v.optional(v.number()),
+    directPaidStarts: v.optional(v.number()),
     renewals: v.number(),
     cancellations: v.number(),
+    expirations: v.optional(v.number()),
     refunds: v.number(),
     revenueMicros: v.number(),
+    refundedMicros: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
@@ -839,9 +891,50 @@ const schema = defineSchema({
   revenueMetricsRunStatus: defineTable({
     projectId: v.id("projects"),
     lastRunAt: v.number(),
+    // Rows from `definitionsFromDay` on follow definitions version
+    // `definitionsVersion`; a run that finds an older version rebuilds the
+    // retained event window first.
+    definitionsVersion: v.optional(v.number()),
+    definitionsFromDay: v.optional(v.string()),
+    // Notifications that arrived after their day left the trailing window and
+    // no catch-up has folded in yet. A catch-up recomputes from the oldest
+    // such day; `lastCatchUpAt`/`lastCatchUpFromDay` record what the latest
+    // wide run covered.
+    pendingLateEvents: v.optional(v.number()),
+    oldestPendingLateDay: v.optional(v.string()),
+    catchUpRequestedAt: v.optional(v.number()),
+    lastCatchUpAt: v.optional(v.number()),
+    lastCatchUpFromDay: v.optional(v.string()),
+    // Cohort job cadence: requested at most once a day.
+    cohortsRequestedAt: v.optional(v.number()),
+    cohortsComputedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_run", ["lastRunAt"]),
+
+  // Monthly paid cohorts and trial cohorts per (projectId, environment,
+  // month, currency), rebuilt daily from `subscriptions.analytics`. A paid
+  // cohort is the UTC month of the first paid charge; a trial cohort is the
+  // UTC month the free trial started.
+  revenueCohortsMonthly: defineTable({
+    projectId: v.id("projects"),
+    environment: analyticsEnvironmentValidator,
+    month: v.string(), // YYYY-MM, UTC
+    currency: v.string(),
+    members: v.number(),
+    // Gross list price of members' paid charges and the store-reported
+    // refunds, in `currency`, observed through `observedThrough`.
+    revenueMicros: v.number(),
+    refundedMicros: v.number(),
+    // retained[k]: members with paid access at the end of month + k (or at
+    // `observedThrough` for the current month).
+    retained: v.array(v.number()),
+    trialStarts: v.number(),
+    trialConversions: v.number(),
+    trialsPending: v.number(),
+    observedThrough: v.string(), // YYYY-MM-DD, UTC
+    updatedAt: v.number(),
+  }).index("by_project", ["projectId"]),
 
   // Cached metadata for the App Store Connect / Play Console products kit can
   // read, create and update (what onesub holds in @onesub/providers). Store

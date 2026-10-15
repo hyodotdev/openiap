@@ -139,6 +139,7 @@ describe("deleteProjectWithData", () => {
       subscriptionStats: rows("subscription_stats"),
       revenueMetricsDaily: rows("revenue_daily"),
       revenueMetricsRunStatus: rows("revenue_run"),
+      revenueCohortsMonthly: rows("revenue_cohort"),
       products: rows("product"),
       productSyncJobs: rows("product_job", { result: "large" }),
       purchaseStats: rows("purchase_stats"),
@@ -156,7 +157,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(41);
+    expect(calls).toBe(43);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

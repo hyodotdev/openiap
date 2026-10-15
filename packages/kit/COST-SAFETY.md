@@ -59,6 +59,27 @@ rotates projects, and each project can register at most 10 destinations. Retries
 back off to six hours, stop after 14 attempts, and a 20-failure circuit breaker
 disables a destination, bounding load when a receiver is unavailable.
 
+## Analytics rollups
+
+Analytics run only in scheduled Convex mutations; no public request computes
+them, and the dashboard reads the small rollup and cohort tables.
+
+- **Daily rows.** The 10-minute cron picks at most 100 projects per tick. Each
+  run pages the last 3 UTC days of `webhookEvents` (5,000 per mutation), then
+  the counted-state subscriptions, and replaces those days' rows.
+- **Definitions rebuild.** When `ROLLUP_DEFINITIONS_VERSION` changes, each
+  project's next run covers the retained 30 days once instead of 3.
+- **Late-event catch-up.** Only when a run finds notifications older than its
+  window that no catch-up covered. It recomputes from the oldest such day, at
+  most every 6 hours per project.
+- **Cohorts.** At most once a day per project: one paginated pass over its
+  `subscriptions` and a replace of at most 24 months × 2 environments ×
+  currencies rows.
+
+Each applied store event also patches its subscription's analytics facts and,
+when the first paid charge moves, at most two `webhookEvents` rows, inside the
+mutation that already applies the event.
+
 ## Edge protection
 
 Every publishable-key verification, product, payload, subscription-status,
