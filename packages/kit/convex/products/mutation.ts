@@ -75,8 +75,7 @@ type ClientPayloadWriter = {
   author: ClientPayloadAuthor;
 };
 
-// Members may read payloads, drafts, and history; only owners and admins
-// change them.
+// Every project member may change payloads, as they may change products.
 async function resolveDashboardClientPayloadWriter(
   ctx: MutationCtx,
   args: {
@@ -93,12 +92,6 @@ async function resolveDashboardClientPayloadWriter(
     throw clientPayloadError(
       "PROJECT_ACCESS_DENIED",
       "Project not found or access denied",
-    );
-  }
-  if (resolved.role === "member") {
-    throw clientPayloadError(
-      "PROJECT_ACCESS_DENIED",
-      "Only organization owners and admins can change client payloads",
     );
   }
   return {

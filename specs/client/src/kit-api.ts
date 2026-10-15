@@ -433,16 +433,8 @@ export function kitApi(options: KitApiOptions) {
       const raw = await options.clientPayloadCache.getItem(cacheKey);
       if (!raw) return null;
       const candidate = JSON.parse(raw) as Partial<CachedClientPayload>;
-      const payload = candidate.clientPayload;
-      // Only the invariants the cache depends on. `format` is opaque: evicting
-      // on an unknown one would kill ETag revalidation and offline reads.
       if (
-        !payload ||
-        typeof payload.format !== "string" ||
-        typeof payload.body !== "string" ||
-        !Number.isSafeInteger(payload.version) ||
-        payload.version < 1 ||
-        typeof payload.updatedAt !== "number" ||
+        !isClientPayload(candidate.clientPayload) ||
         (candidate.etag !== undefined && typeof candidate.etag !== "string")
       ) {
         await options.clientPayloadCache.removeItem?.(cacheKey);
@@ -565,24 +557,31 @@ export function kitApi(options: KitApiOptions) {
       if (cached && (response.status === 429 || response.status >= 500)) {
         return { clientPayload: cached.clientPayload, stale: true };
       }
+      let body: unknown = null;
       try {
-        const result = await parseResponse<KitClientPayloadResponse>(
-          response,
-          path,
-        );
-        await writeCachedClientPayload(cacheKey, {
-          ...result,
-          ...(response.headers.get("etag")
-            ? { etag: response.headers.get("etag")! }
-            : {}),
-        });
-        return result;
+        body = await parseResponse<unknown>(response, path);
       } catch (error) {
         if (error instanceof KitApiError && error.status === 404) {
           await removeCachedClientPayload(cacheKey);
         }
-        throw error;
+        if (!response.ok || !cached) throw error;
       }
+      const clientPayload = isPlainObject(body) ? body.clientPayload : null;
+      if (!isClientPayload(clientPayload)) {
+        // A 2xx that is not a payload, such as a captive portal's HTML page.
+        if (cached) return { clientPayload: cached.clientPayload, stale: true };
+        throw new KitApiError(
+          response.status,
+          body,
+          `kit ${path} returned no client payload`,
+        );
+      }
+      const etag = response.headers.get("etag");
+      await writeCachedClientPayload(cacheKey, {
+        clientPayload,
+        ...(etag ? { etag } : {}),
+      });
+      return { clientPayload };
     },
 
     /** Read a JSON payload that follows the localization convention and
@@ -630,6 +629,21 @@ export function kitApi(options: KitApiOptions) {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Only the invariants the cache depends on. `format` is opaque: rejecting an
+// unknown one would kill ETag revalidation and offline reads.
+function isClientPayload(value: unknown): value is KitProductClientPayload {
+  if (!isPlainObject(value)) return false;
+  const { format, body, version, updatedAt } = value;
+  return (
+    typeof format === "string" &&
+    typeof body === "string" &&
+    typeof version === "number" &&
+    Number.isSafeInteger(version) &&
+    version >= 1 &&
+    typeof updatedAt === "number"
+  );
 }
 
 const normalizeLocaleTag = (tag: string): string =>

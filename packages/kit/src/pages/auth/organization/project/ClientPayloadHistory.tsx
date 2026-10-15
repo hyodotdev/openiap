@@ -8,7 +8,6 @@ import {
 } from "./clientPayload";
 
 interface ClientPayloadHistoryProps {
-  canEdit: boolean;
   currentVersion?: number;
   history: ClientPayloadVersionSummary[] | undefined;
   isBusy: boolean;
@@ -24,9 +23,8 @@ const ACTION_LABEL: Record<ClientPayloadVersionSummary["action"], string> = {
   remove: "Removed",
 };
 
-/** Retained published versions, newest first, with rollback for admins. */
+/** Retained published versions, newest first, with rollback. */
 export function ClientPayloadHistory({
-  canEdit,
   currentVersion,
   history,
   isBusy,
@@ -54,9 +52,7 @@ export function ClientPayloadHistory({
   }
 
   const canRollBack =
-    canEdit &&
-    selected?.body !== undefined &&
-    selected.version !== currentVersion;
+    selected?.body !== undefined && selected.version !== currentVersion;
 
   return (
     <div className="space-y-3 text-xs">

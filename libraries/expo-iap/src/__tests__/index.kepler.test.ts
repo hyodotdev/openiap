@@ -40,6 +40,10 @@ describe('Amazon Vega public API', () => {
     });
   });
 
+  it('leaves out the purchase flow, which supports only Apple and Google Play', () => {
+    expect('createPurchaseFlow' in Kepler).toBe(false);
+  });
+
   it('resolves null for openRedeemOfferCode without launching anything', async () => {
     await expect(openRedeemOfferCode()).resolves.toBeNull();
   });

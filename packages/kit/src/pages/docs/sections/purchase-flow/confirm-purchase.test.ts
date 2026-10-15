@@ -37,8 +37,8 @@ const VALID = {
 // Fake IAPKit: one reply per path, recording what the backend sent.
 function setup(
   replies: { verify?: Reply; bind?: Reply },
-  grant: GrantResult = "granted",
-  acceptSandbox = false,
+  ledger: { grant?: GrantResult; owner?: string } = {},
+  acceptSandbox?: (userId: string) => boolean,
 ) {
   const sent: { path: string; body: Record<string, unknown> }[] = [];
   const fetch = vi.fn(async (url: string, init: RequestInit) => {
@@ -52,28 +52,39 @@ function setup(
     );
     const reply =
       (path === "/v1/purchase/verify" ? replies.verify : replies.bind) ?? {};
-    return new Response(JSON.stringify(reply.body ?? {}), {
+    const text =
+      typeof reply.body === "string"
+        ? reply.body
+        : JSON.stringify(reply.body ?? {});
+    return new Response(text, {
       status: reply.status ?? 200,
       headers: reply.headers,
     });
   });
-  const grantOnce = vi.fn(async (_grant: EntitlementGrant) => grant);
+  const grantOnce = vi.fn(
+    async (_grant: EntitlementGrant) => ledger.grant ?? "granted",
+  );
+  const ownerOf = vi.fn(async (_purchaseKey: string) => ledger.owner ?? null);
   const run = (body: unknown = APPLE) =>
     confirmPurchase("user-1", body, {
       secretKey: "openiap-kit_sk_test",
-      ledger: { grantOnce },
-      acceptSandbox,
+      ledger: { ownerOf, grantOnce },
+      ...(acceptSandbox ? { acceptSandbox } : {}),
       fetch,
     });
-  return { run, sent, grantOnce };
+  return { run, sent, grantOnce, ownerOf };
 }
+
+const iapkitError = (code: string) => ({
+  errors: [{ code, message: `${code} from IAPKit` }],
+});
 
 describe("confirmPurchase", () => {
   it("reads only what IAPKit returns", () => {
     type VerifyBody = v.InferOutput<typeof verifyPurchaseSuccessResponseSchema>;
-    expectTypeOf<
-      Pick<VerifyBody, keyof VerifyResult>
-    >().toExtend<VerifyResult>();
+    // The response schema does not declare finalVerdict yet.
+    type Read = Exclude<keyof VerifyResult, "finalVerdict">;
+    expectTypeOf<Pick<VerifyBody, Read>>().toExtend<Pick<VerifyResult, Read>>();
     expectTypeOf<BindReason>().toEqualTypeOf<
       Infer<typeof bindReasonValidator>
     >();
@@ -146,7 +157,7 @@ describe("confirmPurchase", () => {
         verify: { body: VALID },
         bind: { body: { ok: true, bound: true, reason: "already_bound" } },
       },
-      "already_granted",
+      { grant: "already_granted", owner: "user-1" },
     );
 
     await expect(run()).resolves.toEqual({
@@ -156,17 +167,18 @@ describe("confirmPurchase", () => {
   });
 
   it.each([
-    [503, { "retry-after": "7" }, 7_000],
-    [429, { "retry-after": "2" }, 2_000],
-    [503, undefined, 30_000],
+    [503, "7", iapkitError("SERVICE_BUSY"), 7_000],
+    [429, "2", iapkitError("RATE_LIMITED"), 2_000],
+    [429, "60", iapkitError("DUPLICATE_PAYLOAD"), 60_000],
+    [503, undefined, "<html>Bad gateway</html>", 30_000],
   ])(
-    "maps a %i from verify to verification_delayed",
-    async (status, headers, retryAfterMs) => {
+    "maps a %i (retry-after %s) %j from verify to verification_delayed",
+    async (status, retryAfter, body, retryAfterMs) => {
       const { run, sent } = setup({
         verify: {
           status,
-          headers,
-          body: { errors: [{ code: "SERVICE_BUSY" }] },
+          ...(retryAfter ? { headers: { "retry-after": retryAfter } } : {}),
+          body,
         },
       });
 
@@ -178,14 +190,40 @@ describe("confirmPurchase", () => {
     },
   );
 
-  it.each([
-    ["PENDING", { status: "store_pending" }],
-    ["UNKNOWN", { status: "verification_delayed", retryAfterMs: 30_000 }],
-    ["INAUTHENTIC", { status: "invalid", reason: "INAUTHENTIC" }],
-    ["EXPIRED", { status: "invalid", reason: "EXPIRED" }],
-  ])("maps a %s verdict without linking", async (state, expected) => {
+  it("reports a receipt IAPKit just rejected as invalid", async () => {
     const { run, sent, grantOnce } = setup({
-      verify: { body: { store: "apple", isValid: false, state } },
+      verify: {
+        status: 429,
+        headers: { "retry-after": "300" },
+        body: iapkitError("REPEATED_FAILURE"),
+      },
+    });
+
+    await expect(run()).resolves.toEqual({
+      status: "invalid",
+      reason: "REPEATED_FAILURE",
+    });
+    expect(sent).toHaveLength(1);
+    expect(grantOnce).not.toHaveBeenCalled();
+  });
+
+  const delayed = { status: "verification_delayed", retryAfterMs: 30_000 };
+  it.each([
+    [{ state: "PENDING" }, { status: "store_pending" }],
+    [{ state: "UNKNOWN" }, delayed],
+    [{ state: "UNKNOWN", finalVerdict: false }, delayed],
+    [
+      { state: "UNKNOWN", finalVerdict: true },
+      { status: "invalid", reason: "UNKNOWN" },
+    ],
+    [{ state: "INAUTHENTIC" }, { status: "invalid", reason: "INAUTHENTIC" }],
+    [
+      { state: "EXPIRED", finalVerdict: true },
+      { status: "invalid", reason: "EXPIRED" },
+    ],
+  ])("maps a %j verdict without linking", async (verdict, expected) => {
+    const { run, sent, grantOnce } = setup({
+      verify: { body: { store: "google", isValid: false, ...verdict } },
     });
 
     await expect(run()).resolves.toEqual(expected);
@@ -193,23 +231,25 @@ describe("confirmPurchase", () => {
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
-  it("restricts sandbox purchases unless this deployment accepts them", async () => {
+  it("accepts sandbox purchases unless acceptSandbox refuses the user", async () => {
     const sandbox = { ...VALID, commerceEnvironment: "sandbox" };
     const bound = { body: { ok: true, bound: true, reason: "bound" } };
-    const restricted = setup({ verify: { body: sandbox }, bind: bound });
-    const accepted = setup(
+    const byDefault = setup({ verify: { body: sandbox }, bind: bound });
+    const allowList = vi.fn((userId: string) => userId === "app-review");
+    const restricted = setup(
       { verify: { body: sandbox }, bind: bound },
-      "granted",
-      true,
+      {},
+      allowList,
     );
 
+    await expect(byDefault.run()).resolves.toMatchObject({
+      status: "entitled",
+    });
     await expect(restricted.run()).resolves.toEqual({
       status: "test_account_restricted",
     });
+    expect(allowList).toHaveBeenCalledWith("user-1");
     expect(restricted.sent).toHaveLength(1);
-    await expect(accepted.run()).resolves.toMatchObject({
-      status: "entitled",
-    });
   });
 
   it("reports an IAPKit owner conflict and never grants", async () => {
@@ -222,13 +262,28 @@ describe("confirmPurchase", () => {
     expect(grantOnce).not.toHaveBeenCalled();
   });
 
-  it("reports a ledger owner conflict", async () => {
+  it("refuses another user's purchase before linking it in IAPKit", async () => {
+    const { run, sent, ownerOf, grantOnce } = setup(
+      {
+        verify: { body: VALID },
+        bind: { body: { ok: true, bound: true, reason: "bound" } },
+      },
+      { owner: "user-2" },
+    );
+
+    await expect(run()).resolves.toEqual({ status: "ownership_conflict" });
+    expect(ownerOf).toHaveBeenCalledWith("2000000000000001");
+    expect(sent.map(({ path }) => path)).toEqual(["/v1/purchase/verify"]);
+    expect(grantOnce).not.toHaveBeenCalled();
+  });
+
+  it("reports a ledger owner conflict from a concurrent grant", async () => {
     const { run } = setup(
       {
         verify: { body: VALID },
         bind: { body: { ok: true, bound: false, reason: "not_bindable" } },
       },
-      "granted_to_other_user",
+      { grant: "granted_to_other_user" },
     );
 
     await expect(run()).resolves.toEqual({ status: "ownership_conflict" });
@@ -245,7 +300,7 @@ describe("confirmPurchase", () => {
           verify: { body: VALID },
           bind: { body: { ok: true, bound: reason === "bound", reason } },
         },
-        "deferred",
+        { grant: "deferred" },
       );
 
       await expect(run()).resolves.toEqual({ status, retryAfterMs: 30_000 });

@@ -23,9 +23,10 @@ export interface PurchaseConfirmationRequest {
 }
 
 /**
- * The app backend's verdict on one purchase. Only `entitled` lets the app
- * finish the transaction; `verified` and `linked` mean the purchase is valid
- * but access is not granted yet.
+ * The app backend's verdict on one purchase. Only `entitled` grants access;
+ * `verified` and `linked` mean the purchase is valid but access is not granted
+ * yet. `invalid` is a settled store rejection: return `verification_delayed`
+ * for any answer that may still change.
  */
 export type PurchaseConfirmation =
   | { status: "store_pending" }
@@ -38,12 +39,14 @@ export type PurchaseConfirmation =
   | { status: "entitled"; alreadyGranted: boolean };
 
 /**
- * Where a purchase stands after the flow ran. An `entitled` status with
- * `finishError` still means access is granted; recovery retries the finish.
+ * Where a purchase stands after the flow ran. `finishError` means finishing
+ * failed and recovery retries it; an `entitled` status still grants access.
  */
 export type PurchaseFlowStatus =
-  | Exclude<PurchaseConfirmation, { status: "entitled" }>
-  | { status: "entitled"; alreadyGranted: boolean; finishError?: unknown }
+  | Exclude<PurchaseConfirmation, { status: "entitled" | "invalid" }>
+  | (Extract<PurchaseConfirmation, { status: "entitled" | "invalid" }> & {
+      finishError?: unknown;
+    })
   | { status: "failed"; error: unknown };
 
 export interface PurchaseFlowOutcome<P extends PurchaseFlowPurchase> {
@@ -74,7 +77,11 @@ export interface RecoverPurchasesOptions {
 }
 
 export interface PurchaseFlow<P extends PurchaseFlowPurchase> {
-  /** Confirms one purchase with the backend and finishes it only once access is granted. */
+  /**
+   * Confirms one purchase with the backend. Finishes it once access is
+   * granted, and an `invalid` one on iOS only: Google Play refunds an invalid
+   * purchase left unacknowledged, while iOS would redeliver it forever.
+   */
   processPurchase: (purchase: P) => Promise<PurchaseFlowStatus>;
   /** Runs unfinished purchases (or every owned one) through `processPurchase`, one at a time. */
   recoverPurchases: (
@@ -82,6 +89,7 @@ export interface PurchaseFlow<P extends PurchaseFlowPurchase> {
   ) => Promise<PurchaseFlowOutcome<P>[]>;
 }
 
+/** Apple App Store and Google Play purchases only; other stores end as `failed`. */
 export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
   options: PurchaseFlowOptions<P>,
 ): PurchaseFlow<P> {
@@ -118,16 +126,21 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
           ),
         };
       }
-      if (confirmation.status !== "entitled") return confirmation;
-      try {
-        await options.finishTransaction({
-          purchase,
-          isConsumable: options.isConsumable(purchase.productId),
-        });
-        return confirmation;
-      } catch (finishError) {
-        return { ...confirmation, finishError };
+      if (
+        confirmation.status === "entitled" ||
+        (confirmation.status === "invalid" && purchase.store === "apple")
+      ) {
+        try {
+          await options.finishTransaction({
+            purchase,
+            isConsumable: options.isConsumable(purchase.productId),
+          });
+          return confirmation;
+        } catch (finishError) {
+          return { ...confirmation, finishError };
+        }
       }
+      return confirmation;
     }
   }
 
@@ -135,9 +148,9 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     recoverOptions: RecoverPurchasesOptions = {},
   ): Promise<PurchaseFlowOutcome<P>[]> {
     const { includeFinished = false } = recoverOptions;
-    // Finished means granted, because the flow finishes only entitled
-    // purchases. iOS lists unfinished transactions directly; Android marks
-    // finished ones acknowledged and stops listing consumed ones.
+    // Finished means settled: granted, or invalid on iOS. iOS lists unfinished
+    // transactions directly; Android marks finished ones acknowledged and
+    // stops listing consumed ones.
     const [pendingIOS = [], available] = await Promise.all([
       options.getPendingTransactionsIOS?.(),
       includeFinished || !options.getPendingTransactionsIOS

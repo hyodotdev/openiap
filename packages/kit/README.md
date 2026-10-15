@@ -388,16 +388,17 @@ and responses use `Cache-Control: private, no-cache`; catalog and secret-admin
 responses use `private, no-store`. React Native IAP and Expo IAP can persist the
 payload body, version, and ETag through an AsyncStorage-compatible
 `clientPayloadCache` and revalidate only on an explicit `{ refresh: true }`.
-A refresh that fails with a network error, `429`, or `5xx` returns the cached
-copy marked `stale`; `kitApi.localizedClientPayload` returns `null` instead of
-throwing so the app can fall back to built-in copy.
+A refresh that fails with a network error, `429`, `5xx`, or a `2xx` body that
+is not a payload (a captive portal page) returns the cached copy marked
+`stale`; `kitApi.localizedClientPayload` returns `null` instead of throwing so
+the app can fall back to built-in copy.
 
 Edits go to a draft that apps never read. Publishing makes the draft the next
 version; every publish, rollback, and removal is recorded in an append-only
 history of the newest 50 versions per product. Rollback republishes an older
-body as a new version. Members can read drafts and history; owners and admins
-write. The secret-key `PUT` publishes in one step and is recorded too. Draft,
-publish, history, and rollback routes live under
+body as a new version. Every organization member can edit, and history records
+the author. The secret-key `PUT` publishes in one step and is recorded too.
+Draft, publish, history, and rollback routes live under
 `/v1/products/client-payload/{productId}/` and in the MCP tools.
 
 Payload copy may follow a neutral localization convention

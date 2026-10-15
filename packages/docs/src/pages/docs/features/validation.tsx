@@ -337,10 +337,10 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
         </p>
         <p>
           When your own backend owns user accounts and grants access, confirm
-          purchases through it instead. React Native IAP and Expo IAP export{' '}
-          <code>createPurchaseFlow</code>, which finishes a transaction only
-          after your backend reports access granted, and recovers unfinished
-          purchases at launch. See the{' '}
+          purchases through it instead. For App Store and Google Play purchases,
+          React Native IAP and Expo IAP export <code>createPurchaseFlow</code>,
+          which finishes a transaction once your backend grants access, and
+          recovers unfinished purchases at launch. See the{' '}
           <a
             href={`${IAPKIT_URL}/docs/purchase-flow`}
             target="_blank"

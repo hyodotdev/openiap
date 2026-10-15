@@ -316,10 +316,17 @@ describe("kitApi client payload fallback", () => {
     return { api, cache };
   }
 
+  const captivePortal = async () =>
+    new Response("<html>Sign in to Wi-Fi</html>", {
+      headers: { "content-type": "text/html" },
+    });
+
   it.each([
     ["a network error", () => Promise.reject(new TypeError("Load failed"))],
     ["a 503", async () => new Response("unavailable", { status: 503 })],
     ["a 429", async () => Response.json({ errors: [] }, { status: 429 })],
+    ["a captive portal's 200 page", captivePortal],
+    ["a 200 without a payload", async () => Response.json({ ok: true })],
   ])("returns the cached copy marked stale on %s", async (_label, result) => {
     const { api, cache } = await primedApi(result);
 
@@ -352,22 +359,41 @@ describe("kitApi client payload fallback", () => {
     );
   });
 
-  it("resolves localized UI copy and reports a stale fallback", async () => {
-    const { api } = await primedApi(async () =>
-      Response.json({ errors: [] }, { status: 500 }),
-    );
-
-    await expect(
-      api.localizedClientPayload("premium", "IOS", {
-        locale: "ko-KR",
-        refresh: true,
-      }),
-    ).resolves.toEqual({
-      values: { headline: "프리미엄", cta: "Subscribe" },
-      version: 4,
-      stale: true,
+  it("throws on a 200 without a payload and caches nothing", async () => {
+    const cache = memoryCache();
+    const api = kitApi({
+      apiKey: "openiap-kit_pk_mobile",
+      baseUrl: "https://kit.test",
+      fetchImpl: vi.fn().mockResolvedValue(Response.json({ ok: true })),
+      clientPayloadCache: cache,
     });
+
+    await expect(api.clientPayload("premium", "IOS")).rejects.toThrow(
+      "returned no client payload",
+    );
+    expect(cache.values.size).toBe(0);
   });
+
+  it.each([
+    ["a 500", async () => Response.json({ errors: [] }, { status: 500 })],
+    ["a captive portal's 200 page", captivePortal],
+  ])(
+    "resolves localized UI copy from the cache on %s",
+    async (_label, result) => {
+      const { api } = await primedApi(result);
+
+      await expect(
+        api.localizedClientPayload("premium", "IOS", {
+          locale: "ko-KR",
+          refresh: true,
+        }),
+      ).resolves.toEqual({
+        values: { headline: "프리미엄", cta: "Subscribe" },
+        version: 4,
+        stale: true,
+      });
+    },
+  );
 
   it("returns null instead of throwing from the localized helper", async () => {
     const respond = (response: Promise<Response>) =>

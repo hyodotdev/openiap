@@ -968,7 +968,14 @@ function registerIapKitTools(
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
-      expectedVersion: z.number().int().nonnegative().optional(),
+      expectedVersion: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe(
+          "Published version to replace. Defaults to the version the draft was saved on, so a newer publish is never overwritten.",
+        ),
       expectedDraftRevision: z.number().int().nonnegative().optional(),
       note: z
         .string()

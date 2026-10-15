@@ -40,6 +40,10 @@ describe('Amazon Vega public API', () => {
     (getVegaIapModule as jest.Mock).mockReturnValue(vegaModule);
   });
 
+  it('leaves out the purchase flow, which supports only Apple and Google Play', () => {
+    expect('createPurchaseFlow' in IAP).toBe(false);
+  });
+
   it('resolves null from the unified openRedeemOfferCode API', async () => {
     await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
   });
