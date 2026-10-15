@@ -594,9 +594,10 @@ function Releases() {
             October 15, 2026 - Backend-confirmed purchase flow
           </AnchorLink>
           <p>
-            A new purchase flow finishes a transaction only after your backend
-            confirms access, resumes unfinished purchases at launch, and never
-            moves a purchase to another account.
+            A new purchase flow for App Store and Google Play purchases finishes
+            a transaction only after your backend grants access or rejects it
+            for good, resumes unfinished purchases at launch, and never moves a
+            purchase to another account.
           </p>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Protocols and native packages
@@ -617,7 +618,8 @@ function Releases() {
                 </li>
                 <li>
                   Client payload reads return the cached copy with{' '}
-                  <code>stale: true</code> on a network error, 429 or 5xx, and{' '}
+                  <code>stale: true</code> on a network error, 429, 5xx or a
+                  response that isn&apos;t a payload, and{' '}
                   <code>localizedClientPayload</code> picks a locale or returns{' '}
                   <code>null</code> so the app keeps its built-in text.
                 </li>
@@ -628,9 +630,10 @@ function Releases() {
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
               <strong>react-native-iap 17.1.0 and expo-iap 6.1.0</strong> export{' '}
-              <code>createPurchaseFlow</code> and the client payload helpers.
-              The expo-iap example adds an App backend option to its purchase
-              flow screen.
+              <code>createPurchaseFlow</code> and the client payload helpers;
+              their Vega entry points leave the flow out because Vega purchases
+              go through Amazon. The expo-iap example adds an App backend option
+              to its purchase flow screen.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
@@ -641,8 +644,9 @@ function Releases() {
             <a href="https://kit.openiap.dev/docs/purchase-flow">
               Purchase flow guide
             </a>{' '}
-            includes a tested reference handler. The IAPKit changes this flow
-            relies on are in the{' '}
+            includes a tested reference handler. Accept Apple sandbox purchases
+            in production so App Review can complete a purchase. The IAPKit
+            changes this flow relies on are in the{' '}
             <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
               hosted history
             </a>

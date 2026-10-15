@@ -33,12 +33,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Verification",
-        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment and a correlation ID, matching commerce events. Responses without the flag are unchanged.",
+        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final, matching commerce events. Responses without the flag are unchanged.",
       },
       {
         kind: "feature",
         topic: "Linking",
-        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, and publishable keys keep the old response.",
+        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, these links do not count toward the per-user link cap, and publishable keys keep the old response.",
       },
       {
         kind: "feature",
@@ -53,7 +53,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         topic: "Dashboard",
-        text: "Raw store evidence and subscription purchase tokens are shown only to project owners and admins; members see a fingerprint.",
+        text: "Raw store evidence, subscription purchase tokens, inbound transaction IDs and raw delivery errors are shown only to project owners and admins; members see a salted fingerprint or an error class.",
       },
       {
         kind: "fix",
@@ -68,7 +68,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Client payloads",
-        text: "Client payloads have drafts, a preview of the exact app response, version history and rollback. Only owners and admins can publish.",
+        text: "Client payloads have drafts, a preview of the exact app response, version history and rollback, and a draft saved against an older version cannot overwrite a newer one.",
       },
       {
         kind: "docs",

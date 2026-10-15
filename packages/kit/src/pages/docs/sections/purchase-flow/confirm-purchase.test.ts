@@ -82,8 +82,7 @@ const iapkitError = (code: string) => ({
 describe("confirmPurchase", () => {
   it("reads only what IAPKit returns", () => {
     type VerifyBody = v.InferOutput<typeof verifyPurchaseSuccessResponseSchema>;
-    // The response schema does not declare finalVerdict yet.
-    type Read = Exclude<keyof VerifyResult, "finalVerdict">;
+    type Read = keyof VerifyResult;
     expectTypeOf<Pick<VerifyBody, Read>>().toExtend<Pick<VerifyResult, Read>>();
     expectTypeOf<BindReason>().toEqualTypeOf<
       Infer<typeof bindReasonValidator>
