@@ -101,6 +101,8 @@ export type NormalizedWebhookEvent = {
   freeTrial?: boolean;
   /** Apple REFUND_REVERSED. State handling treats it as a start; analytics must not. */
   refundReversal?: boolean;
+  /** Apple SUBSCRIBED/RESUBSCRIBE: a start for state handling, a reactivation for analytics. */
+  resubscribe?: boolean;
   /** A Google replacement Play charged at once; analytics only. */
   replacementCharged?: boolean;
   occurredAt: number;
@@ -244,7 +246,8 @@ export function mapAppleNotificationType(
 ): WebhookEventType | null {
   switch (notificationType) {
     case "SUBSCRIBED":
-      // INITIAL_BUY and RESUBSCRIBE both surface as SubscriptionStarted.
+      // INITIAL_BUY and RESUBSCRIBE both surface as SubscriptionStarted;
+      // analytics read `resubscribe` instead.
       return "SubscriptionStarted";
     case "DID_RENEW":
       // BILLING_RECOVERY subtype indicates the subscription is back from
@@ -517,6 +520,10 @@ export function normalizeAppleAsn(
     freeTrial: appleTransactionIsFreeTrial(transaction),
     ...(payload.notificationType === "REFUND_REVERSED"
       ? { refundReversal: true }
+      : {}),
+    ...(payload.notificationType === "SUBSCRIBED" &&
+    payload.subtype === "RESUBSCRIBE"
+      ? { resubscribe: true }
       : {}),
     occurredAt: payload.signedDate,
     sourceNotificationId: payload.notificationUUID,

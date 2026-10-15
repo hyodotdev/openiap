@@ -350,6 +350,20 @@ describe("webhook event-first dedup migration", () => {
     ]);
   });
 
+  it("persists Apple's resubscribe flag for analytics", async () => {
+    const db = createWritableDb();
+    const args = webhookArgs("project_a", "apple", "resubscribe");
+
+    await recordWebhookEvent._handler(
+      { db },
+      { ...args, event: { ...args.event, resubscribe: true } },
+    );
+
+    expect(db.rows("webhookEvents")).toEqual([
+      expect.objectContaining({ resubscribe: true }),
+    ]);
+  });
+
   it("uses the source-aware event row for the Google preflight", async () => {
     const db = createWritableDb({
       webhookEvents: [

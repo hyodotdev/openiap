@@ -175,6 +175,7 @@ export const ingestAppleAsnIOS = action({
           amountProvenance: normalized.amountProvenance,
           freeTrial: normalized.freeTrial,
           refundReversal: normalized.refundReversal,
+          resubscribe: normalized.resubscribe,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.signedPayload,
         },

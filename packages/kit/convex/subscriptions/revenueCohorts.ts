@@ -3,8 +3,9 @@
 //
 // - Paid cohort: subscriptions whose first paid charge fell in a UTC month and
 //   began as a direct paid start or a trial conversion. A subscription whose
-//   first observed charge was a renewal started before IAPKit saw it and is
-//   left out rather than placed in the wrong month.
+//   first observed charge was a renewal, or an Apple resubscribe with no trial
+//   before it, started before IAPKit saw it and is left out rather than
+//   placed in the wrong month.
 // - retained[k]: members with paid access at the end of cohort month + k (at
 //   the observation time for the current month). A canceled subscription stays
 //   retained until its paid period ends; a refund ends it at the refund.

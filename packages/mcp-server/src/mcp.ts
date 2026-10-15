@@ -1689,9 +1689,13 @@ function addUtcDays(date: Date, days: number): Date {
 const REVENUE_DEFINITIONS = {
   timezone: "UTC days and months.",
   revenue:
-    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
+    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. Free trials, free offer periods and refund reversals add nothing; billing recoveries count. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
   purchaseEvents:
-    "Paid charges: direct paid starts, trial conversions, renewals and billing recoveries. Free trials, free promotional periods and restores are not purchases. An Apple immediate upgrade adds nothing until the next charge. A Google plan change is a renewal only when Play charges it at once (a prepaid top-up, or the CHARGE_FULL_PRICE or CHARGE_PRORATED_PRICE mode), booked at the new plan's list price; otherwise its next renewal is the first charge counted.",
+    "Paid charges: paid starts, trial conversions, renewals and billing recoveries. Free trials, free promotional periods and restores are not purchases. An Apple immediate upgrade adds nothing until the next charge. A Google plan change is a renewal only when Play charges it at once (a prepaid top-up, or the CHARGE_FULL_PRICE or CHARGE_PRORATED_PRICE mode), booked at the new plan's list price; otherwise its next renewal is the first charge counted.",
+  newSubs:
+    "newSubs: paid and free-trial starts. Not counted: Apple refund reversals, Apple resubscribes (reactivations, counted as renewals) other than the first charge after a lapsed trial, Google plan changes and free offer periods.",
+  renewals:
+    "renewals: paid renewals, billing recoveries, Apple resubscribes and Google plan changes Play charged at once. A trial's first paid charge is in trialConversions, not here.",
   trials:
     "trialStarts: free trials started; on Apple only introductory offers, not promotional, offer-code or win-back offers. trialConversions: the paid charge that ends a free trial; a purchase after a lapsed trial is a direct paid start.",
   churn:
@@ -1699,13 +1703,13 @@ const REVENUE_DEFINITIONS = {
   refunds:
     "refunds: store refunds less refund reversals, one per refund. Revocations are not refunds: Apple's are Family Sharing removals, and Play's accompany a voided purchase that is counted instead. Google refunds carry no amount.",
   environment:
-    "Production only unless environment is sandbox. Rows before definitionsFromDay mix sandbox into production and have no trial split.",
+    "Production only unless environment is sandbox. Rows from definitionsFromDay on follow these definitions; earlier rows mix sandbox into production and have no trial split.",
   trialSplit:
-    "Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations, and their totals here cover later days only; on those days Google free trials count as paid starts and Apple refund reversals as new subscriptions.",
+    "Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations, and their totals here cover later days only; on those days Google free trials count as paid starts, and Apple refund reversals and resubscribes as new subscriptions. Unset when every day has the split.",
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:
-    "Paid cohort: UTC month of the first paid charge. retentionRates[k]: members with paid access at the end of month k. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
+    "Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with paid access at the end of month k. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
 } as const;
 
 type RevenueTotals = {

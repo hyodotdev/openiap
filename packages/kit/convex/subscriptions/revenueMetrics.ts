@@ -9,11 +9,12 @@
 //   conversions, renewals, billing recoveries). Free periods add 0.
 // - refundedMicros: store-reported amount of refunds, less refund reversals.
 // - newSubs: paid and free-trial starts; not refund reversals, Google plan
-//   changes or free offer periods.
+//   changes, free offer periods, or Apple resubscribes (reactivations) other
+//   than the first charge after a lapsed trial.
 // - trialStarts / trialConversions / directPaidStarts: see `applyEventToBucket`.
-// - renewals: paid renewals, billing recoveries and Google plan changes Play
-//   charged at once (at list price), except a trial's first paid charge,
-//   which is a conversion.
+// - renewals: every other paid charge: renewals, billing recoveries, Apple
+//   resubscribes and charged Google plan changes (at list price). A trial's
+//   first paid charge is a conversion instead.
 // - cancellations: auto-renew turned off, less turned back on. Not churn.
 // - expirations: paid access actually ended (store expiry notification). A
 //   free period that ended unpaid is not churn.
@@ -36,8 +37,10 @@
 // replaces the slice's days. A slice counts every event that occurred on its
 // days, so a day is only ever replaced with a complete count, never added to:
 // a retried or overlapping run cannot double-count. Each page also stops once
-// a newer run has started. A slice carries only its own buckets between
-// mutations, so a 30-day rebuild never carries more than a regular run does.
+// a newer run has started, and stamps the run's progress so the picker never
+// restarts a slow run that is still moving. A slice carries only its own
+// buckets between mutations, so a 30-day rebuild never carries more than a
+// regular run does.
 
 import { internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
@@ -52,9 +55,9 @@ import {
   endedInFreePeriod,
   isInTrialAt,
   isPaidCharge,
-  isPlanChange,
   isRefund,
   isTrialStart,
+  startsSubscription,
   subscriptionEnvironment,
   type AnalyticsEnvironment,
   type SubscriptionAnalytics,
@@ -81,20 +84,24 @@ const RETAINED_DAYS = Math.floor(WEBHOOK_RETENTION_MS / DAY_MS);
 // Bump when a metric's definition changes: each project then rebuilds its
 // retained window once, and `definitionsFromDay` marks where the new
 // definitions start.
-export const ROLLUP_DEFINITIONS_VERSION = 3;
+export const ROLLUP_DEFINITIONS_VERSION = 4;
 
 // Catch-ups and stats rebuilds reread a project's data, so each is requested
 // at most this often.
 const WIDE_RECOMPUTE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-// Runs finish within minutes. One started this long ago without finishing
-// failed, so the picker retries it after an hour rather than on every tick,
-// doubling the wait for each further failure in a row, up to a day.
+// A run that commits no page for this long failed: the picker retries it,
+// doubling the wait for each further failure in a row, up to a day. A slow run
+// that keeps committing pages is left to finish.
 const RUN_RETRY_MS = 60 * 60 * 1000;
 
 function runRetryMs(failedRuns: number): number {
   return Math.min(RUN_RETRY_MS * 2 ** failedRuns, DAY_MS);
 }
+
+// Pages stamp progress at most this often: far inside RUN_RETRY_MS, and a run
+// that finishes sooner writes no stamp beyond its start.
+const PROGRESS_STAMP_MS = 5 * 60 * 1000;
 
 const COHORTS_INTERVAL_MS = DAY_MS;
 
@@ -234,7 +241,8 @@ function unfinishedRunStart(
     : undefined;
 }
 
-// In flight, or failed less than its retry wait ago.
+// Unfinished, and made progress less than its retry wait ago: still running,
+// or failed too recently to retry.
 function isRunPending(
   status: Doc<"revenueMetricsRunStatus">,
   now: number,
@@ -242,7 +250,8 @@ function isRunPending(
   const startedAt = unfinishedRunStart(status);
   return (
     startedAt !== undefined &&
-    now - startedAt < runRetryMs(status.failedRuns ?? 0)
+    now - (status.runProgressAt ?? startedAt) <
+      runRetryMs(status.failedRuns ?? 0)
   );
 }
 
@@ -493,8 +502,8 @@ async function markRevenueMetricsRun(
       ? previousFromDay
       : run.firstDay;
   // A row an earlier release finished was built from notifications stored
-  // without the trial and refund-reversal flags; the first full day after
-  // this upgrade is the first one ingested with them.
+  // without the trial, refund-reversal and resubscribe flags; the first full
+  // day after this upgrade is the first one ingested with them.
   const upgradedFromOldDefinitions =
     existing?.lastRunAt !== undefined &&
     existing.definitionsVersion === undefined;
@@ -586,7 +595,8 @@ function latestNotifications(
 
 // Stamps the run's start and schedules the first slice. The stamp commits on
 // its own, so a first page that fails still leaves the project to the
-// picker's retry wait, and it stops any older run still in flight.
+// picker's retry wait, and it stops any older run still in flight. Only an
+// older run that had stopped making progress counts as failed.
 //
 // The window is the trailing 3 days, widened to the retained event window
 // when the project's rows follow older definitions (or none exist yet), back
@@ -611,9 +621,12 @@ async function startRun(
     if (day !== undefined && day < firstDay) firstDay = day;
   }
   if (firstDay < retainedFirst) firstDay = retainedFirst;
-  const failedRuns = unfinished ? (status.failedRuns ?? 0) + 1 : 0;
+  const failedRuns = unfinished
+    ? (status.failedRuns ?? 0) + (isRunPending(status, now) ? 0 : 1)
+    : 0;
   const stamp = {
     runStartedAt: now,
+    runProgressAt: now,
     runFirstDay: firstDay,
     failedRuns: failedRuns || undefined,
   };
@@ -946,14 +959,20 @@ async function processSubsPage(
 }
 
 // A page of a run a newer one replaced, or of a deleted project, does nothing.
-async function isCurrentRun(
+// A page of the current run stamps its progress, which commits with the page.
+async function resumeCurrentRun(
   ctx: MutationCtx,
   projectId: Id<"projects">,
   run: RunSummary,
 ): Promise<boolean> {
   if (!(await getWritableProject(ctx, projectId))) return false;
   const status = await getRunStatus(ctx, projectId);
-  return status?.runStartedAt === run.runStartedAt;
+  if (status?.runStartedAt !== run.runStartedAt) return false;
+  const now = Date.now();
+  if (now - (status.runProgressAt ?? run.runStartedAt) >= PROGRESS_STAMP_MS) {
+    await ctx.db.patch(status._id, { runProgressAt: now });
+  }
+  return true;
 }
 
 async function scheduleRecomputePage(
@@ -978,7 +997,7 @@ export const recomputeRevenueMetricsPage = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!(await isCurrentRun(ctx, args.projectId, args.run))) return null;
+    if (!(await resumeCurrentRun(ctx, args.projectId, args.run))) return null;
     const buckets = new Map<BucketKey, RollupBucket>();
     for (const row of args.buckets) {
       buckets.set(keyOf(row), { ...row });
@@ -1035,7 +1054,7 @@ export const commitRevenueMetricsDays = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!(await isCurrentRun(ctx, args.projectId, args.run))) return null;
+    if (!(await resumeCurrentRun(ctx, args.projectId, args.run))) return null;
     const [day, ...rest] = args.days;
     await commitBuckets(
       ctx,
@@ -1140,7 +1159,8 @@ function getOrCreateBucket(
 // - trialStarts: starts whose store offer data says free trial (revenue 0).
 // - trialConversions: a subscription's first paid charge after a free trial.
 // - directPaidStarts: a first paid charge delivered as a start with no trial.
-// - A Google replacement is no start; one Play charged at once is a renewal.
+// - A Google replacement or an Apple resubscribe is no start (see
+//   `startsSubscription`); one that charged is a renewal.
 // Restores never reach here: only store notifications are counted, and a
 // restore re-verifies an existing purchase without one.
 export function applyEventToBucket(
@@ -1168,7 +1188,7 @@ export function applyEventToBucket(
     bucket.revenueMicros += price;
     if (event.paidStart === "trial_conversion") {
       bucket.trialConversions += 1;
-    } else if (event.type === "SubscriptionStarted" && !isPlanChange(event)) {
+    } else if (startsSubscription(event)) {
       bucket.newSubs += 1;
       if (event.paidStart === "direct") bucket.directPaidStarts += 1;
     } else {

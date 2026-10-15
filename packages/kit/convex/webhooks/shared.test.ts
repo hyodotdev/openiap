@@ -894,6 +894,29 @@ describe("analytics facts on normalized events", () => {
     ).toBeUndefined();
   });
 
+  it("marks RESUBSCRIBE for analytics without changing its lifecycle type", () => {
+    const resubscribe = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "SUBSCRIBED",
+        subtype: "RESUBSCRIBE",
+      },
+      transaction: baseTransaction,
+    });
+    const initialBuy = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "SUBSCRIBED",
+        subtype: "INITIAL_BUY",
+      },
+      transaction: baseTransaction,
+    });
+    expect(resubscribe.resubscribe).toBe(true);
+    expect(initialBuy.resubscribe).toBeUndefined();
+    const { resubscribe: _flag, ...lifecycle } = resubscribe;
+    expect(lifecycle).toEqual(initialBuy);
+  });
+
   it("carries Google's catalog-derived trial flag", () => {
     const payload: GoogleRtdnPayload = {
       messageId: "google-trial",

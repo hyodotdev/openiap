@@ -189,6 +189,62 @@ describe("nextAnalyticsFacts", () => {
     ).toEqual(expected);
   });
 
+  it("records a resubscribe as the first charge, never as a trial start", () => {
+    const resubscribe = event({
+      type: "SubscriptionStarted",
+      resubscribe: true,
+    });
+    expect(nextAnalyticsFacts(undefined, resubscribe)).toEqual({
+      firstPaidAt: 1_000,
+      firstPaidEventId: "webhookEvents_1",
+      firstPaidEventType: "SubscriptionStarted",
+      firstPaidResubscribe: true,
+      currency: "USD",
+      paidMicros: PRICE,
+      refundedMicros: 0,
+    });
+    expect(
+      nextAnalyticsFacts(undefined, { ...resubscribe, freeTrial: true }),
+    ).toBeNull();
+    // An earlier start replaces it as the first charge.
+    expect(
+      nextAnalyticsFacts(
+        nextAnalyticsFacts(undefined, resubscribe) ?? undefined,
+        event({
+          _id: "webhookEvents_0" as Id<"webhookEvents">,
+          type: "SubscriptionStarted",
+          occurredAt: 500,
+        }),
+      ),
+    ).not.toHaveProperty("firstPaidResubscribe");
+  });
+
+  it("makes a resubscribe after a lapsed trial the direct start, in either order", () => {
+    const trial = event({
+      _id: "webhookEvents_0" as Id<"webhookEvents">,
+      type: "SubscriptionStarted",
+      freeTrial: true,
+      occurredAt: 500,
+    });
+    const resubscribe = event({
+      type: "SubscriptionStarted",
+      resubscribe: true,
+    });
+    const trialFirst = nextAnalyticsFacts(
+      nextAnalyticsFacts(undefined, trial) ?? undefined,
+      resubscribe,
+    );
+    const resubscribeFirst = nextAnalyticsFacts(
+      nextAnalyticsFacts(undefined, resubscribe) ?? undefined,
+      trial,
+    );
+    expect(resubscribeFirst).toEqual(trialFirst);
+    expect(paidStartKind(trialFirst ?? undefined)).toBe("direct");
+    expect(
+      paidStartKind(nextAnalyticsFacts(undefined, resubscribe) ?? undefined),
+    ).toBeUndefined();
+  });
+
   it("never mixes currencies", () => {
     const usd = nextAnalyticsFacts(
       undefined,
@@ -246,10 +302,23 @@ describe("paidStartKind", () => {
         trialStartedAt: 1,
         firstPaidAt: 50,
         firstPaidEventType: "SubscriptionStarted" as const,
+        firstPaidResubscribe: true,
         paidMicros: 0,
         refundedMicros: 0,
       },
       "direct",
+    ],
+    // A resubscribe with no trial before it: the subscription started paying
+    // before IAPKit saw it.
+    [
+      {
+        firstPaidAt: 50,
+        firstPaidEventType: "SubscriptionStarted" as const,
+        firstPaidResubscribe: true,
+        paidMicros: 0,
+        refundedMicros: 0,
+      },
+      undefined,
     ],
   ])("classifies %j as %s", (facts, expected) => {
     expect(paidStartKind(facts)).toBe(expected);
@@ -284,6 +353,29 @@ describe("mergeAnalyticsFacts", () => {
       paidMicros: 2 * PRICE,
       refundedMicros: PRICE,
     });
+  });
+
+  it("keeps the resubscribe mark with the first paid charge", () => {
+    const resubscribed = {
+      firstPaidAt: 2,
+      firstPaidEventType: "SubscriptionStarted" as const,
+      firstPaidResubscribe: true,
+      paidMicros: PRICE,
+      refundedMicros: 0,
+    };
+    const later = {
+      firstPaidAt: 5,
+      firstPaidEventType: "SubscriptionStarted" as const,
+      paidMicros: PRICE,
+      refundedMicros: 0,
+    };
+    expect(mergeAnalyticsFacts(later, resubscribed)).toMatchObject({
+      firstPaidAt: 2,
+      firstPaidResubscribe: true,
+    });
+    expect(
+      mergeAnalyticsFacts(resubscribed, { ...later, firstPaidAt: 1 }),
+    ).not.toHaveProperty("firstPaidResubscribe");
   });
 });
 

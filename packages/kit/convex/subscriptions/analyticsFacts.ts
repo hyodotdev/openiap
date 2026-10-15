@@ -22,6 +22,8 @@ type FactEvent = Pick<
   | "occurredAt"
   | "freeTrial"
   | "refundReversal"
+  | "resubscribe"
+  | "paidStart"
   | "cancellationReason"
   | "currency"
   | "priceAmountMicros"
@@ -61,13 +63,20 @@ export function isPaidCharge(event: FactEvent): boolean {
   );
 }
 
-export function isTrialStart(event: FactEvent): boolean {
+// A start that begins a subscription. A Google replacement and an Apple
+// resubscribe continue an earlier one, except the resubscribe marked as the
+// direct paid start after a lapsed trial (see `paidStartKind`).
+export function startsSubscription(event: FactEvent): boolean {
   return (
     event.type === "SubscriptionStarted" &&
-    event.freeTrial === true &&
     event.refundReversal !== true &&
-    !isPlanChange(event)
+    !isPlanChange(event) &&
+    (event.resubscribe !== true || event.paidStart === "direct")
   );
+}
+
+export function isTrialStart(event: FactEvent): boolean {
+  return startsSubscription(event) && event.freeTrial === true;
 }
 
 // Money returned to the buyer: Apple REFUND or Play's voided purchase. A
@@ -99,18 +108,21 @@ export function subscriptionEnvironment(
 }
 
 // How the first paid charge began. A trial converts only through the renewal
-// that ends it; a paid start after a lapsed trial is a new direct start.
-// Undefined for a plain renewal: the subscription started paying before IAPKit
-// saw it, so its start is unknown.
+// that ends it; a paid start after a lapsed trial is a new direct start, which
+// on Apple arrives as a resubscribe. Undefined when the subscription started
+// paying before IAPKit saw it: a plain renewal, or a resubscribe with no trial
+// before it, so its start is unknown.
 export function paidStartKind(
   facts: SubscriptionAnalytics | undefined,
 ): PaidStart | undefined {
   if (facts?.firstPaidAt === undefined) return undefined;
-  if (facts.firstPaidEventType === "SubscriptionStarted") return "direct";
-  return facts.trialStartedAt !== undefined &&
-    facts.trialStartedAt <= facts.firstPaidAt
-    ? "trial_conversion"
-    : undefined;
+  const afterTrial =
+    facts.trialStartedAt !== undefined &&
+    facts.trialStartedAt <= facts.firstPaidAt;
+  if (facts.firstPaidEventType === "SubscriptionStarted") {
+    return facts.firstPaidResubscribe && !afterTrial ? undefined : "direct";
+  }
+  return afterTrial ? "trial_conversion" : undefined;
 }
 
 export function isInTrialAt(
@@ -167,6 +179,8 @@ export function nextAnalyticsFacts(
       next.firstPaidAt = event.occurredAt;
       next.firstPaidEventId = event._id;
       next.firstPaidEventType = event.type;
+      if (event.resubscribe === true) next.firstPaidResubscribe = true;
+      else delete next.firstPaidResubscribe;
       if ((next.trialStartedAt ?? -Infinity) > event.occurredAt) {
         delete next.trialStartedAt;
       }
@@ -230,6 +244,9 @@ export function mergeAnalyticsFacts(
           firstPaidAt: firstPaid.firstPaidAt,
           firstPaidEventId: firstPaid.firstPaidEventId,
           firstPaidEventType: firstPaid.firstPaidEventType,
+          ...(firstPaid.firstPaidResubscribe
+            ? { firstPaidResubscribe: true }
+            : {}),
         }
       : {}),
     ...(currency !== undefined ? { currency } : {}),

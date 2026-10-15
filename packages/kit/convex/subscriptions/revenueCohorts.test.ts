@@ -51,6 +51,24 @@ function cohorts(rows: Array<Doc<"subscriptions">>): Map<string, CohortBucket> {
   return buckets;
 }
 
+describe("addSubscriptionToCohorts — resubscribes", () => {
+  it("leaves out a resubscribe with no trial before it", () => {
+    const resubscribed = paidFacts(at("2026-02-10"), PRICE, {
+      firstPaidResubscribe: true,
+    });
+    const active = { state: "Active" as const, expiresAt: at("2026-04-10") };
+    expect(cohorts([sub({ ...active, analytics: resubscribed })]).size).toBe(0);
+    expect(
+      cohorts([
+        sub({
+          ...active,
+          analytics: { ...resubscribed, trialStartedAt: at("2026-01-05") },
+        }),
+      ]).get("Production|2026-02|USD"),
+    ).toMatchObject({ members: 1 });
+  });
+});
+
 describe("addSubscriptionToCohorts", () => {
   const fixture = [
     // Direct start in January, still paying: retained every month.

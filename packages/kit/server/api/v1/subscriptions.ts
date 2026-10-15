@@ -284,8 +284,9 @@ async function handleRevenueMetrics(c: Context, apiKey: string) {
   if (spanDays > 92) {
     return invalidInput(c, "revenue range must be 92 days or less");
   }
-  // Optional and additive: production unless `environment=sandbox`; cohort
-  // rows only on `cohorts=true`.
+  // Production rows unless `environment=sandbox`; cohort rows only on
+  // `cohorts=true`. The Analytics docs page defines every field and lists the
+  // ones whose meaning changed.
   const environmentParam = c.req.query("environment")?.toLowerCase();
   if (
     environmentParam !== undefined &&
