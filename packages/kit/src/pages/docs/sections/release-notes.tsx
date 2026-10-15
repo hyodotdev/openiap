@@ -48,12 +48,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Operations",
-        text: "Webhook deliveries keep their last 20 attempts and can be re-sent with the original event ID. Inbound store notifications are listed, and admins can re-sync an Apple or Google purchase or subscription from the store, using a rate limit separate from entitlement reads. Operator routes return 502 for store failures and 409 for deliveries that cannot be re-sent.",
+        text: "Webhook deliveries keep their last 20 attempts and can be re-sent with the original event ID. Inbound store notifications are listed, and admins can re-sync an Apple or Google purchase or subscription from the store, using a rate limit separate from entitlement reads. A re-sync never repeats an access grant, and a store notification older than a re-sync keeps the re-synced state. Operator routes return 502 for store failures and 409 for deliveries that cannot be re-sent.",
       },
       {
         kind: "security",
         topic: "Dashboard",
-        text: "Raw store evidence, subscription purchase tokens, inbound transaction IDs and raw delivery errors are shown only to project owners and admins; members see a salted fingerprint or an error class.",
+        text: "Raw store evidence, subscription purchase tokens, inbound transaction IDs, raw delivery errors and destination descriptions are shown only to project owners and admins; members see a salted fingerprint, an error class or the destination host.",
       },
       {
         kind: "fix",
