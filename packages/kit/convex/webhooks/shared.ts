@@ -95,6 +95,10 @@ export type NormalizedWebhookEvent = {
   currency?: string;
   priceAmountMicros?: number;
   amountProvenance?: DataProvenance;
+  /** The transaction's period is a free trial; unset when the store did not say. */
+  freeTrial?: boolean;
+  /** Apple REFUND_REVERSED. State handling treats it as a start; analytics must not. */
+  refundReversal?: boolean;
   occurredAt: number;
   // Stable per-notification identifier used for idempotency. ASN v2
   // `notificationUUID` or RTDN `messageId`.
@@ -185,6 +189,12 @@ export type AppleDecodedTransaction = {
   // is 9990, and ×1000 gives micros.
   // https://developer.apple.com/documentation/appstoreserverapi/jwstransactiondecodedpayload/price
   price?: number | null;
+  // 1 introductory, 2 promotional, 3 offer code, 4 win-back.
+  // https://developer.apple.com/documentation/appstoreserverapi/offertype
+  offerType?: number | null;
+  // FREE_TRIAL, PAY_AS_YOU_GO or PAY_UP_FRONT.
+  // https://developer.apple.com/documentation/appstoreserverapi/offerdiscounttype
+  offerDiscountType?: string | null;
 };
 
 export type AppleDecodedRenewalInfo = {
@@ -266,8 +276,8 @@ export function mapAppleNotificationType(
       return "PurchaseRefunded";
     case "REFUND_REVERSED":
       // Refund reversed means the user retains their purchase — surface
-      // as a fresh "Started" so consumers re-grant entitlement. The raw
-      // payload still describes the reversal for consumers that need it.
+      // as a fresh "Started" so consumers re-grant entitlement. Analytics
+      // read `refundReversal` instead and count no new subscription.
       return "SubscriptionStarted";
     case "CONSUMPTION_REQUEST":
       return "PurchaseConsumptionRequest";
@@ -355,6 +365,21 @@ function deriveAppleSubscriptionState(
     default:
       return undefined;
   }
+}
+
+// A signed transaction without an offer is a full-price charge. Payloads that
+// predate `offerDiscountType` still mark a free intro period with price 0.
+export function appleTransactionIsFreeTrial(
+  transaction: AppleDecodedTransaction | null | undefined,
+): boolean | undefined {
+  if (!transaction) return undefined;
+  if (transaction.offerDiscountType != null) {
+    return transaction.offerDiscountType === "FREE_TRIAL";
+  }
+  if (transaction.offerType == null) return false;
+  return typeof transaction.price === "number"
+    ? transaction.price === 0
+    : undefined;
 }
 
 export type NormalizeAppleInput = {
@@ -484,6 +509,10 @@ export function normalizeAppleAsn(
     priceAmountMicros,
     amountProvenance:
       priceAmountMicros === undefined ? undefined : ("store" as const),
+    freeTrial: appleTransactionIsFreeTrial(transaction),
+    ...(payload.notificationType === "REFUND_REVERSED"
+      ? { refundReversal: true }
+      : {}),
     occurredAt: payload.signedDate,
     sourceNotificationId: payload.notificationUUID,
   };
@@ -558,6 +587,8 @@ export type GoogleSubscriptionInfo = {
   currency?: string;
   priceAmountMicros?: number;
   amountProvenance?: DataProvenance;
+  /** From the line item's offer and the synced Play catalog; see google.ts. */
+  freeTrial?: boolean;
 };
 
 // RTDN numeric codes per
@@ -794,6 +825,7 @@ export function normalizeGoogleRtdn(
     currency: subscriptionInfo?.currency,
     priceAmountMicros: subscriptionInfo?.priceAmountMicros,
     amountProvenance: subscriptionInfo?.amountProvenance,
+    freeTrial: subscriptionInfo?.freeTrial,
     occurredAt: payload.eventTimeMillis,
     sourceNotificationId: payload.messageId,
   };

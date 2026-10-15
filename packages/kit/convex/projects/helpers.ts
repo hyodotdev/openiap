@@ -392,6 +392,18 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const revenueCohorts = await ctx.db
+    .query("revenueCohortsMonthly")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const cohort of revenueCohorts) {
+    await ctx.db.delete(cohort._id);
+  }
+  if (revenueCohorts.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const products = await ctx.db
     .query("products")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

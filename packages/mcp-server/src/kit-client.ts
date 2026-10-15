@@ -16,7 +16,6 @@ import type {
   KitProductSyncResponse,
   KitProductUpsertResponse,
   KitRemoveClientPayloadResponse,
-  KitRevenueMetricsResponse,
   KitSaveClientPayloadDraftResponse,
   KitSetClientPayloadResponse,
   KitSubscriptionsResponse,
@@ -37,6 +36,62 @@ export interface KitProductListParams {
 export type KitProductsResponse = SharedKitProductsResponse;
 export type KitMetricsResponse = SharedKitMetricsResponse;
 export type KitMrrCurrencyEntry = SharedKitMrrCurrencyEntry;
+
+// `/v1/subscriptions/revenue` with its additive analytics fields. App SDKs read
+// none of them, so the shape lives here rather than in the shared client
+// contract; kit's mcp-contract test holds it to the Convex validator.
+export type KitRevenueDay = {
+  day: string;
+  currency: string;
+  productId: string;
+  platform: "IOS" | "Android";
+  activeSubs: number;
+  activeTrials?: number;
+  newSubs: number;
+  trialStarts?: number;
+  trialConversions?: number;
+  directPaidStarts?: number;
+  renewals: number;
+  cancellations: number;
+  expirations?: number;
+  refunds: number;
+  revenueMicros: number;
+  refundedMicros?: number;
+};
+export type KitRevenueCohort = {
+  month: string;
+  currency: string;
+  members: number;
+  revenueMicros: number;
+  refundedMicros: number;
+  realizedLtvMicros: number;
+  retained: number[];
+  trialStarts: number;
+  trialConversions: number;
+  trialsPending: number;
+  observedThrough: string;
+};
+export type KitRevenueMetricsResponse = {
+  days: KitRevenueDay[];
+  currencies: string[];
+  productIds: string[];
+  platforms: Array<"IOS" | "Android">;
+  truncated: boolean;
+  environment: "Production" | "Sandbox";
+  dataState: "not_collected" | "processing" | "zero" | "ready";
+  lastRunAt?: number;
+  definitionsFromDay?: string;
+  pendingLateEvents: number;
+  oldestPendingLateDay?: string;
+  cohorts?: KitRevenueCohort[];
+  cohortsComputedAt?: number;
+};
+export interface KitRevenueMetricsParams {
+  fromDay: string;
+  toDay: string;
+  environment?: "production" | "sandbox";
+  cohorts?: boolean;
+}
 
 export interface KitSubscriptionV2 extends Omit<
   KitSubscription,
@@ -382,11 +437,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       );
     },
     metrics: () => adminCall<KitMetricsResponse>("/v1/subscriptions/metrics"),
-    revenueMetrics: (params: { fromDay: string; toDay: string }) => {
+    revenueMetrics: (params: KitRevenueMetricsParams) => {
       const usp = new URLSearchParams({
         fromDay: params.fromDay,
         toDay: params.toDay,
       });
+      if (params.environment) usp.set("environment", params.environment);
+      if (params.cohorts) usp.set("cohorts", "true");
       return adminCall<KitRevenueMetricsResponse>(
         `/v1/subscriptions/revenue?${usp.toString()}`,
       );

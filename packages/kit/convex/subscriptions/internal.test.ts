@@ -228,6 +228,7 @@ async function seedWebhookEvent(
     occurredAt: number;
     platform?: "IOS" | "Android";
     productId?: string;
+    environment?: "Production" | "Sandbox";
   },
 ): Promise<string> {
   const platform = args.platform ?? "Android";
@@ -239,7 +240,7 @@ async function seedWebhookEvent(
         ? "AppleAppStoreServerNotificationsV2"
         : "GooglePlayRealTimeDeveloperNotifications",
     platform,
-    environment: "Sandbox",
+    environment: args.environment ?? "Production",
     purchaseToken: TOKEN,
     sourceNotificationId: args.notificationId,
     productId: args.productId ?? "premium_monthly",
@@ -3413,5 +3414,172 @@ describe("user binding authorization", () => {
       }),
     ).resolves.not.toBeNull();
     expect(db.rows("subscriptions")[0].userId).toBe("real-owner");
+  });
+});
+
+describe("subscription analytics facts", () => {
+  async function apply(db: MemDb, eventId: string) {
+    return applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+  }
+
+  function eventRow(db: MemDb, id: string): Row | undefined {
+    return db.rows("webhookEvents").find((row) => row._id === id);
+  }
+
+  it("marks a trial's first paid charge and never counts a replay twice", async () => {
+    const db = new MemDb();
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "trial-start",
+      occurredAt: 1_000,
+    });
+    await db.patch(trial, { freeTrial: true });
+    const paid = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "first-charge",
+      occurredAt: 2_000,
+    });
+
+    await apply(db, trial);
+    await apply(db, paid);
+    await apply(db, paid);
+
+    expect(db.rows("subscriptions")[0].analytics).toEqual({
+      trialStartedAt: 1_000,
+      firstPaidAt: 2_000,
+      firstPaidEventId: paid,
+      firstPaidEventType: "SubscriptionRenewed",
+      currency: "USD",
+      paidMicros: 9_990_000,
+      refundedMicros: 0,
+    });
+    expect(eventRow(db, paid)?.paidStart).toBe("trial_conversion");
+    expect(eventRow(db, trial)?.paidStart).toBeUndefined();
+  });
+
+  it("converges when the trial and charges arrive out of order", async () => {
+    const db = new MemDb();
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "trial-start",
+      occurredAt: 1_000,
+    });
+    await db.patch(trial, { freeTrial: true });
+    const firstCharge = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "first-charge",
+      occurredAt: 2_000,
+    });
+    const secondCharge = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "second-charge",
+      occurredAt: 3_000,
+    });
+
+    await apply(db, secondCharge);
+    expect(eventRow(db, secondCharge)?.paidStart).toBeUndefined();
+    await apply(db, firstCharge);
+    await apply(db, trial);
+
+    expect(db.rows("subscriptions")[0].analytics).toMatchObject({
+      trialStartedAt: 1_000,
+      firstPaidAt: 2_000,
+      firstPaidEventId: firstCharge,
+      paidMicros: 2 * 9_990_000,
+    });
+    expect(eventRow(db, firstCharge)?.paidStart).toBe("trial_conversion");
+    expect(eventRow(db, secondCharge)?.paidStart).toBeUndefined();
+    // State still follows the newest store event.
+    expect(db.rows("subscriptions")[0].lastEventId).toBe(secondCharge);
+  });
+
+  it("marks a paid start without a trial as direct and moves the marker to an earlier charge", async () => {
+    const db = new MemDb();
+    const renewal = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "renewal",
+      occurredAt: 5_000,
+    });
+    const start = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "start",
+      occurredAt: 1_000,
+    });
+
+    await apply(db, renewal);
+    await apply(db, start);
+
+    expect(eventRow(db, start)?.paidStart).toBe("direct");
+    expect(eventRow(db, renewal)?.paidStart).toBeUndefined();
+  });
+
+  it("records the environment and keeps sandbox rows out of live stats", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const sandbox = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "sandbox-start",
+      occurredAt: 1_000,
+      environment: "Sandbox",
+    });
+    await apply(db, sandbox);
+    expect(db.rows("subscriptions")[0].environment).toBe("Sandbox");
+    expect(db.rows("subscriptionStats")).toEqual([]);
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      platform: "Android",
+      purchaseToken: "verified_sandbox_token",
+      productId: "premium_monthly",
+      purchaseState: "ENTITLED",
+      subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+      environment: "Sandbox",
+    });
+    expect(
+      db
+        .rows("subscriptions")
+        .find((row) => row.purchaseToken === "verified_sandbox_token")
+        ?.environment,
+    ).toBe("Sandbox");
+    expect(db.rows("subscriptionStats")).toEqual([]);
+  });
+
+  it("never lets an analytics failure block the lifecycle transition", async () => {
+    const db = new MemDb();
+    const patch = db.patch.bind(db);
+    db.patch = async (id, fields) => {
+      if ("analytics" in fields) throw new Error("analytics write failed");
+      await patch(id, fields);
+    };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const start = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "start",
+        occurredAt: 1_000,
+      });
+
+      await expect(apply(db, start)).resolves.toMatchObject({
+        transition: "Started",
+        active: true,
+      });
+      expect(db.rows("subscriptions")).toMatchObject([
+        { state: "Active", lastEventId: start },
+      ]);
+      expect(db.rows("subscriptions")[0].analytics).toBeUndefined();
+      expect(errors).toHaveBeenCalledWith("[analyticsFacts] skipped", "Error");
+    } finally {
+      errors.mockRestore();
+    }
   });
 });

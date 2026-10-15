@@ -143,8 +143,8 @@ crons.interval(
 
 // Rebuilds the `revenueMetricsDaily` rows behind the Analytics dashboard
 // from the last 3 days of `webhookEvents`. The window covers Apple ASN v2
-// and Google RTDN late retries (real-world p99 < 48h), so a webhook up to 3
-// days late still lands in its day's bucket.
+// and Google RTDN late retries (real-world p99 < 48h); later arrivals get a
+// rate-limited catch-up, and each run requests the daily cohort job.
 //
 // Every 10 minutes, not daily: daily at batchSize 50 took 10 days to cycle
 // 500 projects. The picker rotates through `revenueMetricsRunStatus.by_run`

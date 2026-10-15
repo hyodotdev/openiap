@@ -208,6 +208,7 @@ export async function recordAppStoreVerifiedSubscription(
       revocationReasonIOS: params.transactionData.revocationReason,
       verifiedPurchaseDate: params.transactionData.purchaseDate,
       verifiedSignedDate: params.transactionData.signedDate,
+      environment: params.transactionData.environment,
     },
   );
 }

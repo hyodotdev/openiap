@@ -350,6 +350,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     await ctx.db.insert("subscriptionStats", { projectId });
     await ctx.db.insert("revenueMetricsDaily", { projectId });
     await ctx.db.insert("revenueMetricsRunStatus", { projectId });
+    await ctx.db.insert("revenueCohortsMonthly", { projectId });
     await ctx.db.insert("products", { projectId });
     await ctx.db.insert("productSyncJobs", { projectId });
     await ctx.db.insert("purchaseStats", { projectId });
@@ -391,6 +392,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("subscriptionStats")).toBe(0);
     expect(ctx.db.countRows("revenueMetricsDaily")).toBe(0);
     expect(ctx.db.countRows("revenueMetricsRunStatus")).toBe(0);
+    expect(ctx.db.countRows("revenueCohortsMonthly")).toBe(0);
     expect(ctx.db.countRows("products")).toBe(0);
     expect(ctx.db.countRows("productSyncJobs")).toBe(0);
     expect(ctx.db.countRows("purchaseStats")).toBe(0);

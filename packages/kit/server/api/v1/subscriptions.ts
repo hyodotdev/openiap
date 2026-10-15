@@ -283,6 +283,24 @@ async function handleRevenueMetrics(c: Context, apiKey: string) {
   if (spanDays > 92) {
     return invalidInput(c, "revenue range must be 92 days or less");
   }
+  // Optional and additive: production unless `environment=sandbox`; cohort
+  // rows only on `cohorts=true`.
+  const environmentParam = c.req.query("environment")?.toLowerCase();
+  if (
+    environmentParam !== undefined &&
+    environmentParam !== "production" &&
+    environmentParam !== "sandbox"
+  ) {
+    return invalidInput(c, "environment must be production or sandbox");
+  }
+  const cohortsParam = c.req.query("cohorts");
+  if (
+    cohortsParam !== undefined &&
+    cohortsParam !== "true" &&
+    cohortsParam !== "false"
+  ) {
+    return invalidInput(c, "cohorts must be true or false");
+  }
 
   try {
     const result = await client.query(
@@ -291,6 +309,10 @@ async function handleRevenueMetrics(c: Context, apiKey: string) {
         apiKey,
         fromDay,
         toDay,
+        ...(environmentParam === "sandbox"
+          ? { environment: "Sandbox" as const }
+          : {}),
+        ...(cohortsParam === "true" ? { includeCohorts: true } : {}),
       },
     );
     return c.json(result);

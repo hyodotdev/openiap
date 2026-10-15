@@ -78,6 +78,7 @@ import type * as purchases_stats from "../purchases/stats.js";
 import type * as purchases_verificationAdmission from "../purchases/verificationAdmission.js";
 import type * as subscriptions_action from "../subscriptions/action.js";
 import type * as subscriptions_amazon from "../subscriptions/amazon.js";
+import type * as subscriptions_analyticsFacts from "../subscriptions/analyticsFacts.js";
 import type * as subscriptions_erasure from "../subscriptions/erasure.js";
 import type * as subscriptions_internal from "../subscriptions/internal.js";
 import type * as subscriptions_limits from "../subscriptions/limits.js";
@@ -85,6 +86,7 @@ import type * as subscriptions_monthlyMicros from "../subscriptions/monthlyMicro
 import type * as subscriptions_mutation from "../subscriptions/mutation.js";
 import type * as subscriptions_query from "../subscriptions/query.js";
 import type * as subscriptions_resync from "../subscriptions/resync.js";
+import type * as subscriptions_revenueCohorts from "../subscriptions/revenueCohorts.js";
 import type * as subscriptions_revenueMetrics from "../subscriptions/revenueMetrics.js";
 import type * as subscriptions_selectLatest from "../subscriptions/selectLatest.js";
 import type * as subscriptions_stateMachine from "../subscriptions/stateMachine.js";
@@ -188,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   "purchases/verificationAdmission": typeof purchases_verificationAdmission;
   "subscriptions/action": typeof subscriptions_action;
   "subscriptions/amazon": typeof subscriptions_amazon;
+  "subscriptions/analyticsFacts": typeof subscriptions_analyticsFacts;
   "subscriptions/erasure": typeof subscriptions_erasure;
   "subscriptions/internal": typeof subscriptions_internal;
   "subscriptions/limits": typeof subscriptions_limits;
@@ -195,6 +198,7 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/mutation": typeof subscriptions_mutation;
   "subscriptions/query": typeof subscriptions_query;
   "subscriptions/resync": typeof subscriptions_resync;
+  "subscriptions/revenueCohorts": typeof subscriptions_revenueCohorts;
   "subscriptions/revenueMetrics": typeof subscriptions_revenueMetrics;
   "subscriptions/selectLatest": typeof subscriptions_selectLatest;
   "subscriptions/stateMachine": typeof subscriptions_stateMachine;

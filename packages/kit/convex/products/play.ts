@@ -13,7 +13,7 @@ import {
   type ProductLocalization,
 } from "./localizations";
 import type { ProductRegions } from "./regions";
-import { coerceBillingPeriod } from "./sync";
+import { coerceBillingPeriod, playOfferPhaseId } from "./sync";
 
 type GoogleAuthClient = InstanceType<typeof google.auth.GoogleAuth>;
 
@@ -2181,7 +2181,7 @@ export function collectPlaySubscriptionOffers(
           selected.region,
         );
         out.push({
-          id: `${plan.basePlanId}/${offer.offerId}#${index}`,
+          id: playOfferPhaseId(plan.basePlanId, offer.offerId, index),
           kind: isFree
             ? "FreeTrial"
             : (phase.recurrenceCount ?? 1) > 1

@@ -263,6 +263,7 @@ export async function recordGooglePlayVerifiedSubscription(
       willRenew: params.receiptData.willRenew,
       currency: params.receiptData.currency,
       priceAmountMicros: params.receiptData.priceAmountMicros,
+      environment: params.receiptData.environment,
     },
   );
 }

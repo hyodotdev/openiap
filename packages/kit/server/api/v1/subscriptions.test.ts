@@ -891,6 +891,52 @@ describe("subscriptionsRoutes", () => {
     });
   });
 
+  it("forwards the optional sandbox and cohort flags", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce({
+      days: [],
+      currencies: [],
+      productIds: [],
+      platforms: [],
+      truncated: false,
+    });
+
+    const response = await app.request(
+      "/subscriptions/revenue/key?fromDay=2026-06-01&toDay=2026-06-04&environment=sandbox&cohorts=true",
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.query).toHaveBeenCalledWith("getRevenueMetrics", {
+      apiKey: "key",
+      fromDay: "2026-06-01",
+      toDay: "2026-06-04",
+      environment: "Sandbox",
+      includeCohorts: true,
+    });
+  });
+
+  it("rejects unknown revenue flags before calling Convex", async () => {
+    const app = buildApp();
+    const cases = [
+      {
+        query: "environment=staging",
+        message: "environment must be production or sandbox",
+      },
+      { query: "cohorts=yes", message: "cohorts must be true or false" },
+    ];
+
+    for (const { query, message } of cases) {
+      const response = await app.request(
+        `/subscriptions/revenue/key?fromDay=2026-06-01&toDay=2026-06-04&${query}`,
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        errors: [{ code: "INVALID_INPUT", message }],
+      });
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid revenue ranges before calling Convex", async () => {
     const app = buildApp();
 

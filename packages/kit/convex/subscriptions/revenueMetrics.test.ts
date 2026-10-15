@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { getFunctionName } from "convex/server";
 
 import type { Doc } from "../_generated/dataModel";
 import {
+  ROLLUP_DEFINITIONS_VERSION,
   applyEventToBucket,
   bucketKey,
   isActiveAt,
@@ -13,6 +15,9 @@ import {
   type RecomputeRevenueMetricsPageArgs,
   type RollupBucket,
 } from "./revenueMetrics";
+import { getRevenueMetrics as registeredGetRevenueMetrics } from "./query";
+import { runRevenueCohortsPage } from "./revenueCohorts";
+import { testableFunction } from "../test.setup";
 
 // ──────────────────────────────────────────────────────────────────────
 // Pure helper tests — no DB needed.
@@ -50,19 +55,44 @@ describe("startOfUtcDay", () => {
 });
 
 describe("bucketKey", () => {
-  it("composes day + productId + currency + platform uniquely", () => {
-    expect(bucketKey("2026-03-15", "sub.monthly", "USD", "IOS")).toBe(
-      "2026-03-15|sub.monthly|USD|IOS",
-    );
+  it("composes day + productId + currency + platform + environment uniquely", () => {
+    expect(
+      bucketKey("2026-03-15", "sub.monthly", "USD", "IOS", "Production"),
+    ).toBe("2026-03-15|sub.monthly|USD|IOS|Production");
   });
 
-  it("differs when ANY component differs (including platform)", () => {
-    const a = bucketKey("2026-03-15", "sub.monthly", "USD", "IOS");
-    const b = bucketKey("2026-03-16", "sub.monthly", "USD", "IOS");
-    const c = bucketKey("2026-03-15", "sub.yearly", "USD", "IOS");
-    const d = bucketKey("2026-03-15", "sub.monthly", "EUR", "IOS");
-    const e = bucketKey("2026-03-15", "sub.monthly", "USD", "Android");
-    expect(new Set([a, b, c, d, e]).size).toBe(5);
+  it("differs when ANY component differs (including platform and environment)", () => {
+    const a = bucketKey(
+      "2026-03-15",
+      "sub.monthly",
+      "USD",
+      "IOS",
+      "Production",
+    );
+    const b = bucketKey(
+      "2026-03-16",
+      "sub.monthly",
+      "USD",
+      "IOS",
+      "Production",
+    );
+    const c = bucketKey("2026-03-15", "sub.yearly", "USD", "IOS", "Production");
+    const d = bucketKey(
+      "2026-03-15",
+      "sub.monthly",
+      "EUR",
+      "IOS",
+      "Production",
+    );
+    const e = bucketKey(
+      "2026-03-15",
+      "sub.monthly",
+      "USD",
+      "Android",
+      "Production",
+    );
+    const f = bucketKey("2026-03-15", "sub.monthly", "USD", "IOS", "Sandbox");
+    expect(new Set([a, b, c, d, e, f]).size).toBe(6);
   });
 });
 
@@ -81,12 +111,19 @@ function emptyBucket(
     productId,
     currency,
     platform,
+    environment: "Production",
     activeSubs: 0,
+    activeTrials: 0,
     newSubs: 0,
+    trialStarts: 0,
+    trialConversions: 0,
+    directPaidStarts: 0,
     renewals: 0,
     cancellations: 0,
+    expirations: 0,
     refunds: 0,
     revenueMicros: 0,
+    refundedMicros: 0,
   };
 }
 
@@ -169,22 +206,156 @@ describe("applyEventToBucket", () => {
     expect(bucket.cancellations).toBe(-1);
   });
 
-  it("PurchaseRefunded → refunds++", () => {
+  it("PurchaseRefunded → refunds++ and refundedMicros += store amount", () => {
     const bucket = emptyBucket();
-    applyEventToBucket(bucket, makeEvent({ type: "PurchaseRefunded" }));
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "PurchaseRefunded",
+        cancellationReason: "Refunded",
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket.refunds).toBe(1);
+    expect(bucket.refundedMicros).toBe(9_990_000);
+    // Gross revenue keeps its meaning; net is revenue − refunded.
+    expect(bucket.revenueMicros).toBe(0);
+  });
+
+  it("Google SubscriptionRevoked (a refund) → refunds++", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionRevoked",
+        source: "GooglePlayRealTimeDeveloperNotifications",
+        platform: "Android",
+        cancellationReason: "Refunded",
+      }),
+    );
     expect(bucket.refunds).toBe(1);
   });
 
-  it("SubscriptionRevoked → refunds++ (store-issued reversal)", () => {
+  it("Apple REVOKE (Family Sharing removal, no refund reason) is not a refund", () => {
     const bucket = emptyBucket();
-    applyEventToBucket(bucket, makeEvent({ type: "SubscriptionRevoked" }));
-    expect(bucket.refunds).toBe(1);
+    applyEventToBucket(
+      bucket,
+      makeEvent({ type: "SubscriptionRevoked", priceAmountMicros: 9_990_000 }),
+    );
+    expect(bucket).toEqual(emptyBucket());
   });
 
-  it("SubscriptionExpired does NOT bump any financial counter", () => {
+  it("Apple REFUND_REVERSED undoes a refund instead of starting a subscription", () => {
+    // Regression: it maps to SubscriptionStarted for state, which used to add a
+    // new subscription and its price to revenue.
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "PurchaseRefunded",
+        cancellationReason: "Refunded",
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionStarted",
+        refundReversal: true,
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket).toEqual(emptyBucket());
+  });
+
+  it("SubscriptionRecovered is a real charge: renewals++ and revenue", () => {
+    // Regression: billing recovery used to fall through and earn nothing.
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionRecovered",
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket.renewals).toBe(1);
+    expect(bucket.revenueMicros).toBe(9_990_000);
+  });
+
+  it("a free trial start books no revenue, even with the plan's list price", () => {
+    // Regression: Google reports the recurring price on a trial purchase.
+    const bucket = emptyBucket("2026-03-15", "sub.monthly", "USD", "Android");
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionStarted",
+        platform: "Android",
+        freeTrial: true,
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket).toMatchObject({
+      newSubs: 1,
+      trialStarts: 1,
+      revenueMicros: 0,
+      directPaidStarts: 0,
+    });
+  });
+
+  it("a trial's first paid charge is a conversion, not a renewal", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionRenewed",
+        paidStart: "trial_conversion",
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket).toMatchObject({
+      trialConversions: 1,
+      renewals: 0,
+      newSubs: 0,
+      revenueMicros: 9_990_000,
+    });
+  });
+
+  it("a direct paid start counts as a new and a direct paid subscription", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionStarted",
+        paidStart: "direct",
+        freeTrial: false,
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket).toMatchObject({
+      newSubs: 1,
+      directPaidStarts: 1,
+      trialStarts: 0,
+      revenueMicros: 9_990_000,
+    });
+  });
+
+  it("a free promotional renewal is not a charge", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionRenewed",
+        freeTrial: true,
+        priceAmountMicros: 0,
+      }),
+    );
+    expect(bucket).toEqual(emptyBucket());
+  });
+
+  it("SubscriptionExpired → expirations++ and no money", () => {
     const bucket = emptyBucket();
     applyEventToBucket(bucket, makeEvent({ type: "SubscriptionExpired" }));
-    expect(bucket).toEqual(emptyBucket());
+    expect(bucket).toEqual({ ...emptyBucket(), expirations: 1 });
   });
 
   it("SubscriptionInGracePeriod / SubscriptionPaused / SubscriptionPriceChange ignored", () => {
@@ -319,13 +490,26 @@ describe("isActiveAt", () => {
     expect(isActiveAt(sub, dayEnd)).toBe(true);
   });
 
-  it("InBillingRetry counts as active for snapshot purposes", () => {
+  it("InBillingRetry counts only on days before its paid period ended", () => {
     const sub = makeSub({
       state: "InBillingRetry",
       startedAt: Date.UTC(2026, 2, 1),
       expiresAt: Date.UTC(2026, 3, 1),
     });
     expect(isActiveAt(sub, dayEnd)).toBe(true);
+    expect(
+      isActiveAt({ ...sub, expiresAt: Date.UTC(2026, 2, 10) }, dayEnd),
+    ).toBe(false);
+  });
+
+  it("InBillingRetry without an expiry has no access (regression)", () => {
+    const sub = makeSub({
+      state: "InBillingRetry",
+      platform: "Android",
+      startedAt: Date.UTC(2026, 2, 1),
+      expiresAt: undefined,
+    });
+    expect(isActiveAt(sub, dayEnd)).toBe(false);
   });
 
   it("Revoked / Refunded / Paused / Unknown → false even if still in window", () => {
@@ -577,24 +761,28 @@ const OUT_OF_WINDOW = "2026-03-12";
 
 const PROJECT_ID = "p_test" as never;
 
-function makeCtx(db: MemDb) {
+type ScheduledCall = { name: string; args: Record<string, unknown> };
+
+// Runs chained rollup pages inline and records every other follow-up (catch-up
+// recomputes, cohort jobs) for the test to inspect or run.
+function makeCtx(db: MemDb, scheduled: ScheduledCall[] = []) {
   const ctx = {
     db,
     scheduler: {
       runAfter: async (
         _delayMs: number,
-        _fn: unknown,
-        args: RecomputeRevenueMetricsPageArgs,
+        fn: Parameters<typeof getFunctionName>[0],
+        args: Record<string, unknown>,
       ) => {
-        if (!("cursor" in args)) {
-          throw new Error(
-            "unexpected scheduled function in revenueMetrics test",
+        const name = getFunctionName(fn);
+        if (name.endsWith(":recomputeRevenueMetricsPage")) {
+          await runRecomputePage(
+            ctx as unknown as Parameters<typeof runRecomputePage>[0],
+            args as RecomputeRevenueMetricsPageArgs,
           );
+          return;
         }
-        await runRecomputePage(
-          ctx as unknown as Parameters<typeof runRecomputePage>[0],
-          args,
-        );
+        scheduled.push({ name, args });
       },
     },
   };
@@ -745,13 +933,34 @@ describe("pickRevenueMetricsProjects", () => {
   });
 });
 
+// A project already on the current definitions, so a tick recomputes only the
+// trailing 3 days.
+async function seedCurrentRunStatus(
+  db: MemDb,
+  fields: Record<string, unknown> = {},
+): Promise<void> {
+  await db.insert("revenueMetricsRunStatus", {
+    projectId: PROJECT_ID,
+    lastRunAt: NOW - 10 * 60 * 1000,
+    definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
+    definitionsFromDay: "2026-02-14",
+    cohortsRequestedAt: NOW,
+    ...fields,
+  });
+}
+
+async function runStatus(db: MemDb): Promise<Row | null> {
+  return db.query("revenueMetricsRunStatus").first();
+}
+
 describe("runRecompute — round-trip integration", () => {
   let db: MemDb;
   let ctx: ReturnType<typeof makeCtx>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     db = new MemDb();
     ctx = makeCtx(db);
+    await seedCurrentRunStatus(db);
   });
 
   it("does not recreate rollups after project deletion starts", async () => {
@@ -763,7 +972,7 @@ describe("runRecompute — round-trip integration", () => {
 
     await runRecompute(ctx, PROJECT_ID, NOW);
     expect(await rollupRows(db)).toEqual([]);
-    expect(await db.query("revenueMetricsRunStatus").collect()).toEqual([]);
+    expect((await runStatus(db))?.lastRunAt).toBe(NOW - 10 * 60 * 1000);
   });
 
   it("empty project → no rollup rows written", async () => {
@@ -910,20 +1119,28 @@ describe("runRecompute — round-trip integration", () => {
     });
   });
 
-  it("Refunded + Revoked both flow into refunds counter", async () => {
+  it("refunds and refund-driven revocations flow into refunds; Family Sharing revokes do not", async () => {
     await seedEvent(db, {
       type: "PurchaseRefunded",
+      cancellationReason: "Refunded",
+      priceAmountMicros: 9_990_000,
       receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
     });
     await seedEvent(db, {
       type: "SubscriptionRevoked",
+      cancellationReason: "Refunded",
       receivedAt: Date.parse(`${TODAY}T11:00:00Z`),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionRevoked",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T11:30:00Z`),
     });
 
     await runRecompute(ctx, PROJECT_ID, NOW);
     const rows = await rollupRows(db);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ refunds: 2 });
+    expect(rows[0]).toMatchObject({ refunds: 2, refundedMicros: 9_990_000 });
   });
 
   it("Cancel + Uncancel within same day net to zero (skipped as empty)", async () => {
@@ -1072,6 +1289,7 @@ describe("runRecompute — round-trip integration", () => {
     });
     await seedEvent(db, {
       type: "PurchaseRefunded",
+      cancellationReason: "Refunded",
       receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
     });
 
@@ -1290,9 +1508,12 @@ describe("runRecompute — round-trip integration", () => {
     expect(rows[0]).toMatchObject({ day: D2, renewals: 1 });
   });
 
-  it("event whose occurredAt falls outside the trailing window is skipped", async () => {
-    // Received yesterday but occurred 10 days ago: that day is not recomputed
-    // this tick, so writing it would double-count or clobber a row.
+  it("event whose occurredAt falls outside the trailing window is held for a catch-up", async () => {
+    // Received today but occurred 10 days ago: that day is not recomputed
+    // this tick, so writing it would double-count or clobber a row. It is
+    // surfaced as pending and a catch-up from its day is requested.
+    const scheduled: ScheduledCall[] = [];
+    ctx = makeCtx(db, scheduled);
     await seedEvent(db, {
       type: "SubscriptionStarted",
       priceAmountMicros: 9_990_000,
@@ -1302,6 +1523,48 @@ describe("runRecompute — round-trip integration", () => {
 
     await runRecompute(ctx, PROJECT_ID, NOW);
     expect(await rollupRows(db)).toEqual([]);
+    expect(await runStatus(db)).toMatchObject({
+      pendingLateEvents: 1,
+      oldestPendingLateDay: "2026-03-05",
+      catchUpRequestedAt: NOW,
+    });
+    expect(scheduled).toEqual([
+      {
+        name: "subscriptions/revenueMetrics:recomputeRevenueMetricsForProject",
+        args: { projectId: PROJECT_ID, fromDay: "2026-03-05" },
+      },
+    ]);
+
+    // The catch-up folds the event into its own day and clears the backlog.
+    await runRecompute(ctx, PROJECT_ID, NOW + 60_000, "2026-03-05");
+    expect(await rollupRows(db)).toMatchObject([
+      { day: "2026-03-05", newSubs: 1, revenueMicros: 9_990_000 },
+    ]);
+    expect(await runStatus(db)).toMatchObject({
+      pendingLateEvents: 0,
+      lastCatchUpAt: NOW + 60_000,
+      lastCatchUpFromDay: "2026-03-05",
+    });
+
+    // A regular tick afterwards sees the event as covered.
+    await runRecompute(ctx, PROJECT_ID, NOW + 120_000);
+    expect(await runStatus(db)).toMatchObject({ pendingLateEvents: 0 });
+    expect(
+      (await rollupRows(db)).find((row) => row.day === "2026-03-05"),
+    ).toMatchObject({ newSubs: 1 });
+    expect(scheduled).toHaveLength(1);
+  });
+
+  it("drops an event that occurred before the retained window instead of holding it", async () => {
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      occurredAt: Date.parse("2026-01-05T03:00:00Z"),
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+    expect(await runStatus(db)).toMatchObject({ pendingLateEvents: 0 });
   });
 
   it("late-arrival event with receivedAt at end of window still buckets by occurredAt", async () => {
@@ -1340,5 +1603,407 @@ describe("runRecompute — round-trip integration", () => {
     const rows = await rollupRows(db);
     const old = rows.find((r) => r.day === "2026-02-15");
     expect(old?.newSubs).toBe(3);
+  });
+});
+
+describe("runRecompute — definitions rebuild", () => {
+  it("rebuilds the retained 30-day window once, then recomputes 3 days", async () => {
+    const db = new MemDb();
+    const scheduled: ScheduledCall[] = [];
+    const ctx = makeCtx(db, scheduled);
+    // Older than the trailing window but inside event retention.
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse("2026-03-05T10:00:00Z"),
+    });
+    // A row from the old definitions inside the window is replaced.
+    await db.insert("revenueMetricsDaily", {
+      projectId: PROJECT_ID,
+      day: "2026-03-05",
+      productId: "sub.monthly",
+      currency: "USD",
+      platform: "IOS",
+      activeSubs: 0,
+      newSubs: 7,
+      renewals: 0,
+      cancellations: 0,
+      refunds: 0,
+      revenueMicros: 70_000_000,
+      updatedAt: NOW - 86_400_000,
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    expect(await rollupRows(db)).toMatchObject([
+      {
+        day: "2026-03-05",
+        environment: "Production",
+        newSubs: 1,
+        directPaidStarts: 0,
+        revenueMicros: 9_990_000,
+      },
+    ]);
+    expect(await runStatus(db)).toMatchObject({
+      definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
+      definitionsFromDay: "2026-02-14",
+      lastCatchUpFromDay: "2026-02-14",
+      cohortsRequestedAt: NOW,
+    });
+    expect(scheduled.map((call) => call.name)).toEqual([
+      "subscriptions/revenueCohorts:recomputeRevenueCohortsPage",
+    ]);
+
+    // The next tick covers only the trailing days and keeps the boundary.
+    await runRecompute(ctx, PROJECT_ID, NOW + 600_000);
+    expect(await runStatus(db)).toMatchObject({
+      definitionsFromDay: "2026-02-14",
+    });
+    expect((await rollupRows(db)).map((row) => row.day)).toEqual([
+      "2026-03-05",
+    ]);
+  });
+});
+
+describe("runRecompute — production and sandbox", () => {
+  it("keeps sandbox events and subscriptions in their own rows", async () => {
+    const db = new MemDb();
+    const ctx = makeCtx(db);
+    await seedCurrentRunStatus(db);
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      environment: "Sandbox",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:05:00Z`),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      environment: "Xcode",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:10:00Z`),
+    });
+    await seedSub(db, {
+      state: "Active",
+      environment: "Sandbox",
+      expiresAt: Date.UTC(2026, 3, 1),
+    });
+    // Rows from before the environment field fall back to the last event.
+    await seedSub(db, {
+      state: "Active",
+      lastEventSource: { environment: "Sandbox" },
+      expiresAt: Date.UTC(2026, 3, 1),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    const today = (await rollupRows(db)).filter((row) => row.day === TODAY);
+    expect(today.find((row) => row.environment === "Production")).toMatchObject(
+      { newSubs: 1, renewals: 0, revenueMicros: 9_990_000, activeSubs: 0 },
+    );
+    expect(today.find((row) => row.environment === "Sandbox")).toMatchObject({
+      newSubs: 1,
+      renewals: 1,
+      revenueMicros: 2 * 9_990_000,
+      activeSubs: 2,
+    });
+  });
+});
+
+describe("runRecompute — access, trials and churn", () => {
+  it("keeps a canceled subscription active until its paid period ends", async () => {
+    const db = new MemDb();
+    const ctx = makeCtx(db);
+    await seedCurrentRunStatus(db);
+    await seedSub(db, {
+      state: "Active",
+      willRenew: false,
+      cancellationReason: "UserCanceled",
+      expiresAt: Date.parse(`${D1}T12:00:00Z`),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionCanceled",
+      receivedAt: Date.parse(`${D2}T10:00:00Z`),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionExpired",
+      receivedAt: Date.parse(`${D1}T12:00:01Z`),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    const byDay = new Map((await rollupRows(db)).map((row) => [row.day, row]));
+    expect(byDay.get(D2)).toMatchObject({
+      activeSubs: 1,
+      cancellations: 1,
+      expirations: 0,
+    });
+    expect(byDay.get(D1)).toMatchObject({
+      activeSubs: 0,
+      cancellations: 0,
+      expirations: 1,
+    });
+    expect(byDay.get(TODAY)).toBeUndefined();
+  });
+
+  it("counts subscriptions still in a free trial as active trials", async () => {
+    const db = new MemDb();
+    const ctx = makeCtx(db);
+    await seedCurrentRunStatus(db);
+    await seedSub(db, {
+      state: "Active",
+      expiresAt: Date.UTC(2026, 2, 20),
+      analytics: {
+        trialStartedAt: Date.parse(`${D2}T08:00:00Z`),
+        paidMicros: 0,
+        refundedMicros: 0,
+      },
+      startedAt: Date.parse(`${D2}T08:00:00Z`),
+    });
+    await seedSub(db, {
+      state: "Active",
+      expiresAt: Date.UTC(2026, 3, 20),
+      analytics: {
+        trialStartedAt: Date.UTC(2026, 1, 1),
+        firstPaidAt: Date.parse(`${D1}T08:00:00Z`),
+        firstPaidEventType: "SubscriptionRenewed",
+        currency: "USD",
+        paidMicros: 9_990_000,
+        refundedMicros: 0,
+      },
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    const byDay = new Map((await rollupRows(db)).map((row) => [row.day, row]));
+    expect(byDay.get(D2)).toMatchObject({ activeSubs: 2, activeTrials: 2 });
+    expect(byDay.get(TODAY)).toMatchObject({ activeSubs: 2, activeTrials: 1 });
+  });
+
+  it("fixture: before/after totals for the listed defects", async () => {
+    // Before these fixes the same events summed to newSubs 3, renewals 0,
+    // refunds 1 and $29.97 of revenue: a Google trial booked its $9.99 list
+    // price, a sandbox start counted as production, a refund reversal counted
+    // as a new $9.99 subscription, and a billing recovery earned nothing.
+    const db = new MemDb();
+    const ctx = makeCtx(db);
+    await seedCurrentRunStatus(db);
+    const at = (hour: number): number => Date.parse(`${TODAY}T0${hour}:00:00Z`);
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      platform: "Android",
+      freeTrial: true,
+      priceAmountMicros: 9_990_000,
+      receivedAt: at(1),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      environment: "Sandbox",
+      priceAmountMicros: 9_990_000,
+      receivedAt: at(2),
+    });
+    await seedEvent(db, {
+      type: "PurchaseRefunded",
+      cancellationReason: "Refunded",
+      priceAmountMicros: 9_990_000,
+      receivedAt: at(3),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      refundReversal: true,
+      priceAmountMicros: 9_990_000,
+      receivedAt: at(4),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionRecovered",
+      priceAmountMicros: 9_990_000,
+      receivedAt: at(5),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    const production = (await rollupRows(db)).filter(
+      (row) => row.environment === "Production",
+    );
+    const sum = (field: string): number =>
+      production.reduce((total, row) => total + (row[field] as number), 0);
+    expect({
+      newSubs: sum("newSubs"),
+      trialStarts: sum("trialStarts"),
+      renewals: sum("renewals"),
+      refunds: sum("refunds"),
+      revenueMicros: sum("revenueMicros"),
+      refundedMicros: sum("refundedMicros"),
+    }).toEqual({
+      newSubs: 1,
+      trialStarts: 1,
+      renewals: 1,
+      refunds: 0,
+      revenueMicros: 9_990_000,
+      refundedMicros: 0,
+    });
+  });
+});
+
+describe("getRevenueMetrics — data state", () => {
+  const getRevenueMetrics = testableFunction(registeredGetRevenueMetrics);
+  const API_KEY = "openiap-kit_sk_analytics";
+  const range = { apiKey: API_KEY, fromDay: D2, toDay: TODAY };
+
+  async function seedKey(db: MemDb): Promise<void> {
+    await db.insert("apiKeys", {
+      key: API_KEY,
+      keyType: "secret",
+      isActive: true,
+      projectId: PROJECT_ID,
+      organizationId: "organizations_test",
+    });
+  }
+
+  it("rejects an unknown secret key instead of answering zeros", async () => {
+    const db = new MemDb();
+    await expect(getRevenueMetrics._handler({ db }, range)).rejects.toSatisfy(
+      (error: unknown) =>
+        (error as { data?: { code?: string } }).data?.code ===
+        "INVALID_API_KEY",
+    );
+  });
+
+  it("reports not_collected, processing, zero and ready", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    const read = async (): Promise<string> =>
+      (await getRevenueMetrics._handler({ db }, range)).dataState;
+
+    expect(await read()).toBe("not_collected");
+
+    await seedEvent(db, { type: "TestNotification", productId: undefined });
+    expect(await read()).toBe("processing");
+
+    await seedCurrentRunStatus(db, { lastRunAt: NOW });
+    expect(await read()).toBe("zero");
+
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+    await runRecompute(makeCtx(db), PROJECT_ID, NOW);
+    const result = await getRevenueMetrics._handler({ db }, range);
+    expect(result).toMatchObject({
+      dataState: "ready",
+      environment: "Production",
+      lastRunAt: NOW,
+      definitionsFromDay: "2026-02-14",
+      pendingLateEvents: 0,
+    });
+    expect(result.days).toMatchObject([{ newSubs: 1, trialStarts: 0 }]);
+  });
+
+  it("serves sandbox rows only when asked and keeps legacy rows in production", async () => {
+    const db = new MemDb();
+    await seedKey(db);
+    await seedCurrentRunStatus(db, { lastRunAt: NOW });
+    const row = {
+      projectId: PROJECT_ID,
+      day: TODAY,
+      productId: "sub.monthly",
+      currency: "USD",
+      platform: "IOS",
+      activeSubs: 1,
+      newSubs: 1,
+      renewals: 0,
+      cancellations: 0,
+      refunds: 0,
+      revenueMicros: 1,
+      updatedAt: NOW,
+    };
+    await db.insert("revenueMetricsDaily", { ...row, revenueMicros: 5 });
+    await db.insert("revenueMetricsDaily", { ...row, environment: "Sandbox" });
+
+    const production = await getRevenueMetrics._handler({ db }, range);
+    const sandbox = await getRevenueMetrics._handler(
+      { db },
+      {
+        ...range,
+        environment: "Sandbox",
+      },
+    );
+    expect(production.days.map((day) => day.revenueMicros)).toEqual([5]);
+    expect(sandbox.days.map((day) => day.revenueMicros)).toEqual([1]);
+    expect(sandbox.environment).toBe("Sandbox");
+  });
+});
+
+describe("cohort job and read", () => {
+  it("replaces the project's cohort rows and serves them with realized LTV", async () => {
+    const db = new MemDb();
+    const ctx = makeCtx(db);
+    await seedCurrentRunStatus(db, { lastRunAt: NOW });
+    await db.insert("apiKeys", {
+      key: "openiap-kit_sk_cohorts",
+      keyType: "secret",
+      isActive: true,
+      projectId: PROJECT_ID,
+      organizationId: "organizations_test",
+    });
+    await db.insert("revenueCohortsMonthly", {
+      projectId: PROJECT_ID,
+      environment: "Production",
+      month: "2025-01",
+      currency: "USD",
+      members: 99,
+    });
+    for (const paidMicros of [3 * 9_990_000, 9_990_000]) {
+      await seedSub(db, {
+        state: "Active",
+        expiresAt: Date.UTC(2026, 3, 1),
+        analytics: {
+          firstPaidAt: Date.UTC(2026, 0, 10),
+          firstPaidEventType: "SubscriptionStarted",
+          currency: "USD",
+          paidMicros,
+          refundedMicros: 0,
+        },
+      });
+    }
+
+    await runRevenueCohortsPage(ctx, {
+      projectId: PROJECT_ID,
+      asOf: NOW,
+      cursor: null,
+      buckets: [],
+    });
+
+    const read = testableFunction(registeredGetRevenueMetrics);
+    const result = await read._handler(
+      { db },
+      {
+        apiKey: "openiap-kit_sk_cohorts",
+        fromDay: D2,
+        toDay: TODAY,
+        includeCohorts: true,
+      },
+    );
+    expect(result.cohorts).toEqual([
+      {
+        month: "2026-01",
+        currency: "USD",
+        members: 2,
+        revenueMicros: 4 * 9_990_000,
+        refundedMicros: 0,
+        realizedLtvMicros: 2 * 9_990_000,
+        retained: [2, 2, 2],
+        trialStarts: 0,
+        trialConversions: 0,
+        trialsPending: 0,
+        observedThrough: TODAY,
+      },
+    ]);
+    expect(result.cohortsComputedAt).toBe(NOW);
   });
 });

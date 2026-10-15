@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appleTransactionIsFreeTrial,
   isUnauthenticatedPubSubAllowed,
   mapAppleNotificationType,
   mapGoogleSubscriptionNotificationType,
@@ -821,5 +822,71 @@ describe("normalizeGoogleRtdn", () => {
         },
       }),
     ).toThrow(WebhookNormalizationError);
+  });
+});
+
+describe("analytics facts on normalized events", () => {
+  it.each([
+    [{ offerDiscountType: "FREE_TRIAL", offerType: 1, price: 0 }, true],
+    [{ offerDiscountType: "PAY_UP_FRONT", offerType: 1, price: 2_990 }, false],
+    // Payloads from before offerDiscountType: a free intro period has price 0.
+    [{ offerType: 1, price: 0 }, true],
+    [{ offerType: 1, price: 2_990 }, false],
+    [{ offerType: 1, price: null }, undefined],
+    // No offer on a signed transaction is a full-price charge.
+    [{}, false],
+  ])("Apple transaction %j → freeTrial %s", (offer, expected) => {
+    expect(appleTransactionIsFreeTrial({ ...baseTransaction, ...offer })).toBe(
+      expected,
+    );
+    expect(
+      normalizeAppleAsn({
+        payload: { ...baseApplePayload, notificationType: "SUBSCRIBED" },
+        transaction: { ...baseTransaction, ...offer },
+      }).freeTrial,
+    ).toBe(expected);
+  });
+
+  it("leaves freeTrial unknown without a transaction", () => {
+    expect(appleTransactionIsFreeTrial(null)).toBeUndefined();
+  });
+
+  it("marks REFUND_REVERSED for analytics without changing its lifecycle type", () => {
+    const event = normalizeAppleAsn({
+      payload: { ...baseApplePayload, notificationType: "REFUND_REVERSED" },
+      transaction: baseTransaction,
+    });
+    expect(event.type).toBe("SubscriptionStarted");
+    expect(event.subscriptionState).toBe("Active");
+    expect(event.refundReversal).toBe(true);
+    expect(
+      normalizeAppleAsn({
+        payload: { ...baseApplePayload, notificationType: "SUBSCRIBED" },
+        transaction: baseTransaction,
+      }).refundReversal,
+    ).toBeUndefined();
+  });
+
+  it("carries Google's catalog-derived trial flag", () => {
+    const payload: GoogleRtdnPayload = {
+      messageId: "google-trial",
+      eventTimeMillis: 1_000,
+      subscriptionNotification: {
+        notificationType: 4,
+        purchaseToken: "token",
+      },
+    };
+    expect(
+      normalizeGoogleRtdn({
+        payload,
+        subscriptionInfo: { productId: "premium_monthly", freeTrial: true },
+      }).freeTrial,
+    ).toBe(true);
+    expect(
+      normalizeGoogleRtdn({
+        payload,
+        subscriptionInfo: { productId: "premium_monthly" },
+      }).freeTrial,
+    ).toBeUndefined();
   });
 });

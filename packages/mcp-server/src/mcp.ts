@@ -16,6 +16,7 @@ import {
   kitClient,
   KitHttpError,
   normalizeKitBaseUrl,
+  type KitRevenueMetricsResponse,
 } from "./kit-client.js";
 
 // MCP server for IAPKit. Every tool funnels through `withClient`, so key
@@ -702,7 +703,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "revenue_analytics",
-    "Summarize IAPKit subscription purchase and revenue analytics for a date range. Defaults to the current UTC month so an assistant can answer questions like 'how many purchases happened this month?'.",
+    "Summarize IAPKit subscription revenue analytics, verified from store notifications, for a UTC date range: paid charges, trials started and converted, direct paid starts, auto-renew turned off vs expirations, refunds, and optionally monthly cohorts with retention and realized LTV. Production only unless environment is sandbox. Revenue is the store list price in each currency, before store fees and refunds; IAPKit never converts currencies. Defaults to the current UTC month.",
     {
       period: z
         .enum(["this_month", "last_30_days", "last_90_days", "custom"])
@@ -719,6 +720,16 @@ function registerIapKitTools(
       productId: PRODUCT_ID_PARAM.optional(),
       platform: z.enum(["IOS", "Android"]).optional(),
       currency: z.string().optional(),
+      environment: z
+        .enum(["production", "sandbox"])
+        .optional()
+        .describe("Store environment to report. Defaults to production."),
+      includeCohorts: z
+        .boolean()
+        .optional()
+        .describe(
+          "Add monthly paid cohorts (retention, realized LTV) and trial-to-paid conversion by trial month.",
+        ),
       apiKey: OPTIONAL_API_KEY,
       baseUrl: OPTIONAL_BASE_URL,
     },
@@ -726,7 +737,12 @@ function registerIapKitTools(
     async (args, extra) => {
       try {
         const range = resolveRevenueRange(args);
-        const metrics = await withClient(args, extra).revenueMetrics(range);
+        const metrics = await withClient(args, extra).revenueMetrics({
+          fromDay: range.fromDay,
+          toDay: range.toDay,
+          ...(args.environment ? { environment: args.environment } : {}),
+          ...(args.includeCohorts ? { cohorts: true } : {}),
+        });
         return ok(
           summarizeRevenueMetrics(metrics, {
             ...range,
@@ -1555,25 +1571,6 @@ function base64EncodeUtf8(value: string): string {
   return btoa(binary);
 }
 
-type RevenueMetricsResponse = {
-  days: Array<{
-    day: string;
-    currency: string;
-    productId: string;
-    platform: "IOS" | "Android";
-    activeSubs: number;
-    newSubs: number;
-    renewals: number;
-    cancellations: number;
-    refunds: number;
-    revenueMicros: number;
-  }>;
-  currencies: string[];
-  productIds: string[];
-  platforms: Array<"IOS" | "Android">;
-  truncated: boolean;
-};
-
 function resolveRevenueRange(args: {
   period?: "this_month" | "last_30_days" | "last_90_days" | "custom";
   fromDay?: string;
@@ -1624,8 +1621,44 @@ function addUtcDays(date: Date, days: number): Date {
   return next;
 }
 
+// The metric definitions an assistant needs to read the numbers correctly.
+const REVENUE_DEFINITIONS = {
+  timezone: "UTC days and months.",
+  revenue:
+    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
+  purchaseEvents:
+    "Paid charges: direct paid starts, trial conversions, renewals and billing recoveries. Free trial starts and restores are not purchases.",
+  trials:
+    "trialStarts: free trials started. trialConversions: a subscription's first paid charge after its free trial.",
+  churn:
+    "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended.",
+  refunds:
+    "refunds: store refunds less refund reversals. Apple Family Sharing revocations are not refunds.",
+  environment:
+    "Production only unless environment is sandbox. Rows before definitionsFromDay mix sandbox into production and have no trial split; trial classification starts with notifications received after the release.",
+  lateEvents:
+    "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
+  cohorts:
+    "Paid cohort: UTC month of the first paid charge. retentionRates[k]: members with paid access at the end of month k. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
+} as const;
+
+type RevenueTotals = {
+  revenueMicros: number;
+  refundedMicros: number;
+  netRevenueMicros: number;
+  purchaseEvents: number;
+  newSubs: number;
+  trialStarts: number;
+  trialConversions: number;
+  directPaidStarts: number;
+  renewals: number;
+  cancellations: number;
+  expirations: number;
+  refunds: number;
+};
+
 function summarizeRevenueMetrics(
-  metrics: RevenueMetricsResponse,
+  metrics: KitRevenueMetricsResponse,
   filters: {
     fromDay: string;
     toDay: string;
@@ -1642,17 +1675,7 @@ function summarizeRevenueMetrics(
     return true;
   });
 
-  const totalsByCurrency = new Map<
-    string,
-    {
-      revenueMicros: number;
-      purchaseEvents: number;
-      newSubs: number;
-      renewals: number;
-      cancellations: number;
-      refunds: number;
-    }
-  >();
+  const totalsByCurrency = new Map<string, RevenueTotals>();
   const totalsByProduct = new Map<
     string,
     { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
@@ -1663,20 +1686,36 @@ function summarizeRevenueMetrics(
   >();
 
   for (const row of rows) {
-    const purchaseEvents = row.newSubs + row.renewals;
+    const trialStarts = row.trialStarts ?? 0;
+    const trialConversions = row.trialConversions ?? 0;
+    const refundedMicros = row.refundedMicros ?? 0;
+    const purchaseEvents =
+      row.newSubs - trialStarts + row.renewals + trialConversions;
     const currencyTotal = totalsByCurrency.get(row.currency) ?? {
       revenueMicros: 0,
+      refundedMicros: 0,
+      netRevenueMicros: 0,
       purchaseEvents: 0,
       newSubs: 0,
+      trialStarts: 0,
+      trialConversions: 0,
+      directPaidStarts: 0,
       renewals: 0,
       cancellations: 0,
+      expirations: 0,
       refunds: 0,
     };
     currencyTotal.revenueMicros += row.revenueMicros;
+    currencyTotal.refundedMicros += refundedMicros;
+    currencyTotal.netRevenueMicros += row.revenueMicros - refundedMicros;
     currencyTotal.purchaseEvents += purchaseEvents;
     currencyTotal.newSubs += row.newSubs;
+    currencyTotal.trialStarts += trialStarts;
+    currencyTotal.trialConversions += trialConversions;
+    currencyTotal.directPaidStarts += row.directPaidStarts ?? 0;
     currencyTotal.renewals += row.renewals;
     currencyTotal.cancellations += row.cancellations;
+    currencyTotal.expirations += row.expirations ?? 0;
     currencyTotal.refunds += row.refunds;
     totalsByCurrency.set(row.currency, currencyTotal);
 
@@ -1701,19 +1740,57 @@ function summarizeRevenueMetrics(
     totalsByPlatform.set(row.platform, platformTotal);
   }
 
+  const cohorts = metrics.cohorts
+    ?.filter(
+      (cohort) => !filters.currency || cohort.currency === filters.currency,
+    )
+    .map((cohort) => {
+      const resolvedTrials = cohort.trialStarts - cohort.trialsPending;
+      return {
+        month: cohort.month,
+        currency: cohort.currency,
+        members: cohort.members,
+        realizedLtvMicros: cohort.realizedLtvMicros,
+        netRealizedLtvMicros:
+          cohort.members > 0
+            ? Math.round(
+                (cohort.revenueMicros - cohort.refundedMicros) / cohort.members,
+              )
+            : 0,
+        retentionRates: cohort.retained.map((count) =>
+          cohort.members > 0 ? count / cohort.members : null,
+        ),
+        trialStarts: cohort.trialStarts,
+        trialConversions: cohort.trialConversions,
+        trialsPending: cohort.trialsPending,
+        trialToPaidRate:
+          resolvedTrials > 0 ? cohort.trialConversions / resolvedTrials : null,
+        observedThrough: cohort.observedThrough,
+      };
+    });
+
   return {
     range: filters,
+    environment: metrics.environment,
+    dataState: metrics.dataState,
+    lastRunAt:
+      metrics.lastRunAt === undefined
+        ? null
+        : new Date(metrics.lastRunAt).toISOString(),
+    definitionsFromDay: metrics.definitionsFromDay ?? null,
+    pendingLateEvents: metrics.pendingLateEvents,
     rowCount: rows.length,
     totalsByCurrency: Object.fromEntries(totalsByCurrency),
     totalsByProduct: Object.fromEntries(totalsByProduct),
     totalsByPlatform: Object.fromEntries(totalsByPlatform),
+    ...(cohorts ? { cohorts } : {}),
     availableFilters: {
       currencies: metrics.currencies,
       productIds: metrics.productIds,
       platforms: metrics.platforms,
     },
     truncated: metrics.truncated,
-    note: "purchaseEvents counts subscription starts plus renewals in IAPKit revenue rollups. Refunds and cancellations are reported separately.",
+    definitions: REVENUE_DEFINITIONS,
   };
 }
 
