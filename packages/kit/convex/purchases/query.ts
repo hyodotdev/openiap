@@ -1,5 +1,7 @@
 import {
   paginationOptsValidator,
+  type IndexRange,
+  type IndexRangeBuilder,
   type OrderedQuery,
   type PaginationResult,
 } from "convex/server";
@@ -36,6 +38,18 @@ function withoutRawEvidence<
     ...rest
   } = purchase;
   return rest;
+}
+
+// Convex appends `_creationTime` to every index, so a creation-time range
+// stays inside the index scan.
+function createdRange(
+  range: IndexRange &
+    Pick<IndexRangeBuilder<Doc<"purchases">, ["_creationTime"]>, "gte" | "lte">,
+  from: number | undefined,
+  to: number | undefined,
+): IndexRange {
+  const lower = from === undefined ? range : range.gte("_creationTime", from);
+  return to === undefined ? lower : lower.lte("_creationTime", to);
 }
 
 async function getPendingProjectIdsForOrganization(
@@ -109,14 +123,14 @@ export const getReceiptsByProject = query({
 
     // Use the most selective index, then `.filter()` before `.paginate()`:
     // filtering a page afterwards under-fills it and can end pagination early.
-    // Combinations without a composite index scan the project's rows; add one
-    // if a combination gets hot.
+    // A user or product filter scans only that index range; other combinations
+    // scan the project's rows, so add an index if one gets hot.
     const narrow = (
       query: OrderedQuery<DataModel["purchases"]>,
-      covered: { appUser?: boolean; created?: boolean } = {},
+      covered: { appUser?: boolean; product?: boolean; created?: boolean } = {},
     ): OrderedQuery<DataModel["purchases"]> => {
       let narrowed = query;
-      if (productId !== undefined) {
+      if (productId !== undefined && !covered.product) {
         narrowed = narrowed.filter((q) =>
           q.eq(q.field("productId"), productId),
         );
@@ -149,29 +163,29 @@ export const getReceiptsByProject = query({
               .eq("projectId", args.projectId),
           ),
       ).paginate(args.paginationOpts);
-    } else if (appUserId !== undefined) {
-      // Convex appends `_creationTime` to every index, so the date range stays
-      // inside the index scan.
-      let q = ctx.db
-        .query("purchases")
-        .withIndex("by_project_and_app_user", (inner) => {
-          const scoped = inner
-            .eq("projectId", args.projectId)
-            .eq("appUserId", appUserId);
-          if (createdFrom !== undefined && createdTo !== undefined) {
-            return scoped
-              .gte("_creationTime", createdFrom)
-              .lte("_creationTime", createdTo);
-          }
-          if (createdFrom !== undefined) {
-            return scoped.gte("_creationTime", createdFrom);
-          }
-          if (createdTo !== undefined) {
-            return scoped.lte("_creationTime", createdTo);
-          }
-          return scoped;
-        })
-        .order(sortDirection);
+    } else if (appUserId !== undefined || productId !== undefined) {
+      const purchases = ctx.db.query("purchases");
+      let q = (
+        appUserId !== undefined
+          ? purchases.withIndex("by_project_and_app_user", (inner) =>
+              createdRange(
+                inner
+                  .eq("projectId", args.projectId)
+                  .eq("appUserId", appUserId),
+                createdFrom,
+                createdTo,
+              ),
+            )
+          : purchases.withIndex("by_project_and_productId", (inner) =>
+              createdRange(
+                inner
+                  .eq("projectId", args.projectId)
+                  .eq("productId", productId),
+                createdFrom,
+                createdTo,
+              ),
+            )
+      ).order(sortDirection);
       if (args.store !== undefined) {
         const store = args.store;
         q = q.filter((expr) => expr.eq(expr.field("store"), store));
@@ -184,9 +198,11 @@ export const getReceiptsByProject = query({
         const isValid = args.isValid;
         q = q.filter((expr) => expr.eq(expr.field("isValid"), isValid));
       }
-      paginated = await narrow(q, { appUser: true, created: true }).paginate(
-        args.paginationOpts,
-      );
+      paginated = await narrow(q, {
+        appUser: appUserId !== undefined,
+        product: appUserId === undefined,
+        created: true,
+      }).paginate(args.paginationOpts);
     } else if (args.state !== undefined) {
       const state = args.state;
       const isValid = args.isValid;
@@ -251,21 +267,13 @@ export const getReceiptsByProject = query({
       paginated = await narrow(
         ctx.db
           .query("purchases")
-          .withIndex("by_project", (q) => {
-            const scoped = q.eq("projectId", args.projectId);
-            if (createdFrom !== undefined && createdTo !== undefined) {
-              return scoped
-                .gte("_creationTime", createdFrom)
-                .lte("_creationTime", createdTo);
-            }
-            if (createdFrom !== undefined) {
-              return scoped.gte("_creationTime", createdFrom);
-            }
-            if (createdTo !== undefined) {
-              return scoped.lte("_creationTime", createdTo);
-            }
-            return scoped;
-          })
+          .withIndex("by_project", (q) =>
+            createdRange(
+              q.eq("projectId", args.projectId),
+              createdFrom,
+              createdTo,
+            ),
+          )
           .order(sortDirection),
         { created: true },
       ).paginate(args.paginationOpts);

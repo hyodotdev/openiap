@@ -49,17 +49,41 @@ only one or a few rows.
 ## Purchase issues
 
 A failed verification adds one indexed query and, at most, one scheduled
-mutation off the response path. Failures about one purchase write a row keyed
-by its evidence fingerprint; they come only from a store's answer, after
-verification admission. Failures about the project (configuration,
-credentials, rejected input, rate limits, outages) share one row per store and
-cause, and the query skips the write when that row was seen in the last
-minute, so a flood costs a read per request and its `count` is a lower bound.
-Bind issues are recorded only for secret-key callers. A project keeps at most
-1,024 rows in 16 shards of 64; a new row reads only its own shard and replaces
-that shard's least recently seen row. An hourly cron deletes rows older than
-30 days in batches of 200. The edge limiter below still bounds every
-publishable-key request before it reaches Convex.
+mutation off the response path. Only a product mismatch or a pending payment,
+which the store reports about a purchase it verified, writes a row keyed by the
+evidence fingerprint. Every other cause shares one row per store and cause:
+configuration, credentials, rejected input, rate limits, outages, and evidence
+no store recognized, such as a forged JWS, an unknown Google token or Amazon
+receipt, or Meta's `success: false`. The query skips that write when the row was
+seen in the last minute, so a flood, even of distinct random evidence, costs a
+read per request, evicts no other row, and leaves `count` a lower bound. Bind
+issues are recorded only for secret-key callers, with one indexed read to
+fingerprint the matched purchase. A project keeps at most 1,024 rows in 16
+shards of 64; a new row reads only its own shard and replaces that shard's least
+recently seen row. An hourly cron deletes rows older than 30 days, 200 at a
+time. The edge limiter below still bounds every publishable-key request before
+it reaches Convex.
+
+## Operator re-send and re-sync
+
+Both need a project owner or admin, or a secret key behind the edge limiter.
+
+- **Re-send.** One mutation: point reads of the delivery, its event and its
+  destination, an indexed read of at most 30 recent re-sends, and two writes,
+  the delivery and its project's queue row. A delivery can be re-sent once a
+  minute and a project 30 times a minute; each re-send is one more request from
+  the outbound worker.
+- **Re-sync.** One action that takes a token from the project's own
+  `storeResync` admission bucket (60 burst, 1 per second). It is separate from
+  the entitlement recheck bucket, so a scripted bulk re-sync cannot make
+  fail-closed entitlement reads refuse users. Apple makes one App Store Server
+  API request, two when the row does not record its environment. Google makes
+  one Play Developer API request for a subscription; a purchase row tries the
+  product lookup, then the subscription lookup, and repeats the pair up to three
+  times while Play reports the token unknown. Transient failures retry as on
+  verification. A purchase is saved through the verification save path, and a
+  changed subscription adds one mutation that records a `StoreResync`
+  notification, updates the row, and emits at most one entitlement event.
 
 ## Outbound commerce worker
 

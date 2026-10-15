@@ -16,22 +16,24 @@ import type { PurchaseIssueInput } from "./internal";
 
 export type PurchaseIssueCause = Infer<typeof purchaseIssueCauseValidator>;
 
-/**
- * `evidence` issues are keyed by the evidence's fingerprint; they come only
- * from a store's answer, which every pipeline asks after admission. `project`
- * issues (configuration, credentials, rejected input, rate limits, outages)
- * share one row per (store, cause), so requests that never reach admission
- * cannot grow the log.
- */
+// Only these causes are a store's answer about a purchase it verified, so only
+// they are keyed by the evidence's fingerprint. Every other cause, including
+// evidence no store recognized (a forged JWS, an unknown token, Meta's
+// `success: false`), shares one row per (store, cause), so random input cannot
+// grow the log or evict the rows support needs.
+const EVIDENCE_CAUSES: ReadonlySet<PurchaseIssueCause> = new Set([
+  "PRODUCT_MISMATCH",
+  "STORE_PENDING",
+]);
+
 export type ClassifiedIssue = {
   cause: PurchaseIssueCause;
-  scope: "evidence" | "project";
   retryAfterSec?: number;
 };
 
-// Project-level error codes from purchases/errors.ts. An unlisted code is a
-// project-scoped VERIFICATION_FAILED, so a new error can never key on evidence.
-const PROJECT_CAUSE_BY_ERROR_CODE: Record<string, PurchaseIssueCause> = {
+// Causes by error code from purchases/errors.ts. An unlisted code is
+// VERIFICATION_FAILED.
+const CAUSE_BY_ERROR_CODE: Record<string, PurchaseIssueCause> = {
   PROJECT_APP_STORE_BUNDLE_ID_NOT_CONFIGURED: "STORE_NOT_CONFIGURED",
   PROJECT_APP_STORE_APPLE_ID_NOT_CONFIGURED: "STORE_NOT_CONFIGURED",
   PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED: "STORE_NOT_CONFIGURED",
@@ -53,16 +55,8 @@ const PROJECT_CAUSE_BY_ERROR_CODE: Record<string, PurchaseIssueCause> = {
   APP_STORE_BUNDLE_ID_MISMATCH: "APP_MISMATCH",
   APP_STORE_INVALID_JWS_FORMAT: "MALFORMED_EVIDENCE",
   AMAZON_SANDBOX_NOT_ENABLED: "SANDBOX_NOT_ALLOWED",
+  PLAY_STORE_PURCHASE_NOT_FOUND: "INAUTHENTIC",
 };
-
-const evidenceIssue = (cause: PurchaseIssueCause): ClassifiedIssue => ({
-  cause,
-  scope: "evidence",
-});
-const projectIssue = (cause: PurchaseIssueCause): ClassifiedIssue => ({
-  cause,
-  scope: "project",
-});
 
 function rejectsCredentials(error: ReceiptVerificationError): boolean {
   const status = error.errorDetails?.status;
@@ -82,39 +76,37 @@ export function classifyVerificationError(
       : error;
   if (cause instanceof ReceiptVerificationError) {
     if (cause.retryAfterSec !== undefined) {
-      return {
-        cause: "STORE_UNAVAILABLE",
-        scope: "project",
-        retryAfterSec: cause.retryAfterSec,
-      };
+      return { cause: "STORE_UNAVAILABLE", retryAfterSec: cause.retryAfterSec };
     }
     switch (cause.errorCode) {
       case "INVALID_API_KEY":
         return null;
-      // The store answered about this evidence.
       case "APP_STORE_TRANSACTION_VERIFICATION_FAILED":
-        return rejectsCredentials(cause)
-          ? projectIssue("CREDENTIALS_REJECTED")
-          : evidenceIssue("INAUTHENTIC");
-      case "PLAY_STORE_PURCHASE_NOT_FOUND":
-        return evidenceIssue("INAUTHENTIC");
-      case "PLAY_STORE_PURCHASE_VERIFICATION_FAILED":
-        return evidenceIssue("VERIFICATION_FAILED");
+        return {
+          cause: rejectsCredentials(cause)
+            ? "CREDENTIALS_REJECTED"
+            : "INAUTHENTIC",
+        };
       case "META_HORIZON_VERIFICATION_ERROR":
-        return rejectsCredentials(cause)
-          ? projectIssue("CREDENTIALS_REJECTED")
-          : evidenceIssue("VERIFICATION_FAILED");
+        return {
+          cause: rejectsCredentials(cause)
+            ? "CREDENTIALS_REJECTED"
+            : "VERIFICATION_FAILED",
+        };
       case "AMAZON_RECEIPT_VERIFICATION_ERROR":
         // RVS answers 496 for an invalid shared secret.
-        return cause.errorDetails?.status === 496
-          ? projectIssue("CREDENTIALS_REJECTED")
-          : cause.errorDetails?.outage === true
-            ? projectIssue("STORE_UNAVAILABLE")
-            : evidenceIssue("VERIFICATION_FAILED");
+        return {
+          cause:
+            cause.errorDetails?.status === 496
+              ? "CREDENTIALS_REJECTED"
+              : cause.errorDetails?.outage === true
+                ? "STORE_UNAVAILABLE"
+                : "VERIFICATION_FAILED",
+        };
       default:
-        return projectIssue(
-          PROJECT_CAUSE_BY_ERROR_CODE[cause.errorCode] ?? "VERIFICATION_FAILED",
-        );
+        return {
+          cause: CAUSE_BY_ERROR_CODE[cause.errorCode] ?? "VERIFICATION_FAILED",
+        };
     }
   }
   if (
@@ -127,14 +119,12 @@ export function classifyVerificationError(
       .retryAfterSec;
     return {
       cause: "RATE_LIMITED",
-      scope: "project",
       ...(typeof retryAfterSec === "number" ? { retryAfterSec } : {}),
     };
   }
   return null;
 }
 
-/** Verdicts come from the store, so their issues key on the evidence. */
 export function classifyVerdict(
   verdict: Pick<ReceiptResponse, "state" | "productId">,
   expectedProductId: string | undefined,
@@ -183,11 +173,11 @@ async function scheduleRecord(
   details: Pick<
     PurchaseIssueInput,
     "productId" | "claimedProductId" | "environment"
-  >,
+  > = {},
 ): Promise<void> {
   try {
     const { store } = request.evidence;
-    const projectScoped = issue.scope === "project";
+    const projectScoped = !EVIDENCE_CAUSES.has(issue.cause);
     const digest = projectScoped
       ? await projectIssueDigest(store, issue.cause)
       : await sha256Hex(purchaseEvidence(request.evidence));
@@ -240,18 +230,12 @@ export async function verifyRecordingIssues(
   request: VerifyIssueContext,
   verify: () => Promise<ReceiptResponse>,
 ): Promise<ReceiptResponse> {
-  // Horizon's sku is the caller's claim until Meta grants it.
-  const claimedProductId =
-    request.evidence.store === "horizon"
-      ? request.evidence.sku
-      : request.expectedProductId;
-  const claimed = claimedProductId ? { claimedProductId } : {};
   let verdict: ReceiptResponse;
   try {
     verdict = await verify();
   } catch (error) {
     const issue = classifyVerificationError(error);
-    if (issue) await scheduleRecord(ctx, request, issue, claimed);
+    if (issue) await scheduleRecord(ctx, request, issue);
     throw error;
   }
 
@@ -260,12 +244,12 @@ export async function verifyRecordingIssues(
     await scheduleRecord(
       ctx,
       request,
-      { cause, scope: "evidence" },
+      { cause },
       {
-        ...(verdict.productId && request.evidence.store !== "horizon"
-          ? { productId: verdict.productId }
+        ...(verdict.productId ? { productId: verdict.productId } : {}),
+        ...(request.expectedProductId
+          ? { claimedProductId: request.expectedProductId }
           : {}),
-        ...claimed,
         ...(verdict.environment ? { environment: verdict.environment } : {}),
       },
     );

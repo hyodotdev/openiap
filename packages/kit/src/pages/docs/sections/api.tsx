@@ -262,7 +262,9 @@ export default function ApiReferencePage() {
           (including an <code>expectedProductId</code> mismatch),{" "}
           <code>CONSUMED</code>, or a Google token reported revoked. Stop
           retrying those. <code>false</code> when it may still change, such as a
-          transient <code>UNKNOWN</code> or <code>PENDING</code>.
+          transient <code>UNKNOWN</code> or <code>PENDING</code>, and for every
+          Horizon rejection: Meta checks current ownership, so the user can buy
+          right after.
         </li>
       </ul>
       <CodeBlock title="Opt-in transaction identifiers" language="json">

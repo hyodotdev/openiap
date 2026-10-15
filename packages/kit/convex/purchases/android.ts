@@ -153,6 +153,7 @@ async function verifyGooglePlayReceipt(
       projectId: project._id,
       receiptData,
       purchaseState: storeReceiptResponse.state,
+      readAt: verificationStart,
     });
 
     return {
@@ -259,6 +260,8 @@ export async function recordGooglePlayVerifiedSubscription(
     projectId: Id<"projects">;
     receiptData: GooglePlayReceiptData;
     purchaseState: HarmonizedPurchaseState;
+    // When Play was asked; its answer is current state as of then.
+    readAt: number;
   },
 ): Promise<void> {
   if (params.receiptData.type !== "Subscription") return;
@@ -277,6 +280,7 @@ export async function recordGooglePlayVerifiedSubscription(
       willRenew: params.receiptData.willRenew,
       currency: params.receiptData.currency,
       priceAmountMicros: params.receiptData.priceAmountMicros,
+      evidenceAt: params.readAt,
       environment: params.receiptData.environment,
     },
   );

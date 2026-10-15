@@ -2,8 +2,8 @@
 
 // "Re-sync from store": an admin re-read of Apple or Google, saved through the
 // verification save path and `resync.ts`. One or two store calls finish well
-// inside an action, so it runs inline against the entitlement recheck bucket
-// rather than as a job.
+// inside an action, so it runs inline against its own admission bucket rather
+// than as a job.
 
 import {
   APIException,
@@ -106,7 +106,7 @@ export const resyncFromStore = action({
     );
     await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
       projectId: project._id,
-      bucket: "entitlementRecheck",
+      bucket: "storeResync",
     });
     return target.store === "apple"
       ? await resyncApple(ctx, project, target)

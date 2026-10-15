@@ -11,7 +11,10 @@ import { internal } from "../_generated/api";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import type { ReceiptEnvironment } from "../purchases/shared";
 import { receiptEnvironmentValidator } from "../schema";
-import { bindAmazonPurchaseOwner } from "../purchases/binding";
+import {
+  bindAmazonPurchaseOwner,
+  subscriptionPurchaseRemoteId,
+} from "../purchases/binding";
 import {
   applySubscriptionTransition,
   entitlementActive,
@@ -109,6 +112,7 @@ type RecordVerifiedSubscriptionArgs = {
   revocationReasonIOS?: number;
   verifiedPurchaseDate?: number;
   verifiedSignedDate?: number;
+  evidenceAt?: number;
   environment?: ReceiptEnvironment;
 };
 
@@ -864,6 +868,8 @@ export const recordVerifiedSubscription = internalMutation({
     revocationReasonIOS: v.optional(v.number()),
     verifiedPurchaseDate: v.optional(v.number()),
     verifiedSignedDate: v.optional(v.number()),
+    // The newest fact the evidence reports; see predatesResync.
+    evidenceAt: v.optional(v.number()),
     environment: v.optional(receiptEnvironmentValidator),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
@@ -908,7 +914,11 @@ export async function recordVerifiedSubscriptionHandler(
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
   const now = Date.now();
-  if (existing && isOlderVerifiedSnapshot(existing, args)) return existing._id;
+  if (
+    existing &&
+    (isOlderVerifiedSnapshot(existing, args) || predatesResync(existing, args))
+  )
+    return existing._id;
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
   return persistSubscriptionSnapshot(ctx, {
@@ -952,6 +962,21 @@ function isOlderVerifiedSnapshot(
   return (
     incoming.verifiedSignedDate === undefined ||
     incoming.verifiedSignedDate < stored.verifiedSignedDate
+  );
+}
+
+// A re-sync read the store's current state at `resyncedAt`, so a verify only
+// replaces it with evidence of something later: Apple's transaction purchase
+// or revocation date (a replay is re-signed, so its signing date proves
+// nothing), or for Google, which reports current state, when Play was read.
+function predatesResync(
+  stored: Pick<Doc<"subscriptions">, "resyncedAt">,
+  incoming: Pick<RecordVerifiedSubscriptionArgs, "evidenceAt">,
+): boolean {
+  return (
+    stored.resyncedAt !== undefined &&
+    (incoming.evidenceAt === undefined ||
+      incoming.evidenceAt <= stored.resyncedAt)
   );
 }
 
@@ -1465,6 +1490,7 @@ export type BindOutcome = {
   // The purchase the bind resolved to, for the issue log.
   store?: Doc<"purchases">["store"];
   productId?: string;
+  remoteId?: string;
   limitReached?: boolean;
 };
 
@@ -1487,9 +1513,10 @@ export async function bindSubscriptionToUserOutcome(
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
   if (!sub) return { reason: "not_found" };
-  const target: Pick<BindOutcome, "store" | "productId"> = {
+  const target: Pick<BindOutcome, "store" | "productId" | "remoteId"> = {
     store: storeOf(sub),
     productId: sub.productId,
+    remoteId: subscriptionPurchaseRemoteId(sub),
   };
   if (sub.userId && sub.userId !== args.userId) {
     // Publishable callers get the same answer as for an unknown token: a

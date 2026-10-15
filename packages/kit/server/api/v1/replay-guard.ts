@@ -79,13 +79,17 @@ export function isStableRejection(
   );
 }
 
-/** A rejection a retry of the same evidence will not change. */
-export function isSettledRejection(outcome: {
-  isValid: boolean;
-  state: string;
-  stableRejection?: boolean;
-}): boolean {
+/**
+ * A rejection a retry of the same evidence will not change. Never Horizon's:
+ * Meta checks current ownership of (userId, sku), and the user can buy right
+ * after `success: false`.
+ */
+export function isSettledRejection(
+  store: string | undefined,
+  outcome: { isValid: boolean; state: string; stableRejection?: boolean },
+): boolean {
   return (
+    store !== "horizon" &&
     !outcome.isValid &&
     isStableRejection(outcome.state, outcome.stableRejection === true)
   );
@@ -414,15 +418,9 @@ export function replayGuardMiddleware(
           refundReplayToken(store, bucketKey, capacity);
         } else {
           // In `finally` so a handler exception can't skip marking a stable
-          // rejection. Horizon is exempt: it checks current ownership of
-          // (userId, sku), and the user can buy right after `success: false`.
-          // The token bucket still limits Horizon bursts.
+          // rejection. The token bucket still limits Horizon bursts.
           const outcome = c.get("verifyOutcome");
-          if (
-            body.store !== "horizon" &&
-            outcome &&
-            isSettledRejection(outcome)
-          ) {
+          if (outcome && isSettledRejection(body.store, outcome)) {
             markPayloadFailure(
               store,
               bucketKey,

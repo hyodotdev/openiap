@@ -9,7 +9,9 @@ vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
 const { MemoryDb, seedProject } = await import("../test.memoryDb");
 const { appleStatusSnapshot, applyStoreResyncHandler } =
   await import("./resync");
-const { applySubscriptionEventHandler } = await import("./internal");
+const { applySubscriptionEventHandler, recordVerifiedSubscriptionHandler } =
+  await import("./internal");
+const { HarmonizedPurchaseState } = await import("../purchases/purchaseState");
 const { recordWebhookEventHandler } = await import("../webhooks/internal");
 const { resolveOperatorProject } = await import("../projects/helpers");
 
@@ -261,6 +263,111 @@ describe("applyStoreResync", () => {
       status: "superseded",
       emittedEvents: 0,
     });
+  });
+});
+
+describe("a verify after a re-sync", () => {
+  const DAY = 24 * HOUR;
+
+  it("cannot roll Apple back with a re-signed older transaction, but newer evidence applies", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const now = Date.now();
+    const first = {
+      projectId: "projects_1" as never,
+      platform: "IOS" as const,
+      purchaseToken: "2000000000000001",
+      productId: "premium_monthly",
+      verifiedPurchaseDate: now - 60 * DAY,
+      evidenceAt: now - 60 * DAY,
+    };
+    // A verify-only row from the first period.
+    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+      ...first,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now - 30 * DAY,
+      verifiedSignedDate: now - 60 * DAY,
+    });
+    // The re-sync sees the renewal the server never verified.
+    await applyStoreResyncHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      platform: "IOS",
+      store: "apple",
+      purchaseToken: "2000000000000001",
+      observedAt: now,
+      snapshot: {
+        productId: "premium_monthly",
+        state: "Active",
+        expiresAt: now + 30 * DAY,
+        willRenew: true,
+      },
+      context: { environment: "Production" },
+    });
+
+    // The first transaction replayed: Apple re-signs it now, still expired.
+    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+      ...first,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: now - 30 * DAY,
+      verifiedSignedDate: now + 1_000,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", expiresAt: now + 30 * DAY },
+    ]);
+
+    // A renewal bought after the re-sync is newer evidence.
+    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+      ...first,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: now + 60 * DAY,
+      verifiedPurchaseDate: now + DAY,
+      verifiedSignedDate: now + DAY,
+      evidenceAt: now + DAY,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", expiresAt: now + 60 * DAY },
+    ]);
+  });
+
+  it("applies a Google read made after the re-sync, never one made before it", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const now = Date.now();
+    const verify = (readAt: number, expiresAt: number) =>
+      recordVerifiedSubscriptionHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        platform: "Android",
+        purchaseToken: "google-token",
+        productId: "premium_monthly",
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        expiresAt,
+        evidenceAt: readAt,
+      });
+    await verify(now - DAY, now + DAY);
+    await applyStoreResyncHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      platform: "Android",
+      store: "google",
+      purchaseToken: "google-token",
+      observedAt: now,
+      snapshot: {
+        productId: "premium_monthly",
+        state: "Expired",
+        expiresAt: now - HOUR,
+        willRenew: false,
+      },
+      context: { environment: "Production" },
+    });
+
+    // Read before the re-sync but committed after it.
+    await verify(now - 1, now + DAY);
+    expect(db.rows("subscriptions")).toMatchObject([{ state: "Expired" }]);
+
+    await verify(now + 1, now + 30 * DAY);
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", expiresAt: now + 30 * DAY },
+    ]);
   });
 });
 

@@ -821,12 +821,13 @@ describe("apiRoutes", () => {
           { store: "google", purchaseToken: "g".repeat(80) },
         ),
       ).toBe(true);
+      // Meta checks current ownership, so the user can buy right after.
       expect(
         await finalVerdict(
           { isValid: false, state: "INAUTHENTIC" },
           { store: "horizon", userId: "123456789", sku: "sku" },
         ),
-      ).toBe(true);
+      ).toBe(false);
       expect(await finalVerdict({ isValid: false, state: "UNKNOWN" })).toBe(
         false,
       );
