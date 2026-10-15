@@ -5,7 +5,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -952,55 +951,6 @@ test("sbom.yml restores every module the generator imports", () => {
     [],
     `sbom.yml does not restore: ${missing.join(", ")}`,
   );
-});
-
-test("the KMP Swift bridge stays a re-export CodeQL need not analyse", () => {
-  // codeql.yml builds this package AFTER `analyze`, so its sources are never
-  // in the database. That is correct only while the package re-exports a
-  // released module and defines nothing itself; real logic added here would
-  // ship without Swift analysis and nothing else would notice.
-  // The scanned directory comes from Package.swift, not a fixed path: a target
-  // pointed elsewhere would otherwise leave stale import-only files here and
-  // ship real Swift with no analysis.
-  const packageRoot = new URL(
-    "../libraries/kmp-iap/native/InAppPurchaseBridge/",
-    import.meta.url,
-  );
-  const manifest = readFileSync(new URL("Package.swift", packageRoot), "utf8");
-  assert.doesNotMatch(
-    manifest,
-    /\bpath\s*:/u,
-    "Package.swift sets an explicit target path; point this guard at it",
-  );
-  const root = new URL("Sources/", packageRoot);
-  const walk = (dir) =>
-    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory()
-        ? walk(new URL(`${entry.name}/`, dir))
-        : [new URL(entry.name, dir)],
-    );
-
-  const sources = walk(root);
-  assert.ok(sources.length > 0, "the bridge has no sources");
-  for (const source of sources) {
-    // SwiftPM builds C, Objective-C and C++ sources in the same target without
-    // an explicit path, and CodeQL never sees them because this package is
-    // built after `analyze`.
-    assert.match(
-      source.pathname,
-      /\.swift$/u,
-      `${source.pathname} is compiled but not analysed: move it, or build this package between init and analyze`,
-    );
-    for (const line of readFileSync(source, "utf8").split("\n")) {
-      const code = line.trim();
-      if (code === "" || code.startsWith("//")) continue;
-      assert.match(
-        code,
-        /^(?:@_exported\s+)?import\s+\w+$/u,
-        `${source.pathname} defines code, so it needs CodeQL coverage: move it, or build this package between init and analyze`,
-      );
-    }
-  }
 });
 
 test("the manual audit runs every gate the scheduled rescan runs", () => {

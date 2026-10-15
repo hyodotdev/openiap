@@ -5840,32 +5840,6 @@ function checkFrameworkDependencyHygiene() {
     );
   }
   expectIncludes(
-    "libraries/kmp-iap/native/InAppPurchaseBridge/Package.swift",
-    [
-      "resolveOpenIapAppleVersion()",
-      "resolveOpenIapApplePackageVersion",
-      "openiap-versions.json",
-      "openIapApplePackageVersion",
-      "exact: openIapApplePackageVersion",
-    ],
-    "KMP native bridge OpenIAP Apple dependency version",
-  );
-  expectNotIncludes(
-    "libraries/kmp-iap/native/InAppPurchaseBridge/Package.swift",
-    [
-      'from: "1.2.5"',
-      "from: openIapApplePackageVersion",
-      'return "2.1.9"',
-      "Version(2, 1, 9)",
-    ],
-    "KMP native bridge OpenIAP Apple dependency version",
-  );
-  expectIncludes(
-    "libraries/kmp-iap/native/InAppPurchaseBridge/Sources/InAppPurchaseBridge/InAppPurchaseBridge.swift",
-    ["@_exported import OpenIAP"],
-    "KMP native bridge SwiftPM target source",
-  );
-  expectIncludes(
     "libraries/kmp-iap/library/build.gradle.kts",
     [
       "val kmpRootDir = projectDir.parentFile",

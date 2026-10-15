@@ -284,19 +284,6 @@ jobs:
         with:
           bun-version-file: package.json
 
-      - name: Commit version updates
-        if: ${{ inputs.version != 'current' }}
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add gradle.properties
-          "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
-          if git diff --staged --quiet; then
-            echo "No version changes to commit"
-          else
-            git commit -m "chore(release): kmp-iap@$VERSION"
-          fi
-
       - name: Check if KMP package already published
         id: check_maven
         env:
@@ -326,6 +313,19 @@ jobs:
             :library:linkDebugFrameworkIosSimulatorArm64 \
             :library:linkDebugFrameworkIosArm64 \
             :library:linkDebugFrameworkIosX64
+
+      - name: Commit version updates
+        if: ${{ inputs.version != 'current' }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add gradle.properties .swiftpm-locks/default/swiftImport/Package.resolved
+          "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore(release): kmp-iap@$VERSION"
+          fi
 
       - name: Preflight Maven Central publication
         if: steps.check_maven.outputs.exists == 'false'

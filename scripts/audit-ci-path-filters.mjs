@@ -266,18 +266,6 @@ export const cases = Object.freeze([
     ],
   },
   {
-    name: "kmp-swift-bridge-source",
-    files: [
-      "libraries/kmp-iap/native/InAppPurchaseBridge/Sources/InAppPurchaseBridge/InAppPurchaseBridge.swift",
-    ],
-    jobs: [
-      "ci:audit-lockfile",
-      "ci:audit-parity",
-      "ci-kmp-iap.yml",
-      "codeql:analyze-swift",
-    ],
-  },
-  {
     name: "kmp-docs-only",
     files: [
       "libraries/kmp-iap/AGENTS.md",

@@ -26,6 +26,7 @@ node_modules/
 docs/build/
 docs/.docusaurus/
 docs/.cache-loader/
+# Preserve local native build caches from earlier checkouts.
 native/InAppPurchaseBridge/.build/
 native/InAppPurchaseBridge/DerivedData/
 native/InAppPurchaseBridge/Package.resolved

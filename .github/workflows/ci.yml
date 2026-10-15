@@ -318,7 +318,6 @@ jobs:
               - 'libraries/godot-iap/prebuilt-binaries.sha256'
               - 'libraries/godot-iap/addons/godot-iap/bin/**'
               - 'libraries/godot-iap/addons/godot-iap/android/**'
-              - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
               - 'libraries/expo-iap/example/scripts/build-vega-example.mjs'
               - 'libraries/react-native-iap/example/scripts/build-vega-example.mjs'
               - 'packages/kit/Dockerfile'

@@ -110,8 +110,6 @@ kmp-iap/
 ├── example/          # Example application
 │   ├── composeApp/   # Compose Multiplatform app
 │   └── iosApp/       # iOS app
-├── native/           # Native bridge packages
-│   └── InAppPurchaseBridge/ # SwiftPM bridge for OpenIAP Apple
 └── AGENTS.md         # Coding conventions
 ```
 
@@ -161,9 +159,8 @@ When a new version of openiap-apple or openiap-google is released:
 
 1. Let release CI update `openiap-versions.json` and its library mirrors.
 
-2. Keep `library/build.gradle.kts` and
-   `native/InAppPurchaseBridge/Package.swift` reading from
-   `openiap-versions.json`; do not add hardcoded native dependency versions.
+2. Keep `library/build.gradle.kts` reading from `openiap-versions.json`;
+   do not add hardcoded native dependency versions.
 
 3. Clean and rebuild:
    ```bash

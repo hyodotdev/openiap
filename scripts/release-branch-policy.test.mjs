@@ -1336,6 +1336,27 @@ test("framework release workflows refuse stale dispatch heads", () => {
   );
 });
 
+test("KMP tags include the native SwiftPM lock resolved by the release build", () => {
+  const steps = parseYaml(readWorkflow("release-kmp.yml")).jobs.publish.steps;
+  const indexOf = (name) => steps.findIndex((step) => step.name === name);
+  const check = indexOf("Check if KMP package already published");
+  const build = indexOf(
+    "Build iOS frameworks with published SwiftPM dependencies",
+  );
+  const commit = indexOf("Commit version updates");
+  const tag = indexOf("Create and push tag");
+
+  assert.ok(check >= 0 && check < build);
+  assert.ok(build < commit && commit < tag);
+  assert.equal(steps[build].if, "steps.check_maven.outputs.exists == 'false'");
+  assert.equal(steps[commit].if, "${{ inputs.version != 'current' }}");
+  assert.match(steps[build].run, /-PopeniapAppleRemote=true/u);
+  assert.match(
+    steps[commit].run,
+    /git add gradle\.properties \.swiftpm-locks\/default\/swiftImport\/Package\.resolved/u,
+  );
+});
+
 test("Godot builds version-bound native payloads only for a new tag", () => {
   const workflow = readWorkflow("release-godot.yml");
   const deploy = workflow.slice(workflow.indexOf("\n  deploy:\n"));

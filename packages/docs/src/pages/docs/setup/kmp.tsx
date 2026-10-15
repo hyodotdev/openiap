@@ -1,14 +1,11 @@
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
-import { LIBRARIES } from '../../../lib/images';
-import { KMP_ANDROID_SDK, OPENIAP_VERSIONS } from '../../../lib/versioning';
-
-const KMP_INSTALL_COMMAND =
-  LIBRARIES.find(({ name }) => name === 'kmp-iap')?.installCommand ??
-  'implementation("io.github.hyochan:kmp-iap")';
-const KMP_VERSION =
-  KMP_INSTALL_COMMAND.match(/kmp-iap:([^")]+)/)?.[1] ?? 'x.y.z';
+import {
+  KMP_ANDROID_SDK,
+  KMP_PACKAGE,
+  OPENIAP_VERSIONS,
+} from '../../../lib/versioning';
 
 function KmpSetup() {
   return (
@@ -71,12 +68,20 @@ function KmpSetup() {
           </a>
         </h2>
         <p>
-          Add kmp-iap to your shared module's <code>build.gradle.kts</code>:
+          Choose kmp-iap 4.0.3 or newer from{' '}
+          <a
+            href={`https://central.sonatype.com/artifact/${KMP_PACKAGE.coordinate.replace(':', '/')}`}
+          >
+            Maven Central
+          </a>{' '}
+          for the SwiftPM setup below. Replace <code>&lt;version&gt;</code> with
+          that published version in your shared module&apos;s{' '}
+          <code>build.gradle.kts</code>:
         </p>
         <CodeBlock language="kotlin">
           {`val commonMain by getting {
     dependencies {
-        ${KMP_INSTALL_COMMAND}
+        implementation("${KMP_PACKAGE.coordinate}:<version>")
     }
 }`}
         </CodeBlock>
@@ -84,10 +89,10 @@ function KmpSetup() {
         <CodeBlock language="toml">
           {`# gradle/libs.versions.toml
 [versions]
-kmp-iap = "${KMP_VERSION}"
+kmp-iap = "<version>"
 
 [libraries]
-kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }`}
+kmp-iap = { module = "${KMP_PACKAGE.coordinate}", version.ref = "kmp-iap" }`}
         </CodeBlock>
         <CodeBlock language="kotlin">
           {`// build.gradle.kts
@@ -112,7 +117,7 @@ dependencies {
           </a>
         </h3>
         <p>
-          Starting with kmp-iap 4.1.0, Gradle resolves OpenIAP through Swift
+          Starting with kmp-iap 4.0.3, Gradle resolves OpenIAP through Swift
           Package Manager. Its native dependency version travels with the Maven
           artifact; you do not add OpenIAP separately in Xcode.
         </p>
@@ -153,13 +158,14 @@ XCODEPROJ_PATH="$PWD/iosApp/iosApp.xcodeproj" ./gradlew \\
         <p>
           Commit the updated Xcode project, generated{' '}
           <code>KotlinMultiplatformLinkedPackage</code> directory, and{' '}
-          <code>.swiftpm-locks</code> lock files. Open the{' '}
-          <code>.xcodeproj</code>, resolve package versions, and build.
+          <code>.swiftpm-locks</code> lock files. Open the app&apos;s{' '}
+          <code>.xcworkspace</code> if it still uses CocoaPods for other
+          dependencies, or its <code>.xcodeproj</code> otherwise. Resolve
+          package versions and build.
         </p>
         <p>
           When migrating, remove the shared module&apos;s CocoaPods integration
-          and any manual OpenIAP framework search paths or embed scripts. Other
-          unrelated CocoaPods dependencies can remain in the app. See{' '}
+          and any manual OpenIAP framework search paths or embed scripts. See{' '}
           <a href="https://kotlinlang.org/docs/multiplatform/multiplatform-cocoapods-spm-migration.html">
             Kotlin&apos;s migration guide
           </a>
@@ -262,8 +268,9 @@ openiapStore=horizon`}
         <h4>R8 and ProGuard</h4>
         <p>
           No rules to add. From 3.6.1, kmp-iap and the openiap store artifact
-          ship the R8 rules each store needs, so minified release builds work as
-          they are.
+          ship the R8 rules each store needs. Check the{' '}
+          <a href="#android-kotlin-metadata">Android toolchain requirements</a>{' '}
+          for Kotlin 2.4 before building a minified app.
         </p>
       </section>
 
@@ -482,7 +489,9 @@ scope.launch {
           </li>
         </ul>
 
-        <h3>Android tools report incompatible Kotlin metadata</h3>
+        <h3 id="android-kotlin-metadata">
+          Android tools report incompatible Kotlin metadata
+        </h3>
         <p>
           AGP 8.13 bundles an older Kotlin analyzer. If you use that AGP line,
           set <code>android.experimental.lint.version=9.4.1</code> in your{' '}
