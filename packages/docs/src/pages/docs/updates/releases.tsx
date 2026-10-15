@@ -614,7 +614,9 @@ function Releases() {
                   <code>PurchaseConfirmation</code> types. Payment pending,
                   delayed verification, another account&apos;s purchase and
                   delayed access are separate states, and none of them asks the
-                  user to buy again.
+                  user to buy again. A purchase another account already holds is
+                  finished, not refunded, and iOS recovery needs{' '}
+                  <code>getPendingTransactionsIOS</code>.
                 </li>
                 <li>
                   Client payload reads return the cached copy with{' '}
@@ -633,14 +635,15 @@ function Releases() {
               <code>createPurchaseFlow</code> and the client payload helpers;
               their Vega entry points leave the flow out because Vega purchases
               go through Amazon. The expo-iap example adds an App backend option
-              to its purchase flow screen.
+              to its purchase flow screen outside Vega.
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
           <p>
             Your backend verifies with its secret key and{' '}
             <code>includeTransactionDetails</code>, links the purchase with
-            bind-user, and grants access once per purchase; the{' '}
+            bind-user, grants a one-time purchase once and records each
+            subscription period; the{' '}
             <a href="https://kit.openiap.dev/docs/purchase-flow">
               Purchase flow guide
             </a>{' '}

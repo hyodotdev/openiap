@@ -33,7 +33,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Verification",
-        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final, matching commerce events. Responses without the flag are unchanged.",
+        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final (never for Meta Horizon, where the user can buy right after), matching commerce events. Responses without the flag are unchanged.",
       },
       {
         kind: "feature",
@@ -43,12 +43,12 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Purchase issues",
-        text: "Verification and linking failures are recorded as bounded, hashed entries with a cause and correlation ID, viewable in the dashboard, secret-key routes and MCP.",
+        text: "Verification and linking failures are recorded with a cause and correlation ID, viewable in the dashboard, secret-key routes and MCP. Product mismatches, pending payments and bind conflicts are kept per purchase; other failures, including forged or unknown evidence, are counted per store and cause, so random input cannot flood the log.",
       },
       {
         kind: "feature",
         topic: "Operations",
-        text: "Webhook deliveries keep their last 20 attempts and can be re-sent with the original event ID. Inbound store notifications are listed, and admins can re-sync an Apple or Google purchase or subscription from the store.",
+        text: "Webhook deliveries keep their last 20 attempts and can be re-sent with the original event ID. Inbound store notifications are listed, and admins can re-sync an Apple or Google purchase or subscription from the store, using a rate limit separate from entitlement reads.",
       },
       {
         kind: "security",
@@ -58,17 +58,17 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Analytics",
-        text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, and churn counts only paid access that ended.",
+        text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, churn counts only paid access that ended, and Google plan changes are no longer counted as new subscriptions or churn.",
       },
       {
         kind: "feature",
         topic: "Analytics",
-        text: "Trial starts, trial conversions and direct paid starts are counted separately, with monthly retention and realized LTV cohorts. Each metric shows whether data is not collected, still processing or a real zero.",
+        text: "Trial starts, trial conversions and direct paid starts are counted separately, with monthly retention and realized LTV cohorts. Each metric shows, per environment, whether data is not collected, still processing or a real zero.",
       },
       {
         kind: "feature",
         topic: "Client payloads",
-        text: "Client payloads have drafts, a preview of the exact app response, version history and rollback, and a draft saved against an older version cannot overwrite a newer one.",
+        text: "Client payloads have drafts, a preview of the exact app response, version history and rollback. A draft saved against an older version must be rebased before it can be published, and API keys never see author emails.",
       },
       {
         kind: "docs",
