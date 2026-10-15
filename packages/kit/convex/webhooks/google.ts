@@ -461,6 +461,7 @@ export const ingestGoogleRtdn = action({
           priceAmountMicros: normalized.priceAmountMicros,
           amountProvenance: normalized.amountProvenance,
           freeTrial: normalized.freeTrial,
+          replacementCharged: normalized.replacementCharged,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.rawMessage,
         },
@@ -721,6 +722,16 @@ async function maybeFetchSubscriptionInfo(
               },
             )) ?? undefined);
 
+    // A replacement is charged at once only as a prepaid top-up or in these
+    // modes; the others charge the new plan when it renews.
+    const replacementMode = replacementMetadata(matched).mode?.toUpperCase();
+    const replacementCharged =
+      payload.subscriptionNotification.notificationType === 4 &&
+      data.linkedPurchaseToken &&
+      (matched?.prepaidPlan ||
+        replacementMode === "CHARGE_FULL_PRICE" ||
+        replacementMode === "CHARGE_PRORATED_PRICE");
+
     return {
       productId: matched?.productId ?? undefined,
       environment: googlePlayEnvironment(data.testPurchase),
@@ -750,6 +761,7 @@ async function maybeFetchSubscriptionInfo(
             ? "store"
             : "catalog",
       freeTrial,
+      ...(replacementCharged ? { replacementCharged: true } : {}),
     };
   } catch (error) {
     // Structured config errors pass through for the route to map to a 4xx;

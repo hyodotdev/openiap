@@ -1438,3 +1438,96 @@ describe("ingestGoogleRtdn free trial facts", () => {
     expect(event?.freeTrial).toBeUndefined();
   });
 });
+
+describe("ingestGoogleRtdn replacement charges", () => {
+  async function ingestPurchase(
+    lineItem: Record<string, unknown>,
+    linkedPurchaseToken?: string,
+  ) {
+    playMocks.subscriptionsGet.mockResolvedValueOnce({
+      data: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        linkedPurchaseToken,
+        lineItems: [
+          {
+            productId: "premium_yearly",
+            expiryTime: "2027-09-01T00:00:00Z",
+            ...lineItem,
+          },
+        ],
+      },
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "project_replacement",
+        androidPackageName: "dev.openiap.test",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "files_service_account" })
+      // A prepaid plan's catalog price.
+      .mockResolvedValue({ currency: "USD", priceAmountMicros: 4_990_000 });
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ eventId: "event_replacement", deduped: false })
+      .mockResolvedValueOnce({ transition: "Started", active: true });
+
+    await ingestGoogleRtdn._handler(
+      {
+        runAction: vi
+          .fn()
+          .mockResolvedValue({ content: serviceAccountContent }),
+        runMutation,
+        runQuery,
+      },
+      {
+        apiKey: "test_key",
+        rawMessage: "raw",
+        payload: {
+          messageId: `message_${JSON.stringify(lineItem)}_${linkedPurchaseToken}`,
+          packageName: "dev.openiap.test",
+          eventTimeMillis: 1_000,
+          subscriptionNotification: {
+            notificationType: 4,
+            purchaseToken: "new_token",
+          },
+        },
+      },
+    );
+    return runMutation.mock.calls[0]?.[1]?.event;
+  }
+  const autoRenewingPlan = {
+    autoRenewEnabled: true,
+    recurringPrice: { currencyCode: "USD", units: "99", nanos: 0 },
+  };
+
+  it.each([
+    ["CHARGE_FULL_PRICE", true],
+    ["CHARGE_PRORATED_PRICE", true],
+    ["WITH_TIME_PRORATION", undefined],
+    ["WITHOUT_PRORATION", undefined],
+    ["DEFERRED", undefined],
+  ])("marks a %s replacement charged: %s", async (mode, expected) => {
+    const event = await ingestPurchase(
+      {
+        autoRenewingPlan,
+        itemReplacement: {
+          productId: "premium_monthly",
+          replacementMode: mode,
+        },
+      },
+      "old_token",
+    );
+    expect(event).toMatchObject({ linkedPurchaseToken: "old_token" });
+    expect(event?.replacementCharged).toBe(expected);
+  });
+
+  it("marks a prepaid top-up charged, but not a first prepaid purchase", async () => {
+    expect(
+      await ingestPurchase({ prepaidPlan: {} }, "old_token"),
+    ).toMatchObject({ replacementCharged: true, priceAmountMicros: 4_990_000 });
+    expect(
+      (await ingestPurchase({ prepaidPlan: {} }))?.replacementCharged,
+    ).toBeUndefined();
+  });
+});

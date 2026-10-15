@@ -137,6 +137,58 @@ describe("nextAnalyticsFacts", () => {
     });
   });
 
+  it("adds a replacement Play charged at once to the money, not the cohort start", () => {
+    const paid = nextAnalyticsFacts(
+      undefined,
+      event({ type: "SubscriptionStarted", platform: "Android" }),
+    );
+    expect(
+      nextAnalyticsFacts(
+        paid ?? undefined,
+        event({
+          _id: "webhookEvents_2" as Id<"webhookEvents">,
+          type: "SubscriptionStarted",
+          platform: "Android",
+          linkedPurchaseToken: "replaced-token",
+          replacementCharged: true,
+          occurredAt: 500,
+        }),
+      ),
+    ).toEqual({ ...paid, paidMicros: 2 * PRICE });
+  });
+
+  it("records no trial that starts after the first paid charge, in either order", () => {
+    const paid = event({
+      _id: "webhookEvents_2" as Id<"webhookEvents">,
+      type: "SubscriptionStarted",
+      occurredAt: 2_000,
+    });
+    const laterTrial = event({
+      type: "SubscriptionStarted",
+      freeTrial: true,
+      occurredAt: 3_000,
+    });
+    const expected = {
+      firstPaidAt: 2_000,
+      firstPaidEventId: "webhookEvents_2",
+      firstPaidEventType: "SubscriptionStarted",
+      currency: "USD",
+      paidMicros: PRICE,
+      refundedMicros: 0,
+    };
+    const paidFirst = nextAnalyticsFacts(undefined, paid) ?? undefined;
+    expect(nextAnalyticsFacts(paidFirst, laterTrial)).toBeNull();
+    expect(paidFirst).toEqual(expected);
+    const trialFirst = nextAnalyticsFacts(undefined, laterTrial) ?? undefined;
+    expect(nextAnalyticsFacts(trialFirst, paid)).toEqual(expected);
+    expect(
+      mergeAnalyticsFacts(
+        { trialStartedAt: 3_000, paidMicros: 0, refundedMicros: 0 },
+        paidFirst,
+      ),
+    ).toEqual(expected);
+  });
+
   it("never mixes currencies", () => {
     const usd = nextAnalyticsFacts(
       undefined,
