@@ -352,6 +352,23 @@ describe("processPurchase", () => {
   });
 });
 
+describe("confirmTimeoutMs", () => {
+  it("treats a timeout too long for setTimeout as the longest one", async () => {
+    const { flow } = flowWith(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return { status: "entitled", alreadyGranted: false };
+      },
+      { confirmTimeoutMs: Infinity },
+    );
+
+    await expect(flow.processPurchase(purchase())).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: false,
+    });
+  });
+});
+
 describe("recoverPurchases", () => {
   it("reads only unfinished iOS transactions by default", async () => {
     const unfinished = purchase({ id: "tx-9", productId: "coins_100" });

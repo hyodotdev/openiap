@@ -122,7 +122,11 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
 ): PurchaseFlow<P> {
   // A listener and a recovery pass can deliver the same transaction at once.
   const inFlight = new Map<string, Promise<PurchaseFlowStatus>>();
-  const confirmTimeoutMs = options.confirmTimeoutMs ?? 30_000;
+  // setTimeout runs a delay past 2^31 - 1 ms, Infinity included, at once.
+  const confirmTimeoutMs = Math.min(
+    options.confirmTimeoutMs ?? 30_000,
+    2_147_483_647,
+  );
 
   function processPurchase(purchase: P): Promise<PurchaseFlowStatus> {
     // Payment is not complete; the store delivers the purchase again once it is.
