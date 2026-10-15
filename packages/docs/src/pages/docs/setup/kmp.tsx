@@ -22,10 +22,10 @@ function KmpSetup() {
       <h1>Kotlin Multiplatform Setup</h1>
       <p>
         <code>kmp-iap</code> brings OpenIAP-compliant in-app purchases to Kotlin
-        Multiplatform projects. Android talks to Google Play Billing directly;
-        iOS links the OpenIAP StoreKit framework, added with either CocoaPods or
-        Swift Package Manager (see <a href="#ios-config">iOS Configuration</a>{' '}
-        below). Requires iOS 15.0+ and the Android minSdk shown in{' '}
+        Multiplatform projects. iOS uses Swift Package Manager to link the
+        OpenIAP StoreKit framework without CocoaPods (see{' '}
+        <a href="#ios-config">iOS Configuration</a> below). Requires iOS 15.0+
+        and the Android minSdk shown in{' '}
         <a href="#android-config">Android Configuration</a>.
       </p>
 
@@ -52,7 +52,7 @@ function KmpSetup() {
         </h2>
         <ul>
           <li>
-            <strong>Kotlin 2.4.10</strong>, <strong>Gradle 9.3.0</strong>, and{' '}
+            <strong>Kotlin 2.4.20+</strong>, <strong>Gradle 9.3.0</strong>, and{' '}
             <strong>JDK 17+</strong>
           </li>
           <li>Active Apple Developer account (for iOS)</li>
@@ -112,67 +112,59 @@ dependencies {
           </a>
         </h3>
         <p>
-          kmp-iap uses the OpenIAP framework on iOS. Choose{' '}
-          <strong>CocoaPods</strong> or <strong>Swift Package Manager</strong>:
+          Starting with kmp-iap 4.1.0, Gradle resolves OpenIAP through Swift
+          Package Manager. Its native dependency version travels with the Maven
+          artifact; you do not add OpenIAP separately in Xcode.
         </p>
 
-        <Callout kind="tip" title="Quick decision">
-          Use <strong>CocoaPods</strong> if you want automatic dependency
-          management through Gradle. Use <strong>SPM</strong> if you prefer
-          modern iOS tooling and want to avoid CocoaPods.
+        <Callout kind="note" title="Kotlin compatibility">
+          Use Kotlin 2.4.20 or newer in the consuming project. Kotlin&apos;s
+          SwiftPM import tooling is Alpha and imports Objective-C-compatible
+          APIs; kmp-iap uses OpenIAP&apos;s existing Objective-C bridge.
         </Callout>
 
-        <h4>Option A: CocoaPods (Recommended)</h4>
-        <p>Ensure your shared module has the CocoaPods plugin:</p>
+        <h4>Configure the shared framework</h4>
+        <p>Use a static framework for direct Xcode integration:</p>
         <CodeBlock language="kotlin">
           {`// shared/build.gradle.kts
 plugins {
     kotlin("multiplatform")
-    kotlin("native.cocoapods")
 }
 
 kotlin {
-    cocoapods {
-        version = "1.0"
-        ios.deploymentTarget = "15.0"
-        framework {
-            baseName = "ComposeApp" // or "shared"
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared"
             isStatic = true
         }
     }
 }`}
         </CodeBlock>
         <p>
-          Then run <code>cd iosApp &amp;&amp; pod install</code> and always open{' '}
-          <code>.xcworkspace</code> (not <code>.xcodeproj</code>).
+          From your project root, connect the shared module and its generated
+          Swift package to the iOS app. Replace the project path and{' '}
+          <code>:shared</code> with your own names:
         </p>
-        <h4>Option B: Swift Package Manager</h4>
-        <ol>
-          <li>
-            In Xcode: <strong>File &gt; Add Package Dependencies</strong>
-          </li>
-          <li>
-            Enter URL:{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <code>https://github.com/hyodotdev/openiap.git</code>
-            </a>
-          </li>
-          <li>Select "Up to Next Major" version</li>
-          <li>Add to your iOS app target</li>
-          <li>
-            Verify in{' '}
-            <strong>Build Phases &gt; Link Binary with Libraries</strong>
-          </li>
-        </ol>
-
-        <Callout kind="note">
-          With SPM, don't use the CocoaPods plugin. You'll need to manually
-          update OpenIAP when kmp-iap updates.
-        </Callout>
+        <CodeBlock language="bash">
+          {`GRADLE_PROJECT_PATH=:shared \\
+XCODEPROJ_PATH="$PWD/iosApp/iosApp.xcodeproj" ./gradlew \\
+    :shared:integrateEmbedAndSign :shared:integrateLinkagePackage`}
+        </CodeBlock>
+        <p>
+          Commit the updated Xcode project, generated{' '}
+          <code>KotlinMultiplatformLinkedPackage</code> directory, and{' '}
+          <code>.swiftpm-locks</code> lock files. Open the{' '}
+          <code>.xcodeproj</code>, resolve package versions, and build.
+        </p>
+        <p>
+          When migrating, remove the shared module&apos;s CocoaPods integration
+          and any manual OpenIAP framework search paths or embed scripts. Other
+          unrelated CocoaPods dependencies can remain in the app. See{' '}
+          <a href="https://kotlinlang.org/docs/multiplatform/multiplatform-cocoapods-spm-migration.html">
+            Kotlin&apos;s migration guide
+          </a>
+          .
+        </p>
 
         <h4>Enable In-App Purchase Capability</h4>
         <p>
@@ -475,19 +467,45 @@ scope.launch {
         </h2>
 
         <h3>Linking error: Undefined symbol OpenIapModule (iOS)</h3>
-        <p>This means the OpenIAP framework isn't linked.</p>
+        <p>The generated Swift package must be linked to the app target.</p>
         <ul>
           <li>
-            <strong>CocoaPods:</strong> Run{' '}
-            <code>cd iosApp &amp;&amp; pod install</code> and open{' '}
-            <code>.xcworkspace</code> (not <code>.xcodeproj</code>)
+            Run <code>:shared:integrateLinkagePackage</code> with{' '}
+            <code>XCODEPROJ_PATH</code> pointing to the app project.
           </li>
           <li>
-            <strong>SPM:</strong> Verify OpenIAP appears in{' '}
+            Verify <code>KotlinMultiplatformLinkedPackage</code> appears in{' '}
             <strong>Build Phases &gt; Link Binary with Libraries</strong>
           </li>
-          <li>Clean build folder and rebuild</li>
+          <li>
+            Resolve package versions, clean the build folder, and rebuild.
+          </li>
         </ul>
+
+        <h3>Android tools report incompatible Kotlin metadata</h3>
+        <p>
+          AGP 8.13 bundles an older Kotlin analyzer. If you use that AGP line,
+          set <code>android.experimental.lint.version=9.4.1</code> in your{' '}
+          <code>gradle.properties</code> to analyze Kotlin 2.4 artifacts.
+        </p>
+        <p>
+          Kotlin 2.4 also requires R8 9.1.29 or newer for minified apps. If your
+          AGP bundles an older R8, add this override inside{' '}
+          <code>pluginManagement</code> in <code>settings.gradle.kts</code>:
+        </p>
+        <CodeBlock language="kotlin">
+          {`buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath("com.android.tools:r8:9.1.56") }
+}`}
+        </CodeBlock>
+        <p>
+          See the{' '}
+          <a href="https://developer.android.com/build/kotlin-support">
+            Android Kotlin compatibility table
+          </a>
+          .
+        </p>
 
         <h3>Products not found</h3>
         <ul>

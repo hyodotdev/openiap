@@ -135,13 +135,8 @@ jobs:
           ./gradlew :library:build
           ./gradlew :library:allTests
 
-      - name: Build iOS frameworks
-        run: |
-          ./gradlew :library:podGenIos
-          ./gradlew :library:podInstallSyntheticIos
-          ./gradlew :library:podBuildOpeniapIos
-          ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
-          ./gradlew :library:linkPodDebugFrameworkIosArm64
+      - name: Verify SwiftPM library, Xcode app, and Maven consumer without CocoaPods
+        run: bash scripts/verify-swiftpm-build.sh
 
   publish:
     needs: [validate-android, validate-ios]
@@ -302,17 +297,6 @@ jobs:
             git commit -m "chore(release): kmp-iap@$VERSION"
           fi
 
-      - name: Clean build artifacts
-        run: rm -rf library/build/cocoapods
-
-      - name: Build iOS frameworks
-        run: |
-          ./gradlew :library:podGenIos
-          ./gradlew :library:podInstallSyntheticIos
-          ./gradlew :library:podBuildOpeniapIos
-          ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
-          ./gradlew :library:linkPodDebugFrameworkIosArm64
-
       - name: Check if KMP package already published
         id: check_maven
         env:
@@ -334,6 +318,14 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Build iOS frameworks with published SwiftPM dependencies
+        if: steps.check_maven.outputs.exists == 'false'
+        run: |
+          ./gradlew -PopeniapAppleRemote=true \
+            :library:linkDebugFrameworkIosSimulatorArm64 \
+            :library:linkDebugFrameworkIosArm64 \
+            :library:linkDebugFrameworkIosX64
 
       - name: Preflight Maven Central publication
         if: steps.check_maven.outputs.exists == 'false'
@@ -398,7 +390,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-        run: ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
+        run: ./gradlew -PopeniapAppleRemote=true :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
 
       - name: Generate release notes
         if: success()

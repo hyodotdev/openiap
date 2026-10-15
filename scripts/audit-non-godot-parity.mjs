@@ -4079,37 +4079,23 @@ function checkFrameworkDependencyHygiene() {
     "docs KMP install command",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/library.podspec",
-    [
-      "gradle_properties_file",
-      "libraryVersion=",
-      "spec.version                  = library_version",
-      "spec.source                   = { :git => 'https://github.com/hyodotdev/openiap.git', :tag => \"kmp-iap-#{library_version}\" }",
-      "spec.authors                  = { 'Hyo Dev' => 'hyo@hyo.dev' }",
-      "spec.license                  = { :type => 'Apache-2.0', :file => '../LICENSE' }",
-    ],
-    "KMP podspec version",
-  );
-  expectNotIncludes(
-    "libraries/kmp-iap/library/library.podspec",
-    [
-      `spec.version                  = '${kmpVersion}'`,
-      "spec.source                   = { :http=> ''}",
-      "spec.authors                  = ''",
-      "spec.license                  = ''",
-    ],
-    "KMP podspec version must derive from gradle.properties",
-  );
-  expectIncludes(
     "libraries/kmp-iap/library/build.gradle.kts",
     [
-      "fun dynamicKmpPodspec(): String",
-      'tasks.matching { it.name == "podspec" }.configureEach',
-      'projectDir.resolve("library.podspec").writeText(dynamicKmpPodspec())',
-      "spec.version                  = library_version",
-      "openiap_apple_version = openiap_versions['apple']",
+      "swiftPMDependencies {",
+      'iosMinimumDeploymentTarget.set("15.0")',
+      "localSwiftPackage(",
+      'layout.projectDirectory.dir("../../../packages/apple")',
+      'providers.gradleProperty("openiapAppleRemote")',
+      'url = url("https://github.com/hyodotdev/openiap.git")',
+      "version = exact(appleVersion)",
+      'products = listOf(product("OpenIAP"))',
     ],
-    "KMP podspec Gradle generator must preserve dynamic metadata",
+    "KMP SwiftPM dependencies must use local source or the pinned published native version",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/library/build.gradle.kts",
+    ['kotlin("native.cocoapods")', 'pod("openiap")', "dynamicKmpPodspec"],
+    "KMP native compilation must not require CocoaPods",
   );
   const kmpExampleVersions = read(
     "libraries/kmp-iap/example/gradle/libs.versions.toml",
@@ -6049,27 +6035,26 @@ function checkFrameworkDependencyHygiene() {
     "KMP publish-local version lookup must not read removed literal version",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/library.podspec",
-    [
-      "missing openiap-versions.json",
-      "'apple' version missing in openiap-versions.json",
-    ],
-    "KMP podspec OpenIAP Apple dependency version",
+    "libraries/kmp-iap/example/iosApp/iosApp.xcodeproj/project.pbxproj",
+    ["KotlinMultiplatformLinkedPackage", "XCLocalSwiftPackageReference"],
+    "KMP Xcode example must link its transitive SwiftPM dependencies",
   );
   expectNotIncludes(
-    "libraries/kmp-iap/library/library.podspec",
-    ["openiap_apple_version = '1.2.5'", "fallback version"],
-    "KMP podspec OpenIAP Apple dependency version",
+    "libraries/kmp-iap/example/iosApp/iosApp.xcodeproj/project.pbxproj",
+    ["cocoapods", "OPENIAP_FRAMEWORK_PATH", "OPENIAP_APPLE_VERSION"],
+    "KMP Xcode example must not embed a CocoaPods-built framework",
   );
+  for (const workflow of ["ci-kmp-iap.yml", "release-kmp.yml"]) {
+    expectIncludes(
+      `.github/workflows/${workflow}`,
+      ["bash scripts/verify-swiftpm-build.sh"],
+      "KMP CI must verify SwiftPM source and published-artifact consumption",
+    );
+  }
   expectIncludes(
-    "libraries/kmp-iap/example/iosApp/iosApp.xcodeproj/project.pbxproj",
-    ["OPENIAP_APPLE_VERSION=", "<string>$OPENIAP_APPLE_VERSION</string>"],
-    "KMP iOS example OpenIAP framework plist version",
-  );
-  expectNotIncludes(
-    "libraries/kmp-iap/example/iosApp/iosApp.xcodeproj/project.pbxproj",
-    ["<string>1.2.5</string>"],
-    "KMP iOS example OpenIAP framework plist version",
+    ".github/workflows/release-kmp.yml",
+    ["-PopeniapAppleRemote=true :library:publishAndReleaseToMavenCentral"],
+    "KMP publication must not serialize a local Apple checkout",
   );
   expectIncludes(
     "libraries/maui-iap/android/openiap/build.gradle.kts",
@@ -6975,35 +6960,6 @@ function checkFrameworkDependencyHygiene() {
         'tag.set("v$kmpIapLibraryVersion")',
       ],
       "KMP Maven metadata must not point at the legacy standalone repository",
-    );
-    expectIncludes(
-      "libraries/kmp-iap/library/build.gradle.kts",
-      [
-        "fun dynamicKmpPodspec(): String",
-        'tasks.matching { it.name == "podspec" }.configureEach',
-        "dynamicKmpPodspec()",
-      ],
-      "KMP CocoaPods generated podspec must be post-processed by Gradle",
-    );
-    expectIncludes(
-      "libraries/kmp-iap/library/library.podspec",
-      [
-        "gradle_properties_file",
-        "libraryVersion=",
-        "spec.version                  = library_version",
-        "kmp-iap-#{library_version}",
-      ],
-      "KMP CocoaPods spec version must follow gradle.properties",
-    );
-    expectNotIncludes(
-      "libraries/kmp-iap/library/library.podspec",
-      [
-        "spec.version                  = '2.2.8'",
-        "spec.source                   = { :http=> ''}",
-        "spec.authors                  = ''",
-        "spec.license                  = ''",
-      ],
-      "KMP CocoaPods spec version must not drift from gradle.properties",
     );
     expectIncludes(
       "libraries/kmp-iap/publish-local.sh",

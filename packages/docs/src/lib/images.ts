@@ -159,7 +159,7 @@ export const LIBRARIES: LibraryInfo[] = [
     languagesDescription:
       'Kotlin Multiplatform implementation of the OpenIAP Client Protocol',
     setupDescription:
-      'KMP / Compose Multiplatform via the `kmp-iap` library. Flow-based API on top of OpenIAP, with CocoaPods integration for iOS targets and shared business logic across platforms.',
+      'KMP / Compose Multiplatform via the `kmp-iap` library. Flow-based API on top of OpenIAP, with SwiftPM integration for iOS targets and shared business logic across platforms.',
     installCommand: KMP_PACKAGE.installCommand,
     documentationUrl: 'https://openiap.dev/docs/setup/kmp',
     url: 'https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap',

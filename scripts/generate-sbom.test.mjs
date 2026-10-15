@@ -3334,6 +3334,31 @@ test("a local core dependency requires its published neutral fallback", (t) => {
   );
 });
 
+test("KMP SBOMs identify SwiftPM dependencies while preserving historical CocoaPods identity", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-kmp-spm-sbom-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const manifest = "build.gradle.kts";
+  const source = {
+    kind: "openiap-native",
+    apple: true,
+    appleSwiftPMManifest: manifest,
+  };
+  writeFileSync(
+    resolve(scratch, "openiap-versions.json"),
+    JSON.stringify({ apple: "4.0.2" }),
+  );
+  writeFileSync(resolve(scratch, manifest), 'cocoapods { pod("openiap") }');
+  assert.equal(
+    (await extractDirectDependencies(scratch, source))[0].purl,
+    "pkg:cocoapods/openiap@4.0.2",
+  );
+  writeFileSync(resolve(scratch, manifest), "swiftPMDependencies { }");
+  assert.equal(
+    (await extractDirectDependencies(scratch, source))[0].purl,
+    "pkg:swift/github.com/hyodotdev/openiap@4.0.2",
+  );
+});
+
 test("legacy native SBOMs exclude core while provider releases require its manifest", async (t) => {
   const scratch = mkdtempSync(resolve(tmpdir(), "openiap-legacy-core-sbom-"));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));

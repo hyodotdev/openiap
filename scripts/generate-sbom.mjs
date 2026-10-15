@@ -543,7 +543,10 @@ const COMPONENTS = {
           coordinate: "io.github.hyochan:kmp-iap",
           repositories: ["https://repo1.maven.org/maven2"],
         },
-        ALL_OPENIAP_NATIVE_VARIANTS,
+        {
+          ...ALL_OPENIAP_NATIVE_VARIANTS,
+          appleSwiftPMManifest: "libraries/kmp-iap/library/build.gradle.kts",
+        },
       ],
     },
   },

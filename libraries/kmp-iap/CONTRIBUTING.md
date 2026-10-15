@@ -9,6 +9,7 @@ Thank you for your interest in contributing to kmp-iap! This guide will help you
 - JDK 17 or higher
 - Android Studio (latest stable version)
 - Xcode (for iOS development, Mac only)
+- Kotlin 2.4.20 or newer for SwiftPM import
 - Android SDK
 
 ### Getting Started
@@ -122,30 +123,45 @@ which provides StoreKit 2 functionality.
 
 ### How It Works
 
-1. **CocoaPods Integration**: The library uses CocoaPods to integrate the
-   `openiap` pod.
-   - Configured in `library/build.gradle.kts`
-   - Podspec dependency: `spec.dependency 'openiap', openiap_apple_version`
-   - Version read from the root `openiap-versions.json` `apple` field
+1. **SwiftPM integration** is configured in `library/build.gradle.kts`.
+   Monorepo builds import `packages/apple` directly. Builds with
+   `-PopeniapAppleRemote=true` resolve the remote Swift package at the exact
+   `apple` version from `openiap-versions.json`; release CI uses this mode so
+   Maven metadata never references a local checkout.
 
 2. **Build Process**:
 
    ```bash
    # The Gradle build automatically:
-   # 1. Resolves openiap via CocoaPods
+   # 1. Resolves OpenIAP via SwiftPM
    # 2. Generates Kotlin/Native cinterop bindings
    # 3. Builds the iOS framework
 
    ./gradlew :library:build
    ```
 
+3. **Xcode integration** uses the generated
+   `example/iosApp/KotlinMultiplatformLinkedPackage` package. Gradle updates it
+   when dependencies change; resolve package versions in Xcode after updating.
+
+### Verify without CocoaPods
+
+```bash
+bash scripts/verify-swiftpm-build.sh
+```
+
+The script rejects every `pod` invocation. It runs the iOS simulator tests,
+links all three iOS architectures, builds the Xcode example, then publishes
+test artifacts into a temporary Maven repository and exercises them from an
+independent Kotlin project. Public registries are not modified.
+
 ### Updating OpenIAP Apple Version
 
 When a new version of openiap-apple or openiap-google is released:
 
-1. Update `openiap-versions.json` at the repository root.
+1. Let release CI update `openiap-versions.json` and its library mirrors.
 
-2. Keep `library/build.gradle.kts`, `library/library.podspec`, and
+2. Keep `library/build.gradle.kts` and
    `native/InAppPurchaseBridge/Package.swift` reading from
    `openiap-versions.json`; do not add hardcoded native dependency versions.
 

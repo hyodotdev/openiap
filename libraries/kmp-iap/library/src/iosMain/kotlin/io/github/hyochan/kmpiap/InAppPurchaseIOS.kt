@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import platform.Foundation.*
-import cocoapods.openiap.*
+import swiftPMImport.io.github.hyochan.library.*
 import platform.StoreKit.SKPaymentQueue
 import platform.darwin.NSObject
 

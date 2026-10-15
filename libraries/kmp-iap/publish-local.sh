@@ -64,7 +64,7 @@ echo "🧹 Cleaning previous build..."
 ./gradlew clean
 
 echo "🔨 Building and publishing to Maven Central..."
-./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
+./gradlew -PopeniapAppleRemote=true :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
 
 echo ""
 echo "🎉 Publishing completed successfully!"

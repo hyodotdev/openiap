@@ -597,11 +597,12 @@ function Releases() {
       date: new Date('2026-10-15'),
       element: (
         <div key="app-ownership-recovery-2026-10-15" style={noteCardStyle}>
+          <span id="kmp-swiftpm-2026-10-15" aria-hidden="true" />
           {APP_OWNERSHIP_RECOVERY_RELEASES.map((release) => (
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="app-ownership-recovery-2026-10-15" level="h4">
-            October 15, 2026 - Retry Apple app ownership checks
+            October 15, 2026 - Apple ownership retries and KMP SwiftPM
           </AnchorLink>
           <p>
             Apps can offer a Retry action after StoreKit&apos;s normal app
@@ -616,16 +617,47 @@ function Releases() {
             forwards the nested Apple settings, and godot-iap allows five
             minutes for the system authentication sheet during a refresh.
           </p>
-          <h5>Integration notes</h5>
+          <h5>KMP iOS</h5>
           <p>
-            Rebuild native apps after upgrading. Enable the flag only from a
-            user action; leave automatic startup and resume checks unset.
-            Transaction verification and revocation checks still apply. See the{' '}
-            <Link to="/docs/apis/verify-app-ownership">
-              app ownership guide
-            </Link>
-            .
+            kmp-iap resolves its Apple dependency through Swift Package Manager,
+            including when consumed from Maven. CocoaPods is no longer required
+            for KMP&apos;s iOS integration. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/issues/534">#534</a>.
           </p>
+          <h5>Integration notes</h5>
+          <ul>
+            <li>
+              Rebuild native apps after upgrading. Enable{' '}
+              <code>apple.refresh</code> only from a user action; leave
+              automatic startup and resume checks unset. Transaction
+              verification and revocation checks still apply. See the{' '}
+              <Link to="/docs/apis/verify-app-ownership">
+                app ownership guide
+              </Link>
+              .
+            </li>
+            <li>
+              Flutter custom ownership resolvers and handler functions must
+              accept the optional named{' '}
+              <code>VerifyAppOwnershipOptionsIOS? apple</code> parameter, even
+              if they ignore it.
+            </li>
+            <li>
+              For KMP, use Kotlin 2.4.20 or newer, a static shared framework,
+              and the generated <code>KotlinMultiplatformLinkedPackage</code> in
+              Xcode. Replace the shared module&apos;s CocoaPods integration and
+              manual OpenIAP embed scripts using the{' '}
+              <Link to="/docs/setup/kmp#ios-config">KMP setup guide</Link>.
+            </li>
+            <li>
+              Older KMP Android toolchains need Kotlin 2.4-compatible Lint and
+              R8; follow the{' '}
+              <Link to="/docs/setup/kmp#android-kotlin-metadata">
+                Android toolchain requirements
+              </Link>
+              .
+            </li>
+          </ul>
           <div
             style={{
               borderTop: '1px solid var(--border-color)',

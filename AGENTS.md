@@ -70,7 +70,7 @@ openiap/
    - [`libraries/expo-iap/AGENTS.md`](libraries/expo-iap/AGENTS.md) — Bun, Expo Modules, iOS podspec 13.4 workaround, tvOS 16.0 requirement
    - [`libraries/flutter_inapp_purchase/AGENTS.md`](libraries/flutter_inapp_purchase/AGENTS.md) — Flutter/Dart, generated types.dart, fetchProducts generic API
    - [`libraries/godot-iap/AGENTS.md`](libraries/godot-iap/AGENTS.md) — GDScript conventions, GDExtension (iOS), AAR plugin (Android)
-   - [`libraries/kmp-iap/AGENTS.md`](libraries/kmp-iap/AGENTS.md) — Kotlin Multiplatform, Flow-based API, CocoaPods iOS integration
+   - [`libraries/kmp-iap/AGENTS.md`](libraries/kmp-iap/AGENTS.md) — Kotlin Multiplatform, Flow-based API, SwiftPM iOS integration
    - [`libraries/maui-iap/AGENTS.md`](libraries/maui-iap/AGENTS.md) — .NET MAUI / C# 12, generated Types.cs, Android/iOS bindings
 
 ## Key Rules Summary

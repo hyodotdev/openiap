@@ -30,6 +30,9 @@ native/InAppPurchaseBridge/.build/
 native/InAppPurchaseBridge/DerivedData/
 native/InAppPurchaseBridge/Package.resolved
 native/openiap-apple/
+.swiftpm-locks/**
+!.swiftpm-locks/**/
+!.swiftpm-locks/**/Package.resolved
 
 # Environment files
 .env
