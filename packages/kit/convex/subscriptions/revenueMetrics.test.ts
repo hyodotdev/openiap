@@ -2630,6 +2630,22 @@ describe("rollup run — production and sandbox", () => {
     });
   });
 
+  it("marks the trial split for a project no earlier run finished", async () => {
+    // Stored two days before its first finished run: from before this release.
+    const old = new MemDb();
+    vi.setSystemTime(NOW - 2 * 24 * 60 * 60 * 1000);
+    await seedEvent(old, { type: "SubscriptionStarted" });
+    await recompute(makeCtx(old));
+    expect((await runStatus(old))?.trialSplitFromDay).toBe("2026-03-16");
+
+    // A new project's first run soon follows its first notification.
+    const fresh = new MemDb();
+    vi.setSystemTime(NOW - 60 * 60 * 1000);
+    await seedEvent(fresh, { type: "SubscriptionStarted" });
+    await recompute(makeCtx(fresh));
+    expect((await runStatus(fresh))?.trialSplitFromDay).toBeUndefined();
+  });
+
   it("never marks data collected from Amazon, which no counter reads", async () => {
     const db = new MemDb();
     await seedCurrentRunStatus(db, { lastNotificationAt: {} });

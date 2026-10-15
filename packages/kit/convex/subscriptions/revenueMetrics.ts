@@ -489,10 +489,12 @@ async function markRevenueMetricsRun(
       : run.firstDay;
   // A row an earlier release finished was built from notifications stored
   // without the trial, refund-reversal and resubscribe flags; the first full
-  // day after this upgrade is the first one ingested with them.
+  // day after this upgrade is the first one ingested with them. A project no
+  // earlier run finished is caught by a notification older than a day.
   const upgradedFromOldDefinitions =
-    existing?.lastRunAt !== undefined &&
-    existing.definitionsVersion === undefined;
+    existing?.definitionsVersion === undefined &&
+    (existing?.lastRunAt !== undefined ||
+      (await hasNotificationBefore(ctx, projectId, run.runStartedAt - DAY_MS)));
   const trialSplitFromDay =
     existing?.trialSplitFromDay ??
     (upgradedFromOldDefinitions
@@ -563,6 +565,18 @@ async function markRevenueMetricsRun(
       { projectId, asOf: run.runStartedAt, cursor: null, buckets: [] },
     );
   }
+}
+
+async function hasNotificationBefore(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  before: number,
+): Promise<boolean> {
+  const oldest = await ctx.db
+    .query("webhookEvents")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .first();
+  return oldest !== null && oldest._creationTime < before;
 }
 
 function latestNotifications(
