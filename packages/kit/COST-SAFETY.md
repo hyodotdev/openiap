@@ -62,16 +62,28 @@ disables a destination, bounding load when a receiver is unavailable.
 ## Analytics rollups
 
 Analytics run only in scheduled Convex mutations; no public request computes
-them, and the dashboard reads the small rollup and cohort tables.
+them, and the dashboard reads the small rollup and cohort tables, one
+environment at a time.
 
 - **Daily rows.** The 10-minute cron picks at most 100 projects per tick. Each
-  run pages the last 3 UTC days of `webhookEvents` (5,000 per mutation), then
-  the counted-state subscriptions, and replaces those days' rows.
+  run stamps its start on the project's run status, pages the last 3 UTC days
+  of `webhookEvents` (5,000 per mutation), then the counted-state
+  subscriptions, and replaces those days' rows. Google expirations without a
+  trial flag and Play voided purchases each add one indexed subscription read.
+- **Slices.** A wider run covers its window in 3-day slices, one after
+  another, each rereading events from its first day and the counted-state
+  subscriptions. The 30-day rebuild therefore costs about ten regular runs.
+- **Failed runs.** A run that started without finishing is not picked again
+  for an hour.
 - **Definitions rebuild.** When `ROLLUP_DEFINITIONS_VERSION` changes, each
   project's next run covers the retained 30 days once instead of 3.
-- **Late-event catch-up.** Only when a run finds notifications older than its
-  window that no catch-up covered. It recomputes from the oldest such day, at
-  most every 6 hours per project.
+- **Late-event catch-up.** Only when a run finds notifications that no
+  finished run covered. It recomputes from the oldest such day, at most every
+  6 hours per project.
+- **Stats rebuild.** When `STATS_DEFINITIONS_VERSION` changes, each project's
+  next rollup requests one `subscriptionStats` rebuild, retried at most every
+  6 hours until it commits. The upgrade that excluded sandbox triggers this
+  once per project.
 - **Cohorts.** At most once a day per project: one paginated pass over its
   `subscriptions` and a replace of at most 24 months × 2 environments ×
   currencies rows.

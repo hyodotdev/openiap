@@ -18,15 +18,19 @@ import { internal } from "../_generated/api";
 import { v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getWritableProject } from "../projects/writable";
-import { analyticsEnvironmentValidator } from "../utils/validation";
+import { receiptEnvironmentValidator } from "../utils/validation";
 import { isMisrecordedApplePass } from "./stateMachine";
-import { paidStartKind, subscriptionEnvironment } from "./analyticsFacts";
+import {
+  isInTrialAt,
+  paidStartKind,
+  subscriptionEnvironment,
+} from "./analyticsFacts";
 
 export const COHORT_MONTHS = 24;
 const COHORT_PAGE_SIZE = 5_000;
 
 const cohortBucketValidator = v.object({
-  environment: analyticsEnvironmentValidator,
+  environment: receiptEnvironmentValidator,
   month: v.string(),
   currency: v.string(),
   members: v.number(),
@@ -113,14 +117,10 @@ export function addSubscriptionToCohorts(
     if (month >= firstMonth) {
       const bucket = bucketFor(month);
       bucket.trialStarts += 1;
-      if (
-        facts.firstPaidAt !== undefined &&
-        facts.firstPaidAt >= trialStartedAt &&
-        facts.firstPaidAt <= asOf
-      ) {
+      if (isInTrialAt(facts, asOf)) {
+        if (hasAccessAt(sub, asOf)) bucket.trialsPending += 1;
+      } else if (paidStartKind(facts) === "trial_conversion") {
         bucket.trialConversions += 1;
-      } else if (hasAccessAt(sub, asOf)) {
-        bucket.trialsPending += 1;
       }
     }
   }

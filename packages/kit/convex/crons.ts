@@ -156,10 +156,11 @@ crons.interval(
 // rate-limited catch-up, and each run requests the daily cohort job.
 //
 // Every 10 minutes, not daily: daily at batchSize 50 took 10 days to cycle
-// 500 projects. The picker rotates through `revenueMetricsRunStatus.by_run`
-// at any cadence, and each project recomputes in its own scheduled mutation
-// (own 40k-read budget). 100 × 6/hour × 24h = 14,400 project-runs a day,
-// keeping a typical deployment current within minutes.
+// 500 projects. The picker rotates through
+// `revenueMetricsRunStatus.by_run_started` at any cadence, and each project
+// recomputes in its own scheduled mutation (own 40k-read budget). 100 ×
+// 6/hour × 24h = 14,400 project-runs a day, keeping a typical deployment
+// current within minutes.
 crons.interval(
   "recompute revenue metrics",
   { minutes: 10 },

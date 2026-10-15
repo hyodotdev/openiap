@@ -66,6 +66,23 @@ describe("nextAnalyticsFacts", () => {
     ).toBeNull();
   });
 
+  it("counts a Play refund from its voided purchase, never from the revocation", () => {
+    const paid = nextAnalyticsFacts(
+      undefined,
+      event({ type: "SubscriptionStarted", platform: "Android" }),
+    );
+    expect(
+      nextAnalyticsFacts(
+        paid ?? undefined,
+        event({
+          type: "SubscriptionRevoked",
+          platform: "Android",
+          cancellationReason: "Refunded",
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it("nets a refund against its reversal and ignores Family Sharing revokes", () => {
     const paid = nextAnalyticsFacts(
       undefined,
@@ -138,6 +155,18 @@ describe("paidStartKind", () => {
         refundedMicros: 0,
       },
       undefined,
+    ],
+    // Apple resubscribe after a lapsed trial: a new paid start, not the
+    // renewal that ends a trial.
+    [
+      {
+        trialStartedAt: 1,
+        firstPaidAt: 50,
+        firstPaidEventType: "SubscriptionStarted" as const,
+        paidMicros: 0,
+        refundedMicros: 0,
+      },
+      "direct",
     ],
   ])("classifies %j as %s", (facts, expected) => {
     expect(paidStartKind(facts)).toBe(expected);

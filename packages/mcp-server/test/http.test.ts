@@ -507,6 +507,7 @@ describe("remote MCP HTTP server", () => {
           dataState: "ready",
           lastRunAt: Date.parse("2026-06-04T00:10:00Z"),
           definitionsFromDay: "2026-05-06",
+          trialSplitFromDay: "2026-05-20",
           pendingLateEvents: 0,
           cohorts: [
             {
@@ -558,6 +559,7 @@ describe("remote MCP HTTP server", () => {
         environment: "Sandbox",
         dataState: "ready",
         lastRunAt: "2026-06-04T00:10:00.000Z",
+        trialSplitFromDay: "2026-05-20",
         pendingLateEvents: 0,
       });
       // Paid charges: one direct start, one conversion, one renewal.

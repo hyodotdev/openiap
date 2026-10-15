@@ -12,6 +12,12 @@ import { isMisrecordedApplePass } from "./stateMachine";
 import { subscriptionEnvironment } from "./analyticsFacts";
 import { getWritableProject } from "../projects/writable";
 
+// Bump when `statsContributionFor` changes what counts. Stored rows keep the
+// old totals until rebuilt, so each project's next revenue rollup then
+// requests one rebuild (see `markRevenueMetricsRun`), instead of waiting up to
+// a month for the drift-correction cron.
+export const STATS_DEFINITIONS_VERSION = 1;
+
 // Other states carry no MRR; metricsSummary counts the recent ones in its
 // 30-day scan.
 const COUNTED_STATES = ["Active", "InGracePeriod", "InBillingRetry"] as const;
@@ -411,6 +417,19 @@ async function runRecomputePageInline(
         updatedAt: now,
       });
     }
+  }
+
+  const runStatus = await ctx.db
+    .query("revenueMetricsRunStatus")
+    .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+    .unique();
+  if (
+    runStatus &&
+    runStatus.statsDefinitionsVersion !== STATS_DEFINITIONS_VERSION
+  ) {
+    await ctx.db.patch(runStatus._id, {
+      statsDefinitionsVersion: STATS_DEFINITIONS_VERSION,
+    });
   }
 }
 

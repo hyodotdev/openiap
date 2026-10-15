@@ -109,6 +109,52 @@ describe("ProjectAnalytics data states", () => {
     );
   });
 
+  it("counts trials and churn only from the trial split day, and says why", () => {
+    const yesterday = new Date(Date.now() - 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const row = {
+      currency: "USD",
+      productId: "premium",
+      platform: "IOS",
+      activeSubs: 4,
+      renewals: 0,
+      cancellations: 0,
+      refunds: 0,
+      revenueMicros: 0,
+      refundedMicros: 0,
+    };
+    mocks.state.metrics = response({
+      dataState: "ready",
+      lastRunAt: Date.now(),
+      trialSplitFromDay: today,
+      currencies: ["USD"],
+      days: [
+        // Before the split the trial counters and expirations are omitted.
+        { ...row, day: yesterday, newSubs: 3 },
+        {
+          ...row,
+          day: today,
+          activeTrials: 1,
+          newSubs: 1,
+          trialStarts: 1,
+          trialConversions: 0,
+          directPaidStarts: 0,
+          expirations: 1,
+        },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    expect(screen.getByText("Trial split starts mid-range")).toBeTruthy();
+    expect(screen.getByText("Trials started").parentElement?.textContent).toBe(
+      `Trials started1From ${today}`,
+    );
+    // One paid expiry of the four paid subscriptions the split day started with.
+    expect(screen.getByText("Churn").parentElement?.textContent).toBe(
+      `Churn25.0%1 expired of 4 paid at start, from ${today}`,
+    );
+  });
+
   it("shows late notifications and the cohort table when data is ready", () => {
     mocks.state.metrics = response({
       dataState: "ready",

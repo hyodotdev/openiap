@@ -27,7 +27,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Trial conversions",
     definition:
-      "A subscription's first paid charge after its free trial. It is not counted as a renewal.",
+      "The paid charge that ends a subscription's free trial. It is not counted as a renewal; a purchase after a lapsed trial is a direct paid start.",
   },
   {
     name: "Direct paid starts",
@@ -46,12 +46,12 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Expirations / churn",
     definition:
-      "Expirations count paid access that actually ended. Churn is expirations in the period divided by active subscriptions at the start of the period.",
+      "Expirations count paid access that actually ended; a free trial that ended unpaid is not churn. Churn is expirations in the period divided by paid subscriptions active at its start.",
   },
   {
     name: "Refunds",
     definition:
-      "Refund notifications less refund reversals. Apple Family Sharing revocations are not refunds.",
+      "Apple refunds and Google Play voided purchases, less refund reversals: one per refund. Revocations are not refunds: Apple's are Family Sharing removals, and Play's arrive with the voided purchase.",
   },
   {
     name: "Active subscriptions",
@@ -154,9 +154,10 @@ export default function AnalyticsPage() {
       </div>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          <strong>Sandbox.</strong> Production is the default everywhere,
-          including MRR and live counts. Sandbox and Xcode purchases appear only
-          when you switch the tab, or pass <code>environment=sandbox</code>.
+          <strong>Sandbox.</strong> The daily series and cohorts are production
+          by default; Sandbox and Xcode purchases appear when you switch the tab
+          or pass <code>environment=sandbox</code>. Live counts and MRR are
+          production only, with no sandbox view.
         </li>
         <li>
           <strong>Google intro prices.</strong> Play reports a base plan&apos;s
@@ -210,8 +211,10 @@ export default function AnalyticsPage() {
       <p className="mt-3">Each response says which state a window is in:</p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          <code>not_collected</code>: no store notification has reached the
-          project.
+          <code>not_collected</code>: no Apple, Google or Amazon notification
+          has reached the project. Test notifications and re-syncs don&apos;t
+          count, so a project that only verifies purchases stays here even
+          though its active subscriptions have rows.
         </li>
         <li>
           <code>processing</code>: notifications arrived but the window is not
@@ -229,9 +232,14 @@ export default function AnalyticsPage() {
       <p>
         Rows before <code>definitionsFromDay</code> were computed under earlier
         definitions: they include sandbox purchases and have no trial split.
-        Trial starts and conversions are classified for notifications received
-        from this release on; the retained 30 days are rebuilt once with the
-        other fixes, but earlier notifications keep their old trial treatment.
+      </p>
+      <p className="mt-3">
+        Notifications stored before <code>trialSplitFromDay</code> lack the
+        free-trial and refund-reversal flags. Those days omit trial starts,
+        conversions, direct paid starts, active trials, and expirations; on
+        them, Google free trials count as paid starts and Apple refund reversals
+        as new subscriptions. A trial that started earlier counts as paid until
+        it ends.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">API and MCP</h2>
@@ -239,10 +247,23 @@ export default function AnalyticsPage() {
         <code>GET /v1/subscriptions/revenue?fromDay=&amp;toDay=</code> with a
         secret key returns the daily rows. Optional{" "}
         <code>environment=sandbox</code> and <code>cohorts=true</code> add the
-        sandbox series and the cohort rows. The MCP{" "}
-        <code>iapkit_revenue_analytics</code> tool takes the same options and
+        sandbox series and the cohort rows. Each response echoes its{" "}
+        <code>environment</code>, <code>definitionsFromDay</code>, and{" "}
+        <code>trialSplitFromDay</code>.{" "}
+        <code>GET /v1/subscriptions/metrics</code> returns live counts and MRR
+        with <code>environment: &quot;Production&quot;</code>. The MCP{" "}
+        <code>iapkit_revenue_analytics</code> tool takes the revenue options and
         returns the definitions with its totals.
       </p>
+
+      <Callout kind="warning" title="Changed in this release">
+        <p>
+          <code>/v1/subscriptions/revenue</code> and{" "}
+          <code>/v1/subscriptions/metrics</code> now exclude Sandbox by default,
+          and refunds, trials, and billing recoveries follow the definitions
+          above. Compare earlier exports with care.
+        </p>
+      </Callout>
 
       <Callout kind="note" title="Analytics never gate access">
         <p>

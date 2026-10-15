@@ -53,7 +53,8 @@ type Cohort = NonNullable<RevenueMetrics["cohorts"]>[number];
 const DAY_MS = 86_400_000;
 
 // Every counter a rollup row carries. Rows written before the current
-// definitions lack the newer ones, which read as 0.
+// definitions lack the newer ones, and days before `trialSplitFromDay` lack
+// the trial counters and expirations; both read as 0.
 const COUNTERS = [
   "activeSubs",
   "activeTrials",
@@ -308,6 +309,17 @@ export default function ProjectAnalytics() {
     }));
   }, [lifecycleSeries, revenueSeries]);
 
+  // Days before the split omit trial counters and expirations, so churn
+  // starts from the first day that has them.
+  const trialSplitFromDay = metrics?.trialSplitFromDay;
+  const splitDaily = useMemo(
+    () =>
+      trialSplitFromDay === undefined
+        ? lifecycleDaily
+        : lifecycleDaily.filter((row) => row.dayKey >= trialSplitFromDay),
+    [lifecycleDaily, trialSplitFromDay],
+  );
+
   const totals = useMemo(() => {
     const sum = zeroCounters();
     for (const row of lifecycleDaily) {
@@ -327,14 +339,15 @@ export default function ProjectAnalytics() {
       refundedMicros: revenue.refunded,
       activeSubsLast: last?.activeSubs ?? 0,
       activeTrialsLast: last?.activeTrials ?? 0,
-      activeAtStart: lifecycleDaily[0]?.activeStart ?? 0,
+      paidAtStart: splitDaily[0]?.paidAtStart ?? 0,
     };
-  }, [lifecycleDaily, reportingRevenueDaily]);
+  }, [lifecycleDaily, splitDaily, reportingRevenueDaily]);
 
-  // Churn counts access that actually ended, not auto-renew turned off.
+  // Churn counts paid access that actually ended, not auto-renew turned off
+  // or a free trial that ran out.
   const churnRate =
-    totals.activeAtStart > 0
-      ? (totals.expirations / totals.activeAtStart) * 100
+    totals.paidAtStart > 0
+      ? (totals.expirations / totals.paidAtStart) * 100
       : 0;
 
   // Same split as above: counts span currencies, revenue is one currency.
@@ -381,6 +394,14 @@ export default function ProjectAnalytics() {
   const legacyDays =
     metrics.definitionsFromDay !== undefined &&
     fromDay < metrics.definitionsFromDay;
+  const unsplitDays =
+    trialSplitFromDay !== undefined && fromDay < trialSplitFromDay;
+  // Trial and churn figures need at least one day with the split.
+  const hasSplitNumbers = hasNumbers && splitDaily.length > 0;
+  const splitCount = (value: number): string =>
+    hasSplitNumbers ? value.toString() : "—";
+  const splitDetail = (detail?: string): string | undefined =>
+    hasSplitNumbers && unsplitDays ? `From ${trialSplitFromDay}` : detail;
 
   return (
     <div className="space-y-6">
@@ -413,6 +434,15 @@ export default function ProjectAnalytics() {
           )}
         </p>
       </div>
+
+      {unsplitDays && (
+        <Notice icon={AlertCircle} title="Trial split starts mid-range">
+          Notifications before {trialSplitFromDay} were stored without the
+          free-trial and refund-reversal flags. Those days show no trial counts
+          or expirations, Google free trials count as paid starts, and Apple
+          refund reversals count as new subscriptions.
+        </Notice>
+      )}
 
       {dataState === "not_collected" && (
         // Only ASN v2 / RTDN report renewals, cancels, and refunds, so
@@ -612,25 +642,28 @@ export default function ProjectAnalytics() {
           label="Active subscriptions"
           value={count(totals.activeSubsLast)}
           detail={
-            hasNumbers ? `${totals.activeTrialsLast} in free trial` : undefined
+            hasSplitNumbers
+              ? `${totals.activeTrialsLast} in free trial`
+              : undefined
           }
         />
         <SummaryCard
           icon={UserPlus}
           label="Trials started"
-          value={count(totals.trialStarts)}
+          value={splitCount(totals.trialStarts)}
+          detail={splitDetail()}
         />
         <SummaryCard
           icon={UserCheck}
           label="Trial conversions"
-          value={count(totals.trialConversions)}
-          detail="First paid charge after a trial"
+          value={splitCount(totals.trialConversions)}
+          detail={splitDetail("Paid charge that ends a trial")}
         />
         <SummaryCard
           icon={TrendingUp}
           label="Direct paid starts"
-          value={count(totals.directPaidStarts)}
-          detail="Paid from day one, no trial"
+          value={splitCount(totals.directPaidStarts)}
+          detail={splitDetail("Paid from day one, no trial")}
         />
         <SummaryCard
           icon={RefreshCw}
@@ -647,10 +680,12 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={LogOut}
           label="Churn"
-          value={hasNumbers ? `${churnRate.toFixed(1)}%` : "—"}
+          value={hasSplitNumbers ? `${churnRate.toFixed(1)}%` : "—"}
           detail={
-            hasNumbers
-              ? `${totals.expirations} expired of ${totals.activeAtStart} active at start`
+            hasSplitNumbers
+              ? `${totals.expirations} expired of ${totals.paidAtStart} paid at start${
+                  unsplitDays ? `, from ${trialSplitFromDay}` : ""
+                }`
               : undefined
           }
         />
@@ -816,7 +851,7 @@ export default function ProjectAnalytics() {
 
           <ChartCard
             title="Churn rate"
-            subtitle="Expirations / active subscriptions at period start, %"
+            subtitle="Paid expirations / paid subscriptions at period start, %"
           >
             <ResponsiveContainer width="100%" height={240}>
               <LineChart
@@ -1085,11 +1120,11 @@ function CohortTable({
   );
 }
 
-type DayPoint = DailyRow & { dayKey: string; activeStart: number };
+type DayPoint = DailyRow & { dayKey: string; paidAtStart: number };
 
 // Collapses rollup rows (one per currency, product, and platform) into one
-// row per day. Callers filter first, so summing here is safe. `activeStart` is
-// the previous day's snapshot, the churn denominator.
+// row per day. Callers filter first, so summing here is safe. `paidAtStart`,
+// the churn denominator, is the previous day's paid (not in trial) snapshot.
 function aggregateByDay(
   rows: MetricRow[],
   rangeDays: number,
@@ -1125,12 +1160,12 @@ function aggregateByDay(
 
   for (let i = 0; i < rangeDays; i++) {
     const dayKey = utcDayKey(fromTs + i * DAY_MS);
-    const activeStart = lastActive;
+    const paidAtStart = lastActive - lastTrials;
     const entry = byDay.get(dayKey);
     if (entry) {
       lastActive = entry.activeSubs;
       lastTrials = entry.activeTrials;
-      result.push({ ...entry, dayKey, activeStart });
+      result.push({ ...entry, dayKey, paidAtStart });
     } else {
       // Carry the snapshot forward (no event = no change that period). For
       // event-driven counters a no-event period is genuinely zero.
@@ -1140,7 +1175,7 @@ function aggregateByDay(
         dayKey,
         activeSubs: lastActive,
         activeTrials: lastTrials,
-        activeStart,
+        paidAtStart,
       });
     }
   }
@@ -1148,7 +1183,7 @@ function aggregateByDay(
 }
 
 // Weeks are ISO (Mon–Sun), months are calendar months. Counters and revenue
-// are summed; snapshots take the bucket's last day and `activeStart` its
+// are summed; snapshots take the bucket's last day and `paidAtStart` its
 // first, since summing a snapshot would multiply it by the number of days.
 function bucketByPeriod(
   daily: DayPoint[],
@@ -1182,8 +1217,8 @@ function bucketByPeriod(
     .map((bucket) => ({
       ...bucket,
       churnPct:
-        bucket.activeStart > 0
-          ? (bucket.expirations / bucket.activeStart) * 100
+        bucket.paidAtStart > 0
+          ? (bucket.expirations / bucket.paidAtStart) * 100
           : 0,
     }));
 }

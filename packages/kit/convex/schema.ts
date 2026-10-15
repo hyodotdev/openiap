@@ -3,12 +3,13 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
-  analyticsEnvironmentValidator,
   cancellationReasonValidator,
   dataProvenanceValidator,
   deliveryAttemptValidator,
   paidStartValidator,
   purchaseIssueCauseValidator,
+  receiptEnvironmentValidator,
+  storeEnvironmentValidator,
   subscriptionStateValidator,
 } from "./utils/validation";
 
@@ -33,10 +34,8 @@ export const purchaseStoreValidator = v.union(
   v.literal("amazon"),
 );
 
-export const receiptEnvironmentValidator = v.union(
-  v.literal("Sandbox"),
-  v.literal("Production"),
-);
+// Re-exported for the modules that import it from the schema.
+export { receiptEnvironmentValidator };
 
 export const purchaseRequestDataValidator = v.union(
   v.object({
@@ -637,11 +636,7 @@ const schema = defineSchema({
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     store: v.optional(purchaseStoreValidator),
-    environment: v.union(
-      v.literal("Production"),
-      v.literal("Sandbox"),
-      v.literal("Xcode"),
-    ),
+    environment: storeEnvironmentValidator,
     // Absent only on TestNotification, which carries no transaction; every
     // lifecycle event sets it (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
@@ -725,13 +720,7 @@ const schema = defineSchema({
     // Store environment of the governing event or verified transaction.
     // Unset on rows written before it existed; metrics treat those as
     // production.
-    environment: v.optional(
-      v.union(
-        v.literal("Production"),
-        v.literal("Sandbox"),
-        v.literal("Xcode"),
-      ),
-    ),
+    environment: v.optional(storeEnvironmentValidator),
     // Analytics facts accumulated from verified store events. Order
     // independent (earliest timestamps, summed money), and never read by
     // entitlement or verification paths.
@@ -770,11 +759,7 @@ const schema = defineSchema({
       v.object({
         type: v.optional(v.string()),
         store: v.optional(purchaseStoreValidator),
-        environment: v.union(
-          v.literal("Production"),
-          v.literal("Sandbox"),
-          v.literal("Xcode"),
-        ),
+        environment: storeEnvironmentValidator,
         productId: v.optional(v.string()),
         applicationId: v.optional(v.string()),
         transactionId: v.optional(v.string()),
@@ -885,7 +870,7 @@ const schema = defineSchema({
     // Also part of the key, so the dashboard can chart revenue per store.
     // Strict because `webhookEvents` and `subscriptions` allow only these two.
     platform: v.union(v.literal("IOS"), v.literal("Android")),
-    environment: v.optional(analyticsEnvironmentValidator),
+    environment: v.optional(receiptEnvironmentValidator),
     activeSubs: v.number(),
     activeTrials: v.optional(v.number()),
     newSubs: v.number(),
@@ -901,47 +886,63 @@ const schema = defineSchema({
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
-    // Dashboard read path: `getRevenueMetrics` range-scans a project's window
-    // by day, then filters product, platform and currency in memory (the
-    // window is typically tens of rows).
+    // The rollup commit replaces a project's rows one day at a time.
     .index("by_project_and_day_and_currency", ["projectId", "day", "currency"])
-    .index("by_project_and_product_and_day_and_currency", [
+    // Dashboard read path: `getRevenueMetrics` range-scans one environment's
+    // days, so sandbox rows never use production's scan budget.
+    .index("by_project_and_environment_and_day", [
       "projectId",
-      "productId",
+      "environment",
       "day",
-      "currency",
     ]),
 
   // Rotation state for the `recomputeAllRevenueMetrics` cron, which picks the
-  // oldest `lastRunAt` first. Separate from the subscription-stats rotation so
-  // the two crons rotate independently.
+  // oldest `runStartedAt` first. Separate from the subscription-stats rotation
+  // so the two crons rotate independently.
   //
   // At most one row per project. Convex has no unique constraint, so upsert
   // through `by_project` as `markRevenueMetricsRun` does; a duplicate gets its
   // project picked twice.
   revenueMetricsRunStatus: defineTable({
     projectId: v.id("projects"),
-    lastRunAt: v.number(),
+    // Start of the latest run that finished: its rows are current as of then.
+    lastRunAt: v.optional(v.number()),
+    // Start of the latest run. Past `lastRunAt` while a run is in flight or
+    // after it failed; the picker leaves such a project alone for a while.
+    runStartedAt: v.optional(v.number()),
     // Rows from `definitionsFromDay` on follow definitions version
     // `definitionsVersion`; a run that finds an older version rebuilds the
     // retained event window first.
     definitionsVersion: v.optional(v.number()),
     definitionsFromDay: v.optional(v.string()),
+    // Notifications before this day were stored without the free-trial and
+    // refund-reversal flags, so the counters that need them are not reported
+    // for earlier days. Unset when every computed day has them.
+    trialSplitFromDay: v.optional(v.string()),
+    // Latest real Apple, Google or Amazon notification a run has seen. Unset
+    // means none reached the project: its counters are not collected.
+    lastStoreNotificationAt: v.optional(v.number()),
     // Notifications that arrived after their day left the trailing window and
-    // no catch-up has folded in yet. A catch-up recomputes from the oldest
-    // such day; `lastCatchUpAt`/`lastCatchUpFromDay` record what the latest
-    // wide run covered.
+    // no finished run has folded in yet. A catch-up recomputes from the oldest
+    // such day.
     pendingLateEvents: v.optional(v.number()),
     oldestPendingLateDay: v.optional(v.string()),
     catchUpRequestedAt: v.optional(v.number()),
-    lastCatchUpAt: v.optional(v.number()),
-    lastCatchUpFromDay: v.optional(v.string()),
+    // What finished runs recomputed: every event received by `at` for a day
+    // from `fromDay` on. Only entries no later run supersedes are kept.
+    coverage: v.optional(
+      v.array(v.object({ at: v.number(), fromDay: v.string() })),
+    ),
     // Cohort job cadence: requested at most once a day.
     cohortsRequestedAt: v.optional(v.number()),
     cohortsComputedAt: v.optional(v.number()),
+    // `subscriptionStats` was last rebuilt under this version of
+    // `statsContributionFor`; a run requests a rebuild while it lags.
+    statsDefinitionsVersion: v.optional(v.number()),
+    statsRequestedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
-    .index("by_run", ["lastRunAt"]),
+    .index("by_run_started", ["runStartedAt"]),
 
   // Monthly paid cohorts and trial cohorts per (projectId, environment,
   // month, currency), rebuilt daily from `subscriptions.analytics`. A paid
@@ -949,7 +950,7 @@ const schema = defineSchema({
   // UTC month the free trial started.
   revenueCohortsMonthly: defineTable({
     projectId: v.id("projects"),
-    environment: analyticsEnvironmentValidator,
+    environment: receiptEnvironmentValidator,
     month: v.string(), // YYYY-MM, UTC
     currency: v.string(),
     members: v.number(),
