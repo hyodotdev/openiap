@@ -18,6 +18,7 @@ import {
   AmazonSandboxNotEnabledError,
   AmazonSharedSecretNotConfiguredError,
 } from "./errors";
+import { purchaseDigest } from "../purchaseIssues/evidence";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
   isValidState,
@@ -70,9 +71,11 @@ function actionContext(projectRow = project()) {
     }
     return 1;
   });
+  const runAfter = vi.fn().mockResolvedValue(null);
   return {
-    ctx: { runQuery, runMutation } as never,
+    ctx: { runQuery, runMutation, scheduler: { runAfter } } as never,
     runMutation,
+    runAfter,
   };
 }
 
@@ -346,6 +349,41 @@ describe("verifyAmazonReceiptInternalV1", () => {
         state: HarmonizedPurchaseState.ENTITLED,
       }),
     );
+  });
+
+  test("records a sandbox mismatch under the fingerprint of the purchase it saved", async () => {
+    const { ctx, runMutation, runAfter } = actionContext(
+      project({ amazonSandboxEnabled: true }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(validReceipt()))),
+    );
+
+    await runVerify(ctx, {
+      sandbox: true,
+      expectedProductId: "different.product",
+    });
+
+    const [saved] = savedReceipts(runMutation);
+    expect(saved.remoteId).toBe(
+      buildAmazonRemoteId({
+        userId: USER_ID,
+        receiptId: RECEIPT_ID,
+        sandbox: true,
+      }),
+    );
+    expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+      projectId: expect.anything(),
+      issue: {
+        cause: "PRODUCT_MISMATCH",
+        store: "amazon",
+        digest: await purchaseDigest("amazon", String(saved.remoteId)),
+        productId: PRODUCT_ID,
+        claimedProductId: "different.product",
+        environment: "Sandbox",
+      },
+    });
   });
 
   test.each([

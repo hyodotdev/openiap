@@ -65,9 +65,10 @@ that shard's least recently seen row. An hourly cron deletes rows older than 30
 days, 200 at a time. The edge limiter below still bounds every publishable-key
 request before it reaches Convex.
 
-## Operator re-send and re-sync
+## Operator re-send, re-sync, and delivery history
 
-Both need a project owner or admin, or a secret key behind the edge limiter.
+Re-send and re-sync need a project owner or admin, or a secret key behind the
+edge limiter. Members can also read delivery history.
 
 - **Re-send.** One mutation: point reads of the delivery, its event and its
   destination, an indexed read of at most 30 recent re-sends, and two writes,
@@ -87,7 +88,14 @@ Both need a project owner or admin, or a secret key behind the edge limiter.
   notification, updates the row, and emits at most one entitlement event. A
   verify that disagrees with a re-synced subscription but cannot prove it is
   newer schedules one such re-sync of that subscription from the same bucket,
-  and is dropped when the bucket is empty.
+  at most once an hour per subscription however often the app verifies, and is
+  dropped when the bucket is empty. An expired Apple transaction does not
+  disagree with billing retry or grace.
+- **Delivery history.** Every filter combination reads its own
+  `outboundDeliveries` index, so a page, and the dashboard's live view of it,
+  reads only the rows it returns plus a point read of each row's event and
+  destination. Only the event filter drops rows after reading them, and an
+  event has at most one delivery per destination.
 
 ## Outbound commerce worker
 

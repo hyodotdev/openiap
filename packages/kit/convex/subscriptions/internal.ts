@@ -399,10 +399,10 @@ async function applyLifecycleEvent(
     });
   }
 
-  // Compare with the last persisted gate; today's clock may already have expired it.
-  const previouslyActive = priorStoreSnapshot
-    ? isActive(priorStoreSnapshot, priorStoreSnapshot.updatedAt)
-    : false;
+  const previouslyActive =
+    reportedEntitlement(existingByCurrentToken) ??
+    reportedEntitlement(linkedExisting) ??
+    false;
   const noOpResult = (): ApplySubscriptionEventResult => ({
     transition: null,
     active: existing ? isActive(existing, now) : false,
@@ -573,7 +573,7 @@ async function applyLifecycleEvent(
     storedEvent.type === "SubscriptionStarted" &&
     storedEvent.linkedPurchaseToken !== undefined &&
     priorStoreSnapshot !== null &&
-    previouslyActive;
+    isActive(priorStoreSnapshot, priorStoreSnapshot.updatedAt);
   const effectiveTransition = linkedStartedOnActivePredecessor
     ? transition.next?.productId !== priorStoreSnapshot.productId
       ? "ProductChanged"
@@ -612,8 +612,8 @@ async function applyLifecycleEvent(
       ...(existing ? { subscriptionId: existing._id } : {}),
     };
   }
-  // A re-sync already read the store at or after this event: emit its
-  // lifecycle event, but keep the re-synced state.
+  // A re-sync already read the store at or after this event, so its state
+  // stands. The event is reported only when it names that state (SPEC 9.1).
   const next =
     current &&
     orderingExisting?.resyncedAt !== undefined &&
@@ -646,13 +646,16 @@ async function applyLifecycleEvent(
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
   const active = entitlementActive(next, now);
-  const commerceTransition = linkedStartedOnActivePredecessor
-    ? effectiveTransition
-    : firstStoreEventAfterVerification
-      ? "Started"
-      : priceOrDeferralWithoutBaseline
-        ? null
-        : effectiveTransition;
+  const commerceTransition =
+    next.state !== transition.next.state
+      ? null
+      : linkedStartedOnActivePredecessor
+        ? effectiveTransition
+        : firstStoreEventAfterVerification
+          ? "Started"
+          : priceOrDeferralWithoutBaseline
+            ? null
+            : effectiveTransition;
   await emitCommerceEvent(ctx, {
     projectId: args.projectId,
     transition: commerceTransition ?? null,
@@ -924,7 +927,8 @@ export async function recordVerifiedSubscriptionHandler(
   if (existing && predatesResync(existing, args)) {
     // Evidence the re-sync may already cover, yet it disagrees: an Apple
     // refund reversal keeps its purchase date. Ask the store, never guess.
-    if (next.state !== existing.state) {
+    if (disputesResync(existing, next.state, now)) {
+      await ctx.db.patch(existing._id, { resyncDisputedAt: now });
       await ctx.scheduler.runAfter(
         0,
         internal.subscriptions.action.resyncDisputedSubscription,
@@ -990,6 +994,41 @@ function predatesResync(
     (incoming.evidenceAt === undefined ||
       incoming.evidenceAt <= stored.resyncedAt)
   );
+}
+
+export const RESYNC_DISPUTE_COOLDOWN_MS = 60 * 60 * 1_000;
+
+// A transaction cannot show billing retry or grace: there its period simply
+// ended, so Expired evidence agrees with both. A real dispute re-reads the
+// store at most once per cooldown, however often the app verifies.
+function disputesResync(
+  stored: Pick<Doc<"subscriptions">, "state" | "resyncDisputedAt">,
+  verifiedState: SubscriptionState,
+  now: number,
+): boolean {
+  if (verifiedState === stored.state) return false;
+  if (
+    verifiedState === "Expired" &&
+    (stored.state === "InBillingRetry" || stored.state === "InGracePeriod")
+  ) {
+    return false;
+  }
+  return (stored.resyncDisputedAt ?? 0) + RESYNC_DISPUTE_COOLDOWN_MS <= now;
+}
+
+/**
+ * The entitlement gate a row's owner was last told, or undefined when nothing
+ * was: a store event reports it (a late bind repeats its grant), and so does a
+ * re-sync that reached the owner; a verify alone reports nothing. Read at the
+ * row's own `updatedAt`, since today's clock may already have closed it.
+ */
+export function reportedEntitlement(
+  row: Doc<"subscriptions"> | null,
+): boolean | undefined {
+  if (!row || (row.lastEventId === undefined && !row.resyncReported)) {
+    return undefined;
+  }
+  return isActive(row, row.updatedAt);
 }
 
 export async function persistSubscriptionSnapshot(
@@ -1447,6 +1486,7 @@ export async function rebindSubscriptionToUserHandler(
   await ctx.db.patch(sub._id, {
     userId: args.userId,
     accountErased: undefined,
+    resyncReported: undefined,
     updatedAt: now,
   });
   if (!entitled) return { subscriptionId: sub._id, notified: true };
@@ -1678,6 +1718,7 @@ export async function drainSubscriptionUserErasurePage(
     await ctx.db.patch(subscription._id, {
       userId: undefined,
       accountErased: true,
+      resyncReported: undefined,
     });
   }
   for (const purchase of purchases) {

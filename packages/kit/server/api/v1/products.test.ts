@@ -1517,6 +1517,35 @@ describe("productsRoutes", () => {
     );
   });
 
+  it("publishes the draft when the body is empty, since every field is optional", async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValueOnce({
+      id: "payload-id",
+      created: false,
+      changed: true,
+      version: 2,
+      updatedAt: 1,
+    });
+
+    const response = await app.request(
+      "/products/client-payload/premium/publish?platform=IOS",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer openiap-kit_sk_secret" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "publishProductClientPayloadDraftWithApiKey",
+      {
+        apiKey: "openiap-kit_sk_secret",
+        productId: "premium",
+        platform: "IOS",
+      },
+    );
+  });
+
   it("validates payload lifecycle inputs before Convex", async () => {
     const app = buildApp();
     const headers = {
@@ -1561,7 +1590,7 @@ describe("productsRoutes", () => {
         `${base}/draft?platform=IOS&expectedDraftRevision=x`,
         { method: "DELETE", headers },
       ],
-      [`${base}/publish?platform=IOS`, { method: "POST", headers }],
+      [`${base}/publish?platform=IOS`, { method: "POST", headers, body: "[]" }],
       [
         `${base}/publish?platform=IOS`,
         {

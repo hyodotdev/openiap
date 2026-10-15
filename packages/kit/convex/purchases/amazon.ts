@@ -356,6 +356,7 @@ export const verifyAmazonReceiptInternalV1 = action({
           store: "amazon",
           userId: args.userId,
           receiptId: args.receiptId,
+          sandbox: args.sandbox,
         },
         expectedProductId: args.expectedProductId,
         correlationId: args.correlationId,

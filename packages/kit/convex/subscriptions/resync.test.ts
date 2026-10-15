@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import Ajv from "ajv/dist/2020.js";
+import {
+  commerceEventSchema,
+  primitivesSchema,
+} from "@hyodotdev/openiap-commerce-protocol";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = { userId: "users_1" as string | null };
 vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
@@ -15,15 +20,70 @@ const {
   getResyncTarget,
 } = await import("./resync");
 const { testableFunction } = await import("../test.setup");
-const { applySubscriptionEventHandler, recordVerifiedSubscriptionHandler } =
-  await import("./internal");
+const {
+  applySubscriptionEventHandler,
+  bindSubscriptionToUserHandler,
+  drainSubscriptionUserErasurePage,
+  rebindSubscriptionToUserHandler,
+  recordVerifiedSubscriptionHandler,
+  RESYNC_DISPUTE_COOLDOWN_MS,
+} = await import("./internal");
 const { HarmonizedPurchaseState } = await import("../purchases/purchaseState");
 const { recordWebhookEventHandler } = await import("../webhooks/internal");
 const { resolveOperatorProject } = await import("../projects/helpers");
+const { buildEventPayload } = await import("../commerce/deliveryState");
 
 type Db = InstanceType<typeof MemoryDb>;
 const ctxOf = (db: Db) => ({ db }) as never;
 const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const TOKEN = "2000000000000001";
+
+// The wire bodies, each held to the protocol's own event schema, which pairs
+// every state-naming lifecycle event with its state.
+function deliveredBodies(db: Db) {
+  const ajv = new Ajv({ strict: true, allErrors: true });
+  ajv.addSchema(primitivesSchema, "primitives.schema.json");
+  const validate = ajv.compile(commerceEventSchema);
+  return db.rows("commerceEvents").map((row) => {
+    const body = buildEventPayload(row as never);
+    expect(validate(body), JSON.stringify(validate.errors)).toBe(true);
+    return body;
+  });
+}
+
+const typesAndUsers = (db: Db) =>
+  deliveredBodies(db).map((body) => [body.eventType, body.userId]);
+
+type StoreEvent = Parameters<typeof recordWebhookEventHandler>[1]["event"];
+
+// An Apple notification, recorded and applied as the webhook path does.
+async function applyStoreEvent(
+  db: Db,
+  sourceNotificationId: string,
+  event: Pick<StoreEvent, "type" | "occurredAt"> & Partial<StoreEvent>,
+) {
+  const { eventId } = await recordWebhookEventHandler(ctxOf(db), {
+    projectId: "projects_1" as never,
+    source: "apple",
+    sourceNotificationId,
+    event: {
+      sourceFull: "AppleAppStoreServerNotificationsV2",
+      platform: "IOS",
+      store: "apple",
+      environment: "Production",
+      purchaseToken: TOKEN,
+      originalTransactionId: TOKEN,
+      productKind: "subscription",
+      productId: "premium_monthly",
+      ...event,
+    },
+  });
+  await applySubscriptionEventHandler(ctxOf(db), {
+    projectId: "projects_1" as never,
+    eventId,
+  });
+}
 
 // A mutation ctx whose scheduled calls are recorded, not run.
 function schedulingCtx(db: Db) {
@@ -114,6 +174,7 @@ describe("applyStoreResync", () => {
       createdAt: 1,
       updatedAt: 1,
     });
+    // A row a store event already governs and reported to its owner.
     return db.insert("subscriptions", {
       projectId: "projects_1",
       purchaseToken: "2000000000000001",
@@ -125,6 +186,7 @@ describe("applyStoreResync", () => {
       willRenew: true,
       startedAt: 1,
       updatedAt: Date.now(),
+      lastEventId: "webhookEvents_seed",
       lastEventOccurredAt: 1,
       ...overrides,
     });
@@ -225,46 +287,84 @@ describe("applyStoreResync", () => {
     }
   });
 
-  it("still emits an older notification's event without rolling state back", async () => {
+  it("keeps the re-synced state and drops an older event naming another state", async () => {
     const db = new MemoryDb();
     const subscriptionId = await seed(db);
     await applyStoreResyncHandler(ctxOf(db), expired);
 
-    // DID_RENEW from before the re-sync, delivered after it.
-    const { eventId } = await recordWebhookEventHandler(ctxOf(db), {
-      projectId: "projects_1" as never,
-      source: "apple",
-      sourceNotificationId: "late-did-renew",
-      event: {
-        type: "SubscriptionRenewed",
-        sourceFull: "AppleAppStoreServerNotificationsV2",
-        platform: "IOS",
-        store: "apple",
-        environment: "Production",
-        purchaseToken: "2000000000000001",
-        originalTransactionId: "2000000000000001",
-        productKind: "subscription",
-        productId: "premium_monthly",
-        expiresAt: expired.observedAt + HOUR,
-        willRenew: true,
-        occurredAt: expired.observedAt - 1_000,
-      },
-    });
-    await applySubscriptionEventHandler(ctxOf(db), {
-      projectId: "projects_1" as never,
-      eventId,
+    // DID_RENEW from before the re-sync, delivered after it: reporting it
+    // would pair `subscription.renewed` with the Expired state.
+    await applyStoreEvent(db, "late-did-renew", {
+      type: "SubscriptionRenewed",
+      expiresAt: expired.observedAt + HOUR,
+      willRenew: true,
+      occurredAt: expired.observedAt - 1_000,
     });
 
-    expect(db.rows("commerceEvents").map((row) => row.eventType)).toEqual([
-      "entitlement.revoked",
-      "subscription.renewed",
-    ]);
+    expect(typesAndUsers(db)).toEqual([["entitlement.revoked", "owner-1"]]);
     expect(await db.get(subscriptionId)).toMatchObject({
       state: "Expired",
       expiresAt: 1_000,
       resyncedAt: expired.observedAt,
       lastEventOccurredAt: expired.observedAt - 1_000,
     });
+  });
+
+  it("reports an older event naming the re-synced state, with that state", async () => {
+    const db = new MemoryDb();
+    await seed(db);
+    const renewedUntil = expired.observedAt + 30 * DAY;
+    // The re-sync sees a renewal whose notification is still on its way.
+    await applyStoreResyncHandler(ctxOf(db), {
+      ...expired,
+      snapshot: {
+        productId: "premium_monthly",
+        state: "Active",
+        expiresAt: renewedUntil,
+        willRenew: true,
+      },
+    });
+
+    await applyStoreEvent(db, "late-did-renew", {
+      type: "SubscriptionRenewed",
+      transactionId: "2000000000000002",
+      expiresAt: renewedUntil,
+      willRenew: true,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+      amountProvenance: "store",
+      occurredAt: expired.observedAt - 1_000,
+    });
+
+    expect(deliveredBodies(db)).toEqual([
+      {
+        eventId: expect.any(String),
+        eventType: "subscription.renewed",
+        eventVersion: "1.0",
+        occurredAt: expired.observedAt - 1_000,
+        processedAt: expect.any(Number),
+        store: "apple",
+        environment: "production",
+        projectId: "projects_1",
+        userId: "owner-1",
+        productId: "premium_monthly",
+        transactionId: "2000000000000002",
+        originalTransactionId: TOKEN,
+        subscription: {
+          state: "Active",
+          productId: "premium_monthly",
+          expiresAt: renewedUntil,
+          willRenew: true,
+          active: true,
+        },
+        price: {
+          currency: "USD",
+          amountMicros: 9_990_000,
+          provenance: "store",
+        },
+        sourceStoreEventId: "late-did-renew",
+      },
+    ]);
   });
 
   it("does not resurrect a replaced Google token", async () => {
@@ -284,12 +384,131 @@ describe("applyStoreResync", () => {
   });
 });
 
+describe("the entitlement baseline after a re-sync", () => {
+  // A verify-created row: nothing has been reported to anyone yet.
+  async function verifiedRow(db: Db, active = false) {
+    seedProject(db, "admin");
+    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      platform: "IOS",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: active
+        ? HarmonizedPurchaseState.ENTITLED
+        : HarmonizedPurchaseState.EXPIRED,
+      expiresAt: Date.now() + (active ? DAY : -DAY),
+      verifiedPurchaseDate: Date.now() - 31 * DAY,
+      evidenceAt: Date.now() - 31 * DAY,
+    });
+  }
+  const bind = (db: Db, userId: string) =>
+    bindSubscriptionToUserHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      purchaseToken: TOKEN,
+      userId,
+    });
+  const resyncActive = (db: Db) =>
+    applyStoreResyncHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      platform: "IOS",
+      store: "apple",
+      purchaseToken: TOKEN,
+      observedAt: Date.now(),
+      snapshot: {
+        productId: "premium_monthly",
+        state: "Active",
+        expiresAt: Date.now() + 30 * DAY,
+        willRenew: true,
+      },
+      context: { environment: "Production" },
+    });
+  const renew = (db: Db) =>
+    applyStoreEvent(db, "did-renew", {
+      type: "SubscriptionRenewed",
+      expiresAt: Date.now() + 60 * DAY,
+      willRenew: true,
+      occurredAt: Date.now() + 1_000,
+    });
+
+  it("is the grant a re-sync sent, so the next store event does not repeat it", async () => {
+    // A verify that called the row active still told nobody.
+    for (const verifiedActive of [false, true]) {
+      const db = new MemoryDb();
+      await verifiedRow(db, verifiedActive);
+      await bind(db, "owner-1");
+      await resyncActive(db);
+      expect(typesAndUsers(db)).toEqual([["entitlement.granted", "owner-1"]]);
+
+      await renew(db);
+      expect(typesAndUsers(db)).toEqual([
+        ["entitlement.granted", "owner-1"],
+        ["subscription.renewed", "owner-1"],
+      ]);
+    }
+  });
+
+  it("is still closed when the owner binds after the re-sync", async () => {
+    const db = new MemoryDb();
+    await verifiedRow(db);
+    await resyncActive(db);
+    await bind(db, "owner-1");
+    expect(typesAndUsers(db)).toEqual([]);
+
+    await renew(db);
+    expect(typesAndUsers(db)).toEqual([
+      ["subscription.renewed", "owner-1"],
+      ["entitlement.granted", "owner-1"],
+    ]);
+  });
+
+  it("is closed again for an owner the row moved to", async () => {
+    for (const move of ["rebind", "erase and bind"] as const) {
+      const db = new MemoryDb();
+      await verifiedRow(db);
+      await bind(db, "owner-1");
+      await resyncActive(db);
+      if (move === "rebind") {
+        await rebindSubscriptionToUserHandler(ctxOf(db), {
+          projectId: "projects_1" as never,
+          purchaseToken: TOKEN,
+          userId: "owner-2",
+        });
+      } else {
+        const jobId = await db.insert("subscriptionUserErasureJobs", {
+          projectId: "projects_1",
+          userId: "owner-1",
+          userIdHash: "digest",
+          status: "queued",
+          subscriptionsErased: 0,
+          commerceEventsErased: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await drainSubscriptionUserErasurePage(
+          { db, scheduler: { runAfter: vi.fn() } } as never,
+          jobId as never,
+        );
+        await bind(db, "owner-2");
+      }
+
+      await renew(db);
+      expect(typesAndUsers(db).slice(-2), move).toEqual([
+        ["subscription.renewed", "owner-2"],
+        ["entitlement.granted", "owner-2"],
+      ]);
+    }
+  });
+});
+
 describe("a verify after a re-sync", () => {
-  const DAY = 24 * HOUR;
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const appleResync = (
     observedAt: number,
     snapshot: {
-      state: "Active" | "Revoked";
+      state: "Active" | "Revoked" | "InBillingRetry" | "InGracePeriod";
       expiresAt: number;
       cancellationReason?: "Refunded";
     },
@@ -415,6 +634,86 @@ describe("a verify after a re-sync", () => {
       appleResync(now + HOUR, { state: "Active", expiresAt: now + 20 * DAY }),
     );
     expect(db.rows("subscriptions")).toMatchObject([{ state: "Active" }]);
+  });
+
+  // The app's latest transaction: its period ended, so Apple calls it expired.
+  const latestTransaction = (now: number) => ({
+    projectId: "projects_1" as never,
+    platform: "IOS" as const,
+    purchaseToken: TOKEN,
+    productId: "premium_monthly",
+    expiresAt: now - HOUR,
+    verifiedPurchaseDate: now - 30 * DAY,
+    evidenceAt: now - 30 * DAY,
+  });
+
+  it("takes an Expired transaction as agreeing with billing retry and grace", async () => {
+    for (const state of ["InBillingRetry", "InGracePeriod"] as const) {
+      const db = new MemoryDb();
+      seedProject(db, "admin");
+      const { ctx, runAfter } = schedulingCtx(db);
+      const now = Date.now();
+      await recordVerifiedSubscriptionHandler(ctx, {
+        ...latestTransaction(now),
+        purchaseState: HarmonizedPurchaseState.ENTITLED,
+        verifiedSignedDate: now - 30 * DAY,
+      });
+      await applyStoreResyncHandler(
+        ctx,
+        appleResync(now, { state, expiresAt: now + DAY }),
+      );
+
+      for (const signedAt of [1, 2, 3]) {
+        await recordVerifiedSubscriptionHandler(ctx, {
+          ...latestTransaction(now),
+          purchaseState: HarmonizedPurchaseState.EXPIRED,
+          verifiedSignedDate: now + signedAt,
+        });
+      }
+      expect(runAfter, state).not.toHaveBeenCalled();
+      expect(db.rows("subscriptions")).toMatchObject([{ state }]);
+    }
+  });
+
+  it("re-reads the store for a real dispute at most once an hour", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const { ctx, runAfter } = schedulingCtx(db);
+    const now = Date.now();
+    await recordVerifiedSubscriptionHandler(ctx, {
+      ...latestTransaction(now),
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      verifiedSignedDate: now - 30 * DAY,
+    });
+    // The re-sync sees a renewal the app has not verified.
+    await applyStoreResyncHandler(
+      ctx,
+      appleResync(now, { state: "Active", expiresAt: now + 30 * DAY }),
+    );
+    const replay = () =>
+      recordVerifiedSubscriptionHandler(ctx, {
+        ...latestTransaction(now),
+        purchaseState: HarmonizedPurchaseState.EXPIRED,
+        verifiedSignedDate: Date.now(),
+      });
+
+    await replay();
+    await replay();
+    await replay();
+    expect(scheduledNames(runAfter)).toEqual([
+      "subscriptions/action:resyncDisputedSubscription",
+    ]);
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", resyncDisputedAt: now },
+    ]);
+
+    vi.setSystemTime(now + RESYNC_DISPUTE_COOLDOWN_MS - 1);
+    await replay();
+    expect(runAfter).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(now + RESYNC_DISPUTE_COOLDOWN_MS);
+    await replay();
+    expect(runAfter).toHaveBeenCalledTimes(2);
   });
 
   it("applies a Google read made after the re-sync, never one made before it", async () => {

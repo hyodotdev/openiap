@@ -600,6 +600,7 @@ products.post(
     const payload = await readClientPayloadObject(
       c,
       "Body must be a JSON object",
+      { emptyAsObject: true },
     );
     if (payload instanceof Response) return payload;
     const expectedVersion = parseOptionalBodyVersion(payload.expectedVersion);
@@ -1239,6 +1240,7 @@ function notFound(c: Context, message: string) {
 async function readClientPayloadObject(
   c: Context,
   missingMessage: string,
+  options?: { emptyAsObject: boolean },
 ): Promise<Record<string, unknown> | Response> {
   let body: unknown;
   try {
@@ -1246,6 +1248,7 @@ async function readClientPayloadObject(
       c.req.raw,
       MAX_CLIENT_PAYLOAD_BODY_BYTES,
       "Product client payload is too large",
+      options,
     );
   } catch (error) {
     if (error instanceof JsonBodyTooLargeError) {

@@ -252,7 +252,10 @@ export default function ProductsPage() {
           A stale browser tab gets <code>CLIENT_PAYLOAD_VERSION_CONFLICT</code>{" "}
           or <code>CLIENT_PAYLOAD_DRAFT_CONFLICT</code> instead of overwriting a
           newer edit; <strong>Load latest</strong> refreshes it and keeps
-          unsaved edits.
+          unsaved edits. Each conflict names what it compared:{" "}
+          <code>expectedVersion</code> and <code>actualVersion</code>, or{" "}
+          <code>expectedDraftRevision</code> and{" "}
+          <code>actualDraftRevision</code>.
         </li>
       </ul>
       <p>
@@ -334,7 +337,7 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
               ["DELETE /draft?expectedDraftRevision=N", "{ ok }"],
               [
                 "POST /publish",
-                "{ expectedVersion?, expectedDraftRevision?, note? }",
+                "{ expectedVersion?, expectedDraftRevision?, note? }, or no body",
               ],
               ["GET /history", "{ versions } newest first, without bodies"],
               ["GET /history/{version}", "{ version } with its body"],
