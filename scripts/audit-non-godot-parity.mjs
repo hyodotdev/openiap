@@ -4773,7 +4773,9 @@ function checkFrameworkDependencyHygiene() {
       '"merge-base", "--is-ancestor"',
       "metadata version is",
       "does not match its origin tag commit at verification time",
-      "is not reachable from origin/",
+      "is not reachable from ${sourceLabel}",
+      "sourceCommit !== historicalNextArchive.commit",
+      "The historical archive only verifies prereleases",
     ],
     "existing release tag provenance guard",
   );

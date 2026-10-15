@@ -37,7 +37,10 @@ import {
   validateVersion,
   withUpdatedNativeVersion,
 } from "./release-branch-policy.mjs";
-import { assertReleaseTag } from "./assert-release-tag.mjs";
+import {
+  assertReleaseTag,
+  historicalNextArchive,
+} from "./assert-release-tag.mjs";
 import { findUnnotedSourceChanges } from "./audit-release-notes.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,7 +60,7 @@ const releaseWorkflows = {
   },
 };
 
-const prereleaseCiWorkflows = [
+const frameworkCiWorkflows = [
   "ci-expo-iap.yml",
   "ci-flutter-inapp-purchase.yml",
   "ci-godot-iap.yml",
@@ -718,7 +721,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
   for (const [packageId, tag, metadata] of cases) {
     assert.doesNotThrow(() =>
       assertReleaseTag(
-        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        { packageId, source: "main", tag, expectedVersion: "3.1.0" },
         gitMock(tag, metadata),
       ),
     );
@@ -728,7 +731,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
     assertReleaseTag(
       {
         packageId: "commerce-protocol",
-        branch: "main",
+        source: "main",
         tag: "openiap-commerce-protocol-0.1.0",
         expectedVersion: "0.1.0",
       },
@@ -753,7 +756,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
   assert.throws(
     () =>
       assertReleaseTag(
-        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        { packageId, source: "main", tag, expectedVersion: "3.1.0" },
         gitMock(tag, metadata, { metadata: "libraryVersion=9.9.9\n" }),
       ),
     /metadata version is 9\.9\.9, expected 3\.1\.0/,
@@ -761,7 +764,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
   assert.throws(
     () =>
       assertReleaseTag(
-        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        { packageId, source: "main", tag, expectedVersion: "3.1.0" },
         gitMock(tag, metadata, { remoteTagCommit: "d".repeat(40) }),
       ),
     /does not match its origin tag commit at verification time/,
@@ -769,10 +772,75 @@ test("existing release tags must match metadata, origin, and release-branch ance
   assert.throws(
     () =>
       assertReleaseTag(
-        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        { packageId, source: "main", tag, expectedVersion: "3.1.0" },
         gitMock(tag, metadata, { offBranch: true }),
       ),
     /is not reachable from origin\/main/,
+  );
+});
+
+test("historical RC verification uses pinned archive ancestry without a next branch", () => {
+  const tag = "openiap-0.2.0-rc.0";
+  const tagCommit = "b".repeat(40);
+  const archiveRef = `refs/tags/${historicalNextArchive.tag}`;
+  const options = {
+    packageId: "cli",
+    source: "archive-next",
+    tag,
+    expectedVersion: "0.2.0-rc.0",
+  };
+  function verify(overrides = {}) {
+    const calls = [];
+    assertReleaseTag(options, (args) => {
+      calls.push(args);
+      switch (args[0]) {
+        case "show":
+          return '{"version":"0.2.0-rc.0"}';
+        case "rev-parse":
+          return args[1] === `${archiveRef}^{commit}`
+            ? (overrides.archiveCommit ?? historicalNextArchive.commit)
+            : tagCommit;
+        case "ls-remote":
+          return `${tagCommit}\trefs/tags/${tag}`;
+        case "fetch":
+          if (overrides.missingArchive) throw new Error("archive tag missing");
+          return "";
+        case "merge-base":
+          if (overrides.offArchive) throw new Error("not an ancestor");
+          return "";
+        default:
+          throw new Error(`Unexpected git command: ${args.join(" ")}`);
+      }
+    });
+    return calls;
+  }
+  const calls = verify();
+  assert.deepEqual(
+    calls.find(([command]) => command === "fetch"),
+    ["fetch", "--no-tags", "origin", `${archiveRef}:${archiveRef}`],
+  );
+  assert.deepEqual(calls.at(-1), [
+    "merge-base",
+    "--is-ancestor",
+    tagCommit,
+    historicalNextArchive.commit,
+  ]);
+  assert.throws(
+    () => verify({ archiveCommit: "c".repeat(40) }),
+    /must point to/,
+  );
+  assert.throws(
+    () => verify({ offArchive: true }),
+    /is not reachable from archive/,
+  );
+  assert.throws(() => verify({ missingArchive: true }), /archive tag missing/);
+  assert.throws(
+    () => assertReleaseTag({ ...options, expectedVersion: "0.2.0" }),
+    /archive only verifies prereleases/,
+  );
+  assert.throws(
+    () => assertReleaseTag({ ...options, source: "next" }),
+    /source must be main or archive-next/,
   );
 });
 
@@ -2404,16 +2472,11 @@ test("Godot verifies notarization without stapling flat frameworks", () => {
   assert.doesNotMatch(workflow, /xcrun stapler/u);
 });
 
-test("next receives the same core and framework CI coverage", () => {
-  const coreCi = readWorkflow("ci.yml");
-  assert.equal((coreCi.match(/^\s+- next$/gm) ?? []).length, 2);
-  for (const filename of prereleaseCiWorkflows) {
-    const workflow = readWorkflow(filename);
-    assert.equal(
-      (workflow.match(/branches: \[main, next\]/g) ?? []).length,
-      2,
-      filename,
-    );
+test("core, framework and CodeQL branch CI only targets main", () => {
+  for (const filename of ["ci.yml", "codeql.yml", ...frameworkCiWorkflows]) {
+    const workflow = parseYaml(readWorkflow(filename));
+    assert.deepEqual(workflow.on.pull_request.branches, ["main"], filename);
+    assert.deepEqual(workflow.on.push.branches, ["main"], filename);
   }
 });
 
@@ -2423,7 +2486,7 @@ test("Commerce Protocol current retries cannot reuse an unscoped npm release", (
       assertReleaseTag(
         {
           packageId: "commerce-protocol",
-          branch: "main",
+          source: "main",
           tag: "openiap-commerce-protocol-0.1.0",
           expectedVersion: "0.1.0",
           expectedName: "@hyodotdev/openiap-commerce-protocol",

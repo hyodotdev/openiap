@@ -2,7 +2,7 @@ name: CI - react-native-iap
 
 on:
   pull_request:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/react-native-iap/**"
       - "libraries/expo-iap/android/**"
@@ -32,7 +32,7 @@ on:
       - "package.json"
       - "!**/*.md"
   push:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/react-native-iap/**"
       - "libraries/expo-iap/android/**"

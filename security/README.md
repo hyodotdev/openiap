@@ -63,7 +63,7 @@ contributors look for it.
 | Release SBOM            | `scripts/generate-sbom.mjs` + `.github/workflows/sbom.yml` — [CycloneDX 1.6](https://cyclonedx.org/specification/overview/)                                                                                         |
 | SBOM provenance         | [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — [SLSA](https://slsa.dev/provenance/v1) via [Sigstore](https://www.sigstore.dev/), verifiable with `gh attestation verify` |
 | npm artifact provenance | `npm publish --provenance`, re-verified by `scripts/verify-npm-release-provenance.mjs`                                                                                                                              |
-| Release identity        | `scripts/assert-release-tag.mjs` — tag/version/full commit verified at check time, with the commit reachable from its release branch (`main` for new releases; historical `next` tags remain valid)                 |
+| Release identity        | `scripts/assert-release-tag.mjs` — tag/version/full commit verified at check time, with ancestry from `main` for new releases or a protected, commit-pinned archive tag for historical RCs                          |
 | Publish authorization   | `scripts/npm-publish-authorization.mjs` — publishing runs only from a verified release tag                                                                                                                          |
 | Dependency monitoring   | `bun run audit:dependencies`, OSV-Scanner, Bun dependency submission, and [Dependabot](https://docs.github.com/en/code-security/dependabot)                                                                         |
 | Static analysis         | [CodeQL](https://codeql.github.com/) with `security-extended` queries for JavaScript/TypeScript, C#, Actions, traced JVM Kotlin core/wrapper builds, and traced Swift core/wrapper builds                           |
@@ -71,7 +71,7 @@ contributors look for it.
 | Secret prevention       | GitHub secret scanning and push protection                                                                                                                                                                          |
 | Repository posture      | [`ossf/scorecard-action`](https://github.com/ossf/scorecard-action) — [OpenSSF Scorecard](https://scorecard.dev/), results in code scanning                                                                         |
 | Vulnerability reporting | [`../SECURITY.md`](../SECURITY.md) — private reporting, 72-hour acknowledgment                                                                                                                                      |
-| Release-branch policy   | `scripts/release-branch-policy.mjs` + `scripts/deploy.sh` — explicit stable/RC dispatches from `main`; production docs require stable metadata and public release links                                            |
+| Release-branch policy   | `scripts/release-branch-policy.mjs` + `scripts/deploy.sh` — explicit stable/RC dispatches from `main`; production docs require stable metadata and public release links                                             |
 
 ## Dependency monitoring coverage
 

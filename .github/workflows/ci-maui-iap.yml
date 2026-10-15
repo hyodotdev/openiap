@@ -2,7 +2,7 @@ name: CI - maui-iap
 
 on:
   pull_request:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/maui-iap/**"
       - "specs/client/**"
@@ -19,7 +19,7 @@ on:
       - ".java-version"
       - "!**/*.md"
   push:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/maui-iap/**"
       - "specs/client/**"

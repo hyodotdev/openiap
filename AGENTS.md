@@ -198,8 +198,8 @@ library versions live in each library's own metadata. See
   [Git Commit Message Format](knowledge/internal/06-git-deployment.md#git-commit-message-format).
 - Package releases run from `main` through explicit workflow dispatches;
   merging publishes nothing, and Vercel deploys docs from `main`. Read
-  `.claude/commands/release.md` before any deployment, and never reset or
-  delete the historical `next` branch without approval. Policy:
+  `.claude/commands/release.md` before any deployment. Historical RC sources
+  are retained by a protected archive tag; never change or delete it. Policy:
   [Main And Release Channels](knowledge/internal/06-git-deployment.md#main-and-release-channels).
 
 ## Agent Tooling

@@ -17,6 +17,7 @@ import test from "node:test";
 import { parse } from "yaml";
 import { releasePackage } from "./release-openiap.mjs";
 import { isolateGitEnvironment } from "./git-test-environment.mjs";
+import { historicalNextArchive } from "./assert-release-tag.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const entries = [
@@ -497,7 +498,7 @@ test("metadata audit accepts RC and stable docs while rejecting drift", (t) => {
   );
 });
 
-test("SBOM provenance accepts new main RCs and historical next RCs only", (t) => {
+test("SBOM recovery verifies archived RCs after both next branch refs are deleted", (t) => {
   const { directory, write } = fixture(t);
   const origin = join(directory, "origin.git");
   const checkout = join(directory, "checkout");
@@ -525,15 +526,40 @@ test("SBOM provenance accepts new main RCs and historical next RCs only", (t) =>
   git("checkout", "-b", "next");
   commit("0.2.0-rc.0", "openiap-0.2.0-rc.0");
   commit("0.2.0", "openiap-0.2.0");
+  const archiveCommit = git("rev-parse", "HEAD").toString().trim();
+  git(
+    "tag",
+    "-a",
+    historicalNextArchive.tag,
+    "-m",
+    "Archive historical RC ancestry",
+  );
   git("checkout", "main");
   commit("0.3.0-rc.0", "openiap-0.3.0-rc.0");
   git("checkout", "-b", "unreviewed");
   commit("0.4.0-rc.0", "openiap-0.4.0-rc.0");
   git("push", "--all", "origin");
   git("push", "--tags", "origin");
+  git("push", "origin", "--delete", "next");
+  git("branch", "-D", "next");
+  assert.equal(
+    git(
+      "for-each-ref",
+      "--format=%(refname)",
+      "refs/heads/next",
+      "refs/remotes/origin/next",
+    ).toString(),
+    "",
+  );
   for (const name of ["assert-release-tag.mjs", "release-branch-policy.mjs"]) {
     mkdirSync(join(checkout, "scripts"), { recursive: true });
-    copyFileSync(join(root, "scripts", name), join(checkout, "scripts", name));
+    writeFileSync(
+      join(checkout, "scripts", name),
+      readFileSync(join(root, "scripts", name), "utf8").replace(
+        historicalNextArchive.commit,
+        archiveCommit,
+      ),
+    );
   }
   const workflow = parse(
     readFileSync(join(root, ".github/workflows/sbom.yml"), "utf8"),
@@ -563,6 +589,21 @@ test("SBOM provenance accepts new main RCs and historical next RCs only", (t) =>
       `${version}: ${result.stdout}${result.stderr}`,
     );
   }
+  git("tag", "-f", historicalNextArchive.tag, "HEAD");
+  git("push", "--force", "origin", `refs/tags/${historicalNextArchive.tag}`);
+  const tampered = spawnSync(
+    process.execPath,
+    [
+      "scripts/assert-release-tag.mjs",
+      "cli",
+      "archive-next",
+      "openiap-0.4.0-rc.0",
+      "0.4.0-rc.0",
+    ],
+    { cwd: checkout, env, encoding: "utf8" },
+  );
+  assert.equal(tampered.status, 1);
+  assert.match(tampered.stderr, /must point to/);
 });
 
 test("documented npm RC promotion retains the stable base version", (t) => {

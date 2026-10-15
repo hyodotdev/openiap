@@ -5,11 +5,17 @@ import { fileURLToPath } from "node:url";
 
 import {
   libraryReleaseTags,
+  isPrereleaseVersion,
   nativeReleaseGates,
   openiapNpmPackages,
   validateVersion,
   versionSources,
 } from "./release-branch-policy.mjs";
+
+export const historicalNextArchive = Object.freeze({
+  tag: "archive/next-2026-10-15",
+  commit: "4197922b5f71f1ebe0d7b95aaae13b625b25ab94",
+});
 
 const releaseTags = {
   ...Object.fromEntries(
@@ -77,20 +83,23 @@ function parseRemoteTagCommit(output, tag) {
 }
 
 export function assertReleaseTag(
-  { packageId, branch, tag, expectedVersion, expectedName },
+  { packageId, source, tag, expectedVersion, expectedName },
   runGit = defaultRunGit,
 ) {
   const config = PACKAGE_CONFIG[packageId];
   if (!config) {
     throw new Error(`Unsupported release package: ${packageId}`);
   }
-  if (!new Set(["main", "next"]).has(branch)) {
+  if (!new Set(["main", "archive-next"]).has(source)) {
     throw new Error(
-      `Release tag branch must be main or next, received ${branch}`,
+      `Release tag source must be main or archive-next, received ${source}`,
     );
   }
 
   const version = validateVersion(expectedVersion, `${packageId} version`);
+  if (source === "archive-next" && !isPrereleaseVersion(version)) {
+    throw new Error("The historical archive only verifies prereleases");
+  }
   if (!config.tags(version).includes(tag)) {
     throw new Error(
       `Unexpected ${packageId} release tag ${tag} for ${version}`,
@@ -141,36 +150,44 @@ export function assertReleaseTag(
     );
   }
 
-  const remoteBranch = `refs/remotes/origin/${branch}`;
-  runGit([
-    "fetch",
-    "--no-tags",
-    "origin",
-    `refs/heads/${branch}:${remoteBranch}`,
+  const archived = source === "archive-next";
+  const remoteRef = archived
+    ? `refs/tags/${historicalNextArchive.tag}`
+    : "refs/heads/main";
+  const localRef = archived ? remoteRef : "refs/remotes/origin/main";
+  runGit(["fetch", "--no-tags", "origin", `${remoteRef}:${localRef}`]);
+  const sourceCommit = runGit([
+    "rev-parse",
+    archived ? `${localRef}^{commit}` : localRef,
   ]);
-  const remoteHead = runGit(["rev-parse", remoteBranch]);
+  if (archived && sourceCommit !== historicalNextArchive.commit) {
+    throw new Error(
+      `${historicalNextArchive.tag} must point to ${historicalNextArchive.commit}, received ${sourceCommit}`,
+    );
+  }
+  const sourceLabel = archived ? historicalNextArchive.tag : "origin/main";
   try {
-    runGit(["merge-base", "--is-ancestor", localTagCommit, remoteHead]);
+    runGit(["merge-base", "--is-ancestor", localTagCommit, sourceCommit]);
   } catch {
     throw new Error(
-      `${tag} at ${localTagCommit} is not reachable from origin/${branch} at ${remoteHead}`,
+      `${tag} at ${localTagCommit} is not reachable from ${sourceLabel} at ${sourceCommit}`,
     );
   }
 
   console.log(
-    `Release tag verified: ${tag} (${version}) is reachable from origin/${branch}`,
+    `Release tag verified: ${tag} (${version}) is reachable from ${sourceLabel}`,
   );
 }
 
 async function main() {
-  const [packageId, branch, tag, expectedVersion, expectedName] =
+  const [packageId, source, tag, expectedVersion, expectedName] =
     process.argv.slice(2);
-  if (!packageId || !branch || !tag || !expectedVersion) {
+  if (!packageId || !source || !tag || !expectedVersion) {
     throw new Error(
-      "Usage: node scripts/assert-release-tag.mjs <package> <branch> <tag> <version> [npm-package-name]",
+      "Usage: node scripts/assert-release-tag.mjs <package> <source> <tag> <version> [npm-package-name]",
     );
   }
-  assertReleaseTag({ packageId, branch, tag, expectedVersion, expectedName });
+  assertReleaseTag({ packageId, source, tag, expectedVersion, expectedName });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -2,7 +2,7 @@ name: CI - kmp-iap
 
 on:
   pull_request:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/kmp-iap/**"
       - "packages/google/**"
@@ -16,7 +16,7 @@ on:
       - ".java-version"
       - "!**/*.md"
   push:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/kmp-iap/**"
       - "packages/google/**"

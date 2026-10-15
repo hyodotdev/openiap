@@ -2,7 +2,7 @@ name: CI - flutter_inapp_purchase
 
 on:
   pull_request:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/flutter_inapp_purchase/**"
       - "specs/client/src/generated/types.dart"
@@ -28,7 +28,7 @@ on:
       - "scripts/verify-horizon-merged-manifest.mjs"
       - "!**/*.md"
   push:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/flutter_inapp_purchase/**"
       - "specs/client/src/generated/types.dart"

@@ -307,9 +307,10 @@ merging a PR does not publish a package.
 - Vercel automatically deploys main's documentation, including RC metadata
   and release cards that precede package publication. Docs deployment does
   not publish packages.
-- Historical `next` tags stay immutable and retain their source branch for
-  verification and SBOM recovery. New work does not need a `next` branch.
-  Do not force-reset or delete the historical branch without explicit approval.
+- Historical RC release tags stay immutable. Their ancestry is preserved by
+  the protected archive tag pinned in `scripts/assert-release-tag.mjs`, so SBOM
+  recovery does not need the former `next` branch. Never change or delete the
+  archive tag or the historical release tags.
 - Keep the eventual stable release card with its source PR; do not add a second
   card for each RC publication.
 
@@ -381,10 +382,11 @@ the current branch tip as an unverified substitute.
 Before any `current` retry checks out an existing release tag, run
 `scripts/assert-release-tag.mjs`. The guard must prove that the local tag matches
 the immutable origin tag, its package metadata declares the expected version,
-and its peeled commit is reachable from the validated `main` release branch. Historical RC tags
-on `next` are retained for SBOM verification; release a new RC from `main`
-instead of retrying an old tag through the new publishing lane. Do this before executing build scripts or loading package content from
-the tag; a matching tag name alone is not reviewed-branch provenance.
+and its peeled commit is reachable from the validated `main` release branch.
+Historical RCs use the pinned archive tag for SBOM verification; release a new
+RC from `main` instead of retrying an old tag through the new publishing lane.
+Do this before executing build scripts or loading package content from the tag;
+a matching tag name alone is not reviewed-source provenance.
 
 When `current` must create a missing tag for a version that is not yet published,
 the workflow creates an empty provenance-recovery commit and atomically pushes

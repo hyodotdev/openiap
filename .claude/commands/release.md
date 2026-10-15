@@ -31,9 +31,9 @@ Inspect the complete public payload before publishing it.
 - Vercel automatically deploys production docs from `main`, including RC
   metadata and release cards ahead of publication. Docs deployment does not
   publish packages.
-- Historical `next` tags remain immutable. The old branch is retained for tag
-  verification and SBOM recovery; new work and releases do not need it. Do not
-  force-reset or delete it without explicit maintainer approval.
+- Historical RC release tags and their archive tag remain immutable. SBOM
+  recovery verifies the archive commit pinned in `scripts/assert-release-tag.mjs`;
+  it does not need the former `next` branch.
 
 `scripts/release-branch-policy.mjs` enforces source branch and version
 consistency; `scripts/deploy.sh` enforces production-doc eligibility.
@@ -76,7 +76,7 @@ bun run audit:release-state
 3. Dispatch each package workflow with `--ref main` and `prerelease=true` for
    its first RC. Use `version=rc-bump` for later RCs where supported. Apple later
    RCs use `target_version`; every first RC starts at `rc.1`. Historical RC
-   tags on `next` remain immutable; use a new RC from `main` rather than retrying
+   release tags remain immutable; use a new RC from `main` rather than retrying
    those tags through the new release lane.
 4. Verify the public registry, immutable tag and published-artifact consumer
    before continuing. Publish native RCs before their framework dependents.
@@ -302,9 +302,9 @@ independent version edits:
 Every `current` retry that finds an existing tag must run
 `scripts/assert-release-tag.mjs` before checking it out. The guard binds the
 expected package version to the tag's own metadata, the local tag to the
-immutable origin tag, and the peeled tag commit to the validated `main` or
-`next` branch. Never execute package build scripts merely because an existing
-tag has the expected name.
+immutable origin tag, and the peeled tag commit to the validated `main` branch.
+SBOM recovery uses the pinned archive for historical RCs. Never execute package
+build scripts merely because an existing tag has the expected name.
 
 Do not reuse review or E2E evidence from an earlier commit. A head change always
 restarts both gates.

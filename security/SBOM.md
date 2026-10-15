@@ -16,6 +16,11 @@ SBOMs are generated from released manifests and registry descriptors, shipped
 native declarations, and hash-pinned embedded binaries. No one edits an SBOM by
 hand, and none are committed to the repository.
 
+Historical RC recovery verifies release-tag ancestry against the protected
+archive tag and exact commit pinned in `scripts/assert-release-tag.mjs`.
+It does not require the former `next` branch. New releases verify ancestry
+against `main`.
+
 ## Scope
 
 One SBOM per **releasable component**, not one per repository. A single
@@ -28,20 +33,20 @@ The releasable components are defined by `versionSources` in
 from either, so a component cannot be released without also being described.
 The distribution and release-tag columns are prose and are not machine-checked:
 
-| Component           | SBOM name                   | Distribution                               | Release tag                           |
-| ------------------- | --------------------------- | ------------------------------------------ | ------------------------------------- |
-| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager           | `<version>`                           |
-| `google`            | `openiap-google`            | Maven Central                              | `google-<version>`                    |
-| `react-native`      | `react-native-iap`          | npm                                        | `react-native-iap-<version>`          |
-| `expo`              | `expo-iap`                  | npm                                        | `expo-iap-<version>`                  |
-| `conformance`       | `openiap-conformance`       | npm (retired)                              | `openiap-conformance-<version>`       |
-| `flutter`           | `flutter_inapp_purchase`    | pub.dev                                    | `flutter-iap-<version>`               |
-| `kmp`               | `kmp-iap`                   | Maven Central                              | `kmp-iap-<version>`                   |
-| `maui`              | `OpenIap.Maui`              | NuGet                                      | `maui-iap-<version>`                  |
-| `godot`             | `godot-iap`                 | GitHub Release                             | `godot-iap-<version>`                 |
+| Component           | SBOM name                   | Distribution                                 | Release tag                                     |
+| ------------------- | --------------------------- | -------------------------------------------- | ----------------------------------------------- |
+| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager             | `<version>`                                     |
+| `google`            | `openiap-google`            | Maven Central                                | `google-<version>`                              |
+| `react-native`      | `react-native-iap`          | npm                                          | `react-native-iap-<version>`                    |
+| `expo`              | `expo-iap`                  | npm                                          | `expo-iap-<version>`                            |
+| `conformance`       | `openiap-conformance`       | npm (retired)                                | `openiap-conformance-<version>`                 |
+| `flutter`           | `flutter_inapp_purchase`    | pub.dev                                      | `flutter-iap-<version>`                         |
+| `kmp`               | `kmp-iap`                   | Maven Central                                | `kmp-iap-<version>`                             |
+| `maui`              | `OpenIap.Maui`              | NuGet                                        | `maui-iap-<version>`                            |
+| `godot`             | `godot-iap`                 | GitHub Release                               | `godot-iap-<version>`                           |
 | `commerce-protocol` | `openiap-commerce-protocol` | npm (`@hyodotdev/openiap-commerce-protocol`) | `hyodotdev-openiap-commerce-protocol-<version>` |
-| `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`) | `openiap-client-protocol-<version>`   |
-| `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                 | `openiap-<version>`                   |
+| `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`)   | `openiap-client-protocol-<version>`             |
+| `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                   | `openiap-<version>`                             |
 
 `packages/kit` (IAPKit) is deliberately outside this list. It is a deployed
 service rather than a distributed package: consumers call it over HTTPS and

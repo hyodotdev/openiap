@@ -101,7 +101,8 @@ test("rejects moving the kit Docker build context below the monorepo root", () =
       assert.notEqual(markerIndex, -1);
       fs.writeFileSync(
         file,
-        source.slice(0, markerIndex) + source.slice(markerIndex + marker.length),
+        source.slice(0, markerIndex) +
+          source.slice(markerIndex + marker.length),
       );
     },
     (root) => {
@@ -329,8 +330,8 @@ test("rejects a workflow-level paths filter on ci.yml or codeql.yml", () => {
         fs
           .readFileSync(file, "utf8")
           .replace(
-            "on:\n  pull_request:\n    branches:\n      - main\n      - next\n",
-            "on:\n  pull_request:\n    branches:\n      - main\n      - next\n    paths:\n      - 'packages/**'\n",
+            "  pull_request:\n",
+            "  pull_request:\n    paths:\n      - 'packages/**'\n",
           ),
       );
     },
@@ -481,7 +482,11 @@ test("the parity audit still carries the audits that ride on it", () => {
     .readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8")
     .split("\n");
   const at = ci.findIndex((line) => line.trim() === `run: ${command}`);
-  assert.notEqual(at, -1, "ci.yml has no step whose command is exactly the parity audit");
+  assert.notEqual(
+    at,
+    -1,
+    "ci.yml has no step whose command is exactly the parity audit",
+  );
   // Walk back to the step's `- name:` and forward to the next step, and require
   // no condition in between.
   let from = at;
@@ -496,7 +501,10 @@ test("the parity audit still carries the audits that ride on it", () => {
     "the parity audit step is conditional, so it can be skipped",
   );
 
-  const hook = fs.readFileSync(path.join(repoRoot, ".husky/pre-commit"), "utf8");
+  const hook = fs.readFileSync(
+    path.join(repoRoot, ".husky/pre-commit"),
+    "utf8",
+  );
   assert.ok(
     hook.split("\n").some((line) => line.trim() === command),
     "the pre-commit hook has no line that is exactly the parity audit",

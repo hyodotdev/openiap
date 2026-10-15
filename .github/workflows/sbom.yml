@@ -160,10 +160,10 @@ jobs:
         run: |
           if ! node scripts/assert-release-tag.mjs \
             "$COMPONENT_ID" main "$RELEASE_TAG" "$RELEASE_VERSION"; then
-            # Historical RC tags remain on next after the main integration.
+            # Historical RC ancestry is pinned to the protected archive tag.
             case "${RELEASE_VERSION%%+*}" in
               *-*) node scripts/assert-release-tag.mjs \
-                "$COMPONENT_ID" next "$RELEASE_TAG" "$RELEASE_VERSION" ;;
+                "$COMPONENT_ID" archive-next "$RELEASE_TAG" "$RELEASE_VERSION" ;;
               *) exit 1 ;;
             esac
           fi

@@ -2,7 +2,7 @@ name: CI - expo-iap
 
 on:
   pull_request:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/expo-iap/**"
       - "specs/client/src/generated/types.ts"
@@ -26,7 +26,7 @@ on:
       - "package.json"
       - "!**/*.md"
   push:
-    branches: [main, next]
+    branches: [main]
     paths:
       - "libraries/expo-iap/**"
       - "specs/client/src/generated/types.ts"
