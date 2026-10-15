@@ -58,7 +58,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "fix",
         topic: "Analytics",
-        text: "Analytics report production only by default, with a sandbox view. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, and store-reported refunds are subtracted.",
+        text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, and churn counts only paid access that ended.",
       },
       {
         kind: "feature",
