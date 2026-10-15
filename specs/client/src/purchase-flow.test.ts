@@ -36,6 +36,7 @@ function flowWith(
     getAvailablePurchases: vi.fn(
       async (): Promise<PurchaseFlowPurchase[]> => [],
     ),
+    getPendingTransactionsIOS: undefined,
     ...overrides,
   };
   return { flow: createPurchaseFlow(options), options };
@@ -46,7 +47,9 @@ function fakeBackend(userId: () => string) {
   const owners = new Map<string, string>();
   return async (p: PurchaseFlowPurchase): Promise<PurchaseConfirmation> => {
     const owner = owners.get(p.id);
-    if (owner && owner !== userId()) return { status: "ownership_conflict" };
+    if (owner && owner !== userId()) {
+      return { status: "ownership_conflict", alreadyGranted: true };
+    }
     owners.set(p.id, userId());
     return { status: "entitled", alreadyGranted: owner !== undefined };
   };
@@ -73,8 +76,7 @@ describe("processPurchase", () => {
   it.each<PurchaseConfirmation>([
     { status: "store_pending" },
     { status: "verification_delayed", retryAfterMs: 5_000 },
-    { status: "ownership_conflict" },
-    { status: "test_account_restricted" },
+    { status: "ownership_conflict", alreadyGranted: false },
     { status: "verified" },
     { status: "verified", retryAfterMs: 1_000 },
     { status: "linked", retryAfterMs: 30_000 },
@@ -90,8 +92,9 @@ describe("processPurchase", () => {
   it.each<PurchaseConfirmation>([
     { status: "invalid", reason: "EXPIRED" },
     { status: "invalid" },
+    { status: "test_account_restricted" },
   ])(
-    "finishes a settled invalid iOS purchase but never acknowledges a Google one: %j",
+    "finishes a settled rejection on iOS but never acknowledges it on Google Play: %j",
     async (confirmation) => {
       const { flow, options } = flowWith(async () => confirmation);
       const apple = purchase({ productId: "coins_100" });
@@ -107,6 +110,26 @@ describe("processPurchase", () => {
         flow.processPurchase(purchase({ id: "GPA.1", store: "google" })),
       ).resolves.toEqual(confirmation);
       expect(options.finishTransaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["apple", "google"])(
+    "finishes a %s purchase another account was already granted, granting nothing",
+    async (store) => {
+      const { flow, options } = flowWith(async () => ({
+        status: "ownership_conflict",
+        alreadyGranted: true,
+      }));
+      const item = purchase({ store, productId: "coins_100" });
+
+      await expect(flow.processPurchase(item)).resolves.toEqual({
+        status: "ownership_conflict",
+        alreadyGranted: true,
+      });
+      expect(options.finishTransaction).toHaveBeenCalledWith({
+        purchase: item,
+        isConsumable: true,
+      });
     },
   );
 
@@ -210,6 +233,7 @@ describe("processPurchase", () => {
     { status: "granted" },
     { status: "entitled" },
     { status: "entitled", alreadyGranted: "yes" },
+    { status: "ownership_conflict" },
     { status: "verification_delayed" },
     { status: "verification_delayed", retryAfterMs: -1 },
     { status: "verification_delayed", retryAfterMs: Number.NaN },
@@ -379,15 +403,85 @@ describe("recoverPurchases", () => {
     expect(options.finishTransaction).toHaveBeenCalledTimes(4);
 
     user = "user-b";
-    vi.mocked(options.finishTransaction).mockClear();
     const otherAccount = await flow.recoverPurchases({ includeFinished: true });
 
-    expect(otherAccount.map(({ status }) => status.status)).toEqual([
-      "ownership_conflict",
-      "ownership_conflict",
+    expect(otherAccount.map(({ status }) => status)).toEqual([
+      { status: "ownership_conflict", alreadyGranted: true },
+      { status: "ownership_conflict", alreadyGranted: true },
     ]);
-    expect(options.finishTransaction).not.toHaveBeenCalled();
   });
+
+  it("finishes a purchase granted to the previous account once another signs in", async () => {
+    // User A was granted, but the app quit before finishing; then B signed in.
+    const unfinished = [purchase({ id: "GPA.1", store: "google" })];
+    let user = "user-a";
+    const backend = fakeBackend(() => user);
+    await backend(unfinished[0]!);
+    user = "user-b";
+    const { flow, options } = flowWith(backend, {
+      getAvailablePurchases: vi.fn(async () =>
+        unfinished.map((p) => ({ ...p, isAcknowledgedAndroid: false })),
+      ),
+      finishTransaction: vi.fn(async () => {
+        unfinished.length = 0;
+      }),
+    });
+
+    await expect(flow.recoverPurchases()).resolves.toEqual([
+      {
+        purchase: expect.objectContaining({ id: "GPA.1" }),
+        status: { status: "ownership_conflict", alreadyGranted: true },
+      },
+    ]);
+    expect(options.finishTransaction).toHaveBeenCalledOnce();
+    // Acknowledged, so Google Play keeps user A's payment, and B got nothing.
+    await expect(flow.recoverPurchases()).resolves.toEqual([]);
+  });
+
+  it("never offers a purchase for an old renewal recovery finds", async () => {
+    const expired = purchase({ id: "renewal-1" });
+    const active = purchase({ id: "renewal-2" });
+    const { flow } = flowWith(
+      async (p) =>
+        p.id === expired.id
+          ? { status: "invalid", reason: "EXPIRED" }
+          : { status: "entitled", alreadyGranted: true },
+      { getPendingTransactionsIOS: vi.fn(async () => [expired, active]) },
+    );
+
+    const outcomes = await flow.recoverPurchases();
+
+    expect(outcomes[0]?.status).toEqual({
+      status: "invalid",
+      reason: "EXPIRED",
+      recovered: true,
+    });
+    expect(
+      outcomes.map(({ status }) => describePurchaseFlowStatus(status)),
+    ).toEqual([
+      { key: "purchase_not_valid", offerPurchase: false },
+      { key: "access_granted", offerPurchase: false },
+    ]);
+    // The purchase the user just made still offers a retry.
+    expect(
+      describePurchaseFlowStatus(await flow.processPurchase(expired)),
+    ).toEqual({ key: "purchase_not_valid", offerPurchase: true });
+  });
+
+  it.each([false, true])(
+    "refuses to recover Apple purchases without getPendingTransactionsIOS (includeFinished %s)",
+    async (includeFinished) => {
+      const { flow, options } = flowWith(
+        async () => ({ status: "entitled", alreadyGranted: false }),
+        { getAvailablePurchases: vi.fn(async () => [purchase()]) },
+      );
+
+      await expect(flow.recoverPurchases({ includeFinished })).rejects.toThrow(
+        "needs getPendingTransactionsIOS on iOS",
+      );
+      expect(options.confirmWithBackend).not.toHaveBeenCalled();
+    },
+  );
 
   it("confirms purchases one at a time", async () => {
     let active = 0;
@@ -402,8 +496,8 @@ describe("recoverPurchases", () => {
       },
       {
         getAvailablePurchases: vi.fn(async () => [
-          purchase({ id: "a", isAcknowledgedAndroid: false }),
-          purchase({ id: "b", isAcknowledgedAndroid: false }),
+          purchase({ id: "a", store: "google", isAcknowledgedAndroid: false }),
+          purchase({ id: "b", store: "google", isAcknowledgedAndroid: false }),
         ]),
       },
     );
@@ -442,7 +536,7 @@ describe("describePurchaseFlowStatus", () => {
       },
     ],
     [
-      { status: "ownership_conflict" },
+      { status: "ownership_conflict", alreadyGranted: true },
       { key: "owned_by_another_account", offerPurchase: false },
     ],
     [
@@ -452,6 +546,10 @@ describe("describePurchaseFlowStatus", () => {
     [
       { status: "invalid", reason: "EXPIRED" },
       { key: "purchase_not_valid", offerPurchase: true },
+    ],
+    [
+      { status: "invalid", reason: "EXPIRED", recovered: true },
+      { key: "purchase_not_valid", offerPurchase: false },
     ],
     [{ status: "verified" }, { key: "access_pending", offerPurchase: false }],
     [
@@ -505,7 +603,7 @@ describe("isolation", () => {
       async () => ({ status: "entitled", alreadyGranted: false }),
       {
         getAvailablePurchases: vi.fn(async () => [
-          purchase({ isAcknowledgedAndroid: false }),
+          purchase({ store: "google", isAcknowledgedAndroid: false }),
         ]),
       },
     );

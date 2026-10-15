@@ -24,15 +24,26 @@ export interface EntitlementGrant {
   store: "apple" | "google";
   /** Apple transactionId or Google order id, when the store reports one. */
   transactionId?: string;
-  /** End of subscription access, epoch milliseconds. */
-  expiresAt?: number;
 }
 
-/** Your entitlement store. `grantOnce` must be atomic per `purchaseKey`. */
+export interface SubscriptionGrant extends EntitlementGrant {
+  /** End of the verified paid period, epoch milliseconds. */
+  expiresAt: number;
+}
+
+/** Your entitlement store. Both writes must be atomic per `purchaseKey`. */
 export interface EntitlementLedger {
   /** The user this purchase was granted to, or null if it never was. */
   ownerOf(purchaseKey: string): Promise<string | null>;
+  /** A one-time purchase: grant it once. */
   grantOnce(grant: EntitlementGrant): Promise<GrantResult>;
+  /**
+   * A subscription: create its entitlement, or move it to this period's
+   * product and `expiresAt`. Never shorten a later `expiresAt`, since an older
+   * transaction can arrive after a renewal. `already_granted` means the period
+   * was already recorded.
+   */
+  upsertSubscription(grant: SubscriptionGrant): Promise<GrantResult>;
 }
 
 export interface ConfirmPurchaseOptions {
@@ -79,9 +90,10 @@ interface BindResult {
 const DEFAULT_RETRY_MS = 30_000;
 
 /**
- * Verifies a purchase with IAPKit, links it to `userId`, and grants it once.
- * Take `userId` from your authenticated session, never from the body. Throws
- * on a malformed body (answer 400) and on unexpected IAPKit errors (answer 5xx).
+ * Verifies a purchase with IAPKit, links it to `userId`, and grants it: once
+ * for a one-time purchase, per period for a subscription. Take `userId` from
+ * your authenticated session, never from the body. Throws on a malformed body
+ * (answer 400) and on unexpected IAPKit answers (answer 5xx).
  */
 export async function confirmPurchase(
   userId: string,
@@ -126,8 +138,9 @@ export async function confirmPurchase(
     return { status: "invalid", reason: result.state };
   }
   const acceptSandbox = options.acceptSandbox ?? (() => true);
+  // A missing or unknown environment counts as a test purchase.
   if (
-    result.commerceEnvironment === "sandbox" &&
+    result.commerceEnvironment !== "production" &&
     !(await acceptSandbox(userId))
   ) {
     return { status: "test_account_restricted" };
@@ -144,7 +157,7 @@ export async function confirmPurchase(
   // A bind is permanent, so check your own owner record before linking.
   const owner = await options.ledger.ownerOf(purchaseKey);
   if (owner !== null && owner !== userId) {
-    return { status: "ownership_conflict" };
+    return { status: "ownership_conflict", alreadyGranted: true };
   }
 
   const bind = await post<BindResult>("/v1/subscriptions/bind-user", {
@@ -155,27 +168,49 @@ export async function confirmPurchase(
     return { status: "verified", retryAfterMs: bind.retryAfterMs };
   }
   const { reason } = bind.body;
-  // Publishable keys get no reason, so they cannot see another owner.
-  if (reason === undefined) {
-    throw new Error("bind-user returned no reason; call it with a secret key");
+  let linked: boolean;
+  switch (reason) {
+    // A bind never moves an owner, and neither does this handler. The app may
+    // finish the purchase only if the ledger already granted it.
+    case "bound_to_other_user":
+      return { status: "ownership_conflict", alreadyGranted: owner !== null };
+    case "bound":
+    case "already_bound":
+      linked = true;
+      break;
+    // Say, a user at the link limit: IAPKit keeps no link and the ledger
+    // alone holds the owner.
+    case "not_found":
+    case "not_bindable":
+      linked = false;
+      break;
+    // Publishable keys get no reason; an unknown one may be a new refusal.
+    default:
+      throw new Error(
+        reason === undefined
+          ? "bind-user returned no reason; call it with a secret key"
+          : `bind-user returned an unknown reason: ${String(reason)}`,
+      );
   }
-  // A bind never moves an owner, and neither does this handler.
-  if (reason === "bound_to_other_user") return { status: "ownership_conflict" };
-  // not_found or not_bindable (say, a user at the link limit): IAPKit keeps no
-  // link and the ledger alone holds the owner.
-  const linked = reason === "bound" || reason === "already_bound";
 
-  const grant = await options.ledger.grantOnce({
+  const entitlement: EntitlementGrant = {
     purchaseKey,
     userId,
     productId: result.productId,
     store: request.store,
     ...(result.transactionId ? { transactionId: result.transactionId } : {}),
-    ...(result.expiresAt === undefined ? {} : { expiresAt: result.expiresAt }),
-  });
+  };
+  // Every renewal moves the subscription's period, so it is not granted once.
+  const grant =
+    result.expiresAt === undefined
+      ? await options.ledger.grantOnce(entitlement)
+      : await options.ledger.upsertSubscription({
+          ...entitlement,
+          expiresAt: result.expiresAt,
+        });
   switch (grant) {
     case "granted_to_other_user":
-      return { status: "ownership_conflict" };
+      return { status: "ownership_conflict", alreadyGranted: true };
     case "deferred":
       return {
         status: linked ? "linked" : "verified",

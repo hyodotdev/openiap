@@ -147,6 +147,40 @@ describe('PurchaseFlow Component', () => {
     );
   });
 
+  it('leaves out App backend on Vega, whose expo-iap has no purchase flow', async () => {
+    const previous = Object.getOwnPropertyDescriptor(Platform, 'OS');
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'kepler',
+      configurable: true,
+    });
+    try {
+      mockShowActionSheetWithOptions.mockImplementation(
+        (_options: unknown, callback: (index: number) => void) => callback(4),
+      );
+      const screen = await render(<PurchaseFlow />);
+
+      await fireEvent.press(screen.getByText('Local (IAPKit)'));
+
+      expect(mockShowActionSheetWithOptions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [
+            'Local (Device)',
+            'Local (IAPKit)',
+            'IAPKit',
+            'None (Skip)',
+            'Cancel',
+          ],
+          cancelButtonIndex: 4,
+        }),
+        expect.any(Function),
+      );
+      expect(screen.queryByText('App Backend Verification')).toBeNull();
+      expect(screen.getByText('Local (IAPKit)')).toBeTruthy();
+    } finally {
+      if (previous) Object.defineProperty(Platform, 'OS', previous);
+    }
+  });
+
   it('hands off to the app backend flow and back', async () => {
     mockShowActionSheetWithOptions.mockImplementation(
       (_options: unknown, callback: (index: number) => void) => callback(4),

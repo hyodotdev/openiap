@@ -213,7 +213,8 @@ export default function ProductsPage() {
           Check the <strong>Preview</strong> tab: the draft beside the published
           body, a line diff, and the exact HTTP status, headers, ETag, and body
           an app receives now and after publishing. The ETag is computed for the
-          project&apos;s newest active publishable key.
+          project&apos;s newest active publishable key. A Draft, Removed, or
+          missing catalog product answers 404 before and after you publish.
         </li>
         <li>
           Choose <strong>Publish</strong>, optionally with a note. The draft
@@ -222,10 +223,11 @@ export default function ProductsPage() {
       </ol>
       <p>
         The <strong>History</strong> tab lists the newest 50 versions per
-        product with author, time, note, and size. Rolling back republishes an
-        older body as a <em>new</em> version, so history stays append-only and
-        apps see a newer ETag. Versions older than the newest 50 are pruned and
-        cannot be restored.
+        product with author, time, note, and size. API keys see an author&apos;s
+        display name or API key name, never an email. Rolling back republishes
+        an older body as a <em>new</em> version, so history stays append-only
+        and apps see a newer ETag. Versions older than the newest 50 are pruned
+        and cannot be restored.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -238,12 +240,18 @@ export default function ProductsPage() {
           payloads. History records who made each change.
         </li>
         <li>
-          Publish checks the published version and the draft revision you
-          opened. A stale browser tab gets{" "}
-          <code>CLIENT_PAYLOAD_VERSION_CONFLICT</code> or{" "}
-          <code>CLIENT_PAYLOAD_DRAFT_CONFLICT</code> instead of overwriting a
-          newer edit. An API publish without <code>expectedVersion</code> checks
-          the version the draft was saved on.
+          A draft keeps the version it was first saved against, even when you
+          save it again. Once another version goes live, publish returns{" "}
+          <code>CLIENT_PAYLOAD_VERSION_CONFLICT</code>, whatever{" "}
+          <code>expectedVersion</code> says. Review the new version, then
+          rebase: save the draft with <code>expectedVersion</code> set to the
+          current version, or choose <strong>Rebase</strong> in the dashboard.
+        </li>
+        <li>
+          A stale browser tab gets <code>CLIENT_PAYLOAD_VERSION_CONFLICT</code>{" "}
+          or <code>CLIENT_PAYLOAD_DRAFT_CONFLICT</code> instead of overwriting a
+          newer edit; <strong>Load latest</strong> refreshes it and keeps
+          unsaved edits.
         </li>
       </ul>
       <p>
@@ -320,7 +328,7 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
               ["GET /draft", "{ expectedDraftRevision, draft? }"],
               [
                 "PUT /draft",
-                "{ format, body, expectedDraftRevision? } → { changed, revision, baseVersion, updatedAt }",
+                "{ format, body, expectedDraftRevision?, expectedVersion? } → { changed, revision, baseVersion, updatedAt }",
               ],
               ["DELETE /draft?expectedDraftRevision=N", "{ ok }"],
               [

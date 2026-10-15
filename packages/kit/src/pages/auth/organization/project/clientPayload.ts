@@ -39,6 +39,8 @@ export interface ClientPayloadVersion extends ClientPayloadVersionSummary {
 export interface ClientPayloadSdkPreview {
   keyPreview: string;
   etagScope: string;
+  /** False while the catalog product is Draft, Removed, or missing. */
+  productServed: boolean;
   response: {
     status: number;
     headers: Record<string, string>;

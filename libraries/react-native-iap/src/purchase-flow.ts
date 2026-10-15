@@ -25,27 +25,37 @@ export interface PurchaseConfirmationRequest {
 /**
  * The app backend's verdict on one purchase. Only `entitled` grants access;
  * `verified` and `linked` mean the purchase is valid but access is not granted
- * yet. `invalid` is a settled store rejection: return `verification_delayed`
- * for any answer that may still change.
+ * yet. `ownership_conflict` sets `alreadyGranted` when another account already
+ * got access, which lets the app finish it. `invalid` and
+ * `test_account_restricted` are settled rejections: return
+ * `verification_delayed` for any answer that may still change.
  */
 export type PurchaseConfirmation =
   | { status: "store_pending" }
   | { status: "verification_delayed"; retryAfterMs: number }
-  | { status: "ownership_conflict" }
+  | { status: "ownership_conflict"; alreadyGranted: boolean }
   | { status: "test_account_restricted" }
   | { status: "invalid"; reason?: string }
   | { status: "verified"; retryAfterMs?: number }
   | { status: "linked"; retryAfterMs?: number }
   | { status: "entitled"; alreadyGranted: boolean };
 
+type Finishable = "entitled" | "ownership_conflict" | "test_account_restricted";
+
 /**
  * Where a purchase stands after the flow ran. `finishError` means finishing
  * failed and recovery retries it; an `entitled` status still grants access.
+ * `recovered` marks an `invalid` purchase recovery found, not one the user
+ * just bought.
  */
 export type PurchaseFlowStatus =
-  | Exclude<PurchaseConfirmation, { status: "entitled" | "invalid" }>
-  | (Extract<PurchaseConfirmation, { status: "entitled" | "invalid" }> & {
+  | Exclude<PurchaseConfirmation, { status: Finishable | "invalid" }>
+  | (Extract<PurchaseConfirmation, { status: Finishable }> & {
       finishError?: unknown;
+    })
+  | (Extract<PurchaseConfirmation, { status: "invalid" }> & {
+      finishError?: unknown;
+      recovered?: true;
     })
   | { status: "failed"; error: unknown };
 
@@ -67,8 +77,12 @@ export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
    */
   isConsumable: (productId: string) => boolean;
   getAvailablePurchases: () => Promise<P[]>;
-  /** iOS only: unfinished StoreKit transactions, consumables included. */
-  getPendingTransactionsIOS?: () => Promise<P[]>;
+  /**
+   * The SDK's `getPendingTransactionsIOS` on iOS, `undefined` elsewhere.
+   * Recovery reads unfinished StoreKit transactions, consumables included,
+   * only from it.
+   */
+  getPendingTransactionsIOS: (() => Promise<P[]>) | undefined;
 }
 
 export interface RecoverPurchasesOptions {
@@ -78,12 +92,17 @@ export interface RecoverPurchasesOptions {
 
 export interface PurchaseFlow<P extends PurchaseFlowPurchase> {
   /**
-   * Confirms one purchase with the backend. Finishes it once access is
-   * granted, and an `invalid` one on iOS only: Google Play refunds an invalid
-   * purchase left unacknowledged, while iOS would redeliver it forever.
+   * Confirms one purchase with the backend. Finishes it once access is granted
+   * to this or another account, and a settled rejection on iOS only: Google
+   * Play refunds a rejected purchase left unacknowledged, while iOS would
+   * redeliver it forever.
    */
   processPurchase: (purchase: P) => Promise<PurchaseFlowStatus>;
-  /** Runs unfinished purchases (or every owned one) through `processPurchase`, one at a time. */
+  /**
+   * Runs unfinished purchases (or every owned one) through `processPurchase`,
+   * one at a time. Throws if it meets an Apple purchase without
+   * `getPendingTransactionsIOS`.
+   */
   recoverPurchases: (
     options?: RecoverPurchasesOptions,
   ) => Promise<PurchaseFlowOutcome<P>[]>;
@@ -126,21 +145,39 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
           ),
         };
       }
-      if (
-        confirmation.status === "entitled" ||
-        (confirmation.status === "invalid" && purchase.store === "apple")
-      ) {
-        try {
-          await options.finishTransaction({
-            purchase,
-            isConsumable: options.isConsumable(purchase.productId),
-          });
+      // Finishing settles a purchase for good, so only a settled verdict does.
+      switch (confirmation.status) {
+        case "entitled":
+          return await finish(confirmation);
+        case "ownership_conflict":
+          return confirmation.alreadyGranted
+            ? await finish(confirmation)
+            : confirmation;
+        case "invalid":
+        case "test_account_restricted":
+          return purchase.store === "apple"
+            ? await finish(confirmation)
+            : confirmation;
+        default:
           return confirmation;
-        } catch (finishError) {
-          return { ...confirmation, finishError };
-        }
       }
-      return confirmation;
+    }
+
+    async function finish(
+      confirmation: Extract<
+        PurchaseConfirmation,
+        { status: Finishable | "invalid" }
+      >,
+    ): Promise<PurchaseFlowStatus> {
+      try {
+        await options.finishTransaction({
+          purchase,
+          isConsumable: options.isConsumable(purchase.productId),
+        });
+        return confirmation;
+      } catch (finishError) {
+        return { ...confirmation, finishError };
+      }
     }
   }
 
@@ -148,15 +185,23 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     recoverOptions: RecoverPurchasesOptions = {},
   ): Promise<PurchaseFlowOutcome<P>[]> {
     const { includeFinished = false } = recoverOptions;
-    // Finished means settled: granted, or invalid on iOS. iOS lists unfinished
-    // transactions directly; Android marks finished ones acknowledged and
-    // stops listing consumed ones.
+    const { getPendingTransactionsIOS } = options;
+    // Finished means settled. iOS lists unfinished transactions directly;
+    // Android marks finished ones acknowledged and stops listing consumed ones.
     const [pendingIOS = [], available] = await Promise.all([
-      options.getPendingTransactionsIOS?.(),
-      includeFinished || !options.getPendingTransactionsIOS
+      getPendingTransactionsIOS?.(),
+      includeFinished || !getPendingTransactionsIOS
         ? options.getAvailablePurchases()
         : [],
     ]);
+    if (
+      !getPendingTransactionsIOS &&
+      available.some((purchase) => purchase.store === "apple")
+    ) {
+      throw new Error(
+        "recoverPurchases needs getPendingTransactionsIOS on iOS to find unfinished transactions",
+      );
+    }
     const unfinished = includeFinished
       ? available
       : available.filter(
@@ -168,7 +213,13 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     }
     const outcomes: PurchaseFlowOutcome<P>[] = [];
     for (const purchase of purchases.values()) {
-      outcomes.push({ purchase, status: await processPurchase(purchase) });
+      const status = await processPurchase(purchase);
+      outcomes.push({
+        purchase,
+        // An old expired renewal must not ask a subscriber to buy again.
+        status:
+          status.status === "invalid" ? { ...status, recovered: true } : status,
+      });
     }
     return outcomes;
   }
@@ -202,7 +253,10 @@ export type PurchaseFlowGuidanceKey =
 /** Neutral guidance an app maps to its own copy. */
 export interface PurchaseFlowGuidance {
   key: PurchaseFlowGuidanceKey;
-  /** False whenever the user may already have paid: never ask them to buy again. */
+  /**
+   * True only for an `invalid` purchase the user just made. False whenever the
+   * user may already have paid: never ask them to buy again.
+   */
   offerPurchase: boolean;
   /** Earliest time to run the purchase through the flow again. */
   retryAfterMs?: number;
@@ -225,7 +279,10 @@ export function describePurchaseFlowStatus(
     case "test_account_restricted":
       return { key: "test_purchase_not_accepted", offerPurchase: false };
     case "invalid":
-      return { key: "purchase_not_valid", offerPurchase: true };
+      return {
+        key: "purchase_not_valid",
+        offerPurchase: status.recovered !== true,
+      };
     case "verified":
     case "linked":
       return status.retryAfterMs === undefined
@@ -258,7 +315,6 @@ function readConfirmation(value: unknown): PurchaseConfirmation | null {
       : undefined;
   switch (status) {
     case "store_pending":
-    case "ownership_conflict":
     case "test_account_restricted":
       return { status };
     case "invalid":
@@ -268,6 +324,7 @@ function readConfirmation(value: unknown): PurchaseConfirmation | null {
     case "verified":
     case "linked":
       return retry === undefined ? { status } : { status, retryAfterMs: retry };
+    case "ownership_conflict":
     case "entitled":
       return typeof alreadyGranted === "boolean"
         ? { status, alreadyGranted }

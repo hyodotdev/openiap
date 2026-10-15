@@ -396,8 +396,12 @@ the app can fall back to built-in copy.
 Edits go to a draft that apps never read. Publishing makes the draft the next
 version; every publish, rollback, and removal is recorded in an append-only
 history of the newest 50 versions per product. Rollback republishes an older
-body as a new version. Every organization member can edit, and history records
-the author. The secret-key `PUT` publishes in one step and is recorded too.
+body as a new version. A draft keeps the version it was first saved against;
+once a newer version goes live, publish refuses it until the draft is rebased
+by saving it with `expectedVersion` set to the current version. Every
+organization member can edit, and history records the author; API keys see a
+display name, never an email. The secret-key `PUT` publishes in one step and is
+recorded too.
 Draft, publish, history, and rollback routes live under
 `/v1/products/client-payload/{productId}/` and in the MCP tools.
 

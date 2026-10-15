@@ -1172,7 +1172,8 @@ const schema = defineSchema({
 
   // Append-only log of published client payload versions, newest 50 per
   // product. A remove entry has no body; rollback republishes an entry's body
-  // as a new version.
+  // as a new version. Bodies live in productClientPayloadVersionBodies so
+  // listing history reads metadata only.
   productClientPayloadVersions: defineTable({
     projectId: v.id("projects"),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
@@ -1186,7 +1187,8 @@ const schema = defineSchema({
     format: v.optional(
       v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
     ),
-    body: v.optional(v.string()),
+    byteLength: v.optional(v.number()),
+    bodyId: v.optional(v.id("productClientPayloadVersionBodies")),
     rolledBackFrom: v.optional(v.number()),
     note: v.optional(v.string()),
     // Neither is set for a version published before history existed.
@@ -1201,6 +1203,11 @@ const schema = defineSchema({
       "productId",
       "version",
     ]),
+
+  // One per version that has a body; deleted with its version row.
+  productClientPayloadVersionBodies: defineTable({
+    body: v.string(),
+  }),
 
   // Jobs for the `runProductSyncIOS` / `runProductSyncAndroid` workers. A sync
   // can take minutes, and iOS Safari aborts a pending fetch when the tab

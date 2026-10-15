@@ -119,9 +119,14 @@ describe("deleteProjectWithData", () => {
       }),
       productClientPayloadSummaries: rows("summary"),
       productClientPayloadDrafts: rows("draft"),
-      productClientPayloadVersions: rows("version", {
-        body: "x".repeat(16 * 1024),
-      }),
+      productClientPayloadVersions: rows("version").map((row, index) => ({
+        ...row,
+        bodyId: `version_body_${index}`,
+      })),
+      // Bodies have no project index: each goes with its version row.
+      productClientPayloadVersionBodies: rows("version_body").map(
+        ({ _id }) => ({ _id, body: "x".repeat(16 * 1024) }),
+      ),
       apiKeys: rows("api_key"),
       purchases: rows("purchase", { rawSignedPayload: "signed" }),
       purchaseIssues: rows("purchase_issue"),

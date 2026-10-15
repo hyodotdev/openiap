@@ -111,10 +111,10 @@ export function ClientPayloadPreview({
               {`GET /v1/products/${sdkPreview.keyPreview}/${encodeURIComponent(productId)}/client-payload?platform=${platform}`}
             </p>
             <HttpBlock title="Now" response={sdkPreview.response} />
-            {sdkPreview.response.status === 404 && published ? (
+            {!sdkPreview.productServed ? (
               <p className="text-muted-foreground">
                 Apps get 404 while the catalog product is Draft, Removed, or
-                missing, even though a payload is published.
+                missing, before and after you publish.
               </p>
             ) : changed && draftValidation.valid ? (
               <HttpBlock

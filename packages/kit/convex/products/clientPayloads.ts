@@ -33,6 +33,9 @@ export type ClientPayloadAuthor = {
   apiKeyId?: Id<"apiKeys">;
 };
 
+/** Who reads history: members may see a nameless author's email, API keys never. */
+export type ClientPayloadHistoryViewer = "member" | "apiKey";
+
 export const clientPayloadWriteResultValidator = v.object({
   id: v.id("productClientPayloads"),
   created: v.boolean(),
@@ -121,6 +124,10 @@ export function clientPayloadError(
   });
 }
 
+function utf8ByteLength(body: string): number {
+  return new TextEncoder().encode(body).byteLength;
+}
+
 /** Validate payload contents without normalizing the stored body. */
 export function validateProductClientPayloadBody(
   format: ProductClientPayloadFormat,
@@ -133,7 +140,7 @@ export function validateProductClientPayloadBody(
     );
   }
 
-  const byteLength = new TextEncoder().encode(body).byteLength;
+  const byteLength = utf8ByteLength(body);
   if (byteLength > MAX_PRODUCT_CLIENT_PAYLOAD_BYTES) {
     throw clientPayloadError(
       "CLIENT_PAYLOAD_INVALID",
@@ -346,10 +353,6 @@ async function syncSummary(
   }
 }
 
-/**
- * Append version history for a new revision. The current published body gets
- * an author-less entry first when it predates history, so it stays restorable.
- */
 type PublishedSnapshot = Pick<
   Doc<"productClientPayloads">,
   "version" | "format" | "body" | "updatedAt"
@@ -368,18 +371,59 @@ function snapshot(
     : null;
 }
 
+type VersionEntry = Omit<
+  Doc<"productClientPayloadVersions">,
+  "_id" | "_creationTime" | "byteLength" | "bodyId" | keyof ClientPayloadKey
+> & { body?: string };
+
+// The body gets its own row so listing history never reads one.
+async function insertVersion(
+  ctx: MutationCtx,
+  key: ClientPayloadKey,
+  { body, ...entry }: VersionEntry,
+): Promise<void> {
+  await ctx.db.insert("productClientPayloadVersions", {
+    ...key,
+    ...entry,
+    ...(body !== undefined
+      ? {
+          byteLength: utf8ByteLength(body),
+          bodyId: await ctx.db.insert("productClientPayloadVersionBodies", {
+            body,
+          }),
+        }
+      : {}),
+  });
+}
+
+/** Delete a history entry with its body. */
+export async function deleteClientPayloadVersion(
+  ctx: MutationCtx,
+  row: Doc<"productClientPayloadVersions">,
+): Promise<void> {
+  if (row.bodyId) await ctx.db.delete(row.bodyId);
+  await ctx.db.delete(row._id);
+}
+
+async function loadVersionBody(
+  ctx: QueryCtx,
+  row: Doc<"productClientPayloadVersions">,
+): Promise<string | undefined> {
+  return row.bodyId ? (await ctx.db.get(row.bodyId))?.body : undefined;
+}
+
+/**
+ * Append version history for a new revision. The current published body gets
+ * an author-less entry first when it predates history, so it stays restorable.
+ */
 async function appendVersion(
   ctx: MutationCtx,
   key: ClientPayloadKey,
   previous: PublishedSnapshot | null,
-  entry: Omit<
-    Doc<"productClientPayloadVersions">,
-    "_id" | "_creationTime" | keyof ClientPayloadKey
-  >,
+  entry: VersionEntry,
 ): Promise<void> {
   if (previous && !(await loadVersion(ctx, key, previous.version))) {
-    await ctx.db.insert("productClientPayloadVersions", {
-      ...key,
+    await insertVersion(ctx, key, {
       version: previous.version,
       action: "publish",
       format: previous.format,
@@ -387,7 +431,7 @@ async function appendVersion(
       createdAt: previous.updatedAt,
     });
   }
-  await ctx.db.insert("productClientPayloadVersions", { ...key, ...entry });
+  await insertVersion(ctx, key, entry);
 
   const expired = await ctx.db
     .query("productClientPayloadVersions")
@@ -400,7 +444,7 @@ async function appendVersion(
     )
     .take(HISTORY_PRUNE_BATCH);
   for (const row of expired) {
-    await ctx.db.delete(row._id);
+    await deleteClientPayloadVersion(ctx, row);
   }
 }
 
@@ -593,6 +637,11 @@ export async function loadClientPayloadDraftState(
   };
 }
 
+/**
+ * Save the draft. A new draft is based on the current version; saving again
+ * keeps that base, so a version published since still blocks the publish.
+ * Pass `expectedVersion` equal to the current version to rebase onto it.
+ */
 export async function saveClientPayloadDraft(
   ctx: MutationCtx,
   key: ClientPayloadKey,
@@ -600,6 +649,7 @@ export async function saveClientPayloadDraft(
     format: ProductClientPayloadFormat;
     body: string;
     expectedDraftRevision?: number;
+    expectedVersion?: number;
     userId?: Id<"users">;
   },
 ): Promise<ClientPayloadDraftWriteResult> {
@@ -611,7 +661,17 @@ export async function saveClientPayloadDraft(
     assertDraftRevision(input.expectedDraftRevision, currentRevision);
   }
 
-  const { revision: baseVersion } = await loadPublished(ctx, key);
+  const { revision } = await loadPublished(ctx, key);
+  if (input.expectedVersion !== undefined) {
+    assertProductClientPayloadVersion(
+      input.expectedVersion,
+      revision === 0 ? null : revision,
+    );
+  }
+  const baseVersion =
+    input.expectedVersion === undefined && draft?.body !== undefined
+      ? (draft.baseVersion ?? 0)
+      : revision;
   if (
     draft &&
     draft.format === input.format &&
@@ -680,8 +740,8 @@ export async function discardClientPayloadDraft(
 }
 
 /**
- * Publish the saved draft and clear it. Without `expectedVersion`, the publish
- * conflicts if another version went live after the draft was saved.
+ * Publish the saved draft and clear it. The draft's base must still be the
+ * current version, so a draft never overwrites a version published after it.
  */
 export async function publishClientPayloadDraft(
   ctx: MutationCtx,
@@ -703,10 +763,24 @@ export async function publishClientPayloadDraft(
       "There is no client payload draft to publish",
     );
   }
+  const { revision } = await loadPublished(ctx, key);
+  if (input.expectedVersion !== undefined) {
+    assertProductClientPayloadVersion(
+      input.expectedVersion,
+      revision === 0 ? null : revision,
+    );
+  }
+  const baseVersion = draft.baseVersion ?? 0;
+  if (baseVersion !== revision) {
+    throw clientPayloadError(
+      "CLIENT_PAYLOAD_VERSION_CONFLICT",
+      `The draft is based on v${baseVersion}, but the current version is v${revision}. Review v${revision}, then save the draft with expectedVersion ${revision} to rebase it before publishing.`,
+      { draftBaseVersion: baseVersion, actualVersion: revision },
+    );
+  }
   const result = await publishClientPayload(ctx, key, {
     format: draft.format,
     body: draft.body,
-    expectedVersion: input.expectedVersion ?? draft.baseVersion,
     note: input.note,
     author: input.author,
   });
@@ -728,7 +802,8 @@ export async function rollbackClientPayload(
   const entry = Number.isSafeInteger(input.toVersion)
     ? await loadVersion(ctx, key, input.toVersion)
     : null;
-  if (!entry || entry.format === undefined || entry.body === undefined) {
+  const body = entry ? await loadVersionBody(ctx, entry) : undefined;
+  if (!entry || entry.format === undefined || body === undefined) {
     throw clientPayloadError(
       "CLIENT_PAYLOAD_VERSION_NOT_FOUND",
       `Version ${input.toVersion} is not a retained client payload version with a body`,
@@ -736,7 +811,7 @@ export async function rollbackClientPayload(
   }
   return await publishClientPayload(ctx, key, {
     format: entry.format,
-    body: entry.body,
+    body,
     expectedVersion: input.expectedVersion,
     action: "rollback",
     rolledBackFrom: entry.version,
@@ -748,12 +823,16 @@ export async function rollbackClientPayload(
 async function resolveAuthorNames(
   ctx: QueryCtx,
   rows: Doc<"productClientPayloadVersions">[],
+  viewer: ClientPayloadHistoryViewer,
 ): Promise<Map<string, string | undefined>> {
   const names = new Map<string, string | undefined>();
   for (const row of rows) {
     if (row.authorUserId && !names.has(row.authorUserId)) {
       const user = await ctx.db.get(row.authorUserId);
-      names.set(row.authorUserId, user?.name ?? user?.email);
+      names.set(
+        row.authorUserId,
+        user?.name ?? (viewer === "member" ? user?.email : undefined),
+      );
     }
     if (row.authorApiKeyId && !names.has(row.authorApiKeyId)) {
       const apiKey = await ctx.db.get(row.authorApiKeyId);
@@ -773,9 +852,7 @@ function shapeVersion(
     version: row.version,
     action: row.action,
     ...(row.format ? { format: row.format } : {}),
-    ...(row.body !== undefined
-      ? { byteLength: new TextEncoder().encode(row.body).byteLength }
-      : {}),
+    ...(row.byteLength !== undefined ? { byteLength: row.byteLength } : {}),
     ...(row.rolledBackFrom !== undefined
       ? { rolledBackFrom: row.rolledBackFrom }
       : {}),
@@ -796,6 +873,7 @@ function shapeVersion(
 export async function listClientPayloadVersions(
   ctx: QueryCtx,
   key: ClientPayloadKey,
+  viewer: ClientPayloadHistoryViewer,
 ): Promise<ClientPayloadVersionSummary[]> {
   const rows = await ctx.db
     .query("productClientPayloadVersions")
@@ -807,7 +885,7 @@ export async function listClientPayloadVersions(
     )
     .order("desc")
     .take(MAX_CLIENT_PAYLOAD_HISTORY);
-  const names = await resolveAuthorNames(ctx, rows);
+  const names = await resolveAuthorNames(ctx, rows, viewer);
   return rows.map((row) => shapeVersion(row, names));
 }
 
@@ -815,14 +893,18 @@ export async function getClientPayloadVersion(
   ctx: QueryCtx,
   key: ClientPayloadKey,
   version: number,
+  viewer: ClientPayloadHistoryViewer,
 ): Promise<ClientPayloadVersion | null> {
   const row = Number.isSafeInteger(version)
     ? await loadVersion(ctx, key, version)
     : null;
   if (!row) return null;
-  const names = await resolveAuthorNames(ctx, [row]);
+  const [names, body] = await Promise.all([
+    resolveAuthorNames(ctx, [row], viewer),
+    loadVersionBody(ctx, row),
+  ]);
   return {
     ...shapeVersion(row, names),
-    ...(row.body !== undefined ? { body: row.body } : {}),
+    ...(body !== undefined ? { body } : {}),
   };
 }

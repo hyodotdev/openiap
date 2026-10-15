@@ -193,6 +193,7 @@ describe("ProductClientPayloadDialog", () => {
       format: "json",
       body: '{"maxItems":12}',
       expectedDraftRevision: 0,
+      expectedVersion: 4,
     });
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -247,7 +248,111 @@ describe("ProductClientPayloadDialog", () => {
       );
     });
     expect(onSaveDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ expectedDraftRevision: 5 }),
+      expect.objectContaining({ expectedDraftRevision: 5, expectedVersion: 2 }),
+    );
+  });
+
+  it("blocks a draft based on an older version until it is rebased", async () => {
+    const user = userEvent.setup();
+    const staleDraft = (revision: number, body: string, baseVersion = 3) => ({
+      ...EXISTING_PRODUCT,
+      expectedDraftRevision: revision,
+      draft: { format: "toml" as const, body, baseVersion, updatedAt: 1 },
+    });
+    const props = renderDialog({
+      onSaveDraft: vi
+        .fn()
+        .mockResolvedValueOnce({ revision: 4, baseVersion: 3 })
+        .mockResolvedValueOnce({ revision: 5, baseVersion: 4 }),
+      product: staleDraft(3, "max_items = 20"),
+    });
+    // Convex delivers the saved draft back to the dialog.
+    const deliver = (product: ClientPayloadProduct) =>
+      props.view.rerender(
+        <ProductClientPayloadDialog {...props} product={product} />,
+      );
+
+    expect(
+      screen.getByText(/based on v3, but v4 is the current version/),
+    ).not.toBeNull();
+    expect(button("Publish").disabled).toBe(true);
+
+    // Saving edits keeps the old base: only a rebase moves it.
+    editBody("max_items = 25");
+    await user.click(button("Save draft"));
+    await waitFor(() => expect(props.onSaveDraft).toHaveBeenCalledOnce());
+    expect(props.onSaveDraft).toHaveBeenLastCalledWith({
+      productId: "premium_monthly",
+      platform: "IOS",
+      format: "toml",
+      body: "max_items = 25",
+      expectedDraftRevision: 3,
+    });
+    deliver(staleDraft(4, "max_items = 25"));
+    expect(button("Publish").disabled).toBe(true);
+
+    await user.click(button("Rebase onto v4"));
+    await waitFor(() =>
+      expect(props.onSaveDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          body: "max_items = 25",
+          expectedDraftRevision: 4,
+          expectedVersion: 4,
+        }),
+      ),
+    );
+    deliver(staleDraft(5, "max_items = 25", 4));
+    expect(screen.queryByText(/This draft is based on v3/)).toBeNull();
+    expect(button("Publish").disabled).toBe(false);
+
+    await user.click(button("Publish"));
+    await waitFor(() => {
+      expect(props.onPublish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedVersion: 4,
+          expectedDraftRevision: 5,
+        }),
+      );
+    });
+  });
+
+  it("loads a version published elsewhere and keeps unsaved edits", async () => {
+    const user = userEvent.setup();
+    const props = renderDialog();
+    editBody("max_items = 12");
+
+    props.view.rerender(
+      <ProductClientPayloadDialog
+        {...props}
+        product={{
+          ...EXISTING_PRODUCT,
+          expectedVersion: 5,
+          clientPayload: {
+            format: "toml",
+            body: "max_items = 11",
+            version: 5,
+            updatedAt: 1_720_000_000_500,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText(/changed in another session/)).not.toBeNull();
+
+    await user.click(button("Load latest"));
+
+    expect(screen.queryByText(/changed in another session/)).toBeNull();
+    expect(screen.getByText(/Published v5/)).not.toBeNull();
+    expect(
+      screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
+    ).toBe("max_items = 12");
+    await user.click(button("Publish"));
+    await waitFor(() => {
+      expect(props.onSaveDraft).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedVersion: 5 }),
+      );
+    });
+    expect(props.onPublish).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedVersion: 5 }),
     );
   });
 
@@ -352,6 +457,7 @@ describe("ProductClientPayloadDialog", () => {
       sdkPreview: {
         keyPreview: "openiap-kit_...abcd",
         etagScope: "SCOPE",
+        productServed: true,
         response: {
           status: 200,
           headers: {
@@ -376,6 +482,35 @@ describe("ProductClientPayloadDialog", () => {
       'ETag: "iapkit-client-payload-SCOPE-v5"',
     );
     expect(after.textContent).toContain('"body":"max_items = 12","version":5');
+  });
+
+  it("keeps showing a 404 after publish while the product is not served", () => {
+    renderDialog({
+      product: {
+        productId: "coins_100",
+        platform: "Android",
+        title: "100 Coins",
+        expectedVersion: 0,
+        expectedDraftRevision: 0,
+      },
+      sdkPreview: {
+        keyPreview: "openiap-kit_...abcd",
+        etagScope: "SCOPE",
+        productServed: false,
+        response: {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+          body: '{"errors":[]}',
+        },
+      },
+    });
+    editBody("coins = 100");
+
+    expect(screen.getByLabelText("Now response").textContent).toContain(
+      "HTTP/1.1 404",
+    );
+    expect(screen.queryByLabelText(/After publish/)).toBeNull();
+    expect(screen.getByText(/before and after you publish/)).not.toBeNull();
   });
 
   it("explains a missing publishable key instead of guessing the ETag", () => {

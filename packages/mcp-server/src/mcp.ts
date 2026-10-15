@@ -928,7 +928,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "set_client_payload_draft",
-    "Save a client payload draft. Apps keep receiving the published version until you publish.",
+    "Save a client payload draft. Apps keep receiving the published version until you publish. A new draft is based on the current version and keeps that base when saved again.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -937,6 +937,14 @@ function registerIapKitTools(
       ),
       body: z.string().max(MAX_CLIENT_PAYLOAD_BYTES),
       expectedDraftRevision: z.number().int().nonnegative().optional(),
+      expectedVersion: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe(
+          "Rebase the draft onto this version, which must be the current one. Pass it after reviewing a version published since the draft was saved.",
+        ),
       apiKey: OPTIONAL_API_KEY,
       baseUrl: OPTIONAL_BASE_URL,
     },
@@ -950,6 +958,7 @@ function registerIapKitTools(
             format: args.format,
             body: args.body,
             expectedDraftRevision: args.expectedDraftRevision,
+            expectedVersion: args.expectedVersion,
           }),
         );
       } catch (error) {
@@ -964,7 +973,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "publish_client_payload",
-    "Publish the saved draft as a new version that apps receive, and record it in history.",
+    "Publish the saved draft as a new version that apps receive, and record it in history. Fails with CLIENT_PAYLOAD_VERSION_CONFLICT when another version was published after the draft's base; rebase with set_client_payload_draft expectedVersion first.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -974,7 +983,7 @@ function registerIapKitTools(
         .nonnegative()
         .optional()
         .describe(
-          "Published version to replace. Defaults to the version the draft was saved on, so a newer publish is never overwritten.",
+          "Current version you reviewed. Optional: the draft's base version must be current either way.",
         ),
       expectedDraftRevision: z.number().int().nonnegative().optional(),
       note: z
@@ -1008,7 +1017,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "get_client_payload_history",
-    "List the newest 50 published client payload versions without bodies, or pass version to read that version's body.",
+    "List the newest 50 published client payload versions without bodies, or pass version to read that version's body. Authors appear by display name or API key name, never by email.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),

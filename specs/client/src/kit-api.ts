@@ -226,6 +226,7 @@ export type KitClientPayloadVersion = {
   byteLength?: number;
   rolledBackFrom?: number;
   note?: string;
+  /** `name` is a display or API key name, never an email. */
   author?: { type: "user" | "apiKey"; name?: string };
   createdAt: number;
   /** Absent for a `remove` entry and in history listings. */

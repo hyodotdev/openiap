@@ -619,6 +619,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       format: string;
       body: string;
       expectedDraftRevision?: number;
+      expectedVersion?: number;
     }) =>
       adminCall<KitSaveClientPayloadDraftResponse>(
         clientPayloadPath(params, "/draft"),
@@ -629,6 +630,9 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
             body: params.body,
             ...(params.expectedDraftRevision !== undefined
               ? { expectedDraftRevision: params.expectedDraftRevision }
+              : {}),
+            ...(params.expectedVersion !== undefined
+              ? { expectedVersion: params.expectedVersion }
               : {}),
           }),
         },

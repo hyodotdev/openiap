@@ -290,39 +290,51 @@ export const getProductClientPayload = query({
   },
 });
 
-/**
- * The app-facing payload read for one key. The body-free summary is checked
- * before the 16 KiB payload row, so a matching ETag avoids reading the body.
- */
-async function loadPublicClientPayload(
+type PublicClientPayloadReader = {
+  project: Doc<"projects">;
+  keyType: "publishable" | "secret";
+};
+
+/** Whether the public GET serves any payload for this catalog product. */
+async function servesClientPayload(
   ctx: QueryCtx,
-  resolved: { project: Doc<"projects">; keyType: "publishable" | "secret" },
+  reader: PublicClientPayloadReader,
   platform: "IOS" | "Android",
   productId: string,
-  knownVersion: number | undefined,
-): Promise<Infer<typeof conditionalClientPayloadShape>> {
+): Promise<boolean> {
   const product = await ctx.db
     .query("products")
     .withIndex("by_project_and_platform_and_product", (q) =>
       q
-        .eq("projectId", resolved.project._id)
+        .eq("projectId", reader.project._id)
         .eq("platform", platform)
         .eq("productId", productId),
     )
     .unique();
-  if (
-    !product ||
-    !isCatalogRowVisibleTo(resolved.keyType, product) ||
-    product.state === "Removed"
-  ) {
-    return { status: "not_found" };
-  }
+  return (
+    product !== null &&
+    isCatalogRowVisibleTo(reader.keyType, product) &&
+    product.state !== "Removed"
+  );
+}
 
+/**
+ * The app-facing payload read for a served product. The body-free summary is
+ * checked before the 16 KiB payload row, so a matching ETag avoids reading the
+ * body.
+ */
+async function loadServedClientPayload(
+  ctx: QueryCtx,
+  reader: PublicClientPayloadReader,
+  platform: "IOS" | "Android",
+  productId: string,
+  knownVersion: number | undefined,
+): Promise<Infer<typeof conditionalClientPayloadShape>> {
   const summary = await ctx.db
     .query("productClientPayloadSummaries")
     .withIndex("by_project_and_platform_and_product", (q) =>
       q
-        .eq("projectId", resolved.project._id)
+        .eq("projectId", reader.project._id)
         .eq("platform", platform)
         .eq("productId", productId),
     )
@@ -342,7 +354,7 @@ async function loadPublicClientPayload(
     .query("productClientPayloads")
     .withIndex("by_project_and_platform_and_product", (q) =>
       q
-        .eq("projectId", resolved.project._id)
+        .eq("projectId", reader.project._id)
         .eq("platform", platform)
         .eq("productId", productId),
     )
@@ -362,8 +374,13 @@ export const getProductClientPayloadIfChanged = query({
   returns: conditionalClientPayloadShape,
   handler: async (ctx, args) => {
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
-    if (!resolved) return { status: "not_found" } as const;
-    return await loadPublicClientPayload(
+    if (
+      !resolved ||
+      !(await servesClientPayload(ctx, resolved, args.platform, args.productId))
+    ) {
+      return { status: "not_found" } as const;
+    }
+    return await loadServedClientPayload(
       ctx,
       resolved,
       args.platform,
@@ -452,6 +469,7 @@ export const listProductClientPayloadHistory = query({
     return await listClientPayloadVersions(
       ctx,
       clientPayloadKey(resolved.project, args),
+      "member",
     );
   },
 });
@@ -469,6 +487,7 @@ export const listProductClientPayloadHistoryWithApiKey = query({
     return await listClientPayloadVersions(
       ctx,
       clientPayloadKey(resolved.project, args),
+      "apiKey",
     );
   },
 });
@@ -490,6 +509,7 @@ export const getProductClientPayloadHistoryVersion = query({
       ctx,
       clientPayloadKey(resolved.project, args),
       args.version,
+      "member",
     );
   },
 });
@@ -508,13 +528,16 @@ export const getProductClientPayloadHistoryVersionWithApiKey = query({
       ctx,
       clientPayloadKey(resolved.project, args),
       args.version,
+      "apiKey",
     );
   },
 });
 
 /**
  * The exact response an app gets from the public GET right now, for the
- * project's active publishable key. Null when the project has no such key.
+ * project's active publishable key, and whether publishing changes it: a
+ * Draft, Removed, or missing product answers 404 either way. Null when the
+ * project has no publishable key.
  */
 export const getProductClientPayloadSdkPreview = query({
   args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
@@ -522,6 +545,7 @@ export const getProductClientPayloadSdkPreview = query({
     v.object({
       keyPreview: v.string(),
       etagScope: v.string(),
+      productServed: v.boolean(),
       response: v.object({
         status: v.number(),
         headers: v.record(v.string(), v.string()),
@@ -538,19 +562,27 @@ export const getProductClientPayloadSdkPreview = query({
     if (!resolved) return null;
     const apiKey = await getActivePublishableApiKey(ctx, resolved.project);
     if (!apiKey) return null;
-    const [result, etagScope] = await Promise.all([
-      loadPublicClientPayload(
-        ctx,
-        { project: resolved.project, keyType: "publishable" },
-        args.platform,
-        args.productId,
-        undefined,
-      ),
+    const app: PublicClientPayloadReader = {
+      project: resolved.project,
+      keyType: "publishable",
+    };
+    const [productServed, etagScope] = await Promise.all([
+      servesClientPayload(ctx, app, args.platform, args.productId),
       clientPayloadEtagScope(apiKey, args.platform, args.productId),
     ]);
+    const result = productServed
+      ? await loadServedClientPayload(
+          ctx,
+          app,
+          args.platform,
+          args.productId,
+          undefined,
+        )
+      : ({ status: "not_found" } as const);
     return {
       keyPreview: apiKeyPreview(apiKey),
       etagScope,
+      productServed,
       response: buildPublicClientPayloadResponse(result, etagScope),
     };
   },
