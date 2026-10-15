@@ -390,6 +390,18 @@ describe("recoverPurchases", () => {
     });
   });
 
+  it("skips a purchase this flow finished since the store list was read", async () => {
+    const tx = purchase({ id: "tx-5", productId: "coins_100" });
+    const { flow, options } = flowWith(
+      async () => ({ status: "entitled", alreadyGranted: false }),
+      { getPendingTransactionsIOS: vi.fn(async () => [tx]) },
+    );
+
+    await flow.processPurchase(tx);
+    await expect(flow.recoverPurchases()).resolves.toEqual([]);
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
+  });
+
   it("confirms every owned Apple purchase when the pending list fails", async () => {
     const owned = purchase({ id: "tx-7" });
     const { flow, options } = flowWith(

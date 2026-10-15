@@ -122,6 +122,8 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
 ): PurchaseFlow<P> {
   // A listener and a recovery pass can deliver the same transaction at once.
   const inFlight = new Map<string, Promise<PurchaseFlowStatus>>();
+  // A recovery pass can hold a store list read before the listener finished one.
+  const finished = new Set<string>();
   // setTimeout runs a delay past 2^31 - 1 ms, Infinity included, at once.
   const confirmTimeoutMs = Math.min(
     options.confirmTimeoutMs ?? 30_000,
@@ -199,6 +201,7 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
           purchase,
           isConsumable: options.isConsumable(purchase.productId),
         });
+        finished.add(purchase.id);
         return confirmation;
       } catch (finishError) {
         return { ...confirmation, finishError };
@@ -246,6 +249,7 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
     }
     const outcomes: PurchaseFlowOutcome<P>[] = [];
     for (const purchase of purchases.values()) {
+      if (!includeFinished && finished.has(purchase.id)) continue;
       const status = await processPurchase(purchase);
       outcomes.push({
         purchase,
