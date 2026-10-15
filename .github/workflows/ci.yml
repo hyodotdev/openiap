@@ -284,6 +284,7 @@ jobs:
               - '.github/workflows/ci.yml'
             commerce:
               - 'specs/commerce-protocol/**'
+              - 'specs/client/**'
               - 'packages/kit/**'
               - 'packages/mcp-server/**'
               - 'package.json'
@@ -405,6 +406,8 @@ jobs:
             web:
               - 'packages/docs/**'
               - 'packages/kit/**'
+              # Kit's docs type-check against the client protocol package.
+              - 'specs/client/**'
               - 'packages/mcp-server/**'
               # The kit server embeds the generated protocol artifacts at build
               # time, so a spec change must rebuild and probe the binary.
