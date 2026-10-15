@@ -29,6 +29,7 @@ import {
   type PurchaseIssueInput,
 } from "./internal";
 import { MemoryDb, memoryCtx } from "../test.memoryDb";
+import { verifiedRemoteId } from "./evidence";
 import {
   classifyVerdict,
   classifyVerificationError,
@@ -361,7 +362,7 @@ describe("verifyRecordingIssues", () => {
       ["amazon", "INAUTHENTIC"],
     ]);
     expect(rows[0]).toMatchObject({
-      fingerprint: fingerprint(sha256("real-token")),
+      fingerprint: fingerprint(sha256("google:real-token")),
       productId: "premium",
       claimedProductId: "other",
     });
@@ -372,6 +373,54 @@ describe("verifyRecordingIssues", () => {
     expect(rows.slice(1).every((row) => row.productId === undefined)).toBe(
       true,
     );
+  });
+
+  it("keys a purchase row on the store-verified id, so re-encoded evidence shares it", async () => {
+    const { ctx, db } = actionCtx();
+    const verdict = {
+      isValid: false,
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      productId: "premium",
+      transactionDetails: {
+        transactionId: "2000000000000002",
+        originalTransactionId: "2000000000000001",
+      },
+    };
+    // One signature in two encodings the verifier accepts.
+    for (const signature of ["c2ln", "c2ln=="]) {
+      await verifyRecordingIssues(
+        ctx,
+        {
+          apiKey: "k",
+          evidence: { store: "apple", jws: `${jws.slice(0, -4)}${signature}` },
+          expectedProductId: "other",
+        },
+        () => Promise.resolve(verdict),
+      );
+    }
+    expect(db.rows("purchaseIssues")).toEqual([
+      expect.objectContaining({
+        cause: "PRODUCT_MISMATCH",
+        count: 2,
+        // What the purchase page shows for the row saved under this id.
+        fingerprint: fingerprint(sha256("apple:2000000000000001")),
+      }),
+    ]);
+  });
+
+  it("names each store's purchase as its verify save path does", () => {
+    const details = {
+      transactionDetails: { transactionId: "2000000000000002" },
+    };
+    expect([
+      verifiedRemoteId({ store: "apple", jws }, details),
+      verifiedRemoteId({ store: "google", purchaseToken: "play" }, details),
+      verifiedRemoteId(
+        { store: "amazon", userId: "u 1", receiptId: "r", sandbox: true },
+        details,
+      ),
+      verifiedRemoteId({ store: "horizon", userId: "u", sku: "s:1" }, {}),
+    ]).toEqual(["2000000000000002", "play", "sandbox:u%201:r", "u:s%3A1"]);
   });
 
   it("collapses failures before admission into one row per store and cause", async () => {
@@ -466,7 +515,7 @@ describe("verifyRecordingIssues", () => {
         issue: {
           cause: "PRODUCT_MISMATCH",
           store: "google",
-          digest: sha256("token-value"),
+          digest: sha256("google:token-value"),
           productId: "premium",
           claimedProductId: "other",
           environment: "Sandbox",

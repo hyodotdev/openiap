@@ -43,7 +43,12 @@ const inboundNotificationValidator = v.object({
   receivedAt: v.number(),
   appliedAt: v.optional(v.number()),
   // A store retry shares the first row's dedup key, so it never adds a row.
-  status: v.union(v.literal("applied"), v.literal("pending")),
+  // A store's test notification carries no purchase, so it applies to nothing.
+  status: v.union(
+    v.literal("applied"),
+    v.literal("pending"),
+    v.literal("test"),
+  ),
 });
 export type InboundNotification = Infer<typeof inboundNotificationValidator>;
 
@@ -114,7 +119,12 @@ async function toInboundNotification(
     occurredAt: event.occurredAt,
     receivedAt: event.receivedAt,
     ...(event.appliedAt !== undefined ? { appliedAt: event.appliedAt } : {}),
-    status: event.appliedAt !== undefined ? "applied" : "pending",
+    status:
+      event.type === "TestNotification"
+        ? "test"
+        : event.appliedAt !== undefined
+          ? "applied"
+          : "pending",
   };
 }
 

@@ -56,9 +56,10 @@ export interface ReplayGuardConfig {
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
 
-// Settled store verdicts. Anything else stays retryable unless the verifier
-// marks it stable: Google's UNKNOWN covers both an unrecognized state and the
-// explicit 410 revoked-token response, and only the latter is settled.
+// Settled store verdicts, unless the verifier says otherwise: Google's UNKNOWN
+// covers both an unrecognized state and the explicit 410 revoked-token response,
+// and only the latter is settled; an EXPIRED subscription Play holds on hold or
+// paused comes back when the user fixes payment or resumes.
 const STABLE_REJECTION_STATES = new Set([
   "INAUTHENTIC",
   "CANCELED",
@@ -68,15 +69,14 @@ const STABLE_REJECTION_STATES = new Set([
 
 /**
  * Whether a rejected verification arms the failure cooldown. Settled verdicts
- * (INAUTHENTIC, CANCELED, EXPIRED) don't change in seconds; others can.
+ * (INAUTHENTIC, CANCELED, EXPIRED) don't change in seconds; others can. The
+ * verifier's `stableRejection`, when set, decides instead.
  */
 export function isStableRejection(
   state: string,
-  explicitStableRejection = false,
+  stableRejection?: boolean,
 ): boolean {
-  return (
-    explicitStableRejection || STABLE_REJECTION_STATES.has(state.toUpperCase())
-  );
+  return stableRejection ?? STABLE_REJECTION_STATES.has(state.toUpperCase());
 }
 
 /**
@@ -91,7 +91,7 @@ export function isSettledRejection(
   return (
     store !== "horizon" &&
     !outcome.isValid &&
-    isStableRejection(outcome.state, outcome.stableRejection === true)
+    isStableRejection(outcome.state, outcome.stableRejection)
   );
 }
 

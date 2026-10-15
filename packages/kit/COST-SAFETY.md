@@ -50,19 +50,20 @@ only one or a few rows.
 
 A failed verification adds one indexed query and, at most, one scheduled
 mutation off the response path. Only a product mismatch or a pending payment,
-which the store reports about a purchase it verified, writes a row keyed by the
-evidence fingerprint. Every other cause shares one row per store and cause:
-configuration, credentials, rejected input, rate limits, outages, and evidence
-no store recognized, such as a forged JWS, an unknown Google token or Amazon
-receipt, or Meta's `success: false`. The query skips that write when the row was
-seen in the last minute, so a flood, even of distinct random evidence, costs a
-read per request, evicts no other row, and leaves `count` a lower bound. Bind
-issues are recorded only for secret-key callers, with one indexed read to
-fingerprint the matched purchase. A project keeps at most 1,024 rows in 16
-shards of 64; a new row reads only its own shard and replaces that shard's least
-recently seen row. An hourly cron deletes rows older than 30 days, 200 at a
-time. The edge limiter below still bounds every publishable-key request before
-it reaches Convex.
+which the store reports about a purchase it verified, and a secret-key bind's
+ownership conflict or link limit write a row per purchase. That row is keyed by
+the store and the purchase's store-verified id, so every encoding of one
+purchase's evidence lands on it. Every other cause shares one row per store and
+cause: configuration, credentials, rejected input, rate limits, outages, and
+evidence no store recognized, such as a forged JWS, an unknown Google token or
+Amazon receipt, or Meta's `success: false`. The query skips that write when the
+row was seen in the last minute, so a flood, even of distinct random evidence,
+costs a read per request, evicts no other row, and leaves `count` a lower bound.
+Bind issues are recorded only for secret-key callers. A project keeps at most
+1,024 rows in 16 shards of 64; a new row reads only its own shard and replaces
+that shard's least recently seen row. An hourly cron deletes rows older than 30
+days, 200 at a time. The edge limiter below still bounds every publishable-key
+request before it reaches Convex.
 
 ## Operator re-send and re-sync
 
@@ -83,7 +84,10 @@ Both need a project owner or admin, or a secret key behind the edge limiter.
   times while Play reports the token unknown. Transient failures retry as on
   verification. A purchase is saved through the verification save path, and a
   changed subscription adds one mutation that records a `StoreResync`
-  notification, updates the row, and emits at most one entitlement event.
+  notification, updates the row, and emits at most one entitlement event. A
+  verify that disagrees with a re-synced subscription but cannot prove it is
+  newer schedules one such re-sync of that subscription from the same bucket,
+  and is dropped when the bucket is empty.
 
 ## Outbound commerce worker
 

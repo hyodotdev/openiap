@@ -217,13 +217,14 @@ X-RateLimit-Remaining: 599`}
           a minute, so its <code>count</code> is a lower bound.
         </li>
         <li>
-          A per-purchase row holds a <code>fingerprint</code> of the purchase
-          evidence, keyed with a per-project secret so short identifiers cannot
-          be guessed back, never the token, JWS, or receipt. It equals the
-          fingerprint on the purchase&apos;s detail page while that purchase
-          holds the same evidence; a later verify, such as an Apple renewal,
-          replaces it. A bind issue fingerprints the purchase it matched, or the
-          bind&apos;s token when IAPKit saved no purchase for it. A shared row
+          A per-purchase row holds a <code>fingerprint</code> of the store and
+          the purchase&apos;s store-verified id: Apple&apos;s original
+          transaction id, the Play token, the Amazon receipt, or the Horizon
+          user and SKU. It is keyed with a per-project secret so short
+          identifiers cannot be guessed back, and never holds the token, JWS, or
+          receipt. Every encoding of one purchase&apos;s evidence lands on the
+          same row, and it equals the fingerprint on the purchase&apos;s detail
+          page. A bind issue fingerprints the purchase it matched. A shared row
           has no <code>fingerprint</code>.
         </li>
         <li>
@@ -236,8 +237,9 @@ X-RateLimit-Remaining: 599`}
           verified.
         </li>
         <li>
-          Rows are kept for 30 days, up to 1,024 per project; the least recently
-          seen go first.
+          Rows are kept for 30 days, up to 1,024 per project in 16 shards of 64.
+          A new row replaces the least recently seen row of its own shard, so
+          eviction is per shard, not project-wide.
         </li>
       </ul>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
@@ -280,9 +282,12 @@ X-RateLimit-Remaining: 599`}
           though one re-sync may make several store calls.
         </li>
         <li>
-          The purchase row is saved through the verification path. A changed
-          subscription is recorded as a <code>StoreResync</code> inbound
-          notification and applied in one transaction.
+          The purchase row is saved through the verification path, unless a
+          verify saved it while the store was being read. A changed subscription
+          is recorded as a <code>StoreResync</code> inbound notification and
+          applied in one transaction; its commerce events carry no{" "}
+          <code>sourceStoreEventId</code>, since no store notification caused
+          them.
         </li>
         <li>
           A re-sync sees current state, not the events in between, so it emits{" "}
@@ -296,7 +301,9 @@ X-RateLimit-Remaining: 599`}
           still emits its lifecycle event but keeps the re-synced state. A later
           verify replaces that state only with newer evidence: an Apple
           transaction bought or refunded after the read, or a Google read made
-          after it.
+          after it. A verify that disagrees but cannot prove it is newer, such
+          as an Apple refund reversal, triggers one more store read from the
+          same bucket instead.
         </li>
         <li>
           Amazon is rechecked automatically through RVS; Horizon has no
@@ -318,6 +325,16 @@ GET  /v1/webhooks/notifications?limit=&cursor=
 GET  /v1/purchase/issues?cause=&store=&productId=&appUserId=&from=&to=&limit=&cursor=
 POST /v1/subscriptions/resync  {"purchaseId"} or {"subscriptionId"}
 GET  /v1/subscriptions/timeline?userId=`}</CodeBlock>
+      <p>
+        Errors use <code>{"{ errors: [{ code, message }] }"}</code>:{" "}
+        <code>404 NOT_FOUND</code>, <code>409 NOT_RESENDABLE</code> for a
+        delivery that is already queued, <code>429 RATE_LIMITED</code> with{" "}
+        <code>Retry-After</code>, and <code>502 STORE_REQUEST_FAILED</code> when
+        the store call fails; retry it later. A notification&apos;s{" "}
+        <code>status</code> is <code>applied</code>, <code>pending</code>, or{" "}
+        <code>test</code> for a store test notification, which applies to
+        nothing.
+      </p>
       <p>
         Purchase issues come most recently seen first. <code>from</code> and{" "}
         <code>to</code> are epoch milliseconds that bound{" "}

@@ -6,9 +6,15 @@ vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
   getAuthUserId: async () => auth.userId as never,
 }));
 
+const { getFunctionName } = await import("convex/server");
 const { MemoryDb, seedProject } = await import("../test.memoryDb");
-const { appleStatusSnapshot, applyStoreResyncHandler } =
-  await import("./resync");
+const {
+  appleStatusSnapshot,
+  applyPurchaseResyncHandler,
+  applyStoreResyncHandler,
+  getResyncTarget,
+} = await import("./resync");
+const { testableFunction } = await import("../test.setup");
 const { applySubscriptionEventHandler, recordVerifiedSubscriptionHandler } =
   await import("./internal");
 const { HarmonizedPurchaseState } = await import("../purchases/purchaseState");
@@ -18,6 +24,14 @@ const { resolveOperatorProject } = await import("../projects/helpers");
 type Db = InstanceType<typeof MemoryDb>;
 const ctxOf = (db: Db) => ({ db }) as never;
 const HOUR = 60 * 60 * 1000;
+
+// A mutation ctx whose scheduled calls are recorded, not run.
+function schedulingCtx(db: Db) {
+  const runAfter = vi.fn(async () => null);
+  return { ctx: { db, scheduler: { runAfter } } as never, runAfter };
+}
+const scheduledNames = (runAfter: ReturnType<typeof vi.fn>) =>
+  runAfter.mock.calls.map(([, reference]) => getFunctionName(reference));
 
 beforeEach(() => {
   auth.userId = "users_1";
@@ -160,6 +174,10 @@ describe("applyStoreResync", () => {
         entitlementActive: false,
       }),
     ]);
+    // No store notification caused it, so no store event id (SPEC 9.3).
+    expect(db.rows("commerceEvents")[0]).not.toHaveProperty(
+      "sourceStoreNotificationId",
+    );
     expect(db.rows("webhookEvents")).toEqual([
       expect.objectContaining({
         source: "StoreResync",
@@ -268,10 +286,27 @@ describe("applyStoreResync", () => {
 
 describe("a verify after a re-sync", () => {
   const DAY = 24 * HOUR;
+  const appleResync = (
+    observedAt: number,
+    snapshot: {
+      state: "Active" | "Revoked";
+      expiresAt: number;
+      cancellationReason?: "Refunded";
+    },
+  ) => ({
+    projectId: "projects_1" as never,
+    platform: "IOS" as const,
+    store: "apple" as const,
+    purchaseToken: "2000000000000001",
+    observedAt,
+    snapshot: { productId: "premium_monthly", ...snapshot },
+    context: { environment: "Production" as const },
+  });
 
   it("cannot roll Apple back with a re-signed older transaction, but newer evidence applies", async () => {
     const db = new MemoryDb();
     seedProject(db, "admin");
+    const { ctx, runAfter } = schedulingCtx(db);
     const now = Date.now();
     const first = {
       projectId: "projects_1" as never,
@@ -282,41 +317,39 @@ describe("a verify after a re-sync", () => {
       evidenceAt: now - 60 * DAY,
     };
     // A verify-only row from the first period.
-    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+    await recordVerifiedSubscriptionHandler(ctx, {
       ...first,
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       expiresAt: now - 30 * DAY,
       verifiedSignedDate: now - 60 * DAY,
     });
     // The re-sync sees the renewal the server never verified.
-    await applyStoreResyncHandler(ctxOf(db), {
-      projectId: "projects_1" as never,
-      platform: "IOS",
-      store: "apple",
-      purchaseToken: "2000000000000001",
-      observedAt: now,
-      snapshot: {
-        productId: "premium_monthly",
-        state: "Active",
-        expiresAt: now + 30 * DAY,
-        willRenew: true,
-      },
-      context: { environment: "Production" },
-    });
+    await applyStoreResyncHandler(
+      ctx,
+      appleResync(now, { state: "Active", expiresAt: now + 30 * DAY }),
+    );
 
     // The first transaction replayed: Apple re-signs it now, still expired.
-    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+    // It disagrees, so the store is asked again; its answer holds the renewal.
+    await recordVerifiedSubscriptionHandler(ctx, {
       ...first,
       purchaseState: HarmonizedPurchaseState.EXPIRED,
       expiresAt: now - 30 * DAY,
       verifiedSignedDate: now + 1_000,
     });
+    expect(scheduledNames(runAfter)).toEqual([
+      "subscriptions/action:resyncDisputedSubscription",
+    ]);
+    await applyStoreResyncHandler(
+      ctx,
+      appleResync(now + 2_000, { state: "Active", expiresAt: now + 30 * DAY }),
+    );
     expect(db.rows("subscriptions")).toMatchObject([
       { state: "Active", expiresAt: now + 30 * DAY },
     ]);
 
     // A renewal bought after the re-sync is newer evidence.
-    await recordVerifiedSubscriptionHandler(ctxOf(db), {
+    await recordVerifiedSubscriptionHandler(ctx, {
       ...first,
       purchaseState: HarmonizedPurchaseState.ENTITLED,
       expiresAt: now + 60 * DAY,
@@ -327,14 +360,70 @@ describe("a verify after a re-sync", () => {
     expect(db.rows("subscriptions")).toMatchObject([
       { state: "Active", expiresAt: now + 60 * DAY },
     ]);
+    expect(runAfter).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-reads the store for an Apple refund reversal instead of dropping it", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const { ctx, runAfter } = schedulingCtx(db);
+    const now = Date.now();
+    const transaction = {
+      projectId: "projects_1" as never,
+      platform: "IOS" as const,
+      purchaseToken: "2000000000000001",
+      productId: "premium_monthly",
+      expiresAt: now + 20 * DAY,
+      verifiedPurchaseDate: now - 10 * DAY,
+      evidenceAt: now - 10 * DAY,
+    };
+    await recordVerifiedSubscriptionHandler(ctx, {
+      ...transaction,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: now - 10 * DAY,
+    });
+    // The refund, seen by a re-sync.
+    await applyStoreResyncHandler(
+      ctx,
+      appleResync(now, {
+        state: "Revoked",
+        expiresAt: now + 20 * DAY,
+        cancellationReason: "Refunded",
+      }),
+    );
+    const [row] = db.rows("subscriptions");
+
+    // Apple reverses it: the same transaction without its revocation date
+    // reports nothing newer than the re-sync, so it is not applied blind.
+    await recordVerifiedSubscriptionHandler(ctx, {
+      ...transaction,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: now + HOUR,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([{ state: "Revoked" }]);
+    expect(runAfter.mock.calls).toEqual([
+      [
+        0,
+        expect.anything(),
+        { projectId: "projects_1", subscriptionId: row._id },
+      ],
+    ]);
+
+    // The scheduled re-read finds it active again.
+    await applyStoreResyncHandler(
+      ctx,
+      appleResync(now + HOUR, { state: "Active", expiresAt: now + 20 * DAY }),
+    );
+    expect(db.rows("subscriptions")).toMatchObject([{ state: "Active" }]);
   });
 
   it("applies a Google read made after the re-sync, never one made before it", async () => {
     const db = new MemoryDb();
     seedProject(db, "admin");
+    const { ctx, runAfter } = schedulingCtx(db);
     const now = Date.now();
     const verify = (readAt: number, expiresAt: number) =>
-      recordVerifiedSubscriptionHandler(ctxOf(db), {
+      recordVerifiedSubscriptionHandler(ctx, {
         projectId: "projects_1" as never,
         platform: "Android",
         purchaseToken: "google-token",
@@ -345,7 +434,7 @@ describe("a verify after a re-sync", () => {
         evidenceAt: readAt,
       });
     await verify(now - DAY, now + DAY);
-    await applyStoreResyncHandler(ctxOf(db), {
+    await applyStoreResyncHandler(ctx, {
       projectId: "projects_1" as never,
       platform: "Android",
       store: "google",
@@ -360,13 +449,84 @@ describe("a verify after a re-sync", () => {
       context: { environment: "Production" },
     });
 
-    // Read before the re-sync but committed after it.
+    // Read before the re-sync but committed after it: the store is asked again.
     await verify(now - 1, now + DAY);
     expect(db.rows("subscriptions")).toMatchObject([{ state: "Expired" }]);
+    expect(runAfter).toHaveBeenCalledTimes(1);
 
     await verify(now + 1, now + 30 * DAY);
     expect(db.rows("subscriptions")).toMatchObject([
       { state: "Active", expiresAt: now + 30 * DAY },
+    ]);
+  });
+});
+
+describe("re-sync targets", () => {
+  it("re-reads Apple in the subscription's stored environment", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const subscriptionId = await db.insert("subscriptions", {
+      projectId: "projects_1",
+      purchaseToken: "2000000000000001",
+      productId: "premium_monthly",
+      platform: "IOS",
+      store: "apple",
+      state: "Active",
+      environment: "Sandbox",
+      startedAt: 1,
+      updatedAt: 1,
+    });
+    await expect(
+      testableFunction(getResyncTarget)._handler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        subscriptionId,
+      }),
+    ).resolves.toMatchObject({ kind: "subscription", environment: "Sandbox" });
+  });
+
+  it("keeps a purchase verdict saved while the store was being read", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const now = Date.now();
+    const purchaseId = await db.insert("purchases", {
+      projectId: "projects_1",
+      store: "google",
+      applicationId: "dev.example",
+      remoteId: "play-token",
+      requestData: { store: "google", purchaseToken: "play-token" },
+      remoteResponse: "{}",
+      state: "ENTITLED",
+      isValid: true,
+      updatedAt: now + 1,
+    });
+    const resync = (observedAt: number) =>
+      applyPurchaseResyncHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        purchaseId: purchaseId as never,
+        observedAt,
+        applicationId: "dev.example",
+        remoteResponse: JSON.stringify({ purchaseStateContext: {} }),
+        state: HarmonizedPurchaseState.CANCELED,
+        isValid: false,
+      });
+
+    // A verify landed after the store read began: the older read loses.
+    await expect(resync(now)).resolves.toEqual({
+      id: purchaseId,
+      state: "ENTITLED",
+      isValid: true,
+      changed: false,
+    });
+    expect(db.rows("purchases")).toMatchObject([{ state: "ENTITLED" }]);
+
+    await expect(resync(now + 2)).resolves.toEqual({
+      id: purchaseId,
+      state: "CANCELED",
+      isValid: false,
+      changed: true,
+    });
+    expect(db.rows("purchases")).toMatchObject([
+      { state: "CANCELED", isValid: false },
     ]);
   });
 });

@@ -15,9 +15,8 @@ import { readPurchaseStats } from "./stats";
 import { extractProductIdFromRemoteResponse } from "./shared";
 import {
   evidenceFingerprint,
-  purchaseEvidence,
+  purchaseDigest,
 } from "../purchaseIssues/evidence";
-import { sha256Hex } from "../utils/sha256";
 import {
   getWritableOrganization,
   getWritableProject,
@@ -123,8 +122,9 @@ export const getReceiptsByProject = query({
 
     // Use the most selective index, then `.filter()` before `.paginate()`:
     // filtering a page afterwards under-fills it and can end pagination early.
-    // A user or product filter scans only that index range; other combinations
-    // scan the project's rows, so add an index if one gets hot.
+    // A user filter, or a product filter in creation order, scans only that
+    // index range; other combinations scan the project's rows, so add an index
+    // if one gets hot. A user's rows always list in creation order.
     const narrow = (
       query: OrderedQuery<DataModel["purchases"]>,
       covered: { appUser?: boolean; product?: boolean; created?: boolean } = {},
@@ -163,7 +163,10 @@ export const getReceiptsByProject = query({
               .eq("projectId", args.projectId),
           ),
       ).paginate(args.paginationOpts);
-    } else if (appUserId !== undefined || productId !== undefined) {
+    } else if (
+      appUserId !== undefined ||
+      (productId !== undefined && sortField === "_creationTime")
+    ) {
       const purchases = ctx.db.query("purchases");
       let q = (
         appUserId !== undefined
@@ -345,12 +348,13 @@ export const getPurchaseById = query({
 
     // An older project gets its salt with its first purchase issue; until then
     // there is no issue to match, so none is shown.
-    const fingerprint = project.fingerprintSalt
-      ? await evidenceFingerprint(
-          project.fingerprintSalt,
-          await sha256Hex(purchaseEvidence(purchase.requestData)),
-        )
-      : undefined;
+    const fingerprint =
+      project.fingerprintSalt && purchase.remoteId
+        ? await evidenceFingerprint(
+            project.fingerprintSalt,
+            await purchaseDigest(purchase.store, purchase.remoteId),
+          )
+        : undefined;
     const withProductId = {
       ...purchase,
       productId:

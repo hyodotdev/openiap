@@ -5,7 +5,7 @@
 // emits only the entitlement delta and never invents a lifecycle event. It
 // stamps `resyncedAt`, not the store-event ordering, so a notification it
 // overtook still emits its lifecycle event without rolling the state back, and
-// a verify of older evidence leaves it alone.
+// a verify that cannot prove it is newer asks the store again instead.
 // It never binds, unbinds or moves an owner: `persistSubscriptionSnapshot`
 // keeps the row's `userId`.
 
@@ -19,6 +19,8 @@ import {
 } from "../_generated/server";
 import { emitCommerceEvent, storeOf } from "../commerce/internal";
 import { assertProjectWritable } from "../projects/writable";
+import { savePurchaseInternal } from "../purchases/internal";
+import { harmonizedPurchaseStateValidator } from "../purchases/purchaseState";
 import { purchaseRequestDataValidator } from "../schema";
 import {
   cancellationReasonValidator,
@@ -68,6 +70,13 @@ export const resyncOutcomeValidator = v.object({
   emittedEvents: v.number(),
 });
 export type ResyncOutcome = Infer<typeof resyncOutcomeValidator>;
+
+export const purchaseResyncOutcomeValidator = v.object({
+  id: v.id("purchases"),
+  state: v.string(),
+  isValid: v.boolean(),
+  changed: v.boolean(),
+});
 
 /** App Store Server API subscription status: 1 active ... 5 revoked. */
 export function appleStatusSnapshot(input: {
@@ -177,12 +186,9 @@ export const getResyncTarget = internalQuery({
       kind: v.literal("purchase"),
       purchaseId: v.id("purchases"),
       store: v.union(v.literal("apple"), v.literal("google")),
-      remoteId: v.string(),
       requestData: purchaseRequestDataValidator,
       remoteResponse: v.optional(v.string()),
       productId: v.optional(v.string()),
-      state: v.string(),
-      isValid: v.boolean(),
     }),
     v.object({
       kind: v.literal("subscription"),
@@ -215,14 +221,11 @@ export const getResyncTarget = internalQuery({
         kind: "purchase" as const,
         purchaseId: purchase._id,
         store: purchase.store,
-        remoteId: purchase.remoteId,
         requestData: purchase.requestData,
         ...(purchase.remoteResponse
           ? { remoteResponse: purchase.remoteResponse }
           : {}),
         ...(purchase.productId ? { productId: purchase.productId } : {}),
-        state: purchase.state,
-        isValid: purchase.isValid ?? false,
       };
     }
     const subscriptionId =
@@ -237,7 +240,9 @@ export const getResyncTarget = internalQuery({
     }
     const store = storeOf(subscription);
     if (store !== "apple" && store !== "google") throw unsupportedStore(store);
-    const environment = subscription.lastEventSource?.environment;
+    // Rows from before the column fall back to their last store event.
+    const environment =
+      subscription.environment ?? subscription.lastEventSource?.environment;
     return {
       kind: "subscription" as const,
       subscriptionId: subscription._id,
@@ -267,6 +272,64 @@ function unsupportedStore(store: string): ConvexError<{
         ? "Amazon purchases are rechecked automatically through RVS."
         : `Re-sync supports Apple and Google; ${store} has no lifecycle API.`,
   });
+}
+
+const applyPurchaseResyncArgs = v.object({
+  projectId: v.id("projects"),
+  purchaseId: v.id("purchases"),
+  // When the store was asked; a verdict saved after it is newer and kept.
+  observedAt: v.number(),
+  applicationId: v.string(),
+  remoteResponse: v.string(),
+  state: harmonizedPurchaseStateValidator,
+  isValid: v.boolean(),
+});
+
+/** Saves a purchase row's re-read through the verification save path. */
+export const applyPurchaseResync = internalMutation({
+  args: applyPurchaseResyncArgs.fields,
+  returns: purchaseResyncOutcomeValidator,
+  handler: applyPurchaseResyncHandler,
+});
+
+export async function applyPurchaseResyncHandler(
+  ctx: MutationCtx,
+  args: Infer<typeof applyPurchaseResyncArgs>,
+): Promise<Infer<typeof purchaseResyncOutcomeValidator>> {
+  const purchase = await ctx.db.get(args.purchaseId);
+  if (!purchase?.remoteId || purchase.projectId !== args.projectId) {
+    throw new ConvexError({
+      code: "NOT_FOUND",
+      message: "Purchase or subscription not found in this project",
+    });
+  }
+  const stored = {
+    id: purchase._id,
+    state: purchase.state,
+    isValid: purchase.isValid ?? false,
+  };
+  // A verify saved while the store was being read is at least as new.
+  if ((purchase.updatedAt ?? 0) > args.observedAt) {
+    return { ...stored, changed: false };
+  }
+  await savePurchaseInternal({
+    ctx,
+    projectId: args.projectId,
+    store: purchase.store,
+    applicationId: args.applicationId,
+    remoteId: purchase.remoteId,
+    requestData: purchase.requestData,
+    remoteResponse: args.remoteResponse,
+    state: args.state,
+    isValid: args.isValid,
+    persistIfChanged: true,
+  });
+  return {
+    ...stored,
+    state: args.state,
+    isValid: args.isValid,
+    changed: stored.state !== args.state || stored.isValid !== args.isValid,
+  };
 }
 
 const applyStoreResyncArgs = v.object({
@@ -410,12 +473,15 @@ export async function applyStoreResyncHandler(
     },
   );
   await ctx.db.patch(event._id, { appliedAt: now });
+  // The row's id is IAPKit's own, so it must not pose as a store
+  // notification id (Commerce Protocol SPEC 9.3).
+  const { sourceNotificationId: _resyncId, ...sourceEvent } = event;
   const emitted = await emitCommerceEvent(ctx, {
     projectId: args.projectId,
     transition: null,
     active: entitlementActive(next, now),
     previouslyActive,
-    sourceEvent: event,
+    sourceEvent,
     subscriptionId,
     subscription: {
       ...next,

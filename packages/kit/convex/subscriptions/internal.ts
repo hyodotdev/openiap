@@ -918,13 +918,21 @@ export async function recordVerifiedSubscriptionHandler(
   // roll canonical product, state, or expiry backward.
   if (existing?.lastEventId) return existing._id;
   const now = Date.now();
-  if (
-    existing &&
-    (isOlderVerifiedSnapshot(existing, args) || predatesResync(existing, args))
-  )
-    return existing._id;
+  if (existing && isOlderVerifiedSnapshot(existing, args)) return existing._id;
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
+  if (existing && predatesResync(existing, args)) {
+    // Evidence the re-sync may already cover, yet it disagrees: an Apple
+    // refund reversal keeps its purchase date. Ask the store, never guess.
+    if (next.state !== existing.state) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.subscriptions.action.resyncDisputedSubscription,
+        { projectId: args.projectId, subscriptionId: existing._id },
+      );
+    }
+    return existing._id;
+  }
   return persistSubscriptionSnapshot(ctx, {
     projectId: args.projectId,
     platform: args.platform,

@@ -91,13 +91,19 @@ export default function WebhookNotifications() {
                 ) : null}
                 <Badge
                   variant={
-                    notification.status === "applied" ? "success" : "warning"
+                    notification.status === "applied"
+                      ? "success"
+                      : notification.status === "test"
+                        ? "outline"
+                        : "warning"
                   }
                   size="xs"
                 >
                   {notification.status === "applied"
                     ? `applied ${formatUtcDateTime(notification.appliedAt ?? notification.receivedAt)}`
-                    : "not applied"}
+                    : notification.status === "test"
+                      ? "test notification"
+                      : "not applied"}
                 </Badge>
               </div>
             </li>

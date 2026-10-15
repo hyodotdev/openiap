@@ -281,6 +281,11 @@ describe("isStableRejection", () => {
     expect(isStableRejection("UNKNOWN", true)).toBe(true);
   });
 
+  it("leaves an EXPIRED the store can still revive unarmed", () => {
+    // Google ON_HOLD: a fixed payment returns the same token to ACTIVE.
+    expect(isStableRejection("EXPIRED", false)).toBe(false);
+  });
+
   it("is case-insensitive", () => {
     expect(isStableRejection("pending")).toBe(false);
     expect(isStableRejection("Unknown")).toBe(false);
@@ -392,6 +397,18 @@ describe("replayGuardMiddleware cooldown wiring", () => {
     });
 
     const second = await runMiddleware({ store, body, now: 2_000 });
+    expect(second.status).toBe(200);
+    expect(second.reachedUpstream).toBe(true);
+  });
+
+  it("lets an on-hold Google subscription re-verify once payment is fixed", async () => {
+    const store = new Map<string, ReplayBucket>();
+    await runMiddleware({
+      store,
+      outcome: { isValid: false, state: "EXPIRED", stableRejection: false },
+      now: 1_000,
+    });
+    const second = await runMiddleware({ store, now: 2_000 });
     expect(second.status).toBe(200);
     expect(second.reachedUpstream).toBe(true);
   });

@@ -67,7 +67,7 @@ function setup() {
 
 // Keyed by the project's salt, so a short identifier cannot be guessed back.
 const fingerprint = createHmac("sha256", SALT)
-  .update(createHash("sha256").update(TOKEN).digest("hex"))
+  .update(createHash("sha256").update(`google:${TOKEN}`).digest("hex"))
   .digest("hex");
 
 describe("raw store evidence", () => {

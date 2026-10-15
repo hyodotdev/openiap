@@ -3,8 +3,10 @@ import {
   AppStoreProductType,
   narrowAppleEnvironment,
   AppStoreTransactionReason,
+  applyExpectedProductId,
   mapAppStorePurchaseState,
   mapGooglePlayPurchaseState,
+  mapToGooglePlayReceiptResponse,
   mapToPurchaseType,
   PurchaseType,
   isValidState,
@@ -181,6 +183,60 @@ describe("mapGooglePlayPurchaseState", () => {
     });
 
     expect(state).toBe(HarmonizedPurchaseState.CANCELED);
+  });
+});
+
+describe("mapToGooglePlayReceiptResponse", () => {
+  const subscription = (subscriptionState: string) => ({
+    transactionId: "token",
+    packageName: "dev.example",
+    productId: "monthly",
+    purchaseToken: "token",
+    purchaseDate: 1,
+    quantity: 1,
+    type: "Subscription" as const,
+    subscriptionState,
+    acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+    // Play keeps the lapsed period's end while it holds the subscription.
+    expiryTime: Date.now() - 60_000,
+  });
+
+  it("keeps a subscription Play can revive retryable after its expiry", () => {
+    for (const state of [
+      "SUBSCRIPTION_STATE_ON_HOLD",
+      "SUBSCRIPTION_STATE_PAUSED",
+      "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+      "SUBSCRIPTION_STATE_ACTIVE",
+      "SUBSCRIPTION_STATE_PENDING",
+    ]) {
+      expect(
+        mapToGooglePlayReceiptResponse(subscription(state)),
+        state,
+      ).toMatchObject({
+        isValid: false,
+        state: HarmonizedPurchaseState.EXPIRED,
+        stableRejection: false,
+      });
+    }
+  });
+
+  it("leaves a lapsed subscription settled, and a product mismatch always", () => {
+    for (const state of [
+      "SUBSCRIPTION_STATE_EXPIRED",
+      "SUBSCRIPTION_STATE_CANCELED",
+    ]) {
+      expect(
+        mapToGooglePlayReceiptResponse(subscription(state)),
+      ).not.toHaveProperty("stableRejection");
+    }
+    const onHold = mapToGooglePlayReceiptResponse(
+      subscription("SUBSCRIPTION_STATE_ON_HOLD"),
+    );
+    expect(applyExpectedProductId(onHold, "yearly")).toEqual({
+      isValid: false,
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      productId: "monthly",
+    });
   });
 });
 

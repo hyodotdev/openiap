@@ -18,7 +18,7 @@ import { ConvexError, v, type Infer } from "convex/values";
 
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { action, type ActionCtx } from "../_generated/server";
+import { action, internalAction, type ActionCtx } from "../_generated/server";
 import { loadAppleRootCertificates } from "../certificates/apple_root_certificates";
 import { selectAppleSubscriptionItem } from "../orders/shared";
 import {
@@ -49,6 +49,7 @@ import {
 import { buildVerifiedSubscriptionSnapshot } from "./internal";
 import {
   appleStatusSnapshot,
+  purchaseResyncOutcomeValidator,
   resyncOutcomeValidator,
   type ResyncOutcome,
 } from "./resync";
@@ -56,14 +57,7 @@ import {
 const resyncResultValidator = v.object({
   target: v.union(v.literal("purchase"), v.literal("subscription")),
   store: v.union(v.literal("apple"), v.literal("google")),
-  purchase: v.optional(
-    v.object({
-      id: v.id("purchases"),
-      state: v.string(),
-      isValid: v.boolean(),
-      changed: v.boolean(),
-    }),
-  ),
+  purchase: v.optional(purchaseResyncOutcomeValidator),
   subscription: v.optional(resyncOutcomeValidator),
 });
 export type ResyncResult = Infer<typeof resyncResultValidator>;
@@ -96,25 +90,57 @@ export const resyncFromStore = action({
       internal.projects.internal.getOperatorProject,
       { projectId: args.projectId, apiKey: args.apiKey, access: "write" },
     );
-    const target: ResyncTarget = await ctx.runQuery(
-      internal.subscriptions.resync.getResyncTarget,
-      {
-        projectId: project._id,
-        purchaseId: args.purchaseId,
-        subscriptionId: args.subscriptionId,
-      },
-    );
-    await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
-      projectId: project._id,
-      bucket: "storeResync",
+    return await resync(ctx, project, {
+      purchaseId: args.purchaseId,
+      subscriptionId: args.subscriptionId,
     });
-    return target.store === "apple"
-      ? await resyncApple(ctx, project, target)
-      : await resyncGoogle(ctx, project, target);
   },
 });
 
-async function savePurchaseVerdict(
+/**
+ * Re-reads a subscription a verify disagreed with but could not prove newer
+ * than its last re-sync. It draws on the same bucket and gives up quietly.
+ */
+export const resyncDisputedSubscription = internalAction({
+  args: { projectId: v.id("projects"), subscriptionId: v.id("subscriptions") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const project: Doc<"projects"> | null = await ctx.runQuery(
+      internal.projects.internal.getProjectById,
+      { projectId: args.projectId },
+    );
+    if (!project) return null;
+    try {
+      await resync(ctx, project, { subscriptionId: args.subscriptionId });
+    } catch (error) {
+      console.warn(
+        "[resync] disputed verify not re-read: %s",
+        error instanceof Error ? error.name : typeof error,
+      );
+    }
+    return null;
+  },
+});
+
+async function resync(
+  ctx: ActionCtx,
+  project: Doc<"projects">,
+  ids: { purchaseId?: string; subscriptionId?: string },
+): Promise<ResyncResult> {
+  const target: ResyncTarget = await ctx.runQuery(
+    internal.subscriptions.resync.getResyncTarget,
+    { projectId: project._id, ...ids },
+  );
+  await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
+    projectId: project._id,
+    bucket: "storeResync",
+  });
+  return target.store === "apple"
+    ? await resyncApple(ctx, project, target)
+    : await resyncGoogle(ctx, project, target);
+}
+
+function savePurchaseVerdict(
   ctx: ActionCtx,
   project: Doc<"projects">,
   target: PurchaseTarget,
@@ -122,27 +148,18 @@ async function savePurchaseVerdict(
     applicationId: string;
     remoteResponse: string;
     response: ReceiptResponse;
+    observedAt: number;
   },
 ): Promise<NonNullable<ResyncResult["purchase"]>> {
-  await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+  return ctx.runMutation(internal.subscriptions.resync.applyPurchaseResync, {
     projectId: project._id,
-    store: target.store,
+    purchaseId: target.purchaseId,
+    observedAt: verdict.observedAt,
     applicationId: verdict.applicationId,
-    remoteId: target.remoteId,
-    requestData: target.requestData,
     remoteResponse: verdict.remoteResponse,
     state: verdict.response.state,
     isValid: verdict.response.isValid,
-    persistIfChanged: true,
   });
-  return {
-    id: target.purchaseId,
-    state: verdict.response.state,
-    isValid: verdict.response.isValid,
-    changed:
-      target.state !== verdict.response.state ||
-      target.isValid !== verdict.response.isValid,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +218,7 @@ async function resyncApple(
       applicationId: observed.transaction.bundleId ?? bundleId,
       remoteResponse: JSON.stringify(observed.transaction),
       response: mapToAppStoreReceiptResponse(observed.transaction),
+      observedAt: observed.observedAt,
     });
     return {
       target: "purchase",
@@ -210,6 +228,7 @@ async function resyncApple(
     };
   }
 
+  const observedAt = Date.now();
   const transaction = await withAppleEnvironment(
     apple,
     stored.environment,
@@ -245,6 +264,7 @@ async function resyncApple(
       applicationId: transaction.bundleId ?? bundleId,
       remoteResponse: JSON.stringify(transaction),
       response: mapToAppStoreReceiptResponse(transaction),
+      observedAt,
     }),
   };
 }
@@ -552,6 +572,7 @@ async function resyncGoogle(
     applicationId: receiptData.packageName,
     remoteResponse,
     response,
+    observedAt,
   });
   return {
     target: "purchase",
