@@ -580,11 +580,7 @@ async function hasNotificationBefore(
       q.eq("projectId", projectId).lt("_creationTime", before),
     )
     .take(100);
-  return oldest.some(
-    (event) =>
-      STORE_NOTIFICATION_SOURCES.has(event.source) &&
-      event.type !== "TestNotification",
-  );
+  return oldest.some(isStoreNotification);
 }
 
 function latestNotifications(

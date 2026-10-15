@@ -77,8 +77,18 @@ export function memberOrderView(
     ...summary
   } = result;
   if (!subscription) return { ...summary, raw: "" };
-  const { raw: _raw, ...status } = subscription;
-  return { ...summary, subscription: status, raw: "" };
+  // A network error message can quote the request URL, token included.
+  const { raw: _raw, error, ...status } = subscription;
+  return {
+    ...summary,
+    subscription: {
+      ...status,
+      ...(error !== undefined
+        ? { error: "The store did not return the subscription status." }
+        : {}),
+    },
+    raw: "",
+  };
 }
 
 async function getProjectForMember(

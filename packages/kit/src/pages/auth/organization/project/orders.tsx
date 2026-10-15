@@ -450,7 +450,7 @@ export default function ProjectOrders() {
             {summary?.lineItemCount !== undefined && (
               <div className="mb-4">
                 <TechnicalNotice
-                  message={`This order has ${summary.lineItemCount} line items. The summary describes the first one — see the raw store response for the rest.`}
+                  message={`This order has ${summary.lineItemCount} line items. The summary describes the first one${result.raw ? " — see the raw store response for the rest" : ""}.`}
                 />
               </div>
             )}
@@ -540,7 +540,9 @@ export default function ProjectOrders() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {"No decoded transactions were returned for this order."}
+                  {result.raw
+                    ? "No decoded transactions were returned for this order."
+                    : "Transaction details are visible to project owners and admins."}
                 </p>
               )
             ) : (

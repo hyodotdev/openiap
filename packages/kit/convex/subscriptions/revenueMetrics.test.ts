@@ -3078,23 +3078,25 @@ describe("getRevenueMetrics — data state", () => {
     const db = new MemDb();
     await seedKey(db);
     await seedCurrentRunStatus(db, { lastRunAt: NOW });
-    // One more row than fits, on an older day, is the one left out.
-    await db.insert("revenueMetricsDaily", {
-      projectId: PROJECT_ID,
-      day: D2,
-      productId: "sku.old",
-      currency: "USD",
-      platform: "IOS",
-      environment: "Production",
-      activeSubs: 1,
-      newSubs: 0,
-      renewals: 0,
-      cancellations: 0,
-      refunds: 0,
-      revenueMicros: 0,
-      updatedAt: NOW,
-    });
-    for (let i = 0; i < 8_192; i++) {
+    // The cap cuts into an older day; that partial day is left out whole.
+    for (let i = 0; i < 10; i++) {
+      await db.insert("revenueMetricsDaily", {
+        projectId: PROJECT_ID,
+        day: D2,
+        productId: `sku.old.${i}`,
+        currency: "USD",
+        platform: "IOS",
+        environment: "Production",
+        activeSubs: 1,
+        newSubs: 0,
+        renewals: 0,
+        cancellations: 0,
+        refunds: 0,
+        revenueMicros: 0,
+        updatedAt: NOW,
+      });
+    }
+    for (let i = 0; i < 8_190; i++) {
       await db.insert("revenueMetricsDaily", {
         projectId: PROJECT_ID,
         day: TODAY,
@@ -3113,7 +3115,7 @@ describe("getRevenueMetrics — data state", () => {
     }
 
     const result = await getRevenueMetrics._handler({ db }, range);
-    expect(result.days).toHaveLength(8_192);
+    expect(result.days).toHaveLength(8_190);
     expect(result.days.every((day) => day.day === TODAY)).toBe(true);
     expect(result.truncated).toBe(true);
   });

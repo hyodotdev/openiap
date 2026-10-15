@@ -942,7 +942,13 @@ export const getRevenueMetrics = query({
       );
     }
     const truncated = rows.length > REVENUE_SCAN_CAP;
-    rows.splice(REVENUE_SCAN_CAP);
+    if (truncated) {
+      // The day the cap cut into is partial, which would skew its totals and
+      // churn base, so it goes whole unless it is the only day left.
+      const cutDay = rows[REVENUE_SCAN_CAP].day;
+      const keep = rows.findIndex((row) => row.day <= cutDay);
+      rows.splice(keep > 0 ? keep : REVENUE_SCAN_CAP);
+    }
     // Return main's day order.
     rows.sort(
       (a, b) =>

@@ -412,6 +412,7 @@ describe("memberOrderView", () => {
       subscription: {
         state: "ACTIVE",
         raw: '{"linkedPurchaseToken":"old-SECRET"}',
+        error: "request to /tokens/token-SECRET failed",
       },
       raw: '{"purchaseToken":"token-SECRET"}',
     });
