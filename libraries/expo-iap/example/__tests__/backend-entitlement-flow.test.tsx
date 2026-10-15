@@ -7,9 +7,11 @@ import BackendEntitlementFlow from '../src/components/BackendEntitlementFlow';
 const mockExit = jest.fn();
 const mockIap: {
   options?: UseIAPOptions;
+  subscriptions: object[];
   fetchProducts: jest.Mock;
   requestPurchase: jest.Mock;
 } = {
+  subscriptions: [],
   fetchProducts: jest.fn(() => Promise.resolve()),
   requestPurchase: jest.fn(() => Promise.resolve()),
 };
@@ -27,6 +29,7 @@ jest.mock('expo-iap', () => ({
       products: [
         {id: 'dev.hyo.martie.10bulbs', title: '10 Bulbs', displayPrice: '$1'},
       ],
+      subscriptions: mockIap.subscriptions,
       fetchProducts: mockIap.fetchProducts,
       requestPurchase: mockIap.requestPurchase,
     };
@@ -112,7 +115,9 @@ describe('BackendEntitlementFlow', () => {
       purchase: bulbs,
       isConsumable: true,
     });
-    expect(mockIap.fetchProducts).toHaveBeenCalledTimes(1);
+    expect(mockIap.fetchProducts.mock.calls.map(([args]) => args.type)).toEqual(
+      ['in-app', 'subs'],
+    );
   });
 
   it('shows an ownership conflict without finishing', async () => {
@@ -170,6 +175,40 @@ describe('BackendEntitlementFlow', () => {
 
     expect(await findByText('Access granted.')).toBeDefined();
     expect(ExpoIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
+  });
+
+  it('subscribes with the first Play offer', async () => {
+    mockIap.subscriptions = [
+      {
+        id: 'dev.hyo.martie.premium',
+        title: 'Premium',
+        displayPrice: '$5',
+        platform: 'android',
+        subscriptionOffers: [{offerTokenAndroid: 'offer-1'}],
+      },
+    ];
+    const {getByText} = await renderReady();
+
+    await act(async () => {
+      fireEvent.press(getByText('Subscribe Premium · $5'));
+    });
+
+    expect(mockIap.fetchProducts).toHaveBeenCalledWith(
+      expect.objectContaining({type: 'subs'}),
+    );
+    expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+      request: {
+        apple: {sku: 'dev.hyo.martie.premium'},
+        google: {
+          skus: ['dev.hyo.martie.premium'],
+          subscriptionOffers: [
+            {sku: 'dev.hyo.martie.premium', offerToken: 'offer-1'},
+          ],
+        },
+      },
+      type: 'subs',
+    });
+    mockIap.subscriptions = [];
   });
 
   it('reports when there is nothing to restore', async () => {

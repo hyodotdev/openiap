@@ -18,12 +18,17 @@ import {
   getPendingTransactionsIOS,
   toPurchaseConfirmationRequest,
   useIAP,
+  type ProductSubscription,
   type Purchase,
   type PurchaseFlowGuidanceKey,
   type PurchaseFlowOutcome,
   type PurchaseFlowStatus,
 } from 'expo-iap';
-import {CONSUMABLE_PRODUCT_IDS, PRODUCT_IDS} from '../utils/constants';
+import {
+  CONSUMABLE_PRODUCT_IDS,
+  PRODUCT_IDS,
+  SUBSCRIPTION_PRODUCT_IDS,
+} from '../utils/constants';
 import {extractErrorMessage} from '../utils/errorUtils';
 
 const CONSUMABLES = new Set(CONSUMABLE_PRODUCT_IDS);
@@ -129,30 +134,55 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
     [flow, record],
   );
 
-  const {connected, products, fetchProducts, requestPurchase} = useIAP({
-    onPurchaseSuccess: (purchase) => {
-      // Without a backend, leave the purchase unfinished for a later run.
-      if (appBackendUrl()) void processPurchase(purchase);
-    },
-    onPurchaseError: (error) => {
-      if (error.code === ErrorCode.UserCancelled) return;
-      // Ask to Buy reports a deferred payment instead of a purchase.
-      setMessage(
-        error.code === ErrorCode.DeferredPayment
-          ? GUIDANCE_COPY[
-              describePurchaseFlowStatus({status: 'store_pending'}).key
-            ]
-          : `Purchase failed: ${error.message}`,
-      );
-    },
-  });
+  const {connected, products, subscriptions, fetchProducts, requestPurchase} =
+    useIAP({
+      onPurchaseSuccess: (purchase) => {
+        // Without a backend, leave the purchase unfinished for a later run.
+        if (appBackendUrl()) void processPurchase(purchase);
+      },
+      onPurchaseError: (error) => {
+        if (error.code === ErrorCode.UserCancelled) return;
+        // Ask to Buy reports a deferred payment instead of a purchase.
+        setMessage(
+          error.code === ErrorCode.DeferredPayment
+            ? GUIDANCE_COPY[
+                describePurchaseFlowStatus({status: 'store_pending'}).key
+              ]
+            : `Purchase failed: ${error.message}`,
+        );
+      },
+    });
+
+  const subscribe = (subscription: ProductSubscription) => {
+    // Play needs one of the subscription's offers.
+    const offerToken =
+      subscription.platform === 'android'
+        ? subscription.subscriptionOffers?.find(
+            (offer) => offer.offerTokenAndroid,
+          )?.offerTokenAndroid
+        : undefined;
+    return requestPurchase({
+      request: {
+        apple: {sku: subscription.id},
+        google: {
+          skus: [subscription.id],
+          subscriptionOffers: offerToken
+            ? [{sku: subscription.id, offerToken}]
+            : undefined,
+        },
+      },
+      type: 'subs',
+    });
+  };
 
   useEffect(() => {
     if (!connected || !backendUrl || didStartRef.current) return;
     didStartRef.current = true;
-    fetchProducts({skus: PRODUCT_IDS, type: 'in-app'}).catch((error) =>
-      setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
-    );
+    fetchProducts({skus: PRODUCT_IDS, type: 'in-app'})
+      .then(() => fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}))
+      .catch((error) =>
+        setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
+      );
     void recover(false);
   }, [backendUrl, connected, fetchProducts, recover]);
 
@@ -232,6 +262,17 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
             >
               <Text style={styles.buttonText}>
                 Buy {product.title} · {product.displayPrice}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {subscriptions.map((subscription) => (
+            <TouchableOpacity
+              key={subscription.id}
+              style={styles.button}
+              onPress={() => void subscribe(subscription)}
+            >
+              <Text style={styles.buttonText}>
+                Subscribe {subscription.title} · {subscription.displayPrice}
               </Text>
             </TouchableOpacity>
           ))}
