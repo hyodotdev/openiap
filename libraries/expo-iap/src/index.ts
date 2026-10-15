@@ -1428,12 +1428,15 @@ export const verifyPurchaseWithProvider: MutationField<
 };
 
 export * from './useIAP';
-export {kitApi, KitApiError} from './kit-api';
+export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
 export type {
   KitApiOptions,
   KitClientPayloadCache,
   KitClientPayloadOptions,
   KitClientPayloadResponse,
+  KitLocalizedClientPayload,
+  KitLocalizedClientPayloadOptions,
+  KitLocalizedPayloadOptions,
   KitProduct,
   KitProductClientPayload,
   KitProductOffer,

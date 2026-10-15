@@ -158,6 +158,15 @@ describe("remote MCP HTTP server", () => {
     expect(toolNames).toContain("iapkit_get_client_payload");
     expect(toolNames).toContain("iapkit_set_client_payload");
     expect(toolNames).toContain("iapkit_remove_client_payload");
+    for (const name of [
+      "iapkit_get_client_payload_draft",
+      "iapkit_set_client_payload_draft",
+      "iapkit_publish_client_payload",
+      "iapkit_get_client_payload_history",
+      "iapkit_rollback_client_payload",
+    ]) {
+      expect(toolNames).toContain(name);
+    }
     expect(toolNames).toContain("iapkit_revenue_analytics");
     expect(toolNames).toContain("iapkit_sync_products");
     expect(toolNames).toContain("iapkit_sync_status");

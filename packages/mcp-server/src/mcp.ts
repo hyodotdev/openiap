@@ -808,7 +808,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "set_client_payload",
-    "Create or update a product's public app-readable TOML, JSON, or text payload. Requires a secret admin key; publishable mobile keys are rejected.",
+    "Publish a product's public app-readable TOML, JSON, or text payload immediately and record it in history. Requires a secret admin key; publishable mobile keys are rejected.",
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
@@ -876,7 +876,178 @@ function registerIapKitTools(
   );
 
   // ---------------------------------------------------------------------------
-  // 15. sync_products — enqueue App Store / Play Console sync.
+  // 15. get_client_payload_draft — read the unpublished draft.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "get_client_payload_draft",
+    "Read a product's unpublished client payload draft and its expectedDraftRevision. Apps never receive drafts.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).getClientPayloadDraft({
+            productId: args.productId,
+            platform: args.platform,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 16. set_client_payload_draft — save a draft without publishing it.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "set_client_payload_draft",
+    "Save a client payload draft. Apps keep receiving the published version until you publish.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      format: kitTextParam("format").describe(
+        "Payload format, currently toml, json, or text. Forwarded as-is for IAPKit to validate.",
+      ),
+      body: z.string().max(MAX_CLIENT_PAYLOAD_BYTES),
+      expectedDraftRevision: z.number().int().nonnegative().optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).saveClientPayloadDraft({
+            productId: args.productId,
+            platform: args.platform,
+            format: args.format,
+            body: args.body,
+            expectedDraftRevision: args.expectedDraftRevision,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 17. publish_client_payload — make the draft the published version.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "publish_client_payload",
+    "Publish the saved draft as a new version that apps receive, and record it in history.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      expectedVersion: z.number().int().nonnegative().optional(),
+      expectedDraftRevision: z.number().int().nonnegative().optional(),
+      note: z
+        .string()
+        .optional()
+        .describe("Optional audit note, up to 500 characters."),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).publishClientPayload({
+            productId: args.productId,
+            platform: args.platform,
+            expectedVersion: args.expectedVersion,
+            expectedDraftRevision: args.expectedDraftRevision,
+            note: args.note,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 18. get_client_payload_history — audit published versions.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "get_client_payload_history",
+    "List the newest 50 published client payload versions without bodies, or pass version to read that version's body.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      version: z.number().int().positive().optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        const client = withClient(args, extra);
+        const target = { productId: args.productId, platform: args.platform };
+        return ok(
+          args.version === undefined
+            ? await client.listClientPayloadHistory(target)
+            : await client.getClientPayloadVersion({
+                ...target,
+                version: args.version,
+              }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 19. rollback_client_payload — republish an older version.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "rollback_client_payload",
+    "Republish a retained version's body as a new version. History stays append-only.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      toVersion: z.number().int().positive(),
+      expectedVersion: z.number().int().nonnegative().optional(),
+      note: z
+        .string()
+        .optional()
+        .describe("Optional audit note, up to 500 characters."),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).rollbackClientPayload({
+            productId: args.productId,
+            platform: args.platform,
+            toVersion: args.toVersion,
+            expectedVersion: args.expectedVersion,
+            note: args.note,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 20. sync_products — enqueue App Store / Play Console sync.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -914,7 +1085,7 @@ function registerIapKitTools(
   );
 
   // ---------------------------------------------------------------------------
-  // 15. sync_status — poll a product sync job.
+  // 21. sync_status — poll a product sync job.
   // ---------------------------------------------------------------------------
   registerTool(
     server,

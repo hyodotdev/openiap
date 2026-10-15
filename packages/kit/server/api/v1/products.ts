@@ -1,6 +1,12 @@
-import * as crypto from "node:crypto";
 import { redactApiKeysInPath } from "./request-logger";
 import { apiKeyPreview } from "../../../convex/apiKeys/helpers";
+import { MAX_CLIENT_PAYLOAD_NOTE_LENGTH } from "../../../convex/products/clientPayloads";
+import {
+  buildPublicClientPayloadResponse,
+  clientPayloadEtagScope,
+  clientPayloadKnownVersion,
+  PUBLIC_CLIENT_PAYLOAD_CACHE_HEADERS,
+} from "../../../convex/products/clientPayloadHttp";
 
 import { Hono, type Context, type Next } from "hono";
 import { ConvexError } from "convex/values";
@@ -445,6 +451,309 @@ products.post("/:apiKey/state", pathApiKeyGuard, (c) =>
   handleSetProductState(c, guardedPathApiKey(c)),
 );
 
+// Client payload draft, publish, history, and rollback. Registered before
+// `/:apiKey/sync/:platform`, which would otherwise capture a product named
+// `sync`. Drafts and history are admin-only; apps read only the published
+// payload.
+products.get(
+  "/client-payload/:productId/draft",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    try {
+      const state = await client.query(
+        api.products.query.getProductClientPayloadDraftWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+        },
+      );
+      return state
+        ? c.json(state)
+        : notFound(c, "Product client payload draft state not found");
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_DRAFT_LOOKUP_FAILED",
+        "Product client payload draft lookup failed",
+      );
+    }
+  },
+);
+
+products.put(
+  "/client-payload/:productId/draft",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    const payload = await readClientPayloadObject(
+      c,
+      "format and body are required",
+    );
+    if (payload instanceof Response) return payload;
+    if (!isClientPayloadFormat(payload.format)) {
+      return invalidInput(c, "format must be toml|json|text");
+    }
+    if (typeof payload.body !== "string") {
+      return invalidInput(c, "body must be a string");
+    }
+    const expectedDraftRevision = parseOptionalBodyVersion(
+      payload.expectedDraftRevision,
+    );
+    if (expectedDraftRevision === null) {
+      return invalidInput(
+        c,
+        "expectedDraftRevision must be a non-negative safe integer",
+      );
+    }
+    try {
+      const result = await client.mutation(
+        api.products.mutation.saveProductClientPayloadDraftWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+          format: payload.format,
+          body: payload.body,
+          ...(expectedDraftRevision !== undefined
+            ? { expectedDraftRevision }
+            : {}),
+        },
+      );
+      return c.json(result);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_DRAFT_SAVE_FAILED",
+        "Product client payload draft save failed",
+      );
+    }
+  },
+);
+
+products.delete(
+  "/client-payload/:productId/draft",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    const expectedDraftRevision = parseOptionalVersion(
+      c.req.query("expectedDraftRevision"),
+    );
+    if (expectedDraftRevision === null) {
+      return invalidInput(
+        c,
+        "expectedDraftRevision must be a non-negative safe integer",
+      );
+    }
+    try {
+      const result = await client.mutation(
+        api.products.mutation.discardProductClientPayloadDraftWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+          ...(expectedDraftRevision !== undefined
+            ? { expectedDraftRevision }
+            : {}),
+        },
+      );
+      return c.json(result);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_DRAFT_DISCARD_FAILED",
+        "Product client payload draft discard failed",
+      );
+    }
+  },
+);
+
+products.post(
+  "/client-payload/:productId/publish",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    const payload = await readClientPayloadObject(
+      c,
+      "Body must be a JSON object",
+    );
+    if (payload instanceof Response) return payload;
+    const expectedVersion = parseOptionalBodyVersion(payload.expectedVersion);
+    if (expectedVersion === null) {
+      return invalidInput(
+        c,
+        "expectedVersion must be a non-negative safe integer",
+      );
+    }
+    const expectedDraftRevision = parseOptionalBodyVersion(
+      payload.expectedDraftRevision,
+    );
+    if (expectedDraftRevision === null) {
+      return invalidInput(
+        c,
+        "expectedDraftRevision must be a non-negative safe integer",
+      );
+    }
+    if (!isOptionalNote(payload.note)) {
+      return invalidInput(c, NOTE_INPUT_MESSAGE);
+    }
+    try {
+      const result = await client.mutation(
+        api.products.mutation.publishProductClientPayloadDraftWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+          ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+          ...(expectedDraftRevision !== undefined
+            ? { expectedDraftRevision }
+            : {}),
+          ...(payload.note !== undefined ? { note: payload.note } : {}),
+        },
+      );
+      return c.json(result);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_PUBLISH_FAILED",
+        "Product client payload publish failed",
+      );
+    }
+  },
+);
+
+products.get(
+  "/client-payload/:productId/history",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    try {
+      const versions = await client.query(
+        api.products.query.listProductClientPayloadHistoryWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+        },
+      );
+      return versions
+        ? c.json({ versions })
+        : notFound(c, "Product client payload history not found");
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_HISTORY_LOOKUP_FAILED",
+        "Product client payload history lookup failed",
+      );
+    }
+  },
+);
+
+products.get(
+  "/client-payload/:productId/history/:version",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    const version = parseOptionalVersion(c.req.param("version"));
+    if (version === null || version === undefined || version < 1) {
+      return invalidInput(c, "version must be a positive safe integer");
+    }
+    try {
+      const entry = await client.query(
+        api.products.query.getProductClientPayloadHistoryVersionWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+          version,
+        },
+      );
+      return entry
+        ? c.json({ version: entry })
+        : notFound(c, "Product client payload version not found");
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_HISTORY_LOOKUP_FAILED",
+        "Product client payload history lookup failed",
+      );
+    }
+  },
+);
+
+products.post(
+  "/client-payload/:productId/rollback",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  async (c) => {
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    const payload = await readClientPayloadObject(c, "toVersion is required");
+    if (payload instanceof Response) return payload;
+    const toVersion = parseOptionalBodyVersion(payload.toVersion);
+    if (toVersion === null || toVersion === undefined || toVersion < 1) {
+      return invalidInput(c, "toVersion must be a positive safe integer");
+    }
+    const expectedVersion = parseOptionalBodyVersion(payload.expectedVersion);
+    if (expectedVersion === null) {
+      return invalidInput(
+        c,
+        "expectedVersion must be a non-negative safe integer",
+      );
+    }
+    if (!isOptionalNote(payload.note)) {
+      return invalidInput(c, NOTE_INPUT_MESSAGE);
+    }
+    try {
+      const result = await client.mutation(
+        api.products.mutation.rollbackProductClientPayloadWithApiKey,
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+          toVersion,
+          ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+          ...(payload.note !== undefined ? { note: payload.note } : {}),
+        },
+      );
+      return c.json(result);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_ROLLBACK_FAILED",
+        "Product client payload rollback failed",
+      );
+    }
+  },
+);
+
 // Enqueue an async sync job. Returns `{ jobId, deduped }`
 // immediately. The caller polls `GET .../sync/jobs/:jobId` until
 // `status` is `succeeded` or `failed`. The previous synchronous
@@ -588,21 +897,16 @@ products.get(
   pathApiKeyGuard,
   async (c) => {
     const apiKey = guardedPathApiKey(c);
-    const productId = c.req.param("productId");
-    const platformParam = c.req.query("platform");
     setPublicPayloadCacheHeaders(c);
-    if (!isProductPlatform(platformParam)) {
-      return invalidInput(c, "platform query param required (IOS | Android)");
-    }
-    if (!isNonBlankString(productId)) {
-      return invalidInput(c, "productId must not be empty");
-    }
-    if (!isValidProductIdLength(productId)) {
-      return invalidInput(c, "productId must be ≤ 256 chars");
-    }
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
 
     try {
-      const scope = clientPayloadEtagScope(apiKey, platformParam, productId);
+      const scope = await clientPayloadEtagScope(
+        apiKey,
+        target.platform,
+        target.productId,
+      );
       const knownVersion = clientPayloadKnownVersion(
         c.req.header("if-none-match"),
         scope,
@@ -611,30 +915,15 @@ products.get(
         api.products.query.getProductClientPayloadIfChanged,
         {
           apiKey,
-          productId,
-          platform: platformParam,
+          productId: target.productId,
+          platform: target.platform,
           ...(knownVersion !== undefined ? { knownVersion } : {}),
         },
       );
-      if (result.status === "not_modified") {
-        c.header("ETag", clientPayloadEtag(scope, result.version));
-        return c.body(null, 304);
-      }
-      if (result.status === "not_found") {
-        return c.json(
-          {
-            errors: [
-              {
-                code: "NOT_FOUND",
-                message: "Product client payload not found",
-              },
-            ],
-          },
-          404,
-        );
-      }
-      c.header("ETag", clientPayloadEtag(scope, result.clientPayload.version));
-      return c.json({ clientPayload: result.clientPayload });
+      const response = buildPublicClientPayloadResponse(result, scope);
+      return response.status === 304
+        ? c.body(null, 304, response.headers)
+        : c.body(response.body, response.status, response.headers);
     } catch (error) {
       return productRouteError(
         c,
@@ -652,36 +941,20 @@ products.get(
   secretAdminApiKeyMiddleware,
   publicApiRateLimit,
   async (c) => {
-    const apiKey = c.var.apiKey;
-    const productId = c.req.param("productId");
-    const platformParam = c.req.query("platform");
-    if (!isProductPlatform(platformParam)) {
-      return invalidInput(c, "platform query param required (IOS | Android)");
-    }
-    if (!isNonBlankString(productId)) {
-      return invalidInput(c, "productId must not be empty");
-    }
-    if (!isValidProductIdLength(productId)) {
-      return invalidInput(c, "productId must be ≤ 256 chars");
-    }
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
 
     try {
       const editorState = await client.query(
         api.products.query.getProductClientPayloadEditorStateWithApiKey,
-        { apiKey, productId, platform: platformParam },
+        {
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
+        },
       );
       if (!editorState) {
-        return c.json(
-          {
-            errors: [
-              {
-                code: "NOT_FOUND",
-                message: "Product client payload state not found",
-              },
-            ],
-          },
-          404,
-        );
+        return notFound(c, "Product client payload state not found");
       }
       return c.json(editorState);
     } catch (error) {
@@ -701,36 +974,13 @@ products.put(
   secretAdminApiKeyMiddleware,
   publicApiRateLimit,
   async (c) => {
-    const apiKey = c.var.apiKey;
-    const productId = c.req.param("productId");
-    const platformParam = c.req.query("platform");
-    if (!isProductPlatform(platformParam)) {
-      return invalidInput(c, "platform query param required (IOS | Android)");
-    }
-    if (!isNonBlankString(productId)) {
-      return invalidInput(c, "productId must not be empty");
-    }
-    if (!isValidProductIdLength(productId)) {
-      return invalidInput(c, "productId must be ≤ 256 chars");
-    }
-
-    let body: unknown;
-    try {
-      body = await readClientPayloadJsonBody(c.req.raw);
-    } catch (error) {
-      if (error instanceof JsonBodyTooLargeError) {
-        return payloadTooLarge(c);
-      }
-      return invalidInput(c, "Body is not JSON");
-    }
-    if (!isJsonObject(body)) {
-      return invalidInput(c, "format and body are required");
-    }
-    const payload = body as {
-      format?: unknown;
-      body?: unknown;
-      expectedVersion?: unknown;
-    };
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
+    const payload = await readClientPayloadObject(
+      c,
+      "format and body are required",
+    );
+    if (payload instanceof Response) return payload;
     if (!isClientPayloadFormat(payload.format)) {
       return invalidInput(c, "format must be toml|json|text");
     }
@@ -751,9 +1001,9 @@ products.put(
       const result = await client.mutation(
         api.products.mutation.upsertProductClientPayloadWithApiKey,
         {
-          apiKey,
-          productId,
-          platform: platformParam,
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
           format: payload.format,
           body: payload.body,
           ...(payload.expectedVersion !== undefined
@@ -779,21 +1029,11 @@ products.delete(
   secretAdminApiKeyMiddleware,
   publicApiRateLimit,
   async (c) => {
-    const apiKey = c.var.apiKey;
-    const productId = c.req.param("productId");
-    const platformParam = c.req.query("platform");
+    const target = clientPayloadTarget(c);
+    if (!target.ok) return target.response;
     const expectedVersion = parseOptionalVersion(
       c.req.query("expectedVersion"),
     );
-    if (!isProductPlatform(platformParam)) {
-      return invalidInput(c, "platform query param required (IOS | Android)");
-    }
-    if (!isNonBlankString(productId)) {
-      return invalidInput(c, "productId must not be empty");
-    }
-    if (!isValidProductIdLength(productId)) {
-      return invalidInput(c, "productId must be ≤ 256 chars");
-    }
     if (expectedVersion === null) {
       return invalidInput(
         c,
@@ -805,9 +1045,9 @@ products.delete(
       const result = await client.mutation(
         api.products.mutation.removeProductClientPayloadWithApiKey,
         {
-          apiKey,
-          productId,
-          platform: platformParam,
+          apiKey: c.var.apiKey,
+          productId: target.productId,
+          platform: target.platform,
           ...(expectedVersion !== undefined ? { expectedVersion } : {}),
         },
       );
@@ -984,12 +1224,74 @@ function readProductJsonBody(request: Request) {
   );
 }
 
-function readClientPayloadJsonBody(request: Request) {
-  return readJsonBodyWithLimit(
-    request,
-    MAX_CLIENT_PAYLOAD_BODY_BYTES,
-    "Product client payload is too large",
+function notFound(c: Context, message: string) {
+  return c.json({ errors: [{ code: "NOT_FOUND", message }] }, 404);
+}
+
+async function readClientPayloadObject(
+  c: Context,
+  missingMessage: string,
+): Promise<Record<string, unknown> | Response> {
+  let body: unknown;
+  try {
+    body = await readJsonBodyWithLimit(
+      c.req.raw,
+      MAX_CLIENT_PAYLOAD_BODY_BYTES,
+      "Product client payload is too large",
+    );
+  } catch (error) {
+    if (error instanceof JsonBodyTooLargeError) {
+      return payloadTooLarge(c);
+    }
+    return invalidInput(c, "Body is not JSON");
+  }
+  return isJsonObject(body) ? body : invalidInput(c, missingMessage);
+}
+
+function clientPayloadTarget(
+  c: Context,
+):
+  | { ok: true; productId: string; platform: ProductPlatform }
+  | { ok: false; response: Response } {
+  const productId = c.req.param("productId");
+  const platform = c.req.query("platform");
+  if (!isProductPlatform(platform)) {
+    return {
+      ok: false,
+      response: invalidInput(
+        c,
+        "platform query param required (IOS | Android)",
+      ),
+    };
+  }
+  if (!isNonBlankString(productId)) {
+    return {
+      ok: false,
+      response: invalidInput(c, "productId must not be empty"),
+    };
+  }
+  if (!isValidProductIdLength(productId)) {
+    return {
+      ok: false,
+      response: invalidInput(c, "productId must be ≤ 256 chars"),
+    };
+  }
+  return { ok: true, productId, platform };
+}
+
+const NOTE_INPUT_MESSAGE = `note must be a string of at most ${MAX_CLIENT_PAYLOAD_NOTE_LENGTH} characters`;
+
+function isOptionalNote(value: unknown): value is string | undefined {
+  return (
+    value === undefined ||
+    (typeof value === "string" &&
+      value.length <= MAX_CLIENT_PAYLOAD_NOTE_LENGTH)
   );
+}
+
+function parseOptionalBodyVersion(value: unknown): number | undefined | null {
+  if (value === undefined) return undefined;
+  return isValidClientPayloadVersion(value) ? value : null;
 }
 
 async function pathApiKeyGuard(c: Context, next: Next) {
@@ -1046,44 +1348,11 @@ function payloadCatalogRequestCost(c: Context): number {
 }
 
 function setPublicPayloadCacheHeaders(c: Context): void {
-  // The response is app-readable but project-scoped. `private, no-cache`
-  // permits a device cache to retain it while requiring ETag revalidation;
-  // it prevents shared caches from serving one project's payload to another.
-  c.header("Cache-Control", "private, no-cache");
-  c.header("Vary", "Authorization");
-}
-
-function clientPayloadEtagScope(
-  apiKey: string,
-  platform: ProductPlatform,
-  productId: string,
-): string {
-  return crypto
-    .createHash("sha256")
-    .update(`${apiKey}\0${platform}\0${productId}`)
-    .digest("base64url")
-    .slice(0, 16);
-}
-
-function clientPayloadEtag(scope: string, version: number): string {
-  return `"iapkit-client-payload-${scope}-v${version}"`;
-}
-
-function clientPayloadKnownVersion(
-  ifNoneMatch: string | undefined,
-  scope: string,
-): number | undefined {
-  if (!ifNoneMatch) return undefined;
-  const pattern = new RegExp(
-    `^(?:W/)?"iapkit-client-payload-${scope}-v(\\d+)"$`,
-  );
-  for (const candidate of ifNoneMatch.split(",")) {
-    const match = candidate.trim().match(pattern);
-    if (!match?.[1]) continue;
-    const version = Number(match[1]);
-    if (Number.isSafeInteger(version) && version >= 1) return version;
+  for (const [name, value] of Object.entries(
+    PUBLIC_CLIENT_PAYLOAD_CACHE_HEADERS,
+  )) {
+    c.header(name, value);
   }
-  return undefined;
 }
 
 function secretKeyInUrl(c: Context, apiKey: string) {

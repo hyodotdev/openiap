@@ -17,9 +17,11 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-type MockPayloadState =
+type MockWorkspace =
   | {
+      canEdit: boolean;
       expectedVersion: number;
+      expectedDraftRevision: number;
       clientPayload?: {
         format: "toml";
         body: string;
@@ -31,43 +33,51 @@ type MockPayloadState =
   | undefined;
 
 const mocks = vi.hoisted<{
-  payload: MockPayloadState;
-  mutate: Mock<(...args: unknown[]) => unknown>;
+  workspace: MockWorkspace;
+  mutations: Map<string, Mock<(...args: unknown[]) => unknown>>;
   useQuery: Mock<(...args: unknown[]) => unknown>;
-}>(() => {
-  return {
-    payload: {
-      expectedVersion: 4,
-      clientPayload: {
-        format: "toml",
-        body: "max_items = 10",
-        version: 4,
-        updatedAt: 1_720_000_000_000,
-      },
-    },
-    mutate: vi.fn().mockResolvedValue(undefined),
-    useQuery: vi.fn(),
-  };
-});
+}>(() => ({
+  workspace: undefined,
+  mutations: new Map(),
+  useQuery: vi.fn(),
+}));
+
+function mutation(name: string): Mock<(...args: unknown[]) => unknown> {
+  let mock = mocks.mutations.get(name);
+  if (!mock) {
+    mock = vi.fn().mockResolvedValue({ version: 5, revision: 1 });
+    mocks.mutations.set(name, mock);
+  }
+  return mock;
+}
 
 vi.mock("convex/react", () => ({
-  useQuery: (...args: unknown[]) => {
-    mocks.useQuery(...args);
-    return mocks.payload;
+  useQuery: (name: unknown, args: unknown) => {
+    mocks.useQuery(name, args);
+    if (args === "skip") return undefined;
+    if (name === "getProductClientPayloadWorkspace") return mocks.workspace;
+    if (name === "listProductClientPayloadHistory") return [];
+    return null;
   },
-  useMutation: () => mocks.mutate,
+  useMutation: (name: string) => mutation(name),
 }));
 
 vi.mock("@/convex", () => ({
   api: {
     products: {
       query: {
-        getProductClientPayloadEditorState:
-          "getProductClientPayloadEditorState",
+        getProductClientPayloadWorkspace: "getProductClientPayloadWorkspace",
+        getProductClientPayloadSdkPreview: "getProductClientPayloadSdkPreview",
+        listProductClientPayloadHistory: "listProductClientPayloadHistory",
+        getProductClientPayloadHistoryVersion:
+          "getProductClientPayloadHistoryVersion",
       },
       mutation: {
-        upsertProductClientPayload: "upsertProductClientPayload",
+        saveProductClientPayloadDraft: "saveProductClientPayloadDraft",
+        publishProductClientPayloadDraft: "publishProductClientPayloadDraft",
+        discardProductClientPayloadDraft: "discardProductClientPayloadDraft",
         removeProductClientPayload: "removeProductClientPayload",
+        rollbackProductClientPayload: "rollbackProductClientPayload",
       },
     },
   },
@@ -86,18 +96,28 @@ import { ProductClientPayloadDialogRoot } from "./ProductClientPayloadDialog";
 const PROJECT_ID = "projects_a" as never;
 const OTHER_PROJECT_ID = "projects_b" as never;
 
+function workspace(version: number, body: string): MockWorkspace {
+  return {
+    canEdit: true,
+    expectedVersion: version,
+    expectedDraftRevision: 0,
+    clientPayload: {
+      format: "toml",
+      body,
+      version,
+      updatedAt: 1_720_000_000_000 + version,
+    },
+  };
+}
+
+function bodyValue(): string {
+  return screen.getByLabelText<HTMLTextAreaElement>("Payload body").value;
+}
+
 describe("ProductClientPayloadDialogRoot", () => {
   beforeEach(() => {
-    mocks.payload = {
-      expectedVersion: 4,
-      clientPayload: {
-        format: "toml",
-        body: "max_items = 10",
-        version: 4,
-        updatedAt: 1_720_000_000_000,
-      },
-    };
-    mocks.mutate.mockClear();
+    mocks.workspace = workspace(4, "max_items = 10");
+    mocks.mutations.clear();
     mocks.useQuery.mockClear();
     closeProductClientPayloadEditor();
   });
@@ -107,7 +127,7 @@ describe("ProductClientPayloadDialogRoot", () => {
     closeProductClientPayloadEditor();
   });
 
-  it("fetches only the selected authenticated payload and preserves its version guard", async () => {
+  it("queries only the selected product and keeps its version guard across reactive updates", async () => {
     const user = userEvent.setup();
     const view = render(<ProductClientPayloadDialogRoot />);
 
@@ -123,56 +143,59 @@ describe("ProductClientPayloadDialogRoot", () => {
         name: "Edit client payload for premium_monthly on iOS",
       }),
     ).not.toBeNull();
-    expect(mocks.useQuery).toHaveBeenLastCalledWith(
-      "getProductClientPayloadEditorState",
-      {
-        projectId: PROJECT_ID,
-        platform: "IOS",
-        productId: "premium_monthly",
-      },
+    const args = {
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "premium_monthly",
+    };
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      "getProductClientPayloadWorkspace",
+      args,
     );
-    await waitFor(() => {
-      expect(
-        screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
-      ).toBe("max_items = 10");
-    });
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      "getProductClientPayloadSdkPreview",
+      args,
+    );
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      "listProductClientPayloadHistory",
+      "skip",
+    );
+    await waitFor(() => expect(bodyValue()).toBe("max_items = 10"));
 
     fireEvent.change(screen.getByLabelText("Payload body"), {
       target: { value: "max_items = 12" },
     });
-
-    // Simulate another tab updating the reactive exact query while this draft
-    // is open. The editor must retain both the draft and original version 4.
-    mocks.payload = {
-      expectedVersion: 5,
-      clientPayload: {
-        format: "toml",
-        body: "max_items = 99",
-        version: 5,
-        updatedAt: 1_720_000_000_100,
-      },
-    };
+    // Another tab publishes v5 while this one is open.
+    mocks.workspace = workspace(5, "max_items = 99");
     view.rerender(<ProductClientPayloadDialogRoot />);
-    expect(
-      screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
-    ).toBe("max_items = 12");
-    expect(screen.getByText(/Version 4/)).not.toBeNull();
+    expect(bodyValue()).toBe("max_items = 12");
+    expect(screen.getByText(/changed in another session/)).not.toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Save payload" }));
+    await user.click(screen.getByRole("button", { name: "Publish" }));
 
     await waitFor(() => {
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        projectId: PROJECT_ID,
-        platform: "IOS",
-        productId: "premium_monthly",
-        format: "toml",
-        body: "max_items = 12",
-        expectedVersion: 4,
-      });
+      expect(mutation("publishProductClientPayloadDraft")).toHaveBeenCalledWith(
+        {
+          projectId: PROJECT_ID,
+          platform: "IOS",
+          productId: "premium_monthly",
+          expectedVersion: 4,
+          expectedDraftRevision: 1,
+        },
+      );
+    });
+    expect(mutation("saveProductClientPayloadDraft")).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "premium_monthly",
+      format: "toml",
+      body: "max_items = 12",
+      expectedDraftRevision: 0,
     });
   });
 
-  it("resets the snapshot when switching targets or reopening", async () => {
+  it("loads history only on its tab and resets the view for another product", async () => {
+    const user = userEvent.setup();
     const view = render(<ProductClientPayloadDialogRoot />);
     openProductClientPayloadEditor({
       projectId: PROJECT_ID,
@@ -180,92 +203,39 @@ describe("ProductClientPayloadDialogRoot", () => {
       productId: "premium_monthly",
       title: "Premium Monthly",
     });
-    await screen.findByLabelText<HTMLTextAreaElement>("Payload body");
-    await waitFor(() => {
-      expect(
-        screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
-      ).toBe("max_items = 10");
-    });
+    await user.click(await screen.findByRole("tab", { name: "History" }));
+    expect(mocks.useQuery).toHaveBeenLastCalledWith(
+      "getProductClientPayloadHistoryVersion",
+      "skip",
+    );
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      "listProductClientPayloadHistory",
+      expect.objectContaining({ productId: "premium_monthly" }),
+    );
+    expect(screen.getByText(/No published versions yet/)).not.toBeNull();
 
-    mocks.payload = {
-      expectedVersion: 2,
-      clientPayload: {
-        format: "toml",
-        body: "coins = 100",
-        version: 2,
-        updatedAt: 1_720_000_000_200,
-      },
-    };
-    openProductClientPayloadEditor({
-      projectId: PROJECT_ID,
-      platform: "Android",
-      productId: "coins_100",
-      title: "100 Coins",
-    });
-    view.rerender(<ProductClientPayloadDialogRoot />);
-    expect(
-      await screen.findByRole("dialog", {
-        name: "Edit client payload for coins_100 on Android",
-      }),
-    ).not.toBeNull();
-    expect(
-      screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
-    ).toBe("coins = 100");
-
-    closeProductClientPayloadEditor();
-    mocks.payload = {
-      expectedVersion: 3,
-      clientPayload: {
-        format: "toml",
-        body: "coins = 200",
-        version: 3,
-        updatedAt: 1_720_000_000_300,
-      },
-    };
-    openProductClientPayloadEditor({
-      projectId: PROJECT_ID,
-      platform: "Android",
-      productId: "coins_100",
-      title: "100 Coins",
-    });
-    view.rerender(<ProductClientPayloadDialogRoot />);
-    await waitFor(() => {
-      expect(
-        screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
-      ).toBe("coins = 200");
-    });
-    expect(screen.getByText(/Version 3/)).not.toBeNull();
-
-    mocks.payload = {
-      expectedVersion: 1,
-      clientPayload: {
-        format: "toml",
-        body: "coins = 300",
-        version: 1,
-        updatedAt: 1_720_000_000_400,
-      },
-    };
+    mocks.workspace = workspace(1, "coins = 300");
     openProductClientPayloadEditor({
       projectId: OTHER_PROJECT_ID,
       platform: "Android",
       productId: "coins_100",
-      title: "100 Coins (Other Project)",
+      title: "100 Coins",
     });
     view.rerender(<ProductClientPayloadDialogRoot />);
-    await waitFor(() => {
-      expect(
-        screen.getByLabelText<HTMLTextAreaElement>("Payload body").value,
-      ).toBe("coins = 300");
-    });
-    expect(mocks.useQuery).toHaveBeenLastCalledWith(
-      "getProductClientPayloadEditorState",
+    await waitFor(() => expect(bodyValue()).toBe("coins = 300"));
+    expect(
+      screen
+        .getByRole("tab", { name: "Preview" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      "getProductClientPayloadWorkspace",
       expect.objectContaining({ projectId: OTHER_PROJECT_ID }),
     );
-    expect(screen.getByText(/Version 1/)).not.toBeNull();
   });
 
-  it("disables editing until the exact payload query resolves", async () => {
-    mocks.payload = undefined;
+  it("disables editing until the workspace query resolves", async () => {
+    mocks.workspace = undefined;
     render(<ProductClientPayloadDialogRoot />);
 
     openProductClientPayloadEditor({
@@ -279,7 +249,7 @@ describe("ProductClientPayloadDialogRoot", () => {
       "Loading the current payload",
     );
     expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: "Save payload" })
+      screen.getByRole<HTMLButtonElement>("button", { name: "Publish" })
         .disabled,
     ).toBe(true);
     expect(
@@ -289,35 +259,5 @@ describe("ProductClientPayloadDialogRoot", () => {
       screen.getByRole<HTMLButtonElement>("button", { name: "Cancel" })
         .disabled,
     ).toBe(false);
-  });
-
-  it("uses the durable tombstone revision when recreating a removed payload", async () => {
-    const user = userEvent.setup();
-    mocks.payload = { expectedVersion: 2 };
-    render(<ProductClientPayloadDialogRoot />);
-
-    openProductClientPayloadEditor({
-      projectId: PROJECT_ID,
-      platform: "Android",
-      productId: "coins_100",
-      title: "100 Coins",
-    });
-
-    await user.selectOptions(await screen.findByLabelText("Format"), "text");
-    fireEvent.change(screen.getByLabelText("Payload body"), {
-      target: { value: "coins=100" },
-    });
-    await user.click(screen.getByRole("button", { name: "Save payload" }));
-
-    await waitFor(() => {
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        projectId: PROJECT_ID,
-        platform: "Android",
-        productId: "coins_100",
-        format: "text",
-        body: "coins=100",
-        expectedVersion: 2,
-      });
-    });
   });
 });

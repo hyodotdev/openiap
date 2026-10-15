@@ -19,6 +19,12 @@ vi.mock("@/convex", () => ({
         getProductClientPayloadIfChanged: "getProductClientPayloadIfChanged",
         getProductClientPayloadEditorStateWithApiKey:
           "getProductClientPayloadEditorStateWithApiKey",
+        getProductClientPayloadDraftWithApiKey:
+          "getProductClientPayloadDraftWithApiKey",
+        listProductClientPayloadHistoryWithApiKey:
+          "listProductClientPayloadHistoryWithApiKey",
+        getProductClientPayloadHistoryVersionWithApiKey:
+          "getProductClientPayloadHistoryVersionWithApiKey",
       },
       mutation: {
         upsertProduct: "upsertProduct",
@@ -27,6 +33,14 @@ vi.mock("@/convex", () => ({
           "upsertProductClientPayloadWithApiKey",
         removeProductClientPayloadWithApiKey:
           "removeProductClientPayloadWithApiKey",
+        saveProductClientPayloadDraftWithApiKey:
+          "saveProductClientPayloadDraftWithApiKey",
+        discardProductClientPayloadDraftWithApiKey:
+          "discardProductClientPayloadDraftWithApiKey",
+        publishProductClientPayloadDraftWithApiKey:
+          "publishProductClientPayloadDraftWithApiKey",
+        rollbackProductClientPayloadWithApiKey:
+          "rollbackProductClientPayloadWithApiKey",
         removeProduct: "removeProduct",
       },
       jobs: {
@@ -189,6 +203,27 @@ describe("productsRoutes", () => {
         "/products/client-payload/coins_100?platform=IOS&expectedVersion=1",
         { method: "DELETE", headers },
       ),
+      app.request("/products/client-payload/coins_100/draft?platform=IOS", {
+        headers,
+      }),
+      app.request("/products/client-payload/coins_100/draft?platform=IOS", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ format: "json", body: "{}" }),
+      }),
+      app.request("/products/client-payload/coins_100/publish?platform=IOS", {
+        method: "POST",
+        headers,
+        body: "{}",
+      }),
+      app.request("/products/client-payload/coins_100/history?platform=IOS", {
+        headers,
+      }),
+      app.request("/products/client-payload/coins_100/rollback?platform=IOS", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ toVersion: 1 }),
+      }),
       app.request("/products/coins_100?platform=IOS", {
         method: "DELETE",
         headers,
@@ -1074,6 +1109,13 @@ describe("productsRoutes", () => {
       ["GET", "/products/client-payload/premium?platform=IOS"],
       ["PUT", "/products/client-payload/premium?platform=IOS"],
       ["DELETE", "/products/client-payload/premium?platform=IOS"],
+      ["GET", "/products/client-payload/premium/draft?platform=IOS"],
+      ["PUT", "/products/client-payload/premium/draft?platform=IOS"],
+      ["DELETE", "/products/client-payload/premium/draft?platform=IOS"],
+      ["POST", "/products/client-payload/premium/publish?platform=IOS"],
+      ["GET", "/products/client-payload/premium/history?platform=IOS"],
+      ["GET", "/products/client-payload/premium/history/2?platform=IOS"],
+      ["POST", "/products/client-payload/premium/rollback?platform=IOS"],
       ["DELETE", "/products/premium?platform=IOS"],
     ];
 
@@ -1122,6 +1164,63 @@ describe("productsRoutes", () => {
       /^"iapkit-client-payload-[A-Za-z0-9_-]{16}-v3"$/,
     );
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  // Golden: shipped SDK caches key on these exact bytes. Change only with a
+  // client migration.
+  it("pins the public client-payload GET wire format", async () => {
+    const app = buildApp();
+    const path =
+      "/products/openiap-kit_pk_golden/premium_monthly/client-payload?platform=IOS";
+    const etag = '"iapkit-client-payload-SqWgLnewTVKwyBe5-v7"';
+    mocks.query
+      .mockResolvedValueOnce({
+        status: "found",
+        clientPayload: {
+          format: "json",
+          body: '{"a":1}',
+          version: 7,
+          updatedAt: 1784160000000,
+        },
+      })
+      .mockResolvedValueOnce({ status: "not_modified", version: 7 })
+      .mockResolvedValueOnce({ status: "not_found" });
+
+    const found = await app.request(path);
+    expect(found.status).toBe(200);
+    expect(found.headers.get("content-type")).toBe("application/json");
+    expect(found.headers.get("cache-control")).toBe("private, no-cache");
+    expect(found.headers.get("vary")).toBe("Authorization");
+    expect(found.headers.get("etag")).toBe(etag);
+    expect(await found.text()).toBe(
+      '{"clientPayload":{"format":"json","body":"{\\"a\\":1}","version":7,"updatedAt":1784160000000}}',
+    );
+
+    const notModified = await app.request(path, {
+      headers: { "if-none-match": `W/${etag}, "other"` },
+    });
+    expect(notModified.status).toBe(304);
+    expect(notModified.headers.get("etag")).toBe(etag);
+    expect(notModified.headers.get("cache-control")).toBe("private, no-cache");
+    expect(notModified.headers.get("vary")).toBe("Authorization");
+    expect(notModified.headers.get("content-type")).toBeNull();
+    expect(await notModified.text()).toBe("");
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      2,
+      "getProductClientPayloadIfChanged",
+      expect.objectContaining({ knownVersion: 7 }),
+    );
+
+    const missing = await app.request(path, {
+      headers: { "if-none-match": etag },
+    });
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("etag")).toBeNull();
+    expect(missing.headers.get("content-type")).toBe("application/json");
+    expect(missing.headers.get("cache-control")).toBe("private, no-cache");
+    expect(await missing.text()).toBe(
+      '{"errors":[{"code":"NOT_FOUND","message":"Product client payload not found"}]}',
+    );
   });
 
   it("returns a scoped 304 without accepting another key's ETag", async () => {
@@ -1265,6 +1364,242 @@ describe("productsRoutes", () => {
         expectedVersion: 1,
       },
     );
+  });
+
+  it("forwards the secret-key payload draft, publish, history, and rollback routes", async () => {
+    const app = buildApp();
+    const auth = { authorization: "Bearer openiap-kit_sk_secret" };
+    const json = { ...auth, "content-type": "application/json" };
+    const target = {
+      apiKey: "openiap-kit_sk_secret",
+      productId: "premium.monthly",
+      platform: "IOS",
+    };
+    const write = {
+      id: "payload-id",
+      created: false,
+      changed: true,
+      version: 5,
+      updatedAt: 123,
+    };
+    mocks.query
+      .mockResolvedValueOnce({ expectedDraftRevision: 0 })
+      .mockResolvedValueOnce([{ version: 4, action: "publish", createdAt: 1 }])
+      .mockResolvedValueOnce({ version: 4, action: "publish", createdAt: 1 });
+    mocks.mutation
+      .mockResolvedValueOnce({
+        changed: true,
+        revision: 1,
+        baseVersion: 4,
+        updatedAt: 9,
+      })
+      .mockResolvedValueOnce(write)
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ...write, version: 6 });
+    const base = "/products/client-payload/premium.monthly";
+
+    const draft = await app.request(`${base}/draft?platform=IOS`, {
+      headers: auth,
+    });
+    await expect(draft.json()).resolves.toEqual({ expectedDraftRevision: 0 });
+    expect(draft.headers.get("cache-control")).toBe("private, no-store");
+
+    const saved = await app.request(`${base}/draft?platform=IOS`, {
+      method: "PUT",
+      headers: json,
+      body: JSON.stringify({
+        format: "json",
+        body: '{"a":1}',
+        expectedDraftRevision: 0,
+      }),
+    });
+    expect(saved.status).toBe(200);
+    const published = await app.request(`${base}/publish?platform=IOS`, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({
+        expectedVersion: 4,
+        expectedDraftRevision: 1,
+        note: "Spring copy",
+      }),
+    });
+    await expect(published.json()).resolves.toEqual(write);
+    const discarded = await app.request(
+      `${base}/draft?platform=IOS&expectedDraftRevision=2`,
+      { method: "DELETE", headers: auth },
+    );
+    await expect(discarded.json()).resolves.toEqual({ ok: true });
+    const history = await app.request(`${base}/history?platform=IOS`, {
+      headers: auth,
+    });
+    await expect(history.json()).resolves.toEqual({
+      versions: [{ version: 4, action: "publish", createdAt: 1 }],
+    });
+    const version = await app.request(`${base}/history/4?platform=IOS`, {
+      headers: auth,
+    });
+    await expect(version.json()).resolves.toEqual({
+      version: { version: 4, action: "publish", createdAt: 1 },
+    });
+    const rolledBack = await app.request(`${base}/rollback?platform=IOS`, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ toVersion: 4, expectedVersion: 5 }),
+    });
+    await expect(rolledBack.json()).resolves.toMatchObject({ version: 6 });
+
+    expect(mocks.query.mock.calls).toEqual([
+      ["getProductClientPayloadDraftWithApiKey", target],
+      ["listProductClientPayloadHistoryWithApiKey", target],
+      [
+        "getProductClientPayloadHistoryVersionWithApiKey",
+        { ...target, version: 4 },
+      ],
+    ]);
+    expect(mocks.mutation.mock.calls).toEqual([
+      [
+        "saveProductClientPayloadDraftWithApiKey",
+        {
+          ...target,
+          format: "json",
+          body: '{"a":1}',
+          expectedDraftRevision: 0,
+        },
+      ],
+      [
+        "publishProductClientPayloadDraftWithApiKey",
+        {
+          ...target,
+          expectedVersion: 4,
+          expectedDraftRevision: 1,
+          note: "Spring copy",
+        },
+      ],
+      [
+        "discardProductClientPayloadDraftWithApiKey",
+        { ...target, expectedDraftRevision: 2 },
+      ],
+      [
+        "rollbackProductClientPayloadWithApiKey",
+        { ...target, toVersion: 4, expectedVersion: 5 },
+      ],
+    ]);
+  });
+
+  it("routes a product named sync to the payload publish route", async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValueOnce({
+      id: "payload-id",
+      created: true,
+      changed: true,
+      version: 1,
+      updatedAt: 1,
+    });
+
+    const response = await app.request(
+      "/products/client-payload/sync/publish?platform=IOS",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer openiap-kit_sk_secret",
+          "content-type": "application/json",
+        },
+        body: "{}",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "publishProductClientPayloadDraftWithApiKey",
+      { apiKey: "openiap-kit_sk_secret", productId: "sync", platform: "IOS" },
+    );
+  });
+
+  it("validates payload lifecycle inputs before Convex", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_sk_secret",
+      "content-type": "application/json",
+    };
+    const base = "/products/client-payload/premium";
+    const cases: Array<[string, RequestInit]> = [
+      [
+        `${base}/draft?platform=IOS`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ format: "yaml", body: "a: 1" }),
+        },
+      ],
+      [
+        `${base}/draft?platform=IOS`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            format: "text",
+            body: "a",
+            expectedDraftRevision: -1,
+          }),
+        },
+      ],
+      [
+        `${base}/draft?platform=IOS&expectedDraftRevision=x`,
+        { method: "DELETE", headers },
+      ],
+      [`${base}/publish?platform=IOS`, { method: "POST", headers }],
+      [
+        `${base}/publish?platform=IOS`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ note: "n".repeat(501) }),
+        },
+      ],
+      [
+        `${base}/publish?platform=IOS`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ expectedDraftRevision: 1.5 }),
+        },
+      ],
+      [`${base}/history/0?platform=IOS`, { headers }],
+      [`${base}/history/latest?platform=IOS`, { headers }],
+      [`${base}/history?platform=Web`, { headers }],
+      [
+        `${base}/rollback?platform=IOS`,
+        { method: "POST", headers, body: JSON.stringify({ toVersion: 0 }) },
+      ],
+      [
+        `${base}/rollback?platform=IOS`,
+        { method: "POST", headers, body: JSON.stringify({}) },
+      ],
+    ];
+
+    for (const [path, init] of cases) {
+      const response = await app.request(path, init);
+      expect(response.status, `${init.method ?? "GET"} ${path}`).toBe(400);
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the secret key cannot read payload history", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    const headers = { authorization: "Bearer openiap-kit_sk_secret" };
+
+    const list = await app.request(
+      "/products/client-payload/premium/history?platform=IOS",
+      { headers },
+    );
+    const entry = await app.request(
+      "/products/client-payload/premium/history/3?platform=IOS",
+      { headers },
+    );
+
+    expect([list.status, entry.status]).toEqual([404, 404]);
   });
 
   it("accepts a fully escaped 16 KiB text client payload envelope", async () => {

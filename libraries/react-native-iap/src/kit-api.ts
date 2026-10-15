@@ -20,8 +20,26 @@ export type KitClientPayloadCache = {
 
 export type KitClientPayloadOptions = {
   /** Revalidate a cached payload with its scoped ETag. Without this flag,
-   * a valid persistent entry is returned without a network request. */
+   * a valid persistent entry is returned without a network request. A
+   * network error, 429, or 5xx returns the cached copy marked `stale`. */
   refresh?: boolean;
+};
+
+export type KitLocalizedPayloadOptions = {
+  /** BCP 47 tag such as `ko-KR`. */
+  locale: string;
+  fallbackLocales?: string[];
+  /** Defaults to `[1]`. Any other `schemaVersion` resolves to null. */
+  supportedSchemaVersions?: number[];
+};
+
+export type KitLocalizedClientPayloadOptions = KitLocalizedPayloadOptions &
+  KitClientPayloadOptions;
+
+export type KitLocalizedClientPayload = {
+  values: Record<string, unknown>;
+  version: number;
+  stale: boolean;
 };
 
 export type KitSubscription = {
@@ -186,6 +204,43 @@ export type KitSetClientPayloadResponse = {
   updatedAt: number;
 };
 export type KitRemoveClientPayloadResponse = { ok: boolean };
+export type KitClientPayloadDraftStateResponse = {
+  expectedDraftRevision: number;
+  draft?: {
+    format: string;
+    body: string;
+    baseVersion: number;
+    updatedAt: number;
+  };
+};
+export type KitSaveClientPayloadDraftResponse = {
+  changed: boolean;
+  revision: number;
+  baseVersion: number;
+  updatedAt: number;
+};
+export type KitClientPayloadVersion = {
+  version: number;
+  action: "publish" | "rollback" | "remove";
+  format?: string;
+  byteLength?: number;
+  rolledBackFrom?: number;
+  note?: string;
+  author?: { type: "user" | "apiKey"; name?: string };
+  createdAt: number;
+  /** Absent for a `remove` entry and in history listings. */
+  body?: string;
+};
+export type KitClientPayloadVersionSummary = Omit<
+  KitClientPayloadVersion,
+  "body"
+>;
+export type KitClientPayloadHistoryResponse = {
+  versions: KitClientPayloadVersionSummary[];
+};
+export type KitClientPayloadVersionResponse = {
+  version: KitClientPayloadVersion;
+};
 export type KitProductSyncResponse = { jobId: string; deduped: boolean };
 export type KitProductSyncJobResponse = {
   _id: string;
@@ -231,6 +286,8 @@ export type KitProductSyncJobResponse = {
 
 export type KitClientPayloadResponse = {
   clientPayload: KitProductClientPayload;
+  /** Set when a refresh failed and the cached copy was returned. */
+  stale?: true;
 };
 
 type CachedClientPayload = KitClientPayloadResponse & {
@@ -420,7 +477,7 @@ export function kitApi(options: KitApiOptions) {
     }
   }
 
-  return {
+  const api = {
     apiKey: options.apiKey,
     baseUrl,
 
@@ -484,18 +541,29 @@ export function kitApi(options: KitApiOptions) {
       productId: string,
       platform: KitProductPlatform,
       payloadOptions: KitClientPayloadOptions = {},
-    ) => {
+    ): Promise<KitClientPayloadResponse> => {
       const path = `/v1/products/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(productId)}/client-payload?platform=${encodeURIComponent(platform)}`;
       const cacheKey = clientPayloadCacheKey(productId, platform);
       const cached = await readCachedClientPayload(cacheKey);
       if (cached && payloadOptions.refresh !== true) {
         return { clientPayload: cached.clientPayload };
       }
-      const response = await request(path, {
-        ...(cached?.etag ? { headers: { "If-None-Match": cached.etag } } : {}),
-      });
+      let response: Response;
+      try {
+        response = await request(path, {
+          ...(cached?.etag
+            ? { headers: { "If-None-Match": cached.etag } }
+            : {}),
+        });
+      } catch (error) {
+        if (cached) return { clientPayload: cached.clientPayload, stale: true };
+        throw error;
+      }
       if (response.status === 304 && cached) {
         return { clientPayload: cached.clientPayload };
+      }
+      if (cached && (response.status === 429 || response.status >= 500)) {
+        return { clientPayload: cached.clientPayload, stale: true };
       }
       try {
         const result = await parseResponse<KitClientPayloadResponse>(
@@ -517,6 +585,34 @@ export function kitApi(options: KitApiOptions) {
       }
     },
 
+    /** Read a JSON payload that follows the localization convention and
+     * resolve it for `locale`. Never throws: any failure, a non-JSON format,
+     * or an unsupported `schemaVersion` returns null so the app can use its
+     * built-in copy. */
+    localizedClientPayload: async (
+      productId: string,
+      platform: KitProductPlatform,
+      localizedOptions: KitLocalizedClientPayloadOptions,
+    ): Promise<KitLocalizedClientPayload | null> => {
+      try {
+        const { clientPayload, stale } = await api.clientPayload(
+          productId,
+          platform,
+          { refresh: localizedOptions.refresh },
+        );
+        if (clientPayload.format !== "json") return null;
+        const values = resolveLocalizedPayload(
+          JSON.parse(clientPayload.body),
+          localizedOptions,
+        );
+        return values
+          ? { values, version: clientPayload.version, stale: stale === true }
+          : null;
+      } catch {
+        return null;
+      }
+    },
+
     /** POST /v1/subscriptions/bind-user — call after a successful
      * verifyReceipt so kit knows which userId owns the verified
      * `purchaseToken`. Idempotent. */
@@ -529,4 +625,52 @@ export function kitApi(options: KitApiOptions) {
         },
       ),
   };
+  return api;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const normalizeLocaleTag = (tag: string): string =>
+  tag.trim().replace(/_/g, "-").toLowerCase();
+
+/**
+ * Resolve the OpenIAP payload localization convention:
+ * `{ schemaVersion: 1, default: {...}, locales: { "ko": {...}, "en-US": {...} } }`.
+ * Tries each requested tag and its shorter prefixes (`zh-Hant-TW`, `zh-Hant`,
+ * `zh`), then `fallbackLocales` the same way, and shallow-merges the first
+ * match over `default`. Returns null for an unsupported or missing
+ * `schemaVersion`, or when nothing matches and there is no `default`.
+ */
+export function resolveLocalizedPayload(
+  payload: unknown,
+  options: KitLocalizedPayloadOptions,
+): Record<string, unknown> | null {
+  if (!isPlainObject(payload)) return null;
+  const supported = options.supportedSchemaVersions ?? [1];
+  if (
+    typeof payload.schemaVersion !== "number" ||
+    !supported.includes(payload.schemaVersion)
+  ) {
+    return null;
+  }
+  const base = isPlainObject(payload.default) ? payload.default : null;
+  const locales = new Map<string, Record<string, unknown>>();
+  if (isPlainObject(payload.locales)) {
+    for (const [tag, values] of Object.entries(payload.locales)) {
+      if (isPlainObject(values)) locales.set(normalizeLocaleTag(tag), values);
+    }
+  }
+  for (const requested of [
+    options.locale,
+    ...(options.fallbackLocales ?? []),
+  ]) {
+    const subtags = normalizeLocaleTag(requested).split("-").filter(Boolean);
+    for (let length = subtags.length; length > 0; length -= 1) {
+      const match = locales.get(subtags.slice(0, length).join("-"));
+      if (match) return { ...base, ...match };
+    }
+  }
+  return base ? { ...base } : null;
 }

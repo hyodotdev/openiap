@@ -229,8 +229,10 @@ X-RateLimit-Remaining: 599`}
         <li>receipt verification body ≤ 32 KB before JSON parsing</li>
         <li>product management body ≤ 64 KB before JSON parsing</li>
         <li>
-          <code>clientPayload.body</code> ≤ 16 KiB measured as UTF-8 bytes
+          <code>clientPayload.body</code> ≤ 16 KiB measured as UTF-8 bytes,
+          drafts included
         </li>
+        <li>client payload publish or rollback note ≤ 500 chars</li>
         <li>subscription user-binding body ≤ 32 KB before JSON parsing</li>
         <li>webhook push body ≤ 256 KB before JSON parsing</li>
         <li>

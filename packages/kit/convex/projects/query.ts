@@ -235,7 +235,10 @@ export function selectActiveWebhookPublishableKey(
   )?.key;
 }
 
-async function getWebhookApiKey(ctx: QueryCtx, project: Doc<"projects">) {
+export async function getActivePublishableApiKey(
+  ctx: QueryCtx,
+  project: Doc<"projects">,
+): Promise<string | undefined> {
   const apiKeys = await ctx.db
     .query("apiKeys")
     .withIndex("by_project", (q) => q.eq("projectId", project._id))
@@ -282,7 +285,10 @@ export const getWebhookEndpointPaths = query({
     if (!resolved) return null;
     if (resolved.role === "member") return null;
 
-    const publishableKey = await getWebhookApiKey(ctx, resolved.project);
+    const publishableKey = await getActivePublishableApiKey(
+      ctx,
+      resolved.project,
+    );
     return publishableKey
       ? lifecycleWebhookPathsForApiKey(publishableKey)
       : null;

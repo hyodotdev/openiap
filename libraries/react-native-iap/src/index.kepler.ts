@@ -41,13 +41,16 @@ export const getVegaIapModule = (): Omit<
   'claimFirstPurchaseNotice'
 > | null => getVegaAdapter();
 export {useIAP, type UseIapOptions} from './hooks/useIAP';
-export {kitApi, KitApiError} from './kit-api';
+export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
 export type {
   EntitlementsResponse,
   KitApiOptions,
   KitClientPayloadCache,
   KitClientPayloadOptions,
   KitClientPayloadResponse,
+  KitLocalizedClientPayload,
+  KitLocalizedClientPayloadOptions,
+  KitLocalizedPayloadOptions,
   KitProduct,
   KitProductClientPayload,
   KitProductOffer,
