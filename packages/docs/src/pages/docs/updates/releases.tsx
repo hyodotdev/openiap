@@ -606,11 +606,22 @@ function Releases() {
           </AnchorLink>
           <p>
             Apps can offer a Retry action after StoreKit&apos;s normal app
-            transaction lookup fails. The optional <code>apple.refresh</code>{' '}
-            flag requests fresh signed evidence and may show App Store
-            authentication (
-            <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>).
+            transaction lookup fails.
           </p>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.0.3</strong> adds optional Apple
+              settings to <code>verifyAppOwnership</code>.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.3</strong> requests fresh signed
+              evidence when <code>apple.refresh</code> is enabled and may prompt
+              for App Store authentication (
+              <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>
+              ).
+            </li>
+          </ul>
           <h5>Framework libraries</h5>
           <p>All six framework SDKs expose the Apple refresh option.</p>
           <ul>
@@ -638,10 +649,10 @@ function Releases() {
               .
             </li>
             <li>
-              Flutter custom ownership resolvers and handler functions must
-              accept the optional named{' '}
-              <code>VerifyAppOwnershipOptionsIOS? apple</code> parameter, even
-              if they ignore it.
+              For <strong>flutter_inapp_purchase 11.0.3</strong>, custom
+              ownership resolvers and handler functions must accept the optional
+              named <code>VerifyAppOwnershipOptionsIOS? apple</code> parameter,
+              even if they ignore it.
             </li>
             <li>
               For KMP, use Kotlin 2.4.20 or newer, a static shared framework,
