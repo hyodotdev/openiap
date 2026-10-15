@@ -6,7 +6,13 @@
 // destinations are HTTPS endpoints a project owner registered, nothing here is
 // reachable from a shipped app, and no client-pullable stream exists.
 
-import { v } from "convex/values";
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+  type PaginationOptions,
+  type PaginationResult,
+} from "convex/server";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
@@ -15,8 +21,17 @@ import {
   mutation,
   query,
   type MutationCtx,
+  type QueryCtx,
 } from "../_generated/server";
 import { getWritableProject } from "../projects/writable";
+import {
+  resolveOperatorProject,
+  type OperatorProjectArgs,
+} from "../projects/helpers";
+import {
+  deliveryAttemptValidator,
+  deliveryErrorClassValidator,
+} from "../utils/validation";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   type CommerceEvent,
@@ -25,9 +40,13 @@ import {
 import {
   CLAIM_BATCH_LIMIT,
   COMMERCE_EVENT_RETENTION_MS,
+  DELIVERY_HISTORY_LIMIT,
   LEASE_MS,
   MAX_DELIVERY_ATTEMPTS,
+  RESEND_LIMIT_PER_MINUTE,
+  RESEND_WINDOW_MS,
   nextAttemptDelayMs,
+  type DeliveryErrorClass,
 } from "./signing";
 import { assertProjectAdmin } from "./destinations";
 import { destinationAcceptsType } from "./internal";
@@ -35,6 +54,16 @@ import { destinationAcceptsType } from "./internal";
 /** Consecutive failures before a destination is parked for manual review. */
 const BREAKER_THRESHOLD = 20;
 const PRUNE_BATCH_LIMIT = 200;
+const MAX_DELIVERY_PAGE_SIZE = 100;
+
+type DeliveryAttempt = Infer<typeof deliveryAttemptValidator>;
+
+function appendDeliveryAttempt(
+  history: DeliveryAttempt[] | undefined,
+  attempt: DeliveryAttempt,
+): DeliveryAttempt[] {
+  return [...(history ?? []), attempt].slice(-DELIVERY_HISTORY_LIMIT);
+}
 
 export type ClaimedDelivery = {
   deliveryId: Id<"outboundDeliveries">;
@@ -296,7 +325,9 @@ export type RecordDeliveryResultArgs = {
   leaseToken: string;
   ok: boolean;
   statusCode?: number;
+  latencyMs?: number;
   error?: string;
+  errorClass?: DeliveryErrorClass;
   retryable: boolean;
 };
 
@@ -306,7 +337,9 @@ export const recordDeliveryResult = internalMutation({
     leaseToken: v.string(),
     ok: v.boolean(),
     statusCode: v.optional(v.number()),
+    latencyMs: v.optional(v.number()),
     error: v.optional(v.string()),
+    errorClass: v.optional(deliveryErrorClassValidator),
     retryable: v.boolean(),
   },
   returns: v.null(),
@@ -331,6 +364,15 @@ export async function recordDeliveryResultHandler(
     const now = Date.now();
     const attempts = delivery.attempts + 1;
     const destination = await ctx.db.get(delivery.destinationId);
+    const exhausted =
+      !args.ok && (attempts >= MAX_DELIVERY_ATTEMPTS || !args.retryable);
+    const attemptHistory = appendDeliveryAttempt(delivery.attemptHistory, {
+      at: now,
+      outcome: args.ok ? "delivered" : exhausted ? "failed" : "retrying",
+      ...(args.statusCode !== undefined ? { statusCode: args.statusCode } : {}),
+      ...(args.latencyMs !== undefined ? { latencyMs: args.latencyMs } : {}),
+      ...(args.errorClass ? { errorClass: args.errorClass } : {}),
+    });
 
     if (args.ok) {
       await ctx.db.patch(delivery._id, {
@@ -341,6 +383,7 @@ export async function recordDeliveryResultHandler(
         leaseToken: undefined,
         lastStatusCode: args.statusCode,
         lastError: undefined,
+        attemptHistory,
         updatedAt: now,
       });
       if (destination) {
@@ -369,7 +412,6 @@ export async function recordDeliveryResultHandler(
       return null;
     }
 
-    const exhausted = attempts >= MAX_DELIVERY_ATTEMPTS || !args.retryable;
     await ctx.db.patch(delivery._id, {
       // A dead-lettered row keeps its payload reference so replay does not
       // need to re-derive the event.
@@ -380,6 +422,7 @@ export async function recordDeliveryResultHandler(
       leaseToken: undefined,
       lastStatusCode: args.statusCode,
       lastError: args.error ? args.error.slice(0, 500) : undefined,
+      attemptHistory,
       updatedAt: now,
     });
 
@@ -443,7 +486,10 @@ export const listFailed = query({
   },
 });
 
-/** Project-admin replay for one dead letter. */
+/**
+ * Project-admin replay for one dead letter. Kept for existing callers; it runs
+ * the same bounded path as `resend`.
+ */
 export const replay = mutation({
   args: { deliveryId: v.id("outboundDeliveries") },
   returns: v.boolean(),
@@ -451,7 +497,9 @@ export const replay = mutation({
     const delivery = await ctx.db.get(args.deliveryId);
     if (!delivery) return false;
     await assertProjectAdmin(ctx, delivery.projectId);
-    return replayDeliveryHandler(ctx, args.deliveryId);
+    if (delivery.status !== "failed") return false;
+    await resendDeliveryHandler(ctx, { deliveryId: args.deliveryId });
+    return true;
   },
 });
 
@@ -459,35 +507,341 @@ export async function replayDeliveryHandler(
   ctx: MutationCtx,
   deliveryId: Id<"outboundDeliveries">,
 ): Promise<boolean> {
-  {
-    const args = { deliveryId };
-    const delivery = await ctx.db.get(args.deliveryId);
-    if (!delivery || delivery.status !== "failed") return false;
-    const now = Date.now();
-    await ctx.db.patch(delivery._id, {
-      status: "pending",
-      attempts: 0,
-      nextAttemptAt: now,
-      lastStatusCode: undefined,
-      lastError: undefined,
-      leaseExpiresAt: undefined,
-      leaseToken: undefined,
+  const delivery = await ctx.db.get(deliveryId);
+  if (!delivery || delivery.status !== "failed") return false;
+  await requeueDelivery(ctx, delivery, {});
+  return true;
+}
+
+/** Puts a row back in the claim queue with a fresh attempt budget. */
+async function requeueDelivery(
+  ctx: MutationCtx,
+  delivery: Doc<"outboundDeliveries">,
+  extra: Pick<Partial<Doc<"outboundDeliveries">>, "lastResendAt">,
+): Promise<void> {
+  const now = Date.now();
+  await ctx.db.patch(delivery._id, {
+    status: "pending",
+    attempts: 0,
+    nextAttemptAt: now,
+    lastStatusCode: undefined,
+    lastError: undefined,
+    leaseExpiresAt: undefined,
+    leaseToken: undefined,
+    ...extra,
+    updatedAt: now,
+  });
+  const queue = await ctx.db
+    .query("outboundDeliveryQueues")
+    .withIndex("by_project", (q) => q.eq("projectId", delivery.projectId))
+    .unique();
+  if (queue) {
+    await ctx.db.patch(queue._id, { nextClaimAt: now, updatedAt: now });
+  } else {
+    await ctx.db.insert("outboundDeliveryQueues", {
+      projectId: delivery.projectId,
+      nextClaimAt: now,
       updatedAt: now,
     });
-    const queue = await ctx.db
-      .query("outboundDeliveryQueues")
-      .withIndex("by_project", (q) => q.eq("projectId", delivery.projectId))
-      .unique();
-    if (queue) {
-      await ctx.db.patch(queue._id, { nextClaimAt: now, updatedAt: now });
-    } else {
-      await ctx.db.insert("outboundDeliveryQueues", {
-        projectId: delivery.projectId,
-        nextClaimAt: now,
-        updatedAt: now,
-      });
-    }
-    return true;
+  }
+}
+
+/**
+ * Admin re-send of a delivered or dead-lettered row. The body keeps the same
+ * `eventId`, so receivers that dedupe on it treat the copy as a duplicate.
+ */
+export const resend = mutation({
+  args: { deliveryId: v.string(), apiKey: v.optional(v.string()) },
+  returns: v.object({
+    deliveryId: v.id("outboundDeliveries"),
+    eventId: v.id("commerceEvents"),
+    status: v.literal("pending"),
+  }),
+  handler: async (ctx, args) => resendDeliveryHandler(ctx, args),
+});
+
+export async function resendDeliveryHandler(
+  ctx: MutationCtx,
+  args: { deliveryId: string; apiKey?: string },
+): Promise<{
+  deliveryId: Id<"outboundDeliveries">;
+  eventId: Id<"commerceEvents">;
+  status: "pending";
+}> {
+  const deliveryId = ctx.db.normalizeId("outboundDeliveries", args.deliveryId);
+  const delivery = deliveryId ? await ctx.db.get(deliveryId) : null;
+  const notFound = new ConvexError({
+    code: "NOT_FOUND",
+    message:
+      "Delivery not found. Delivered rows and their events are kept for 30 days.",
+  });
+  if (!delivery) throw notFound;
+  const project = await resolveOperatorProject(
+    ctx,
+    { apiKey: args.apiKey, projectId: delivery.projectId },
+    "write",
+  );
+  if (project._id !== delivery.projectId) throw notFound;
+  if (delivery.status !== "delivered" && delivery.status !== "failed") {
+    throw new ConvexError({
+      code: "NOT_RESENDABLE",
+      message:
+        "This delivery is already queued. Wait for the current attempt to finish.",
+    });
+  }
+  const event = await ctx.db.get(delivery.eventId);
+  if (!event) {
+    throw new ConvexError({
+      code: "EVENT_PRUNED",
+      message:
+        "The commerce event passed its 30-day retention and was pruned, so it can no longer be re-sent.",
+    });
+  }
+  const destination = await ctx.db.get(delivery.destinationId);
+  if (!destination || !destination.enabled || destination.pendingDeletion) {
+    throw new ConvexError({
+      code: "DESTINATION_DISABLED",
+      message: "Enable the destination before re-sending to it.",
+    });
+  }
+  if (!destinationAcceptsType(destination, event.eventType)) {
+    throw new ConvexError({
+      code: "EVENT_TYPE_FILTERED",
+      message: `The destination no longer subscribes to ${event.eventType}.`,
+    });
+  }
+
+  const now = Date.now();
+  const windowStart = now - RESEND_WINDOW_MS;
+  const retryAfterSec = (since: number): number =>
+    Math.max(1, Math.ceil((since + RESEND_WINDOW_MS - now) / 1_000));
+  if (
+    delivery.lastResendAt !== undefined &&
+    delivery.lastResendAt > windowStart
+  ) {
+    throw new ConvexError({
+      code: "RATE_LIMITED",
+      message: "This delivery was re-sent less than a minute ago.",
+      retryAfterSec: retryAfterSec(delivery.lastResendAt),
+    });
+  }
+  // Oldest first, so the first row tells when the window frees a slot.
+  const recent = await ctx.db
+    .query("outboundDeliveries")
+    .withIndex("by_project_and_last_resend", (q) =>
+      q.eq("projectId", project._id).gt("lastResendAt", windowStart),
+    )
+    .take(RESEND_LIMIT_PER_MINUTE);
+  if (recent.length >= RESEND_LIMIT_PER_MINUTE) {
+    throw new ConvexError({
+      code: "RATE_LIMITED",
+      message: `A project can re-send at most ${RESEND_LIMIT_PER_MINUTE} deliveries per minute.`,
+      retryAfterSec: retryAfterSec(recent[0].lastResendAt ?? now),
+    });
+  }
+
+  await requeueDelivery(ctx, delivery, { lastResendAt: now });
+  return { deliveryId: delivery._id, eventId: event._id, status: "pending" };
+}
+
+const deliveryStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("delivering"),
+  v.literal("delivered"),
+  v.literal("failed"),
+);
+
+const deliveryViewValidator = v.object({
+  _id: v.id("outboundDeliveries"),
+  eventId: v.id("commerceEvents"),
+  eventType: v.string(),
+  eventAvailable: v.boolean(),
+  destinationId: v.id("outboundDestinations"),
+  // Host only: a destination URL can carry a receiver token, and the full URL
+  // is admin-only.
+  destinationHost: v.string(),
+  destinationDescription: v.optional(v.string()),
+  status: deliveryStatusValidator,
+  resendable: v.boolean(),
+  attempts: v.number(),
+  nextAttemptAt: v.number(),
+  lastStatusCode: v.optional(v.number()),
+  lastError: v.optional(v.string()),
+  deliveredAt: v.optional(v.number()),
+  lastResendAt: v.optional(v.number()),
+  attemptHistory: v.array(deliveryAttemptValidator),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+export type DeliveryView = Infer<typeof deliveryViewValidator>;
+
+export type ListDeliveriesArgs = OperatorProjectArgs & {
+  status?: Doc<"outboundDeliveries">["status"];
+  eventType?: string;
+  destinationId?: string;
+  eventId?: string;
+  paginationOpts: PaginationOptions;
+};
+
+/** Delivery history for members and secret keys, newest first. */
+export const listDeliveries = query({
+  args: {
+    projectId: v.optional(v.id("projects")),
+    apiKey: v.optional(v.string()),
+    status: v.optional(deliveryStatusValidator),
+    eventType: v.optional(v.string()),
+    destinationId: v.optional(v.string()),
+    eventId: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(deliveryViewValidator),
+  handler: async (ctx, args) => listDeliveriesHandler(ctx, args),
+});
+
+export async function listDeliveriesHandler(
+  ctx: QueryCtx,
+  args: ListDeliveriesArgs,
+): Promise<PaginationResult<DeliveryView>> {
+  const project = await resolveOperatorProject(ctx, args, "read");
+  if (args.paginationOpts.numItems > MAX_DELIVERY_PAGE_SIZE) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: `A page holds at most ${MAX_DELIVERY_PAGE_SIZE} deliveries.`,
+    });
+  }
+  const empty: PaginationResult<DeliveryView> = {
+    page: [],
+    isDone: true,
+    continueCursor: "",
+  };
+  const { status, eventType } = args;
+
+  // The most selective filter picks the index; the others filter that scan.
+  let rows: PaginationResult<Doc<"outboundDeliveries">>;
+  if (args.eventId !== undefined) {
+    const eventId = ctx.db.normalizeId("commerceEvents", args.eventId);
+    if (!eventId) return empty;
+    rows = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .order("desc")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("projectId"), project._id),
+          status === undefined ? true : q.eq(q.field("status"), status),
+        ),
+      )
+      .paginate(args.paginationOpts);
+  } else if (args.destinationId !== undefined) {
+    const destinationId = ctx.db.normalizeId(
+      "outboundDestinations",
+      args.destinationId,
+    );
+    const destination = destinationId ? await ctx.db.get(destinationId) : null;
+    if (!destination || destination.projectId !== project._id) return empty;
+    rows = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_destination", (q) =>
+        q.eq("destinationId", destination._id),
+      )
+      .order("desc")
+      .filter((q) =>
+        q.and(
+          eventType === undefined
+            ? true
+            : q.eq(q.field("eventType"), eventType),
+          status === undefined ? true : q.eq(q.field("status"), status),
+        ),
+      )
+      .paginate(args.paginationOpts);
+  } else if (eventType !== undefined) {
+    rows = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_project_and_event_type", (q) =>
+        q.eq("projectId", project._id).eq("eventType", eventType),
+      )
+      .order("desc")
+      .filter((q) =>
+        status === undefined ? true : q.eq(q.field("status"), status),
+      )
+      .paginate(args.paginationOpts);
+  } else if (status !== undefined) {
+    rows = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_project_and_status_and_updated", (q) =>
+        q.eq("projectId", project._id).eq("status", status),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+  } else {
+    rows = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .order("desc")
+      .paginate(args.paginationOpts);
+  }
+
+  const destinations = new Map<
+    Id<"outboundDestinations">,
+    Promise<Doc<"outboundDestinations"> | null>
+  >();
+  const page = await Promise.all(
+    rows.page.map(async (delivery): Promise<DeliveryView> => {
+      if (!destinations.has(delivery.destinationId)) {
+        destinations.set(
+          delivery.destinationId,
+          ctx.db.get(delivery.destinationId),
+        );
+      }
+      const [destination, event] = await Promise.all([
+        destinations.get(delivery.destinationId)!,
+        ctx.db.get(delivery.eventId),
+      ]);
+      const resendable =
+        (delivery.status === "delivered" || delivery.status === "failed") &&
+        event !== null &&
+        destination !== null &&
+        destination.enabled &&
+        !destination.pendingDeletion &&
+        destinationAcceptsType(destination, event.eventType);
+      return {
+        _id: delivery._id,
+        eventId: delivery.eventId,
+        eventType: delivery.eventType ?? event?.eventType ?? "unknown",
+        eventAvailable: event !== null,
+        destinationId: delivery.destinationId,
+        destinationHost: destination ? hostOf(destination.url) : "removed",
+        ...(destination?.description
+          ? { destinationDescription: destination.description }
+          : {}),
+        status: delivery.status,
+        resendable,
+        attempts: delivery.attempts,
+        nextAttemptAt: delivery.nextAttemptAt,
+        ...(delivery.lastStatusCode !== undefined
+          ? { lastStatusCode: delivery.lastStatusCode }
+          : {}),
+        ...(delivery.lastError ? { lastError: delivery.lastError } : {}),
+        ...(delivery.deliveredAt !== undefined
+          ? { deliveredAt: delivery.deliveredAt }
+          : {}),
+        ...(delivery.lastResendAt !== undefined
+          ? { lastResendAt: delivery.lastResendAt }
+          : {}),
+        attemptHistory: delivery.attemptHistory ?? [],
+        createdAt: delivery.createdAt,
+        updatedAt: delivery.updatedAt,
+      };
+    }),
+  );
+  return { ...rows, page };
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "invalid URL";
   }
 }
 

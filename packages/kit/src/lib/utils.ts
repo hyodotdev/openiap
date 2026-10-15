@@ -7,6 +7,11 @@ export function cn(...inputs: ClassValue[]) {
 
 export const DEFAULT_REPORTING_CURRENCY = "USD";
 
+/** `YYYY-MM-DD HH:MM:SS` in UTC, so operators compare it with store consoles. */
+export function formatUtcDateTime(epochMs: number): string {
+  return new Date(epochMs).toISOString().slice(0, 19).replace("T", " ");
+}
+
 export const currencyCodePattern = /^[A-Z]{3}$/;
 
 export function normalizeCurrencyCode(

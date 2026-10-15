@@ -16,10 +16,20 @@ import {
   signaturePrefix,
   toleranceSeconds,
 } from "@hyodotdev/openiap-commerce-protocol/vectors/signatures.json";
+import type { Infer } from "convex/values";
+
+import type { deliveryErrorClassValidator } from "../utils/validation";
 
 /** Attempt budget before a delivery becomes dead-letter. */
 export const MAX_DELIVERY_ATTEMPTS = 14;
 export const COMMERCE_EVENT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Attempts kept per delivery row; older entries drop off the front. */
+export const DELIVERY_HISTORY_LIMIT = 20;
+
+/** Admin re-sends a project may start per minute. */
+export const RESEND_LIMIT_PER_MINUTE = 30;
+export const RESEND_WINDOW_MS = 60_000;
 
 /** Rows one worker pass claims. */
 export const CLAIM_BATCH_LIMIT = 25;
@@ -264,6 +274,42 @@ export async function composeDeliveryHeaders(args: {
     [EVENT_ID_HEADER]: args.eventId,
     [DELIVERY_ID_HEADER]: args.deliveryId,
   };
+}
+
+export type DeliveryErrorClass = Infer<typeof deliveryErrorClassValidator>;
+
+const TLS_ERROR_CODE =
+  /^(ERR_TLS|ERR_SSL|CERT_|UNABLE_TO_|DEPTH_ZERO|SELF_SIGNED)/;
+
+/**
+ * Short class for a send that produced no HTTP status. Only the class is
+ * stored: error messages can echo hostnames, addresses or response text.
+ */
+export function classifyDeliveryError(error: unknown): DeliveryErrorClass {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : "";
+  const message = error instanceof Error ? error.message : "";
+  if (message === "destination resolved to a non-public address") {
+    return "non_public_address";
+  }
+  if (
+    message === "request timed out" ||
+    code === "ETIMEDOUT" ||
+    code === "ESOCKETTIMEDOUT"
+  ) {
+    return "timeout";
+  }
+  if (["ENOTFOUND", "EAI_AGAIN", "ENODATA", "ESERVFAIL"].includes(code)) {
+    return "dns";
+  }
+  if (code === "ECONNREFUSED") return "connection_refused";
+  if (["ECONNRESET", "EPIPE", "ECONNABORTED"].includes(code)) {
+    return "connection_reset";
+  }
+  if (TLS_ERROR_CODE.test(code)) return "tls";
+  return "network";
 }
 
 export type DeliveryOutcome = "delivered" | "retry" | "permanent-failure";

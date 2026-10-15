@@ -55,6 +55,7 @@ const MAX_KIT_ID_LENGTH = 256;
 const MAX_CLIENT_PAYLOAD_BYTES = 16 * 1024;
 const MAX_PRODUCT_PAGE_SIZE = 50;
 const MAX_PRODUCT_CURSOR_LENGTH = 4096;
+const MAX_OPERATIONS_PAGE_SIZE = 100;
 const MAX_PRICE_AMOUNT_MICROS = Number.MAX_SAFE_INTEGER;
 const READ_ONLY_TOOL: ToolAnnotations = {
   readOnlyHint: true,
@@ -914,7 +915,7 @@ function registerIapKitTools(
   );
 
   // ---------------------------------------------------------------------------
-  // 15. sync_status — poll a product sync job.
+  // 16. sync_status — poll a product sync job.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -929,6 +930,158 @@ function registerIapKitTools(
     async (args, extra) => {
       try {
         return ok(await withClient(args, extra).syncJob(args.jobId));
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 17. list_deliveries — outbound webhook delivery history.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "list_deliveries",
+    "List outbound webhook deliveries with their recent attempts, newest first. Page with nextCursor.",
+    {
+      status: z
+        .enum(["pending", "delivering", "delivered", "failed"])
+        .optional(),
+      eventType: kitTextParam("eventType", MAX_KIT_ID_LENGTH).optional(),
+      destinationId: kitTextParam(
+        "destinationId",
+        MAX_KIT_ID_LENGTH,
+      ).optional(),
+      eventId: kitTextParam("eventId", MAX_KIT_ID_LENGTH).optional(),
+      limit: z.number().int().min(1).max(MAX_OPERATIONS_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).listDeliveries({
+            status: args.status,
+            eventType: args.eventType,
+            destinationId: args.destinationId,
+            eventId: args.eventId,
+            limit: args.limit,
+            cursor: args.cursor,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 18. resend_delivery — redeliver one event to one destination.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "resend_delivery",
+    "Re-send a delivered or failed webhook delivery with its original eventId, so receivers dedupe it. At most 30 per project per minute.",
+    {
+      deliveryId: kitTextParam("deliveryId", MAX_KIT_ID_LENGTH),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).resendDelivery(args.deliveryId),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 19. list_inbound_notifications — store notifications IAPKit received.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "list_inbound_notifications",
+    "List store notifications IAPKit received, newest first, with applied state. Raw signed payloads are never returned.",
+    {
+      limit: z.number().int().min(1).max(MAX_OPERATIONS_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).listInboundNotifications({
+            limit: args.limit,
+            cursor: args.cursor,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 20. resync_from_store — refresh one Apple or Google record.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "resync_from_store",
+    "Re-read one Apple or Google purchase or subscription from the store and apply its current state. Pass exactly one id. Never changes the owner.",
+    {
+      purchaseId: kitTextParam("purchaseId", MAX_KIT_ID_LENGTH).optional(),
+      subscriptionId: kitTextParam(
+        "subscriptionId",
+        MAX_KIT_ID_LENGTH,
+      ).optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        const target =
+          args.purchaseId !== undefined && args.subscriptionId === undefined
+            ? { purchaseId: args.purchaseId }
+            : args.subscriptionId !== undefined && args.purchaseId === undefined
+              ? { subscriptionId: args.subscriptionId }
+              : null;
+        if (!target) {
+          return err(
+            new Error("Pass exactly one of purchaseId or subscriptionId."),
+          );
+        }
+        return ok(await withClient(args, extra).resyncFromStore(target));
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 21. user_timeline — one app user's purchases, subscriptions and events.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "user_timeline",
+    "Look up one app user's purchases, subscriptions and commerce events, newest first.",
+    {
+      userId: USER_ID_PARAM,
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(await withClient(args, extra).userTimeline(args.userId));
       } catch (error) {
         return err(error, resolveApiKey(args, extra));
       }

@@ -7,7 +7,7 @@ export default function OperationsPage() {
     <DocsPage
       slug="operations"
       title="Operations"
-      description="Fair use, capacity, rate limits, correlation IDs, /health, structured logs, and graceful shutdown."
+      description="Fair use, capacity, rate limits, store re-sync, the operator API, correlation IDs, /health, structured logs, and graceful shutdown."
     >
       <h2 className="mt-8 text-2xl font-semibold">Rate limits</h2>
       <p>
@@ -192,6 +192,60 @@ X-RateLimit-Remaining: 599`}
         local builds return <code>null</code> when no valid revision is
         injected. No machine identifier, credential, or private environment
         value is exposed.
+      </p>
+
+      <h2 id="store-resync" className="mt-10 text-2xl font-semibold">
+        Re-sync from store
+      </h2>
+      <p>
+        Owners and admins can re-read one Apple or Google purchase or
+        subscription from the store, from its detail page, the Subscriptions
+        tab, the API, or MCP. Use it when a store notification never arrived.
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Apple reads the App Store Server API subscription status or
+          transaction; Google reads the Play Developer API. Each call draws one
+          token from the project&apos;s entitlement recheck bucket.
+        </li>
+        <li>
+          The purchase row is saved through the verification path. A changed
+          subscription is recorded as a <code>StoreResync</code> inbound
+          notification and applied in one transaction.
+        </li>
+        <li>
+          A re-sync sees current state, not the events in between, so it emits{" "}
+          <code>entitlement.granted</code> or <code>entitlement.revoked</code>{" "}
+          only when access flips. It never invents a lifecycle event.
+        </li>
+        <li>
+          Repeating it is a no-op until the store changes. It never binds,
+          unbinds, or moves a purchase or subscription owner, and a store
+          notification signed after the read still applies.
+        </li>
+        <li>
+          Amazon is rechecked automatically through RVS; Horizon has no
+          lifecycle API.
+        </li>
+      </ul>
+
+      <h2 className="mt-10 text-2xl font-semibold">Operator API</h2>
+      <p>
+        These routes take a secret admin key in{" "}
+        <code>Authorization: Bearer</code>; publishable keys get{" "}
+        <code>403 INSUFFICIENT_SCOPE</code>. Lists return{" "}
+        <code>{"{ …, hasMore, nextCursor }"}</code> pages of up to 100 rows. The
+        same operations are MCP tools.
+      </p>
+      <CodeBlock language="text">{`GET  /v1/webhooks/deliveries?status=&eventType=&destinationId=&eventId=&limit=&cursor=
+POST /v1/webhooks/deliveries/{deliveryId}/resend      → 202
+GET  /v1/webhooks/notifications?limit=&cursor=
+POST /v1/subscriptions/resync  {"purchaseId"} or {"subscriptionId"}
+GET  /v1/subscriptions/timeline?userId=`}</CodeBlock>
+      <p>
+        The timeline returns one app user&apos;s purchases, subscriptions, and
+        commerce events, newest first, capped at 50 of each kind. It carries no
+        receipt evidence, purchase token, or request IP.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Graceful shutdown</h2>

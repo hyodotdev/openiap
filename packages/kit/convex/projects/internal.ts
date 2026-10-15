@@ -2,7 +2,11 @@ import { v } from "convex/values";
 
 import { internalMutation, internalQuery } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
-import { deleteProjectWithData, resolveProjectByApiKeyFromDb } from "./helpers";
+import {
+  deleteProjectWithData,
+  resolveOperatorProject,
+  resolveProjectByApiKeyFromDb,
+} from "./helpers";
 
 export const getProjectByApiKey = internalQuery({
   args: {
@@ -19,6 +23,17 @@ export const getProjectByApiKey = internalQuery({
     );
     return resolved?.project ?? null;
   },
+});
+
+/** Action-side access check; see `resolveOperatorProject`. */
+export const getOperatorProject = internalQuery({
+  args: {
+    projectId: v.optional(v.id("projects")),
+    apiKey: v.optional(v.string()),
+    access: v.union(v.literal("read"), v.literal("write")),
+  },
+  handler: async (ctx, args): Promise<Doc<"projects">> =>
+    resolveOperatorProject(ctx, args, args.access),
 });
 
 // Direct id-based lookup. Used by the product-sync workers, which

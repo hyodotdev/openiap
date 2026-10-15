@@ -50,6 +50,150 @@ export type StatusResponseV2 = {
   subscription: KitSubscriptionV2 | null;
 };
 
+// Operations responses. Kit's mcp-contract test holds each to the Convex
+// return type it is served from.
+export type KitDeliveryStatus =
+  | "pending"
+  | "delivering"
+  | "delivered"
+  | "failed";
+
+export interface KitDeliveryAttempt {
+  at: number;
+  outcome: "delivered" | "retrying" | "failed";
+  statusCode?: number;
+  latencyMs?: number;
+  errorClass?:
+    | "timeout"
+    | "dns"
+    | "connection_refused"
+    | "connection_reset"
+    | "tls"
+    | "non_public_address"
+    | "destination_rejected"
+    | "network";
+}
+
+export interface KitDelivery {
+  _id: string;
+  eventId: string;
+  eventType: string;
+  eventAvailable: boolean;
+  destinationId: string;
+  destinationHost: string;
+  destinationDescription?: string;
+  status: KitDeliveryStatus;
+  resendable: boolean;
+  attempts: number;
+  nextAttemptAt: number;
+  lastStatusCode?: number;
+  lastError?: string;
+  deliveredAt?: number;
+  lastResendAt?: number;
+  attemptHistory: KitDeliveryAttempt[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface KitDeliveriesResponse {
+  deliveries: KitDelivery[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface KitResendResponse {
+  deliveryId: string;
+  eventId: string;
+  status: "pending";
+}
+
+type KitStore = "apple" | "google" | "horizon" | "amazon";
+type KitSubscriptionState =
+  | "Active"
+  | "InGracePeriod"
+  | "InBillingRetry"
+  | "Expired"
+  | "Revoked"
+  | "Refunded"
+  | "Paused"
+  | "Unknown";
+
+export interface KitInboundNotification {
+  _id: string;
+  source: string;
+  store: KitStore;
+  type: string;
+  environment: string;
+  sourceNotificationId: string;
+  productId?: string;
+  transactionId?: string;
+  originalTransactionId?: string;
+  userId?: string;
+  payloadFingerprint?: string;
+  occurredAt: number;
+  receivedAt: number;
+  appliedAt?: number;
+  status: "applied" | "pending";
+}
+
+export interface KitInboundNotificationsResponse {
+  notifications: KitInboundNotification[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface KitResyncOutcome {
+  status: "updated" | "unchanged" | "superseded";
+  subscriptionId?: string;
+  state?: KitSubscriptionState;
+  productId?: string;
+  expiresAt?: number;
+  willRenew?: boolean;
+  emittedEvents: number;
+}
+
+export interface KitResyncResponse {
+  target: "purchase" | "subscription";
+  store: "apple" | "google";
+  purchase?: { id: string; state: string; isValid: boolean; changed: boolean };
+  subscription?: KitResyncOutcome;
+}
+
+export type KitTimelineItem =
+  | {
+      kind: "purchase";
+      id: string;
+      at: number;
+      store: KitStore;
+      productId?: string;
+      state: string;
+      isValid: boolean;
+    }
+  | {
+      kind: "subscription";
+      id: string;
+      at: number;
+      store: KitStore;
+      productId: string;
+      state: KitSubscriptionState;
+      expiresAt?: number;
+      willRenew?: boolean;
+    }
+  | {
+      kind: "event";
+      id: string;
+      at: number;
+      store: KitStore;
+      eventType: string;
+      productId?: string;
+    };
+
+export interface KitUserTimelineResponse {
+  appUserId: string;
+  items: KitTimelineItem[];
+  truncated: boolean;
+}
+
 export interface KitHealthResponse {
   ok: true;
   status: "healthy";
@@ -333,6 +477,48 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     syncJob: (jobId: string) =>
       adminCall<KitProductSyncJobResponse>(
         `/v1/products/sync/jobs/${encodeURIComponent(jobId)}`,
+      ),
+    listDeliveries: (params: {
+      status?: KitDeliveryStatus;
+      eventType?: string;
+      destinationId?: string;
+      eventId?: string;
+      limit?: number;
+      cursor?: string;
+    }) => {
+      const usp = new URLSearchParams();
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined) usp.set(key, String(value));
+      }
+      const qs = usp.toString();
+      return adminCall<KitDeliveriesResponse>(
+        `/v1/webhooks/deliveries${qs ? `?${qs}` : ""}`,
+      );
+    },
+    resendDelivery: (deliveryId: string) =>
+      adminCall<KitResendResponse>(
+        `/v1/webhooks/deliveries/${encodeURIComponent(deliveryId)}/resend`,
+        { method: "POST" },
+      ),
+    listInboundNotifications: (params: { limit?: number; cursor?: string }) => {
+      const usp = new URLSearchParams();
+      if (params.limit !== undefined) usp.set("limit", String(params.limit));
+      if (params.cursor !== undefined) usp.set("cursor", params.cursor);
+      const qs = usp.toString();
+      return adminCall<KitInboundNotificationsResponse>(
+        `/v1/webhooks/notifications${qs ? `?${qs}` : ""}`,
+      );
+    },
+    resyncFromStore: (
+      target: { purchaseId: string } | { subscriptionId: string },
+    ) =>
+      adminCall<KitResyncResponse>("/v1/subscriptions/resync", {
+        method: "POST",
+        body: JSON.stringify(target),
+      }),
+    userTimeline: (userId: string) =>
+      adminCall<KitUserTimelineResponse>(
+        `/v1/subscriptions/timeline?userId=${encodeURIComponent(userId)}`,
       ),
     health: () => call<KitHealthResponse>("/health"),
   };

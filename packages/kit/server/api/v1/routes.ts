@@ -28,6 +28,7 @@ import { validator } from "./validator";
 import { webhooksRoutes } from "./webhooks";
 import { subscriptionsRoutes } from "./subscriptions";
 import { productsRoutes } from "./products";
+import { operationsRoutes } from "./operations";
 
 // Context variables the middleware chain sets, typed so handlers need no casts.
 type V1AppVariables = {
@@ -679,5 +680,9 @@ app.route("/subscriptions", subscriptionsRoutes);
 // Product catalog: kit's cache shared by the dashboard, MCP server, and SDK
 // helpers.
 app.route("/products", productsRoutes);
+
+// Secret-key operations: delivery history and re-send, inbound history, store
+// re-sync, and one user's timeline (see operations.ts).
+app.route("/", operationsRoutes);
 
 export { app as apiRoutes };

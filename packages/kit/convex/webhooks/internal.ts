@@ -6,18 +6,25 @@ import schema, { purchaseStoreValidator } from "../schema";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import { assertProjectWritable } from "../projects/writable";
 import {
+  cancellationReasonValidator,
   dataProvenanceValidator,
   subscriptionStateValidator,
 } from "../utils/validation";
 
 export { WEBHOOK_RETENTION_MS } from "./shared";
 
-type WebhookDedupSource = "apple" | "google" | "amazon" | "amazon-rvs";
+type WebhookDedupSource =
+  | "apple"
+  | "google"
+  | "amazon"
+  | "amazon-rvs"
+  | "store-resync";
 type StoredWebhookSource =
   | "AppleAppStoreServerNotificationsV2"
   | "GooglePlayRealTimeDeveloperNotifications"
   | "AmazonRealTimeNotifications"
-  | "AmazonRvsReconciliation";
+  | "AmazonRvsReconciliation"
+  | "StoreResync";
 type WebhookEventReader = Pick<QueryCtx["db"], "query">;
 
 interface WebhookEventDedupKey {
@@ -38,6 +45,8 @@ function storedSourceForDedupSource(
       return "AmazonRealTimeNotifications";
     case "amazon-rvs":
       return "AmazonRvsReconciliation";
+    case "store-resync":
+      return "StoreResync";
   }
 }
 
@@ -127,6 +136,7 @@ const recordWebhookEventArgs = v.object({
     v.literal("google"),
     v.literal("amazon"),
     v.literal("amazon-rvs"),
+    v.literal("store-resync"),
   ),
   sourceNotificationId: v.string(),
   event: v.object({
@@ -158,6 +168,7 @@ const recordWebhookEventArgs = v.object({
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
       v.literal("AmazonRealTimeNotifications"),
       v.literal("AmazonRvsReconciliation"),
+      v.literal("StoreResync"),
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     store: v.optional(purchaseStoreValidator),
@@ -182,16 +193,7 @@ const recordWebhookEventArgs = v.object({
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
-    cancellationReason: v.optional(
-      v.union(
-        v.literal("UserCanceled"),
-        v.literal("BillingError"),
-        v.literal("PriceIncreaseDeclined"),
-        v.literal("ProductUnavailable"),
-        v.literal("Refunded"),
-        v.literal("Other"),
-      ),
-    ),
+    cancellationReason: v.optional(cancellationReasonValidator),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     amountProvenance: v.optional(dataProvenanceValidator),

@@ -17,6 +17,7 @@ import {
   Copy,
   ClipboardCheck,
 } from "lucide-react";
+import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
 import { FALLBACK_VALUE, getPurchaseStateDisplay } from "./receipt-utils";
 
 interface ProjectData {
@@ -110,6 +111,10 @@ export default function PurchaseDetail() {
   const purchase = useQuery(
     api.purchases.query.getPurchaseById,
     purchaseId ? { purchaseId: purchaseId as Id<"purchases"> } : "skip",
+  );
+  const canManage = useQuery(
+    api.commerce.destinations.canManage,
+    project ? { projectId: project._id } : "skip",
   );
 
   const backToList = () => {
@@ -269,13 +274,24 @@ export default function PurchaseDetail() {
         {"Back to purchases"}
       </button>
 
-      <div>
-        <h2 className="text-2xl font-bold mb-1">{"Receipt details"}</h2>
-        <p className="text-muted-foreground">
-          {
-            "Inspect the latest store verification snapshot. Subscription lifecycle state is tracked separately."
-          }
-        </p>
+      <div className="contained-action-card">
+        <div className="contained-action-card__text">
+          <h2 className="text-2xl font-bold mb-1">{"Receipt details"}</h2>
+          <p className="text-muted-foreground">
+            {
+              "Inspect the latest store verification snapshot. Subscription lifecycle state is tracked separately."
+            }
+          </p>
+        </div>
+        {canManage &&
+        (purchase.store === "apple" || purchase.store === "google") ? (
+          <div className="contained-action-card__actions">
+            <ResyncFromStoreButton
+              projectId={project._id}
+              target={{ purchaseId: purchase._id }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm p-6 space-y-6">

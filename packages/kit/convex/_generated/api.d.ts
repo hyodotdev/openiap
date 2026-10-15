@@ -74,6 +74,7 @@ import type * as purchases_retry from "../purchases/retry.js";
 import type * as purchases_shared from "../purchases/shared.js";
 import type * as purchases_stats from "../purchases/stats.js";
 import type * as purchases_verificationAdmission from "../purchases/verificationAdmission.js";
+import type * as subscriptions_action from "../subscriptions/action.js";
 import type * as subscriptions_amazon from "../subscriptions/amazon.js";
 import type * as subscriptions_erasure from "../subscriptions/erasure.js";
 import type * as subscriptions_internal from "../subscriptions/internal.js";
@@ -81,6 +82,7 @@ import type * as subscriptions_limits from "../subscriptions/limits.js";
 import type * as subscriptions_monthlyMicros from "../subscriptions/monthlyMicros.js";
 import type * as subscriptions_mutation from "../subscriptions/mutation.js";
 import type * as subscriptions_query from "../subscriptions/query.js";
+import type * as subscriptions_resync from "../subscriptions/resync.js";
 import type * as subscriptions_revenueMetrics from "../subscriptions/revenueMetrics.js";
 import type * as subscriptions_selectLatest from "../subscriptions/selectLatest.js";
 import type * as subscriptions_stateMachine from "../subscriptions/stateMachine.js";
@@ -103,6 +105,7 @@ import type * as webhooks_amazonShared from "../webhooks/amazonShared.js";
 import type * as webhooks_amazonSns from "../webhooks/amazonSns.js";
 import type * as webhooks_apple from "../webhooks/apple.js";
 import type * as webhooks_google from "../webhooks/google.js";
+import type * as webhooks_inbound from "../webhooks/inbound.js";
 import type * as webhooks_internal from "../webhooks/internal.js";
 import type * as webhooks_shared from "../webhooks/shared.js";
 
@@ -179,6 +182,7 @@ declare const fullApi: ApiFromModules<{
   "purchases/shared": typeof purchases_shared;
   "purchases/stats": typeof purchases_stats;
   "purchases/verificationAdmission": typeof purchases_verificationAdmission;
+  "subscriptions/action": typeof subscriptions_action;
   "subscriptions/amazon": typeof subscriptions_amazon;
   "subscriptions/erasure": typeof subscriptions_erasure;
   "subscriptions/internal": typeof subscriptions_internal;
@@ -186,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/monthlyMicros": typeof subscriptions_monthlyMicros;
   "subscriptions/mutation": typeof subscriptions_mutation;
   "subscriptions/query": typeof subscriptions_query;
+  "subscriptions/resync": typeof subscriptions_resync;
   "subscriptions/revenueMetrics": typeof subscriptions_revenueMetrics;
   "subscriptions/selectLatest": typeof subscriptions_selectLatest;
   "subscriptions/stateMachine": typeof subscriptions_stateMachine;
@@ -208,6 +213,7 @@ declare const fullApi: ApiFromModules<{
   "webhooks/amazonSns": typeof webhooks_amazonSns;
   "webhooks/apple": typeof webhooks_apple;
   "webhooks/google": typeof webhooks_google;
+  "webhooks/inbound": typeof webhooks_inbound;
   "webhooks/internal": typeof webhooks_internal;
   "webhooks/shared": typeof webhooks_shared;
 }>;
