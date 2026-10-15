@@ -6,12 +6,14 @@ vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
   getAuthUserId: async () => auth.userId as never,
 }));
 
-const { FakeDb, seedProject } = await import("../test.fakeDb");
+const { MemoryDb, seedProject } = await import("../test.memoryDb");
 const { appleStatusSnapshot, applyStoreResyncHandler } =
   await import("./resync");
+const { applySubscriptionEventHandler } = await import("./internal");
+const { recordWebhookEventHandler } = await import("../webhooks/internal");
 const { resolveOperatorProject } = await import("../projects/helpers");
 
-type Db = InstanceType<typeof FakeDb>;
+type Db = InstanceType<typeof MemoryDb>;
 const ctxOf = (db: Db) => ({ db }) as never;
 const HOUR = 60 * 60 * 1000;
 
@@ -132,7 +134,7 @@ describe("applyStoreResync", () => {
   };
 
   it("applies store state, keeps the owner and emits only the entitlement delta", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     const subscriptionId = await seed(db);
 
     const outcome = await applyStoreResyncHandler(ctxOf(db), expired);
@@ -168,7 +170,7 @@ describe("applyStoreResync", () => {
   });
 
   it("is idempotent for the same store state", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     await seed(db);
     await applyStoreResyncHandler(ctxOf(db), expired);
     const second = await applyStoreResyncHandler(ctxOf(db), {
@@ -181,7 +183,7 @@ describe("applyStoreResync", () => {
   });
 
   it("never binds an unowned row or moves an owned one", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     const subscriptionId = await seed(db, { userId: undefined });
     await applyStoreResyncHandler(ctxOf(db), expired);
     expect((await db.get(subscriptionId))?.userId).toBeUndefined();
@@ -190,19 +192,63 @@ describe("applyStoreResync", () => {
     expect(db.rows("commerceEvents")).toHaveLength(0);
   });
 
-  it("leaves state alone when a newer store event already applied", async () => {
-    const db = new FakeDb();
-    const subscriptionId = await seed(db, {
-      lastEventOccurredAt: expired.observedAt + 1,
+  it("leaves state alone when a newer store event or re-sync already applied", async () => {
+    for (const newer of ["lastEventOccurredAt", "resyncedAt"]) {
+      const db = new MemoryDb();
+      const subscriptionId = await seed(db, {
+        [newer]: expired.observedAt + 1,
+      });
+      await expect(
+        applyStoreResyncHandler(ctxOf(db), expired),
+      ).resolves.toMatchObject({ status: "unchanged" });
+      expect((await db.get(subscriptionId))?.state).toBe("Active");
+    }
+  });
+
+  it("still emits an older notification's event without rolling state back", async () => {
+    const db = new MemoryDb();
+    const subscriptionId = await seed(db);
+    await applyStoreResyncHandler(ctxOf(db), expired);
+
+    // DID_RENEW from before the re-sync, delivered after it.
+    const { eventId } = await recordWebhookEventHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      source: "apple",
+      sourceNotificationId: "late-did-renew",
+      event: {
+        type: "SubscriptionRenewed",
+        sourceFull: "AppleAppStoreServerNotificationsV2",
+        platform: "IOS",
+        store: "apple",
+        environment: "Production",
+        purchaseToken: "2000000000000001",
+        originalTransactionId: "2000000000000001",
+        productKind: "subscription",
+        productId: "premium_monthly",
+        expiresAt: expired.observedAt + HOUR,
+        willRenew: true,
+        occurredAt: expired.observedAt - 1_000,
+      },
     });
-    await expect(
-      applyStoreResyncHandler(ctxOf(db), expired),
-    ).resolves.toMatchObject({ status: "unchanged" });
-    expect((await db.get(subscriptionId))?.state).toBe("Active");
+    await applySubscriptionEventHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      eventId,
+    });
+
+    expect(db.rows("commerceEvents").map((row) => row.eventType)).toEqual([
+      "entitlement.revoked",
+      "subscription.renewed",
+    ]);
+    expect(await db.get(subscriptionId)).toMatchObject({
+      state: "Expired",
+      expiresAt: 1_000,
+      resyncedAt: expired.observedAt,
+      lastEventOccurredAt: expired.observedAt - 1_000,
+    });
   });
 
   it("does not resurrect a replaced Google token", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     await seed(db);
     await db.insert("subscriptionTokenAliases", {
       projectId: "projects_1",
@@ -220,7 +266,7 @@ describe("applyStoreResync", () => {
 
 describe("re-sync access", () => {
   it("lets members read but not write", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "member");
     const args = { projectId: "projects_1" as never };
     await expect(
@@ -232,7 +278,7 @@ describe("re-sync access", () => {
   });
 
   it("rejects a publishable key for operations", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "owner");
     const { sha256Hex } = await import("../utils/sha256");
     db.rows("apiKeys").push({

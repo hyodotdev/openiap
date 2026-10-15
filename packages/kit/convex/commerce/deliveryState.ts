@@ -25,6 +25,7 @@ import {
 } from "../_generated/server";
 import { getWritableProject } from "../projects/writable";
 import {
+  resolveOperatorAccess,
   resolveOperatorProject,
   type OperatorProjectArgs,
 } from "../projects/helpers";
@@ -526,6 +527,7 @@ async function requeueDelivery(
     nextAttemptAt: now,
     lastStatusCode: undefined,
     lastError: undefined,
+    deliveredAt: undefined,
     leaseExpiresAt: undefined,
     leaseToken: undefined,
     ...extra,
@@ -666,7 +668,10 @@ const deliveryViewValidator = v.object({
   attempts: v.number(),
   nextAttemptAt: v.number(),
   lastStatusCode: v.optional(v.number()),
+  // The receiver's error text can name hosts and addresses, so only owners,
+  // admins and secret keys get it; everyone gets the latest attempt's class.
   lastError: v.optional(v.string()),
+  lastErrorClass: v.optional(deliveryErrorClassValidator),
   deliveredAt: v.optional(v.number()),
   lastResendAt: v.optional(v.number()),
   attemptHistory: v.array(deliveryAttemptValidator),
@@ -702,7 +707,7 @@ export async function listDeliveriesHandler(
   ctx: QueryCtx,
   args: ListDeliveriesArgs,
 ): Promise<PaginationResult<DeliveryView>> {
-  const project = await resolveOperatorProject(ctx, args, "read");
+  const { project, adminView } = await resolveOperatorAccess(ctx, args, "read");
   if (args.paginationOpts.numItems > MAX_DELIVERY_PAGE_SIZE) {
     throw new ConvexError({
       code: "INVALID_INPUT",
@@ -804,6 +809,7 @@ export async function listDeliveriesHandler(
         destination.enabled &&
         !destination.pendingDeletion &&
         destinationAcceptsType(destination, event.eventType);
+      const lastErrorClass = delivery.attemptHistory?.at(-1)?.errorClass;
       return {
         _id: delivery._id,
         eventId: delivery.eventId,
@@ -821,7 +827,10 @@ export async function listDeliveriesHandler(
         ...(delivery.lastStatusCode !== undefined
           ? { lastStatusCode: delivery.lastStatusCode }
           : {}),
-        ...(delivery.lastError ? { lastError: delivery.lastError } : {}),
+        ...(adminView && delivery.lastError
+          ? { lastError: delivery.lastError }
+          : {}),
+        ...(lastErrorClass ? { lastErrorClass } : {}),
         ...(delivery.deliveredAt !== undefined
           ? { deliveredAt: delivery.deliveredAt }
           : {}),

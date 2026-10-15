@@ -3,6 +3,8 @@
 // audit keeps it out of the generated API.
 //
 // Raw signed payloads never leave this module; a SHA-256 prefix identifies one.
+// Apple transaction ids equal the purchase token bind accepts, so only owners,
+// admins and secret keys see them.
 
 import {
   paginationOptsValidator,
@@ -14,8 +16,9 @@ import { ConvexError, v, type Infer } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import { query, type QueryCtx } from "../_generated/server";
+import { storeOf } from "../commerce/internal";
 import {
-  resolveOperatorProject,
+  resolveOperatorAccess,
   type OperatorProjectArgs,
 } from "../projects/helpers";
 import { purchaseStoreValidator } from "../schema";
@@ -59,7 +62,7 @@ export async function listInboundNotificationsHandler(
   ctx: QueryCtx,
   args: OperatorProjectArgs & { paginationOpts: PaginationOptions },
 ): Promise<PaginationResult<InboundNotification>> {
-  const project = await resolveOperatorProject(ctx, args, "read");
+  const { project, adminView } = await resolveOperatorAccess(ctx, args, "read");
   if (args.paginationOpts.numItems > MAX_NOTIFICATION_PAGE_SIZE) {
     throw new ConvexError({
       code: "INVALID_INPUT",
@@ -72,7 +75,7 @@ export async function listInboundNotificationsHandler(
     .order("desc")
     .paginate(args.paginationOpts);
   const page = await Promise.all(
-    rows.page.map((event) => toInboundNotification(ctx, event)),
+    rows.page.map((event) => toInboundNotification(ctx, event, adminView)),
   );
   return { ...rows, page };
 }
@@ -80,6 +83,7 @@ export async function listInboundNotificationsHandler(
 async function toInboundNotification(
   ctx: QueryCtx,
   event: Doc<"webhookEvents">,
+  adminView: boolean,
 ): Promise<InboundNotification> {
   const userId = event.purchaseToken
     ? await boundUserFor(ctx, event, event.purchaseToken)
@@ -87,13 +91,15 @@ async function toInboundNotification(
   return {
     _id: event._id,
     source: event.source,
-    store: event.store ?? (event.platform === "IOS" ? "apple" : "google"),
+    store: storeOf(event),
     type: event.type,
     environment: event.environment,
     sourceNotificationId: event.sourceNotificationId,
     ...(event.productId ? { productId: event.productId } : {}),
-    ...(event.transactionId ? { transactionId: event.transactionId } : {}),
-    ...(event.originalTransactionId
+    ...(adminView && event.transactionId
+      ? { transactionId: event.transactionId }
+      : {}),
+    ...(adminView && event.originalTransactionId
       ? { originalTransactionId: event.originalTransactionId }
       : {}),
     ...(userId ? { userId } : {}),

@@ -22,7 +22,7 @@ import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
 import { isValidSubscriptionUserId } from "./limits";
 import { isUserErasureRequested } from "./erasure";
-import { emitCommerceEvent } from "../commerce/internal";
+import { emitCommerceEvent, storeOf } from "../commerce/internal";
 import {
   mergeAnalyticsFacts,
   recordSubscriptionAnalyticsFacts,
@@ -129,6 +129,7 @@ export interface PersistSubscriptionSnapshotArgs {
   verifiedPurchaseDate?: number;
   verifiedSignedDate?: number;
   environment?: ReceiptEnvironment;
+  resyncedAt?: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
@@ -603,13 +604,21 @@ async function applyLifecycleEvent(
       ...(existing ? { subscriptionId: existing._id } : {}),
     };
   }
+  // A re-sync already read the store at or after this event: emit its
+  // lifecycle event, but keep the re-synced state.
+  const next =
+    current &&
+    orderingExisting?.resyncedAt !== undefined &&
+    storedEvent.occurredAt <= orderingExisting.resyncedAt
+      ? current
+      : transition.next;
 
   const subscriptionId = await persistSubscriptionSnapshot(ctx, {
     projectId: args.projectId,
     platform: event.platform,
     purchaseToken: event.purchaseToken,
     existing,
-    next: transition.next,
+    next,
     now,
     lastEvent: storedEvent,
   });
@@ -628,7 +637,7 @@ async function applyLifecycleEvent(
     now,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
-  const active = entitlementActive(transition.next, now);
+  const active = entitlementActive(next, now);
   const commerceTransition = linkedStartedOnActivePredecessor
     ? effectiveTransition
     : firstStoreEventAfterVerification
@@ -643,23 +652,17 @@ async function applyLifecycleEvent(
     previouslyActive,
     sourceEvent: storedEvent,
     subscriptionId,
-    ...(previousProductId && previousProductId !== transition.next.productId
+    ...(previousProductId && previousProductId !== next.productId
       ? { previousProductId }
       : {}),
     subscription: {
-      state: transition.next.state,
-      productId: transition.next.productId,
-      ...(transition.next.expiresAt !== undefined
-        ? { expiresAt: transition.next.expiresAt }
-        : {}),
-      ...(transition.next.renewsAt !== undefined
-        ? { renewsAt: transition.next.renewsAt }
-        : {}),
-      ...(transition.next.willRenew !== undefined
-        ? { willRenew: transition.next.willRenew }
-        : {}),
-      ...(transition.next.cancellationReason
-        ? { cancellationReason: transition.next.cancellationReason }
+      state: next.state,
+      productId: next.productId,
+      ...(next.expiresAt !== undefined ? { expiresAt: next.expiresAt } : {}),
+      ...(next.renewsAt !== undefined ? { renewsAt: next.renewsAt } : {}),
+      ...(next.willRenew !== undefined ? { willRenew: next.willRenew } : {}),
+      ...(next.cancellationReason
+        ? { cancellationReason: next.cancellationReason }
         : {}),
       ...(existing?.userId ? { userId: existing.userId } : {}),
     },
@@ -1004,6 +1007,7 @@ export async function persistSubscriptionSnapshot(
         ? { environment: args.environment }
         : {}),
     updatedAt: args.now,
+    ...(args.resyncedAt !== undefined ? { resyncedAt: args.resyncedAt } : {}),
     // The pair is written together so a signing date never outlives its purchase date.
     ...(args.verifiedPurchaseDate !== undefined
       ? {
@@ -1484,7 +1488,7 @@ export async function bindSubscriptionToUserOutcome(
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
   if (!sub) return { reason: "not_found" };
   const target: Pick<BindOutcome, "store" | "productId"> = {
-    store: sub.store ?? (sub.platform === "IOS" ? "apple" : "google"),
+    store: storeOf(sub),
     productId: sub.productId,
   };
   if (sub.userId && sub.userId !== args.userId) {

@@ -97,7 +97,8 @@ Bindings cannot move between app accounts through this operation. Only evidence
 currently in state `ENTITLED` binds. Amazon consumables verify as
 `READY_TO_CONSUME` and answer `bound: false`, because the application’s own
 ledger fulfills them once; Horizon's `verify_entitlement` returns no product type. An app
-account holds at most 20 bound purchases per project. The 21st binding answers
+account holds at most 20 bound Amazon and Horizon purchases per project; Apple
+and Google one-time links are never rechecked and do not count. The 21st binding answers
 `bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
 the refusal; a new binding can never push an account past the read bound. Before
 refusing, IAPKit releases the caller's own bound purchases the store no longer
@@ -108,8 +109,8 @@ is read again.
 
 A secret-key `/v1/subscriptions/bind-user` also links an Apple or Google
 one-time purchase row that verify called valid, including a Google purchase
-awaiting acknowledgment. Those links count toward the same cap but never
-appear in `entitlements`: IAPKit cannot recheck them with the store, so
+awaiting acknowledgment. Those links neither count toward the cap nor appear
+in `entitlements`: IAPKit cannot recheck them with the store, so
 `bindPurchase` stays subscription-only for Apple and Google.
 
 The read fails closed rather than answering partially, so a store it cannot

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
-import { MemoryDb, memoryCtx } from "./memoryDb.testing";
+import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import {
   getPurchaseIssue as registeredGetPurchaseIssue,
   listPurchaseIssues as registeredListPurchaseIssues,
@@ -124,10 +124,7 @@ describe("getPurchaseIssue", () => {
   it("returns a project's issue to a member and null to anyone else", async () => {
     const { db, ids } = setup();
     const get = (userId: string, projectId: Id<"projects">, issueId: string) =>
-      getPurchaseIssue._handler(memoryCtx(db, userId), {
-        projectId,
-        issueId: issueId as Id<"purchaseIssues">,
-      });
+      getPurchaseIssue._handler(memoryCtx(db, userId), { projectId, issueId });
     await expect(get("users_member", PROJECT, ids.old)).resolves.toMatchObject({
       _id: ids.old,
       productId: "gold",
@@ -135,6 +132,16 @@ describe("getPurchaseIssue", () => {
     await expect(get("users_other", PROJECT, ids.old)).resolves.toBeNull();
     await expect(
       get("users_member", PROJECT, ids.elsewhere),
+    ).resolves.toBeNull();
+  });
+
+  it("answers null for a malformed id from the page URL", async () => {
+    const { db } = setup();
+    await expect(
+      getPurchaseIssue._handler(memoryCtx(db, "users_member"), {
+        projectId: PROJECT,
+        issueId: "not-an-id",
+      }),
     ).resolves.toBeNull();
   });
 });

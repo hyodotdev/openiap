@@ -23,6 +23,7 @@ import {
 import { getProjectById } from "../projects/helpers";
 import { reserveAmazonRvsSequenceHandler } from "./internal";
 import { makePurchaseBindingRoom } from "./binding";
+import { purchaseEvidence } from "../purchaseIssues/evidence";
 import { recordBindIssue } from "../purchaseIssues/internal";
 
 export const bindVerifiedPurchaseAsServer = mutation({
@@ -31,8 +32,6 @@ export const bindVerifiedPurchaseAsServer = mutation({
     userId: v.string(),
     store: v.union(v.literal("amazon"), v.literal("horizon")),
     remoteId: v.string(),
-    // SHA-256 of the evidence, for issue records only.
-    evidenceFingerprint: v.optional(v.string()),
   },
   returns: v.object({ bound: v.boolean() }),
   handler: async (ctx, args) => {
@@ -57,11 +56,6 @@ export const bindVerifiedPurchaseAsServer = mutation({
       });
     if (await isUserErasureRequested(ctx, resolved.project, args.userId))
       return { bound: false };
-    const issueRequest = {
-      purchaseToken: args.remoteId,
-      userId: args.userId,
-      evidenceFingerprint: args.evidenceFingerprint,
-    };
     // The cap is decided from the caller's own rows before any evidence lookup,
     // so neither the answer nor the log depends on someone else's purchase.
     if (
@@ -77,7 +71,7 @@ export const bindVerifiedPurchaseAsServer = mutation({
         ctx,
         resolved.project._id,
         { reason: "not_bindable", limitReached: true, store: args.store },
-        issueRequest,
+        { evidence: args.remoteId, userId: args.userId },
       );
       return { bound: false };
     }
@@ -98,7 +92,11 @@ export const bindVerifiedPurchaseAsServer = mutation({
           store: args.store,
           productId: purchase.productId,
         },
-        issueRequest,
+        // Same fingerprint as the purchase and its verify issues.
+        {
+          evidence: purchaseEvidence(purchase.requestData),
+          userId: args.userId,
+        },
       );
       return { bound: false };
     }

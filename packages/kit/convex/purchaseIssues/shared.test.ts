@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { ConvexError } from "convex/values";
 import { getFunctionName, type FunctionReference } from "convex/server";
 import { describe, expect, it, vi } from "vitest";
@@ -21,18 +21,28 @@ import {
   STORE_OUTAGE_RETRY_AFTER_SEC,
 } from "../purchases/errors";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
-import { recordPurchaseIssue, type PurchaseIssueInput } from "./internal";
-import { MemoryDb, memoryCtx } from "./memoryDb.testing";
+import { testableFunction } from "../test.setup";
+import {
+  issueRecordTarget,
+  recordPurchaseIssue,
+  type PurchaseIssueInput,
+} from "./internal";
+import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import {
   classifyVerdict,
   classifyVerificationError,
-  projectIssueFingerprint,
+  PROJECT_ISSUE_THROTTLE_MS,
+  projectIssueDigest,
   verifyRecordingIssues,
 } from "./shared";
 
 const sha256 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
 const PROJECT = "projects_1" as Id<"projects">;
+const SALT = "project-fingerprint-salt";
+const fingerprint = (digest: string): string =>
+  createHmac("sha256", SALT).update(digest).digest("hex");
+const recordTarget = testableFunction(issueRecordTarget)._handler;
 
 describe("classifyVerificationError", () => {
   it.each([
@@ -167,20 +177,39 @@ describe("verifyRecordingIssues", () => {
   const jws = "eyJhbGciOiJFUzI1NiJ9.eyJ0cmFuc2FjdGlvbklkIjoiMSJ9.c2ln";
   const correlationId = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
-  // An action ctx whose scheduled record runs against `db`, as Convex would.
+  // An action ctx whose query and scheduled record run against `db`, as
+  // Convex would.
   function actionCtx(db = new MemoryDb()) {
     db.seed("organizations", { _id: "organizations_1" });
-    db.seed("projects", { _id: PROJECT, organizationId: "organizations_1" });
+    db.seed("projects", {
+      _id: PROJECT,
+      organizationId: "organizations_1",
+      fingerprintSalt: SALT,
+    });
+    for (const key of ["k", "openiap-kit_pk_app"]) {
+      db.seed("apiKeys", {
+        key,
+        keyType: "publishable",
+        isActive: true,
+        projectId: PROJECT,
+        organizationId: "organizations_1",
+      });
+    }
     const scheduled: Array<{
       projectId: Id<"projects">;
       issue: PurchaseIssueInput;
     }> = [];
-    const runQuery = vi.fn(async (reference: FunctionReference<"query">) => {
-      expect(getFunctionName(reference)).toBe(
-        "projects/internal:getProjectByApiKey",
-      );
-      return { _id: PROJECT };
-    });
+    const runQuery = vi.fn(
+      async (
+        reference: FunctionReference<"query">,
+        args: Parameters<typeof recordTarget>[1],
+      ) => {
+        expect(getFunctionName(reference)).toBe(
+          "purchaseIssues/internal:issueRecordTarget",
+        );
+        return recordTarget(memoryCtx(db), args);
+      },
+    );
     const runAfter = vi.fn(
       async (
         _delay: number,
@@ -230,7 +259,7 @@ describe("verifyRecordingIssues", () => {
         issue: {
           cause: "INAUTHENTIC",
           store: "apple",
-          fingerprint: sha256(jws),
+          digest: sha256(jws),
           claimedProductId: "premium",
           correlationId,
         },
@@ -241,7 +270,8 @@ describe("verifyRecordingIssues", () => {
   });
 
   it("collapses failures before admission into one row per store and cause", async () => {
-    const { ctx, db } = actionCtx();
+    vi.useFakeTimers({ now: 1_000_000 });
+    const { ctx, db, runAfter } = actionCtx();
     const failures = [
       () => new AppStoreInvalidJWSFormatError(),
       () => new AppStoreBundleIdMismatchError("a", "b"),
@@ -266,17 +296,43 @@ describe("verifyRecordingIssues", () => {
       }
     }
 
+    // Each project row is written once a minute however often it repeats.
+    expect(runAfter).toHaveBeenCalledTimes(3);
+    vi.setSystemTime(1_000_000 + PROJECT_ISSUE_THROTTLE_MS);
+    for (const failure of failures) {
+      await verifyRecordingIssues(
+        ctx,
+        { apiKey: "k", evidence: { store: "apple", jws: "x" } },
+        () => Promise.reject(failure()),
+      ).catch(() => undefined);
+    }
+    vi.useRealTimers();
+
     const rows = db.rows("purchaseIssues");
     expect(rows.map((row) => [row.cause, row.count])).toEqual([
-      ["MALFORMED_EVIDENCE", 50],
-      ["APP_MISMATCH", 50],
-      ["RATE_LIMITED", 50],
+      ["MALFORMED_EVIDENCE", 2],
+      ["APP_MISMATCH", 2],
+      ["RATE_LIMITED", 2],
     ]);
     expect(rows[0].fingerprint).toBe(
-      await projectIssueFingerprint("apple", "MALFORMED_EVIDENCE"),
+      fingerprint(await projectIssueDigest("apple", "MALFORMED_EVIDENCE")),
     );
     // A project row names no purchase, so it keeps no claimed product.
     expect(rows.every((row) => row.claimedProductId === undefined)).toBe(true);
+  });
+
+  it("records nothing for an unknown key", async () => {
+    const { ctx, runAfter } = actionCtx();
+    await verifyRecordingIssues(
+      ctx,
+      { apiKey: "unknown", evidence: { store: "google", purchaseToken: "t" } },
+      () =>
+        Promise.resolve({
+          isValid: false,
+          state: HarmonizedPurchaseState.INAUTHENTIC,
+        }),
+    );
+    expect(runAfter).not.toHaveBeenCalled();
   });
 
   it("returns a failing verdict unchanged and labels the store-verified product", async () => {
@@ -305,7 +361,7 @@ describe("verifyRecordingIssues", () => {
         issue: {
           cause: "PRODUCT_MISMATCH",
           store: "google",
-          fingerprint: sha256("token-value"),
+          digest: sha256("token-value"),
           productId: "premium",
           claimedProductId: "other",
           environment: "Sandbox",
@@ -332,7 +388,7 @@ describe("verifyRecordingIssues", () => {
         issue: {
           cause: "INAUTHENTIC",
           store: "horizon",
-          fingerprint: sha256("42:gem"),
+          digest: sha256("42:gem"),
           claimedProductId: "gem",
         },
       },

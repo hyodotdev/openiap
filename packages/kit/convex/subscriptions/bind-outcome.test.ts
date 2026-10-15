@@ -1,3 +1,4 @@
+import { createHash, createHmac } from "node:crypto";
 import { getFunctionName, type FunctionReference } from "convex/server";
 import type { Value } from "convex/values";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +8,7 @@ import {
   recordPurchaseIssue,
   type PurchaseIssueInput,
 } from "../purchaseIssues/internal";
-import { MemoryDb, memoryCtx } from "../purchaseIssues/memoryDb.testing";
+import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import { MAX_BOUND_PURCHASES_PER_USER } from "./limits";
 import { drainSubscriptionUserErasurePage } from "./internal";
 import { testableFunction } from "../test.setup";
@@ -24,7 +25,11 @@ const rebindUser = testableFunction(registeredRebindUser);
 const PROJECT = "projects_1" as Id<"projects">;
 const PK = "openiap-kit_pk_app";
 const SK = "openiap-kit_sk_server";
-const FINGERPRINT = "e".repeat(64);
+const SALT = "project-fingerprint-salt";
+const fingerprint = (evidence: string): string =>
+  createHmac("sha256", SALT)
+    .update(createHash("sha256").update(evidence).digest("hex"))
+    .digest("hex");
 const CORRELATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
 function oneTimePurchase(remoteId: string, fields: Record<string, Value> = {}) {
@@ -46,7 +51,11 @@ function setup() {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   const db = new MemoryDb();
   db.seed("organizations", { _id: "organizations_1" });
-  db.seed("projects", { _id: PROJECT, organizationId: "organizations_1" });
+  db.seed("projects", {
+    _id: PROJECT,
+    organizationId: "organizations_1",
+    fingerprintSalt: SALT,
+  });
   for (const [key, keyType] of [
     [PK, "publishable"],
     [SK, "secret"],
@@ -129,7 +138,6 @@ const bind = (
     apiKey,
     purchaseToken,
     userId,
-    evidenceFingerprint: FINGERPRINT,
     correlationId: CORRELATION_ID,
   });
 
@@ -139,12 +147,13 @@ const purchase = (db: MemoryDb, remoteId: string) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe("bindUser with a publishable key", () => {
-  it("answers a conflict exactly like an unknown token", async () => {
-    const { ctx } = setup();
+  it("answers a conflict exactly like an unknown token and records neither", async () => {
+    const { db, ctx } = setup();
     const conflict = await bind(ctx, PK, "sub-owned");
     const unknown = await bind(ctx, PK, "no-such-token");
     expect(conflict).toEqual({ ok: true, bound: false });
     expect(JSON.stringify(conflict)).toBe(JSON.stringify(unknown));
+    expect(db.rows("purchaseIssues")).toEqual([]);
   });
 
   it("keeps today's response and never links a one-time purchase", async () => {
@@ -240,17 +249,17 @@ describe("bindUser with a secret key", () => {
     expect(purchase(db, "renewing-1")).not.toHaveProperty("appUserId");
   });
 
-  it("records a conflict for support without the token", async () => {
+  it("records a conflict for support, keyed on the token it never stores", async () => {
     const { db, ctx } = setup();
     await bind(ctx, SK, "sub-owned");
-    await bind(ctx, PK, "sub-owned");
+    await bind(ctx, SK, "sub-owned");
     expect(db.rows("purchaseIssues")).toEqual([
       expect.objectContaining({
         cause: "OWNERSHIP_CONFLICT",
         store: "apple",
         productId: "monthly",
         appUserId: "alice",
-        fingerprint: FINGERPRINT,
+        fingerprint: fingerprint("sub-owned"),
         correlationId: CORRELATION_ID,
         count: 2,
       }),
@@ -260,24 +269,22 @@ describe("bindUser with a secret key", () => {
     );
   });
 
-  it("refuses past the bound-purchase cap and records why", async () => {
+  it("links Apple and Google one-time purchases outside the Amazon and Horizon cap", async () => {
     const { db, ctx } = setup();
     for (let index = 0; index < MAX_BOUND_PURCHASES_PER_USER; index += 1) {
       db.seed(
         "purchases",
-        oneTimePurchase(`held-${index}`, { appUserId: "alice" }),
+        oneTimePurchase(`held-${index}`, {
+          appUserId: "alice",
+          store: "amazon",
+        }),
       );
     }
     expect(await bind(ctx, SK, "lifetime-1")).toMatchObject({
-      bound: false,
-      reason: "not_bindable",
+      bound: true,
+      reason: "bound",
     });
-    expect(db.rows("purchaseIssues")).toEqual([
-      expect.objectContaining({
-        cause: "BIND_LIMIT_REACHED",
-        appUserId: "alice",
-      }),
-    ]);
+    expect(db.rows("purchaseIssues")).toEqual([]);
   });
 });
 
@@ -320,8 +327,7 @@ describe("bindUserAsServer", () => {
     expect(purchase(db, "lifetime-1")).not.toHaveProperty("appUserId");
   });
 
-  it("records an Amazon subscription refused by the bound-purchase cap", async () => {
-    const { db, ctx } = setup();
+  function seedAmazonSubscription(db: MemoryDb) {
     db.seed("purchases", oneTimePurchase("rvs-1", { store: "amazon" }));
     db.seed("subscriptions", {
       projectId: PROJECT,
@@ -333,19 +339,27 @@ describe("bindUserAsServer", () => {
       startedAt: 0,
       updatedAt: 0,
     });
+  }
+  const bindAmazon = (ctx: unknown) =>
+    bindUserAsServer._handler(ctx, {
+      apiKey: SK,
+      purchaseToken: "amazon:rvs-1",
+      userId: "alice",
+    });
+
+  it("records an Amazon subscription refused by the bound-purchase cap", async () => {
+    const { db, ctx } = setup();
+    seedAmazonSubscription(db);
     for (let index = 0; index < MAX_BOUND_PURCHASES_PER_USER; index += 1) {
       db.seed(
         "purchases",
-        oneTimePurchase(`held-${index}`, { appUserId: "alice" }),
+        oneTimePurchase(`held-${index}`, {
+          appUserId: "alice",
+          store: index % 2 ? "amazon" : "horizon",
+        }),
       );
     }
-    await expect(
-      bindUserAsServer._handler(ctx as never, {
-        apiKey: SK,
-        purchaseToken: "amazon:rvs-1",
-        userId: "alice",
-      }),
-    ).resolves.toEqual({ ok: true, bound: false });
+    await expect(bindAmazon(ctx)).resolves.toEqual({ ok: true, bound: false });
     expect(db.rows("purchaseIssues")).toEqual([
       expect.objectContaining({
         cause: "BIND_LIMIT_REACHED",
@@ -353,6 +367,22 @@ describe("bindUserAsServer", () => {
         appUserId: "alice",
       }),
     ]);
+  });
+
+  it("binds Amazon however many Apple and Google purchases the user holds", async () => {
+    const { db, ctx } = setup();
+    seedAmazonSubscription(db);
+    for (let index = 0; index < MAX_BOUND_PURCHASES_PER_USER; index += 1) {
+      db.seed(
+        "purchases",
+        oneTimePurchase(`held-${index}`, {
+          appUserId: "alice",
+          store: index % 2 ? "apple" : "google",
+        }),
+      );
+    }
+    await expect(bindAmazon(ctx)).resolves.toEqual({ ok: true, bound: true });
+    expect(db.rows("purchaseIssues")).toEqual([]);
   });
 });
 

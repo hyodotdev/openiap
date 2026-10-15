@@ -82,29 +82,13 @@ async function verifyGooglePlayReceipt(
 
   await assertVerificationAdmission(ctx, project._id);
 
-  const serviceAccountFile = await ctx.runQuery(
-    internal.files.internal.getGooglePlayFileByProjectInternal,
-    {
-      projectId: project._id,
-    },
-  );
-
-  if (!serviceAccountFile) {
+  const androidpublisher = await playPublisher(ctx, project._id);
+  if (androidpublisher === "no_key_file") {
     throw new PlayStoreServiceAccountNotFoundError();
   }
-
-  const fileContent = await ctx.runAction(
-    internal.files.internal.readFileAsText,
-    {
-      fileId: serviceAccountFile._id,
-    },
-  );
-
-  if (!fileContent || !fileContent.content) {
+  if (androidpublisher === "unreadable_key_file") {
     throw new PlayStoreFileContentNotReadableError();
   }
-
-  const keyData = parseAndValidateServiceAccountKey(fileContent.content);
 
   const requestData: {
     store: "google";
@@ -119,16 +103,6 @@ async function verifyGooglePlayReceipt(
   };
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: keyData,
-      scopes: ["https://www.googleapis.com/auth/androidpublisher"],
-    });
-
-    const androidpublisher = google.androidpublisher({
-      version: "v3",
-      auth,
-    });
-
     const { receiptData, remoteResponse } = await verifyPurchaseWithGooglePlay(
       androidpublisher,
       {
@@ -369,6 +343,32 @@ export function parseAndValidateServiceAccountKey(
     );
     throw new InvalidServiceAccountKeyFormatError();
   }
+}
+
+/**
+ * The Play Developer API client for the project's stored service-account key,
+ * or which part is missing. Each caller maps that to its own error.
+ */
+export async function playPublisher(
+  ctx: Pick<ActionCtx, "runQuery" | "runAction">,
+  projectId: Id<"projects">,
+): Promise<
+  androidpublisher_v3.Androidpublisher | "no_key_file" | "unreadable_key_file"
+> {
+  const file = await ctx.runQuery(
+    internal.files.internal.getGooglePlayFileByProjectInternal,
+    { projectId },
+  );
+  if (!file) return "no_key_file";
+  const content = await ctx.runAction(internal.files.internal.readFileAsText, {
+    fileId: file._id,
+  });
+  if (!content?.content) return "unreadable_key_file";
+  const auth = new google.auth.GoogleAuth({
+    credentials: parseAndValidateServiceAccountKey(content.content),
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  return google.androidpublisher({ version: "v3", auth });
 }
 
 type GooglePlayVerificationResult = {

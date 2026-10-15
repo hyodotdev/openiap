@@ -10,8 +10,12 @@ import {
 } from "vitest";
 
 import type { KitProductsResponse as SdkProductsResponse } from "../../../../../specs/client/src/kit-api";
-import { kitClient } from "../../../../mcp-server/src/kit-client";
+import {
+  KIT_PURCHASE_ISSUE_CAUSES,
+  kitClient,
+} from "../../../../mcp-server/src/kit-client";
 import type { api } from "../../../convex/_generated/api";
+import { purchaseIssueCauseValidator } from "../../../convex/utils/validation";
 import type { HealthPayload } from "../../health";
 
 const mocks = vi.hoisted(() => ({
@@ -448,5 +452,13 @@ describe("MCP Kit response contracts", () => {
       limit: 50,
       cursor: "opaque/start=1",
     });
+  });
+});
+
+describe("MCP purchase issue causes", () => {
+  it("lists exactly the causes Convex records", () => {
+    expect([...KIT_PURCHASE_ISSUE_CAUSES]).toEqual(
+      purchaseIssueCauseValidator.members.map((member) => member.value),
+    );
   });
 });

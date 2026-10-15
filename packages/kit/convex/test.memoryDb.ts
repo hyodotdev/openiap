@@ -1,12 +1,12 @@
 // In-memory ctx.db for unit tests. Orders and ranges rows the way Convex does,
-// by the schema's index fields and then _creationTime. Not a convex-test
-// substitute: it has no transactions, validators or read limits.
-// Two dots in the name keep the Convex bundler from treating it as functions.
+// by the schema's index fields and then _creationTime, and reads return
+// snapshots. Not a convex-test substitute: it has no transactions, validators
+// or read limits. Two dots in the name keep it out of the Convex bundle.
 
 import { compareValues, type Value } from "convex/values";
 
-import type { TableNames } from "../_generated/dataModel";
-import schema from "../schema";
+import type { TableNames } from "./_generated/dataModel";
+import schema from "./schema";
 
 export type Row = Record<string, Value | undefined> & {
   _id: string;
@@ -109,21 +109,22 @@ class MemoryQuery {
   }
 
   async take(count: number): Promise<Row[]> {
-    return this.results().slice(0, count);
+    return this.results().slice(0, count).map(snapshot);
   }
 
   async first(): Promise<Row | null> {
-    return this.results()[0] ?? null;
+    const [row] = this.results();
+    return row ? snapshot(row) : null;
   }
 
   async unique(): Promise<Row | null> {
     const rows = this.results();
     if (rows.length > 1) throw new Error(`${this.table}: not unique`);
-    return rows[0] ?? null;
+    return rows[0] ? snapshot(rows[0]) : null;
   }
 
   async collect(): Promise<Row[]> {
-    return this.results();
+    return this.results().map(snapshot);
   }
 
   async paginate(options: { numItems: number; cursor: string | null }) {
@@ -131,12 +132,17 @@ class MemoryQuery {
     const start = options.cursor === null ? 0 : Number(options.cursor);
     const end = Math.min(start + options.numItems, rows.length);
     return {
-      page: rows.slice(start, end),
+      page: rows.slice(start, end).map(snapshot),
       isDone: end >= rows.length,
       continueCursor: String(end),
     };
   }
 }
+
+const snapshot = (row: Row): Row => structuredClone(row);
+
+// Ids here are `<table>_<suffix>`; table names have no underscore.
+const tableOf = (id: string): string => id.slice(0, id.indexOf("_"));
 
 export class MemoryDb {
   readonly tables = new Map<string, Row[]>();
@@ -173,8 +179,14 @@ export class MemoryDb {
   }
 
   async get(id: string): Promise<Row | null> {
+    // Convex rejects a string that is no document id at all.
+    if (!(tableOf(id) in schema.tables)) throw new Error(`Invalid id: ${id}`);
     const found = this.locate(id);
-    return found ? found.rows[found.index] : null;
+    return found ? snapshot(found.rows[found.index]) : null;
+  }
+
+  normalizeId(table: TableNames, id: string): string | null {
+    return tableOf(id) === table ? id : null;
   }
 
   async insert(
@@ -213,4 +225,18 @@ export function memoryCtx(db: MemoryDb, userId?: string) {
           : null,
     },
   };
+}
+
+/** A project in an organization where `users_1` holds `role`. */
+export function seedProject(
+  db: MemoryDb,
+  role: "owner" | "admin" | "member",
+): void {
+  db.seed("organizations", { _id: "organizations_1" });
+  db.seed("projects", { _id: "projects_1", organizationId: "organizations_1" });
+  db.seed("organizationMembers", {
+    organizationId: "organizations_1",
+    userId: "users_1",
+    role,
+  });
 }

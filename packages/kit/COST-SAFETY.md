@@ -46,6 +46,21 @@ status and entitlement reads use
 fails closed instead of returning a partial entitlement set. Typical users have
 only one or a few rows.
 
+## Purchase issues
+
+A failed verification adds one indexed query and, at most, one scheduled
+mutation off the response path. Failures about one purchase write a row keyed
+by its evidence fingerprint; they come only from a store's answer, after
+verification admission. Failures about the project (configuration,
+credentials, rejected input, rate limits, outages) share one row per store and
+cause, and the query skips the write when that row was seen in the last
+minute, so a flood costs a read per request and its `count` is a lower bound.
+Bind issues are recorded only for secret-key callers. A project keeps at most
+1,024 rows in 16 shards of 64; a new row reads only its own shard and replaces
+that shard's least recently seen row. An hourly cron deletes rows older than
+30 days in batches of 200. The edge limiter below still bounds every
+publishable-key request before it reaches Convex.
+
 ## Outbound commerce worker
 
 Developer-backend delivery runs in Convex, outside the Fly request path. The

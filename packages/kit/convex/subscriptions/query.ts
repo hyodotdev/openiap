@@ -21,6 +21,7 @@ import {
   DEFAULT_REPORTING_CURRENCY,
   normalizeReportingCurrencyOrDefault,
 } from "../utils/currency";
+import { storeOf } from "../commerce/internal";
 import { purchaseStoreValidator } from "../schema";
 import {
   analyticsEnvironmentValidator,
@@ -1189,9 +1190,7 @@ export const userTimeline = query({
           kind: "subscription",
           id: subscription._id,
           at: subscription.updatedAt,
-          store:
-            subscription.store ??
-            (subscription.platform === "IOS" ? "apple" : "google"),
+          store: storeOf(subscription),
           productId: subscription.productId,
           state: subscription.state,
           ...(subscription.expiresAt !== undefined

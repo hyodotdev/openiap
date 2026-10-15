@@ -89,12 +89,16 @@ export const listPurchaseIssues = query({
   },
 });
 
-/** One of the project's issues, or null when it is missing or not the caller's. */
+/**
+ * One of the project's issues, or null when it is missing, malformed (the id
+ * comes from the page URL) or not the caller's.
+ */
 export const getPurchaseIssue = query({
-  args: { projectId: v.id("projects"), issueId: v.id("purchaseIssues") },
+  args: { projectId: v.id("projects"), issueId: v.string() },
   returns: v.union(purchaseIssueValidator, v.null()),
   handler: async (ctx, args) => {
-    const issue = await ctx.db.get(args.issueId);
+    const issueId = ctx.db.normalizeId("purchaseIssues", args.issueId);
+    const issue = issueId ? await ctx.db.get(issueId) : null;
     if (issue?.projectId !== args.projectId) return null;
     const resolved = await resolveProjectByIdForCurrentUserFromDb(
       ctx,

@@ -30,6 +30,7 @@ import {
   MAX_BOUND_PURCHASES_PER_USER,
 } from "../subscriptions/limits";
 import { isUserErasureRequested } from "../subscriptions/erasure";
+import { recheckedBoundPurchases } from "./binding";
 import {
   purchaseRequestDataValidator,
   purchaseStoreValidator,
@@ -864,12 +865,12 @@ export const boundPurchasesForUser = internalQuery({
         message: "Project unavailable",
       });
     if (await isUserErasureRequested(ctx, project, args.userId)) return [];
-    const rows = await ctx.db
-      .query("purchases")
-      .withIndex("by_project_and_app_user", (q) =>
-        q.eq("projectId", args.projectId).eq("appUserId", args.userId),
-      )
-      .take(MAX_BOUND_PURCHASES_PER_USER + 1);
+    const rows = await recheckedBoundPurchases(
+      ctx,
+      args.projectId,
+      args.userId,
+      MAX_BOUND_PURCHASES_PER_USER + 1,
+    );
     // Binding enforces the cap, so passing it here means the stored rows drifted.
     // That is ours, not the caller's: never answer INVALID_REQUEST for it.
     if (rows.length > MAX_BOUND_PURCHASES_PER_USER)

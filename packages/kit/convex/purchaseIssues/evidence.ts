@@ -1,8 +1,11 @@
 import type { Infer } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
 import type { purchaseRequestDataValidator } from "../schema";
 import { buildHorizonRemoteId } from "../purchases/identity";
-import { sha256Hex } from "../utils/sha256";
+import { randomHex } from "../utils/helpers";
+import { hmacSha256Hex } from "../utils/sha256";
 
 export type PurchaseEvidence = Infer<typeof purchaseRequestDataValidator>;
 
@@ -21,18 +24,31 @@ export function purchaseEvidence(evidence: PurchaseEvidence): string {
 }
 
 /**
- * SHA-256 hex of the evidence, so the dashboard and the issue log can point at
- * a purchase without holding its token. For Apple, Google and Amazon the first
- * 16 characters equal the `sha256Prefix` of the debug verify log.
+ * What members see in place of evidence: an HMAC of the evidence's SHA-256
+ * under the project's secret salt, so a short identifier such as an Apple
+ * transaction id or a Horizon user and SKU cannot be recovered by guessing.
+ * Only the unsalted digest crosses the scheduler, never the token.
  */
 export function evidenceFingerprint(
-  evidence: PurchaseEvidence,
+  salt: string,
+  digest: string,
 ): Promise<string> {
-  return sha256Hex(purchaseEvidence(evidence));
+  return hmacSha256Hex(salt, digest);
 }
 
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
+/** The project's fingerprint salt, created on first use. */
+export async function fingerprintSalt(
+  ctx: MutationCtx,
+  project: Doc<"projects">,
+): Promise<string> {
+  if (project.fingerprintSalt) return project.fingerprintSalt;
+  const salt = randomHex();
+  await ctx.db.patch(project._id, { fingerprintSalt: salt });
+  return salt;
+}
 
-export function isEvidenceFingerprint(value: string): boolean {
-  return FINGERPRINT_PATTERN.test(value);
+const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
+
+export function isSha256Hex(value: string): boolean {
+  return SHA256_HEX_PATTERN.test(value);
 }

@@ -13,6 +13,7 @@ type ProjectPrivateField =
   | "horizonAppSecret"
   | "amazonSharedSecret"
   | "userErasureHashKey"
+  | "fingerprintSalt"
   | "verificationAdmissionTokens"
   | "verificationAdmissionRefilledAt"
   | "entitlementRecheckTokens"
@@ -29,6 +30,7 @@ function projectWithSecretState(project: Doc<"projects">): Omit<
     horizonAppSecret,
     amazonSharedSecret,
     userErasureHashKey: _userErasureHashKey,
+    fingerprintSalt: _fingerprintSalt,
     verificationAdmissionTokens: _verificationAdmissionTokens,
     verificationAdmissionRefilledAt: _verificationAdmissionRefilledAt,
     entitlementRecheckTokens: _entitlementRecheckTokens,
@@ -36,6 +38,7 @@ function projectWithSecretState(project: Doc<"projects">): Omit<
     ...rest
   } = project;
   void _userErasureHashKey;
+  void _fingerprintSalt;
   void _verificationAdmissionTokens;
   void _verificationAdmissionRefilledAt;
   void _entitlementRecheckTokens;

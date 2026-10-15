@@ -201,23 +201,25 @@ X-RateLimit-Remaining: 599`}
       </h2>
       <p>
         IAPKit records why a verification failed or returned a pending,
-        unrecognized, or mismatched purchase, and why a bind-user call found
-        another owner or the link limit. Find them under Purchases → Purchase
-        issues, on a user&apos;s timeline, through the API, or through MCP. Any
-        organization member can read them.
+        unrecognized, or mismatched purchase, and why a secret-key bind-user
+        call found another owner or the link limit. Find them under Purchases →
+        Purchase issues, on a user&apos;s timeline, through the API, or through
+        MCP. Any organization member can read them.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           A repeat of the same failure raises its <code>count</code> and{" "}
           <code>lastSeenAt</code> instead of adding a row. Causes about the
           project rather than one purchase, such as credentials, rate limits,
-          and outages, share one row per store and cause.
+          and outages, share one row per store and cause, rewritten at most once
+          a minute, so their <code>count</code> is a lower bound.
         </li>
         <li>
-          A row holds a SHA-256 <code>fingerprint</code> of the purchase
-          evidence, never the token, JWS, or receipt. Its{" "}
-          <code>correlationId</code> is the latest failing request&apos;s{" "}
-          <code>X-Correlation-Id</code>.
+          A row holds a <code>fingerprint</code> of the purchase evidence, keyed
+          with a per-project secret so short identifiers cannot be guessed back,
+          never the token, JWS, or receipt. The purchase detail page shows the
+          same value. Its <code>correlationId</code> is the latest failing
+          request&apos;s <code>X-Correlation-Id</code>.
         </li>
         <li>
           <code>productId</code> is store-verified;{" "}
@@ -263,8 +265,9 @@ X-RateLimit-Remaining: 599`}
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           Apple reads the App Store Server API subscription status or
-          transaction; Google reads the Play Developer API. Each call draws one
-          token from the project&apos;s entitlement recheck bucket.
+          transaction; Google reads the Play Developer API. Each re-sync draws
+          one token from the project&apos;s entitlement recheck bucket, though
+          it may make several store calls.
         </li>
         <li>
           The purchase row is saved through the verification path. A changed
@@ -278,8 +281,9 @@ X-RateLimit-Remaining: 599`}
         </li>
         <li>
           Repeating it is a no-op until the store changes. It never binds,
-          unbinds, or moves a purchase or subscription owner, and a store
-          notification signed after the read still applies.
+          unbinds, or moves a purchase or subscription owner. A store
+          notification signed after the read still applies; one signed before it
+          still emits its lifecycle event but keeps the re-synced state.
         </li>
         <li>
           Amazon is rechecked automatically through RVS; Horizon has no

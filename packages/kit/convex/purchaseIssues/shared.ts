@@ -11,7 +11,7 @@ import type { ReceiptResponse } from "../purchases/shared";
 import type { purchaseStoreValidator } from "../schema";
 import { sha256Hex } from "../utils/sha256";
 import type { purchaseIssueCauseValidator } from "../utils/validation";
-import { evidenceFingerprint, type PurchaseEvidence } from "./evidence";
+import { purchaseEvidence, type PurchaseEvidence } from "./evidence";
 import type { PurchaseIssueInput } from "./internal";
 
 export type PurchaseIssueCause = Infer<typeof purchaseIssueCauseValidator>;
@@ -155,13 +155,17 @@ export function classifyVerdict(
   return null;
 }
 
-/** The one fingerprint a project-scoped issue uses for its store and cause. */
-export function projectIssueFingerprint(
+/** The one digest a project-scoped issue uses for its store and cause. */
+export function projectIssueDigest(
   store: Infer<typeof purchaseStoreValidator>,
   cause: PurchaseIssueCause,
 ): Promise<string> {
   return sha256Hex(`project-issue:${store}:${cause}`);
 }
+
+// A project-scoped row is rewritten at most once per window, so its `count`
+// is a lower bound.
+export const PROJECT_ISSUE_THROTTLE_MS = 60_000;
 
 type VerifyIssueContext = {
   apiKey: string;
@@ -182,23 +186,34 @@ async function scheduleRecord(
   >,
 ): Promise<void> {
   try {
-    const project = await ctx.runQuery(
-      internal.projects.internal.getProjectByApiKey,
-      { apiKey: request.apiKey, requiredAccess: "client" },
-    );
-    if (!project) return;
     const { store } = request.evidence;
+    const projectScoped = issue.scope === "project";
+    const digest = projectScoped
+      ? await projectIssueDigest(store, issue.cause)
+      : await sha256Hex(purchaseEvidence(request.evidence));
+    const projectId = await ctx.runQuery(
+      internal.purchaseIssues.internal.issueRecordTarget,
+      {
+        apiKey: request.apiKey,
+        ...(projectScoped
+          ? {
+              projectScoped: {
+                digest,
+                cause: issue.cause,
+                seenSince: Date.now() - PROJECT_ISSUE_THROTTLE_MS,
+              },
+            }
+          : {}),
+      },
+    );
+    if (!projectId) return;
     await ctx.scheduler.runAfter(0, internal.purchaseIssues.internal.record, {
-      projectId: project._id,
+      projectId,
       issue: {
         cause: issue.cause,
         store,
-        ...(issue.scope === "evidence"
-          ? {
-              fingerprint: await evidenceFingerprint(request.evidence),
-              ...details,
-            }
-          : { fingerprint: await projectIssueFingerprint(store, issue.cause) }),
+        digest,
+        ...(projectScoped ? {} : details),
         ...(issue.retryAfterSec !== undefined
           ? { retryAfterSec: issue.retryAfterSec }
           : {}),

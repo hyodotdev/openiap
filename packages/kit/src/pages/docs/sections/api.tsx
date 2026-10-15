@@ -228,8 +228,8 @@ export default function ApiReferencePage() {
         your backend receives. The response then adds these fields, under the
         names events use. A field the store does not supply is absent; without
         the flag the response is unchanged. Horizon and Amazon return only{" "}
-        <code>commerceEnvironment</code> (Amazon) and <code>correlationId</code>
-        .
+        <code>commerceEnvironment</code> (Amazon), <code>correlationId</code>{" "}
+        and, on a rejection, <code>finalVerdict</code>.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -253,6 +253,16 @@ export default function ApiReferencePage() {
         <li>
           <code>correlationId</code> — this request&apos;s{" "}
           <code>X-Correlation-Id</code>.
+        </li>
+        <li>
+          <code>finalVerdict</code> — only when <code>isValid</code> is{" "}
+          <code>false</code>. <code>true</code> when the rejection is settled
+          and a retry of the same evidence returns the same answer:{" "}
+          <code>EXPIRED</code>, <code>CANCELED</code>, <code>INAUTHENTIC</code>{" "}
+          (including an <code>expectedProductId</code> mismatch),{" "}
+          <code>CONSUMED</code>, or a Google token reported revoked. Stop
+          retrying those. <code>false</code> when it may still change, such as a
+          transient <code>UNKNOWN</code> or <code>PENDING</code>.
         </li>
       </ul>
       <CodeBlock title="Opt-in transaction identifiers" language="json">
@@ -600,8 +610,8 @@ export default function ApiReferencePage() {
         <li>
           <code>not_bindable</code> — known but not linkable: a one-time
           purchase verify did not call valid (refunded, pending, consumed), an
-          Amazon subscription token, a user under erasure, or a user already
-          holding 20 linked purchases.
+          Amazon subscription token, a user under erasure, or, for Amazon, a
+          user already holding 20 linked Amazon and Horizon purchases.
         </li>
       </ul>
       <p>

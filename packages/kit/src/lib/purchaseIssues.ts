@@ -95,7 +95,7 @@ export const PURCHASE_ISSUE_CAUSES: Record<
   },
   BIND_LIMIT_REACHED: {
     label: "Link limit reached",
-    meaning: `This app user already holds ${MAX_BOUND_PURCHASES_PER_USER} valid linked purchases.`,
+    meaning: `This app user already holds ${MAX_BOUND_PURCHASES_PER_USER} valid linked Amazon and Horizon purchases.`,
     nextStep:
       "Check that each person gets their own app user ID rather than a shared one.",
   },

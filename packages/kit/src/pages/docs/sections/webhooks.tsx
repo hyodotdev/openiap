@@ -115,7 +115,9 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         Each row keeps its last 20 attempts: time, outcome, HTTP status,
         latency, and an error class such as <code>timeout</code> or{" "}
         <code>tls</code>. Response bodies and secrets are never stored. Members
-        can read it; destination URLs show only their host.
+        can read it; destination URLs show only their host, and the last error
+        text, which can name hosts and addresses, reaches only owners, admins
+        and secret keys.
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -235,9 +237,11 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         <strong>Webhooks → Inbound notifications</strong> lists what IAPKit
         accepted in the last 30 days, newest first: store, type, environment,
         product, bound app user, received and applied times, and a SHA-256
-        fingerprint of the signed payload. The payload itself is never shown. A
-        store retry shares the first row&apos;s deduplication key, so it never
-        adds a row. Rejected requests are not recorded.
+        fingerprint of the signed payload. The payload itself is never shown,
+        and store transaction ids, which bind accepts as a purchase token, reach
+        only owners, admins and secret keys. A store retry shares the first
+        row&apos;s deduplication key, so it never adds a row. Rejected requests
+        are not recorded.
       </p>
       <p>
         Use the store console&apos;s test-delivery result to confirm that the

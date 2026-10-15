@@ -117,20 +117,22 @@ export type KitDeliveryStatus =
   | "delivered"
   | "failed";
 
+export type KitDeliveryErrorClass =
+  | "timeout"
+  | "dns"
+  | "connection_refused"
+  | "connection_reset"
+  | "tls"
+  | "non_public_address"
+  | "destination_rejected"
+  | "network";
+
 export interface KitDeliveryAttempt {
   at: number;
   outcome: "delivered" | "retrying" | "failed";
   statusCode?: number;
   latencyMs?: number;
-  errorClass?:
-    | "timeout"
-    | "dns"
-    | "connection_refused"
-    | "connection_reset"
-    | "tls"
-    | "non_public_address"
-    | "destination_rejected"
-    | "network";
+  errorClass?: KitDeliveryErrorClass;
 }
 
 export interface KitDelivery {
@@ -146,7 +148,9 @@ export interface KitDelivery {
   attempts: number;
   nextAttemptAt: number;
   lastStatusCode?: number;
+  // Secret keys always get it; the dashboard shows it to owners and admins.
   lastError?: string;
+  lastErrorClass?: KitDeliveryErrorClass;
   deliveredAt?: number;
   lastResendAt?: number;
   attemptHistory: KitDeliveryAttempt[];

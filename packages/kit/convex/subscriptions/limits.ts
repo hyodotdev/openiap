@@ -6,7 +6,7 @@ export function isValidSubscriptionUserId(userId: string): boolean {
   );
 }
 
-// Bound purchase rows per app user, across stores. Each bound Amazon/Horizon
-// purchase costs one store call on every entitlements read. Binding enforces
-// the cap; the read keeps the same bound as a backstop.
+// Bound Amazon and Horizon purchase rows per app user. Each costs one store
+// call on every entitlements read; Apple and Google links are never rechecked
+// and do not count. Binding enforces the cap; the read keeps it as a backstop.
 export const MAX_BOUND_PURCHASES_PER_USER = 20;

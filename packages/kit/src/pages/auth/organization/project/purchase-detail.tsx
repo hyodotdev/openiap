@@ -241,7 +241,7 @@ export default function PurchaseDetail() {
             "Hidden. Only project admins and owners can view the request payload and store response.",
         },
         {
-          label: "Evidence fingerprint (SHA-256)",
+          label: "Evidence fingerprint",
           value: purchase.evidenceFingerprint,
           monospace: true,
         },

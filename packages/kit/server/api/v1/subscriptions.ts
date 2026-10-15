@@ -10,7 +10,6 @@ import {
   legacySubscriptionUsageLoggerMiddleware,
   redactApiKeysInPath,
 } from "./request-logger";
-import { sha256Hex } from "../../../convex/utils/sha256";
 import { apiKeyPreview } from "../../../convex/apiKeys/helpers";
 import {
   apiKeyMiddleware,
@@ -381,9 +380,6 @@ async function handleBindUser(c: Context, apiKey: string) {
       apiKey,
       purchaseToken: normalizedPurchaseToken.purchaseToken,
       userId: payload.userId,
-      // Hashed before an Apple JWS is reduced to its transaction id, so a
-      // bind issue matches the verify issue and purchase for the same JWS.
-      evidenceFingerprint: await sha256Hex(payload.purchaseToken),
       correlationId,
     });
     return c.json(result);

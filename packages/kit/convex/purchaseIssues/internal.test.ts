@@ -1,3 +1,4 @@
+import { createHash, createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
@@ -12,17 +13,26 @@ import {
   recordPurchaseIssue,
   type PurchaseIssueInput,
 } from "./internal";
-import { MemoryDb, memoryCtx } from "./memoryDb.testing";
+import { MemoryDb, memoryCtx } from "../test.memoryDb";
 
 const record = testableFunction(registeredRecord);
 const PROJECT = "projects_1" as Id<"projects">;
-const FINGERPRINT = "a".repeat(64);
+const sha256 = (value: string): string =>
+  createHash("sha256").update(value).digest("hex");
+const SALT = "project-fingerprint-salt";
+const DIGEST = sha256("2000000000000001");
+const FINGERPRINT = createHmac("sha256", SALT).update(DIGEST).digest("hex");
+const SHARD = purchaseIssueShard(FINGERPRINT);
 const CORRELATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
-function setup() {
+function setup(project: Record<string, string> = { fingerprintSalt: SALT }) {
   const db = new MemoryDb();
   db.seed("organizations", { _id: "organizations_1" });
-  db.seed("projects", { _id: PROJECT, organizationId: "organizations_1" });
+  db.seed("projects", {
+    _id: PROJECT,
+    organizationId: "organizations_1",
+    ...project,
+  });
   const runAfter = vi.fn();
   const ctx = { ...memoryCtx(db), scheduler: { runAfter } };
   return { db, ctx, runAfter };
@@ -33,7 +43,7 @@ const issue = (
 ): PurchaseIssueInput => ({
   cause: "INAUTHENTIC",
   store: "apple",
-  fingerprint: FINGERPRINT,
+  digest: DIGEST,
   ...overrides,
 });
 
@@ -55,7 +65,7 @@ describe("recordPurchaseIssue", () => {
       expect.objectContaining({
         cause: "INAUTHENTIC",
         fingerprint: FINGERPRINT,
-        shard: 10,
+        shard: SHARD,
         count: 2,
         firstSeenAt: 1_000,
         lastSeenAt: 5_000,
@@ -83,14 +93,15 @@ describe("recordPurchaseIssue", () => {
   it("replaces the least recently seen row once a shard is full", async () => {
     vi.useFakeTimers({ now: 1_000_000 });
     const { db, ctx } = setup();
-    // Fill shard "a" with older rows, plus one row in another shard.
+    // Fill the new row's shard with older rows, plus one row in another shard.
+    const otherShard = (SHARD + 1) % 16;
     for (let index = 0; index < PURCHASE_ISSUE_ROWS_PER_SHARD; index += 1) {
       db.seed("purchaseIssues", {
         projectId: PROJECT,
         cause: "INAUTHENTIC",
         store: "apple",
-        fingerprint: `a${String(index).padStart(63, "0")}`,
-        shard: 10,
+        fingerprint: `${FINGERPRINT[0]}${String(index).padStart(63, "0")}`,
+        shard: SHARD,
         count: 1,
         firstSeenAt: index,
         lastSeenAt: index,
@@ -100,8 +111,8 @@ describe("recordPurchaseIssue", () => {
       projectId: PROJECT,
       cause: "INAUTHENTIC",
       store: "apple",
-      fingerprint: "b".repeat(64),
-      shard: 11,
+      fingerprint: otherShard.toString(16).repeat(64),
+      shard: otherShard,
       count: 1,
       firstSeenAt: 0,
       lastSeenAt: 0,
@@ -109,25 +120,23 @@ describe("recordPurchaseIssue", () => {
 
     await recordPurchaseIssue(ctx as never, PROJECT, issue());
 
-    const shardA = db.rows("purchaseIssues").filter((row) => row.shard === 10);
-    expect(shardA).toHaveLength(PURCHASE_ISSUE_ROWS_PER_SHARD);
-    expect(shardA.map((row) => row.lastSeenAt)).not.toContain(0);
-    expect(shardA.map((row) => row.fingerprint)).toContain(FINGERPRINT);
+    const shardRows = db
+      .rows("purchaseIssues")
+      .filter((row) => row.shard === SHARD);
+    expect(shardRows).toHaveLength(PURCHASE_ISSUE_ROWS_PER_SHARD);
+    expect(shardRows.map((row) => row.lastSeenAt)).not.toContain(0);
+    expect(shardRows.map((row) => row.fingerprint)).toContain(FINGERPRINT);
     // Another shard's older row is untouched.
     expect(
-      db.rows("purchaseIssues").find((row) => row.shard === 11),
+      db.rows("purchaseIssues").find((row) => row.shard === otherShard),
     ).toBeDefined();
   });
 
   it("never stores what a caller could pass off as evidence or free text", async () => {
     const { db, ctx } = setup();
     const jws = "header.payload.signature";
-    // Not a fingerprint: a raw token in the fingerprint slot records nothing.
-    await recordPurchaseIssue(
-      ctx as never,
-      PROJECT,
-      issue({ fingerprint: jws }),
-    );
+    // Not a digest: a raw token in the digest slot records nothing.
+    await recordPurchaseIssue(ctx as never, PROJECT, issue({ digest: jws }));
     expect(db.rows("purchaseIssues")).toEqual([]);
 
     await recordPurchaseIssue(
@@ -147,6 +156,53 @@ describe("recordPurchaseIssue", () => {
     expect(row).not.toHaveProperty("appUserId");
     expect(row).not.toHaveProperty("correlationId");
     expect(row).not.toHaveProperty("retryAfterSec");
+  });
+
+  it("salts the fingerprint with a project secret it creates once", async () => {
+    const { db, ctx } = setup({});
+    await recordPurchaseIssue(ctx as never, PROJECT, issue());
+    await recordPurchaseIssue(
+      ctx as never,
+      PROJECT,
+      issue({ cause: "VERIFICATION_FAILED" }),
+    );
+    const [{ fingerprintSalt: salt }] = db.rows("projects");
+    if (typeof salt !== "string") throw new Error("no salt was created");
+    expect(salt).toMatch(/^[0-9a-f]{64}$/);
+    const salted = createHmac("sha256", salt).update(DIGEST).digest("hex");
+    const rows = db.rows("purchaseIssues");
+    expect(rows.map((row) => row.fingerprint)).toEqual([salted, salted]);
+    expect(rows[0].fingerprint).not.toBe(DIGEST);
+  });
+
+  it("never names a user whose erasure was requested", async () => {
+    const { db, ctx } = setup();
+    db.seed("subscriptionUserErasureJobs", {
+      projectId: PROJECT,
+      userId: "alice",
+      userIdHash: sha256("alice"),
+      status: "queued",
+      subscriptionsErased: 0,
+      commerceEventsErased: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    });
+    await recordPurchaseIssue(
+      ctx as never,
+      PROJECT,
+      issue({ cause: "OWNERSHIP_CONFLICT", appUserId: "alice" }),
+    );
+    await recordPurchaseIssue(
+      ctx as never,
+      PROJECT,
+      issue({ cause: "BIND_LIMIT_REACHED", appUserId: "bob" }),
+    );
+    expect(
+      db.rows("purchaseIssues").map((row) => [row.cause, row.appUserId]),
+    ).toEqual([
+      ["OWNERSHIP_CONFLICT", undefined],
+      ["BIND_LIMIT_REACHED", "bob"],
+    ]);
   });
 
   it("records nothing for a project being deleted", async () => {
@@ -169,23 +225,25 @@ describe("recordBindIssue", () => {
       ctx as never,
       PROJECT,
       { reason: "bound_to_other_user", store: "google", productId: "gold" },
-      { purchaseToken: "token", userId: "alice" },
+      { evidence: "token", userId: "alice" },
     );
     expect(db.rows("purchaseIssues")).toEqual([]);
     expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
       projectId: PROJECT,
-      issue: expect.objectContaining({
+      issue: {
         cause: "OWNERSHIP_CONFLICT",
+        store: "google",
+        digest: sha256("token"),
         appUserId: "alice",
         productId: "gold",
-      }),
+      },
     });
     // No reason to record: nothing is scheduled.
     await recordBindIssue(
       ctx as never,
       PROJECT,
       { reason: "not_found" },
-      { purchaseToken: "token", userId: "alice" },
+      { evidence: "token", userId: "alice" },
     );
     expect(runAfter).toHaveBeenCalledTimes(1);
   });
