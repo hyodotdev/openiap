@@ -207,6 +207,30 @@ describe("operations routes", () => {
     expect(neither.status).toBe(400);
   });
 
+  it("answers a store failure with a retryable 502 and a queued re-send with 409", async () => {
+    mocks.action.mockRejectedValueOnce(new Error("store"));
+    mocks.handleConvexError.mockReturnValueOnce({
+      code: "STORE_REQUEST_FAILED",
+      message: "The App Store Server API request failed.",
+    });
+    const failed = await call("/subscriptions/resync", {
+      method: "POST",
+      body: JSON.stringify({ subscriptionId: "subscriptions_1" }),
+    });
+    expect(failed.status).toBe(502);
+
+    mocks.mutation.mockRejectedValueOnce(new Error("queued"));
+    mocks.handleConvexError.mockReturnValueOnce({
+      code: "NOT_RESENDABLE",
+      message: "This delivery is already queued.",
+    });
+    const queued = await call(
+      "/webhooks/deliveries/outboundDeliveries_1/resend",
+      { method: "POST" },
+    );
+    expect(queued.status).toBe(409);
+  });
+
   it("maps a missing row to 404 and reads one user's timeline", async () => {
     mocks.query.mockRejectedValueOnce(new Error("missing"));
     mocks.handleConvexError.mockReturnValueOnce({

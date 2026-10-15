@@ -28,9 +28,9 @@ const PROJECT = "projects_1" as Id<"projects">;
 const PK = "openiap-kit_pk_app";
 const SK = "openiap-kit_sk_server";
 const SALT = "project-fingerprint-salt";
-const fingerprint = (evidence: string): string =>
+const fingerprint = (store: string, remoteId: string): string =>
   createHmac("sha256", SALT)
-    .update(createHash("sha256").update(evidence).digest("hex"))
+    .update(createHash("sha256").update(`${store}:${remoteId}`).digest("hex"))
     .digest("hex");
 const CORRELATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
@@ -261,7 +261,7 @@ describe("bindUser with a secret key", () => {
         store: "apple",
         productId: "monthly",
         appUserId: "alice",
-        fingerprint: fingerprint("sub-owned"),
+        fingerprint: fingerprint("apple", "sub-owned"),
         correlationId: CORRELATION_ID,
         count: 2,
       }),
@@ -296,11 +296,11 @@ describe("bindUser with a secret key", () => {
     expect(subscriptionIssue).toMatchObject({ cause: "OWNERSHIP_CONFLICT" });
     expect(subscriptionIssue.fingerprint).toBe(detail?.evidenceFingerprint);
     expect(subscriptionIssue.fingerprint).toBe(
-      fingerprint("jws-for-sub-owned"),
+      fingerprint("apple", "sub-owned"),
     );
     expect(oneTimeIssue).toMatchObject({
       cause: "OWNERSHIP_CONFLICT",
-      fingerprint: fingerprint("jws-for-lifetime-1"),
+      fingerprint: fingerprint("apple", "lifetime-1"),
     });
   });
 
@@ -410,8 +410,8 @@ describe("bindUserAsServer", () => {
         cause: "BIND_LIMIT_REACHED",
         store: "amazon",
         appUserId: "alice",
-        // The receipt id the purchase page fingerprints, not the bind token.
-        fingerprint: fingerprint("receipt-1"),
+        // The purchase the page fingerprints, not the bind token.
+        fingerprint: fingerprint("amazon", "rvs-1"),
       }),
     ]);
   });

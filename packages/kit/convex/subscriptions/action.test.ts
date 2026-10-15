@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
 import { testableFunction } from "../test.setup";
-import { readGooglePurchase, resyncFromStore } from "./action";
+import {
+  readGooglePurchase,
+  resyncDisputedSubscription,
+  resyncFromStore,
+} from "./action";
 
 const TOKEN = "play-token-SECRET";
 const PROJECT = "projects_1" as Id<"projects">;
@@ -78,5 +82,51 @@ describe("resyncFromStore", () => {
       "purchases/verificationAdmission:consume",
     );
     expect(args).toEqual({ projectId: "projects_1", bucket: "storeResync" });
+  });
+});
+
+describe("resyncDisputedSubscription", () => {
+  const disputed = testableFunction(resyncDisputedSubscription)._handler;
+  const args = {
+    projectId: PROJECT,
+    subscriptionId: "subscriptions_1" as Id<"subscriptions">,
+  };
+
+  it("draws on the re-sync bucket and gives up quietly when it is empty", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({ _id: "projects_1" })
+      .mockResolvedValueOnce({ kind: "subscription", store: "apple" });
+    const runMutation = vi.fn().mockRejectedValue(
+      new ConvexError({
+        code: "RATE_LIMITED",
+        message: "Too many store re-syncs",
+        retryAfterSec: 1,
+      }),
+    );
+
+    await expect(disputed({ runQuery, runMutation }, args)).resolves.toBe(null);
+    expect(getFunctionName(runQuery.mock.calls[1][0])).toBe(
+      "subscriptions/resync:getResyncTarget",
+    );
+    expect(runQuery.mock.calls[1][1]).toEqual({
+      projectId: "projects_1",
+      subscriptionId: "subscriptions_1",
+    });
+    expect(runMutation.mock.calls[0][1]).toEqual({
+      projectId: "projects_1",
+      bucket: "storeResync",
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("does nothing for a project being deleted", async () => {
+    const runQuery = vi.fn().mockResolvedValueOnce(null);
+    const runMutation = vi.fn();
+    await expect(disputed({ runQuery, runMutation }, args)).resolves.toBe(null);
+    expect(runQuery).toHaveBeenCalledTimes(1);
+    expect(runMutation).not.toHaveBeenCalled();
   });
 });

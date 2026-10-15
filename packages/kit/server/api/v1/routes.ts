@@ -452,7 +452,7 @@ const verifyPurchaseHandler = async (
     const outcome = {
       isValid: receipt.isValid,
       state: receipt.state,
-      ...(stableRejection === true ? { stableRejection: true } : {}),
+      ...(stableRejection !== undefined ? { stableRejection } : {}),
     };
     setOutcome(outcome);
 
@@ -521,9 +521,10 @@ const verifyPurchaseHandler = async (
       setOutcome({
         isValid: false,
         state: FALLBACK_PURCHASE_STATE,
-        ...(isStableRejection(outcome.state, outcome.stableRejection === true)
-          ? { stableRejection: true }
-          : {}),
+        stableRejection: isStableRejection(
+          outcome.state,
+          outcome.stableRejection,
+        ),
       });
       const errorId = crypto.randomUUID();
       console.error(

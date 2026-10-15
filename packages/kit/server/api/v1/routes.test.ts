@@ -405,6 +405,40 @@ describe("apiRoutes", () => {
     expect(convexClientMock.action).toHaveBeenCalledTimes(1);
   });
 
+  it("lets an on-hold Google subscription retry without exposing the hint", async () => {
+    const onHold = {
+      isValid: false,
+      state: "EXPIRED",
+      stableRejection: false,
+    };
+    convexClientMock.action
+      .mockResolvedValueOnce(onHold)
+      .mockResolvedValueOnce(onHold);
+    const request = () =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-on-hold",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "on-hold-token".repeat(4),
+        }),
+      });
+
+    const first = await request();
+    const second = await request();
+
+    expect(await first.json()).toEqual({
+      store: "google",
+      isValid: false,
+      state: "EXPIRED",
+    });
+    expect(second.status).toBe(200);
+    expect(convexClientMock.action).toHaveBeenCalledTimes(2);
+  });
+
   it("enriches a valid Google receipt only when client payload is requested", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: true,
@@ -821,6 +855,13 @@ describe("apiRoutes", () => {
           { store: "google", purchaseToken: "g".repeat(80) },
         ),
       ).toBe(true);
+      // Play revives an on-hold subscription on the same token.
+      expect(
+        await finalVerdict(
+          { isValid: false, state: "EXPIRED", stableRejection: false },
+          { store: "google", purchaseToken: "h".repeat(80) },
+        ),
+      ).toBe(false);
       // Meta checks current ownership, so the user can buy right after.
       expect(
         await finalVerdict(

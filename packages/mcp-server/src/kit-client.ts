@@ -200,7 +200,7 @@ export interface KitInboundNotification {
   occurredAt: number;
   receivedAt: number;
   appliedAt?: number;
-  status: "applied" | "pending";
+  status: "applied" | "pending" | "test";
 }
 
 export interface KitInboundNotificationsResponse {

@@ -82,7 +82,7 @@ export default function PurchaseIssues() {
         </h2>
         <p className="text-sm text-muted-foreground">
           {
-            "Failed verifications and links from the last 30 days, most recently seen first. A repeat of the same failure adds to its count. A row about one purchase keeps a keyed fingerprint of its evidence; IAPKit never keeps the token, JWS, or receipt."
+            "Failed verifications and links from the last 30 days, most recently seen first. A repeat of the same failure adds to its count. A row about one purchase keeps a keyed fingerprint of that purchase; IAPKit never keeps the token, JWS, or receipt."
           }
         </p>
       </div>

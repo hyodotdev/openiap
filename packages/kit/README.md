@@ -705,6 +705,26 @@ are set once with `flyctl secrets set`:
 | `VERIFY_MAX_IN_FLIGHT_PER_KEY` | Override one key's share of verification work       |
 | `VERIFY_MAX_IN_FLIGHT_PER_IP`  | Override one source IP's share of verification work |
 
+### Outbound delivery event-type backfill
+
+Outbound deliveries created before the `eventType` column existed are missing
+from the operator `eventType` filter. After the deploy that adds the column, an
+operator runs the resumable backfill once; CI never runs it. Use the
+deployment selector and status states described under
+[Secret-key storage migration](#secret-key-storage-migration). Rows that already
+carry a type are skipped, so a re-run is safe:
+
+```bash
+npx convex run --prod --component migrations lib:getStatus \
+  '{"names":["migrations:backfillOutboundDeliveryEventTypes"]}'
+npx convex run --prod migrations:run \
+  '{"fn":"migrations:backfillOutboundDeliveryEventTypes","dryRun":true}'
+npx convex run --prod migrations:run \
+  '{"fn":"migrations:backfillOutboundDeliveryEventTypes"}'
+npx convex run --prod --component migrations lib:getStatus \
+  '{"names":["migrations:backfillOutboundDeliveryEventTypes"]}' --watch
+```
+
 ### Automated (CI on push to `main`)
 
 [`.github/workflows/deploy-kit.yml`](../../.github/workflows/deploy-kit.yml)

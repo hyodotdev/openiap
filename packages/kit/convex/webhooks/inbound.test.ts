@@ -159,6 +159,29 @@ describe("listInboundNotifications", () => {
     ).rejects.toMatchObject({ data: { code: "NOT_FOUND" } });
   });
 
+  it("marks a store test notification as a test, never pending", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "member");
+    // It carries no purchase, so nothing ever applies it.
+    await db.insert("webhookEvents", {
+      projectId: "projects_1",
+      type: "TestNotification",
+      source: "GooglePlayRealTimeDeveloperNotifications",
+      platform: "Android",
+      environment: "Production",
+      sourceNotificationId: "pubsub-test",
+      occurredAt: 30,
+      receivedAt: 31,
+    });
+    const result = await listInboundNotificationsHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      paginationOpts: page,
+    });
+    expect(result.page).toMatchObject([
+      { type: "TestNotification", status: "test" },
+    ]);
+  });
+
   it("bounds the page size", async () => {
     const db = new MemoryDb();
     seedProject(db, "admin");

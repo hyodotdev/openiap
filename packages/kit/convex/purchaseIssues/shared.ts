@@ -11,14 +11,18 @@ import type { ReceiptResponse } from "../purchases/shared";
 import type { purchaseStoreValidator } from "../schema";
 import { sha256Hex } from "../utils/sha256";
 import type { purchaseIssueCauseValidator } from "../utils/validation";
-import { purchaseEvidence, type PurchaseEvidence } from "./evidence";
+import {
+  purchaseDigest,
+  verifiedRemoteId,
+  type PurchaseEvidence,
+} from "./evidence";
 import type { PurchaseIssueInput } from "./internal";
 
 export type PurchaseIssueCause = Infer<typeof purchaseIssueCauseValidator>;
 
 // Only these causes are about one purchase, a store's answer about a purchase
-// it verified or a bind's conflict or limit, so only they are keyed by the
-// evidence's fingerprint. Every other cause, including evidence no store
+// it verified or a bind's conflict or limit, so only they are keyed by that
+// purchase's fingerprint. Every other cause, including evidence no store
 // recognized (a forged JWS, an unknown token, Meta's `success: false`), shares
 // one row per (store, cause), so random input cannot grow the log or evict the
 // rows support needs.
@@ -172,35 +176,39 @@ type VerifyIssueContext = {
 };
 
 // Schedules the record, so neither its write nor a failure delays or changes
-// the verification answer.
+// the verification answer. `purchase` is the verified purchase a verdict is
+// about; without it every cause records on its project row.
 async function scheduleRecord(
   ctx: ActionCtx,
   request: VerifyIssueContext,
   issue: ClassifiedIssue,
-  details: Pick<
-    PurchaseIssueInput,
-    "productId" | "claimedProductId" | "environment"
-  > = {},
+  purchase?: {
+    remoteId: string;
+    details: Pick<
+      PurchaseIssueInput,
+      "productId" | "claimedProductId" | "environment"
+    >;
+  },
 ): Promise<void> {
   try {
     const { store } = request.evidence;
-    const projectScoped = !isPurchaseScopedIssue(issue.cause);
-    const digest = projectScoped
-      ? await projectIssueDigest(store, issue.cause)
-      : await sha256Hex(purchaseEvidence(request.evidence));
+    const scoped = isPurchaseScopedIssue(issue.cause) ? purchase : undefined;
+    const digest = scoped
+      ? await purchaseDigest(store, scoped.remoteId)
+      : await projectIssueDigest(store, issue.cause);
     const projectId = await ctx.runQuery(
       internal.purchaseIssues.internal.issueRecordTarget,
       {
         apiKey: request.apiKey,
-        ...(projectScoped
-          ? {
+        ...(scoped
+          ? {}
+          : {
               projectScoped: {
                 digest,
                 cause: issue.cause,
                 seenSince: Date.now() - PROJECT_ISSUE_THROTTLE_MS,
               },
-            }
-          : {}),
+            }),
       },
     );
     if (!projectId) return;
@@ -210,7 +218,7 @@ async function scheduleRecord(
         cause: issue.cause,
         store,
         digest,
-        ...(projectScoped ? {} : details),
+        ...scoped?.details,
         ...(issue.retryAfterSec !== undefined
           ? { retryAfterSec: issue.retryAfterSec }
           : {}),
@@ -248,17 +256,25 @@ export async function verifyRecordingIssues(
 
   const cause = classifyVerdict(verdict, request.expectedProductId);
   if (cause) {
+    const remoteId = verifiedRemoteId(request.evidence, verdict);
     await scheduleRecord(
       ctx,
       request,
       { cause },
-      {
-        ...(verdict.productId ? { productId: verdict.productId } : {}),
-        ...(request.expectedProductId
-          ? { claimedProductId: request.expectedProductId }
-          : {}),
-        ...(verdict.environment ? { environment: verdict.environment } : {}),
-      },
+      remoteId === undefined
+        ? undefined
+        : {
+            remoteId,
+            details: {
+              ...(verdict.productId ? { productId: verdict.productId } : {}),
+              ...(request.expectedProductId
+                ? { claimedProductId: request.expectedProductId }
+                : {}),
+              ...(verdict.environment
+                ? { environment: verdict.environment }
+                : {}),
+            },
+          },
     );
   }
   return verdict;

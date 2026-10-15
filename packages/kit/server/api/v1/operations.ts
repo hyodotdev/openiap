@@ -284,11 +284,14 @@ function invalidInput(c: Context, message: string): Response {
   return c.json({ errors: [{ code: "INVALID_INPUT", message }] }, 400);
 }
 
-const STATUS_BY_CODE: Record<string, 403 | 404 | 429> = {
+const STATUS_BY_CODE: Record<string, 403 | 404 | 409 | 429 | 502> = {
   INVALID_API_KEY: 403,
   INSUFFICIENT_SCOPE: 403,
   NOT_FOUND: 404,
+  NOT_RESENDABLE: 409,
   RATE_LIMITED: 429,
+  // An upstream store failure, not a bad request: retry later.
+  STORE_REQUEST_FAILED: 502,
 };
 
 function operationError(c: Context, error: unknown, code: string): Response {

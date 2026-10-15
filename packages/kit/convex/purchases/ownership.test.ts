@@ -190,16 +190,14 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       "BIND_LIMIT_REACHED",
       "BIND_LIMIT_REACHED",
     ]);
-    // A known purchase is fingerprinted from its evidence, as its page is.
+    // Keyed on the purchase id, as the purchase page is, with no lookup.
     const digests = ctx.scheduler.runAfter.mock.calls.map(
       ([, , scheduled]) =>
         (scheduled as { issue: { digest: string } }).issue.digest,
     );
     expect(digests).toEqual([
-      await sha256Hex(
-        store === "amazon" ? "receipt-proof" : "store-alice:premium",
-      ),
-      await sha256Hex("nobody-knows"),
+      await sha256Hex(`${store}:store-proof`),
+      await sha256Hex(`${store}:nobody-knows`),
     ]);
     expect(warn.mock.calls[0]).toEqual([
       expect.stringContaining("bound purchase limit"),

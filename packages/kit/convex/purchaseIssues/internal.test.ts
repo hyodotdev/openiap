@@ -224,7 +224,12 @@ describe("recordBindIssue", () => {
     await recordBindIssue(
       ctx as never,
       PROJECT,
-      { reason: "bound_to_other_user", store: "google", productId: "gold" },
+      {
+        reason: "bound_to_other_user",
+        store: "google",
+        productId: "gold",
+        remoteId: "matched-token",
+      },
       { evidence: "token", userId: "alice" },
     );
     expect(db.rows("purchaseIssues")).toEqual([]);
@@ -233,10 +238,22 @@ describe("recordBindIssue", () => {
       issue: {
         cause: "OWNERSHIP_CONFLICT",
         store: "google",
-        digest: sha256("token"),
+        // The purchase the bind matched, as its detail page fingerprints it.
+        digest: sha256("google:matched-token"),
         appUserId: "alice",
         productId: "gold",
       },
+    });
+    // No purchase named: the bind's own token stands in.
+    await recordBindIssue(
+      ctx as never,
+      PROJECT,
+      { reason: "bound_to_other_user", store: "google" },
+      { evidence: "token", userId: "alice" },
+    );
+    expect(runAfter).toHaveBeenLastCalledWith(0, expect.anything(), {
+      projectId: PROJECT,
+      issue: expect.objectContaining({ digest: sha256("google:token") }),
     });
     // No reason to record: nothing is scheduled.
     await recordBindIssue(
@@ -245,7 +262,7 @@ describe("recordBindIssue", () => {
       { reason: "not_found" },
       { evidence: "token", userId: "alice" },
     );
-    expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(runAfter).toHaveBeenCalledTimes(2);
   });
 });
 

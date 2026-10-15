@@ -376,7 +376,7 @@ export const publishedSources = {
     /^(Package\.swift|openiap\.podspec)$/,
   ],
   "client-protocol": [
-    /^specs\/client\/src\/(generated\/|[^/]+\.graphql$|kit-api\.ts$)/,
+    /^specs\/client\/src\/(generated\/|[^/]+\.graphql$|(kit-api|purchase-flow)\.ts$)/,
   ],
   cli: [/^packages\/cli\/(src|bin)\//],
   "react-native": [

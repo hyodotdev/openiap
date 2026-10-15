@@ -165,6 +165,7 @@ export async function savePurchaseInternal({
       // orderId, Google reissues it as T2 and that call inserts a row with O1,
       // then a T1 replay also resolves to O1.
       let conflictDelta: PurchaseStatsDelta = {};
+      let savedOrderId = orderId;
       if (
         store === "google" &&
         orderId !== null &&
@@ -180,7 +181,21 @@ export async function savePurchaseInternal({
           )
           .first();
         if (conflict && conflict._id !== existing._id) {
-          conflictDelta = await collapseConflictingOrderIdRow(ctx, conflict);
+          if (
+            conflict.appUserId &&
+            existing.appUserId &&
+            conflict.appUserId !== existing.appUserId
+          ) {
+            // Two owners: deleting either row would drop a link, so the
+            // order stays on the row that holds it.
+            savedOrderId = null;
+          } else {
+            conflictDelta = await collapseConflictingOrderIdRow(
+              ctx,
+              conflict,
+              existing,
+            );
+          }
         }
       }
 
@@ -204,7 +219,7 @@ export async function savePurchaseInternal({
           nextAmazonReconcileAt,
           amazonRvsSequence,
           productId,
-          orderId,
+          orderId: savedOrderId,
           verificationDurationMs,
           requestIp,
           correlationId,
@@ -349,13 +364,25 @@ function deltaForConflictingRowRemoval(
 
 /**
  * Delete the row that already owns the orderId being patched onto the
- * primary-dedup hit, which always survives. Returns the stats delta to merge
- * into that patch, so `purchaseStats` is written once.
+ * primary-dedup hit, which always survives and inherits the deleted row's
+ * owner. Returns the stats delta to merge into that patch, so `purchaseStats`
+ * is written once.
  */
 async function collapseConflictingOrderIdRow(
   ctx: MutationCtx,
   row: Doc<"purchases">,
+  survivor: Doc<"purchases">,
 ): Promise<PurchaseStatsDelta> {
+  // As in the subscription merge: a live owner wins, and the erasure marker
+  // carries only when neither row has one.
+  if (!survivor.appUserId && row.appUserId) {
+    await ctx.db.patch(survivor._id, {
+      appUserId: row.appUserId,
+      accountErased: undefined,
+    });
+  } else if (!survivor.appUserId && row.accountErased) {
+    await ctx.db.patch(survivor._id, { accountErased: true });
+  }
   await ctx.db.delete(row._id);
   return deltaForConflictingRowRemoval(row);
 }

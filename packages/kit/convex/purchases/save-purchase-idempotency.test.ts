@@ -759,6 +759,79 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(stats.valid).toBe(2);
   });
 
+  describe("an order collapse never frees an owner", () => {
+    const ackResponse = JSON.stringify({
+      orderId: "GPA.linked-order",
+      acknowledgementState: "ACKNOWLEDGMENT_STATE_ACKNOWLEDGED",
+      productLineItem: [{ productId: "lifetime" }],
+    });
+
+    // A pre-ack row on token_initial and an acked, linked row on token_reissue.
+    async function seedRace(
+      initialOwner?: string,
+      linkedFields: Record<string, unknown> = { appUserId: "alice" },
+    ) {
+      await savePurchaseInternal({
+        ctx,
+        ...buildArgs({
+          remoteId: "token_initial",
+          state: HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+        }),
+      });
+      const linked = await savePurchaseInternal({
+        ctx,
+        ...buildArgs({
+          remoteId: "token_reissue",
+          remoteResponse: ackResponse,
+        }),
+      });
+      await db.patch(linked, linkedFields);
+      if (initialOwner) {
+        const [initial] = (await db.query("purchases").collect()).filter(
+          (row) => row.remoteId === "token_initial",
+        );
+        await db.patch(initial._id, { appUserId: initialOwner });
+      }
+      // The delayed replay resolves token_initial to the same order.
+      await savePurchaseInternal({
+        ctx,
+        ...buildArgs({
+          remoteId: "token_initial",
+          remoteResponse: ackResponse,
+        }),
+      });
+      return db.query("purchases").collect();
+    }
+
+    it("moves the deleted row's owner to the survivor", async () => {
+      const rows = await seedRace();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        remoteId: "token_initial",
+        orderId: "GPA.linked-order",
+        appUserId: "alice",
+      });
+    });
+
+    it("keeps both rows when each has its own owner", async () => {
+      const rows = await seedRace("bob");
+      expect(
+        rows.map((row) => [row.remoteId, row.appUserId, row.orderId]),
+      ).toEqual([
+        ["token_initial", "bob", undefined],
+        ["token_reissue", "alice", "GPA.linked-order"],
+      ]);
+      const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
+      expect(stats.googleOrders).toBe(1);
+    });
+
+    it("carries an erased owner's marker only to an unowned survivor", async () => {
+      const [survivor] = await seedRace(undefined, { accountErased: true });
+      expect(survivor).toMatchObject({ accountErased: true });
+      expect(survivor.appUserId).toBeUndefined();
+    });
+  });
+
   it("orderId dedup scopes by applicationId — same orderId under different apps do not collide", async () => {
     // applicationId is packageName for Google. Two different apps
     // owned by the same project config would be a misconfiguration,

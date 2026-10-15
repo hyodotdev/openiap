@@ -353,7 +353,8 @@ An admin can re-sync one Apple or Google purchase or subscription from the
 store API instead (`subscriptions/action.ts`). The server-side read is
 authoritative, so it may update webhook-governed state. It is recorded as a
 `StoreResync` source event, emits only `entitlement.granted` or
-`entitlement.revoked` when the gate flips, and never moves an owner.
+`entitlement.revoked` when the gate flips, and never moves an owner. Those
+events carry no `sourceStoreEventId`, because no store notification caused them.
 
 ## Integrating without touching IAPKit core
 

@@ -14,7 +14,6 @@ import { isUserErasureRequested } from "../subscriptions/erasure";
 import type { BindOutcome } from "../subscriptions/internal";
 import { isValidSubscriptionUserId } from "../subscriptions/limits";
 import { correlationIdOrUndefined } from "../utils/correlationId";
-import { sha256Hex } from "../utils/sha256";
 import {
   purchaseIssueCauseValidator,
   receiptEnvironmentValidator,
@@ -23,7 +22,7 @@ import {
   evidenceFingerprint,
   fingerprintSalt,
   isSha256Hex,
-  purchaseEvidence,
+  purchaseDigest,
 } from "./evidence";
 
 // A project's rows split into 16 shards by the fingerprint's first hex digit,
@@ -37,7 +36,7 @@ const MAX_PRODUCT_ID_LENGTH = 256;
 export const purchaseIssueInputValidator = v.object({
   cause: purchaseIssueCauseValidator,
   store: purchaseStoreValidator,
-  // SHA-256 hex of the evidence; the row stores it salted, as the fingerprint.
+  // `purchaseDigest` or `projectIssueDigest`; the row stores it salted.
   digest: v.string(),
   productId: v.optional(v.string()),
   claimedProductId: v.optional(v.string()),
@@ -164,8 +163,8 @@ export async function recordPurchaseIssue(
 
 /**
  * Schedules the record of a failed secret-key link, so it can neither fail the
- * bind nor slow it. It fingerprints the matched purchase's evidence, as the
- * purchase page does; `evidence`, the bind's token, only when no row matches.
+ * bind nor slow it. It fingerprints the purchase the bind matched, as the
+ * purchase page does; `evidence`, the bind's token, only when none is named.
  */
 export async function recordBindIssue(
   ctx: MutationCtx,
@@ -181,24 +180,12 @@ export async function recordBindIssue(
         : null;
   const { store, remoteId } = outcome;
   if (!cause || !store) return;
-  const purchase =
-    remoteId === undefined
-      ? null
-      : await ctx.db
-          .query("purchases")
-          .withIndex("by_project_and_remote", (q) =>
-            q.eq("projectId", projectId).eq("remoteId", remoteId),
-          )
-          .filter((q) => q.eq(q.field("store"), store))
-          .first();
   await ctx.scheduler.runAfter(0, internal.purchaseIssues.internal.record, {
     projectId,
     issue: {
       cause,
       store,
-      digest: await sha256Hex(
-        purchase ? purchaseEvidence(purchase.requestData) : request.evidence,
-      ),
+      digest: await purchaseDigest(store, remoteId ?? request.evidence),
       ...(outcome.productId ? { productId: outcome.productId } : {}),
       appUserId: request.userId,
       ...(request.correlationId

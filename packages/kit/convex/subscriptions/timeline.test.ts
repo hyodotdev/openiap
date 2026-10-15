@@ -157,10 +157,21 @@ describe("purchase list filters", () => {
     ).toEqual(["gems"]);
   });
 
-  it("reads a product filter from its own index, whatever else is set", async () => {
+  it("reads a product filter from its own index only in creation order", async () => {
     const db = new MemoryDb();
     await seed(db);
-    const [, second] = db.rows("purchases");
+    // A later "gems" purchase, last updated before the earlier one.
+    await db.insert("purchases", {
+      projectId: "projects_1",
+      store: "amazon",
+      applicationId: "com.example",
+      requestData: { store: "amazon", userId: "amzn-3", receiptId: "r3" },
+      state: "ENTITLED",
+      isValid: true,
+      productId: "gems",
+      updatedAt: 120,
+    });
+    const [, older, newer] = db.rows("purchases");
     const query = db.query.bind(db);
     const indexes: string[] = [];
     vi.spyOn(db, "query").mockImplementation((table) => {
@@ -172,22 +183,26 @@ describe("purchase list filters", () => {
       });
       return scan;
     });
+    const ids = async (filters: Record<string, unknown>) =>
+      (
+        await listPurchases(ctxOf(db), {
+          projectId: "projects_1" as never,
+          paginationOpts: { numItems: 25, cursor: null },
+          ...filters,
+        })
+      ).page.map((row) => row._id);
 
+    // Another sort keeps its own order and filters the product.
+    expect(await ids({ productId: "gems", sortField: "updatedAt" })).toEqual([
+      older._id,
+      newer._id,
+    ]);
+    expect(await ids({ productId: "gems" })).toEqual([newer._id, older._id]);
     expect(
-      await list(db, {
-        productId: "gems",
-        state: "ENTITLED",
-        sortField: "updatedAt",
-        createdFrom: second._creationTime,
-      }),
-    ).toEqual(["gems"]);
-    expect(
-      await list(db, {
-        productId: "gems",
-        createdTo: second._creationTime - 1,
-      }),
+      await ids({ productId: "gems", createdTo: older._creationTime - 1 }),
     ).toEqual([]);
     expect(indexes).toEqual([
+      "by_project_updatedAt",
       "by_project_and_productId",
       "by_project_and_productId",
     ]);

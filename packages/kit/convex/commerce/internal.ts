@@ -47,9 +47,11 @@ export type EmitCommerceEventArgs = {
     | "currency"
     | "priceAmountMicros"
     | "amountProvenance"
-    | "sourceNotificationId"
     | "occurredAt"
-  >;
+  > & {
+    /** The store's own notification id; absent when no notification caused this. */
+    sourceNotificationId?: string;
+  };
   subscriptionId?: Id<"subscriptions">;
   previousProductId?: string;
   /** Subscription as it stands after the transition, snapshotted onto the event. */
@@ -151,7 +153,9 @@ export async function emitCommerceEvent(
           }
         : {}),
       sourceEventId: source._id,
-      sourceStoreNotificationId: source.sourceNotificationId,
+      ...(source.sourceNotificationId
+        ? { sourceStoreNotificationId: source.sourceNotificationId }
+        : {}),
       ...(extensions ? { extensions } : {}),
       occurredAt: source.occurredAt,
       processedAt: now,
