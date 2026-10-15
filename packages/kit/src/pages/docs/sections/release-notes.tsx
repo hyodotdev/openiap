@@ -25,11 +25,56 @@ const RELEASES: ReleaseEntry[] = [
   {
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
-    date: "2026-10-12",
+    date: "2026-10-15",
     pullRequests: [523, 528, 532, 533],
     tagline:
-      "Amazon subscription lifecycle beta and a security hardening pass.",
+      "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
+      {
+        kind: "feature",
+        topic: "Verification",
+        text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment and a correlation ID, matching commerce events. Responses without the flag are unchanged.",
+      },
+      {
+        kind: "feature",
+        topic: "Linking",
+        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, and publishable keys keep the old response.",
+      },
+      {
+        kind: "feature",
+        topic: "Purchase issues",
+        text: "Verification and linking failures are recorded as bounded, hashed entries with a cause and correlation ID, viewable in the dashboard, secret-key routes and MCP.",
+      },
+      {
+        kind: "feature",
+        topic: "Operations",
+        text: "Webhook deliveries keep their last 20 attempts and can be re-sent with the original event ID. Inbound store notifications are listed, and admins can re-sync an Apple or Google purchase or subscription from the store.",
+      },
+      {
+        kind: "security",
+        topic: "Dashboard",
+        text: "Raw store evidence and subscription purchase tokens are shown only to project owners and admins; members see a fingerprint.",
+      },
+      {
+        kind: "fix",
+        topic: "Analytics",
+        text: "Analytics report production only by default, with a sandbox view. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, and store-reported refunds are subtracted.",
+      },
+      {
+        kind: "feature",
+        topic: "Analytics",
+        text: "Trial starts, trial conversions and direct paid starts are counted separately, with monthly retention and realized LTV cohorts. Each metric shows whether data is not collected, still processing or a real zero.",
+      },
+      {
+        kind: "feature",
+        topic: "Client payloads",
+        text: "Client payloads have drafts, a preview of the exact app response, version history and rollback. Only owners and admins can publish.",
+      },
+      {
+        kind: "docs",
+        topic: "Purchase flow",
+        text: "A new Purchase flow guide splits the work between the SDK, IAPKit and your backend, with a tested reference handler.",
+      },
       {
         kind: "fix",
         topic: "Google verification",

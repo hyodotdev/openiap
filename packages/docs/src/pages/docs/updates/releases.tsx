@@ -33,6 +33,20 @@ interface ReleaseChange extends ReleaseMetadata {
   description: React.ReactNode;
 }
 
+const PURCHASE_FLOW_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.1.0',
+    tag: 'openiap-client-protocol-1.1.0',
+  },
+  {
+    name: 'react-native-iap',
+    version: '17.1.0',
+    tag: 'react-native-iap-17.1.0',
+  },
+  { name: 'expo-iap', version: '6.1.0', tag: 'expo-iap-6.1.0' },
+];
+
 const PURCHASE_ACCURACY_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -568,6 +582,97 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'backend-purchase-flow-2026-10-15',
+      date: new Date('2026-10-15'),
+      element: (
+        <div key="backend-purchase-flow-2026-10-15" style={noteCardStyle}>
+          {PURCHASE_FLOW_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="backend-purchase-flow-2026-10-15" level="h4">
+            October 15, 2026 - Backend-confirmed purchase flow
+          </AnchorLink>
+          <p>
+            A new purchase flow finishes a transaction only after your backend
+            confirms access, resumes unfinished purchases at launch, and never
+            moves a purchase to another account.
+          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>Client Protocol 1.1.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Adds the <code>/purchase-flow</code> export:{' '}
+                  <code>createPurchaseFlow</code>,{' '}
+                  <code>describePurchaseFlowStatus</code>,{' '}
+                  <code>toPurchaseConfirmationRequest</code> and the{' '}
+                  <code>PurchaseConfirmation</code> types. Payment pending,
+                  delayed verification, another account&apos;s purchase and
+                  delayed access are separate states, and none of them asks the
+                  user to buy again.
+                </li>
+                <li>
+                  Client payload reads return the cached copy with{' '}
+                  <code>stale: true</code> on a network error, 429 or 5xx, and{' '}
+                  <code>localizedClientPayload</code> picks a locale or returns{' '}
+                  <code>null</code> so the app keeps its built-in text.
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+            <li>
+              <strong>react-native-iap 17.1.0 and expo-iap 6.1.0</strong> export{' '}
+              <code>createPurchaseFlow</code> and the client payload helpers.
+              The expo-iap example adds an App backend option to its purchase
+              flow screen.
+            </li>
+          </ul>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p>
+            Your backend verifies with its secret key and{' '}
+            <code>includeTransactionDetails</code>, links the purchase with
+            bind-user, and grants access once per purchase; the{' '}
+            <a href="https://kit.openiap.dev/docs/purchase-flow">
+              Purchase flow guide
+            </a>{' '}
+            includes a tested reference handler. The IAPKit changes this flow
+            relies on are in the{' '}
+            <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
+              hosted history
+            </a>
+            .
+          </p>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {PURCHASE_FLOW_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'purchase-accuracy-2026-10-13',
       date: new Date('2026-10-13'),
