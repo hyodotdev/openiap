@@ -15,6 +15,9 @@ describe("Mixpanel URL redaction", () => {
       redactUrls("/a/project/b/purchases?ip=203.0.113.9&user=alice&cursor=xyz"),
     ).toBe("/a/project/b/purchases?ip=&user=&cursor=");
     expect(redactUrls("Purchase issues")).toBe("Purchase issues");
+    expect(redactUrls("/a/project/b/purchases/user/o'neil%40x.com")).toBe(
+      "/a/project/b/purchases/user/:appUserId",
+    );
   });
 
   it("redacts every string an event carries, nested ones included", () => {

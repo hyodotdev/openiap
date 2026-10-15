@@ -74,7 +74,7 @@ const ALLOWED_HOSTS = new Set(["kit.openiap.dev", "localhost", "127.0.0.1"]);
 // strings keep the route and the query parameter names only.
 export function redactUrls(text: string): string {
   return text
-    .replace(/(\/purchases\/user\/)[^/?#\s"']+/gi, "$1:appUserId")
+    .replace(/(\/purchases\/user\/)[^/?#\s"]+/gi, "$1:appUserId")
     .replace(/([?&][^=&#\s"']+=)[^&#\s"']*/g, "$1");
 }
 

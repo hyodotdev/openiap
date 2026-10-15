@@ -24,7 +24,7 @@ import {
   isSha256Hex,
   purchaseDigest,
 } from "./evidence";
-import { isPurchaseScopedIssue, PROJECT_ISSUE_THROTTLE_MS } from "./shared";
+import { PROJECT_ISSUE_THROTTLE_MS, projectIssueDigest } from "./shared";
 
 // A project's rows split into 16 shards by the fingerprint's first hex digit,
 // each capped at 64 rows (1,024 in all). A new row reads only its own shard,
@@ -132,7 +132,7 @@ export async function recordPurchaseIssue(
   if (existing) {
     // Concurrent verifies can all pass the action's throttle check.
     if (
-      !isPurchaseScopedIssue(input.cause) &&
+      input.digest === (await projectIssueDigest(input.store, input.cause)) &&
       existing.lastSeenAt > now - PROJECT_ISSUE_THROTTLE_MS
     ) {
       return;

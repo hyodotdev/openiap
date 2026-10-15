@@ -14,6 +14,7 @@ import {
   type PurchaseIssueInput,
 } from "./internal";
 import { MemoryDb, memoryCtx } from "../test.memoryDb";
+import { projectIssueDigest } from "./shared";
 
 const record = testableFunction(registeredRecord);
 const PROJECT = "projects_1" as Id<"projects">;
@@ -54,11 +55,6 @@ describe("recordPurchaseIssue", () => {
     vi.useFakeTimers({ now: 1_000 });
     const { db, ctx } = setup();
     await recordPurchaseIssue(ctx as never, PROJECT, issue());
-    // Inside the throttle window a concurrent write is dropped.
-    vi.setSystemTime(5_000);
-    await recordPurchaseIssue(ctx as never, PROJECT, issue());
-    expect(db.rows("purchaseIssues")).toMatchObject([{ count: 1 }]);
-
     vi.setSystemTime(62_000);
     await recordPurchaseIssue(
       ctx as never,
@@ -77,6 +73,18 @@ describe("recordPurchaseIssue", () => {
         correlationId: CORRELATION_ID,
       }),
     ]);
+  });
+
+  it("drops a concurrent write to a shared row inside the throttle window", async () => {
+    vi.useFakeTimers({ now: 1_000 });
+    const { db, ctx } = setup();
+    const shared = issue({
+      digest: await projectIssueDigest("apple", "INAUTHENTIC"),
+    });
+    await recordPurchaseIssue(ctx as never, PROJECT, shared);
+    vi.setSystemTime(5_000);
+    await recordPurchaseIssue(ctx as never, PROJECT, shared);
+    expect(db.rows("purchaseIssues")).toMatchObject([{ count: 1 }]);
   });
 
   it("keeps one row per cause for the same evidence", async () => {

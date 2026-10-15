@@ -84,7 +84,8 @@ export interface PurchaseFlowOptions<P extends PurchaseFlowPurchase> {
   getAvailablePurchases: () => Promise<P[]>;
   /**
    * The SDK's `getPendingTransactionsIOS` on iOS, `undefined` elsewhere: off
-   * iOS it answers `[]`, which would hide unacknowledged Android purchases.
+   * iOS an SDK may answer `[]`, which would hide unacknowledged Android
+   * purchases.
    * Recovery reads unfinished StoreKit transactions, consumables included,
    * from it. If it throws, recovery confirms every Apple purchase
    * `getAvailablePurchases` lists instead.

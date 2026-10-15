@@ -157,7 +157,9 @@ const outcomes = await flow.recoverPurchases();`}
         <code>confirmTimeoutMs</code> (30 seconds by default) ends as{" "}
         <code>failed</code>, and the next recovery confirms the purchase again.
         Pass <code>getPendingTransactionsIOS</code> on iOS: recovery throws
-        without it rather than miss an unfinished transaction. The{" "}
+        without it rather than miss an unfinished transaction. Pass{" "}
+        <code>undefined</code> elsewhere, or recovery misses unacknowledged
+        Android purchases, which Play refunds after three days. The{" "}
         <a
           href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/src/components/BackendEntitlementFlow.tsx"
           className="text-primary underline"
