@@ -4,7 +4,10 @@
 // same shape across every tool.
 
 import type {
+  KitClientPayloadDraftStateResponse,
+  KitClientPayloadHistoryResponse,
   KitClientPayloadStateResponse,
+  KitClientPayloadVersionResponse,
   KitMetricsResponse as SharedKitMetricsResponse,
   KitMrrCurrencyEntry as SharedKitMrrCurrencyEntry,
   KitProductsResponse as SharedKitProductsResponse,
@@ -14,6 +17,7 @@ import type {
   KitProductUpsertResponse,
   KitRemoveClientPayloadResponse,
   KitRevenueMetricsResponse,
+  KitSaveClientPayloadDraftResponse,
   KitSetClientPayloadResponse,
   KitSubscriptionsResponse,
   KitSubscription,
@@ -184,6 +188,18 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     return parsed as T;
   }
 
+  function clientPayloadPath(
+    params: { productId: string; platform: "IOS" | "Android" },
+    suffix = "",
+    extraQuery: Record<string, string> = {},
+  ): string {
+    const query = new URLSearchParams({
+      platform: params.platform,
+      ...extraQuery,
+    });
+    return `/v1/products/client-payload/${encodeURIComponent(params.productId)}${suffix}?${query.toString()}`;
+  }
+
   function adminCall<T>(path: string, init: RequestInit = {}): Promise<T> {
     return call<T>(path, {
       ...init,
@@ -275,10 +291,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     getClientPayloadState: (params: {
       productId: string;
       platform: "IOS" | "Android";
-    }) =>
-      adminCall<KitClientPayloadStateResponse>(
-        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
-      ),
+    }) => adminCall<KitClientPayloadStateResponse>(clientPayloadPath(params)),
     setClientPayload: (params: {
       productId: string;
       platform: "IOS" | "Android";
@@ -286,35 +299,109 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       body: string;
       expectedVersion?: number;
     }) =>
-      adminCall<KitSetClientPayloadResponse>(
-        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
+      adminCall<KitSetClientPayloadResponse>(clientPayloadPath(params), {
+        method: "PUT",
+        body: JSON.stringify({
+          format: params.format,
+          body: params.body,
+          ...(params.expectedVersion !== undefined
+            ? { expectedVersion: params.expectedVersion }
+            : {}),
+        }),
+      }),
+    removeClientPayload: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      expectedVersion?: number;
+    }) =>
+      adminCall<KitRemoveClientPayloadResponse>(
+        clientPayloadPath(
+          params,
+          "",
+          params.expectedVersion !== undefined
+            ? { expectedVersion: String(params.expectedVersion) }
+            : {},
+        ),
+        { method: "DELETE" },
+      ),
+    getClientPayloadDraft: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+    }) =>
+      adminCall<KitClientPayloadDraftStateResponse>(
+        clientPayloadPath(params, "/draft"),
+      ),
+    saveClientPayloadDraft: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      format: string;
+      body: string;
+      expectedDraftRevision?: number;
+    }) =>
+      adminCall<KitSaveClientPayloadDraftResponse>(
+        clientPayloadPath(params, "/draft"),
         {
           method: "PUT",
           body: JSON.stringify({
             format: params.format,
             body: params.body,
-            ...(params.expectedVersion !== undefined
-              ? { expectedVersion: params.expectedVersion }
+            ...(params.expectedDraftRevision !== undefined
+              ? { expectedDraftRevision: params.expectedDraftRevision }
               : {}),
           }),
         },
       ),
-    removeClientPayload: (params: {
+    publishClientPayload: (params: {
       productId: string;
       platform: "IOS" | "Android";
       expectedVersion?: number;
-    }) => {
-      const query = new URLSearchParams({ platform: params.platform });
-      if (params.expectedVersion !== undefined) {
-        query.set("expectedVersion", String(params.expectedVersion));
-      }
-      return adminCall<KitRemoveClientPayloadResponse>(
-        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?${query.toString()}`,
+      expectedDraftRevision?: number;
+      note?: string;
+    }) =>
+      adminCall<KitSetClientPayloadResponse>(
+        clientPayloadPath(params, "/publish"),
         {
-          method: "DELETE",
+          method: "POST",
+          body: JSON.stringify({
+            expectedVersion: params.expectedVersion,
+            expectedDraftRevision: params.expectedDraftRevision,
+            note: params.note,
+          }),
         },
-      );
-    },
+      ),
+    listClientPayloadHistory: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+    }) =>
+      adminCall<KitClientPayloadHistoryResponse>(
+        clientPayloadPath(params, "/history"),
+      ),
+    getClientPayloadVersion: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      version: number;
+    }) =>
+      adminCall<KitClientPayloadVersionResponse>(
+        clientPayloadPath(params, `/history/${params.version}`),
+      ),
+    rollbackClientPayload: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      toVersion: number;
+      expectedVersion?: number;
+      note?: string;
+    }) =>
+      adminCall<KitSetClientPayloadResponse>(
+        clientPayloadPath(params, "/rollback"),
+        {
+          method: "POST",
+          body: JSON.stringify({
+            toVersion: params.toVersion,
+            expectedVersion: params.expectedVersion,
+            note: params.note,
+          }),
+        },
+      ),
     syncProducts: (params: {
       platform: "IOS" | "Android";
       direction: "pull" | "push" | "both" | "purge-local";

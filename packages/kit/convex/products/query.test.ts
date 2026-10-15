@@ -15,7 +15,7 @@ import {
   getCatalogPriceInternal as registeredGetCatalogPriceInternal,
   getProductClientPayload as registeredGetProductClientPayload,
   getProductClientPayloadIfChanged as registeredGetProductClientPayloadIfChanged,
-  getProductClientPayloadEditorState as registeredGetProductClientPayloadEditorState,
+  getProductClientPayloadWorkspace as registeredGetProductClientPayloadWorkspace,
   listProductClientPayloadSummaries as registeredListProductClientPayloadSummaries,
   listProducts as registeredListProducts,
   listProductsPage as registeredListProductsPage,
@@ -34,8 +34,8 @@ const getProductClientPayload = testableFunction(
 const getProductClientPayloadIfChanged = testableFunction(
   registeredGetProductClientPayloadIfChanged,
 );
-const getProductClientPayloadEditorState = testableFunction(
-  registeredGetProductClientPayloadEditorState,
+const getProductClientPayloadWorkspace = testableFunction(
+  registeredGetProductClientPayloadWorkspace,
 );
 const listProductClientPayloadSummaries = testableFunction(
   registeredListProductClientPayloadSummaries,
@@ -584,7 +584,7 @@ describe("product client payload queries", () => {
     });
 
     await expect(
-      getProductClientPayloadEditorState._handler(
+      getProductClientPayloadWorkspace._handler(
         { db },
         {
           projectId: PROJECT_ID,
@@ -592,7 +592,11 @@ describe("product client payload queries", () => {
           productId: "premium",
         },
       ),
-    ).resolves.toEqual({ expectedVersion: 5 });
+    ).resolves.toEqual({
+      canEdit: true,
+      expectedVersion: 5,
+      expectedDraftRevision: 0,
+    });
     await expect(
       getProductClientPayload._handler(
         { db },
@@ -601,7 +605,7 @@ describe("product client payload queries", () => {
     ).resolves.toBeNull();
     expect(
       JSON.stringify(
-        await getProductClientPayloadEditorState._handler(
+        await getProductClientPayloadWorkspace._handler(
           { db },
           {
             projectId: PROJECT_ID,

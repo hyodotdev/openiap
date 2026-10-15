@@ -41,6 +41,8 @@ import type * as organizations_query from "../organizations/query.js";
 import type * as plans from "../plans.js";
 import type * as products_asc from "../products/asc.js";
 import type * as products_ascReview from "../products/ascReview.js";
+import type * as products_clientPayloadHttp from "../products/clientPayloadHttp.js";
+import type * as products_clientPayloads from "../products/clientPayloads.js";
 import type * as products_jobs from "../products/jobs.js";
 import type * as products_jwt from "../products/jwt.js";
 import type * as products_localizations from "../products/localizations.js";
@@ -146,6 +148,8 @@ declare const fullApi: ApiFromModules<{
   plans: typeof plans;
   "products/asc": typeof products_asc;
   "products/ascReview": typeof products_ascReview;
+  "products/clientPayloadHttp": typeof products_clientPayloadHttp;
+  "products/clientPayloads": typeof products_clientPayloads;
   "products/jobs": typeof products_jobs;
   "products/jwt": typeof products_jwt;
   "products/localizations": typeof products_localizations;

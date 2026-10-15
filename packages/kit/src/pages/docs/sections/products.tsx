@@ -178,29 +178,75 @@ export default function ProductsPage() {
           platform and product ID.
         </li>
       </ul>
+      <Callout kind="warning" title="Show store prices, not catalog prices">
+        <p>
+          The catalog&apos;s <code>priceAmountMicros</code> and{" "}
+          <code>currency</code> mirror the store for operations such as sync and
+          revenue reporting. They are not localized and can lag a price change.
+          Show users the price, currency, trial eligibility, and billing terms
+          the SDK returns from the store: <code>fetchProducts</code>,{" "}
+          <code>isEligibleForIntroOfferIOS</code>, and the Android offer
+          details. Never render them from a client payload or from IAPKit&apos;s
+          catalog.
+        </p>
+      </Callout>
 
-      <h2 className="mt-10 text-2xl font-semibold">Add or edit a payload</h2>
+      <h2 className="mt-10 text-2xl font-semibold">
+        Draft, publish, and roll back
+      </h2>
+      <p>
+        Apps only ever receive the published payload. Edits go to a draft first,
+        so you can check them before any app sees them.
+      </p>
       <ol className="my-3 list-decimal space-y-2 pl-6">
-        <li>Open a project and choose the Products tab.</li>
         <li>
-          Add or sync the store product, then choose{" "}
-          <strong>Add payload</strong> in its row.
+          Open the Products tab and choose <strong>Add payload</strong>, or an
+          existing payload&apos;s format and version badge, in the
+          product&apos;s row.
         </li>
         <li>
-          Select TOML, JSON, or plain text, enter the body, and save. JSON must
-          contain an object rather than an array or scalar; TOML syntax is
-          validated before the write.
+          Pick TOML, JSON, or plain text and edit the body.{" "}
+          <strong>Save draft</strong> keeps it without publishing. JSON must be
+          an object; TOML and JSON syntax are validated before every save.
+        </li>
+        <li>
+          Check the <strong>Preview</strong> tab: the draft beside the published
+          body, a line diff, and the exact HTTP status, headers, ETag, and body
+          an app receives now and after publishing. The ETag is computed for the
+          project&apos;s newest active publishable key.
+        </li>
+        <li>
+          Choose <strong>Publish</strong>, optionally with a note. The draft
+          becomes the next version and the draft is cleared.
         </li>
       </ol>
       <p>
-        Updating a payload increments its server-managed <code>version</code>.
-        Apps can cache the body together with that version and replace the
-        cached value when a later response reports a newer version. Dashboard
-        writes also check the version they opened, so an older browser tab is
-        rejected instead of silently overwriting a newer edit.
+        The <strong>History</strong> tab lists the newest 50 versions per
+        product with author, time, note, and size. Rolling back republishes an
+        older body as a <em>new</em> version, so history stays append-only and
+        apps see a newer ETag. Versions older than the newest 50 are pruned and
+        cannot be restored.
       </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Every publish, rollback, and removal increments <code>version</code>.
+          A removed payload keeps its revision, so a version number is never
+          reused.
+        </li>
+        <li>
+          Organization members can read payloads, drafts, and history. Only
+          owners and admins can save, publish, roll back, or remove.
+        </li>
+        <li>
+          Publish checks the published version and the draft revision you
+          opened. A stale browser tab gets{" "}
+          <code>CLIENT_PAYLOAD_VERSION_CONFLICT</code> or{" "}
+          <code>CLIENT_PAYLOAD_DRAFT_CONFLICT</code> instead of overwriting a
+          newer edit.
+        </li>
+      </ul>
       <p>
-        CI and catalog automation can use the same operation with a secret admin
+        CI and catalog automation use the same operations with a secret admin
         key. Publishable mobile keys are rejected with{" "}
         <code>403 INSUFFICIENT_SCOPE</code>.
       </p>
@@ -243,14 +289,88 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
   -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"`}
       </CodeBlock>
       <p>
-        <code>expectedVersion</code> is optional for automation. Pass it when
-        you want optimistic concurrency protection; omit it for an atomic
-        last-write-wins upsert. Read the same URL with <code>GET</code> to
-        recover the durable revision after deletion. The hosted MCP surface
-        exposes these operations as <code>iapkit_get_client_payload</code>,{" "}
-        <code>iapkit_set_client_payload</code>, and{" "}
-        <code>iapkit_remove_client_payload</code>.
+        <code>PUT</code> publishes immediately, as a draft save and publish in
+        one step, and records the version in history with the API key as its
+        author. It leaves any saved draft in place. <code>expectedVersion</code>{" "}
+        is optional for automation. Pass it when you want optimistic concurrency
+        protection; omit it for an atomic last-write-wins publish. Read the same
+        URL with <code>GET</code> to recover the durable revision after
+        deletion.
       </p>
+      <p>
+        The draft workflow has its own routes under{" "}
+        <code>/v1/products/client-payload/&#123;productId&#125;</code>. Each
+        takes <code>?platform=IOS|Android</code> and a secret key:
+      </p>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[36rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th scope="col" className="px-3 py-2 text-left font-medium">
+                Route
+              </th>
+              <th scope="col" className="px-3 py-2 text-left font-medium">
+                Body or result
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {[
+              ["GET /draft", "{ expectedDraftRevision, draft? }"],
+              [
+                "PUT /draft",
+                "{ format, body, expectedDraftRevision? } → { changed, revision, baseVersion, updatedAt }",
+              ],
+              ["DELETE /draft?expectedDraftRevision=N", "{ ok }"],
+              [
+                "POST /publish",
+                "{ expectedVersion?, expectedDraftRevision?, note? }",
+              ],
+              ["GET /history", "{ versions } newest first, without bodies"],
+              ["GET /history/{version}", "{ version } with its body"],
+              ["POST /rollback", "{ toVersion, expectedVersion?, note? }"],
+            ].map(([route, shape]) => (
+              <tr key={route}>
+                <td className="px-3 py-2 font-mono text-xs">{route}</td>
+                <td className="px-3 py-2 font-mono text-xs">{shape}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Publish and rollback return the same{" "}
+        <code>{`{ id, created, changed, version, updatedAt }`}</code> as{" "}
+        <code>PUT</code>. A rollback or publish that matches the live body
+        returns <code>changed: false</code> and adds no version. The hosted MCP
+        server exposes the same operations as{" "}
+        <code>iapkit_get_client_payload</code>,{" "}
+        <code>iapkit_set_client_payload</code>,{" "}
+        <code>iapkit_remove_client_payload</code>,{" "}
+        <code>iapkit_get_client_payload_draft</code>,{" "}
+        <code>iapkit_set_client_payload_draft</code>,{" "}
+        <code>iapkit_publish_client_payload</code>,{" "}
+        <code>iapkit_get_client_payload_history</code>, and{" "}
+        <code>iapkit_rollback_client_payload</code>.
+      </p>
+      <CodeBlock title="Draft, publish, and roll back from CI" language="bash">
+        {`BASE="https://kit.openiap.dev/v1/products/client-payload/premium_monthly"
+AUTH="Authorization: Bearer openiap-kit_sk_<your-secret-key>"
+
+curl -X PUT "$BASE/draft?platform=IOS" -H "$AUTH" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "format": "json", "body": "{\\"maxItems\\":12}" }'
+
+curl -X POST "$BASE/publish?platform=IOS" -H "$AUTH" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "expectedVersion": 4, "note": "Raise the limit" }'
+
+curl "$BASE/history?platform=IOS" -H "$AUTH"
+
+curl -X POST "$BASE/rollback?platform=IOS" -H "$AUTH" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "toVersion": 4, "expectedVersion": 5 }'`}
+      </CodeBlock>
 
       <CodeBlock title="Client payload shape" language="json">
         {`{
@@ -332,6 +452,13 @@ const refreshed = await api.clientPayload(
 );`}
       </CodeBlock>
       <p>
+        A refresh that hits a network error, <code>429</code>, or a{" "}
+        <code>5xx</code> returns the cached copy with <code>stale: true</code>{" "}
+        instead of throwing. A <code>404</code> still clears the cached copy and
+        throws, because the payload was removed. With nothing cached, every
+        error throws.
+      </p>
+      <p>
         Every app-facing catalog read uses opaque cursor pagination.{" "}
         <code>limit</code> defaults to 25 and accepts 1-50; pass{" "}
         <code>nextCursor</code> back as <code>cursor</code> while{" "}
@@ -377,6 +504,64 @@ const refreshed = await api.clientPayload(
   }
 }`}
       </CodeBlock>
+
+      <h2 className="mt-10 text-2xl font-semibold">Localize payload copy</h2>
+      <p>
+        IAPKit validates only a payload&apos;s format and size; it never reads
+        your keys. To localize app copy, put it in a JSON or TOML body using
+        this convention. The keys inside <code>default</code> and each locale
+        belong to your app.
+      </p>
+      <CodeBlock title="Localized JSON payload" language="json">
+        {`{
+  "schemaVersion": 1,
+  "default": { "headline": "Go premium", "cta": "Subscribe" },
+  "locales": {
+    "ko": { "headline": "프리미엄으로 업그레이드" },
+    "en-US": { "headline": "Go Premium" }
+  }
+}`}
+      </CodeBlock>
+      <p>
+        <code>resolveLocalizedPayload(document, options)</code> picks the first
+        match for <code>locale</code> and its shorter prefixes (
+        <code>zh-Hant-TW</code>, <code>zh-Hant</code>, <code>zh</code>), then{" "}
+        <code>fallbackLocales</code> the same way, and merges it over{" "}
+        <code>default</code>. It returns <code>null</code> when{" "}
+        <code>schemaVersion</code> is missing or not in{" "}
+        <code>supportedSchemaVersions</code> (default <code>[1]</code>), so an
+        older app build ignores a shape it does not understand.{" "}
+        <code>kitApi.localizedClientPayload</code> fetches and resolves a JSON
+        payload in one call and never throws: any failure returns{" "}
+        <code>null</code>. For TOML, parse the body yourself and pass the result
+        to <code>resolveLocalizedPayload</code>.
+      </p>
+      <CodeBlock
+        title="Read localized copy with a fallback"
+        language="typescript"
+      >
+        {`import { kitApi } from "react-native-iap"; // Or "expo-iap"
+
+const copy = await kitApi({
+  apiKey: IAPKIT_PUBLISHABLE_KEY,
+  clientPayloadCache: AsyncStorage,
+}).localizedClientPayload("premium_monthly", "IOS", {
+  locale: "ko-KR",
+  fallbackLocales: ["en-US"],
+  refresh: true,
+});
+
+// null: offline with no cache, removed, unsupported schemaVersion, or not JSON.
+const headline = copy?.values.headline ?? BUILT_IN_COPY.headline;`}
+      </CodeBlock>
+      <Callout kind="note" title="Ship built-in copy">
+        <p>
+          Bundle every string your app reads from a payload. A first launch
+          offline, a removed payload, or a newer <code>schemaVersion</code> all
+          resolve to <code>null</code>, and the app should still render. Prices
+          and trial terms come from the store, never from this copy.
+        </p>
+      </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">
         Return a payload after verification
@@ -436,6 +621,11 @@ const refreshed = await api.clientPayload(
         <li>JSON must parse to a non-null, non-array object.</li>
         <li>
           TOML must be syntactically valid; plain text is otherwise opaque.
+        </li>
+        <li>Drafts are validated by the same rules as published bodies.</li>
+        <li>
+          Publish and rollback notes are limited to 500 characters; history
+          keeps the newest 50 versions per product.
         </li>
       </ul>
       <p>

@@ -118,6 +118,10 @@ describe("deleteProjectWithData", () => {
         body: "x".repeat(16 * 1024),
       }),
       productClientPayloadSummaries: rows("summary"),
+      productClientPayloadDrafts: rows("draft"),
+      productClientPayloadVersions: rows("version", {
+        body: "x".repeat(16 * 1024),
+      }),
       apiKeys: rows("api_key"),
       purchases: rows("purchase", { rawSignedPayload: "signed" }),
       files: rows("file").map((row, index) => ({
@@ -156,7 +160,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(41);
+    expect(calls).toBe(45);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

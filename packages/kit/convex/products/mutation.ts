@@ -1,8 +1,21 @@
 import { mutation, type MutationCtx } from "../_generated/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
-import { parse as parseToml } from "smol-toml";
 
+import {
+  clientPayloadDraftWriteResultValidator,
+  clientPayloadError,
+  clientPayloadFormatValidator,
+  clientPayloadWriteResultValidator,
+  discardClientPayloadDraft,
+  publishClientPayload,
+  publishClientPayloadDraft,
+  removeClientPayload,
+  rollbackClientPayload,
+  saveClientPayloadDraft,
+  type ClientPayloadAuthor,
+  type ClientPayloadKey,
+} from "./clientPayloads";
 import {
   normalizeProductLocalizations,
   productLocalizationsValidator,
@@ -14,11 +27,6 @@ import {
 } from "../projects/helpers";
 
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
-const clientPayloadFormatValidator = v.union(
-  v.literal("toml"),
-  v.literal("json"),
-  v.literal("text"),
-);
 const typeValidator = v.union(
   v.literal("Subscription"),
   v.literal("NonConsumable"),
@@ -31,103 +39,6 @@ const stateValidator = v.union(
   v.literal("Removed"),
 );
 type ProductState = "Draft" | "Ready" | "Active" | "Removed";
-export type ProductClientPayloadFormat = "toml" | "json" | "text";
-
-export const MAX_PRODUCT_CLIENT_PAYLOAD_BYTES = 16 * 1024;
-
-type ProductClientPayloadErrorData = {
-  [key: string]: string | number | boolean | null | undefined;
-  code:
-    | "CLIENT_PAYLOAD_INVALID"
-    | "CLIENT_PAYLOAD_VERSION_CONFLICT"
-    | "PRODUCT_NOT_FOUND"
-    | "PROJECT_ACCESS_DENIED";
-  message: string;
-};
-
-function clientPayloadError(
-  code: ProductClientPayloadErrorData["code"],
-  message: string,
-  details: Record<string, string | number | boolean | null | undefined> = {},
-): ConvexError<ProductClientPayloadErrorData> {
-  return new ConvexError<ProductClientPayloadErrorData>({
-    code,
-    message,
-    ...details,
-  });
-}
-
-/** Validate payload contents without normalizing the stored body. */
-export function validateProductClientPayloadBody(
-  format: ProductClientPayloadFormat,
-  body: string,
-): void {
-  if (!body.trim()) {
-    throw clientPayloadError(
-      "CLIENT_PAYLOAD_INVALID",
-      "Client payload body must not be blank",
-    );
-  }
-
-  const byteLength = new TextEncoder().encode(body).byteLength;
-  if (byteLength > MAX_PRODUCT_CLIENT_PAYLOAD_BYTES) {
-    throw clientPayloadError(
-      "CLIENT_PAYLOAD_INVALID",
-      `Client payload body must be at most ${MAX_PRODUCT_CLIENT_PAYLOAD_BYTES} UTF-8 bytes`,
-      { byteLength, maxBytes: MAX_PRODUCT_CLIENT_PAYLOAD_BYTES },
-    );
-  }
-
-  if (format === "json") {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(body);
-    } catch {
-      throw clientPayloadError(
-        "CLIENT_PAYLOAD_INVALID",
-        "Client payload body is not valid JSON",
-      );
-    }
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      Array.isArray(parsed)
-    ) {
-      throw clientPayloadError(
-        "CLIENT_PAYLOAD_INVALID",
-        "JSON client payload must contain an object at the top level",
-      );
-    }
-  } else if (format === "toml") {
-    try {
-      parseToml(body);
-    } catch {
-      throw clientPayloadError(
-        "CLIENT_PAYLOAD_INVALID",
-        "Client payload body is not valid TOML",
-      );
-    }
-  }
-}
-
-export function assertProductClientPayloadVersion(
-  expectedVersion: number,
-  actualVersion: number | null,
-): void {
-  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
-    throw clientPayloadError(
-      "CLIENT_PAYLOAD_INVALID",
-      "expectedVersion must be a non-negative safe integer",
-    );
-  }
-  if (expectedVersion !== (actualVersion ?? 0)) {
-    throw clientPayloadError(
-      "CLIENT_PAYLOAD_VERSION_CONFLICT",
-      "Client payload was changed by another request",
-      { expectedVersion, actualVersion },
-    );
-  }
-}
 
 export function nextStateForKitProductUpsert(
   requestedState?: ProductState,
@@ -159,380 +70,232 @@ async function resolveProjectForMutationArgs(
   throw new Error("apiKey or projectId is required");
 }
 
-async function resolveProjectForClientPayloadMutation(
+type ClientPayloadWriter = {
+  key: ClientPayloadKey;
+  author: ClientPayloadAuthor;
+};
+
+// Members may read payloads, drafts, and history; only owners and admins
+// change them.
+async function resolveDashboardClientPayloadWriter(
   ctx: MutationCtx,
-  projectId: Id<"projects">,
-): Promise<Doc<"projects">> {
-  const resolved = await resolveProjectByIdForCurrentUserFromDb(ctx, projectId);
+  args: {
+    projectId: Id<"projects">;
+    platform: "IOS" | "Android";
+    productId: string;
+  },
+): Promise<ClientPayloadWriter> {
+  const resolved = await resolveProjectByIdForCurrentUserFromDb(
+    ctx,
+    args.projectId,
+  );
   if (!resolved) {
     throw clientPayloadError(
       "PROJECT_ACCESS_DENIED",
       "Project not found or access denied",
     );
   }
-  return resolved.project;
-}
-
-async function syncProductClientPayloadSummary(
-  ctx: MutationCtx,
-  input: {
-    projectId: Id<"projects">;
-    platform: "IOS" | "Android";
-    productId: string;
-    format: ProductClientPayloadFormat;
-    version: number;
-    createdAt: number;
-    updatedAt: number;
-  },
-): Promise<void> {
-  const existing = await ctx.db
-    .query("productClientPayloadSummaries")
-    .withIndex("by_project_and_platform_and_product", (q) =>
-      q
-        .eq("projectId", input.projectId)
-        .eq("platform", input.platform)
-        .eq("productId", input.productId),
-    )
-    .unique();
-  if (!existing) {
-    await ctx.db.insert("productClientPayloadSummaries", {
-      ...input,
-      deleted: false,
-    });
-    return;
-  }
-  if (
-    existing.format !== input.format ||
-    existing.version !== input.version ||
-    existing.updatedAt !== input.updatedAt ||
-    existing.deleted === true
-  ) {
-    await ctx.db.patch(existing._id, {
-      format: input.format,
-      version: input.version,
-      updatedAt: input.updatedAt,
-      deleted: false,
-    });
-  }
-}
-
-function currentProductClientPayloadRevision(
-  payload: Doc<"productClientPayloads"> | null,
-  summary: Doc<"productClientPayloadSummaries"> | null,
-): number {
-  return Math.max(payload?.version ?? 0, summary?.version ?? 0);
-}
-
-type UpsertProductClientPayloadInput = {
-  platform: "IOS" | "Android";
-  productId: string;
-  format: ProductClientPayloadFormat;
-  body: string;
-  expectedVersion?: number;
-};
-
-async function upsertProductClientPayloadForProject(
-  ctx: MutationCtx,
-  project: Doc<"projects">,
-  args: UpsertProductClientPayloadInput,
-) {
-  validateProductClientPayloadBody(args.format, args.body);
-
-  const product = await ctx.db
-    .query("products")
-    .withIndex("by_project_and_platform_and_product", (q) =>
-      q
-        .eq("projectId", project._id)
-        .eq("platform", args.platform)
-        .eq("productId", args.productId),
-    )
-    .unique();
-  if (!product) {
+  if (resolved.role === "member") {
     throw clientPayloadError(
-      "PRODUCT_NOT_FOUND",
-      "A matching product must exist before client payload can be saved",
+      "PROJECT_ACCESS_DENIED",
+      "Only organization owners and admins can change client payloads",
     );
   }
-
-  const existing = await ctx.db
-    .query("productClientPayloads")
-    .withIndex("by_project_and_platform_and_product", (q) =>
-      q
-        .eq("projectId", project._id)
-        .eq("platform", args.platform)
-        .eq("productId", args.productId),
-    )
-    .unique();
-  const summary = await ctx.db
-    .query("productClientPayloadSummaries")
-    .withIndex("by_project_and_platform_and_product", (q) =>
-      q
-        .eq("projectId", project._id)
-        .eq("platform", args.platform)
-        .eq("productId", args.productId),
-    )
-    .unique();
-  const currentRevision = currentProductClientPayloadRevision(
-    existing,
-    summary,
-  );
-  if (args.expectedVersion !== undefined) {
-    assertProductClientPayloadVersion(
-      args.expectedVersion,
-      currentRevision === 0 ? null : currentRevision,
-    );
-  }
-
-  if (
-    existing &&
-    summary?.deleted !== true &&
-    existing.version === currentRevision
-  ) {
-    if (existing.format === args.format && existing.body === args.body) {
-      await syncProductClientPayloadSummary(ctx, {
-        projectId: project._id,
-        platform: args.platform,
-        productId: args.productId,
-        format: existing.format,
-        version: existing.version,
-        createdAt: existing.createdAt,
-        updatedAt: existing.updatedAt,
-      });
-      return {
-        id: existing._id,
-        created: false,
-        changed: false,
-        version: existing.version,
-        updatedAt: existing.updatedAt,
-      };
-    }
-
-    const version = currentRevision + 1;
-    const updatedAt = Date.now();
-    await ctx.db.patch(existing._id, {
-      format: args.format,
-      body: args.body,
-      version,
-      updatedAt,
-    });
-    await syncProductClientPayloadSummary(ctx, {
-      projectId: project._id,
+  return {
+    key: {
+      projectId: resolved.project._id,
       platform: args.platform,
       productId: args.productId,
-      format: args.format,
-      version,
-      createdAt: existing.createdAt,
-      updatedAt,
-    });
-    return {
-      id: existing._id,
-      created: false,
-      changed: true,
-      version,
-      updatedAt,
-    };
-  }
-
-  const now = Date.now();
-  const version = currentRevision + 1;
-  const id = existing
-    ? existing._id
-    : await ctx.db.insert("productClientPayloads", {
-        projectId: project._id,
-        platform: args.platform,
-        productId: args.productId,
-        format: args.format,
-        body: args.body,
-        version,
-        createdAt: now,
-        updatedAt: now,
-      });
-  if (existing) {
-    await ctx.db.patch(existing._id, {
-      format: args.format,
-      body: args.body,
-      version,
-      updatedAt: now,
-    });
-  }
-  await syncProductClientPayloadSummary(ctx, {
-    projectId: project._id,
-    platform: args.platform,
-    productId: args.productId,
-    format: args.format,
-    version,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  });
-  return {
-    id,
-    created: !existing,
-    changed: true,
-    version,
-    updatedAt: now,
+    },
+    author: { userId: resolved.userId },
   };
 }
 
-async function removeProductClientPayloadForProject(
+async function resolveApiKeyClientPayloadWriter(
   ctx: MutationCtx,
-  project: Doc<"projects">,
-  args: {
-    platform: "IOS" | "Android";
-    productId: string;
-    expectedVersion?: number;
-  },
-) {
-  const existing = await ctx.db
-    .query("productClientPayloads")
-    .withIndex("by_project_and_platform_and_product", (q) =>
-      q
-        .eq("projectId", project._id)
-        .eq("platform", args.platform)
-        .eq("productId", args.productId),
-    )
-    .unique();
-  const summary = await ctx.db
-    .query("productClientPayloadSummaries")
-    .withIndex("by_project_and_platform_and_product", (q) =>
-      q
-        .eq("projectId", project._id)
-        .eq("platform", args.platform)
-        .eq("productId", args.productId),
-    )
-    .unique();
-
-  const currentRevision = currentProductClientPayloadRevision(
-    existing,
-    summary,
+  args: { apiKey: string; platform: "IOS" | "Android"; productId: string },
+): Promise<ClientPayloadWriter> {
+  const resolved = await resolveProjectByApiKeyFromDb(
+    ctx,
+    args.apiKey,
+    "admin",
   );
-  if (args.expectedVersion !== undefined) {
-    assertProductClientPayloadVersion(
-      args.expectedVersion,
-      currentRevision === 0 ? null : currentRevision,
+  if (!resolved) {
+    throw clientPayloadError(
+      "PROJECT_ACCESS_DENIED",
+      "Project not found or access denied",
     );
   }
-  if (!existing) return { ok: false };
-
-  const version = currentRevision + 1;
-  const updatedAt = Date.now();
-  await ctx.db.delete(existing._id);
-  if (summary) {
-    await ctx.db.patch(summary._id, {
-      format: existing.format,
-      version,
-      deleted: true,
-      updatedAt,
-    });
-  } else {
-    await ctx.db.insert("productClientPayloadSummaries", {
-      projectId: project._id,
+  return {
+    key: {
+      projectId: resolved.project._id,
       platform: args.platform,
       productId: args.productId,
-      format: existing.format,
-      version,
-      deleted: true,
-      createdAt: existing.createdAt,
-      updatedAt,
-    });
-  }
-  return { ok: true };
+    },
+    author: resolved.keyId ? { apiKeyId: resolved.keyId } : {},
+  };
 }
 
-export const upsertProductClientPayload = mutation({
-  args: {
-    projectId: v.id("projects"),
-    platform: platformValidator,
-    productId: v.string(),
-    format: clientPayloadFormatValidator,
-    body: v.string(),
-    expectedVersion: v.number(),
-  },
-  returns: v.object({
-    id: v.id("productClientPayloads"),
-    created: v.boolean(),
-    changed: v.boolean(),
-    version: v.number(),
-    updatedAt: v.number(),
-  }),
-  handler: async (ctx, args) => {
-    const project = await resolveProjectForClientPayloadMutation(
-      ctx,
-      args.projectId,
-    );
-    return upsertProductClientPayloadForProject(ctx, project, args);
-  },
-});
+const dashboardKeyArgs = {
+  projectId: v.id("projects"),
+  platform: platformValidator,
+  productId: v.string(),
+};
+const apiKeyKeyArgs = {
+  apiKey: v.string(),
+  platform: platformValidator,
+  productId: v.string(),
+};
+const draftArgs = {
+  format: clientPayloadFormatValidator,
+  body: v.string(),
+  expectedDraftRevision: v.optional(v.number()),
+};
+const publishArgs = {
+  expectedVersion: v.optional(v.number()),
+  expectedDraftRevision: v.optional(v.number()),
+  note: v.optional(v.string()),
+};
+const rollbackArgs = {
+  toVersion: v.number(),
+  expectedVersion: v.optional(v.number()),
+  note: v.optional(v.string()),
+};
 
+/** Direct publish for automation: a draft save and publish in one step. */
 export const upsertProductClientPayloadWithApiKey = mutation({
   args: {
-    apiKey: v.string(),
-    platform: platformValidator,
-    productId: v.string(),
+    ...apiKeyKeyArgs,
     format: clientPayloadFormatValidator,
     body: v.string(),
     expectedVersion: v.optional(v.number()),
   },
-  returns: v.object({
-    id: v.id("productClientPayloads"),
-    created: v.boolean(),
-    changed: v.boolean(),
-    version: v.number(),
-    updatedAt: v.number(),
-  }),
+  returns: clientPayloadWriteResultValidator,
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(
-      ctx,
-      args.apiKey,
-      "admin",
-    );
-    if (!resolved) {
-      throw clientPayloadError(
-        "PROJECT_ACCESS_DENIED",
-        "Project not found or access denied",
-      );
-    }
-    return upsertProductClientPayloadForProject(ctx, resolved.project, args);
+    const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
+    return await publishClientPayload(ctx, key, {
+      format: args.format,
+      body: args.body,
+      expectedVersion: args.expectedVersion,
+      author,
+    });
   },
 });
 
 export const removeProductClientPayload = mutation({
-  args: {
-    projectId: v.id("projects"),
-    platform: platformValidator,
-    productId: v.string(),
-    expectedVersion: v.number(),
-  },
+  args: { ...dashboardKeyArgs, expectedVersion: v.number() },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
-    const project = await resolveProjectForClientPayloadMutation(
+    const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
-      args.projectId,
+      args,
     );
-    return removeProductClientPayloadForProject(ctx, project, args);
+    return await removeClientPayload(ctx, key, {
+      expectedVersion: args.expectedVersion,
+      author,
+    });
   },
 });
 
 export const removeProductClientPayloadWithApiKey = mutation({
-  args: {
-    apiKey: v.string(),
-    platform: platformValidator,
-    productId: v.string(),
-    expectedVersion: v.optional(v.number()),
-  },
+  args: { ...apiKeyKeyArgs, expectedVersion: v.optional(v.number()) },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(
+    const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
+    return await removeClientPayload(ctx, key, {
+      expectedVersion: args.expectedVersion,
+      author,
+    });
+  },
+});
+
+export const saveProductClientPayloadDraft = mutation({
+  args: { ...dashboardKeyArgs, ...draftArgs },
+  returns: clientPayloadDraftWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key, author } = await resolveDashboardClientPayloadWriter(
       ctx,
-      args.apiKey,
-      "admin",
+      args,
     );
-    if (!resolved) {
-      throw clientPayloadError(
-        "PROJECT_ACCESS_DENIED",
-        "Project not found or access denied",
-      );
-    }
-    return removeProductClientPayloadForProject(ctx, resolved.project, args);
+    return await saveClientPayloadDraft(ctx, key, {
+      format: args.format,
+      body: args.body,
+      expectedDraftRevision: args.expectedDraftRevision,
+      userId: author.userId,
+    });
+  },
+});
+
+export const saveProductClientPayloadDraftWithApiKey = mutation({
+  args: { ...apiKeyKeyArgs, ...draftArgs },
+  returns: clientPayloadDraftWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key } = await resolveApiKeyClientPayloadWriter(ctx, args);
+    return await saveClientPayloadDraft(ctx, key, {
+      format: args.format,
+      body: args.body,
+      expectedDraftRevision: args.expectedDraftRevision,
+    });
+  },
+});
+
+export const discardProductClientPayloadDraft = mutation({
+  args: { ...dashboardKeyArgs, expectedDraftRevision: v.number() },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, args) => {
+    const { key } = await resolveDashboardClientPayloadWriter(ctx, args);
+    return await discardClientPayloadDraft(ctx, key, args);
+  },
+});
+
+export const discardProductClientPayloadDraftWithApiKey = mutation({
+  args: { ...apiKeyKeyArgs, expectedDraftRevision: v.optional(v.number()) },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, args) => {
+    const { key } = await resolveApiKeyClientPayloadWriter(ctx, args);
+    return await discardClientPayloadDraft(ctx, key, args);
+  },
+});
+
+export const publishProductClientPayloadDraft = mutation({
+  args: { ...dashboardKeyArgs, ...publishArgs },
+  returns: clientPayloadWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key, author } = await resolveDashboardClientPayloadWriter(
+      ctx,
+      args,
+    );
+    return await publishClientPayloadDraft(ctx, key, { ...args, author });
+  },
+});
+
+export const publishProductClientPayloadDraftWithApiKey = mutation({
+  args: { ...apiKeyKeyArgs, ...publishArgs },
+  returns: clientPayloadWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
+    return await publishClientPayloadDraft(ctx, key, { ...args, author });
+  },
+});
+
+export const rollbackProductClientPayload = mutation({
+  args: { ...dashboardKeyArgs, ...rollbackArgs },
+  returns: clientPayloadWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key, author } = await resolveDashboardClientPayloadWriter(
+      ctx,
+      args,
+    );
+    return await rollbackClientPayload(ctx, key, { ...args, author });
+  },
+});
+
+export const rollbackProductClientPayloadWithApiKey = mutation({
+  args: { ...apiKeyKeyArgs, ...rollbackArgs },
+  returns: clientPayloadWriteResultValidator,
+  handler: async (ctx, args) => {
+    const { key, author } = await resolveApiKeyClientPayloadWriter(ctx, args);
+    return await rollbackClientPayload(ctx, key, { ...args, author });
   },
 });
 

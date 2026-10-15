@@ -1009,6 +1009,63 @@ const schema = defineSchema({
       "productId",
     ]),
 
+  // Unpublished client payload edits; app-facing reads never touch this
+  // table. Publish and discard clear the body but keep the row, so `revision`
+  // never resets and a stale publish cannot match a newer draft.
+  productClientPayloadDrafts: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    productId: v.string(),
+    format: v.optional(
+      v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+    ),
+    body: v.optional(v.string()),
+    // Published version when the draft was last saved.
+    baseVersion: v.optional(v.number()),
+    revision: v.number(),
+    updatedBy: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_platform_and_product", [
+      "projectId",
+      "platform",
+      "productId",
+    ]),
+
+  // Append-only log of published client payload versions, newest 50 per
+  // product. A remove entry has no body; rollback republishes an entry's body
+  // as a new version.
+  productClientPayloadVersions: defineTable({
+    projectId: v.id("projects"),
+    platform: v.union(v.literal("IOS"), v.literal("Android")),
+    productId: v.string(),
+    version: v.number(),
+    action: v.union(
+      v.literal("publish"),
+      v.literal("rollback"),
+      v.literal("remove"),
+    ),
+    format: v.optional(
+      v.union(v.literal("toml"), v.literal("json"), v.literal("text")),
+    ),
+    body: v.optional(v.string()),
+    rolledBackFrom: v.optional(v.number()),
+    note: v.optional(v.string()),
+    // Neither is set for a version published before history existed.
+    authorUserId: v.optional(v.id("users")),
+    authorApiKeyId: v.optional(v.id("apiKeys")),
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_platform_and_product_and_version", [
+      "projectId",
+      "platform",
+      "productId",
+      "version",
+    ]),
+
   // Jobs for the `runProductSyncIOS` / `runProductSyncAndroid` workers. A sync
   // can take minutes, and iOS Safari aborts a pending fetch when the tab
   // backgrounds or the network changes, so the dashboard enqueues a job and

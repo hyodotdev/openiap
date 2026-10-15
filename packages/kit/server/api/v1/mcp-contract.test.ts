@@ -54,6 +54,24 @@ type McpSetClientPayloadResponse = Awaited<
 type McpRemoveClientPayloadResponse = Awaited<
   ReturnType<McpClient["removeClientPayload"]>
 >;
+type McpClientPayloadDraftResponse = Awaited<
+  ReturnType<McpClient["getClientPayloadDraft"]>
+>;
+type McpSaveClientPayloadDraftResponse = Awaited<
+  ReturnType<McpClient["saveClientPayloadDraft"]>
+>;
+type McpPublishClientPayloadResponse = Awaited<
+  ReturnType<McpClient["publishClientPayload"]>
+>;
+type McpClientPayloadHistoryResponse = Awaited<
+  ReturnType<McpClient["listClientPayloadHistory"]>
+>;
+type McpClientPayloadVersionResponse = Awaited<
+  ReturnType<McpClient["getClientPayloadVersion"]>
+>;
+type McpRollbackClientPayloadResponse = Awaited<
+  ReturnType<McpClient["rollbackClientPayload"]>
+>;
 type McpSyncResponse = Awaited<ReturnType<McpClient["syncProducts"]>>;
 type McpSyncJobResponse = Awaited<ReturnType<McpClient["syncJob"]>>;
 type McpHealthResponse = Awaited<ReturnType<McpClient["health"]>>;
@@ -93,6 +111,34 @@ type ServerSetClientPayloadResponse = FunctionReturnType<
 type ServerRemoveClientPayloadResponse = FunctionReturnType<
   typeof api.products.mutation.removeProductClientPayloadWithApiKey
 >;
+type ServerClientPayloadDraftResponse = NonNullable<
+  FunctionReturnType<
+    typeof api.products.query.getProductClientPayloadDraftWithApiKey
+  >
+>;
+type ServerSaveClientPayloadDraftResponse = FunctionReturnType<
+  typeof api.products.mutation.saveProductClientPayloadDraftWithApiKey
+>;
+type ServerPublishClientPayloadResponse = FunctionReturnType<
+  typeof api.products.mutation.publishProductClientPayloadDraftWithApiKey
+>;
+type ServerClientPayloadHistoryResponse = {
+  versions: NonNullable<
+    FunctionReturnType<
+      typeof api.products.query.listProductClientPayloadHistoryWithApiKey
+    >
+  >;
+};
+type ServerClientPayloadVersionResponse = {
+  version: NonNullable<
+    FunctionReturnType<
+      typeof api.products.query.getProductClientPayloadHistoryVersionWithApiKey
+    >
+  >;
+};
+type ServerRollbackClientPayloadResponse = FunctionReturnType<
+  typeof api.products.mutation.rollbackProductClientPayloadWithApiKey
+>;
 type ServerSyncResponse = FunctionReturnType<
   typeof api.products.jobs.enqueueProductSync
 >;
@@ -100,24 +146,19 @@ type ServerSyncJobResponse = NonNullable<
   FunctionReturnType<typeof api.products.jobs.getSyncJobById>
 >;
 
+// Kit's Convex layer returns payload `format` as its enum; the shared client
+// types keep it an opaque string so SDKs survive a new format.
 type NormalizeContract<T> = T extends { __tableName: string }
   ? string
   : T extends readonly (infer Item)[]
     ? NormalizeContract<Item>[]
-    : T extends {
-          format: string;
-          body: string;
-          version: number;
-          updatedAt: number;
-        }
+    : T extends object
       ? {
           [Key in keyof T]: Key extends "format"
             ? string
             : NormalizeContract<T[Key]>;
         }
-      : T extends object
-        ? { [Key in keyof T]: NormalizeContract<T[Key]> }
-        : T;
+      : T;
 
 describe("MCP Kit response contracts", () => {
   beforeEach(() => {
@@ -214,6 +255,15 @@ describe("MCP Kit response contracts", () => {
     expectTypeOf<McpClientPayloadStateResponse>().toEqualTypeOf<
       NormalizeContract<ServerClientPayloadStateResponse>
     >();
+    expectTypeOf<McpClientPayloadDraftResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadDraftResponse>
+    >();
+    expectTypeOf<McpClientPayloadHistoryResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadHistoryResponse>
+    >();
+    expectTypeOf<McpClientPayloadVersionResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadVersionResponse>
+    >();
     expectTypeOf<McpSyncJobResponse>().toEqualTypeOf<
       NormalizeContract<ServerSyncJobResponse>
     >();
@@ -230,6 +280,13 @@ describe("MCP Kit response contracts", () => {
       NormalizeContract<ServerSetClientPayloadResponse>
     >();
     expectTypeOf<McpRemoveClientPayloadResponse>().toEqualTypeOf<ServerRemoveClientPayloadResponse>();
+    expectTypeOf<McpSaveClientPayloadDraftResponse>().toEqualTypeOf<ServerSaveClientPayloadDraftResponse>();
+    expectTypeOf<McpPublishClientPayloadResponse>().toEqualTypeOf<
+      NormalizeContract<ServerPublishClientPayloadResponse>
+    >();
+    expectTypeOf<McpRollbackClientPayloadResponse>().toEqualTypeOf<
+      NormalizeContract<ServerRollbackClientPayloadResponse>
+    >();
     expectTypeOf<McpSyncResponse>().toEqualTypeOf<
       NormalizeContract<ServerSyncResponse>
     >();
@@ -237,6 +294,23 @@ describe("MCP Kit response contracts", () => {
 
   it("keeps the health response aligned", () => {
     expectTypeOf<McpHealthResponse>().toEqualTypeOf<HealthPayload>();
+  });
+
+  it("wraps payload history from the real handlers", async () => {
+    const entry = { version: 2, action: "publish", createdAt: 1 };
+    mocks.query.mockResolvedValueOnce([entry]).mockResolvedValueOnce(entry);
+    const client = kitClient({
+      apiKey: "openiap-kit_sk_contract",
+      baseUrl: "http://kit.test",
+    });
+    const target = { productId: "premium", platform: "IOS" as const };
+
+    await expect(client.listClientPayloadHistory(target)).resolves.toEqual({
+      versions: [entry],
+    });
+    await expect(
+      client.getClientPayloadVersion({ ...target, version: 2 }),
+    ).resolves.toEqual({ version: entry });
   });
 
   it("calls the real catalog handler with pagination", async () => {

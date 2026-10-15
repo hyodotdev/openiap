@@ -138,13 +138,16 @@ export interface EventSubscription {
 
 // Export hooks
 export {useIAP} from './hooks/useIAP';
-export {kitApi, KitApiError} from './kit-api';
+export {kitApi, KitApiError, resolveLocalizedPayload} from './kit-api';
 export {getUserFriendlyErrorMessage} from './utils/errorMapping';
 export type {
   KitApiOptions,
   KitClientPayloadCache,
   KitClientPayloadOptions,
   KitClientPayloadResponse,
+  KitLocalizedClientPayload,
+  KitLocalizedClientPayloadOptions,
+  KitLocalizedPayloadOptions,
   KitProduct,
   KitProductClientPayload,
   KitProductOffer,

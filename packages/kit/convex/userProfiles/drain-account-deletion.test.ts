@@ -314,6 +314,21 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
         version: 1,
       });
     }
+    await ctx.db.insert("productClientPayloadDrafts", {
+      projectId,
+      platform: "IOS",
+      productId: "premium_0",
+      revision: 1,
+    });
+    await ctx.db.insert("productClientPayloadVersions", {
+      projectId,
+      platform: "IOS",
+      productId: "premium_0",
+      version: 1,
+      action: "publish",
+      format: "text",
+      body: "rule",
+    });
     // A row from each domain an account-local cascade missed: the production
     // handler must delegate to the shared project cascade.
     await ctx.db.insert("webhookEvents", { projectId });
@@ -363,6 +378,8 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("files")).toBe(0);
     expect(ctx.db.countRows("productClientPayloads")).toBe(0);
     expect(ctx.db.countRows("productClientPayloadSummaries")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloadDrafts")).toBe(0);
+    expect(ctx.db.countRows("productClientPayloadVersions")).toBe(0);
     expect(ctx.db.countRows("webhookEvents")).toBe(0);
     expect(ctx.db.countRows("commerceEvents")).toBe(0);
     expect(ctx.db.countRows("outboundDestinations")).toBe(0);
