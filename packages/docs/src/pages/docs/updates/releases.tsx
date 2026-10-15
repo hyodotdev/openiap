@@ -40,7 +40,21 @@ const APP_OWNERSHIP_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
     tag: 'openiap-client-protocol-1.0.3',
   },
   { name: 'openiap-apple', version: '4.0.3', tag: '4.0.3' },
+  { name: 'openiap-google', version: '4.0.3', tag: 'google-4.0.3' },
+  {
+    name: 'react-native-iap',
+    version: '17.0.3',
+    tag: 'react-native-iap-17.0.3',
+  },
+  { name: 'expo-iap', version: '6.0.3', tag: 'expo-iap-6.0.3' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.3',
+    tag: 'flutter-iap-11.0.3',
+  },
   { name: 'godot-iap', version: '4.0.3', tag: 'godot-iap-4.0.3' },
+  { name: 'kmp-iap', version: '4.0.3', tag: 'kmp-iap-4.0.3' },
+  { name: 'OpenIap.Maui', version: '3.0.3', tag: 'maui-iap-3.0.3' },
 ];
 
 const PURCHASE_ACCURACY_RELEASES: readonly ReleaseMetadata[] = [
@@ -593,15 +607,15 @@ function Releases() {
             Apps can offer a Retry action after StoreKit&apos;s normal app
             transaction lookup fails. The optional <code>apple.refresh</code>{' '}
             flag requests fresh signed evidence and may show App Store
-            authentication.
+            authentication. See{' '}
+            <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>.
           </p>
           <h5>Framework libraries</h5>
-          <ul>
-            <li>
-              <strong>godot-iap 4.0.3</strong> allows five minutes for the
-              system authentication sheet to finish during an explicit refresh.
-            </li>
-          </ul>
+          <p>
+            All six framework SDKs expose the Apple refresh option. Flutter
+            forwards the nested Apple settings, and godot-iap allows five
+            minutes for the system authentication sheet during a refresh.
+          </p>
           <h5>Integration notes</h5>
           <p>
             Rebuild native apps after upgrading. Enable the flag only from a

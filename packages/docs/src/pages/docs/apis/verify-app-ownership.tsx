@@ -125,6 +125,12 @@ export default function VerifyAppOwnership() {
         this method. Classes extending QueryResolver inherit an unsupported
         default; FlutterInappPurchase already implements the capability.
       </p>
+      <p>
+        Existing custom Dart resolvers and handler functions must also accept
+        the optional named parameter{' '}
+        <code>VerifyAppOwnershipOptionsIOS? apple</code>, even when they ignore
+        Apple settings.
+      </p>
 
       <AnchorLink id="parameters" level="h2">
         Parameters
