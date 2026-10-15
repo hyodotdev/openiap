@@ -177,6 +177,21 @@ describe('BackendEntitlementFlow', () => {
     expect(ExpoIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves a cancelled purchase to onPurchaseError', async () => {
+    const unhandled = jest.fn();
+    process.on('unhandledRejection', unhandled);
+    mockIap.requestPurchase.mockRejectedValueOnce(new Error('cancelled'));
+    const {getByText} = await renderReady();
+
+    await act(async () => {
+      fireEvent.press(getByText('Buy 10 Bulbs · $1'));
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    process.off('unhandledRejection', unhandled);
+
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
   it('subscribes with the first Play offer', async () => {
     mockIap.subscriptions = [
       {

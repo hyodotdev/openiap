@@ -153,6 +153,10 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
       },
     });
 
+  // onPurchaseError already reports a failure such as a cancelled sheet.
+  const buy = (request: Parameters<typeof requestPurchase>[0]) =>
+    requestPurchase(request).catch(() => undefined);
+
   const subscribe = (subscription: ProductSubscription) => {
     // Play needs one of the subscription's offers.
     const offerToken =
@@ -161,7 +165,7 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
             (offer) => offer.offerTokenAndroid,
           )?.offerTokenAndroid
         : undefined;
-    return requestPurchase({
+    return buy({
       request: {
         apple: {sku: subscription.id},
         google: {
@@ -251,7 +255,7 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
               key={product.id}
               style={styles.button}
               onPress={() =>
-                void requestPurchase({
+                void buy({
                   request: {
                     apple: {sku: product.id},
                     google: {skus: [product.id]},
