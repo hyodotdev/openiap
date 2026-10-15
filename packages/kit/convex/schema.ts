@@ -776,9 +776,10 @@ const schema = defineSchema({
     // lastEvent* ordering stamp; it keeps an older notification, or a verify
     // of older evidence, from rolling the state back.
     resyncedAt: v.optional(v.number()),
-    // A re-sync told the current owner this row's entitlement, so later
-    // entitlement deltas compare with it. Cleared when the owner changes.
-    resyncReported: v.optional(v.boolean()),
+    // The entitlement a re-sync told the current owner. A row with no store
+    // event compares later deltas with it, since a verify can move the row
+    // without telling anyone. Cleared when the owner changes.
+    resyncReportedActive: v.optional(v.boolean()),
     // When a verify last asked the store to settle a dispute with the
     // re-synced state; it may ask again an hour later.
     resyncDisputedAt: v.optional(v.number()),

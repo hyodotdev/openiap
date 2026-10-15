@@ -470,9 +470,10 @@ export async function applyStoreResyncHandler(
       resyncedAt: args.observedAt,
     },
   );
+  const active = entitlementActive(next, now);
   // The delta below tells the owner, so a later store event compares with it.
   if (existing?.userId) {
-    await ctx.db.patch(subscriptionId, { resyncReported: true });
+    await ctx.db.patch(subscriptionId, { resyncReportedActive: active });
   }
   await ctx.db.patch(event._id, { appliedAt: now });
   // The row's id is IAPKit's own, so it must not pose as a store
@@ -481,7 +482,7 @@ export async function applyStoreResyncHandler(
   const emitted = await emitCommerceEvent(ctx, {
     projectId: args.projectId,
     transition: null,
-    active: entitlementActive(next, now),
+    active,
     previouslyActive,
     sourceEvent,
     subscriptionId,

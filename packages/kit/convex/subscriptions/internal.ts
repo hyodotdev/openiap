@@ -1018,16 +1018,16 @@ function disputesResync(
 
 /**
  * The entitlement gate a row's owner was last told, or undefined when nothing
- * was: a store event reports it (a late bind repeats its grant), and so does a
- * re-sync that reached the owner; a verify alone reports nothing. Read at the
- * row's own `updatedAt`, since today's clock may already have closed it.
+ * was. A store event reports the row's state (a late bind repeats its grant),
+ * read at the row's own `updatedAt` since today's clock may already have
+ * closed it. Without one, only a re-sync that reached the owner told anything,
+ * and a verify since then may have moved the row silently.
  */
 export function reportedEntitlement(
   row: Doc<"subscriptions"> | null,
 ): boolean | undefined {
-  if (!row || (row.lastEventId === undefined && !row.resyncReported)) {
-    return undefined;
-  }
+  if (!row) return undefined;
+  if (row.lastEventId === undefined) return row.resyncReportedActive;
   return isActive(row, row.updatedAt);
 }
 
@@ -1486,7 +1486,7 @@ export async function rebindSubscriptionToUserHandler(
   await ctx.db.patch(sub._id, {
     userId: args.userId,
     accountErased: undefined,
-    resyncReported: undefined,
+    resyncReportedActive: undefined,
     updatedAt: now,
   });
   if (!entitled) return { subscriptionId: sub._id, notified: true };
@@ -1718,7 +1718,7 @@ export async function drainSubscriptionUserErasurePage(
     await ctx.db.patch(subscription._id, {
       userId: undefined,
       accountErased: true,
-      resyncReported: undefined,
+      resyncReportedActive: undefined,
     });
   }
   for (const purchase of purchases) {

@@ -447,6 +447,63 @@ describe("the entitlement baseline after a re-sync", () => {
     }
   });
 
+  it("is what the re-sync told, though a newer verify moved the row since", async () => {
+    // A transaction bought or refunded after the store was read.
+    const verifyNewer = (db: Db, purchaseState: string) =>
+      recordVerifiedSubscriptionHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        platform: "IOS",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState,
+        revocationReasonIOS: 1,
+        expiresAt: Date.now() + 30 * DAY,
+        verifiedPurchaseDate: Date.now() + 1_000,
+        evidenceAt: Date.now() + 1_000,
+      });
+
+    // Told nothing was granted, then a newer purchase: the renewal grants.
+    const renewed = new MemoryDb();
+    await verifiedRow(renewed);
+    await bind(renewed, "owner-1");
+    await applyStoreResyncHandler(ctxOf(renewed), {
+      projectId: "projects_1" as never,
+      platform: "IOS",
+      store: "apple",
+      purchaseToken: TOKEN,
+      observedAt: Date.now(),
+      snapshot: {
+        productId: "premium_monthly",
+        state: "Expired",
+        expiresAt: Date.now() - DAY,
+        willRenew: false,
+      },
+      context: { environment: "Production" },
+    });
+    await verifyNewer(renewed, HarmonizedPurchaseState.ENTITLED);
+    await renew(renewed);
+    expect(typesAndUsers(renewed)).toEqual([
+      ["subscription.renewed", "owner-1"],
+      ["entitlement.granted", "owner-1"],
+    ]);
+
+    // Told it was granted, then refunded: the store's refund revokes.
+    const refunded = new MemoryDb();
+    await verifiedRow(refunded);
+    await bind(refunded, "owner-1");
+    await resyncActive(refunded);
+    await verifyNewer(refunded, HarmonizedPurchaseState.CANCELED);
+    await applyStoreEvent(refunded, "refund", {
+      type: "PurchaseRefunded",
+      occurredAt: Date.now() + 2_000,
+    });
+    expect(typesAndUsers(refunded)).toEqual([
+      ["entitlement.granted", "owner-1"],
+      ["subscription.refunded", "owner-1"],
+      ["entitlement.revoked", "owner-1"],
+    ]);
+  });
+
   it("is still closed when the owner binds after the re-sync", async () => {
     const db = new MemoryDb();
     await verifiedRow(db);
