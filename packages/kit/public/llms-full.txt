@@ -308,9 +308,12 @@ Secret-key routes; publishable keys get 403. Lists page up to 100 rows with
   state and a payload fingerprint; raw payloads are never returned.
 - `GET /v1/purchase/issues` — failed verifications and links from the last 30
   days, most recently seen first, with cause, count, store-verified and
-  claimed product, correlation ID, and a SHA-256 evidence fingerprint; never
-  the token, JWS, or receipt. Filters: `cause`, `store`, `productId` (verified
-  or claimed), `appUserId`, `from`/`to` (epoch ms on `lastSeenAt`).
+  claimed product, and correlation ID; never the token, JWS, or receipt. Only
+  per-purchase causes (product mismatch, pending payment, bind conflict or
+  limit) carry a keyed evidence `fingerprint`. Other causes are counted per
+  store and cause, at most once a minute, so their count is a lower bound.
+  Filters: `cause`, `store`, `productId` (verified or claimed), `appUserId`,
+  `from`/`to` (epoch ms on `lastSeenAt`).
 - `POST /v1/subscriptions/resync` — body `{"purchaseId"}` or
   `{"subscriptionId"}`; re-reads Apple or Google, applies current state, and
   emits only an entitlement delta. Never moves ownership.

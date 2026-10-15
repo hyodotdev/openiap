@@ -1299,7 +1299,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "list_purchase_issues",
-    "List failed purchase verifications and links from the last 30 days, most recently seen first, with cause, count and correlationId. Rows carry an evidence fingerprint, never the token, JWS or receipt. Page with nextCursor.",
+    "List failed purchase verifications and links from the last 30 days, most recently seen first, with cause, count and correlationId. A row about one purchase (product mismatch, pending payment, bind conflict or limit) carries an evidence fingerprint; other causes share one row per store and cause, whose count is a lower bound. No row carries the token, JWS or receipt. Page with nextCursor.",
     {
       cause: z.enum(KIT_PURCHASE_ISSUE_CAUSES).optional(),
       store: z.enum(["apple", "google", "horizon", "amazon"]).optional(),

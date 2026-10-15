@@ -223,8 +223,8 @@ X-RateLimit-Remaining: 599`}
           fingerprint on the purchase&apos;s detail page while that purchase
           holds the same evidence; a later verify, such as an Apple renewal,
           replaces it. A bind issue fingerprints the purchase it matched, or the
-          bind&apos;s token when IAPKit saved no purchase for it. A shared
-          row&apos;s fingerprint matches no purchase.
+          bind&apos;s token when IAPKit saved no purchase for it. A shared row
+          has no <code>fingerprint</code>.
         </li>
         <li>
           <code>correlationId</code> is the latest failing request&apos;s{" "}

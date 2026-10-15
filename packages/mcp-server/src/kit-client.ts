@@ -248,7 +248,8 @@ export interface KitPurchaseIssue {
   _id: string;
   cause: KitPurchaseIssueCause;
   store: KitStore;
-  fingerprint: string;
+  /** Present only on a row about one purchase; a shared row matches none. */
+  fingerprint?: string;
   productId?: string;
   claimedProductId?: string;
   appUserId?: string;

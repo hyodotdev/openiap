@@ -22,6 +22,7 @@ import { COMMERCE_STORES } from "../../../../../convex/commerce/contract";
 type OutletContext = { project: { _id: Id<"projects"> } };
 
 const FINGERPRINT_PREFIX = 16;
+const SHARED_ROW = "Shared by every failure of this store and cause";
 const inputClass =
   "rounded border border-border bg-background px-2 py-1 text-sm text-foreground";
 
@@ -81,7 +82,7 @@ export default function PurchaseIssues() {
         </h2>
         <p className="text-sm text-muted-foreground">
           {
-            "Failed verifications and links from the last 30 days, most recently seen first. A repeat of the same failure adds to its count. IAPKit keeps a keyed fingerprint of the purchase evidence, never the token, JWS, or receipt."
+            "Failed verifications and links from the last 30 days, most recently seen first. A repeat of the same failure adds to its count. A row about one purchase keeps a keyed fingerprint of its evidence; IAPKit never keeps the token, JWS, or receipt."
           }
         </p>
       </div>
@@ -213,8 +214,16 @@ export default function PurchaseIssues() {
                   <td className="px-3 py-2 font-mono text-xs break-all">
                     {issue.correlationId ?? "—"}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs">
-                    {issue.fingerprint.slice(0, FINGERPRINT_PREFIX)}
+                  <td className="px-3 py-2 text-xs">
+                    {issue.fingerprint ? (
+                      <span className="font-mono">
+                        {issue.fingerprint.slice(0, FINGERPRINT_PREFIX)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {SHARED_ROW}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -341,7 +350,13 @@ function IssueDetail({
                 : undefined}
             </Field>
             <Field label="Correlation ID">{issue.correlationId}</Field>
-            <Field label="Fingerprint">{issue.fingerprint}</Field>
+            <Field label="Fingerprint">
+              {issue.fingerprint ?? (
+                <span className="font-sans text-muted-foreground">
+                  {SHARED_ROW}
+                </span>
+              )}
+            </Field>
           </dl>
         </div>
       )}

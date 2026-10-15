@@ -3,7 +3,7 @@ import { internal } from "../_generated/api";
 import { ActionCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 import { InvalidApiKeyError } from "./errors";
-import { receiptEnvironmentValidator } from "../schema";
+import { receiptEnvironmentValidator } from "../utils/validation";
 import {
   harmonizedPurchaseStateValidator,
   HarmonizedPurchaseState,
@@ -73,7 +73,7 @@ export const appStoreReceiptDataValidator = v.object({
   type: v.optional(v.string()),
   price: v.optional(v.number()),
   currency: v.optional(v.string()),
-  environment: v.union(v.literal("Sandbox"), v.literal("Production")),
+  environment: receiptEnvironmentValidator,
   storefront: v.optional(v.string()),
   storefrontId: v.optional(v.string()),
   webOrderLineItemId: v.optional(v.string()),

@@ -34,8 +34,8 @@ import { recheckedBoundPurchases } from "./binding";
 import {
   purchaseRequestDataValidator,
   purchaseStoreValidator,
-  receiptEnvironmentValidator,
 } from "../schema";
+import { receiptEnvironmentValidator } from "../utils/validation";
 import {
   harmonizedPurchaseStateValidator,
   HarmonizedPurchaseState,

@@ -22,6 +22,7 @@ import {
 } from "../purchases/errors";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import { testableFunction } from "../test.setup";
+import { purchaseIssueCauseValidator } from "../utils/validation";
 import {
   issueRecordTarget,
   recordPurchaseIssue,
@@ -31,6 +32,7 @@ import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import {
   classifyVerdict,
   classifyVerificationError,
+  isPurchaseScopedIssue,
   PROJECT_ISSUE_THROTTLE_MS,
   projectIssueDigest,
   verifyRecordingIssues,
@@ -159,6 +161,21 @@ describe("classifyVerdict", () => {
     expect(
       classifyVerdict({ state: HarmonizedPurchaseState.EXPIRED }, undefined),
     ).toBeNull();
+  });
+});
+
+describe("isPurchaseScopedIssue", () => {
+  it("scopes only store answers about a verified purchase and bind failures", () => {
+    expect(
+      purchaseIssueCauseValidator.members
+        .map((member) => member.value)
+        .filter(isPurchaseScopedIssue),
+    ).toEqual([
+      "STORE_PENDING",
+      "PRODUCT_MISMATCH",
+      "OWNERSHIP_CONFLICT",
+      "BIND_LIMIT_REACHED",
+    ]);
   });
 });
 

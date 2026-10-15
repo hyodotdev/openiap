@@ -35,9 +35,6 @@ export const purchaseStoreValidator = v.union(
   v.literal("amazon"),
 );
 
-// Re-exported for the modules that import it from the schema.
-export { receiptEnvironmentValidator };
-
 export const purchaseRequestDataValidator = v.union(
   v.object({
     store: v.literal("apple"),

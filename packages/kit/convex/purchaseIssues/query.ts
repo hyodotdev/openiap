@@ -12,22 +12,26 @@ import {
 } from "../projects/helpers";
 import schema, { purchaseStoreValidator } from "../schema";
 import { purchaseIssueCauseValidator } from "../utils/validation";
+import { isPurchaseScopedIssue } from "./shared";
 
 const MAX_ISSUE_PAGE_SIZE = 100;
 
-// The stored row without the project and shard the log cap uses.
+// The stored row without the project and shard the log cap uses. Only a
+// purchase-scoped row returns its fingerprint; a shared row's matches nothing.
 const purchaseIssueValidator = schema
   .doc("purchaseIssues")
-  .omit("projectId", "shard", "_creationTime");
+  .omit("projectId", "shard", "_creationTime", "fingerprint")
+  .extend({ fingerprint: v.optional(v.string()) });
 export type PurchaseIssue = Infer<typeof purchaseIssueValidator>;
 
 function toPurchaseIssue({
   projectId: _projectId,
   shard: _shard,
   _creationTime,
+  fingerprint,
   ...issue
 }: Doc<"purchaseIssues">): PurchaseIssue {
-  return issue;
+  return isPurchaseScopedIssue(issue.cause) ? { ...issue, fingerprint } : issue;
 }
 
 /**

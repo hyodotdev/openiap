@@ -10,7 +10,6 @@ import { internal } from "../_generated/api";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import type { ReceiptEnvironment } from "../purchases/shared";
-import { receiptEnvironmentValidator } from "../schema";
 import {
   bindAmazonPurchaseOwner,
   subscriptionPurchaseRemoteId,
@@ -30,7 +29,10 @@ import {
   mergeAnalyticsFacts,
   recordSubscriptionAnalyticsFacts,
 } from "./analyticsFacts";
-import type { bindReasonValidator } from "../utils/validation";
+import {
+  receiptEnvironmentValidator,
+  type bindReasonValidator,
+} from "../utils/validation";
 
 export const USER_ERASURE_BATCH_SIZE = 100;
 export const USER_ERASURE_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;

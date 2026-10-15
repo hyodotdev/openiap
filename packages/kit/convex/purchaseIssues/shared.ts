@@ -16,15 +16,22 @@ import type { PurchaseIssueInput } from "./internal";
 
 export type PurchaseIssueCause = Infer<typeof purchaseIssueCauseValidator>;
 
-// Only these causes are a store's answer about a purchase it verified, so only
-// they are keyed by the evidence's fingerprint. Every other cause, including
-// evidence no store recognized (a forged JWS, an unknown token, Meta's
-// `success: false`), shares one row per (store, cause), so random input cannot
-// grow the log or evict the rows support needs.
-const EVIDENCE_CAUSES: ReadonlySet<PurchaseIssueCause> = new Set([
+// Only these causes are about one purchase, a store's answer about a purchase
+// it verified or a bind's conflict or limit, so only they are keyed by the
+// evidence's fingerprint. Every other cause, including evidence no store
+// recognized (a forged JWS, an unknown token, Meta's `success: false`), shares
+// one row per (store, cause), so random input cannot grow the log or evict the
+// rows support needs.
+const PURCHASE_SCOPED_CAUSES: ReadonlySet<PurchaseIssueCause> = new Set([
   "PRODUCT_MISMATCH",
   "STORE_PENDING",
+  "OWNERSHIP_CONFLICT",
+  "BIND_LIMIT_REACHED",
 ]);
+
+export function isPurchaseScopedIssue(cause: PurchaseIssueCause): boolean {
+  return PURCHASE_SCOPED_CAUSES.has(cause);
+}
 
 export type ClassifiedIssue = {
   cause: PurchaseIssueCause;
@@ -177,7 +184,7 @@ async function scheduleRecord(
 ): Promise<void> {
   try {
     const { store } = request.evidence;
-    const projectScoped = !EVIDENCE_CAUSES.has(issue.cause);
+    const projectScoped = !isPurchaseScopedIssue(issue.cause);
     const digest = projectScoped
       ? await projectIssueDigest(store, issue.cause)
       : await sha256Hex(purchaseEvidence(request.evidence));

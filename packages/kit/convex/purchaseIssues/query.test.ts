@@ -103,6 +103,20 @@ describe("listPurchaseIssues", () => {
     ]);
   });
 
+  it("omits the fingerprint a shared row holds, since it matches no purchase", async () => {
+    const { db, ids } = setup();
+    const { page: rows } = await listPurchaseIssues._handler(
+      memoryCtx(db, "users_member"),
+      { projectId: PROJECT, paginationOpts: page, cause: "INAUTHENTIC" },
+    );
+    expect(rows.map((row) => row._id)).toEqual([
+      ids.claimed,
+      ids.google,
+      ids.old,
+    ]);
+    for (const row of rows) expect(row).not.toHaveProperty("fingerprint");
+  });
+
   it("refuses a caller outside the organization and oversized pages", async () => {
     const { db } = setup();
     await expect(
@@ -125,10 +139,12 @@ describe("getPurchaseIssue", () => {
     const { db, ids } = setup();
     const get = (userId: string, projectId: Id<"projects">, issueId: string) =>
       getPurchaseIssue._handler(memoryCtx(db, userId), { projectId, issueId });
-    await expect(get("users_member", PROJECT, ids.old)).resolves.toMatchObject({
-      _id: ids.old,
-      productId: "gold",
-    });
+    const shared = await get("users_member", PROJECT, ids.old);
+    expect(shared).toMatchObject({ _id: ids.old, productId: "gold" });
+    expect(shared).not.toHaveProperty("fingerprint");
+    await expect(
+      get("users_member", PROJECT, ids.conflict),
+    ).resolves.toMatchObject({ fingerprint: "f".repeat(64) });
     await expect(get("users_other", PROJECT, ids.old)).resolves.toBeNull();
     await expect(
       get("users_member", PROJECT, ids.elsewhere),

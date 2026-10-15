@@ -9,13 +9,16 @@ import {
 } from "../_generated/server";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import { getWritableProject } from "../projects/writable";
-import { purchaseStoreValidator, receiptEnvironmentValidator } from "../schema";
+import { purchaseStoreValidator } from "../schema";
 import { isUserErasureRequested } from "../subscriptions/erasure";
 import type { BindOutcome } from "../subscriptions/internal";
 import { isValidSubscriptionUserId } from "../subscriptions/limits";
 import { correlationIdOrUndefined } from "../utils/correlationId";
 import { sha256Hex } from "../utils/sha256";
-import { purchaseIssueCauseValidator } from "../utils/validation";
+import {
+  purchaseIssueCauseValidator,
+  receiptEnvironmentValidator,
+} from "../utils/validation";
 import {
   evidenceFingerprint,
   fingerprintSalt,

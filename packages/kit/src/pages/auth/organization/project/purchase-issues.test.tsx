@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const FINGERPRINT = "ab".repeat(32);
@@ -22,7 +22,8 @@ const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   setSearchParams: vi.fn(),
   listArgs: vi.fn(),
-  detail: null as typeof ISSUE | null,
+  results: [] as Partial<typeof ISSUE>[],
+  detail: null as Partial<typeof ISSUE> | null,
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -37,7 +38,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("convex/react", () => ({
   usePaginatedQuery: (_query: string, args: unknown) => {
     mocks.listArgs(args);
-    return { results: [ISSUE], status: "Exhausted", loadMore: vi.fn() };
+    return { results: mocks.results, status: "Exhausted", loadMore: vi.fn() };
   },
   useQuery: (_query: string, args: unknown) =>
     args === "skip" ? undefined : mocks.detail,
@@ -57,6 +58,10 @@ vi.mock("@/convex", () => ({
 import PurchaseIssues from "./purchase-issues";
 
 describe("PurchaseIssues", () => {
+  beforeEach(() => {
+    mocks.results = [ISSUE];
+  });
+
   afterEach(() => {
     cleanup();
     mocks.searchParams = new URLSearchParams();
@@ -102,6 +107,25 @@ describe("PurchaseIssues", () => {
     expect(
       screen.getByRole("link", { name: "user-7" }).getAttribute("href"),
     ).toBe("/acme/project/app/purchases/user/user-7");
+  });
+
+  it("labels a shared row instead of showing a fingerprint", () => {
+    const shared = {
+      _id: "purchaseIssues_2",
+      cause: "CREDENTIALS_REJECTED",
+      store: "apple",
+      count: 4,
+      firstSeenAt: 0,
+      lastSeenAt: 60_000,
+    };
+    mocks.results = [shared];
+    mocks.searchParams = new URLSearchParams("issue=purchaseIssues_2");
+    mocks.detail = shared;
+    render(<PurchaseIssues />);
+
+    expect(
+      screen.getAllByText("Shared by every failure of this store and cause"),
+    ).toHaveLength(2);
   });
 
   it("says when the selected issue is gone", () => {
