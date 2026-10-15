@@ -86,7 +86,7 @@ const includeTransactionDetailsSchema = v.optional(
   v.pipe(
     v.boolean(),
     v.description(
-      "Add transactionId, originalTransactionId, expiresAt, commerceEnvironment and correlationId to the response, with the names and meanings commerce events use. Fields the store does not supply stay absent.",
+      "Add transactionId, originalTransactionId, expiresAt, commerceEnvironment and correlationId to the response, with the names and meanings commerce events use. A rejection also carries finalVerdict, true when retrying the same evidence cannot change it. Fields the store does not supply stay absent.",
     ),
   ),
 );

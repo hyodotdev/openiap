@@ -11,12 +11,11 @@ import { isValidSubscriptionUserId } from "../../../convex/subscriptions/limits"
 import { normalizeBindUserPurchaseToken } from "../v1/subscriptions";
 import { ProtocolOperationError, protocolCodeForConvexError } from "./errors";
 import { admitVerification } from "./verificationAdmission";
+import { storeOf } from "../../../convex/commerce/internal";
 import {
   buildAmazonRemoteId,
   buildHorizonRemoteId,
 } from "../../../convex/purchases/identity";
-import { evidenceFingerprint } from "../../../convex/purchaseIssues/evidence";
-import { sha256Hex } from "../../../convex/utils/sha256";
 
 export interface ProtocolContext {
   apiKey: string;
@@ -115,10 +114,6 @@ function requireEvidence<T>(
   return member;
 }
 
-function storeOf(platform: SubscriptionRowV2["platform"]): string {
-  return platform === "IOS" ? "apple" : "google";
-}
-
 // The entitlement decision is not recomputed here: Convex already applied the
 // SPEC.md 2.3 predicate (subscriptions/query.ts isActive), returning the
 // active flag for status and only entitled rows for entitlements. Re-deriving
@@ -132,7 +127,7 @@ function toSnapshot(
     productId: row.productId,
     state: row.state,
     active,
-    store: row.store ?? storeOf(row.platform),
+    store: storeOf(row),
     ...(row.expiresAt === undefined ? {} : { expiresAt: row.expiresAt }),
     ...(row.renewsAt === undefined ? {} : { renewsAt: row.renewsAt }),
     ...(row.willRenew === undefined ? {} : { willRenew: row.willRenew }),
@@ -349,29 +344,20 @@ export async function bindPurchase(
   const userId = requireUserId(input.userId);
   if (input.store === "amazon" || input.store === "horizon") {
     let remoteId: string;
-    let fingerprint: string;
     if (input.store === "amazon") {
       const amazon = requireEvidence(input, input.amazon);
       remoteId = buildAmazonRemoteId({
         ...amazon,
         sandbox: amazon.sandbox === true,
       });
-      fingerprint = await evidenceFingerprint({ store: "amazon", ...amazon });
     } else {
       const horizon = requireEvidence(input, input.horizon);
       remoteId = buildHorizonRemoteId(horizon.userId, horizon.sku);
-      fingerprint = await evidenceFingerprint({ store: "horizon", ...horizon });
     }
     try {
       return await client.mutation(
         api.purchases.mutation.bindVerifiedPurchaseAsServer,
-        {
-          apiKey: context.apiKey,
-          userId,
-          store: input.store,
-          remoteId,
-          evidenceFingerprint: fingerprint,
-        },
+        { apiKey: context.apiKey, userId, store: input.store, remoteId },
       );
     } catch (error) {
       rethrowAsProtocolError(error, "INTERNAL_ERROR");
@@ -408,7 +394,6 @@ export async function bindPurchase(
         apiKey: context.apiKey,
         purchaseToken: normalized.purchaseToken,
         userId,
-        evidenceFingerprint: await sha256Hex(rawToken),
       },
     );
     return { bound: result.bound };

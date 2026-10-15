@@ -1,14 +1,17 @@
 import type { ApiKeyType } from "../apiKeys/helpers";
 
-export function generateApiKey(keyType: ApiKeyType): string {
-  const bytes = new Uint8Array(32);
+/** Hex of `byteCount` cryptographically random bytes. */
+export function randomHex(byteCount = 32): string {
+  const bytes = new Uint8Array(byteCount);
   crypto.getRandomValues(bytes);
-  let hex = "";
-  for (const byte of bytes) {
-    hex += byte.toString(16).padStart(2, "0");
-  }
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+}
+
+export function generateApiKey(keyType: ApiKeyType): string {
   const prefix = keyType === "publishable" ? "pk" : "sk";
-  return `openiap-kit_${prefix}_${hex}`;
+  return `openiap-kit_${prefix}_${randomHex()}`;
 }
 
 export function validateEmail(email: string): boolean {

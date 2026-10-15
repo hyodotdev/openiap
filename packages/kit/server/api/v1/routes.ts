@@ -20,6 +20,7 @@ import type { TransactionDetails } from "../../../convex/purchases/shared";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import {
+  isSettledRejection,
   isStableRejection,
   isStoreOutageError,
   replayGuardMiddleware,
@@ -239,7 +240,9 @@ const verifyPurchaseRouteDescription = describeRoute({
     "not secrets or server-authoritative entitlement rules.\n\n" +
     "Set `includeTransactionDetails: true` to add `transactionId`, " +
     "`originalTransactionId`, `expiresAt`, `commerceEnvironment` and " +
-    "`correlationId`, named and valued as on commerce events. Apple returns " +
+    "`correlationId`, named and valued as on commerce events. A rejection " +
+    "also carries `finalVerdict`: true when retrying the same evidence " +
+    "cannot change it. Apple returns " +
     "the transaction ids; Google returns its order id as `transactionId`; " +
     "`expiresAt` is set for subscriptions only. Without the flag the body " +
     "is unchanged. Raw JWS, tokens and receipts are never returned.\n\n" +
@@ -497,6 +500,9 @@ const verifyPurchaseHandler = async (
                 }
               : {}),
             correlationId,
+            ...(receipt.isValid
+              ? {}
+              : { finalVerdict: isSettledRejection(receipt) }),
           }
         : {}),
     });

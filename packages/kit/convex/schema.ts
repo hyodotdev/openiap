@@ -196,6 +196,8 @@ const schema = defineSchema({
     entitlementRecheckRefilledAt: v.optional(v.number()),
     // Keyed user-erasure lookup without retaining a dictionary-testable hash.
     userErasureHashKey: v.optional(v.string()),
+    // Keys the evidence fingerprints members see. Never returned by a query.
+    fingerprintSalt: v.optional(v.string()),
 
     // Platform
     platform: v.optional(
@@ -470,6 +472,11 @@ const schema = defineSchema({
     .index("by_application", ["applicationId"])
     .index("by_project_and_remote", ["projectId", "remoteId"])
     .index("by_project_and_app_user", ["projectId", "appUserId"])
+    .index("by_project_and_app_user_and_store", [
+      "projectId",
+      "appUserId",
+      "store",
+    ])
     .index("by_project_app_orderId", ["projectId", "applicationId", "orderId"])
     .index("by_store_isValid_nextAmazonReconcileAt", [
       "store",
@@ -764,6 +771,10 @@ const schema = defineSchema({
     lastEventOccurredAt: v.optional(v.number()),
     lastEventCreationTime: v.optional(v.number()),
     lastEventSourceNotificationId: v.optional(v.string()),
+    // When an operator re-sync last read the store. It does not move the
+    // lastEvent* ordering stamp, so an older notification still emits its
+    // lifecycle event; it keeps that event from rolling the state back.
+    resyncedAt: v.optional(v.number()),
     // Snapshot of the source event, so a late user binding can still emit its
     // entitlement grant after the webhook event is pruned.
     lastEventSource: v.optional(

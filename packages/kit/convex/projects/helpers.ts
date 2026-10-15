@@ -133,6 +133,18 @@ export async function resolveOperatorProject(
   args: OperatorProjectArgs,
   access: "read" | "write",
 ): Promise<Doc<"projects">> {
+  return (await resolveOperatorAccess(ctx, args, access)).project;
+}
+
+/**
+ * `resolveOperatorProject`, plus `adminView`: a secret key, owner or admin,
+ * who may see raw store identifiers and receiver errors.
+ */
+export async function resolveOperatorAccess(
+  ctx: QueryCtx | MutationCtx,
+  args: OperatorProjectArgs,
+  access: "read" | "write",
+): Promise<{ project: Doc<"projects">; adminView: boolean }> {
   if (args.apiKey !== undefined) {
     const resolved = await resolveProjectByApiKeyFromDb(
       ctx,
@@ -145,7 +157,7 @@ export async function resolveOperatorProject(
         message: "API key is invalid or inactive",
       });
     }
-    return resolved.project;
+    return { project: resolved.project, adminView: true };
   }
   if (!args.projectId) {
     throw new ConvexError({
@@ -166,7 +178,10 @@ export async function resolveOperatorProject(
       message: "Only organization owners and admins can do this",
     });
   }
-  return resolved.project;
+  return {
+    project: resolved.project,
+    adminView: canReadRawStoreEvidence(resolved.role),
+  };
 }
 
 /**

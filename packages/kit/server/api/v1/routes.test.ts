@@ -788,6 +788,57 @@ describe("apiRoutes", () => {
       });
     });
 
+    it("tells a settled rejection from one a retry can change", async () => {
+      // Fresh evidence per call: the replay guard holds a settled rejection.
+      let call = 0;
+      const finalVerdict = async (
+        verdict: Record<string, unknown>,
+        body: Record<string, unknown> = {
+          store: "apple",
+          jws: `${jws}${(call += 1)}`,
+        },
+      ) => {
+        convexClientMock.action.mockResolvedValueOnce(verdict);
+        const response = await apiRoutes.request("/purchase/verify", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer route-test-details-final",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ ...body, includeTransactionDetails: true }),
+        });
+        return ((await response.json()) as { finalVerdict?: boolean })
+          .finalVerdict;
+      };
+
+      for (const state of ["EXPIRED", "CANCELED", "INAUTHENTIC", "CONSUMED"]) {
+        expect(await finalVerdict({ isValid: false, state })).toBe(true);
+      }
+      // Google's revoked token maps to UNKNOWN but is settled.
+      expect(
+        await finalVerdict(
+          { isValid: false, state: "UNKNOWN", stableRejection: true },
+          { store: "google", purchaseToken: "g".repeat(80) },
+        ),
+      ).toBe(true);
+      expect(
+        await finalVerdict(
+          { isValid: false, state: "INAUTHENTIC" },
+          { store: "horizon", userId: "123456789", sku: "sku" },
+        ),
+      ).toBe(true);
+      expect(await finalVerdict({ isValid: false, state: "UNKNOWN" })).toBe(
+        false,
+      );
+      expect(await finalVerdict({ isValid: false, state: "PENDING" })).toBe(
+        false,
+      );
+      // A valid purchase carries no verdict to stop on.
+      expect(
+        await finalVerdict({ isValid: true, state: "ENTITLED" }),
+      ).toBeUndefined();
+    });
+
     it("adds only what the store supplied", async () => {
       convexClientMock.action.mockResolvedValueOnce({
         isValid: true,
@@ -829,6 +880,7 @@ describe("apiRoutes", () => {
         "expiresAt",
         "commerceEnvironment",
         "correlationId",
+        "finalVerdict",
       ]) {
         expect(spec).toContain(`"${name}"`);
       }

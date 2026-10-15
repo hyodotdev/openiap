@@ -8,7 +8,7 @@ import {
   getOrganizationById,
   getProjectById,
 } from "./helpers";
-import { generateApiKey } from "../utils/helpers";
+import { generateApiKey, randomHex } from "../utils/helpers";
 import { createError, ErrorCode } from "../utils/errors";
 import {
   DEFAULT_REPORTING_CURRENCY,
@@ -278,6 +278,7 @@ export const createProject = mutation({
       slug: finalSlug,
       apiKey, // Keep for backward compatibility, will be deprecated
       legacyApiKeyFallbackDisabledAt: now,
+      fingerprintSalt: randomHex(),
       reportingCurrency: DEFAULT_REPORTING_CURRENCY,
       // Cloud Sandbox accepts any non-empty secret, so new projects must
       // opt in deliberately before App Tester receipts can be verified.

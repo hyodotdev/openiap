@@ -291,7 +291,7 @@ type StoreCase = {
   verify: (ctx: unknown) => Promise<unknown>;
 };
 
-// A store context whose only reachable calls are the key lookup, admission,
+// A store context whose only reachable calls are the key lookups, admission,
 // and the purchase-issue record a rejection schedules.
 function storeContext(project: Record<string, unknown>) {
   vi.useFakeTimers({ now: 1_000 });
@@ -306,11 +306,16 @@ function storeContext(project: Record<string, unknown>) {
   return {
     issues,
     admissionCalls: () => admissionCalls,
-    runQuery: vi.fn(async (reference: FunctionReference<"query">) =>
-      getFunctionName(reference) === "projects/internal:getProjectByApiKey"
-        ? { _id: PROJECT_ID, ...project }
-        : unexpected(reference),
-    ),
+    runQuery: vi.fn(async (reference: FunctionReference<"query">) => {
+      switch (getFunctionName(reference)) {
+        case "projects/internal:getProjectByApiKey":
+          return { _id: PROJECT_ID, ...project };
+        case "purchaseIssues/internal:issueRecordTarget":
+          return PROJECT_ID;
+        default:
+          return unexpected(reference);
+      }
+    }),
     runMutation: vi.fn(
       async (
         reference: FunctionReference<"mutation">,

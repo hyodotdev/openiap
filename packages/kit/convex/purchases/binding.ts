@@ -1,24 +1,49 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { amazonSubscriptionToken } from "../subscriptions/amazon";
 import { isUserErasureRequested } from "../subscriptions/erasure";
 import type { BindOutcome } from "../subscriptions/internal";
 import { MAX_BOUND_PURCHASES_PER_USER } from "../subscriptions/limits";
 import { AppStoreProductType, isValidState } from "./shared";
 
+type RecheckedStore = "amazon" | "horizon";
+
+/** The user's bound Amazon and Horizon rows, at most `limit` per store. */
+export async function recheckedBoundPurchases(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+  userId: string,
+  limit: number,
+): Promise<Doc<"purchases">[]> {
+  const perStore = await Promise.all(
+    (["amazon", "horizon"] as const).map((store) =>
+      ctx.db
+        .query("purchases")
+        .withIndex("by_project_and_app_user_and_store", (q) =>
+          q
+            .eq("projectId", projectId)
+            .eq("appUserId", userId)
+            .eq("store", store),
+        )
+        .take(limit),
+    ),
+  );
+  return perStore.flat();
+}
+
 export async function makePurchaseBindingRoom(
   ctx: MutationCtx,
   projectId: Id<"projects">,
   userId: string,
-  store: Doc<"purchases">["store"],
+  store: RecheckedStore,
   remoteId: string,
 ): Promise<boolean> {
-  const bound = await ctx.db
-    .query("purchases")
-    .withIndex("by_project_and_app_user", (q) =>
-      q.eq("projectId", projectId).eq("appUserId", userId),
-    )
-    .take(MAX_BOUND_PURCHASES_PER_USER);
+  const bound = await recheckedBoundPurchases(
+    ctx,
+    projectId,
+    userId,
+    MAX_BOUND_PURCHASES_PER_USER,
+  );
   if (bound.length < MAX_BOUND_PURCHASES_PER_USER) return true;
   if (bound.some((row) => row.store === store && row.remoteId === remoteId))
     return true;
@@ -164,16 +189,6 @@ export async function bindOneTimePurchaseToUser(
     return { reason: "already_bound", ...target };
   if (purchase.appUserId) return { reason: "bound_to_other_user", ...target };
   if (!isLinkable(purchase)) return { reason: "not_bindable", ...target };
-  if (
-    !(await makePurchaseBindingRoom(
-      ctx,
-      project._id,
-      userId,
-      purchase.store,
-      purchaseToken,
-    ))
-  )
-    return { reason: "not_bindable", limitReached: true, ...target };
   // Erasure only unlinked the previous owner; this is a new association.
   await ctx.db.patch(purchase._id, {
     appUserId: userId,
@@ -200,16 +215,6 @@ export async function rebindOneTimePurchaseToUser(
   if (
     purchase.appUserId &&
     (await isUserErasureRequested(ctx, project, purchase.appUserId))
-  )
-    return null;
-  if (
-    !(await makePurchaseBindingRoom(
-      ctx,
-      project._id,
-      userId,
-      purchase.store,
-      purchaseToken,
-    ))
   )
     return null;
   await ctx.db.patch(purchase._id, {

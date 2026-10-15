@@ -79,6 +79,18 @@ export function isStableRejection(
   );
 }
 
+/** A rejection a retry of the same evidence will not change. */
+export function isSettledRejection(outcome: {
+  isValid: boolean;
+  state: string;
+  stableRejection?: boolean;
+}): boolean {
+  return (
+    !outcome.isValid &&
+    isStableRejection(outcome.state, outcome.stableRejection === true)
+  );
+}
+
 export interface ReplayConsumeResult {
   allowed: boolean;
   remaining: number;
@@ -409,8 +421,7 @@ export function replayGuardMiddleware(
           if (
             body.store !== "horizon" &&
             outcome &&
-            outcome.isValid === false &&
-            isStableRejection(outcome.state, outcome.stableRejection === true)
+            isSettledRejection(outcome)
           ) {
             markPayloadFailure(
               store,

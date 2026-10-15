@@ -15,7 +15,6 @@ import {
 } from "@apple/app-store-server-library";
 import type { FunctionReturnType } from "convex/server";
 import { ConvexError, v, type Infer } from "convex/values";
-import { google, type androidpublisher_v3 } from "googleapis";
 
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -24,9 +23,15 @@ import { loadAppleRootCertificates } from "../certificates/apple_root_certificat
 import { selectAppleSubscriptionItem } from "../orders/shared";
 import {
   mapSubscriptionResponseToReceiptData,
-  parseAndValidateServiceAccountKey,
+  playPublisher,
   verifyPurchaseWithGooglePlay,
 } from "../purchases/android";
+import {
+  isPlayStoreTokenNoLongerValidError,
+  PlayStorePurchaseNotFoundError,
+  PlayStorePurchaseVerificationFailedError,
+  ReceiptVerificationError,
+} from "../purchases/errors";
 import {
   assertVerifiedTransactionBinding,
   getAppStoreServerCredentials,
@@ -477,7 +482,13 @@ async function resyncGoogle(
       message: "Set the Android package name in Settings before re-syncing.",
     });
   }
-  const androidpublisher = await playPublisher(ctx, project);
+  const androidpublisher = await playPublisher(ctx, project._id);
+  if (typeof androidpublisher === "string") {
+    throw new ConvexError({
+      code: "GOOGLE_SERVICE_ACCOUNT_REQUIRED",
+      message: "Upload the Play service-account key in Settings to re-sync.",
+    });
+  }
 
   if (target.kind === "subscription") {
     const observedAt = Date.now();
@@ -515,7 +526,7 @@ async function resyncGoogle(
     });
   }
   const observedAt = Date.now();
-  const { receiptData, remoteResponse } = await verifyPurchaseWithGooglePlay(
+  const { receiptData, remoteResponse } = await readGooglePurchase(
     androidpublisher,
     {
       packageName,
@@ -598,44 +609,43 @@ async function applyGoogleSubscription(
   });
 }
 
-async function playPublisher(
-  ctx: ActionCtx,
-  project: Doc<"projects">,
-): Promise<androidpublisher_v3.Androidpublisher> {
-  const file = await ctx.runQuery(
-    internal.files.internal.getGooglePlayFileByProjectInternal,
-    { projectId: project._id },
-  );
-  const content = file
-    ? await ctx.runAction(internal.files.internal.readFileAsText, {
-        fileId: file._id,
-      })
-    : null;
-  if (!content?.content) {
-    throw new ConvexError({
-      code: "GOOGLE_SERVICE_ACCOUNT_REQUIRED",
-      message: "Upload the Play service-account key in Settings to re-sync.",
-    });
+/** The purchase lookup verify uses, failing with the subscription path's codes. */
+export async function readGooglePurchase(
+  ...args: Parameters<typeof verifyPurchaseWithGooglePlay>
+): ReturnType<typeof verifyPurchaseWithGooglePlay> {
+  try {
+    return await verifyPurchaseWithGooglePlay(...args);
+  } catch (error) {
+    throw googleRequestError(error);
   }
-  const auth = new google.auth.GoogleAuth({
-    credentials: parseAndValidateServiceAccountKey(content.content),
-    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
-  });
-  return google.androidpublisher({ version: "v3", auth });
+}
+
+function googleStatus(error: unknown): number | undefined {
+  if (error instanceof PlayStorePurchaseNotFoundError) return 404;
+  if (error instanceof PlayStorePurchaseVerificationFailedError) {
+    if (isPlayStoreTokenNoLongerValidError(error)) return 410;
+    const status = error.errorDetails?.status;
+    return typeof status === "number" ? status : undefined;
+  }
+  return error instanceof ReceiptVerificationError
+    ? undefined
+    : extractHttpStatus(error);
 }
 
 function googleRequestError(error: unknown): ConvexError<{
   code: string;
   message: string;
 }> {
-  const status = extractHttpStatus(error);
+  const status = googleStatus(error);
   const gone = status === 404 || status === 410;
-  // googleapis error text can echo the request URL, which carries the token,
-  // so only the status is reported.
+  // googleapis error text, kept in `details.originalError`, can echo the
+  // request URL with the token, so only IAPKit's own message is reported.
   return new ConvexError({
     code: gone ? "NOT_FOUND" : "STORE_REQUEST_FAILED",
     message: gone
       ? "Google Play no longer knows this token (revoked, or expired over 60 days ago)."
-      : `Google Play request failed${status ? ` (HTTP ${status})` : ""}.`,
+      : error instanceof ReceiptVerificationError
+        ? error.errorMessage
+        : `Google Play request failed${status ? ` (HTTP ${status})` : ""}.`,
   });
 }

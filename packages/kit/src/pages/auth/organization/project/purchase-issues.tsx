@@ -21,7 +21,6 @@ import { COMMERCE_STORES } from "../../../../../convex/commerce/contract";
 
 type OutletContext = { project: { _id: Id<"projects"> } };
 
-// Matches the verify debug log's sha256Prefix.
 const FINGERPRINT_PREFIX = 16;
 const inputClass =
   "rounded border border-border bg-background px-2 py-1 text-sm text-foreground";
@@ -82,7 +81,7 @@ export default function PurchaseIssues() {
         </h2>
         <p className="text-sm text-muted-foreground">
           {
-            "Failed verifications and links from the last 30 days, most recently seen first. A repeat of the same failure adds to its count. IAPKit keeps a SHA-256 fingerprint of the purchase evidence, never the token, JWS, or receipt."
+            "Failed verifications and links from the last 30 days, most recently seen first. A repeat of the same failure adds to its count. IAPKit keeps a keyed fingerprint of the purchase evidence, never the token, JWS, or receipt."
           }
         </p>
       </div>
@@ -277,7 +276,7 @@ function IssueDetail({
 }) {
   const issue = useQuery(
     api.purchaseIssues.query.getPurchaseIssue,
-    issueId ? { projectId, issueId: issueId as Id<"purchaseIssues"> } : "skip",
+    issueId ? { projectId, issueId } : "skip",
   );
   return (
     <Modal

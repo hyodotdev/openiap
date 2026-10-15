@@ -3,8 +3,10 @@
 //
 // A re-sync sees current state, not the lifecycle events in between, so it
 // emits only the entitlement delta and never invents a lifecycle event. It
-// never binds, unbinds or moves an owner: `persistSubscriptionSnapshot` keeps
-// the row's `userId`.
+// stamps `resyncedAt`, not the store-event ordering, so a notification it
+// overtook still emits its lifecycle event without rolling the state back.
+// It never binds, unbinds or moves an owner: `persistSubscriptionSnapshot`
+// keeps the row's `userId`.
 
 import { ConvexError, v, type Infer } from "convex/values";
 
@@ -14,7 +16,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from "../_generated/server";
-import { emitCommerceEvent } from "../commerce/internal";
+import { emitCommerceEvent, storeOf } from "../commerce/internal";
 import { assertProjectWritable } from "../projects/writable";
 import { purchaseRequestDataValidator } from "../schema";
 import {
@@ -233,9 +235,7 @@ export const getResyncTarget = internalQuery({
     if (!subscription || subscription.projectId !== args.projectId) {
       throw notFound;
     }
-    const store =
-      subscription.store ??
-      (subscription.platform === "IOS" ? "apple" : "google");
+    const store = storeOf(subscription);
     if (store !== "apple" && store !== "google") throw unsupportedStore(store);
     const environment = subscription.lastEventSource?.environment;
     return {
@@ -340,13 +340,14 @@ export async function applyStoreResyncHandler(
     emittedEvents,
   });
 
-  const newerStoreEvent =
-    existing?.lastEventOccurredAt !== undefined &&
-    existing.lastEventOccurredAt > args.observedAt;
+  const newerRead = Math.max(
+    existing?.lastEventOccurredAt ?? 0,
+    existing?.resyncedAt ?? 0,
+  );
   const changed =
     !existing ||
     RESYNC_COMPARED_FIELDS.some((field) => next[field] !== existing[field]);
-  if (newerStoreEvent || !changed) {
+  if (newerRead > args.observedAt || !changed) {
     return outcome("unchanged", existing, 0);
   }
 
@@ -404,7 +405,8 @@ export async function applyStoreResyncHandler(
       existing,
       next,
       now,
-      lastEvent: event,
+      environment: args.context.environment,
+      resyncedAt: args.observedAt,
     },
   );
   await ctx.db.patch(event._id, { appliedAt: now });

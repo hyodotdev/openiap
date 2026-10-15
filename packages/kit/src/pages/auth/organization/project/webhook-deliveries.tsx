@@ -241,7 +241,7 @@ function summarize(delivery: Delivery): string {
   const parts = [
     `${delivery.attempts} ${delivery.attempts === 1 ? "attempt" : "attempts"}`,
     delivery.lastStatusCode ? `HTTP ${delivery.lastStatusCode}` : null,
-    delivery.lastError ?? null,
+    delivery.lastError ?? delivery.lastErrorClass ?? null,
     delivery.deliveredAt
       ? `delivered ${formatUtcDateTime(delivery.deliveredAt)}`
       : `updated ${formatUtcDateTime(delivery.updatedAt)}`,

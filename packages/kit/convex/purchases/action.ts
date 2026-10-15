@@ -22,8 +22,8 @@ export const readBoundPurchaseEntitlements = action({
   handler: async (ctx, args): Promise<{ productIds: string[] }> => {
     const project = await getProjectByApiKey(ctx, args.apiKey, "admin");
     const queryArgs = { projectId: project._id, userId: args.userId };
-    // Apple and Google one-time links (secret-key /v1 bind-user) are for
-    // attribution: IAPKit cannot recheck them, so they never grant here.
+    // Amazon and Horizon rows only: Apple and Google one-time links are for
+    // attribution, and IAPKit cannot recheck them.
     const purchases = (
       await ctx.runQuery(
         internal.purchases.internal.boundPurchasesForUser,

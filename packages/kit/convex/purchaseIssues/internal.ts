@@ -2,15 +2,21 @@ import { v, type Infer } from "convex/values";
 
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { internalMutation, type MutationCtx } from "../_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+} from "../_generated/server";
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
 import { getWritableProject } from "../projects/writable";
 import { purchaseStoreValidator, receiptEnvironmentValidator } from "../schema";
+import { isUserErasureRequested } from "../subscriptions/erasure";
 import type { BindOutcome } from "../subscriptions/internal";
 import { isValidSubscriptionUserId } from "../subscriptions/limits";
 import { correlationIdOrUndefined } from "../utils/correlationId";
 import { sha256Hex } from "../utils/sha256";
 import { purchaseIssueCauseValidator } from "../utils/validation";
-import { isEvidenceFingerprint } from "./evidence";
+import { evidenceFingerprint, fingerprintSalt, isSha256Hex } from "./evidence";
 
 // A project's rows split into 16 shards by the fingerprint's first hex digit,
 // each capped at 64 rows (1,024 in all). A new row reads only its own shard,
@@ -23,7 +29,8 @@ const MAX_PRODUCT_ID_LENGTH = 256;
 export const purchaseIssueInputValidator = v.object({
   cause: purchaseIssueCauseValidator,
   store: purchaseStoreValidator,
-  fingerprint: v.string(),
+  // SHA-256 hex of the evidence; the row stores it salted, as the fingerprint.
+  digest: v.string(),
   productId: v.optional(v.string()),
   claimedProductId: v.optional(v.string()),
   appUserId: v.optional(v.string()),
@@ -89,17 +96,28 @@ export async function recordPurchaseIssue(
   projectId: Id<"projects">,
   input: PurchaseIssueInput,
 ): Promise<void> {
-  if (!isEvidenceFingerprint(input.fingerprint)) return;
-  if (!(await getWritableProject(ctx, projectId))) return;
+  if (!isSha256Hex(input.digest)) return;
+  const project = await getWritableProject(ctx, projectId);
+  if (!project) return;
   const now = Date.now();
+  const fingerprint = await evidenceFingerprint(
+    await fingerprintSalt(ctx, project),
+    input.digest,
+  );
   const fields = storedFields(input);
+  // A user whose erasure was requested is never named again.
+  if (
+    fields.appUserId &&
+    (await isUserErasureRequested(ctx, project, fields.appUserId))
+  )
+    delete fields.appUserId;
 
   const existing = await ctx.db
     .query("purchaseIssues")
     .withIndex("by_project_and_fingerprint_and_cause", (q) =>
       q
         .eq("projectId", projectId)
-        .eq("fingerprint", input.fingerprint)
+        .eq("fingerprint", fingerprint)
         .eq("cause", input.cause),
     )
     .unique();
@@ -112,7 +130,7 @@ export async function recordPurchaseIssue(
     return;
   }
 
-  const shard = purchaseIssueShard(input.fingerprint);
+  const shard = purchaseIssueShard(fingerprint);
   const shardRows = await ctx.db
     .query("purchaseIssues")
     .withIndex("by_project_and_shard_and_lastSeenAt", (q) =>
@@ -127,7 +145,7 @@ export async function recordPurchaseIssue(
     projectId,
     cause: input.cause,
     store: input.store,
-    fingerprint: input.fingerprint,
+    fingerprint,
     shard,
     ...fields,
     count: 1,
@@ -137,20 +155,15 @@ export async function recordPurchaseIssue(
 }
 
 /**
- * Schedules the record of a failed link, so it can neither fail the bind nor
- * slow it. `evidenceFingerprint` is the hash the edge took of the evidence
- * the caller sent; without it the bind token is hashed.
+ * Schedules the record of a failed secret-key link, so it can neither fail the
+ * bind nor slow it. `evidence` is what the bind matched: the normalized token,
+ * or the purchase's evidence.
  */
 export async function recordBindIssue(
   ctx: MutationCtx,
   projectId: Id<"projects">,
   outcome: BindOutcome,
-  request: {
-    purchaseToken: string;
-    userId: string;
-    evidenceFingerprint?: string;
-    correlationId?: string;
-  },
+  request: { evidence: string; userId: string; correlationId?: string },
 ): Promise<void> {
   const cause =
     outcome.reason === "bound_to_other_user"
@@ -164,11 +177,7 @@ export async function recordBindIssue(
     issue: {
       cause,
       store: outcome.store,
-      fingerprint:
-        request.evidenceFingerprint &&
-        isEvidenceFingerprint(request.evidenceFingerprint)
-          ? request.evidenceFingerprint
-          : await sha256Hex(request.purchaseToken),
+      digest: await sha256Hex(request.evidence),
       ...(outcome.productId ? { productId: outcome.productId } : {}),
       appUserId: request.userId,
       ...(request.correlationId
@@ -177,6 +186,49 @@ export async function recordBindIssue(
     },
   });
 }
+
+/**
+ * The project a verification issue records against, or null to record
+ * nothing: an unknown key, or a project-wide row seen after
+ * `projectScoped.seenSince`. That throttle makes a flood of one rejection cost
+ * a read per request instead of a write to one shared row.
+ */
+export const issueRecordTarget = internalQuery({
+  args: {
+    apiKey: v.string(),
+    projectScoped: v.optional(
+      v.object({
+        digest: v.string(),
+        cause: purchaseIssueCauseValidator,
+        seenSince: v.number(),
+      }),
+    ),
+  },
+  returns: v.union(v.id("projects"), v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (!resolved) return null;
+    const { project } = resolved;
+    const scoped = args.projectScoped;
+    if (scoped && project.fingerprintSalt) {
+      const fingerprint = await evidenceFingerprint(
+        project.fingerprintSalt,
+        scoped.digest,
+      );
+      const row = await ctx.db
+        .query("purchaseIssues")
+        .withIndex("by_project_and_fingerprint_and_cause", (q) =>
+          q
+            .eq("projectId", project._id)
+            .eq("fingerprint", fingerprint)
+            .eq("cause", scoped.cause),
+        )
+        .unique();
+      if (row && row.lastSeenAt > scoped.seenSince) return null;
+    }
+    return project._id;
+  },
+});
 
 // Scheduled by verification actions and bind mutations, off their response
 // path. The arguments carry a project id, never the caller's API key.

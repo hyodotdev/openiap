@@ -17,6 +17,7 @@ import {
 } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getWritableProject } from "../projects/writable";
+import { randomHex } from "../utils/helpers";
 import { resolveProjectByIdForCurrentUserFromDb } from "../projects/helpers";
 import { COMMERCE_EVENT_TYPES } from "./contract";
 import { COMMERCE_EVENT_RETENTION_MS, checkDestinationUrl } from "./signing";
@@ -30,9 +31,7 @@ export const MAX_DESTINATION_URL_LENGTH = 2_048;
 export const MAX_DESTINATION_DESCRIPTION_LENGTH = 512;
 
 function generateSecret(): string {
-  const bytes = new Uint8Array(SECRET_BYTES);
-  crypto.getRandomValues(bytes);
-  return `whsec_${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+  return `whsec_${randomHex(SECRET_BYTES)}`;
 }
 
 export async function assertProjectAdmin(

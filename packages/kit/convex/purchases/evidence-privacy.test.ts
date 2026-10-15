@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
-import { MemoryDb, memoryCtx } from "../purchaseIssues/memoryDb.testing";
+import { MemoryDb, memoryCtx } from "../test.memoryDb";
 import { testableFunction } from "../test.setup";
 import { listSubscriptions as registeredListSubscriptions } from "../subscriptions/query";
 import {
@@ -17,11 +17,16 @@ const SECRET_KEY = "openiap-kit_sk_server";
 const PROJECT = "projects_1" as Id<"projects">;
 const TOKEN = "google-purchase-token-value";
 const RESPONSE = JSON.stringify({ orderId: "GPA.1", productLineItem: [] });
+const SALT = "project-fingerprint-salt";
 
 function setup() {
   const db = new MemoryDb();
   db.seed("organizations", { _id: "organizations_1" });
-  db.seed("projects", { _id: PROJECT, organizationId: "organizations_1" });
+  db.seed("projects", {
+    _id: PROJECT,
+    organizationId: "organizations_1",
+    fingerprintSalt: SALT,
+  });
   for (const role of ["owner", "admin", "member"]) {
     db.seed("organizationMembers", {
       organizationId: "organizations_1",
@@ -60,7 +65,10 @@ function setup() {
   return { db, purchaseId };
 }
 
-const fingerprint = createHash("sha256").update(TOKEN).digest("hex");
+// Keyed by the project's salt, so a short identifier cannot be guessed back.
+const fingerprint = createHmac("sha256", SALT)
+  .update(createHash("sha256").update(TOKEN).digest("hex"))
+  .digest("hex");
 
 describe("raw store evidence", () => {
   it("stays visible to project owners and admins", async () => {
@@ -110,6 +118,16 @@ describe("raw store evidence", () => {
       { projectId: PROJECT, paginationOpts: { numItems: 10, cursor: null } },
     );
     expect(adminList.page[0]).toMatchObject({ remoteId: TOKEN });
+  });
+
+  it("shows no fingerprint before the project has a salt", async () => {
+    const { db, purchaseId } = setup();
+    await db.patch(PROJECT, { fingerprintSalt: undefined });
+    const purchase = await getPurchaseById._handler(
+      memoryCtx(db, "users_member"),
+      { purchaseId },
+    );
+    expect(purchase?.evidenceFingerprint).toBeUndefined();
   });
 });
 

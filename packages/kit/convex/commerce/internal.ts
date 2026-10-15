@@ -19,11 +19,12 @@ import {
   type LifecycleTransition,
 } from "./contract";
 
-/** Inbound platform enum predates Horizon/Amazon lifecycle support. */
-function storeForPlatform(
-  platform: Doc<"webhookEvents">["platform"],
-): "apple" | "google" {
-  return platform === "IOS" ? "apple" : "google";
+/** A row's store; rows from before the `store` column are Apple or Google. */
+export function storeOf<Store extends string>(row: {
+  store?: Store;
+  platform: "IOS" | "Android";
+}): Store | "apple" | "google" {
+  return row.store ?? (row.platform === "IOS" ? "apple" : "google");
 }
 
 export type EmitCommerceEventArgs = {
@@ -101,7 +102,7 @@ export async function emitCommerceEvent(
       projectId: args.projectId,
       eventType,
       eventVersion: COMMERCE_EVENT_SCHEMA_VERSION,
-      store: source.store ?? storeForPlatform(source.platform),
+      store: storeOf(source),
       environment: normalizeEnvironment(source.environment),
       ...(args.subscription?.userId
         ? { userId: args.subscription.userId }

@@ -6,7 +6,7 @@ vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
   getAuthUserId: async () => auth.userId as never,
 }));
 
-const { FakeDb, seedProject } = await import("../test.fakeDb");
+const { MemoryDb, seedProject } = await import("../test.memoryDb");
 const {
   listDeliveriesHandler,
   recordDeliveryResultHandler,
@@ -20,7 +20,7 @@ const {
   classifyDeliveryError,
 } = await import("./signing");
 
-type Db = InstanceType<typeof FakeDb>;
+type Db = InstanceType<typeof MemoryDb>;
 const ctxOf = (db: Db) => ({ db }) as never;
 const page = { numItems: 25, cursor: null };
 
@@ -83,7 +83,7 @@ beforeEach(() => {
 
 describe("delivery attempt history", () => {
   it("keeps the newest attempts, classified, without error text", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const { deliveryId } = await seedDelivery(db, {
       status: "delivering",
@@ -117,7 +117,7 @@ describe("delivery attempt history", () => {
   });
 
   it("marks the exhausting and successful attempts", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const { deliveryId } = await seedDelivery(db, {
       status: "delivering",
@@ -176,7 +176,7 @@ describe("delivery attempt history", () => {
 
 describe("resend", () => {
   it("requeues a delivered row with the same event id", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const { deliveryId, eventId } = await seedDelivery(db);
     const result = await resendDeliveryHandler(ctxOf(db), { deliveryId });
@@ -188,6 +188,8 @@ describe("resend", () => {
       attempts: 0,
       lastResendAt: expect.any(Number),
     });
+    // A re-sent row that then dead-letters must not still read "delivered".
+    expect(row).not.toHaveProperty("deliveredAt");
     expect(db.rows("outboundDeliveries")).toHaveLength(1);
     expect(db.rows("outboundDeliveryQueues")).toEqual([
       expect.objectContaining({ projectId: "projects_1" }),
@@ -195,7 +197,7 @@ describe("resend", () => {
   });
 
   it("refuses members and lets a secret key re-send", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "member");
     const { deliveryId } = await seedDelivery(db);
     await expect(
@@ -210,7 +212,7 @@ describe("resend", () => {
   });
 
   it("hides another project's delivery from a secret key", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     db.rows("projects").push({
       _id: "projects_2",
@@ -225,7 +227,7 @@ describe("resend", () => {
   });
 
   it("explains a pruned event and an in-flight row", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const pruned = await seedDelivery(db);
     await db.delete(pruned.eventId);
@@ -246,7 +248,7 @@ describe("resend", () => {
   });
 
   it("refuses a disabled destination", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const { deliveryId, destinationId } = await seedDelivery(db);
     await db.patch(destinationId, { enabled: false });
@@ -258,7 +260,7 @@ describe("resend", () => {
   it("limits re-sends per row and per project", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-15T00:00:00.000Z"));
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const first = await seedDelivery(db);
     await resendDeliveryHandler(ctxOf(db), { deliveryId: first.deliveryId });
@@ -289,7 +291,7 @@ describe("resend", () => {
   });
 
   it("keeps the operator replay working for dead letters only", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const delivered = await seedDelivery(db);
     const failed = await seedDelivery(db, { status: "failed", attempts: 14 });
@@ -308,7 +310,7 @@ describe("resend", () => {
 
 describe("listDeliveries", () => {
   it("lets members read history with the destination host only", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "member");
     const { deliveryId } = await seedDelivery(db, {
       attemptHistory: [{ at: 1, outcome: "delivered", statusCode: 200 }],
@@ -330,8 +332,43 @@ describe("listDeliveries", () => {
     expect(JSON.stringify(result)).not.toContain("whsec_");
   });
 
+  it("gives members the error class and admins and secret keys the receiver's text", async () => {
+    const lastError = "connect ECONNREFUSED 203.0.113.9:443";
+    const failed = {
+      status: "failed",
+      lastError,
+      attemptHistory: [
+        { at: 1, outcome: "failed", errorClass: "connection_refused" },
+      ],
+    };
+    const list = async (role: "member" | "admin", apiKey?: string) => {
+      const db = new MemoryDb();
+      seedProject(db, role);
+      await seedDelivery(db, failed);
+      const key = apiKey ? await seedSecretKey(db, "projects_1") : undefined;
+      if (key) auth.userId = null;
+      const result = await listDeliveriesHandler(
+        ctxOf(db),
+        key
+          ? { apiKey: key, paginationOpts: page }
+          : { projectId: "projects_1" as never, paginationOpts: page },
+      );
+      return result.page[0];
+    };
+
+    const member = await list("member");
+    expect(member).toMatchObject({ lastErrorClass: "connection_refused" });
+    expect(member).not.toHaveProperty("lastError");
+    expect(JSON.stringify(member)).not.toContain("203.0.113.9");
+    expect(await list("admin")).toMatchObject({
+      lastError,
+      lastErrorClass: "connection_refused",
+    });
+    expect(await list("member", "secret")).toMatchObject({ lastError });
+  });
+
   it("filters by status, event type, destination and event id", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     const delivered = await seedDelivery(db);
     const failed = await seedDelivery(db, {
@@ -361,7 +398,7 @@ describe("listDeliveries", () => {
   });
 
   it("rejects non-members", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     auth.userId = "users_2";
     await expect(

@@ -6,12 +6,12 @@ vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
   getAuthUserId: async () => auth.userId as never,
 }));
 
-const { FakeDb, seedProject } = await import("../test.fakeDb");
+const { MemoryDb, seedProject } = await import("../test.memoryDb");
 const { testableFunction } = await import("../test.setup");
 const { userTimeline } = await import("./query");
 const { getReceiptsByProject } = await import("../purchases/query");
 
-type Db = InstanceType<typeof FakeDb>;
+type Db = InstanceType<typeof MemoryDb>;
 const ctxOf = (db: Db) => ({ db }) as never;
 const timeline = testableFunction(userTimeline)._handler;
 const listPurchases = testableFunction(getReceiptsByProject)._handler;
@@ -90,7 +90,7 @@ async function seed(db: Db): Promise<void> {
 
 describe("userTimeline", () => {
   it("merges one user's rows newest first without receipt evidence", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     await seed(db);
     const result = await timeline(ctxOf(db), {
       projectId: "projects_1" as never,
@@ -119,7 +119,7 @@ describe("userTimeline", () => {
   });
 
   it("rejects a blank app user id", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     await seed(db);
     await expect(
       timeline(ctxOf(db), { projectId: "projects_1" as never, appUserId: " " }),
@@ -138,7 +138,7 @@ describe("purchase list filters", () => {
     ).page.map((row) => row.productId);
 
   it("filters by app user, product and creation date", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     await seed(db);
     const [first, second] = db.rows("purchases");
     expect(await list(db, { appUserId: "user-a" })).toEqual(["coins"]);

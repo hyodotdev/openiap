@@ -5,7 +5,7 @@ import {
   APIException,
   OrderLookupStatus,
 } from "@apple/app-store-server-library";
-import { google } from "googleapis";
+import type { androidpublisher_v3 } from "googleapis";
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -17,7 +17,7 @@ import {
   verifyJWSTransaction,
 } from "../purchases/ios";
 import { AppStoreProductType } from "../purchases/shared";
-import { parseAndValidateServiceAccountKey } from "../purchases/android";
+import { playPublisher } from "../purchases/android";
 import { extractHttpStatus, retryOnTransient } from "../purchases/retry";
 import type { AppStoreReceiptData } from "../purchases/shared";
 import {
@@ -316,32 +316,15 @@ async function lookupGoogleOrder(
     );
   }
 
-  const serviceAccountFile = await ctx.runQuery(
-    internal.files.internal.getGooglePlayFileByProjectInternal,
-    { projectId: project._id },
-  );
-  if (!serviceAccountFile) {
+  const androidpublisher = await playPublisher(ctx, project._id);
+  if (androidpublisher === "no_key_file") {
     throw new ConvexError(
       "Google order lookup requires the project's Play service-account key (Settings → Android).",
     );
   }
-
-  const fileContent = await ctx.runAction(
-    internal.files.internal.readFileAsText,
-    {
-      fileId: serviceAccountFile._id,
-    },
-  );
-  if (!fileContent?.content) {
+  if (androidpublisher === "unreadable_key_file") {
     throw new ConvexError("Unable to read the stored Play service-account key");
   }
-
-  const keyData = parseAndValidateServiceAccountKey(fileContent.content);
-  const auth = new google.auth.GoogleAuth({
-    credentials: keyData,
-    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
-  });
-  const androidpublisher = google.androidpublisher({ version: "v3", auth });
 
   let order;
   try {
@@ -384,7 +367,7 @@ async function lookupGoogleOrder(
 
 // Optional secondary fetch — failure must not invalidate the lookup.
 async function fetchGoogleSubscriptionStatus(
-  androidpublisher: ReturnType<typeof google.androidpublisher>,
+  androidpublisher: androidpublisher_v3.Androidpublisher,
   packageName: string,
   purchaseToken: string,
 ): Promise<OrderSubscriptionStatus> {

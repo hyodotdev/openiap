@@ -16,23 +16,14 @@ import {
 } from "./internal";
 import { isValidSubscriptionUserId } from "./limits";
 import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
+import { randomHex } from "../utils/helpers";
 import { bindReasonValidator } from "../utils/validation";
-
-function generateUserErasureHashKey(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
-  );
-}
 
 const bindArgs = {
   apiKey: v.string(),
   purchaseToken: v.string(),
   userId: v.string(),
-  // SHA-256 of the evidence the caller sent, taken at the edge before an
-  // Apple JWS is reduced to its transaction id. Used only for issue records.
-  evidenceFingerprint: v.optional(v.string()),
+  // Labels a secret-key bind issue; never read otherwise.
   correlationId: v.optional(v.string()),
 };
 
@@ -41,8 +32,9 @@ function isBound(outcome: BindOutcome): boolean {
 }
 
 // Apple and Google SDKs can link a verified token without moving its owner.
-// Only a secret key learns why a bind did not link, and only a secret key can
-// link an Apple or Google one-time purchase: that is the backend's decision.
+// Only a secret key learns why a bind did not link, can link an Apple or
+// Google one-time purchase, or records a bind issue: a publishable key must
+// not write the issue log or tell a conflict from an unknown token by timing.
 export const bindUser = mutation({
   args: bindArgs,
   returns: v.object({
@@ -75,7 +67,8 @@ export const bindUser = mutation({
             purchaseToken: args.purchaseToken,
             userId: args.userId,
           });
-    if (server && outcome.reason === "not_found") {
+    if (!server) return { ok: true, bound: isBound(outcome) };
+    if (outcome.reason === "not_found") {
       outcome = await bindOneTimePurchaseToUser(
         ctx,
         project,
@@ -83,12 +76,12 @@ export const bindUser = mutation({
         args.userId,
       );
     }
-    await recordBindIssue(ctx, project._id, outcome, args);
-
-    const bound = isBound(outcome);
-    return server
-      ? { ok: true, bound, reason: outcome.reason }
-      : { ok: true, bound };
+    await recordBindIssue(ctx, project._id, outcome, {
+      evidence: args.purchaseToken,
+      userId: args.userId,
+      correlationId: args.correlationId,
+    });
+    return { ok: true, bound: isBound(outcome), reason: outcome.reason };
   },
 });
 
@@ -125,7 +118,11 @@ export const bindUserAsServer = mutation({
       purchaseToken: args.purchaseToken,
       userId: args.userId,
     });
-    await recordBindIssue(ctx, resolved.project._id, outcome, args);
+    await recordBindIssue(ctx, resolved.project._id, outcome, {
+      evidence: args.purchaseToken,
+      userId: args.userId,
+      correlationId: args.correlationId,
+    });
 
     return { ok: true, bound: isBound(outcome) };
   },
@@ -212,8 +209,7 @@ export const requestUserErasure = mutation({
       });
     }
 
-    const hashKey =
-      resolved.project.userErasureHashKey ?? generateUserErasureHashKey();
+    const hashKey = resolved.project.userErasureHashKey ?? randomHex();
     if (resolved.project.userErasureHashKey === undefined) {
       await ctx.db.patch(resolved.project._id, { userErasureHashKey: hashKey });
     }

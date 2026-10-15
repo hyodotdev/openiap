@@ -7,6 +7,7 @@ import {
   environmentSchema,
   expiresAtSchema,
   FALLBACK_PURCHASE_STATE,
+  finalVerdictSchema,
   originalTransactionIdSchema,
   productIdSchema,
   transactionIdSchema,
@@ -57,6 +58,7 @@ export const enforceVerifyResponseContract = (
     ["expiresAt", expiresAtSchema],
     ["commerceEnvironment", commerceEnvironmentSchema],
     ["correlationId", correlationIdSchema],
+    ["finalVerdict", finalVerdictSchema],
   ] as const) {
     if (degraded[field] !== undefined && !fits(schema, degraded[field])) {
       violations.push(field);

@@ -128,6 +128,13 @@ export const correlationIdSchema = v.pipe(
   ),
 );
 
+export const finalVerdictSchema = v.pipe(
+  v.boolean(),
+  v.description(
+    "Present only when isValid is false. True when the rejection is settled and a retry of the same evidence returns the same answer: EXPIRED, CANCELED, INAUTHENTIC (including an expectedProductId mismatch), CONSUMED, or a Google token reported revoked. False when it may still change, such as a transient UNKNOWN or PENDING.",
+  ),
+);
+
 const baseReceiptResponseSchema = v.object({
   store: verifyStoreSchema,
   isValid: v.boolean(),
@@ -147,6 +154,7 @@ const baseReceiptResponseSchema = v.object({
   expiresAt: v.optional(expiresAtSchema),
   commerceEnvironment: v.optional(commerceEnvironmentSchema),
   correlationId: v.optional(correlationIdSchema),
+  finalVerdict: v.optional(finalVerdictSchema),
 });
 
 export const verifyPurchaseSuccessResponseSchema = v.pipe(

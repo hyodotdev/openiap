@@ -40,7 +40,7 @@ export default function ProjectsPage() {
         subscriptions. Raw store evidence — the request payload (JWS, purchase
         token or receipt), the store response, and subscription purchase tokens
         — reaches only admins and owners in the dashboard, because it can be
-        replayed against verify and bind. Members see a purchase&apos;s SHA-256
+        replayed against verify and bind. Members see a purchase&apos;s keyed
         evidence fingerprint instead.
       </p>
 

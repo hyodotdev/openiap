@@ -11,7 +11,11 @@ import { harmonizedPurchaseStateValidator } from "./purchaseState";
 import { purchaseStoreValidator } from "../schema";
 import { readPurchaseStats } from "./stats";
 import { extractProductIdFromRemoteResponse } from "./shared";
-import { evidenceFingerprint } from "../purchaseIssues/evidence";
+import {
+  evidenceFingerprint,
+  purchaseEvidence,
+} from "../purchaseIssues/evidence";
+import { sha256Hex } from "../utils/sha256";
 import {
   getWritableOrganization,
   getWritableProject,
@@ -331,7 +335,14 @@ export const getPurchaseById = query({
       throw new ConvexError("Not authorized to view this purchase");
     }
 
-    const fingerprint = await evidenceFingerprint(purchase.requestData);
+    // An older project gets its salt with its first purchase issue; until then
+    // there is no issue to match, so none is shown.
+    const fingerprint = project.fingerprintSalt
+      ? await evidenceFingerprint(
+          project.fingerprintSalt,
+          await sha256Hex(purchaseEvidence(purchase.requestData)),
+        )
+      : undefined;
     const withProductId = {
       ...purchase,
       productId:

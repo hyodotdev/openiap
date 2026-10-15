@@ -6,11 +6,11 @@ vi.mock(import("@convex-dev/auth/server"), async (importOriginal) => ({
   getAuthUserId: async () => auth.userId as never,
 }));
 
-const { FakeDb, seedProject } = await import("../test.fakeDb");
+const { MemoryDb, seedProject } = await import("../test.memoryDb");
 const { listInboundNotificationsHandler } = await import("./inbound");
 const { sha256Hex } = await import("../utils/sha256");
 
-type Db = InstanceType<typeof FakeDb>;
+type Db = InstanceType<typeof MemoryDb>;
 const ctxOf = (db: Db) => ({ db }) as never;
 const page = { numItems: 25, cursor: null };
 const RAW_JWS = "eyJhbGciOiJFUzI1NiJ9.eyJzZWNyZXQiOiJyYXcifQ.c2lnbmF0dXJl";
@@ -64,7 +64,7 @@ async function seedEvents(db: Db): Promise<void> {
 
 describe("listInboundNotifications", () => {
   it("lists newest first without raw payloads or purchase tokens", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "member");
     await seedEvents(db);
     const result = await listInboundNotificationsHandler(ctxOf(db), {
@@ -86,7 +86,6 @@ describe("listInboundNotifications", () => {
     });
     expect(result.page[1]).toMatchObject({
       store: "apple",
-      transactionId: "2000000000000009",
       status: "applied",
       appliedAt: 12,
       payloadFingerprint: (await sha256Hex(RAW_JWS)).slice(0, 16),
@@ -96,10 +95,43 @@ describe("listInboundNotifications", () => {
     expect(serialized).not.toContain(PLAY_TOKEN);
     expect(serialized).not.toContain("rawSignedPayload");
     expect(serialized).not.toContain("purchaseToken");
+    // An Apple transaction id is the token bind accepts with a publishable key.
+    expect(serialized).not.toContain("2000000000000001");
+    expect(serialized).not.toContain("2000000000000009");
+  });
+
+  it("shows Apple transaction ids to owners, admins and secret keys", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    await seedEvents(db);
+    const apple = { transactionId: "2000000000000009" };
+    const viaSession = await listInboundNotificationsHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      paginationOpts: page,
+    });
+    expect(viaSession.page[1]).toMatchObject({
+      ...apple,
+      originalTransactionId: "2000000000000001",
+    });
+
+    auth.userId = null;
+    const key = "openiap-kit_sk_inbound";
+    db.seed("apiKeys", {
+      projectId: "projects_1",
+      organizationId: "organizations_1",
+      keyHash: await sha256Hex(key),
+      keyType: "secret",
+      isActive: true,
+    });
+    const viaKey = await listInboundNotificationsHandler(ctxOf(db), {
+      apiKey: key,
+      paginationOpts: page,
+    });
+    expect(viaKey.page[1]).toMatchObject(apple);
   });
 
   it("is scoped to the caller's project and membership", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     await seedEvents(db);
     await db.insert("webhookEvents", {
@@ -128,7 +160,7 @@ describe("listInboundNotifications", () => {
   });
 
   it("bounds the page size", async () => {
-    const db = new FakeDb();
+    const db = new MemoryDb();
     seedProject(db, "admin");
     await expect(
       listInboundNotificationsHandler(ctxOf(db), {

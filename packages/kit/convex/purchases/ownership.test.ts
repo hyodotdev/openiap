@@ -101,6 +101,10 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       projectId: "p1",
       store,
       remoteId: "store-proof",
+      requestData:
+        store === "amazon"
+          ? { store, userId: "store-alice", receiptId: "store-proof" }
+          : { store, userId: "store-alice", sku: "premium" },
       productId: "premium",
       state: HarmonizedPurchaseState.ENTITLED,
       isValid: true,
@@ -251,6 +255,7 @@ it("refuses partial ownership reads above the bounded limit", async () => {
         _id: `r${i}`,
         projectId: "p1",
         appUserId: "alice",
+        store: "amazon",
       })),
     }),
   };
