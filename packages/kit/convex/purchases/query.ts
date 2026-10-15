@@ -12,14 +12,7 @@ import {
   getWritableOrganization,
   getWritableProject,
 } from "../projects/writable";
-
-type MemberRole = Doc<"organizationMembers">["role"];
-
-// Signed JWS, purchase tokens and store responses can be replayed against
-// verify and bind, so only project admins and owners read them.
-function canReadRawEvidence(role: MemberRole): boolean {
-  return role === "owner" || role === "admin";
-}
+import { canReadRawStoreEvidence } from "../projects/helpers";
 
 // remoteId is a Google purchase token, so it goes with the raw evidence.
 function withoutRawEvidence<
@@ -192,7 +185,7 @@ export const getReceiptsByProject = query({
               : undefined,
           ),
       };
-      return canReadRawEvidence(membership.role)
+      return canReadRawStoreEvidence(membership.role)
         ? row
         : withoutRawEvidence(row);
     });
@@ -254,7 +247,7 @@ export const getPurchaseById = query({
             : undefined,
         ),
     };
-    if (canReadRawEvidence(membership.role)) {
+    if (canReadRawStoreEvidence(membership.role)) {
       return {
         ...withProductId,
         rawEvidenceVisible: true as const,

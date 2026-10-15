@@ -435,7 +435,11 @@ export async function verifyAmazonReceipt(
     // not store verdicts. Never replace a previously valid snapshot with an
     // UNKNOWN row just because this attempt could not reach/parse RVS.
     if (error instanceof ReceiptVerificationError) throw error;
-    throw new AmazonReceiptVerificationError(describeError(error));
+    // `outage` only labels the purchase issue; /v1 still answers 400 here.
+    throw new AmazonReceiptVerificationError(
+      describeError(error),
+      isAmazonTransientError(error) ? { outage: true } : undefined,
+    );
   }
 
   const state = mapAmazonReceiptState(receiptData);

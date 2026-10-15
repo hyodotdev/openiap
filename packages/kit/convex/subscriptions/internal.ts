@@ -1350,7 +1350,10 @@ export async function rebindSubscriptionToUserHandler(
     (await isUserErasureRequested(ctx, project, sub.userId))
   )
     return null;
-  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)))
+  if (
+    (await bindAmazonPurchaseOwner(ctx, project, sub, args.userId, true)) !==
+    "linked"
+  )
     return null;
   if (sub.userId === args.userId) {
     return { subscriptionId: sub._id, notified: true };
@@ -1463,8 +1466,18 @@ export async function bindSubscriptionToUserOutcome(
     );
     return { reason: "bound_to_other_user", ...target };
   }
-  if (!(await bindAmazonPurchaseOwner(ctx, project, sub, args.userId)))
-    return { reason: "not_bindable", ...target };
+  const amazonOwner = await bindAmazonPurchaseOwner(
+    ctx,
+    project,
+    sub,
+    args.userId,
+  );
+  if (amazonOwner !== "linked")
+    return {
+      reason: "not_bindable",
+      ...(amazonOwner === "limit" ? { limitReached: true } : {}),
+      ...target,
+    };
   if (sub.userId === args.userId)
     return { reason: "already_bound", subscriptionId: sub._id, ...target };
   const now = Date.now();

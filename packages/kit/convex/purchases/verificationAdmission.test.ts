@@ -292,7 +292,7 @@ type StoreCase = {
 };
 
 // A store context whose only reachable calls are the key lookup, admission,
-// and the purchase-issue record a rejection writes.
+// and the purchase-issue record a rejection schedules.
 function storeContext(project: Record<string, unknown>) {
   vi.useFakeTimers({ now: 1_000 });
   const { ctx: admission } = admissionCtx([
@@ -314,20 +314,31 @@ function storeContext(project: Record<string, unknown>) {
     runMutation: vi.fn(
       async (
         reference: FunctionReference<"mutation">,
-        args: { projectId: Id<"projects"> } & { issue?: { cause: string } },
+        args: { projectId: Id<"projects"> },
       ) => {
-        const name = getFunctionName(reference);
-        if (name === "purchases/verificationAdmission:consume") {
-          admissionCalls += 1;
-          return await testableFunction(consume)._handler(admission, args);
+        if (
+          getFunctionName(reference) !==
+          "purchases/verificationAdmission:consume"
+        ) {
+          return unexpected(reference);
         }
-        if (name === "purchaseIssues/internal:record" && args.issue) {
-          issues.push(args.issue);
-          return null;
-        }
-        return unexpected(reference);
+        admissionCalls += 1;
+        return await testableFunction(consume)._handler(admission, args);
       },
     ),
+    scheduler: {
+      runAfter: vi.fn(
+        async (
+          _delay: number,
+          reference: FunctionReference<"mutation">,
+          args: { issue: { cause: string } },
+        ) => {
+          if (getFunctionName(reference) !== "purchaseIssues/internal:record")
+            return unexpected(reference);
+          issues.push(args.issue);
+        },
+      ),
+    },
   };
 }
 

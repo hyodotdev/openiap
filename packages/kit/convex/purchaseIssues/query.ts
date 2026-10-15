@@ -15,8 +15,8 @@ const purchaseIssueDoc = schema.doc("purchaseIssues");
 /**
  * A project's purchase issues, most recently seen first. Any organization
  * member may read them: a row holds a hash of the evidence, never the evidence.
- * `from` and `to` bound `lastSeenAt` in epoch ms, inclusive. Filters scan at
- * most one project's rows, which the per-project cap bounds.
+ * `from` and `to` bound `lastSeenAt` in epoch ms, inclusive. The other filters
+ * scan at most one project's rows, which the per-project cap bounds.
  */
 export const listPurchaseIssues = query({
   args: {
@@ -34,20 +34,18 @@ export const listPurchaseIssues = query({
     if (!(await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId))) {
       throw createError(ErrorCode.NOT_AUTHORIZED);
     }
-    const { appUserId } = args;
-    const scoped =
-      appUserId === undefined
-        ? ctx.db
-            .query("purchaseIssues")
-            .withIndex("by_project_and_lastSeenAt", (q) =>
-              q.eq("projectId", args.projectId),
-            )
-        : ctx.db
-            .query("purchaseIssues")
-            .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
-              q.eq("projectId", args.projectId).eq("appUserId", appUserId),
-            );
-    return await scoped
+    const { from, to } = args;
+    return await ctx.db
+      .query("purchaseIssues")
+      .withIndex("by_project_and_lastSeenAt", (q) => {
+        const project = q.eq("projectId", args.projectId);
+        if (from !== undefined && to !== undefined) {
+          return project.gte("lastSeenAt", from).lte("lastSeenAt", to);
+        }
+        if (from !== undefined) return project.gte("lastSeenAt", from);
+        if (to !== undefined) return project.lte("lastSeenAt", to);
+        return project;
+      })
       .order("desc")
       .filter((q) =>
         q.and(
@@ -55,8 +53,8 @@ export const listPurchaseIssues = query({
           args.store === undefined || q.eq(q.field("store"), args.store),
           args.productId === undefined ||
             q.eq(q.field("productId"), args.productId),
-          args.from === undefined || q.gte(q.field("lastSeenAt"), args.from),
-          args.to === undefined || q.lte(q.field("lastSeenAt"), args.to),
+          args.appUserId === undefined ||
+            q.eq(q.field("appUserId"), args.appUserId),
         ),
       )
       .paginate(args.paginationOpts);

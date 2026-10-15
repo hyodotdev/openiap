@@ -8,17 +8,30 @@ import {
 } from "../purchases/errors";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import type { ReceiptResponse } from "../purchases/shared";
+import type { purchaseStoreValidator } from "../schema";
+import { sha256Hex } from "../utils/sha256";
 import type { purchaseIssueCauseValidator } from "../utils/validation";
 import { evidenceFingerprint, type PurchaseEvidence } from "./evidence";
 import type { PurchaseIssueInput } from "./internal";
 
 export type PurchaseIssueCause = Infer<typeof purchaseIssueCauseValidator>;
 
-type ClassifiedIssue = { cause: PurchaseIssueCause; retryAfterSec?: number };
+/**
+ * `evidence` issues are keyed by the evidence's fingerprint; they come only
+ * from a store's answer, which every pipeline asks after admission. `project`
+ * issues (configuration, credentials, rejected input, rate limits, outages)
+ * share one row per (store, cause), so requests that never reach admission
+ * cannot grow the log.
+ */
+export type ClassifiedIssue = {
+  cause: PurchaseIssueCause;
+  scope: "evidence" | "project";
+  retryAfterSec?: number;
+};
 
-// Verification error codes from purchases/errors.ts. An unlisted store error is
-// VERIFICATION_FAILED; INVALID_API_KEY has no project to record against.
-const CAUSE_BY_ERROR_CODE: Record<string, PurchaseIssueCause> = {
+// Project-level error codes from purchases/errors.ts. An unlisted code is a
+// project-scoped VERIFICATION_FAILED, so a new error can never key on evidence.
+const PROJECT_CAUSE_BY_ERROR_CODE: Record<string, PurchaseIssueCause> = {
   PROJECT_APP_STORE_BUNDLE_ID_NOT_CONFIGURED: "STORE_NOT_CONFIGURED",
   PROJECT_APP_STORE_APPLE_ID_NOT_CONFIGURED: "STORE_NOT_CONFIGURED",
   PROJECT_ANDROID_PACKAGE_NAME_NOT_CONFIGURED: "STORE_NOT_CONFIGURED",
@@ -40,16 +53,28 @@ const CAUSE_BY_ERROR_CODE: Record<string, PurchaseIssueCause> = {
   APP_STORE_BUNDLE_ID_MISMATCH: "APP_MISMATCH",
   APP_STORE_INVALID_JWS_FORMAT: "MALFORMED_EVIDENCE",
   AMAZON_SANDBOX_NOT_ENABLED: "SANDBOX_NOT_ALLOWED",
-  PLAY_STORE_PURCHASE_NOT_FOUND: "INAUTHENTIC",
 };
 
-function errorStatus(error: ReceiptVerificationError): unknown {
-  return error.errorDetails?.status;
+const evidenceIssue = (cause: PurchaseIssueCause): ClassifiedIssue => ({
+  cause,
+  scope: "evidence",
+});
+const projectIssue = (cause: PurchaseIssueCause): ClassifiedIssue => ({
+  cause,
+  scope: "project",
+});
+
+function rejectsCredentials(error: ReceiptVerificationError): boolean {
+  const status = error.errorDetails?.status;
+  return status === 401 || status === 403;
 }
 
 export function classifyVerificationError(
   error: unknown,
 ): ClassifiedIssue | null {
+  if (error instanceof PlayStoreVerificationError && error.writeConflict) {
+    return null;
+  }
   // Google wraps the classified store error; read the one it wraps.
   const cause =
     error instanceof PlayStoreVerificationError && error.inner
@@ -59,33 +84,37 @@ export function classifyVerificationError(
     if (cause.retryAfterSec !== undefined) {
       return {
         cause: "STORE_UNAVAILABLE",
+        scope: "project",
         retryAfterSec: cause.retryAfterSec,
       };
     }
     switch (cause.errorCode) {
       case "INVALID_API_KEY":
         return null;
+      // The store answered about this evidence.
       case "APP_STORE_TRANSACTION_VERIFICATION_FAILED":
-        // Apple's Server API answers 401/403 for credentials, never for a
-        // forged or unknown transaction.
-        return {
-          cause:
-            errorStatus(cause) === 401 || errorStatus(cause) === 403
-              ? "CREDENTIALS_REJECTED"
-              : "INAUTHENTIC",
-        };
+        return rejectsCredentials(cause)
+          ? projectIssue("CREDENTIALS_REJECTED")
+          : evidenceIssue("INAUTHENTIC");
+      case "PLAY_STORE_PURCHASE_NOT_FOUND":
+        return evidenceIssue("INAUTHENTIC");
+      case "PLAY_STORE_PURCHASE_VERIFICATION_FAILED":
+        return evidenceIssue("VERIFICATION_FAILED");
+      case "META_HORIZON_VERIFICATION_ERROR":
+        return rejectsCredentials(cause)
+          ? projectIssue("CREDENTIALS_REJECTED")
+          : evidenceIssue("VERIFICATION_FAILED");
       case "AMAZON_RECEIPT_VERIFICATION_ERROR":
         // RVS answers 496 for an invalid shared secret.
-        return {
-          cause:
-            errorStatus(cause) === 496
-              ? "CREDENTIALS_REJECTED"
-              : "VERIFICATION_FAILED",
-        };
+        return cause.errorDetails?.status === 496
+          ? projectIssue("CREDENTIALS_REJECTED")
+          : cause.errorDetails?.outage === true
+            ? projectIssue("STORE_UNAVAILABLE")
+            : evidenceIssue("VERIFICATION_FAILED");
       default:
-        return {
-          cause: CAUSE_BY_ERROR_CODE[cause.errorCode] ?? "VERIFICATION_FAILED",
-        };
+        return projectIssue(
+          PROJECT_CAUSE_BY_ERROR_CODE[cause.errorCode] ?? "VERIFICATION_FAILED",
+        );
     }
   }
   if (
@@ -98,12 +127,14 @@ export function classifyVerificationError(
       .retryAfterSec;
     return {
       cause: "RATE_LIMITED",
+      scope: "project",
       ...(typeof retryAfterSec === "number" ? { retryAfterSec } : {}),
     };
   }
   return null;
 }
 
+/** Verdicts come from the store, so their issues key on the evidence. */
 export function classifyVerdict(
   verdict: Pick<ReceiptResponse, "state" | "productId">,
   expectedProductId: string | undefined,
@@ -124,6 +155,14 @@ export function classifyVerdict(
   return null;
 }
 
+/** The one fingerprint a project-scoped issue uses for its store and cause. */
+export function projectIssueFingerprint(
+  store: Infer<typeof purchaseStoreValidator>,
+  cause: PurchaseIssueCause,
+): Promise<string> {
+  return sha256Hex(`project-issue:${store}:${cause}`);
+}
+
 type VerifyIssueContext = {
   apiKey: string;
   evidence: PurchaseEvidence;
@@ -131,18 +170,38 @@ type VerifyIssueContext = {
   correlationId?: string;
 };
 
-async function recordFromAction(
+// Schedules the record, so neither its write nor a failure delays or changes
+// the verification answer.
+async function scheduleRecord(
   ctx: ActionCtx,
   request: VerifyIssueContext,
-  issue: Omit<PurchaseIssueInput, "store" | "fingerprint" | "correlationId">,
+  issue: ClassifiedIssue,
+  details: Pick<
+    PurchaseIssueInput,
+    "productId" | "claimedProductId" | "environment"
+  >,
 ): Promise<void> {
   try {
-    await ctx.runMutation(internal.purchaseIssues.internal.record, {
-      apiKey: request.apiKey,
+    const project = await ctx.runQuery(
+      internal.projects.internal.getProjectByApiKey,
+      { apiKey: request.apiKey, requiredAccess: "client" },
+    );
+    if (!project) return;
+    const { store } = request.evidence;
+    await ctx.scheduler.runAfter(0, internal.purchaseIssues.internal.record, {
+      projectId: project._id,
       issue: {
-        ...issue,
-        store: request.evidence.store,
-        fingerprint: await evidenceFingerprint(request.evidence),
+        cause: issue.cause,
+        store,
+        ...(issue.scope === "evidence"
+          ? {
+              fingerprint: await evidenceFingerprint(request.evidence),
+              ...details,
+            }
+          : { fingerprint: await projectIssueFingerprint(store, issue.cause) }),
+        ...(issue.retryAfterSec !== undefined
+          ? { retryAfterSec: issue.retryAfterSec }
+          : {}),
         ...(request.correlationId
           ? { correlationId: request.correlationId }
           : {}),
@@ -171,30 +230,30 @@ export async function verifyRecordingIssues(
     request.evidence.store === "horizon"
       ? request.evidence.sku
       : request.expectedProductId;
+  const claimed = claimedProductId ? { claimedProductId } : {};
   let verdict: ReceiptResponse;
   try {
     verdict = await verify();
   } catch (error) {
     const issue = classifyVerificationError(error);
-    if (issue) {
-      await recordFromAction(ctx, request, {
-        ...issue,
-        ...(claimedProductId ? { claimedProductId } : {}),
-      });
-    }
+    if (issue) await scheduleRecord(ctx, request, issue, claimed);
     throw error;
   }
 
   const cause = classifyVerdict(verdict, request.expectedProductId);
   if (cause) {
-    await recordFromAction(ctx, request, {
-      cause,
-      ...(verdict.productId && request.evidence.store !== "horizon"
-        ? { productId: verdict.productId }
-        : {}),
-      ...(claimedProductId ? { claimedProductId } : {}),
-      ...(verdict.environment ? { environment: verdict.environment } : {}),
-    });
+    await scheduleRecord(
+      ctx,
+      request,
+      { cause, scope: "evidence" },
+      {
+        ...(verdict.productId && request.evidence.store !== "horizon"
+          ? { productId: verdict.productId }
+          : {}),
+        ...claimed,
+        ...(verdict.environment ? { environment: verdict.environment } : {}),
+      },
+    );
   }
   return verdict;
 }

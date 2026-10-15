@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import { MemoryDb, memoryCtx } from "../purchaseIssues/memoryDb.testing";
 import { testableFunction } from "../test.setup";
+import { listSubscriptions as registeredListSubscriptions } from "../subscriptions/query";
 import {
   getPurchaseById as registeredGetPurchaseById,
   getReceiptsByProject as registeredGetReceiptsByProject,
@@ -11,6 +12,8 @@ import {
 
 const getPurchaseById = testableFunction(registeredGetPurchaseById);
 const getReceiptsByProject = testableFunction(registeredGetReceiptsByProject);
+const listSubscriptions = testableFunction(registeredListSubscriptions);
+const SECRET_KEY = "openiap-kit_sk_server";
 const PROJECT = "projects_1" as Id<"projects">;
 const TOKEN = "google-purchase-token-value";
 const RESPONSE = JSON.stringify({ orderId: "GPA.1", productLineItem: [] });
@@ -37,6 +40,23 @@ function setup() {
     isValid: true,
     productId: "premium",
   }) as Id<"purchases">;
+  db.seed("subscriptions", {
+    projectId: PROJECT,
+    purchaseToken: "2000000000000001",
+    productId: "monthly",
+    platform: "IOS",
+    store: "apple",
+    state: "Active",
+    startedAt: 0,
+    updatedAt: 0,
+  });
+  db.seed("apiKeys", {
+    key: SECRET_KEY,
+    keyType: "secret",
+    isActive: true,
+    projectId: PROJECT,
+    organizationId: "organizations_1",
+  });
   return { db, purchaseId };
 }
 
@@ -60,7 +80,7 @@ describe("raw store evidence", () => {
     }
   });
 
-  it("is replaced by a fingerprint for members, in the detail and the list", async () => {
+  it("is hidden from members: the detail shows a fingerprint, the list omits it", async () => {
     const { db, purchaseId } = setup();
     const ctx = memoryCtx(db, "users_member");
 
@@ -90,5 +110,33 @@ describe("raw store evidence", () => {
       { projectId: PROJECT, paginationOpts: { numItems: 10, cursor: null } },
     );
     expect(adminList.page[0]).toMatchObject({ remoteId: TOKEN });
+  });
+});
+
+describe("subscription store tokens", () => {
+  it("reach dashboard admins and API keys, never members", async () => {
+    const { db } = setup();
+    const list = async (userId: string | undefined, args: object) =>
+      (
+        await listSubscriptions._handler(memoryCtx(db, userId), {
+          ...args,
+        })
+      ).items[0];
+
+    expect(await list("users_admin", { projectId: PROJECT })).toMatchObject({
+      purchaseToken: "2000000000000001",
+      originalTransactionId: "2000000000000001",
+    });
+    expect(await list(undefined, { apiKey: SECRET_KEY })).toMatchObject({
+      purchaseToken: "2000000000000001",
+    });
+
+    const memberRow = await list("users_member", { projectId: PROJECT });
+    // The field stays for decoders that require it, empty.
+    expect(memberRow).toMatchObject({
+      productId: "monthly",
+      purchaseToken: "",
+    });
+    expect(memberRow).not.toHaveProperty("originalTransactionId");
   });
 });

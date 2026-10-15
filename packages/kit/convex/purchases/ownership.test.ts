@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { testableFunction } from "../test.setup";
 import { hmacSha256Hex } from "../utils/sha256";
 import { HarmonizedPurchaseState } from "./purchaseState";
@@ -110,8 +110,14 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       purchases: [purchase],
       subscriptionUserErasureJobs: [],
     };
-    return { rows, purchase, ctx: { db: database(rows) } };
+    const ctx = { db: database(rows), scheduler: { runAfter: vi.fn() } };
+    return { rows, purchase, ctx };
   }
+  const scheduledCauses = (ctx: { scheduler: { runAfter: Mock } }) =>
+    ctx.scheduler.runAfter.mock.calls.map(
+      ([, , scheduled]) =>
+        (scheduled as { issue: { cause: string } }).issue.cause,
+    );
   it("binds once, preserves ownership and refuses another account", async () => {
     const { ctx, purchase } = setup();
     expect(await bind(ctx, args)).toEqual({ bound: true });
@@ -121,6 +127,7 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     });
     expect(purchase.appUserId).toBe("alice");
     expect(stubs.resolve).toHaveBeenCalledWith(ctx, "server-key", "admin");
+    expect(scheduledCauses(ctx)).toEqual(["OWNERSHIP_CONFLICT"]);
   });
   it.each([
     { state: HarmonizedPurchaseState.CANCELED },
@@ -172,6 +179,10 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     expect(purchase.appUserId).toBeUndefined();
     // Known and unknown evidence take the same path and log the same line.
     expect(warn).toHaveBeenCalledTimes(2);
+    expect(scheduledCauses(ctx)).toEqual([
+      "BIND_LIMIT_REACHED",
+      "BIND_LIMIT_REACHED",
+    ]);
     expect(warn.mock.calls[0]).toEqual([
       expect.stringContaining("bound purchase limit"),
       { projectId: "p1", store },

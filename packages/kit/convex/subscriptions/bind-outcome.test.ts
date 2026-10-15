@@ -1,7 +1,12 @@
+import { getFunctionName, type FunctionReference } from "convex/server";
 import type { Value } from "convex/values";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
+import {
+  recordPurchaseIssue,
+  type PurchaseIssueInput,
+} from "../purchaseIssues/internal";
 import { MemoryDb, memoryCtx } from "../purchaseIssues/memoryDb.testing";
 import { MAX_BOUND_PURCHASES_PER_USER } from "./limits";
 import { drainSubscriptionUserErasurePage } from "./internal";
@@ -91,7 +96,27 @@ function setup() {
       remoteResponse: JSON.stringify({ productLineItem: [{}] }),
     }),
   );
-  return { db, ctx: memoryCtx(db) };
+  const ctx = {
+    ...memoryCtx(db),
+    // Runs a scheduled issue record at once, as the scheduler would later.
+    scheduler: {
+      runAfter: async (
+        _delay: number,
+        reference: FunctionReference<"mutation">,
+        args: { projectId: Id<"projects">; issue: PurchaseIssueInput },
+      ) => {
+        expect(getFunctionName(reference)).toBe(
+          "purchaseIssues/internal:record",
+        );
+        await recordPurchaseIssue(
+          memoryCtx(db) as never,
+          args.projectId,
+          args.issue,
+        );
+      },
+    },
+  };
+  return { db, ctx };
 }
 
 const bind = (
@@ -175,15 +200,43 @@ describe("bindUser with a secret key", () => {
     expect(purchase(db, "google-token-1")?.appUserId).toBe("alice");
   });
 
-  it("leaves consumables and auto-renewing purchases to their own paths", async () => {
+  it("links a Google purchase still awaiting acknowledgment", async () => {
+    // Apps confirm with their backend before finishTransaction acknowledges.
     const { db, ctx } = setup();
-    expect(await bind(ctx, SK, "coins-1")).toMatchObject({
+    db.seed(
+      "purchases",
+      oneTimePurchase("google-pending-1", {
+        store: "google",
+        requestData: { store: "google", purchaseToken: "google-pending-1" },
+        remoteResponse: JSON.stringify({ productLineItem: [{}] }),
+        state: "PENDING_ACKNOWLEDGMENT",
+      }),
+    );
+    expect(await bind(ctx, SK, "google-pending-1")).toMatchObject({
+      bound: true,
+      reason: "bound",
+    });
+    expect(await bind(ctx, SK, "google-pending-1", "carol")).toMatchObject({
+      bound: false,
+      reason: "bound_to_other_user",
+    });
+    expect(purchase(db, "google-pending-1")?.appUserId).toBe("alice");
+  });
+
+  it("links any valid one-time state but no invalid or auto-renewing purchase", async () => {
+    const { db, ctx } = setup();
+    db.seed(
+      "purchases",
+      oneTimePurchase("refunded-1", { state: "CANCELED", isValid: false }),
+    );
+    expect(await bind(ctx, SK, "coins-1")).toMatchObject({ reason: "bound" });
+    expect(await bind(ctx, SK, "refunded-1")).toMatchObject({
       reason: "not_bindable",
     });
     expect(await bind(ctx, SK, "renewing-1")).toMatchObject({
       reason: "not_found",
     });
-    expect(purchase(db, "coins-1")).not.toHaveProperty("appUserId");
+    expect(purchase(db, "refunded-1")).not.toHaveProperty("appUserId");
     expect(purchase(db, "renewing-1")).not.toHaveProperty("appUserId");
   });
 
@@ -265,6 +318,41 @@ describe("bindUserAsServer", () => {
       }),
     ).resolves.toEqual({ ok: true, bound: false });
     expect(purchase(db, "lifetime-1")).not.toHaveProperty("appUserId");
+  });
+
+  it("records an Amazon subscription refused by the bound-purchase cap", async () => {
+    const { db, ctx } = setup();
+    db.seed("purchases", oneTimePurchase("rvs-1", { store: "amazon" }));
+    db.seed("subscriptions", {
+      projectId: PROJECT,
+      purchaseToken: "amazon:rvs-1",
+      productId: "monthly",
+      platform: "Android",
+      store: "amazon",
+      state: "Active",
+      startedAt: 0,
+      updatedAt: 0,
+    });
+    for (let index = 0; index < MAX_BOUND_PURCHASES_PER_USER; index += 1) {
+      db.seed(
+        "purchases",
+        oneTimePurchase(`held-${index}`, { appUserId: "alice" }),
+      );
+    }
+    await expect(
+      bindUserAsServer._handler(ctx as never, {
+        apiKey: SK,
+        purchaseToken: "amazon:rvs-1",
+        userId: "alice",
+      }),
+    ).resolves.toEqual({ ok: true, bound: false });
+    expect(db.rows("purchaseIssues")).toEqual([
+      expect.objectContaining({
+        cause: "BIND_LIMIT_REACHED",
+        store: "amazon",
+        appUserId: "alice",
+      }),
+    ]);
   });
 });
 

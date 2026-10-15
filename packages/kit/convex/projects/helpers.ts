@@ -84,6 +84,14 @@ export async function resolveProjectByApiKeyFromDb(
   };
 }
 
+// Signed JWS, purchase tokens, receipts and store responses can be replayed
+// against verify and bind, so only project admins and owners read them.
+export function canReadRawStoreEvidence(
+  role: "owner" | "admin" | "member",
+): boolean {
+  return role === "owner" || role === "admin";
+}
+
 export async function resolveProjectByIdForCurrentUserFromDb(
   ctx: QueryCtx | MutationCtx,
   projectId: Id<"projects">,
@@ -181,18 +189,6 @@ export async function deleteProjectWithData(
     await ctx.db.delete(issue._id);
   }
   if (purchaseIssues.length > 0) {
-    await scheduleProjectDeletionContinuation(ctx, projectId);
-    return false;
-  }
-
-  const purchaseIssueCounts = await ctx.db
-    .query("purchaseIssueCounts")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .take(PROJECT_DELETION_PAGE);
-  for (const counter of purchaseIssueCounts) {
-    await ctx.db.delete(counter._id);
-  }
-  if (purchaseIssueCounts.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }

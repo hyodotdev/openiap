@@ -221,13 +221,15 @@ export default function ApiReferencePage() {
       <h3 className="mt-6 text-lg font-semibold">Transaction identifiers</h3>
       <p>
         Send <code>includeTransactionDetails: true</code> to match a
-        verification with the commerce events your backend receives. The
-        response then adds these fields, named and valued exactly as on{" "}
+        verification with the{" "}
         <Link to="/docs/webhooks" className="text-primary underline">
           commerce events
-        </Link>
-        . A field the store does not supply is absent; without the flag the
-        response is unchanged.
+        </Link>{" "}
+        your backend receives. The response then adds these fields, under the
+        names events use. A field the store does not supply is absent; without
+        the flag the response is unchanged. Horizon and Amazon return only{" "}
+        <code>commerceEnvironment</code> (Amazon) and <code>correlationId</code>
+        .
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -239,9 +241,9 @@ export default function ApiReferencePage() {
           of the purchase or subscription chain.
         </li>
         <li>
-          <code>expiresAt</code> — epoch milliseconds when access from an Apple
-          or Google subscription transaction ends, as the store reported it at
-          verification.
+          <code>expiresAt</code> — epoch milliseconds when the verified Apple or
+          Google subscription period ends. During an Apple grace period, events
+          report the later grace deadline instead.
         </li>
         <li>
           <code>commerceEnvironment</code> — <code>production</code> or{" "}
@@ -592,20 +594,23 @@ export default function ApiReferencePage() {
           under your own policy; a bind never moves it.
         </li>
         <li>
-          <code>not_found</code> — IAPKit has not verified this purchase. Verify
-          it first.
+          <code>not_found</code> — no verified subscription or one-time purchase
+          matches this token. Verify the purchase first.
         </li>
         <li>
-          <code>not_bindable</code> — known but not linkable: not entitled, a
-          consumable, an Amazon subscription token, a user under erasure, or a
-          user already holding 20 linked purchases.
+          <code>not_bindable</code> — known but not linkable: a one-time
+          purchase verify did not call valid (refunded, pending, consumed), an
+          Amazon subscription token, a user under erasure, or a user already
+          holding 20 linked purchases.
         </li>
       </ul>
       <p>
-        A secret key also links a verified, entitled Apple or Google one-time
-        purchase (send its JWS or purchase token). Linking records ownership for
-        your records and support; it does not add the product to subscription
-        status or entitlement reads, so grant it from the verify response.
+        A secret key also links an Apple or Google one-time purchase that verify
+        called valid, including a Google purchase still awaiting acknowledgment,
+        so bind before <code>finishTransaction</code> (send the JWS or purchase
+        token). The link records who owns the purchase in IAPKit; it does not
+        add the product to subscription status or entitlement reads, so your
+        backend grants it from the verify response.
       </p>
       <CodeBlock title="Secret-key bind-user response" language="json">
         {`{ "ok": true, "bound": false, "reason": "bound_to_other_user" }`}

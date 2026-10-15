@@ -121,7 +121,6 @@ describe("deleteProjectWithData", () => {
       apiKeys: rows("api_key"),
       purchases: rows("purchase", { rawSignedPayload: "signed" }),
       purchaseIssues: rows("purchase_issue"),
-      purchaseIssueCounts: rows("purchase_issue_count"),
       files: rows("file").map((row, index) => ({
         ...row,
         storageId: `storage_${index}`,
@@ -158,7 +157,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(45);
+    expect(calls).toBe(43);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

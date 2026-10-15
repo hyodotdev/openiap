@@ -19,15 +19,6 @@ describe("transaction details", () => {
       originalTransactionId: "2000000000000001",
       expiresAt: 1_800_000_000_000,
     });
-    // A grace deadline extends access, as it does on events.
-    expect(
-      appStoreTransactionDetails({
-        transactionId: "2",
-        expiresDate: 1_800_000_000_000,
-        gracePeriodExpiresDate: 1_800_100_000_000,
-        environment: "Production",
-      }),
-    ).toEqual({ transactionId: "2", expiresAt: 1_800_100_000_000 });
     expect(
       appStoreTransactionDetails({
         transactionId: "3",

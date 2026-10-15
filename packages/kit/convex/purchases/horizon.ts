@@ -225,6 +225,7 @@ export async function verifyHorizonReceipt(
     throw new MetaHorizonVerificationError(
       describeError(error),
       shouldRetryHorizonError(error) ? STORE_OUTAGE_RETRY_AFTER_SEC : undefined,
+      extractHttpStatus(error),
     );
   }
 

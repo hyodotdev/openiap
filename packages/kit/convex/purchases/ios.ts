@@ -201,16 +201,11 @@ async function verifyAppStoreReceipt(
   };
 }
 
-// Same fields as Apple commerce events, whose expiresAt is the later of the
-// paid period's end and the grace deadline (webhooks/shared.ts).
+// Same transaction fields as Apple commerce events. expiresAt is the paid
+// period's end: a grace deadline is renewal info, which only events carry.
 export function appStoreTransactionDetails(
   transaction: AppStoreReceiptData,
 ): TransactionDetails {
-  const expiresAt =
-    Math.max(
-      transaction.expiresDate ?? 0,
-      transaction.gracePeriodExpiresDate ?? 0,
-    ) || undefined;
   return {
     ...(transaction.transactionId
       ? { transactionId: transaction.transactionId }
@@ -218,7 +213,9 @@ export function appStoreTransactionDetails(
     ...(transaction.originalTransactionId
       ? { originalTransactionId: transaction.originalTransactionId }
       : {}),
-    ...(expiresAt !== undefined ? { expiresAt } : {}),
+    ...(transaction.expiresDate !== undefined
+      ? { expiresAt: transaction.expiresDate }
+      : {}),
   };
 }
 

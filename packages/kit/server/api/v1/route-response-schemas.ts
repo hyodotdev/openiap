@@ -110,7 +110,7 @@ export const originalTransactionIdSchema = v.pipe(
 export const expiresAtSchema = v.pipe(
   v.number(),
   v.description(
-    "Epoch milliseconds when access from this subscription transaction ends, as the store reported it at verification; for Apple, the later of expiry and a grace deadline. Same unit and meaning as subscription.expiresAt on commerce events.",
+    "Epoch milliseconds when the verified subscription transaction's paid period ends: Apple expiresDate or the Google line item's expiryTime. Same unit as subscription.expiresAt on commerce events; during an Apple grace period an event can report the later grace deadline.",
   ),
 );
 

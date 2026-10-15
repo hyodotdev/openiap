@@ -36,11 +36,12 @@ export default function ProjectsPage() {
         entitlement state.
       </p>
       <p>
-        Every organization member can read a project&apos;s purchases. Raw store
-        evidence — the request payload (JWS, purchase token or receipt) and the
-        store response — is shown only to admins and owners, because it can be
-        replayed against verify and bind. Members see its SHA-256 fingerprint
-        instead.
+        Every organization member can read a project&apos;s purchases and
+        subscriptions. Raw store evidence — the request payload (JWS, purchase
+        token or receipt), the store response, and subscription purchase tokens
+        — reaches only admins and owners in the dashboard, because it can be
+        replayed against verify and bind. Members see a purchase&apos;s SHA-256
+        evidence fingerprint instead.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>

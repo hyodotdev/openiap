@@ -4,8 +4,7 @@ import { amazonSubscriptionToken } from "../subscriptions/amazon";
 import { isUserErasureRequested } from "../subscriptions/erasure";
 import type { BindOutcome } from "../subscriptions/internal";
 import { MAX_BOUND_PURCHASES_PER_USER } from "../subscriptions/limits";
-import { HarmonizedPurchaseState } from "./purchaseState";
-import { AppStoreProductType } from "./shared";
+import { AppStoreProductType, isValidState } from "./shared";
 
 export async function makePurchaseBindingRoom(
   ctx: MutationCtx,
@@ -47,16 +46,17 @@ export async function makePurchaseBindingRoom(
   return false;
 }
 
+/** "limit" is the bound-purchase cap; "refused" covers every other refusal. */
 export async function bindAmazonPurchaseOwner(
   ctx: MutationCtx,
   project: Doc<"projects">,
   sub: Doc<"subscriptions">,
   userId: string,
   allowRebind = false,
-): Promise<boolean> {
-  if (sub.store !== "amazon") return true;
+): Promise<"linked" | "refused" | "limit"> {
+  if (sub.store !== "amazon") return "linked";
   const prefix = amazonSubscriptionToken("");
-  if (!sub.purchaseToken.startsWith(prefix)) return false;
+  if (!sub.purchaseToken.startsWith(prefix)) return "refused";
   const remoteId = sub.purchaseToken.slice(prefix.length);
   const purchase = await ctx.db
     .query("purchases")
@@ -65,13 +65,13 @@ export async function bindAmazonPurchaseOwner(
     )
     .filter((q) => q.eq(q.field("store"), "amazon"))
     .unique();
-  if (!purchase) return false;
+  if (!purchase) return "refused";
   if (purchase.appUserId && purchase.appUserId !== userId) {
     if (
       !allowRebind ||
       (await isUserErasureRequested(ctx, project, purchase.appUserId))
     )
-      return false;
+      return "refused";
   }
   if (
     !(await makePurchaseBindingRoom(
@@ -82,12 +82,12 @@ export async function bindAmazonPurchaseOwner(
       remoteId,
     ))
   )
-    return false;
+    return "limit";
   await ctx.db.patch(purchase._id, {
     appUserId: userId,
     accountErased: undefined,
   });
-  return true;
+  return "linked";
 }
 
 // Apple and Google one-time purchases have no subscription row, so a server
@@ -130,11 +130,12 @@ function isOneTimePurchase(purchase: Doc<"purchases">): boolean {
   );
 }
 
-// Same rule as Amazon and Horizon: only a currently entitled purchase links; a
-// consumable is fulfilled by the app's own ledger.
+// Any state verify calls valid links, including Google's PENDING_ACKNOWLEDGMENT:
+// apps confirm with their backend before finishTransaction acknowledges it.
+// These links never grant entitlements, so consumables may link too.
 function isLinkable(purchase: Doc<"purchases">): boolean {
   return (
-    purchase.state === HarmonizedPurchaseState.ENTITLED &&
+    isValidState(purchase.state) &&
     purchase.isValid === true &&
     Boolean(purchase.productId)
   );
