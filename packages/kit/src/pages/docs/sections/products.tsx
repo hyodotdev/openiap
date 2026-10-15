@@ -234,15 +234,16 @@ export default function ProductsPage() {
           reused.
         </li>
         <li>
-          Organization members can read payloads, drafts, and history. Only
-          owners and admins can save, publish, roll back, or remove.
+          Every organization member can save, publish, roll back, and remove
+          payloads. History records who made each change.
         </li>
         <li>
           Publish checks the published version and the draft revision you
           opened. A stale browser tab gets{" "}
           <code>CLIENT_PAYLOAD_VERSION_CONFLICT</code> or{" "}
           <code>CLIENT_PAYLOAD_DRAFT_CONFLICT</code> instead of overwriting a
-          newer edit.
+          newer edit. An API publish without <code>expectedVersion</code> checks
+          the version the draft was saved on.
         </li>
       </ul>
       <p>
@@ -452,11 +453,12 @@ const refreshed = await api.clientPayload(
 );`}
       </CodeBlock>
       <p>
-        A refresh that hits a network error, <code>429</code>, or a{" "}
-        <code>5xx</code> returns the cached copy with <code>stale: true</code>{" "}
-        instead of throwing. A <code>404</code> still clears the cached copy and
-        throws, because the payload was removed. With nothing cached, every
-        error throws.
+        A refresh that hits a network error, <code>429</code>, a{" "}
+        <code>5xx</code>, or a <code>2xx</code> body that is not a payload (such
+        as a captive portal page) returns the cached copy with{" "}
+        <code>stale: true</code> instead of throwing. A <code>404</code> still
+        clears the cached copy and throws, because the payload was removed. With
+        nothing cached, every error throws.
       </p>
       <p>
         Every app-facing catalog read uses opaque cursor pagination.{" "}

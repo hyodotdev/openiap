@@ -593,7 +593,6 @@ describe("product client payload queries", () => {
         },
       ),
     ).resolves.toEqual({
-      canEdit: true,
       expectedVersion: 5,
       expectedDraftRevision: 0,
     });

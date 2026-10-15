@@ -90,16 +90,6 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       expo: target('libraries/expo-iap/src/purchase-flow.ts', 'purchase-flow → expo-iap'),
     },
   }),
-  purchaseFlowTests: group({
-    source: 'libraries/react-native-iap/src/__tests__/purchase-flow.shared.test.ts',
-    generated: false,
-    targets: {
-      expo: target(
-        'libraries/expo-iap/src/__tests__/purchase-flow.shared.test.ts',
-        'purchase-flow tests → expo-iap',
-      ),
-    },
-  }),
   errorMapping: group({
     source: 'libraries/react-native-iap/src/utils/errorMapping.ts',
     generated: false,

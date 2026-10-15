@@ -30,6 +30,8 @@ export interface EntitlementGrant {
 
 /** Your entitlement store. `grantOnce` must be atomic per `purchaseKey`. */
 export interface EntitlementLedger {
+  /** The user this purchase was granted to, or null if it never was. */
+  ownerOf(purchaseKey: string): Promise<string | null>;
   grantOnce(grant: EntitlementGrant): Promise<GrantResult>;
 }
 
@@ -37,8 +39,13 @@ export interface ConfirmPurchaseOptions {
   /** IAPKit secret key, `openiap-kit_sk_...`. */
   secretKey: string;
   ledger: EntitlementLedger;
-  /** Whether this deployment grants sandbox and test-track purchases. */
-  acceptSandbox: boolean;
+  /**
+   * Whether `userId` may get sandbox and test purchases; everyone may by
+   * default. App Review and TestFlight buy in the Apple sandbox against your
+   * production backend, so limit testers with an allow-list that includes your
+   * App Review demo account instead of refusing the sandbox.
+   */
+  acceptSandbox?: (userId: string) => boolean | Promise<boolean>;
   baseUrl?: string;
   fetch?: (url: string, init: RequestInit) => Promise<Response>;
 }
@@ -52,6 +59,8 @@ export interface VerifyResult {
   originalTransactionId?: string;
   expiresAt?: number;
   commerceEnvironment?: string;
+  /** Whether a rejection is settled; absent from older IAPKit responses. */
+  finalVerdict?: boolean;
 }
 
 export type BindReason =
@@ -95,6 +104,10 @@ export async function confirmPurchase(
     includeTransactionDetails: true,
   });
   if ("retryAfterMs" in verify) {
+    // IAPKit rejected this exact receipt moments ago and replays that verdict.
+    if (verify.code === "REPEATED_FAILURE") {
+      return { status: "invalid", reason: "REPEATED_FAILURE" };
+    }
     return {
       status: "verification_delayed",
       retryAfterMs: verify.retryAfterMs,
@@ -103,13 +116,20 @@ export async function confirmPurchase(
   const result = verify.body;
   if (!result.isValid) {
     if (result.state === "PENDING") return { status: "store_pending" };
-    // The store gave no usable answer; retry instead of rejecting a payment.
-    if (result.state === "UNKNOWN") {
+    // finalVerdict marks a settled rejection, such as a revoked Google token
+    // reported as UNKNOWN. Without it, UNKNOWN means the store gave no usable
+    // answer: retry instead of rejecting a payment.
+    const settled = result.finalVerdict ?? result.state !== "UNKNOWN";
+    if (!settled) {
       return { status: "verification_delayed", retryAfterMs: DEFAULT_RETRY_MS };
     }
     return { status: "invalid", reason: result.state };
   }
-  if (result.commerceEnvironment === "sandbox" && !options.acceptSandbox) {
+  const acceptSandbox = options.acceptSandbox ?? (() => true);
+  if (
+    result.commerceEnvironment === "sandbox" &&
+    !(await acceptSandbox(userId))
+  ) {
     return { status: "test_account_restricted" };
   }
   // Google assigns an order id only after acknowledgement, and every Apple
@@ -120,6 +140,11 @@ export async function confirmPurchase(
       : (result.originalTransactionId ?? result.transactionId);
   if (!purchaseKey || !result.productId) {
     throw new Error("IAPKit returned no transaction details");
+  }
+  // A bind is permanent, so check your own owner record before linking.
+  const owner = await options.ledger.ownerOf(purchaseKey);
+  if (owner !== null && owner !== userId) {
+    return { status: "ownership_conflict" };
   }
 
   const bind = await post<BindResult>("/v1/subscriptions/bind-user", {
@@ -184,7 +209,7 @@ export async function confirmPurchase(
   async function post<T>(
     path: string,
     payload: object,
-  ): Promise<{ body: T } | { retryAfterMs: number }> {
+  ): Promise<{ body: T } | { retryAfterMs: number; code: unknown }> {
     const response = await fetchImpl(`${baseUrl}${path}`, {
       method: "POST",
       headers: {
@@ -193,14 +218,18 @@ export async function confirmPurchase(
       },
       body: JSON.stringify(payload),
     });
-    // IAPKit or the store could not answer yet; nothing was decided.
+    // A rate limit, or IAPKit or the store could not answer yet.
     if (response.status === 429 || response.status === 503) {
       const seconds = Number(response.headers.get("retry-after"));
+      const error = (await response.json().catch(() => null)) as {
+        errors?: { code?: unknown }[];
+      } | null;
       return {
         retryAfterMs:
           Number.isFinite(seconds) && seconds > 0
             ? seconds * 1000
             : DEFAULT_RETRY_MS,
+        code: error?.errors?.[0]?.code,
       };
     }
     if (!response.ok) {

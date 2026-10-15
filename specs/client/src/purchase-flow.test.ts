@@ -75,8 +75,6 @@ describe("processPurchase", () => {
     { status: "verification_delayed", retryAfterMs: 5_000 },
     { status: "ownership_conflict" },
     { status: "test_account_restricted" },
-    { status: "invalid", reason: "INAUTHENTIC" },
-    { status: "invalid" },
     { status: "verified" },
     { status: "verified", retryAfterMs: 1_000 },
     { status: "linked", retryAfterMs: 30_000 },
@@ -87,6 +85,47 @@ describe("processPurchase", () => {
       confirmation,
     );
     expect(options.finishTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each<PurchaseConfirmation>([
+    { status: "invalid", reason: "EXPIRED" },
+    { status: "invalid" },
+  ])(
+    "finishes a settled invalid iOS purchase but never acknowledges a Google one: %j",
+    async (confirmation) => {
+      const { flow, options } = flowWith(async () => confirmation);
+      const apple = purchase({ productId: "coins_100" });
+
+      await expect(flow.processPurchase(apple)).resolves.toEqual(confirmation);
+      expect(options.finishTransaction).toHaveBeenCalledWith({
+        purchase: apple,
+        isConsumable: true,
+      });
+
+      vi.mocked(options.finishTransaction).mockClear();
+      await expect(
+        flow.processPurchase(purchase({ id: "GPA.1", store: "google" })),
+      ).resolves.toEqual(confirmation);
+      expect(options.finishTransaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports an invalid iOS purchase whose finish failed", async () => {
+    const finishError = new Error("store unavailable");
+    const { flow } = flowWith(
+      async () => ({ status: "invalid", reason: "CANCELED" }),
+      {
+        finishTransaction: vi.fn(async () => {
+          throw finishError;
+        }),
+      },
+    );
+
+    await expect(flow.processPurchase(purchase())).resolves.toEqual({
+      status: "invalid",
+      reason: "CANCELED",
+      finishError,
+    });
   });
 
   it.each([
@@ -256,6 +295,23 @@ describe("recoverPurchases", () => {
       purchase: unfinished,
       isConsumable: true,
     });
+  });
+
+  it("stops rechecking an expired iOS renewal once it is finished", async () => {
+    const unfinished = [purchase({ id: "renewal-2" })];
+    const { flow, options } = flowWith(
+      async () => ({ status: "invalid", reason: "EXPIRED" }),
+      {
+        getPendingTransactionsIOS: vi.fn(async () => [...unfinished]),
+        finishTransaction: vi.fn(async ({ purchase: p }) => {
+          unfinished.splice(unfinished.indexOf(p), 1);
+        }),
+      },
+    );
+
+    await flow.recoverPurchases();
+    await expect(flow.recoverPurchases()).resolves.toEqual([]);
+    expect(options.confirmWithBackend).toHaveBeenCalledTimes(1);
   });
 
   it("skips acknowledged Android purchases by default", async () => {

@@ -26,7 +26,6 @@ import {
 export type ClientPayloadTab = "preview" | "history";
 
 export type ClientPayloadProduct = {
-  canEdit: boolean;
   clientPayload?: ProductClientPayload;
   draft?: ClientPayloadDraft;
   expectedDraftRevision: number;
@@ -179,8 +178,7 @@ export function ProductClientPayloadDialog({
   const differsFromPublished =
     !published || published.format !== format || published.body !== body;
   const isBusy = busyAction !== null;
-  const canEdit = selected.canEdit;
-  const isInputDisabled = isBusy || isLoading || !canEdit;
+  const isInputDisabled = isBusy || isLoading;
   const changedElsewhere =
     !isLoading &&
     (selected.expectedVersion !== snapshot.expectedVersion ||
@@ -364,8 +362,7 @@ export function ProductClientPayloadDialog({
           <textarea
             id="client-payload-body"
             value={body}
-            disabled={isBusy || isLoading}
-            readOnly={!canEdit}
+            disabled={isInputDisabled}
             required
             rows={12}
             spellCheck={false}
@@ -428,7 +425,7 @@ export function ProductClientPayloadDialog({
                   : ""
               }`
             : ""}
-          {hasUnsavedEdits && canEdit ? " · Unsaved edits" : ""}
+          {hasUnsavedEdits ? " · Unsaved edits" : ""}
         </p>
 
         {changedElsewhere ? (
@@ -438,12 +435,6 @@ export function ProductClientPayloadDialog({
           >
             This payload changed in another session. Close and reopen to load
             the latest version before publishing.
-          </p>
-        ) : null}
-
-        {!canEdit && !isLoading ? (
-          <p className="text-xs text-muted-foreground">
-            Only organization owners and admins can change client payloads.
           </p>
         ) : null}
 
@@ -483,7 +474,6 @@ export function ProductClientPayloadDialog({
               />
             ) : (
               <ClientPayloadHistory
-                canEdit={canEdit}
                 currentVersion={selected.clientPayload?.version}
                 history={history}
                 isBusy={isBusy}
@@ -505,17 +495,7 @@ export function ProductClientPayloadDialog({
           </p>
         ) : null}
 
-        {!canEdit ? (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={requestClose}
-              className="rounded border border-border px-3 py-1.5 text-xs hover:bg-muted/50"
-            >
-              Close
-            </button>
-          </div>
-        ) : isConfirmingRemove ? (
+        {isConfirmingRemove ? (
           <div
             role="alert"
             className="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-xs"
@@ -710,8 +690,6 @@ export function ProductClientPayloadDialogRoot() {
             platform: target.platform,
             productId: target.productId,
             title: target.title,
-            // While loading, the editor layout renders disabled.
-            canEdit: workspace?.canEdit ?? true,
             expectedVersion: workspace?.expectedVersion ?? 0,
             expectedDraftRevision: workspace?.expectedDraftRevision ?? 0,
             ...(workspace?.clientPayload

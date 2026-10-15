@@ -679,7 +679,10 @@ export async function discardClientPayloadDraft(
   return { ok: true };
 }
 
-/** Publish the saved draft. The draft is cleared once it is published. */
+/**
+ * Publish the saved draft and clear it. Without `expectedVersion`, the publish
+ * conflicts if another version went live after the draft was saved.
+ */
 export async function publishClientPayloadDraft(
   ctx: MutationCtx,
   key: ClientPayloadKey,
@@ -703,7 +706,7 @@ export async function publishClientPayloadDraft(
   const result = await publishClientPayload(ctx, key, {
     format: draft.format,
     body: draft.body,
-    expectedVersion: input.expectedVersion,
+    expectedVersion: input.expectedVersion ?? draft.baseVersion,
     note: input.note,
     author: input.author,
   });

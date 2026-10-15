@@ -19,7 +19,6 @@ const EXISTING_PRODUCT: ClientPayloadProduct = {
   productId: "premium_monthly",
   platform: "IOS",
   title: "Premium Monthly",
-  canEdit: true,
   expectedVersion: 4,
   expectedDraftRevision: 0,
   clientPayload: {
@@ -229,7 +228,6 @@ describe("ProductClientPayloadDialog", () => {
         productId: "coins_100",
         platform: "Android",
         title: "100 Coins",
-        canEdit: true,
         expectedVersion: 2,
         expectedDraftRevision: 5,
       },
@@ -349,28 +347,6 @@ describe("ProductClientPayloadDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("shows members a read-only view", () => {
-    renderDialog({ product: { ...EXISTING_PRODUCT, canEdit: false } });
-
-    expect(
-      screen.getByLabelText<HTMLTextAreaElement>("Payload body").readOnly,
-    ).toBe(true);
-    expect(screen.getByLabelText<HTMLSelectElement>("Format").disabled).toBe(
-      true,
-    );
-    for (const name of [
-      "Publish",
-      "Save draft",
-      "Remove payload",
-      "Discard draft",
-    ]) {
-      expect(screen.queryByRole("button", { name })).toBeNull();
-    }
-    expect(
-      screen.getByText(/Only organization owners and admins/),
-    ).not.toBeNull();
-  });
-
   it("previews the diff and the exact app response before and after publish", () => {
     renderDialog({
       sdkPreview: {
@@ -463,7 +439,7 @@ describe("ProductClientPayloadDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("does not offer rollback to the live version or to members", () => {
+  it("does not offer rollback to the live version", () => {
     const history = [{ version: 4, action: "publish" as const, createdAt: 2 }];
     const detail = {
       version: 4,
@@ -471,21 +447,11 @@ describe("ProductClientPayloadDialog", () => {
       body: "max_items = 10",
       createdAt: 2,
     };
-    const { view } = renderDialog({
+    renderDialog({
       tab: "history",
       history,
       selectedVersion: 4,
       selectedVersionDetail: detail,
-    });
-    expect(screen.queryByRole("button", { name: /Roll back/ })).toBeNull();
-    view.unmount();
-
-    renderDialog({
-      product: { ...EXISTING_PRODUCT, canEdit: false },
-      tab: "history",
-      history,
-      selectedVersion: 3,
-      selectedVersionDetail: { ...detail, version: 3 },
     });
     expect(screen.queryByRole("button", { name: /Roll back/ })).toBeNull();
   });

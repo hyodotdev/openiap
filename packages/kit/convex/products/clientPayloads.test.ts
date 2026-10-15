@@ -293,6 +293,31 @@ describe("client payload drafts", () => {
     );
   });
 
+  it("refuses to publish a draft over a version published after it was saved", async () => {
+    const ctx = makeCtx();
+    await saveClientPayloadDraft(ctx as never, KEY, {
+      format: "text",
+      body: "draft",
+    });
+    await publishClientPayload(ctx as never, KEY, {
+      format: "text",
+      body: "newer",
+      author: AUTHOR,
+    });
+
+    await expect(
+      publishClientPayloadDraft(ctx as never, KEY, { author: AUTHOR }),
+    ).rejects.toSatisfy(
+      (error) => errorCode(error) === "CLIENT_PAYLOAD_VERSION_CONFLICT",
+    );
+    await expect(
+      publishClientPayloadDraft(ctx as never, KEY, {
+        expectedVersion: 1,
+        author: AUTHOR,
+      }),
+    ).resolves.toMatchObject({ version: 2 });
+  });
+
   it("guards publish with the draft revision, which never resets", async () => {
     const ctx = makeCtx();
     const first = await saveClientPayloadDraft(ctx as never, KEY, {
@@ -528,8 +553,9 @@ describe("client payload history", () => {
 });
 
 describe("client payload permissions", () => {
-  it("lets members read the workspace and history but not change anything", async () => {
+  it("lets members change payloads and records them as authors", async () => {
     const ctx = makeCtx();
+    ctx.db.rows("users").push({ _id: "users_member", name: "Member" });
     await publishClientPayload(ctx as never, KEY, {
       format: "text",
       body: "v1",
@@ -541,34 +567,44 @@ describe("client payload permissions", () => {
       userId: "users_member",
     });
 
+    const discarded = await saveDraft._handler(ctx, {
+      ...DASHBOARD_ARGS,
+      format: "text",
+      body: "scratch",
+    });
     await expect(
-      workspace._handler(ctx, DASHBOARD_ARGS),
-    ).resolves.toMatchObject({ canEdit: false, expectedVersion: 1 });
-    await expect(history._handler(ctx, DASHBOARD_ARGS)).resolves.toHaveLength(
-      1,
-    );
-
-    const writes = [
-      saveDraft._handler(ctx, {
-        ...DASHBOARD_ARGS,
-        format: "text",
-        body: "member",
-      }),
-      publishDraft._handler(ctx, DASHBOARD_ARGS),
       discardDraft._handler(ctx, {
         ...DASHBOARD_ARGS,
-        expectedDraftRevision: 0,
+        expectedDraftRevision: discarded.revision,
       }),
-      rollback._handler(ctx, { ...DASHBOARD_ARGS, toVersion: 1 }),
-      remove._handler(ctx, { ...DASHBOARD_ARGS, expectedVersion: 1 }),
-    ];
-    for (const write of writes) {
-      await expect(write).rejects.toSatisfy(
-        (error) => errorCode(error) === "PROJECT_ACCESS_DENIED",
-      );
-    }
-    expect(ctx.db.rows("productClientPayloadDrafts")).toEqual([]);
-    expect(await listClientPayloadVersions(ctx as never, KEY)).toHaveLength(1);
+    ).resolves.toEqual({ ok: true });
+    const draft = await saveDraft._handler(ctx, {
+      ...DASHBOARD_ARGS,
+      format: "text",
+      body: "member",
+    });
+    await publishDraft._handler(ctx, {
+      ...DASHBOARD_ARGS,
+      expectedDraftRevision: draft.revision,
+    });
+    await rollback._handler(ctx, { ...DASHBOARD_ARGS, toVersion: 1 });
+    await expect(
+      remove._handler(ctx, { ...DASHBOARD_ARGS, expectedVersion: 3 }),
+    ).resolves.toEqual({ ok: true });
+
+    const versions = await listClientPayloadVersions(ctx as never, KEY);
+    expect(
+      versions.map(({ version, action, author }) => [
+        version,
+        action,
+        author?.name,
+      ]),
+    ).toEqual([
+      [4, "remove", "Member"],
+      [3, "rollback", "Member"],
+      [2, "publish", "Member"],
+      [1, "publish", "Hyo"],
+    ]);
   });
 
   it("rejects publishable keys before any secret-key write", async () => {

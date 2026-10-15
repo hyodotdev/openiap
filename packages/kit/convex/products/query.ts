@@ -378,12 +378,11 @@ const clientPayloadKeyArgs = {
   productId: v.string(),
 };
 
-/** Everything the dashboard editor needs, readable by every project member. */
+/** Everything the dashboard editor needs. */
 export const getProductClientPayloadWorkspace = query({
   args: { projectId: v.id("projects"), ...clientPayloadKeyArgs },
   returns: v.union(
     v.object({
-      canEdit: v.boolean(),
       expectedVersion: v.number(),
       clientPayload: v.optional(clientPayloadShape),
       expectedDraftRevision: v.number(),
@@ -402,7 +401,7 @@ export const getProductClientPayloadWorkspace = query({
       loadClientPayloadEditorState(ctx, key),
       loadClientPayloadDraftState(ctx, key),
     ]);
-    return { canEdit: resolved.role !== "member", ...published, ...draft };
+    return { ...published, ...draft };
   },
 });
 

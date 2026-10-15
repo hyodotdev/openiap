@@ -19,7 +19,6 @@ import userEvent from "@testing-library/user-event";
 
 type MockWorkspace =
   | {
-      canEdit: boolean;
       expectedVersion: number;
       expectedDraftRevision: number;
       clientPayload?: {
@@ -98,7 +97,6 @@ const OTHER_PROJECT_ID = "projects_b" as never;
 
 function workspace(version: number, body: string): MockWorkspace {
   return {
-    canEdit: true,
     expectedVersion: version,
     expectedDraftRevision: 0,
     clientPayload: {

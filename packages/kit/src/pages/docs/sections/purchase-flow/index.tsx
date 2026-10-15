@@ -30,13 +30,13 @@ const STATES: {
   },
   {
     status: "test_account_restricted",
-    meaning: "A sandbox or test purchase this deployment does not accept.",
+    meaning: "A sandbox or test purchase your backend does not accept.",
     guidance: "test_purchase_not_accepted",
   },
   {
     status: "invalid",
     meaning:
-      "The store says the purchase is not valid; reason carries the IAPKit state, such as INAUTHENTIC or EXPIRED.",
+      "The store rejected the purchase for good; reason carries the IAPKit state, such as INAUTHENTIC or EXPIRED. Anything that may still change is verification_delayed.",
     guidance: "purchase_not_valid",
   },
   {
@@ -51,8 +51,7 @@ const STATES: {
   },
   {
     status: "entitled",
-    meaning:
-      "Access is granted; alreadyGranted is true on a repeat. The only status that finishes the transaction.",
+    meaning: "Access is granted; alreadyGranted is true on a repeat.",
     guidance: "access_granted",
   },
   {
@@ -72,11 +71,12 @@ export default function PurchaseFlowPage() {
     >
       <p>
         Use this flow when your backend owns user accounts and grants access.
-        The app finishes a transaction only after your backend reports access
+        The app finishes a valid purchase only after your backend reports access
         granted, so a paid purchase is never lost and never asked for twice.
         React Native IAP and Expo IAP ship the client half as{" "}
         <code>createPurchaseFlow</code>; this page includes a tested reference
-        backend.
+        backend. The flow supports Apple App Store and Google Play purchases
+        only, so the Vega entry point does not export it.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Who does what</h2>
@@ -103,10 +103,11 @@ export default function PurchaseFlowPage() {
         another user, and IAPKit never pushes events to the app.
       </p>
       <CodeBlock language="text">{`app ──purchase──▶ your backend ──verify──────▶ IAPKit
+                               ──ownerOf─────▶ your ledger
                                ──bind-user───▶ IAPKit
                                ──grantOnce───▶ your ledger
 app ◀──status──── your backend
-app: finishTransaction only when status is "entitled"`}</CodeBlock>
+app: finishTransaction when status is "entitled", or "invalid" on iOS`}</CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">Client</h2>
       <CodeBlock title="Expo IAP (React Native IAP is identical)" language="ts">
@@ -199,9 +200,14 @@ const outcomes = await flow.recoverPurchases();`}
           consumes a non-consumable or blocks rebuying a consumable.
         </li>
         <li>
-          Never finish any other status. iOS delivers an unfinished transaction
-          again, and Google refunds a purchase that is not acknowledged within
-          three days, which is the safety net for invalid ones.
+          Finish <code>invalid</code> on iOS only. It is a settled rejection, so
+          finishing grants nothing and stops iOS from delivering it again at
+          every launch. On Google Play leave it unacknowledged: Google refunds a
+          purchase that is not acknowledged within three days.
+        </li>
+        <li>
+          Never finish any other status, so iOS and Google Play deliver it again
+          until it settles.
         </li>
         <li>
           If finishing fails after the grant, the status stays{" "}
@@ -215,8 +221,8 @@ const outcomes = await flow.recoverPurchases();`}
         Call <code>recoverPurchases()</code> at launch and when the app returns
         to the foreground. It confirms only unfinished purchases (iOS{" "}
         <code>getPendingTransactionsIOS</code>, unacknowledged Android
-        purchases), because the flow finishes only purchases already granted.
-        For a restore button, call{" "}
+        purchases), because the flow finishes only settled ones. For a restore
+        button, call{" "}
         <code>recoverPurchases({"{ includeFinished: true }"})</code>: the same
         account gets <code>entitled</code> with <code>alreadyGranted</code>, and
         another account gets <code>ownership_conflict</code>. Nothing is
@@ -227,13 +233,18 @@ const outcomes = await flow.recoverPurchases();`}
         twice is harmless, and concurrent deliveries of one transaction share a
         backend call. IAPKit replay-limits each receipt to about one
         verification a minute after a burst, so respect{" "}
-        <code>retryAfterMs</code> instead of looping.
+        <code>retryAfterMs</code> instead of looping. A receipt IAPKit rejected
+        in the last five minutes gets <code>429 REPEATED_FAILURE</code>, which
+        the reference backend reports as <code>invalid</code>.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Ownership</h2>
       <p>
-        Your backend calls <code>POST /v1/subscriptions/bind-user</code> with
-        the secret key and acts on <code>reason</code>:
+        A link in IAPKit never moves, so your backend first checks its own
+        ledger: a purchase already granted to another user returns{" "}
+        <code>ownership_conflict</code> without binding. Otherwise it calls{" "}
+        <code>POST /v1/subscriptions/bind-user</code> with the secret key and
+        acts on <code>reason</code>:
       </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -290,6 +301,15 @@ const outcomes = await flow.recoverPurchases();`}
       <p>
         Key grants by a value that never changes: Apple{" "}
         <code>originalTransactionId</code>, Google purchase token.
+      </p>
+
+      <h2 className="mt-10 text-2xl font-semibold">Test purchases</h2>
+      <p>
+        App Review and TestFlight buy in the Apple sandbox against your
+        production backend, so the reference backend accepts sandbox and test
+        purchases by default. Refusing them fails App Review. To limit who gets
+        free test purchases, pass <code>acceptSandbox</code> an allow-list check
+        that includes your App Review demo account.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Reference backend</h2>
