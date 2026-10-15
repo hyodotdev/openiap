@@ -293,13 +293,34 @@ Apple ID, Issuer ID, Key ID, and `.p8` key. Google lookup requires the exact
 package name, service-account JSON, and View financial data permission. This
 operator tool is not exposed through `/v1`.
 
+### Operator routes
+
+Secret-key routes; publishable keys get 403. Lists page up to 100 rows with
+`hasMore` and `nextCursor`.
+
+- `GET /v1/webhooks/deliveries` — outbound deliveries with their last 20
+  attempts (status, latency, error class; never bodies). Filters: `status`,
+  `eventType`, `destinationId`, `eventId`.
+- `POST /v1/webhooks/deliveries/{deliveryId}/resend` — 202; re-sends a
+  delivered or failed delivery with the same `eventId`. 30 per project per
+  minute; `EVENT_PRUNED` after the event's 30-day retention.
+- `GET /v1/webhooks/notifications` — inbound store notifications with applied
+  state and a payload fingerprint; raw payloads are never returned.
+- `POST /v1/subscriptions/resync` — body `{"purchaseId"}` or
+  `{"subscriptionId"}`; re-reads Apple or Google, applies current state, and
+  emits only an entitlement delta. Never moves ownership.
+- `GET /v1/subscriptions/timeline?userId=` — one app user's purchases,
+  subscriptions, and commerce events, newest first, 50 of each kind.
+
 ### POST /mcp
 
 MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients.
 Requires a secret admin key and exposes tools with the `iapkit_` prefix: setup
 snippets, revenue analytics, status checks, diagnostics, product catalog and
 client-payload reads/writes, store-sync jobs, subscriber views, sandbox
-guidance, webhook simulation, and project inspection. Setup guides:
+guidance, webhook simulation, project inspection, delivery history and
+re-send, inbound notification history, store re-sync, and user timelines.
+Setup guides:
 `/docs/ai-assistants/codex-plugin` and
 `/docs/ai-assistants/claude-plugin`.
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
 import type { Doc } from "@/convex";
 import { api } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
+import { ResyncFromStoreButton } from "@/components/ResyncFromStoreButton";
 import { Badge } from "../../../../components/Badge";
 import {
   DEFAULT_REPORTING_CURRENCY,
@@ -42,7 +43,12 @@ type StateFilter = (typeof STATE_FILTERS)[number]["id"];
 
 export default function ProjectSubscriptions() {
   const { project } = useOutletContext<ProjectContext>();
+  const { orgSlug = "", projectSlug = "" } = useParams<{
+    orgSlug: string;
+    projectSlug: string;
+  }>();
   const [filter, setFilter] = useState<StateFilter>("all");
+  const [userFilter, setUserFilter] = useState("");
 
   const metrics = useQuery(api.subscriptions.query.metricsSummary, {
     projectId: project._id,
@@ -50,7 +56,11 @@ export default function ProjectSubscriptions() {
   const subscriptions = useQuery(api.subscriptions.query.listSubscriptions, {
     projectId: project._id,
     state: filter === "all" ? undefined : filter,
+    userId: userFilter.trim() || undefined,
     limit: 200,
+  });
+  const canManage = useQuery(api.commerce.destinations.canManage, {
+    projectId: project._id,
   });
 
   const reportingCurrency = normalizeCurrencyCode(
@@ -173,6 +183,13 @@ export default function ProjectSubscriptions() {
               {option.label}
             </button>
           ))}
+          <input
+            aria-label="Filter by app user ID"
+            value={userFilter}
+            onChange={(event) => setUserFilter(event.target.value)}
+            placeholder="App user ID"
+            className="ml-auto w-full rounded border border-border bg-background px-2 py-1 text-xs sm:w-56"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -184,13 +201,14 @@ export default function ProjectSubscriptions() {
                 <th className="px-4 py-2 text-left">State</th>
                 <th className="px-4 py-2 text-left">Expires</th>
                 <th className="px-4 py-2 text-left">Updated</th>
+                {canManage ? <th className="px-4 py-2 text-left" /> : null}
               </tr>
             </thead>
             <tbody>
               {subscriptions.items.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={canManage ? 7 : 6}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No subscriptions for this filter yet. Webhook events from
@@ -200,8 +218,17 @@ export default function ProjectSubscriptions() {
               )}
               {subscriptions.items.map((sub) => (
                 <tr key={sub.id} className="border-t border-border/50">
-                  <td className="px-4 py-2 font-mono text-xs">
-                    {sub.userId ?? <span className="opacity-50">unbound</span>}
+                  <td className="px-4 py-2 font-mono text-xs break-all">
+                    {sub.userId ? (
+                      <Link
+                        to={`/${orgSlug}/project/${projectSlug}/purchases/user/${encodeURIComponent(sub.userId)}`}
+                        className="text-primary hover:underline"
+                      >
+                        {sub.userId}
+                      </Link>
+                    ) : (
+                      <span className="opacity-50">unbound</span>
+                    )}
                   </td>
                   <td className="px-4 py-2">{sub.productId}</td>
                   <td className="px-4 py-2">
@@ -218,6 +245,15 @@ export default function ProjectSubscriptions() {
                   <td className="px-4 py-2 text-muted-foreground">
                     {formatDate(sub.updatedAt)}
                   </td>
+                  {canManage ? (
+                    <td className="px-4 py-2">
+                      <ResyncFromStoreButton
+                        projectId={project._id}
+                        target={{ subscriptionId: sub.id }}
+                        label="Re-sync"
+                      />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

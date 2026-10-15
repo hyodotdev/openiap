@@ -2,6 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { ConvexError } from "convex/values";
 import {
   allowsLegacyProjectApiKeyFallback,
   assertApiKeyAccess,
@@ -108,6 +109,56 @@ export async function resolveProjectByIdForCurrentUserFromDb(
     .first();
 
   return membership ? { project, userId, role: membership.role } : null;
+}
+
+export type OperatorProjectArgs = {
+  projectId?: Id<"projects">;
+  apiKey?: string;
+};
+
+/**
+ * Project for an operations read or write: a secret admin key, or a dashboard
+ * session where any member reads and only owners and admins write.
+ */
+export async function resolveOperatorProject(
+  ctx: QueryCtx | MutationCtx,
+  args: OperatorProjectArgs,
+  access: "read" | "write",
+): Promise<Doc<"projects">> {
+  if (args.apiKey !== undefined) {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) {
+      throw new ConvexError({
+        code: "INVALID_API_KEY",
+        message: "API key is invalid or inactive",
+      });
+    }
+    return resolved.project;
+  }
+  if (!args.projectId) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "apiKey or projectId is required",
+    });
+  }
+  const resolved = await resolveProjectByIdForCurrentUserFromDb(
+    ctx,
+    args.projectId,
+  );
+  if (!resolved) {
+    throw new ConvexError({ code: "NOT_FOUND", message: "Project not found" });
+  }
+  if (access === "write" && resolved.role === "member") {
+    throw new ConvexError({
+      code: "INSUFFICIENT_PERMISSIONS",
+      message: "Only organization owners and admins can do this",
+    });
+  }
+  return resolved.project;
 }
 
 /**

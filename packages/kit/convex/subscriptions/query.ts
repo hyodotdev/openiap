@@ -3,9 +3,14 @@ import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import {
+  resolveOperatorProject,
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
+import {
+  isValidSubscriptionUserId,
+  MAX_SUBSCRIPTION_USER_ID_LENGTH,
+} from "./limits";
 import { monthlyMicrosForSub } from "./monthlyMicros";
 import { entitlementActive, isMisrecordedApplePass } from "./stateMachine";
 import { selectMostRecentlyUpdatedSubscription } from "./selectLatest";
@@ -862,3 +867,134 @@ async function loadPeriodByProductId(
   }
   return periodByProductId;
 }
+
+const TIMELINE_ROWS_PER_KIND = 50;
+
+const timelineItemValidator = v.union(
+  v.object({
+    kind: v.literal("purchase"),
+    id: v.id("purchases"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    productId: v.optional(v.string()),
+    state: v.string(),
+    isValid: v.boolean(),
+  }),
+  v.object({
+    kind: v.literal("subscription"),
+    id: v.id("subscriptions"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    productId: v.string(),
+    state: subscriptionStateValidator,
+    expiresAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
+  }),
+  v.object({
+    kind: v.literal("event"),
+    id: v.id("commerceEvents"),
+    at: v.number(),
+    store: purchaseStoreValidator,
+    eventType: v.string(),
+    productId: v.optional(v.string()),
+  }),
+);
+export type TimelineItem = Infer<typeof timelineItemValidator>;
+
+/**
+ * One app user's purchases, subscriptions and commerce events, newest first.
+ * Each kind is capped at 50 rows; `truncated` says a cap was reached.
+ */
+export const userTimeline = query({
+  args: {
+    projectId: v.optional(v.id("projects")),
+    apiKey: v.optional(v.string()),
+    appUserId: v.string(),
+  },
+  returns: v.object({
+    appUserId: v.string(),
+    items: v.array(timelineItemValidator),
+    truncated: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const project = await resolveOperatorProject(ctx, args, "read");
+    if (!isValidSubscriptionUserId(args.appUserId)) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `appUserId must be 1 to ${MAX_SUBSCRIPTION_USER_ID_LENGTH} characters`,
+      });
+    }
+    const take = TIMELINE_ROWS_PER_KIND + 1;
+    const [purchases, subscriptions, events] = await Promise.all([
+      ctx.db
+        .query("purchases")
+        .withIndex("by_project_and_app_user", (q) =>
+          q.eq("projectId", project._id).eq("appUserId", args.appUserId),
+        )
+        .order("desc")
+        .take(take),
+      ctx.db
+        .query("subscriptions")
+        .withIndex("by_project_and_user_and_updated", (q) =>
+          q.eq("projectId", project._id).eq("userId", args.appUserId),
+        )
+        .order("desc")
+        .take(take),
+      ctx.db
+        .query("commerceEvents")
+        .withIndex("by_project_and_user", (q) =>
+          q.eq("projectId", project._id).eq("userId", args.appUserId),
+        )
+        .order("desc")
+        .take(take),
+    ]);
+    const items: TimelineItem[] = [
+      ...purchases.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (purchase): TimelineItem => ({
+          kind: "purchase",
+          id: purchase._id,
+          at: purchase.updatedAt ?? purchase._creationTime,
+          store: purchase.store,
+          ...(purchase.productId ? { productId: purchase.productId } : {}),
+          state: purchase.state,
+          isValid: purchase.isValid ?? false,
+        }),
+      ),
+      ...subscriptions.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (subscription): TimelineItem => ({
+          kind: "subscription",
+          id: subscription._id,
+          at: subscription.updatedAt,
+          store:
+            subscription.store ??
+            (subscription.platform === "IOS" ? "apple" : "google"),
+          productId: subscription.productId,
+          state: subscription.state,
+          ...(subscription.expiresAt !== undefined
+            ? { expiresAt: subscription.expiresAt }
+            : {}),
+          ...(subscription.willRenew !== undefined
+            ? { willRenew: subscription.willRenew }
+            : {}),
+        }),
+      ),
+      ...events.slice(0, TIMELINE_ROWS_PER_KIND).map(
+        (event): TimelineItem => ({
+          kind: "event",
+          id: event._id,
+          at: event.occurredAt,
+          store: event.store,
+          eventType: event.eventType,
+          ...(event.productId ? { productId: event.productId } : {}),
+        }),
+      ),
+    ].sort((a, b) => b.at - a.at);
+    return {
+      appUserId: args.appUserId,
+      items,
+      truncated: [purchases, subscriptions, events].some(
+        (rows) => rows.length > TIMELINE_ROWS_PER_KIND,
+      ),
+    };
+  },
+});

@@ -3,7 +3,9 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
+  cancellationReasonValidator,
   dataProvenanceValidator,
+  deliveryAttemptValidator,
   subscriptionStateValidator,
 } from "./utils/validation";
 
@@ -580,6 +582,8 @@ const schema = defineSchema({
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
       v.literal("AmazonRealTimeNotifications"),
       v.literal("AmazonRvsReconciliation"),
+      // An admin "Re-sync from store" read of Apple or Google state.
+      v.literal("StoreResync"),
       // Legacy source, kept until its synthetic rows age out. Ingestion and
       // analytics never create or count these rows.
       v.literal("MetaHorizonReconciler"),
@@ -611,16 +615,7 @@ const schema = defineSchema({
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
-    cancellationReason: v.optional(
-      v.union(
-        v.literal("UserCanceled"),
-        v.literal("BillingError"),
-        v.literal("PriceIncreaseDeclined"),
-        v.literal("ProductUnavailable"),
-        v.literal("Refunded"),
-        v.literal("Other"),
-      ),
-    ),
+    cancellationReason: v.optional(cancellationReasonValidator),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     amountProvenance: v.optional(dataProvenanceValidator),
@@ -670,16 +665,7 @@ const schema = defineSchema({
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
-    cancellationReason: v.optional(
-      v.union(
-        v.literal("UserCanceled"),
-        v.literal("BillingError"),
-        v.literal("PriceIncreaseDeclined"),
-        v.literal("ProductUnavailable"),
-        v.literal("Refunded"),
-        v.literal("Other"),
-      ),
-    ),
+    cancellationReason: v.optional(cancellationReasonValidator),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
     startedAt: v.number(),
@@ -1273,11 +1259,19 @@ const schema = defineSchema({
       v.literal("delivered"),
       v.literal("failed"),
     ),
+    // Copied from the event at fan-out for the type filter. Absent on rows
+    // created before the column existed.
+    eventType: v.optional(v.string()),
     attempts: v.number(),
     // Exponential backoff target. The worker claims rows at or past this.
     nextAttemptAt: v.number(),
     lastStatusCode: v.optional(v.number()),
     lastError: v.optional(v.string()),
+    // Most recent attempts, oldest first, capped at DELIVERY_HISTORY_LIMIT.
+    // Status, latency and an error class only: never bodies or secrets.
+    attemptHistory: v.optional(v.array(deliveryAttemptValidator)),
+    // Set by an admin re-send; also the per-project re-send rate window.
+    lastResendAt: v.optional(v.number()),
     // Lease held while an attempt is in flight, so overlapping cron ticks
     // cannot double-deliver the same row.
     leaseExpiresAt: v.optional(v.number()),
@@ -1306,6 +1300,8 @@ const schema = defineSchema({
       "status",
       "updatedAt",
     ])
+    .index("by_project_and_event_type", ["projectId", "eventType"])
+    .index("by_project_and_last_resend", ["projectId", "lastResendAt"])
     .index("by_status_and_updated", ["status", "updatedAt"])
     // Worker claim scan.
     .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])

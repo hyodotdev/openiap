@@ -298,24 +298,30 @@ function mapAppleCancellationReason(
   ) {
     return "UserCanceled";
   }
-  // Apple `expirationIntent`:
-  //   1: customer canceled, 2: billing error, 3: price increase
-  //   declined, 4: product unavailable at renewal time, 5: unknown
-  if (renewalInfo?.expirationIntent != null) {
-    switch (renewalInfo.expirationIntent) {
-      case 1:
-        return "UserCanceled";
-      case 2:
-        return "BillingError";
-      case 3:
-        return "PriceIncreaseDeclined";
-      case 4:
-        return "ProductUnavailable";
-      case 5:
-        return "Other";
-    }
+  return appleExpirationIntentReason(renewalInfo?.expirationIntent);
+}
+
+/**
+ * Apple `expirationIntent`: 1 customer canceled, 2 billing error, 3 price
+ * increase declined, 4 product unavailable at renewal, 5 unknown.
+ */
+export function appleExpirationIntentReason(
+  expirationIntent: number | null | undefined,
+): WebhookCancellationReason | undefined {
+  switch (expirationIntent) {
+    case 1:
+      return "UserCanceled";
+    case 2:
+      return "BillingError";
+    case 3:
+      return "PriceIncreaseDeclined";
+    case 4:
+      return "ProductUnavailable";
+    case 5:
+      return "Other";
+    default:
+      return undefined;
   }
-  return undefined;
 }
 
 function deriveAppleSubscriptionState(

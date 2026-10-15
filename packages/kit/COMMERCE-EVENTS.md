@@ -235,13 +235,17 @@ here is reachable from a shipped app and no client-pullable stream exists.
   superseded result
 - delivered history expires after 30 days; failed rows and their event payloads
   remain as dead letters until an operator replays or removes the destination
+- each row keeps its last 20 attempts (time, outcome, status, latency, error
+  class), never a response body. An admin re-send requeues the same row, so the
+  body keeps its `eventId`; a project may re-send 30 rows a minute
 
 ### Registering a destination
 
 Open the project's **Webhooks** tab to create, disable, rotate, or remove a
 destination and to replay dead letters. All actions require organization admin:
 a destination holds a signing secret and names an endpoint IAPKit will POST to,
-so member access is not enough.
+so member access is not enough. Members can read delivery history, which shows
+only each destination's host.
 
 `create` returns the secret exactly once. No query ever returns it again —
 `list` projects a fixed allow-list of fields that excludes both the secret and
@@ -337,6 +341,12 @@ Apple and Google have no scheduled reconciliation pass. A notification lost past
 the store's retry window is not self-healing. Receipt verification bootstraps a
 token before its first store event, but never overwrites webhook-governed state
 because a client can replay an older valid transaction.
+
+An admin can re-sync one Apple or Google purchase or subscription from the
+store API instead (`subscriptions/action.ts`). The server-side read is
+authoritative, so it may update webhook-governed state. It is recorded as a
+`StoreResync` source event, emits only `entitlement.granted` or
+`entitlement.revoked` when the gate flips, and never moves an owner.
 
 ## Integrating without touching IAPKit core
 

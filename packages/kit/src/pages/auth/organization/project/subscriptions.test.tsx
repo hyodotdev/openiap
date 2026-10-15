@@ -28,19 +28,28 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("react-router-dom", () => ({
+  Link: ({ children }: { children: React.ReactNode }) => children,
   useOutletContext: () => ({ project: mocks.project }),
+  useParams: () => ({ orgSlug: "acme", projectSlug: "martie" }),
 }));
 
 vi.mock("convex/react", () => ({
+  useAction: () => vi.fn(),
   useQuery: (reference: string) =>
     reference === "subscriptions.metricsSummary"
       ? mocks.metrics
-      : mocks.subscriptions,
+      : reference === "commerce.destinations.canManage"
+        ? false
+        : mocks.subscriptions,
 }));
 
 vi.mock("@/convex", () => ({
   api: {
+    commerce: {
+      destinations: { canManage: "commerce.destinations.canManage" },
+    },
     subscriptions: {
+      action: { resyncFromStore: "subscriptions.resyncFromStore" },
       query: {
         metricsSummary: "subscriptions.metricsSummary",
         listSubscriptions: "subscriptions.listSubscriptions",

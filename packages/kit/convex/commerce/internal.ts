@@ -213,6 +213,7 @@ async function fanOutToDestinations(
       projectId,
       eventId,
       destinationId: destination._id,
+      eventType,
       status: "pending",
       attempts: 0,
       nextAttemptAt: now,

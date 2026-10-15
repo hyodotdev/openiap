@@ -1,8 +1,12 @@
-import { paginationOptsValidator, type PaginationResult } from "convex/server";
+import {
+  paginationOptsValidator,
+  type OrderedQuery,
+  type PaginationResult,
+} from "convex/server";
 import { query, type QueryCtx } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import { harmonizedPurchaseStateValidator } from "./purchaseState";
 import { purchaseStoreValidator } from "../schema";
 import { readPurchaseStats } from "./stats";
@@ -46,6 +50,11 @@ export const getReceiptsByProject = query({
     state: v.optional(harmonizedPurchaseStateValidator),
     isValid: v.optional(v.boolean()),
     requestIpQuery: v.optional(v.string()),
+    appUserId: v.optional(v.string()),
+    productId: v.optional(v.string()),
+    // Inclusive bounds on the row's creation time, epoch milliseconds.
+    createdFrom: v.optional(v.number()),
+    createdTo: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -74,19 +83,88 @@ export const getReceiptsByProject = query({
     const sortDirection = args.sortDirection ?? "desc";
 
     let paginated: PaginationResult<Doc<"purchases">>;
+    const { appUserId, productId, createdFrom, createdTo } = args;
 
     // Use the most selective index, then `.filter()` before `.paginate()`:
     // filtering a page afterwards under-fills it and can end pagination early.
     // Combinations without a composite index scan the project's rows; add one
     // if a combination gets hot.
+    const narrow = (
+      query: OrderedQuery<DataModel["purchases"]>,
+      covered: { appUser?: boolean; created?: boolean } = {},
+    ): OrderedQuery<DataModel["purchases"]> => {
+      let narrowed = query;
+      if (productId !== undefined) {
+        narrowed = narrowed.filter((q) =>
+          q.eq(q.field("productId"), productId),
+        );
+      }
+      if (appUserId !== undefined && !covered.appUser) {
+        narrowed = narrowed.filter((q) =>
+          q.eq(q.field("appUserId"), appUserId),
+        );
+      }
+      if (createdFrom !== undefined && !covered.created) {
+        narrowed = narrowed.filter((q) =>
+          q.gte(q.field("_creationTime"), createdFrom),
+        );
+      }
+      if (createdTo !== undefined && !covered.created) {
+        narrowed = narrowed.filter((q) =>
+          q.lte(q.field("_creationTime"), createdTo),
+        );
+      }
+      return narrowed;
+    };
 
     if (requestIpQuery) {
-      paginated = await ctx.db
+      paginated = await narrow(
+        ctx.db
+          .query("purchases")
+          .withSearchIndex("search_request_ip_by_project", (q) =>
+            q
+              .search("requestIp", requestIpQuery)
+              .eq("projectId", args.projectId),
+          ),
+      ).paginate(args.paginationOpts);
+    } else if (appUserId !== undefined) {
+      // Convex appends `_creationTime` to every index, so the date range stays
+      // inside the index scan.
+      let q = ctx.db
         .query("purchases")
-        .withSearchIndex("search_request_ip_by_project", (q) =>
-          q.search("requestIp", requestIpQuery).eq("projectId", args.projectId),
-        )
-        .paginate(args.paginationOpts);
+        .withIndex("by_project_and_app_user", (inner) => {
+          const scoped = inner
+            .eq("projectId", args.projectId)
+            .eq("appUserId", appUserId);
+          if (createdFrom !== undefined && createdTo !== undefined) {
+            return scoped
+              .gte("_creationTime", createdFrom)
+              .lte("_creationTime", createdTo);
+          }
+          if (createdFrom !== undefined) {
+            return scoped.gte("_creationTime", createdFrom);
+          }
+          if (createdTo !== undefined) {
+            return scoped.lte("_creationTime", createdTo);
+          }
+          return scoped;
+        })
+        .order(sortDirection);
+      if (args.store !== undefined) {
+        const store = args.store;
+        q = q.filter((expr) => expr.eq(expr.field("store"), store));
+      }
+      if (args.state !== undefined) {
+        const state = args.state;
+        q = q.filter((expr) => expr.eq(expr.field("state"), state));
+      }
+      if (args.isValid !== undefined) {
+        const isValid = args.isValid;
+        q = q.filter((expr) => expr.eq(expr.field("isValid"), isValid));
+      }
+      paginated = await narrow(q, { appUser: true, created: true }).paginate(
+        args.paginationOpts,
+      );
     } else if (args.state !== undefined) {
       const state = args.state;
       const isValid = args.isValid;
@@ -105,7 +183,7 @@ export const getReceiptsByProject = query({
       if (store !== undefined) {
         q = q.filter((expr) => expr.eq(expr.field("store"), store));
       }
-      paginated = await q.paginate(args.paginationOpts);
+      paginated = await narrow(q).paginate(args.paginationOpts);
     } else if (args.store) {
       const store = args.store;
       const isValid = args.isValid;
@@ -118,38 +196,57 @@ export const getReceiptsByProject = query({
       if (isValid !== undefined) {
         q = q.filter((expr) => expr.eq(expr.field("isValid"), isValid));
       }
-      paginated = await q.paginate(args.paginationOpts);
+      paginated = await narrow(q).paginate(args.paginationOpts);
     } else if (args.isValid !== undefined) {
       const isValid = args.isValid;
-      paginated = await ctx.db
-        .query("purchases")
-        .withIndex("by_project_isValid", (q) =>
-          q.eq("projectId", args.projectId).eq("isValid", isValid),
-        )
-        .order("desc")
-        .paginate(args.paginationOpts);
+      paginated = await narrow(
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_isValid", (q) =>
+            q.eq("projectId", args.projectId).eq("isValid", isValid),
+          )
+          .order("desc"),
+      ).paginate(args.paginationOpts);
     } else if (sortField === "updatedAt") {
-      paginated = await ctx.db
-        .query("purchases")
-        .withIndex("by_project_updatedAt", (q) =>
-          q.eq("projectId", args.projectId),
-        )
-        .order(sortDirection)
-        .paginate(args.paginationOpts);
+      paginated = await narrow(
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_updatedAt", (q) =>
+            q.eq("projectId", args.projectId),
+          )
+          .order(sortDirection),
+      ).paginate(args.paginationOpts);
     } else if (sortField === "verificationDurationMs") {
-      paginated = await ctx.db
-        .query("purchases")
-        .withIndex("by_project_verificationDurationMs", (q) =>
-          q.eq("projectId", args.projectId),
-        )
-        .order(sortDirection)
-        .paginate(args.paginationOpts);
+      paginated = await narrow(
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_verificationDurationMs", (q) =>
+            q.eq("projectId", args.projectId),
+          )
+          .order(sortDirection),
+      ).paginate(args.paginationOpts);
     } else {
-      paginated = await ctx.db
-        .query("purchases")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .order(sortDirection)
-        .paginate(args.paginationOpts);
+      paginated = await narrow(
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project", (q) => {
+            const scoped = q.eq("projectId", args.projectId);
+            if (createdFrom !== undefined && createdTo !== undefined) {
+              return scoped
+                .gte("_creationTime", createdFrom)
+                .lte("_creationTime", createdTo);
+            }
+            if (createdFrom !== undefined) {
+              return scoped.gte("_creationTime", createdFrom);
+            }
+            if (createdTo !== undefined) {
+              return scoped.lte("_creationTime", createdTo);
+            }
+            return scoped;
+          })
+          .order(sortDirection),
+        { created: true },
+      ).paginate(args.paginationOpts);
     }
 
     // Rows from before the productId column and its backfill fall back to

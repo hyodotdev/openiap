@@ -35,6 +35,8 @@ Bearer header and out of URLs.
 - [GET /v2/subscriptions/entitlements?userId=...](https://kit.openiap.dev/docs/api) — secret-only, tokenless active product snapshot; supports up to 200 indexed subscription rows and fails closed on overflow
 - [POST /v2/subscriptions/user-erasure](https://kit.openiap.dev/docs/api) — schedule durable removal of an app user ID from IAPKit subscription and commerce-event rows; erase downstream copies separately
 - [GET /v1/subscriptions/{list|metrics|revenue}](https://kit.openiap.dev/docs/api) — administrative subscription data with `Authorization: Bearer <secret-key>`
+- [GET /v1/webhooks/{deliveries|notifications}, POST /v1/webhooks/deliveries/{deliveryId}/resend](https://kit.openiap.dev/docs/webhooks) — secret-key outbound delivery history with attempts, re-send with the same `eventId` (30 per project per minute), and inbound store notification history without raw payloads
+- [POST /v1/subscriptions/resync, GET /v1/subscriptions/timeline?userId=...](https://kit.openiap.dev/docs/operations) — secret-key Apple/Google re-sync of one purchase or subscription, and one app user's purchases, subscriptions, and commerce events
 - [POST /v1/webhooks/{apiKey}](https://kit.openiap.dev/docs/webhooks) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v2/openapi](https://kit.openiap.dev/v2/openapi) — secret-only account API OpenAPI spec

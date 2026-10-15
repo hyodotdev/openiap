@@ -9,7 +9,7 @@ import { useQuery } from "convex/react";
 import { api, HarmonizedPurchaseState, Id } from "@/convex";
 import { PageLoading } from "@/components/LoadingSpinner";
 import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
+import { History, Search } from "lucide-react";
 import { getPurchaseStateDisplay } from "./receipt-utils";
 import { PurchasesTable } from "./PurchasesTable";
 import { Select, Input } from "antd";
@@ -57,6 +57,15 @@ type CardKey =
   | "invalid";
 type StoreFilter = "apple" | "google" | "horizon" | "amazon";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Epoch ms for a `YYYY-MM-DD` date input, read as a UTC day. */
+function utcDayStart(day: string): number | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return undefined;
+  const value = Date.parse(`${day}T00:00:00.000Z`);
+  return Number.isFinite(value) ? value : undefined;
+}
+
 const STATS_LABELS: Record<CardKey, string> = {
   total: "Total Purchases",
   apple: "App Store",
@@ -97,6 +106,14 @@ export default function ProjectPurchases() {
         : undefined;
 
   const requestIpQuery = searchParams.get("ip") ?? "";
+  const appUserIdFilter = searchParams.get("user")?.trim() || undefined;
+  const productIdFilter = searchParams.get("product")?.trim() || undefined;
+  const createdFromDay = searchParams.get("from") ?? "";
+  const createdToDay = searchParams.get("to") ?? "";
+  const createdFrom = utcDayStart(createdFromDay);
+  const createdToStart = utcDayStart(createdToDay);
+  const createdTo =
+    createdToStart === undefined ? undefined : createdToStart + DAY_MS - 1;
   const storeParam = searchParams.get("store");
   const storeFilter =
     storeParam === "apple" ||
@@ -142,6 +159,10 @@ export default function ProjectPurchases() {
           state: stateFilter,
           isValid: isValidFilter,
           requestIpQuery: requestIpQuery || undefined,
+          appUserId: appUserIdFilter,
+          productId: productIdFilter,
+          createdFrom,
+          createdTo,
         }
       : "skip",
   );
@@ -506,6 +527,57 @@ export default function ProjectPurchases() {
               allowClear
             />
           </div>
+        </div>
+
+        <div className="px-6 py-4 border-b border-border flex flex-wrap items-center gap-3">
+          <Input
+            aria-label="Filter by app user ID"
+            className="w-full sm:w-56"
+            value={searchParams.get("user") ?? ""}
+            onChange={(event) => setFilters({ user: event.target.value })}
+            placeholder={"App user ID"}
+            allowClear
+          />
+          <Input
+            aria-label="Filter by product ID"
+            className="w-full sm:w-56"
+            value={searchParams.get("product") ?? ""}
+            onChange={(event) => setFilters({ product: event.target.value })}
+            placeholder={"Product ID"}
+            allowClear
+          />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {"From"}
+            <input
+              type="date"
+              value={createdFromDay}
+              onChange={(event) => setFilters({ from: event.target.value })}
+              className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {"To"}
+            <input
+              type="date"
+              value={createdToDay}
+              onChange={(event) => setFilters({ to: event.target.value })}
+              className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+            />
+          </label>
+          {appUserIdFilter ? (
+            <button
+              type="button"
+              onClick={() =>
+                void navigate(
+                  `/${orgSlug}/project/${projectSlug}/purchases/user/${encodeURIComponent(appUserIdFilter)}`,
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs font-medium hover:bg-muted"
+            >
+              <History className="h-3.5 w-3.5" />
+              {"User timeline"}
+            </button>
+          ) : null}
         </div>
 
         <PurchasesTable

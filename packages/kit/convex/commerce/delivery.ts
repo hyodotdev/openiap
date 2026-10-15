@@ -18,6 +18,7 @@ import {
   REQUEST_TIMEOUT_MS,
   checkDestinationUrl,
   CLAIM_BATCH_LIMIT,
+  classifyDeliveryError,
   classifyDeliveryResponse,
   composeDeliveryHeaders,
   isPublicIpAddress,
@@ -189,6 +190,7 @@ export async function deliverPendingEventsHandler(
           leaseToken: item.leaseToken,
           ok: false,
           error: `destination rejected: ${check.reason}`,
+          errorClass: "destination_rejected",
           retryable: false,
         },
       );
@@ -203,6 +205,7 @@ export async function deliverPendingEventsHandler(
       deliveryId: item.deliveryId,
     });
 
+    const startedAt = Date.now();
     try {
       const status = await post({ url: check.url, headers, body: item.body });
       const outcome = classifyDeliveryResponse(status);
@@ -214,6 +217,7 @@ export async function deliverPendingEventsHandler(
           leaseToken: item.leaseToken,
           ok: outcome === "delivered",
           statusCode: status,
+          latencyMs: Date.now() - startedAt,
           retryable: outcome === "retry",
         },
       );
@@ -227,6 +231,8 @@ export async function deliverPendingEventsHandler(
           leaseToken: item.leaseToken,
           ok: false,
           error: error instanceof Error ? error.message : "request failed",
+          errorClass: classifyDeliveryError(error),
+          latencyMs: Date.now() - startedAt,
           retryable: outcome === "retry",
         },
       );

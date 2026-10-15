@@ -75,6 +75,13 @@ type McpRollbackClientPayloadResponse = Awaited<
 type McpSyncResponse = Awaited<ReturnType<McpClient["syncProducts"]>>;
 type McpSyncJobResponse = Awaited<ReturnType<McpClient["syncJob"]>>;
 type McpHealthResponse = Awaited<ReturnType<McpClient["health"]>>;
+type McpDeliveriesResponse = Awaited<ReturnType<McpClient["listDeliveries"]>>;
+type McpResendResponse = Awaited<ReturnType<McpClient["resendDelivery"]>>;
+type McpNotificationsResponse = Awaited<
+  ReturnType<McpClient["listInboundNotifications"]>
+>;
+type McpResyncResponse = Awaited<ReturnType<McpClient["resyncFromStore"]>>;
+type McpTimelineResponse = Awaited<ReturnType<McpClient["userTimeline"]>>;
 
 type ServerProductsResponse = FunctionReturnType<
   typeof api.products.query.listProductsPage
@@ -144,6 +151,21 @@ type ServerSyncResponse = FunctionReturnType<
 >;
 type ServerSyncJobResponse = NonNullable<
   FunctionReturnType<typeof api.products.jobs.getSyncJobById>
+>;
+type ServerDeliveriesPage = FunctionReturnType<
+  typeof api.commerce.deliveryState.listDeliveries
+>;
+type ServerResendResponse = FunctionReturnType<
+  typeof api.commerce.deliveryState.resend
+>;
+type ServerNotificationsPage = FunctionReturnType<
+  typeof api.webhooks.inbound.listInboundNotifications
+>;
+type ServerResyncResponse = FunctionReturnType<
+  typeof api.subscriptions.action.resyncFromStore
+>;
+type ServerTimelineResponse = FunctionReturnType<
+  typeof api.subscriptions.query.userTimeline
 >;
 
 // Kit's Convex layer returns payload `format` as its enum; the shared client
@@ -311,6 +333,74 @@ describe("MCP Kit response contracts", () => {
     await expect(
       client.getClientPayloadVersion({ ...target, version: 2 }),
     ).resolves.toEqual({ version: entry });
+  });
+
+  it("keeps operations response types aligned", () => {
+    expectTypeOf<McpDeliveriesResponse["deliveries"][number]>().toEqualTypeOf<
+      NormalizeContract<ServerDeliveriesPage["page"][number]>
+    >();
+    expectTypeOf<
+      McpNotificationsResponse["notifications"][number]
+    >().toEqualTypeOf<
+      NormalizeContract<ServerNotificationsPage["page"][number]>
+    >();
+    expectTypeOf<McpResendResponse>().toEqualTypeOf<
+      NormalizeContract<ServerResendResponse>
+    >();
+    expectTypeOf<McpResyncResponse>().toEqualTypeOf<
+      NormalizeContract<ServerResyncResponse>
+    >();
+    expectTypeOf<McpTimelineResponse>().toEqualTypeOf<
+      NormalizeContract<ServerTimelineResponse>
+    >();
+  });
+
+  it("calls the operations handlers through the real routes", async () => {
+    const client = kitClient({
+      apiKey: "openiap-kit_sk_contract",
+      baseUrl: "http://kit.test",
+    });
+    const emptyPage = { page: [], isDone: true, continueCursor: "" };
+    mocks.query
+      .mockResolvedValueOnce(emptyPage)
+      .mockResolvedValueOnce(emptyPage)
+      .mockResolvedValueOnce({ appUserId: "u1", items: [], truncated: false });
+    mocks.mutation.mockResolvedValueOnce({
+      deliveryId: "outboundDeliveries_1",
+      eventId: "commerceEvents_1",
+      status: "pending",
+    });
+    mocks.action.mockResolvedValueOnce({ target: "purchase", store: "apple" });
+
+    await expect(client.listDeliveries({ status: "failed" })).resolves.toEqual({
+      deliveries: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+    await expect(client.listInboundNotifications({})).resolves.toEqual({
+      notifications: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+    await client.userTimeline("u1");
+    await client.resendDelivery("outboundDeliveries_1");
+    await client.resyncFromStore({ purchaseId: "purchases_1" });
+
+    const apiKey = "openiap-kit_sk_contract";
+    const firstPage = { numItems: 25, cursor: null };
+    expect(mocks.query.mock.calls.map(([, args]) => args)).toEqual([
+      { apiKey, status: "failed", paginationOpts: firstPage },
+      { apiKey, paginationOpts: firstPage },
+      { apiKey, appUserId: "u1" },
+    ]);
+    expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
+      apiKey,
+      deliveryId: "outboundDeliveries_1",
+    });
+    expect(mocks.action).toHaveBeenCalledWith(expect.anything(), {
+      apiKey,
+      purchaseId: "purchases_1",
+    });
   });
 
   it("calls the real catalog handler with pagination", async () => {
