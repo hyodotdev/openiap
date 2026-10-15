@@ -11,6 +11,13 @@ import {
   auditPluginManifests,
 } from "./audit-plugin-manifests.mjs";
 
+// The pre-commit hook runs this with git's GIT_DIR and GIT_INDEX_FILE set.
+// Inherited, they aim the scratch repositories below at the real repository,
+// whose config `git init` and `git config` then rewrite.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("GIT_")) delete process.env[key];
+}
+
 describe("plugin manifest audit", () => {
   let root;
   const git = (...args) =>
