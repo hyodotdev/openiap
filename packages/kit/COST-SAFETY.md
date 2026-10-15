@@ -62,8 +62,9 @@ costs a read per request, evicts no other row, and leaves `count` a lower bound.
 Bind issues are recorded only for secret-key callers. A project keeps at most
 1,024 rows in 16 shards of 64; a new row reads only its own shard and replaces
 that shard's least recently seen row. An hourly cron deletes rows older than 30
-days, 200 at a time. The edge limiter below still bounds every publishable-key
-request before it reaches Convex.
+days, 200 at a time. A `/v1` request passes the edge limiter below first; a
+direct call to a public verify function skips it, as described there, and still
+writes at most once a minute per store and cause.
 
 ## Operator re-send, re-sync, and delivery history
 
@@ -90,7 +91,7 @@ edge limiter. Members can also read delivery history.
   newer schedules one such re-sync of that subscription from the same bucket,
   at most once an hour per subscription however often the app verifies, and is
   dropped when the bucket is empty. An expired Apple transaction does not
-  disagree with billing retry or grace.
+  disagree with billing retry or grace, nor a revoked one with a refund.
 - **Delivery history.** Every filter combination reads its own
   `outboundDeliveries` index, so a page, and the dashboard's live view of it,
   reads only the rows it returns plus a point read of each row's event and
@@ -206,11 +207,11 @@ that a public endpoint is immune to DDoS. Operators may still block abusive
 sources at the platform edge and should review Fly and Convex telemetry during
 an incident.
 
-The Convex deployment URL is public configuration, and the legacy public
-`subscriptionStatus` / `entitlements` functions remain callable with a
-publishable key for rolling-deploy and rollback compatibility. Such direct
-Convex calls bypass Fly's in-memory limiter. Their reads are still indexed and
-bounded, and the new evaluation snapshot exposes only stored-state entitlement
+The Convex deployment URL is public configuration. The receipt verify actions
+and the legacy public `subscriptionStatus` / `entitlements` functions remain
+callable with a publishable key, the latter for rolling-deploy and rollback
+compatibility. Such direct Convex calls bypass Fly's in-memory limiter. Their
+reads are still indexed and bounded, and the new evaluation snapshot exposes only stored-state entitlement
 candidates plus one latest status fallback rather than raw subscription
 history. This is a pre-existing, non-expanding residual risk; Convex usage
 limits are the current process-independent cost brake. Remove the legacy direct

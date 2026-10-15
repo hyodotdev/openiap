@@ -56,7 +56,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Active subscriptions",
     definition:
-      "End-of-day count of subscriptions with access, including free trials (shown separately). Billing retry has no access; grace period does.",
+      "End-of-day count of subscriptions with access (today: as of the latest run), including free trials (shown separately). Billing retry has no access; grace period does.",
   },
 ];
 

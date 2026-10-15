@@ -819,8 +819,26 @@ export async function rollbackClientPayload(
   });
 }
 
+// A former member's email is not shown to the members who remain.
+async function isCurrentMember(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+  userId: Id<"users">,
+): Promise<boolean> {
+  const project = await ctx.db.get(projectId);
+  if (!project) return false;
+  const membership = await ctx.db
+    .query("organizationMembers")
+    .withIndex("by_org_and_user", (q) =>
+      q.eq("organizationId", project.organizationId).eq("userId", userId),
+    )
+    .unique();
+  return membership !== null;
+}
+
 async function resolveAuthorNames(
   ctx: QueryCtx,
+  projectId: Id<"projects">,
   rows: Doc<"productClientPayloadVersions">[],
   viewer: ClientPayloadHistoryViewer,
 ): Promise<Map<string, string | undefined>> {
@@ -830,7 +848,12 @@ async function resolveAuthorNames(
       const user = await ctx.db.get(row.authorUserId);
       names.set(
         row.authorUserId,
-        user?.name ?? (viewer === "member" ? user?.email : undefined),
+        user?.name ??
+          (viewer === "member" &&
+          user &&
+          (await isCurrentMember(ctx, projectId, user._id))
+            ? user.email
+            : undefined),
       );
     }
     if (row.authorApiKeyId && !names.has(row.authorApiKeyId)) {
@@ -899,7 +922,7 @@ export async function listClientPayloadVersions(
       .take(MAX_CLIENT_PAYLOAD_HISTORY),
     loadPublished(ctx, key),
   ]);
-  const names = await resolveAuthorNames(ctx, rows, viewer);
+  const names = await resolveAuthorNames(ctx, key.projectId, rows, viewer);
   const versions = rows.map((row) => shapeVersion(row, names));
   if (live && !rows.some((row) => row.version === live.version)) {
     versions.unshift(baselineSummary(live));
@@ -923,7 +946,7 @@ export async function getClientPayloadVersion(
       : null;
   }
   const [names, body] = await Promise.all([
-    resolveAuthorNames(ctx, [row], viewer),
+    resolveAuthorNames(ctx, key.projectId, [row], viewer),
     loadVersionBody(ctx, row),
   ]);
   return {

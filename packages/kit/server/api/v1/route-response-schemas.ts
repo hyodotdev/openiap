@@ -131,7 +131,7 @@ export const correlationIdSchema = v.pipe(
 export const finalVerdictSchema = v.pipe(
   v.boolean(),
   v.description(
-    "Present only when isValid is false. True when the rejection is settled and a retry of the same evidence returns the same answer: EXPIRED, CANCELED, INAUTHENTIC (including an expectedProductId mismatch), CONSUMED, or a Google token reported revoked. False when it may still change, such as a transient UNKNOWN or PENDING; a Google subscription on hold, paused or in grace, which returns on the same token when the user fixes payment or resumes; and every Horizon rejection: Meta checks current ownership, so the user can buy right after. A refund Apple later reverses reaches your backend as a commerce event, not through a retry.",
+    "Present only when isValid is false. True when the rejection is settled and a retry of the same evidence returns the same answer: EXPIRED, CANCELED, INAUTHENTIC (including an expectedProductId mismatch), CONSUMED, or a Google token reported revoked. False when it may still change, such as a transient UNKNOWN or PENDING; a Google subscription on hold, paused or in grace, which returns on the same token when the user fixes payment or resumes; and every Horizon rejection: Meta checks current ownership, so the user can buy right after. Apple can still reverse a refund: the same transaction then verifies as valid, and a subscription also gets a commerce event.",
   ),
 );
 

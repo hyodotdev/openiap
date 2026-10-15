@@ -1637,6 +1637,21 @@ describe("rollup run — round-trip integration", () => {
     expect(byDay.get(TODAY)).toBeUndefined(); // empty bucket → skipped
   });
 
+  it("counts today's subscriptions as of the run, not midnight", async () => {
+    // NOW is noon; it renews this evening, so it is active today.
+    await seedSub(db, {
+      state: "Active",
+      startedAt: Date.UTC(2026, 1, 1),
+      expiresAt: Date.parse(`${TODAY}T18:00:00Z`),
+    });
+
+    await recompute(ctx);
+    const byDay = new Map(
+      (await rollupRows(db)).map((r) => [r.day, r.activeSubs]),
+    );
+    expect(byDay.get(TODAY)).toBe(1);
+  });
+
   it("activeSubs respects start mid-window", async () => {
     // Sub started D1 noon — only active on D1 + TODAY, NOT on D2.
     await seedSub(db, {

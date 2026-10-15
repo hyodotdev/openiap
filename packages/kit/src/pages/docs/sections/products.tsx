@@ -211,10 +211,11 @@ export default function ProductsPage() {
         </li>
         <li>
           Check the <strong>Preview</strong> tab: the draft beside the published
-          body, a line diff, and the exact HTTP status, headers, ETag, and body
-          an app receives now and after publishing. The ETag is computed for the
-          project&apos;s newest active publishable key. A Draft, Removed, or
-          missing catalog product answers 404 before and after you publish.
+          body, a line diff, and the exact HTTP status, payload headers, ETag,
+          and body an app receives now and after publishing. The ETag is
+          computed for the project&apos;s newest active publishable key. A
+          Draft, Removed, or missing catalog product answers 404 before and
+          after you publish.
         </li>
         <li>
           Choose <strong>Publish</strong>, optionally with a note. The draft

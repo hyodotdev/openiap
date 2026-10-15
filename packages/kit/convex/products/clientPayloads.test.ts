@@ -624,9 +624,20 @@ describe("client payload history", () => {
       getClientPayloadVersion(ctx as never, KEY, 1, "apiKey"),
     ).resolves.not.toHaveProperty("author.name");
 
-    // Members already see each other's emails on the members page.
-    const forMember = await history._handler(ctx, DASHBOARD_ARGS);
-    expect(forMember.map(({ author }) => author?.name)).toEqual([
+    // Members already see each other's emails on the members page, but not
+    // a former member's.
+    const forMember = () => history._handler(ctx, DASHBOARD_ARGS);
+    expect((await forMember()).map(({ author }) => author?.name)).toEqual([
+      "Hyo",
+      undefined,
+    ]);
+    ctx.db.seed("projects", { _id: PROJECT_ID, organizationId: "orgs_a" });
+    ctx.db.seed("organizationMembers", {
+      _id: "members_dev",
+      organizationId: "orgs_a",
+      userId: "users_noname",
+    });
+    expect((await forMember()).map(({ author }) => author?.name)).toEqual([
       "Hyo",
       "dev@example.com",
     ]);

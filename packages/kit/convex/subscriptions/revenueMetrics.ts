@@ -20,8 +20,9 @@
 //   free period that ended unpaid is not churn.
 // - refunds: refunds, less refund reversals. One per refund: revocations are
 //   never counted (see `isRefund`).
-// - activeSubs / activeTrials: end-of-day snapshot of subscriptions with
-//   access, and the subset still in a free trial. Billing retry has no access.
+// - activeSubs / activeTrials: subscriptions with access at the end of each day
+//   (today: when the run started), and the subset still in a free trial.
+//   Billing retry has no access.
 //
 // Each cron tick recomputes the last 3 days, so a notification up to 3 days
 // late still lands on its day: Apple retries for up to 5 days and Google
@@ -427,8 +428,8 @@ function retainedFirstDay(now: number): string {
   return addUtcDays(utcDayKey(now), -(RETAINED_DAYS - 1));
 }
 
-// Every day gets a row, so a day without events still shows its activeSubs
-// instead of vanishing from the chart.
+// Every day in the slice is computed, so a day without events still counts its
+// active subscriptions; only a bucket with nothing to count writes no row.
 function sliceDays(firstDay: string, today: string): string[] {
   const days: string[] = [];
   for (
@@ -880,7 +881,10 @@ async function processSubsPage(
   },
 ): Promise<void> {
   const { projectId, days, buckets, run } = args;
-  const dayEnds = days.map((day) => Date.parse(`${day}T23:59:59.999Z`));
+  // Today counts what is active when the run started, not at midnight.
+  const dayEnds = days.map((day) =>
+    Math.min(Date.parse(`${day}T23:59:59.999Z`), run.runStartedAt),
+  );
   const { stateIdx, paginationCursor } = args.cursor;
 
   if (stateIdx >= COUNTED_STATES_ORDERED.length) {

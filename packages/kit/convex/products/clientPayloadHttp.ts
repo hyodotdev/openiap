@@ -1,6 +1,7 @@
 // Wire format of the app-facing `GET /v1/products/{apiKey}/{productId}/client-payload`.
 // The Hono route and the dashboard's SDK preview both build responses here, so
-// the preview shows the exact bytes, headers, and ETag an app receives.
+// the preview shows the exact status, body, ETag, and payload headers an app
+// receives; server-wide security headers are left out.
 
 export type PublicClientPayload = {
   format: string;
