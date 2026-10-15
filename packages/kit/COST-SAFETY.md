@@ -125,7 +125,9 @@ environment at a time.
   Subscription pages hold 5,000 rows of about 1 KB. Google expirations without
   a trial flag, Play voided purchases, and Google subscription notifications
   without a Play-reported environment each add an alias lookup and a
-  subscription read. Every page also reads the project's run status row.
+  subscription read. Every page also reads the project's run status row, and
+  a run still going after 5 minutes stamps its progress there, at most once
+  every 5 minutes.
 - **Slices.** A wider run covers its window in 3-day slices, one after
   another. Each slice reads the events received from its first day until the
   run started, so it replaces its days with complete counts and a day is never
@@ -133,11 +135,13 @@ environment at a time.
   day it arrived: once in a regular run, up to 10 times and 5.5 on average in
   the 30-day rebuild, which also reads the counted-state subscriptions ten
   times. A catch-up from 7 days back reads its events about 1.7 times.
-- **Failed runs.** A run that started without finishing is picked again after
-  an hour, then after 2, 4, and so on up to 24 hours while it keeps failing.
-  Each failed run in a row also halves both page sizes, down to 25 rows. The
-  retry covers the unfinished run's window, and the older run's remaining
-  pages stop when they see the newer start, so two runs never write at once.
+- **Failed runs.** A run that stops committing pages is picked again an hour
+  after its last progress stamp, then after 2, 4, and so on up to 24 hours
+  while it keeps failing. A slow run that keeps committing pages is left to
+  finish. Each failed run in a row also halves both page sizes, down to 25
+  rows; a run replaced while still moving does not count. The retry covers
+  the unfinished run's window, and the older run's remaining pages stop when
+  they see the newer start, so two runs never write at once.
 - **Definitions rebuild.** When `ROLLUP_DEFINITIONS_VERSION` changes, each
   project's next run covers the retained 30 days once instead of 3.
 - **Late-event catch-up.** Only when a run finds notifications that no

@@ -7,7 +7,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Revenue",
     definition:
-      "Gross store list price of paid charges: direct paid starts, trial conversions, renewals, and billing recoveries. Free trials and free offer periods add 0. Before store fees and refunds.",
+      "Gross store list price of paid charges: paid starts, trial conversions, renewals, and billing recoveries. Free trials, free offer periods, and refund reversals add 0. Before store fees and refunds.",
   },
   {
     name: "Refunded / net revenue",
@@ -17,7 +17,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "New subscriptions",
     definition:
-      "Paid and free-trial subscription starts. An Apple refund reversal restores access but is not a new subscription, and neither is a Google plan change or a free offer period.",
+      "Paid and free-trial subscription starts. An Apple resubscribe is a reactivation, counted as a renewal, unless it is the first charge after a lapsed trial. An Apple refund reversal restores access but is not a new subscription, and neither is a Google plan change or a free offer period.",
   },
   {
     name: "Trials started",
@@ -36,7 +36,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Renewals",
     definition:
-      "Paid renewals, billing recoveries, and Google plan changes Play charged at once, except a trial's first charge.",
+      "Paid renewals, billing recoveries, Apple resubscribes, and Google plan changes Play charged at once. A trial's first charge is a trial conversion instead.",
   },
   {
     name: "Auto-renew off",
@@ -192,8 +192,9 @@ export default function AnalyticsPage() {
         <li>
           <strong>Cohort</strong>: the UTC month of a subscription&apos;s first
           paid charge, as a direct paid start or a trial conversion. A
-          subscription whose first observed charge is a renewal started before
-          IAPKit saw it and is left out.
+          subscription whose first observed charge is a renewal, or an Apple
+          resubscribe with no trial before it, started before IAPKit saw it and
+          is left out.
         </li>
         <li>
           <strong>Retention M+k</strong>: the share of the cohort with paid
@@ -248,17 +249,19 @@ export default function AnalyticsPage() {
         </li>
       </ul>
       <p>
-        Rows before <code>definitionsFromDay</code> were computed under earlier
-        definitions: they include sandbox purchases and have no trial split.
+        Rows from <code>definitionsFromDay</code> on follow the definitions
+        above. Earlier rows were computed under earlier definitions: they
+        include sandbox purchases and have no trial split.
       </p>
       <p className="mt-3">
         Notifications stored before <code>trialSplitFromDay</code> lack the
-        free-trial and refund-reversal flags. Those days omit trial starts,
-        conversions, direct paid starts, active trials, and expirations; on
-        them, Google free trials count as paid starts and Apple refund reversals
-        as new subscriptions. A trial that started earlier counts as paid until
-        it ends. Churn starts the day after <code>trialSplitFromDay</code>, the
-        first whose starting paid count excludes trials.
+        free-trial, refund-reversal, and resubscribe flags. Those days omit
+        trial starts, conversions, direct paid starts, active trials, and
+        expirations; on them, Google free trials count as paid starts, and Apple
+        refund reversals and resubscribes as new subscriptions. A trial that
+        started earlier counts as paid until it ends. Churn starts the day after{" "}
+        <code>trialSplitFromDay</code>, the first whose starting paid count
+        excludes trials. It is unset when every day has the flags.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">API and MCP</h2>
@@ -277,10 +280,42 @@ export default function AnalyticsPage() {
 
       <Callout kind="warning" title="Changed in this release">
         <p>
-          <code>/v1/subscriptions/revenue</code> and{" "}
-          <code>/v1/subscriptions/metrics</code> now exclude Sandbox by default,
-          and refunds, trials, and billing recoveries follow the definitions
-          above. Compare earlier exports with care.
+          These <code>/v1/subscriptions/revenue</code> fields changed meaning;
+          compare earlier exports with care:
+        </p>
+        <ul className="my-2 list-disc space-y-1 pl-6">
+          <li>
+            Every row is production only by default. Pass{" "}
+            <code>environment=sandbox</code> for Sandbox and Xcode purchases.{" "}
+            <code>/v1/subscriptions/metrics</code> is production only.
+          </li>
+          <li>
+            <code>revenueMicros</code> excludes free trials, free offer periods,
+            and refund reversals, and counts billing recoveries.
+          </li>
+          <li>
+            <code>newSubs</code> excludes Apple refund reversals, Apple
+            resubscribes other than the first charge after a lapsed trial,
+            Google plan changes, and free offer periods.
+          </li>
+          <li>
+            <code>renewals</code> excludes trial conversions, now in{" "}
+            <code>trialConversions</code>, and counts billing recoveries, Apple
+            resubscribes, and Google plan changes Play charged at once.
+          </li>
+          <li>
+            <code>refunds</code> counts each refund once, less refund reversals,
+            and no longer counts a revocation without a refund.
+          </li>
+          <li>
+            <code>activeSubs</code> no longer counts billing retry without an
+            expiry.
+          </li>
+        </ul>
+        <p>
+          New: <code>expirations</code> counts only paid access that ended, the
+          churn numerator; <code>definitionsFromDay</code> and{" "}
+          <code>trialSplitFromDay</code> mark the days each change covers.
         </p>
       </Callout>
 

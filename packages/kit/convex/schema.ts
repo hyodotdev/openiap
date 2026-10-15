@@ -676,6 +676,9 @@ const schema = defineSchema({
     freeTrial: v.optional(v.boolean()),
     // Apple REFUND_REVERSED, which state handling treats as a fresh start.
     refundReversal: v.optional(v.boolean()),
+    // Apple SUBSCRIBED/RESUBSCRIBE: a reactivation of an earlier subscription,
+    // which state handling also treats as a start.
+    resubscribe: v.optional(v.boolean()),
     // Set on the subscription's first paid charge by `analyticsFacts.ts`.
     paidStart: v.optional(paidStartValidator),
     // A Google replacement Play charged at once: a prepaid top-up or an
@@ -750,6 +753,8 @@ const schema = defineSchema({
             v.literal("SubscriptionRecovered"),
           ),
         ),
+        // The first paid charge was an Apple resubscribe.
+        firstPaidResubscribe: v.optional(v.boolean()),
         // Currency of `paidMicros` / `refundedMicros`: the first priced
         // charge's. Charges in another currency are left out, never converted.
         currency: v.optional(v.string()),
@@ -954,6 +959,10 @@ const schema = defineSchema({
     // after it failed; the picker leaves such a project alone for a while.
     // Each page of a run checks it, so a newer run stops an older one.
     runStartedAt: v.optional(v.number()),
+    // When the latest run last committed a page (its start counts), stamped
+    // at most every few minutes. The picker's retry wait runs from here, so a
+    // slow run is not taken for a failed one.
+    runProgressAt: v.optional(v.number()),
     // First day of the latest run's window. A retry of a run that did not
     // finish starts there too, so a failed catch-up is not narrowed.
     runFirstDay: v.optional(v.string()),
@@ -962,9 +971,10 @@ const schema = defineSchema({
     // retained event window first.
     definitionsVersion: v.optional(v.number()),
     definitionsFromDay: v.optional(v.string()),
-    // Notifications before this day were stored without the free-trial and
-    // refund-reversal flags, so the counters that need them are not reported
-    // for earlier days. Unset when every computed day has them.
+    // Notifications before this day were stored without the free-trial,
+    // refund-reversal and resubscribe flags, so the counters that need them
+    // are not reported for earlier days. Unset when every computed day has
+    // them.
     trialSplitFromDay: v.optional(v.string()),
     // Latest real Apple, Google or Amazon notification a run has seen, per
     // environment. Unset means none reached that environment: its counters
@@ -975,8 +985,9 @@ const schema = defineSchema({
         Sandbox: v.optional(v.number()),
       }),
     ),
-    // Failed runs in a row before the latest start. Each halves the page
-    // sizes and doubles the picker's wait before retrying.
+    // Failed runs in a row before the latest start: runs that stopped making
+    // progress. Each halves the page sizes and doubles the picker's wait
+    // before retrying.
     failedRuns: v.optional(v.number()),
     // Notifications that arrived after their day left the trailing window and
     // no finished run has folded in yet. A catch-up recomputes from the oldest

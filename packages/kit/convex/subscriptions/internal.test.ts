@@ -3576,6 +3576,48 @@ describe("subscription analytics facts", () => {
     expect(eventRow(db, renewal)?.paidStart).toBeUndefined();
   });
 
+  it("marks a resubscribe a paid start only after a trial IAPKit saw lapse", async () => {
+    async function seedResubscribe(db: MemDb): Promise<string> {
+      const id = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "resubscribe",
+        occurredAt: 5_000,
+        platform: "IOS",
+      });
+      await db.patch(id, { resubscribe: true });
+      return id;
+    }
+
+    // Paid before IAPKit saw it: a reactivation with no known start, and the
+    // same lifecycle transition as a first purchase.
+    const returning = new MemDb();
+    const resubscribe = await seedResubscribe(returning);
+    await expect(apply(returning, resubscribe)).resolves.toMatchObject({
+      transition: "Started",
+      active: true,
+    });
+    expect(returning.rows("subscriptions")[0].analytics).toMatchObject({
+      firstPaidAt: 5_000,
+      firstPaidResubscribe: true,
+    });
+    expect(eventRow(returning, resubscribe)?.paidStart).toBeUndefined();
+
+    // A trial that lapsed before it, arriving late: the resubscribe is the
+    // subscription's first paid charge.
+    const db = new MemDb();
+    const paid = await seedResubscribe(db);
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "trial-start",
+      occurredAt: 1_000,
+      platform: "IOS",
+    });
+    await db.patch(trial, { freeTrial: true });
+    await apply(db, paid);
+    await apply(db, trial);
+    expect(eventRow(db, paid)?.paidStart).toBe("direct");
+  });
+
   it("records the environment and keeps sandbox rows out of live stats", async () => {
     const db = new MemDb();
     db.seedProduct({

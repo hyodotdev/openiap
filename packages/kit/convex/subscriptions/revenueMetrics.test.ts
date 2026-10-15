@@ -409,6 +409,42 @@ describe("applyEventToBucket", () => {
     );
   });
 
+  it("books an Apple resubscribe as a reactivation, not a new subscription", () => {
+    const resubscribe = {
+      type: "SubscriptionStarted" as const,
+      resubscribe: true,
+      freeTrial: false,
+      priceAmountMicros: 9_990_000,
+    };
+    const reactivated = emptyBucket();
+    applyEventToBucket(reactivated, makeEvent(resubscribe));
+    expect(reactivated).toMatchObject({
+      newSubs: 0,
+      directPaidStarts: 0,
+      renewals: 1,
+      revenueMicros: 9_990_000,
+    });
+    // The first charge after a trial IAPKit saw lapse is a direct start.
+    const afterTrial = emptyBucket();
+    applyEventToBucket(
+      afterTrial,
+      makeEvent({ ...resubscribe, paidStart: "direct" }),
+    );
+    expect(afterTrial).toMatchObject({
+      newSubs: 1,
+      directPaidStarts: 1,
+      renewals: 0,
+      revenueMicros: 9_990_000,
+    });
+    // A free trial on a resubscribe starts nothing.
+    const freeTrial = emptyBucket();
+    applyEventToBucket(
+      freeTrial,
+      makeEvent({ ...resubscribe, freeTrial: true }),
+    );
+    expect(freeTrial).toEqual(emptyBucket());
+  });
+
   it("SubscriptionExpired → expirations++ and no money", () => {
     const bucket = emptyBucket();
     applyEventToBucket(bucket, makeEvent({ type: "SubscriptionExpired" }));
@@ -2143,6 +2179,66 @@ describe("rollup run — failures and follow-ups", () => {
     // Past the retry interval nothing is requested once the version matches.
     await recompute(ctx, NOW + 7 * 60 * 60 * 1000);
     expect(statsRebuilds()).toHaveLength(1);
+  });
+});
+
+describe("rollup run — slow runs", () => {
+  const MINUTE = 60 * 1000;
+
+  // A 30-day rebuild: ten slices of five mutations each.
+  async function startRebuild(
+    db: MemDb,
+  ): Promise<ReturnType<typeof rollupChain>> {
+    await seedCurrentRunStatus(db, { definitionsVersion: undefined });
+    const chain = rollupChain(db);
+    await chain.start(NOW);
+    return chain;
+  }
+
+  it("leaves a run that keeps committing pages past an hour to finish", async () => {
+    const db = new MemDb();
+    const chain = await startRebuild(db);
+
+    let at = NOW;
+    while (chain.queue.length > 0) {
+      expect(await pickProjects(db, 10, at)).toEqual([]);
+      at += 4 * MINUTE;
+      vi.setSystemTime(at);
+      await chain.step();
+    }
+
+    expect(at - NOW).toBeGreaterThan(3 * HOUR);
+    expect(await runStatus(db)).toMatchObject({
+      lastRunAt: NOW,
+      definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
+    });
+  });
+
+  it("retries a run an hour after its last committed page", async () => {
+    const db = new MemDb();
+    const chain = await startRebuild(db);
+    const lastPageAt = NOW + 30 * MINUTE;
+    for (let at = NOW + 5 * MINUTE; at <= lastPageAt; at += 5 * MINUTE) {
+      vi.setSystemTime(at);
+      await chain.step();
+    }
+
+    expect(await pickProjects(db, 10, lastPageAt + 59 * MINUTE)).toEqual([]);
+    expect(await pickProjects(db, 10, lastPageAt + HOUR)).toEqual([PROJECT_ID]);
+  });
+
+  it("does not count a run replaced while still moving as failed", async () => {
+    const db = new MemDb();
+    const chain = await startRebuild(db);
+    vi.setSystemTime(NOW + 10 * MINUTE);
+    await chain.step();
+
+    await rollupChain(db).start(NOW + 20 * MINUTE);
+
+    expect(await runStatus(db)).toMatchObject({
+      runStartedAt: NOW + 20 * MINUTE,
+    });
+    expect(await runStatus(db)).not.toHaveProperty("failedRuns");
   });
 });
 

@@ -849,8 +849,8 @@ const revenueMetricsResponse = v.object({
   // sandbox into production and have no trial split.
   definitionsFromDay: v.optional(v.string()),
   // Days from here on separate free trials, trial conversions, unpaid trial
-  // expirations and refund reversals. Earlier days omit the counters that
-  // need them; unset when every day has them.
+  // expirations, refund reversals and Apple resubscribes. Earlier days omit
+  // the counters that need them; unset when every day has them.
   trialSplitFromDay: v.optional(v.string()),
   // Notifications that arrived after their day's rollup and are waiting for
   // a catch-up recompute.
