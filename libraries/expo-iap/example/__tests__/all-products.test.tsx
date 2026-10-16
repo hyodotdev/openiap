@@ -20,7 +20,24 @@ jest.mock('expo-iap', () => ({
         displayPrice: '₩1,400',
       },
     ],
-    subscriptions: [],
+    subscriptions: [
+      {
+        id: 'premium',
+        title: 'Premium Year',
+        platform: 'android',
+        type: 'subs',
+        displayPrice: '$50',
+        subscriptionOffers: [
+          {
+            offerTokenAndroid: 'monthly-prepaid',
+            displayPrice: '$5',
+            pricingPhasesAndroid: {
+              pricingPhaseList: [{billingPeriod: 'P1M', recurrenceMode: 3}],
+            },
+          },
+        ],
+      },
+    ],
     fetchProducts: mockFetchProducts,
     requestPurchase: mockRequestPurchase,
   }),
@@ -34,6 +51,9 @@ it('browses readable product metadata and details without starting a purchase', 
 
   expect(screen.getByText('10 Bulbs')).toBeTruthy();
   expect(screen.getByText('₩1,400')).toBeTruthy();
+  expect(screen.getByText('$5')).toBeTruthy();
+  expect(screen.getByText('for 1 month · Does not renew')).toBeTruthy();
+  expect(screen.queryByText('$50')).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', {name: 'Details for 10 Bulbs'}),
   );

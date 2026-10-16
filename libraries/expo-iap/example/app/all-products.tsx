@@ -19,6 +19,7 @@ import {
   NON_CONSUMABLE_PRODUCT_IDS,
 } from '../src/utils/constants';
 import {extractErrorMessage} from '../src/utils/errorUtils';
+import {subscriptionDisplay} from '../src/utils/subscriptionDisplay';
 
 /**
  * All Products example: fetches in-app products and subscriptions separately
@@ -200,7 +201,9 @@ function AllProducts() {
               <ExampleButton
                 title="Details"
                 variant="secondary"
-                accessibilityLabel={`Details for ${product.displayName || product.title}`}
+                accessibilityLabel={`Details for ${
+                  product.displayName || product.title
+                }`}
                 onPress={() => handleShowDetails(product)}
               />
             </StoreProductCard>
@@ -216,20 +219,27 @@ function AllProducts() {
               : 'No subscriptions'}
           </Text>
 
-          {subscriptions.map((subscription) => (
-            <StoreProductCard
-              key={subscription.id}
-              product={subscription}
-              kind="Subscription"
-            >
-              <ExampleButton
-                title="Details"
-                variant="secondary"
-                accessibilityLabel={`Details for ${subscription.displayName || subscription.title}`}
-                onPress={() => handleShowDetails(subscription)}
-              />
-            </StoreProductCard>
-          ))}
+          {subscriptions.map((subscription) => {
+            const {price, terms} = subscriptionDisplay(subscription);
+            return (
+              <StoreProductCard
+                key={subscription.id}
+                product={subscription}
+                kind="Subscription"
+                price={price}
+                terms={terms}
+              >
+                <ExampleButton
+                  title="Details"
+                  variant="secondary"
+                  accessibilityLabel={`Details for ${
+                    subscription.displayName || subscription.title
+                  }`}
+                  onPress={() => handleShowDetails(subscription)}
+                />
+              </StoreProductCard>
+            );
+          })}
         </View>
       </View>
 

@@ -29,6 +29,7 @@ import {
   SUBSCRIPTION_PRODUCT_IDS,
 } from '../utils/constants';
 import {extractErrorMessage} from '../utils/errorUtils';
+import {subscriptionDisplay} from '../utils/subscriptionDisplay';
 import ExampleButton from './ExampleButton';
 import StoreProductCard from './StoreProductCard';
 
@@ -267,7 +268,9 @@ export default function BackendEntitlementFlow() {
             >
               <ExampleButton
                 title="Buy"
-                accessibilityLabel={`Buy ${product.displayName || product.title}`}
+                accessibilityLabel={`Buy ${
+                  product.displayName || product.title
+                }`}
                 disabled={!connected}
                 style={styles.productAction}
                 onPress={() =>
@@ -286,23 +289,20 @@ export default function BackendEntitlementFlow() {
         <View>
           <Text style={styles.cardTitle}>Subscriptions</Text>
           {subscriptions.map((subscription) => {
-            // Quote the same Play offer whose token opens the purchase sheet.
-            const offer =
-              subscription.platform === 'android'
-                ? subscription.subscriptionOffers?.find(
-                    (candidate) => candidate.offerTokenAndroid,
-                  )
-                : undefined;
+            const {offer, price, terms} = subscriptionDisplay(subscription);
             return (
               <StoreProductCard
                 key={subscription.id}
                 product={subscription}
                 kind="Subscription"
-                price={offer?.displayPrice ?? subscription.displayPrice}
+                price={price}
+                terms={terms}
               >
                 <ExampleButton
                   title="Subscribe"
-                  accessibilityLabel={`Subscribe to ${subscription.displayName || subscription.title}`}
+                  accessibilityLabel={`Subscribe to ${
+                    subscription.displayName || subscription.title
+                  }`}
                   disabled={!connected}
                   style={styles.productAction}
                   onPress={() =>

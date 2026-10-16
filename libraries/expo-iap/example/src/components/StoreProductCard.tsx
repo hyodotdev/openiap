@@ -6,6 +6,7 @@ type Props = {
   product: Product | ProductSubscription;
   kind: string;
   price?: string;
+  terms?: string;
   children: ReactNode;
 };
 
@@ -13,6 +14,7 @@ export default function StoreProductCard({
   product,
   kind,
   price,
+  terms,
   children,
 }: Props) {
   return (
@@ -23,6 +25,7 @@ export default function StoreProductCard({
         <Text style={styles.description}>{product.description}</Text>
       ) : null}
       <Text style={styles.price}>{price ?? product.displayPrice}</Text>
+      {terms ? <Text style={styles.description}>{terms}</Text> : null}
       <View style={styles.actions}>{children}</View>
     </View>
   );

@@ -53,6 +53,8 @@ With both values configured, the example defaults to **Local (IAPKit)**. With on
 
 The two purchase modes mount one purchase listener at a time. App backend is unavailable on Vega.
 
+Subscription cards in All Products and App backend show the same selected offer's price, billing periods, and renewal terms. Trial and introductory phases include the price that follows them.
+
 ## 📱 Example Structure
 
 This example provides two focused implementations, each demonstrating best practices for specific use cases:

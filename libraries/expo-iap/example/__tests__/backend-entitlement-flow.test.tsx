@@ -262,6 +262,9 @@ describe('BackendEntitlementFlow', () => {
             offerTokenAndroid: 'offer-1',
             displayPrice: '$5',
             paymentMode: 'pay-up-front',
+            pricingPhasesAndroid: {
+              pricingPhaseList: [{billingPeriod: 'P1M', recurrenceMode: 3}],
+            },
           },
           {
             offerTokenAndroid: 'offer-2',
@@ -275,6 +278,7 @@ describe('BackendEntitlementFlow', () => {
 
     await act(async () => {
       expect(getByText('$5')).toBeDefined();
+      expect(getByText('for 1 month · Does not renew')).toBeDefined();
       fireEvent.press(getByText('Subscribe'));
     });
 
@@ -337,6 +341,9 @@ describe('BackendEntitlementFlow', () => {
         title: 'Premium',
         displayPrice: '$50',
         platform: 'ios',
+        typeIOS: 'auto-renewable-subscription',
+        subscriptionPeriodNumberIOS: '1',
+        subscriptionPeriodUnitIOS: 'year',
         subscriptionOffers: [{displayPrice: '$5'}],
       },
     ];
@@ -344,6 +351,7 @@ describe('BackendEntitlementFlow', () => {
 
     await act(async () => {
       expect(getByText('$50')).toBeDefined();
+      expect(getByText('1 year · Auto-renews')).toBeDefined();
       fireEvent.press(getByText('Subscribe'));
     });
 
@@ -357,6 +365,53 @@ describe('BackendEntitlementFlow', () => {
       },
       type: 'subs',
     });
+  });
+
+  it('shows every selected Play pricing phase instead of hiding the renewal price', async () => {
+    mockIap.subscriptions = [
+      {
+        id: 'dev.hyo.martie.premium',
+        title: 'Premium Year',
+        displayPrice: '$50',
+        platform: 'android',
+        subscriptionOffers: [
+          {
+            offerTokenAndroid: 'trial-monthly',
+            displayPrice: '$0',
+            pricingPhasesAndroid: {
+              pricingPhaseList: [
+                {
+                  formattedPrice: '$0',
+                  billingPeriod: 'P1W',
+                  recurrenceMode: 3,
+                },
+                {formattedPrice: '$5', billingPeriod: 'P1M', recurrenceMode: 1},
+              ],
+            },
+          },
+        ],
+      },
+    ];
+    const {getByText, queryByText} = await renderReady();
+    expect(
+      getByText(
+        '$0 for 1 week, then $5 every 1 month · Auto-renews',
+      ),
+    ).toBeDefined();
+    expect(queryByText('$50')).toBeNull();
+    await act(async () => fireEvent.press(getByText('Subscribe')));
+    expect(mockIap.requestPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          google: {
+            skus: ['dev.hyo.martie.premium'],
+            subscriptionOffers: [
+              {sku: 'dev.hyo.martie.premium', offerToken: 'trial-monthly'},
+            ],
+          },
+        }),
+      }),
+    );
   });
 
   it('reports when there is nothing to restore', async () => {
