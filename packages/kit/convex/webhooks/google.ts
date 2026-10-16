@@ -462,6 +462,7 @@ export const ingestGoogleRtdn = action({
           amountProvenance: normalized.amountProvenance,
           freeTrial: normalized.freeTrial,
           replacementCharged: normalized.replacementCharged,
+          snapshotObservedAt: normalized.snapshotObservedAt,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.rawMessage,
         },

@@ -33,6 +33,73 @@ const originalAllowUnauthenticatedPubSub =
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
 const originalAppEnv = process.env.APP_ENV;
 
+describe("Google fetched access evidence", () => {
+  it("keeps a delayed notification separate from the current Play observation", async () => {
+    const occurredAt = Date.parse("2026-01-01T00:00:00Z");
+    const snapshotObservedAt = Date.parse("2026-03-01T00:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(snapshotObservedAt);
+    playMocks.subscriptionsGet.mockResolvedValueOnce({
+      data: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: "2026-04-01T00:00:00Z",
+            autoRenewingPlan: {
+              autoRenewEnabled: true,
+              recurringPrice: { currencyCode: "USD", units: "9" },
+            },
+          },
+        ],
+      },
+    });
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "project_observation",
+        androidPackageName: "dev.openiap.test",
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: "service_account_observation" })
+      .mockResolvedValue(null);
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce({ eventId: "event_observation", deduped: false })
+      .mockResolvedValueOnce({ transition: "Renewed", active: true });
+    try {
+      await ingestGoogleRtdn._handler(
+        {
+          runQuery,
+          runMutation,
+          runAction: vi
+            .fn()
+            .mockResolvedValue({ content: serviceAccountContent }),
+        },
+        {
+          apiKey: "fixture_key",
+          rawMessage: "fixture",
+          payload: {
+            messageId: "delayed_observation_fixture",
+            packageName: "dev.openiap.test",
+            eventTimeMillis: occurredAt,
+            subscriptionNotification: {
+              notificationType: 2,
+              purchaseToken: "fixture_token",
+            },
+          },
+        },
+      );
+      expect(runMutation.mock.calls[0]?.[1]?.event).toMatchObject({
+        occurredAt,
+        snapshotObservedAt,
+        expiresAt: Date.parse("2026-04-01T00:00:00Z"),
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+});
+
 beforeAll(() => {
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
   process.env.APP_ENV = "test";
