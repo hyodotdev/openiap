@@ -497,6 +497,64 @@ describe('kitApi client payload fallback', () => {
     ).resolves.toBeNull();
   });
 
+  it('falls back to the cache on a 2xx that is not a payload', async () => {
+    const notPayload = async () => Response.json({clientPayload: 'portal'});
+    const {api} = await primedApi(notPayload);
+    await expect(
+      api.clientPayload('premium', 'IOS', {refresh: true}),
+    ).resolves.toEqual({...localized, stale: true});
+
+    const uncached = kitApi({
+      apiKey: 'openiap-kit_pk_mobile',
+      fetchImpl: jest.fn().mockImplementation(notPayload),
+    });
+    await expect(
+      uncached.clientPayload('premium', 'IOS'),
+    ).rejects.toBeInstanceOf(KitApiError);
+
+    const {api: htmlApi} = await primedApi(
+      async () => new Response('<html></html>', {status: 200}),
+    );
+    await expect(
+      htmlApi.clientPayload('premium', 'IOS', {refresh: true}),
+    ).resolves.toEqual({...localized, stale: true});
+  });
+
+  it('localizes only JSON payloads with a supported schemaVersion', async () => {
+    const serving = (body: unknown) =>
+      kitApi({
+        apiKey: 'openiap-kit_pk_mobile',
+        fetchImpl: jest.fn().mockResolvedValue(Response.json(body)),
+      });
+    await expect(
+      serving(payload).localizedClientPayload('premium', 'IOS', {locale: 'en'}),
+    ).resolves.toBeNull();
+    await expect(
+      serving({
+        clientPayload: {
+          ...localized.clientPayload,
+          body: JSON.stringify({schemaVersion: 9}),
+        },
+      }).localizedClientPayload('premium', 'IOS', {locale: 'en'}),
+    ).resolves.toBeNull();
+  });
+
+  it('resolves custom schema versions and missing defaults', () => {
+    expect(resolveLocalizedPayload('copy', {locale: 'en'})).toBeNull();
+    expect(
+      resolveLocalizedPayload(
+        {schemaVersion: 2, locales: 'none'},
+        {locale: 'en', supportedSchemaVersions: [2]},
+      ),
+    ).toBeNull();
+    expect(
+      resolveLocalizedPayload(
+        {schemaVersion: 2, default: {cta: 'Buy'}},
+        {locale: 'fr', supportedSchemaVersions: [2]},
+      ),
+    ).toEqual({cta: 'Buy'});
+  });
+
   it('returns null for an unsupported schemaVersion', () => {
     expect(
       resolveLocalizedPayload(
