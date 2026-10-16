@@ -178,6 +178,7 @@ export const cases = Object.freeze([
     name: "apple-public-package-products",
     files: ["Package.swift"],
     jobs: [
+      "ci-kmp-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
       "codeql:analyze-swift",
@@ -232,6 +233,7 @@ export const cases = Object.freeze([
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
+      "ci-kmp-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
@@ -246,7 +248,6 @@ export const cases = Object.freeze([
       "ci:audit-parity",
       "ci-expo-iap.yml",
       "ci-flutter-inapp-purchase.yml",
-      "ci-kmp-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
@@ -261,18 +262,6 @@ export const cases = Object.freeze([
       "ci-maui-iap.yml",
       "ci:test-ios",
       "ci:test-ios-compiler-boundaries",
-      "codeql:analyze-swift",
-    ],
-  },
-  {
-    name: "kmp-swift-bridge-source",
-    files: [
-      "libraries/kmp-iap/native/InAppPurchaseBridge/Sources/InAppPurchaseBridge/InAppPurchaseBridge.swift",
-    ],
-    jobs: [
-      "ci:audit-lockfile",
-      "ci:audit-parity",
-      "ci-kmp-iap.yml",
       "codeql:analyze-swift",
     ],
   },
@@ -736,6 +725,7 @@ export const cases = Object.freeze([
     jobs: [
       "ci-flutter-inapp-purchase.yml",
       "ci-godot-iap.yml",
+      "ci-kmp-iap.yml",
       "ci-maui-iap.yml",
       "ci:audit-lockfile",
       "ci:audit-parity",

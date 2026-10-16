@@ -47,6 +47,30 @@ const PURCHASE_FLOW_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '6.1.0', tag: 'expo-iap-6.1.0' },
 ];
 
+const APP_OWNERSHIP_RECOVERY_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '1.0.3',
+    tag: 'openiap-client-protocol-1.0.3',
+  },
+  { name: 'openiap-apple', version: '4.0.3', tag: '4.0.3' },
+  { name: 'openiap-google', version: '4.0.3', tag: 'google-4.0.3' },
+  {
+    name: 'react-native-iap',
+    version: '17.0.3',
+    tag: 'react-native-iap-17.0.3',
+  },
+  { name: 'expo-iap', version: '6.0.3', tag: 'expo-iap-6.0.3' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '11.0.3',
+    tag: 'flutter-iap-11.0.3',
+  },
+  { name: 'godot-iap', version: '4.0.3', tag: 'godot-iap-4.0.3' },
+  { name: 'kmp-iap', version: '4.0.3', tag: 'kmp-iap-4.0.3' },
+  { name: 'OpenIap.Maui', version: '3.0.3', tag: 'maui-iap-3.0.3' },
+];
+
 const PURCHASE_ACCURACY_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-client-protocol',
@@ -670,6 +694,112 @@ function Releases() {
             <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
             <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
               {PURCHASE_FLOW_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'app-ownership-recovery-2026-10-15',
+      date: new Date('2026-10-15'),
+      element: (
+        <div key="app-ownership-recovery-2026-10-15" style={noteCardStyle}>
+          <span id="kmp-swiftpm-2026-10-15" aria-hidden="true" />
+          {APP_OWNERSHIP_RECOVERY_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="app-ownership-recovery-2026-10-15" level="h4">
+            October 15, 2026 - Apple ownership retries and KMP SwiftPM
+          </AnchorLink>
+          <p>
+            Apps can offer a Retry action after StoreKit&apos;s normal app
+            transaction lookup fails.
+          </p>
+          <h5>Protocols and native packages</h5>
+          <ul>
+            <li>
+              <strong>Client Protocol 1.0.3</strong> adds optional Apple
+              settings to <code>verifyAppOwnership</code>.
+            </li>
+            <li>
+              <strong>openiap-apple 4.0.3</strong> requests fresh signed
+              evidence when <code>apple.refresh</code> is enabled and may prompt
+              for App Store authentication (
+              <a href="https://github.com/hyodotdev/openiap/pull/535">#535</a>
+              ).
+            </li>
+          </ul>
+          <h5>Framework libraries</h5>
+          <p>All six framework SDKs expose the Apple refresh option.</p>
+          <ul>
+            <li>
+              <strong>godot-iap 4.0.3</strong> allows five minutes for the
+              system authentication sheet during a refresh.
+            </li>
+            <li>
+              <strong>kmp-iap 4.0.3</strong> resolves its Apple dependency
+              through Swift Package Manager, including when consumed from Maven,
+              so iOS integration no longer requires CocoaPods (
+              <a href="https://github.com/hyodotdev/openiap/issues/534">#534</a>
+              ).
+            </li>
+          </ul>
+          <h5>Integration notes</h5>
+          <ul>
+            <li>Rebuild native apps after upgrading.</li>
+            <li>
+              Enable <code>apple.refresh</code> only from a user action; leave
+              automatic startup and resume checks unset, as described in the{' '}
+              <Link to="/docs/apis/verify-app-ownership">
+                app ownership guide
+              </Link>
+              .
+            </li>
+            <li>
+              For <strong>flutter_inapp_purchase 11.0.3</strong>, custom
+              ownership resolvers and handler functions must accept the optional
+              named <code>VerifyAppOwnershipOptionsIOS? apple</code> parameter,
+              even if they ignore it.
+            </li>
+            <li>
+              For KMP, use Kotlin 2.4.20 or newer, a static shared framework,
+              and the generated <code>KotlinMultiplatformLinkedPackage</code> in
+              Xcode.
+            </li>
+            <li>
+              Replace the shared module&apos;s CocoaPods integration and manual
+              OpenIAP embed scripts using the{' '}
+              <Link to="/docs/setup/kmp#ios-config">KMP setup guide</Link>.
+            </li>
+            <li>
+              Older KMP Android toolchains need Kotlin 2.4-compatible Lint and
+              R8; follow the{' '}
+              <Link to="/docs/setup/kmp#android-kotlin-metadata">
+                Android toolchain requirements
+              </Link>
+              .
+            </li>
+          </ul>
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {APP_OWNERSHIP_RECOVERY_RELEASES.map((release) => (
                 <li key={release.tag}>
                   <a
                     href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}

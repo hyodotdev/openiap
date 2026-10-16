@@ -19,6 +19,10 @@ Visit the documentation site for installation guides, API reference, and example
 
 ### **[openiap.dev/docs/setup/kmp](https://openiap.dev/docs/setup/kmp)**
 
+Starting with 4.0.3, iOS uses Swift Package Manager without CocoaPods. Use Kotlin
+2.4.20 or newer and follow the setup guide to link the generated Swift package
+to your Xcode app.
+
 ## Using with AI Assistants
 
 kmp-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
@@ -26,6 +30,7 @@ kmp-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, a
 **[📖 AI Assistants Guide →](https://openiap.dev/docs/guides/ai-assistants)**
 
 Quick links:
+
 - [llms.txt](https://openiap.dev/llms.txt) - Quick reference (~300 lines)
 - [llms-full.txt](https://openiap.dev/llms-full.txt) - Full API reference (~1000 lines)
 

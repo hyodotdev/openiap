@@ -30,6 +30,7 @@ type AppOwnershipVerificationResult {
 
 input VerifyAppOwnershipProps {
   google: PlayIntegrityParamsAndroid
+  apple: VerifyAppOwnershipOptionsIOS
 }
 
 # Platform discriminators

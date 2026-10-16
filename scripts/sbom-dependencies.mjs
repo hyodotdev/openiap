@@ -1005,15 +1005,23 @@ function extractNone() {
   return [];
 }
 
-function extractOpenIapNative(root, { apple = false, google = [] }) {
+function extractOpenIapNative(
+  root,
+  { apple = false, appleSwiftPMManifest, google = [] },
+) {
   const versions = readJson(root, "openiap-versions.json");
   const entries = [];
   if (apple) {
+    const usesSwiftPM =
+      appleSwiftPMManifest &&
+      readText(root, appleSwiftPMManifest).includes("swiftPMDependencies {");
     entries.push(
       dependencyEntry({
         name: "openiap",
         version: versions.apple,
-        purl: `pkg:cocoapods/openiap@${encodePurlVersion(versions.apple)}`,
+        purl: usesSwiftPM
+          ? `pkg:swift/github.com/hyodotdev/openiap@${encodePurlVersion(versions.apple)}`
+          : `pkg:cocoapods/openiap@${encodePurlVersion(versions.apple)}`,
         properties: [{ name: "openiap:platform", value: "apple" }],
         spdxLicense: "MIT",
         supplier: "OpenIAP",

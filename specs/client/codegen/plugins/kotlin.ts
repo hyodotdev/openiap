@@ -55,6 +55,11 @@ const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
 };
 
 const COMPATIBLE_INPUT_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
+  VerifyAppOwnershipProps: {
+    preserveExtraValues: true,
+    primaryFields: ['google'],
+    extraFields: ['apple'],
+  },
   RequestVerifyPurchaseWithIapkitAmazonProps: {
     primaryFields: ['receiptId', 'sandbox', 'userId'],
     extraFields: ['expectedProductId'],
@@ -520,41 +525,12 @@ export class KotlinPlugin extends CodegenPlugin {
     }
 
     if (shape.preserveExtraValues) {
-      primaryFields.forEach((value, index) => this.emit(`    operator fun component${index + 1}(): ${this.getPropertyType(value.type)} = ${value.name}`));
-      this.emit('');
-      if (hasIdentity) {
-        this.emit('    fun copy(');
-        for (const value of primaryFields) this.emit(`        ${value.name}: ${this.getPropertyType(value.type)} = this.${value.name},`);
-        this.emit('        storeId: String? = null,');
-        this.emit(`    ): ${irObject.name} {`);
-        this.emit(`        val resolvedStoreId = storeId?.let { resolveStoreId(store, it) } ?: if (store == this.store) this.storeId else when (store) { ${officialIds}; IapStore.Unknown -> throw IllegalArgumentException("${unknownError}") }`);
-        this.emit(`        return ${irObject.name}(`);
-        for (const value of primaryFields) this.emit(`            ${value.name} = ${value.name},`);
-        for (const value of extraFields) {
-          if (value.name === 'storeId') this.emit('            storeId = resolvedStoreId,');
-          else this.emit(`            ${value.name} = this.${value.name},`);
-        }
-        this.emit('        )');
-        this.emit('    }');
-      } else {
-        this.emit('    fun copy(');
-        for (const value of primaryFields) this.emit(`        ${value.name}: ${this.getPropertyType(value.type)} = this.${value.name},`);
-        this.emit(`    ): ${irObject.name} = ${irObject.name}(`);
-        for (const value of primaryFields) this.emit(`        ${value.name} = ${value.name},`);
-        for (const value of extraFields) this.emit(`        ${value.name} = this.${value.name},`);
-        this.emit('    )');
-      }
-      this.emit('');
-      const fields = [...primaryFields, ...extraFields];
-      this.emit(`    override fun equals(other: Any?): Boolean = other is ${irObject.name} &&`);
-      this.emit(`        ${fields.map(value => `${value.name} == other.${value.name}`).join(' && ')}`);
-      this.emit('    override fun hashCode(): Int {');
-      this.emit('        var result = 1');
-      for (const value of fields) this.emit(`        result = 31 * result + ${value.type.nullable ? `(${value.name}?.hashCode() ?: 0)` : `${value.name}.hashCode()`}`);
-      this.emit('        return result');
-      this.emit('    }');
-      this.emit(`    override fun toString(): String = "${irObject.name}(${fields.map(value => `${value.name}=$${value.name}`).join(', ')})"`);
-      this.emit('');
+      this.generateCompatibleValueMethods(
+        irObject.name,
+        primaryFields,
+        extraFields,
+        hasIdentity ? { officialIds, unknownError } : undefined,
+      );
     }
 
     this.emit('    companion object {');
@@ -585,6 +561,49 @@ export class KotlinPlugin extends CodegenPlugin {
     }
     this.emit('    )');
     this.emit('}');
+    this.emit('');
+  }
+
+  private generateCompatibleValueMethods(
+    typeName: string,
+    primaryFields: IRField[],
+    extraFields: IRField[],
+    storeIdentity?: { officialIds: string; unknownError: string },
+  ): void {
+    primaryFields.forEach((value, index) => this.emit(`    operator fun component${index + 1}(): ${this.getPropertyType(value.type)} = ${value.name}`));
+    this.emit('');
+    if (storeIdentity) {
+      this.emit('    fun copy(');
+      for (const value of primaryFields) this.emit(`        ${value.name}: ${this.getPropertyType(value.type)} = this.${value.name},`);
+      this.emit('        storeId: String? = null,');
+      this.emit(`    ): ${typeName} {`);
+      this.emit(`        val resolvedStoreId = storeId?.let { resolveStoreId(store, it) } ?: if (store == this.store) this.storeId else when (store) { ${storeIdentity.officialIds}; IapStore.Unknown -> throw IllegalArgumentException("${storeIdentity.unknownError}") }`);
+      this.emit(`        return ${typeName}(`);
+      for (const value of primaryFields) this.emit(`            ${value.name} = ${value.name},`);
+      for (const value of extraFields) {
+        if (value.name === 'storeId') this.emit('            storeId = resolvedStoreId,');
+        else this.emit(`            ${value.name} = this.${value.name},`);
+      }
+      this.emit('        )');
+      this.emit('    }');
+    } else {
+      this.emit('    fun copy(');
+      for (const value of primaryFields) this.emit(`        ${value.name}: ${this.getPropertyType(value.type)} = this.${value.name},`);
+      this.emit(`    ): ${typeName} = ${typeName}(`);
+      for (const value of primaryFields) this.emit(`        ${value.name} = ${value.name},`);
+      for (const value of extraFields) this.emit(`        ${value.name} = this.${value.name},`);
+      this.emit('    )');
+    }
+    this.emit('');
+    const fields = [...primaryFields, ...extraFields];
+    this.emit(`    override fun equals(other: Any?): Boolean = other is ${typeName} &&`);
+    this.emit(`        ${fields.map(value => `${value.name} == other.${value.name}`).join(' && ')}`);
+    this.emit('    override fun hashCode(): Int {');
+    this.emit('        var result = 1');
+    for (const value of fields) this.emit(`        result = 31 * result + ${value.type.nullable ? `(${value.name}?.hashCode() ?: 0)` : `${value.name}.hashCode()`}`);
+    this.emit('        return result');
+    this.emit('    }');
+    this.emit(`    override fun toString(): String = "${typeName}(${fields.map(value => `${value.name}=$${value.name}`).join(', ')})"`);
     this.emit('');
   }
 
@@ -751,7 +770,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     this.generateDocComment(irInput.description);
     this.generateDeprecationAnnotation(irInput.description);
-    this.emit(`public data class ${irInput.name}(`);
+    this.emit(`public ${shape.preserveExtraValues ? 'class' : 'data class'} ${irInput.name}(`);
     primaryFields.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
       this.generateDeprecationAnnotation(value.description, '    ');
@@ -801,6 +820,10 @@ export class KotlinPlugin extends CodegenPlugin {
       }
       this.emit('    }');
       this.emit('');
+    }
+
+    if (shape.preserveExtraValues) {
+      this.generateCompatibleValueMethods(irInput.name, primaryFields, extraFields);
     }
 
     const allFields = [...primaryFields, ...extraFields];

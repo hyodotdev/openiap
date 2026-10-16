@@ -8,10 +8,12 @@ on:
       - "packages/google/**"
       - "packages/conformance/android/**"
       - "packages/apple/Sources/**"
-      - "packages/apple/openiap.podspec"
+      - "packages/apple/Package.swift"
+      - "Package.swift"
       - "openiap-versions.json"
       - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-xcode/**"
       - ".github/workflows/ci-kmp-iap.yml"
       - ".java-version"
       - "!**/*.md"
@@ -22,10 +24,12 @@ on:
       - "packages/google/**"
       - "packages/conformance/android/**"
       - "packages/apple/Sources/**"
-      - "packages/apple/openiap.podspec"
+      - "packages/apple/Package.swift"
+      - "Package.swift"
       - "openiap-versions.json"
       - "libraries-versions.jsonc"
       - "scripts/ci/retry-gradle.sh"
+      - ".github/actions/setup-xcode/**"
       - ".github/workflows/ci-kmp-iap.yml"
       - ".java-version"
       - "!**/*.md"
@@ -93,7 +97,7 @@ jobs:
   ios-compile-check:
     name: iOS Compile Check
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -109,12 +113,8 @@ jobs:
         with:
           cache-read-only: true
 
-      # `iosSimulatorArm64Test` also compiles the source set, so this replaces
-      # the previous compile-only step rather than adding to it. Without it the
-      # iosTest suite (IosErrorMappingTest, IosConnectionLifecycleTest) never
-      # ran in CI.
-      - name: Compile and test iOS simulator source set
-        run: |
-          chmod +x gradlew
-          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-            ./gradlew --no-parallel :library:iosSimulatorArm64Test
+      - name: Set up Xcode
+        uses: ./.github/actions/setup-xcode
+
+      - name: Verify SwiftPM library, Xcode app, and Maven consumer without CocoaPods
+        run: bash scripts/verify-swiftpm-build.sh

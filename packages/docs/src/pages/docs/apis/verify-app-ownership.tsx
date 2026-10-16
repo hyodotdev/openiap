@@ -110,7 +110,7 @@ export default function VerifyAppOwnership() {
             <CodeBlock language="kotlin">{`suspend fun verifyAppOwnership(options: VerifyAppOwnershipProps? = null): AppOwnershipVerificationResult`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`Future<AppOwnershipVerificationResult> verifyAppOwnership({PlayIntegrityParamsAndroid? google});`}</CodeBlock>
+            <CodeBlock language="dart">{`Future<AppOwnershipVerificationResult> verifyAppOwnership({PlayIntegrityParamsAndroid? google, VerifyAppOwnershipOptionsIOS? apple});`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`Task<AppOwnershipVerificationResult> VerifyAppOwnershipAsync(VerifyAppOwnershipProps? options = null);`}</CodeBlock>
@@ -124,6 +124,12 @@ export default function VerifyAppOwnership() {
         Custom Dart classes using <code>implements QueryResolver</code> must add
         this method. Classes extending QueryResolver inherit an unsupported
         default; FlutterInappPurchase already implements the capability.
+      </p>
+      <p>
+        Existing custom Dart resolvers and handler functions must also accept
+        the optional named parameter{' '}
+        <code>VerifyAppOwnershipOptionsIOS? apple</code>, even when they ignore
+        Apple settings.
       </p>
 
       <AnchorLink id="parameters" level="h2">
@@ -141,6 +147,17 @@ export default function VerifyAppOwnership() {
         ), required for Google Play and ignored on Apple platforms. It carries
         the Cloud project number and a backend request hash.
       </p>
+      <p>
+        Client Protocol 1.0.3 / openiap-apple 4.0.3 adds{' '}
+        <code>apple.refresh</code>. Set it to <code>true</code> only from a
+        Retry button or another explicit user action when the normal StoreKit
+        lookup fails. It calls
+        <code> AppTransaction.refresh()</code>, which may prompt for App Store
+        authentication. Leave it unset during automatic launch and resume
+        checks. Other stores ignore this option.
+      </p>
+      <CodeBlock language="gdscript">{`# Called by a user action, never automatically at launch.
+var result = await GodotIapPlugin.verify_app_ownership({"apple": {"refresh": true}})`}</CodeBlock>
       <p>
         Each call prepares a token provider and requests one token. Avoid
         polling: Google limits preparations per app instance and applies project

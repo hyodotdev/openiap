@@ -104,8 +104,12 @@ kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
 
 ### Compose Multiplatform Compatibility
 
-- Kotlin `2.4.10` is the validated compiler line for Gradle `9.3.0` and AGP
+- Kotlin `2.4.20` is the compiler line for SwiftPM import, Gradle `9.3.0`, and AGP
   `8.13.2`; keep the library and example version catalogs aligned.
+- Keep `android.experimental.lint.version=9.4.1` in both Gradle roots so Lint
+  can read Kotlin 2.4 metadata while AGP remains on 8.13.2.
+- Keep the R8 `9.1.56` overrides in both settings files while AGP remains on
+  8.13.2; Kotlin 2.4 metadata requires that R8 version or newer.
 - Keep Compose Multiplatform at `1.10.3` while the library and example support
   `iosX64`. Compose `1.11.x` does not resolve the required iOS x64 variants.
 - Before raising this cap, run the partially-resolved-dependencies checker plus
@@ -120,6 +124,9 @@ kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
 
 # Run tests
 ./gradlew :library:test
+
+# Verify iOS source, Xcode integration, and Maven consumption without CocoaPods
+bash scripts/verify-swiftpm-build.sh
 
 # Check code quality (if configured)
 ./gradlew :library:detekt

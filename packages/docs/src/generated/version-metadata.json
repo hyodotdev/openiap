@@ -1,7 +1,7 @@
 {
   "_generatedBy": "scripts/sync-versions.sh",
   "cliPackageVersion": "0.2.1",
-  "clientProtocolPackageVersion": "1.0.2",
+  "clientProtocolPackageVersion": "1.0.3",
   "commerceProtocolPackageVersion": "0.3.2",
   "expoPackageVersion": "6.0.2",
   "reactNativePackageVersion": "17.0.2",

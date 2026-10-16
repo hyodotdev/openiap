@@ -5703,21 +5703,47 @@ class SubscriptionProductReplacementParamsAndroid {
   }
 }
 
+/// Apple app acquisition verification options. Ignored by other stores.
+class VerifyAppOwnershipOptionsIOS {
+  const VerifyAppOwnershipOptionsIOS({
+    this.refresh,
+  });
+
+  /// Refresh signed app transaction evidence after a user action; may prompt for authentication. Leave unset for automatic checks. Available in Client Protocol 1.0.3 / openiap-apple 4.0.3.
+  final bool? refresh;
+
+  factory VerifyAppOwnershipOptionsIOS.fromJson(Map<String, dynamic> json) {
+    return VerifyAppOwnershipOptionsIOS(
+      refresh: json['refresh'] as bool?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'refresh': refresh,
+    };
+  }
+}
+
 class VerifyAppOwnershipProps {
   const VerifyAppOwnershipProps({
+    this.apple,
     this.google,
   });
 
+  final VerifyAppOwnershipOptionsIOS? apple;
   final PlayIntegrityParamsAndroid? google;
 
   factory VerifyAppOwnershipProps.fromJson(Map<String, dynamic> json) {
     return VerifyAppOwnershipProps(
+      apple: json['apple'] != null ? VerifyAppOwnershipOptionsIOS.fromJson(json['apple'] as Map<String, dynamic>) : null,
       google: json['google'] != null ? PlayIntegrityParamsAndroid.fromJson(json['google'] as Map<String, dynamic>) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'apple': apple?.toJson(),
       'google': google?.toJson(),
     };
   }
@@ -6349,6 +6375,7 @@ abstract class QueryResolver {
   /// Available in Client Protocol 1.0.1 / openiap-apple 4.0.1 / openiap-google 4.0.1.
   /// See: https://openiap.dev/docs/apis/verify-app-ownership
   Future<AppOwnershipVerificationResult> verifyAppOwnership({
+    VerifyAppOwnershipOptionsIOS? apple,
     PlayIntegrityParamsAndroid? google,
   }) => Future.error(UnsupportedError('verifyAppOwnership is not supported by this resolver'));
 }
@@ -6539,6 +6566,7 @@ typedef QueryIsTransactionVerifiedIOSHandler = Future<bool> Function(String sku)
 typedef QueryLatestTransactionIOSHandler = Future<PurchaseIOS?> Function(String sku);
 typedef QuerySubscriptionStatusIOSHandler = Future<List<SubscriptionStatusIOS>> Function(String sku);
 typedef QueryVerifyAppOwnershipHandler = Future<AppOwnershipVerificationResult> Function({
+  VerifyAppOwnershipOptionsIOS? apple,
   PlayIntegrityParamsAndroid? google,
 });
 

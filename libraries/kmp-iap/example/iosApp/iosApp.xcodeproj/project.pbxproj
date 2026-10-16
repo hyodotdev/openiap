@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CACFE8625817B820A9416372 /* KotlinMultiplatformLinkedPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 49099984BBEC5A47917CA54F /* KotlinMultiplatformLinkedPackage */; };
 		3C59E0B52E4BB8D000B95727 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C59E0B42E4BB8D000B95727 /* StoreKit.framework */; };
 /* End PBXBuildFile section */
 
@@ -47,6 +48,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3C59E0B52E4BB8D000B95727 /* StoreKit.framework in Frameworks */,
+				CACFE8625817B820A9416372 /* KotlinMultiplatformLinkedPackage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,6 +102,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				49099984BBEC5A47917CA54F /* KotlinMultiplatformLinkedPackage */,
 			);
 			productName = iosApp;
 			productReference = B9DA97B12DC1472C00A4DA20 /* kmp-iap-example.app */;
@@ -131,6 +134,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B9DA97B22DC1472C00A4DA20 /* Products */;
+			packageReferences = (
+				BB3A2FC8FCFBF59B29165568 /* KotlinMultiplatformLinkedPackage */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -167,7 +173,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/../..\"\n./gradlew :example:composeApp:embedAndSignAppleFrameworkForXcode\n\n# Embed OpenIAP framework\nOPENIAP_FRAMEWORK_PATH=\"$SRCROOT/../../library/build/cocoapods/synthetic/ios/build/$CONFIGURATION-$PLATFORM_NAME/openiap/OpenIAP.framework\"\nFRAMEWORKS_DIR=\"$BUILT_PRODUCTS_DIR/$FRAMEWORKS_FOLDER_PATH\"\nOPENIAP_APPLE_VERSION=$(python3 -c 'import json; print(json.load(open(\"openiap-versions.json\"))[\"apple\"])')\n\nif [ -d \"$OPENIAP_FRAMEWORK_PATH\" ]; then\n  echo \"Embedding OpenIAP.framework from $OPENIAP_FRAMEWORK_PATH\"\n  mkdir -p \"$FRAMEWORKS_DIR\"\n  \n  # Create Info.plist in source framework if it doesn't exist\n  if [ ! -f \"$OPENIAP_FRAMEWORK_PATH/Info.plist\" ]; then\n    echo \"Creating Info.plist in source OpenIAP.framework\"\n    cat > \"$OPENIAP_FRAMEWORK_PATH/Info.plist\" << EOF\n<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\n<plist version=\\\"1.0\\\">\n<dict>\n\t<key>CFBundleDevelopmentRegion</key>\n\t<string>en</string>\n\t<key>CFBundleExecutable</key>\n\t<string>OpenIAP</string>\n\t<key>CFBundleIdentifier</key>\n\t<string>dev.hyo.openiap</string>\n\t<key>CFBundleInfoDictionaryVersion</key>\n\t<string>6.0</string>\n\t<key>CFBundleName</key>\n\t<string>OpenIAP</string>\n\t<key>CFBundlePackageType</key>\n\t<string>FMWK</string>\n\t<key>CFBundleShortVersionString</key>\n\t<string>$OPENIAP_APPLE_VERSION</string>\n\t<key>CFBundleVersion</key>\n\t<string>1</string>\n</dict>\n</plist>\nEOF\n  fi\n  \n  # Copy framework with rsync\n  rsync -av --delete \"$OPENIAP_FRAMEWORK_PATH\" \"$FRAMEWORKS_DIR/\"\n  \n  # Verify Info.plist exists after copy\n  if [ ! -f \"$FRAMEWORKS_DIR/OpenIAP.framework/Info.plist\" ]; then\n    echo \"ERROR: Info.plist not found after rsync, creating again\"\n    cat > \"$FRAMEWORKS_DIR/OpenIAP.framework/Info.plist\" << EOF\n<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\n<plist version=\\\"1.0\\\">\n<dict>\n\t<key>CFBundleDevelopmentRegion</key>\n\t<string>en</string>\n\t<key>CFBundleExecutable</key>\n\t<string>OpenIAP</string>\n\t<key>CFBundleIdentifier</key>\n\t<string>dev.hyo.openiap</string>\n\t<key>CFBundleInfoDictionaryVersion</key>\n\t<string>6.0</string>\n\t<key>CFBundleName</key>\n\t<string>OpenIAP</string>\n\t<key>CFBundlePackageType</key>\n\t<string>FMWK</string>\n\t<key>CFBundleShortVersionString</key>\n\t<string>$OPENIAP_APPLE_VERSION</string>\n\t<key>CFBundleVersion</key>\n\t<string>1</string>\n</dict>\n</plist>\nEOF\n  fi\n  \n  # Code sign the framework\n  if [ \"$CODE_SIGNING_ALLOWED\" = \"YES\" ]; then\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --preserve-metadata=identifier,entitlements,flags --timestamp=none \"$FRAMEWORKS_DIR/OpenIAP.framework\"\n  fi\n  echo \"OpenIAP.framework embedded successfully\"\nelse\n  echo \"warning: OpenIAP.framework not found at $OPENIAP_FRAMEWORK_PATH\"\nfi\n";
+			shellScript = "set -e\nif [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  exit 0\nfi\ncd \"$SRCROOT/../..\"\n./gradlew :example:composeApp:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -397,6 +403,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BB3A2FC8FCFBF59B29165568 /* KotlinMultiplatformLinkedPackage */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = KotlinMultiplatformLinkedPackage;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		49099984BBEC5A47917CA54F /* KotlinMultiplatformLinkedPackage */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KotlinMultiplatformLinkedPackage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B9DA97A92DC1472C00A4DA20 /* Project object */;
 }
