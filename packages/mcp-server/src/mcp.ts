@@ -17,6 +17,7 @@ import {
   kitClient,
   KitHttpError,
   normalizeKitBaseUrl,
+  type KitRevenueDay,
   type KitRevenueMetricsResponse,
 } from "./kit-client.js";
 
@@ -1689,7 +1690,7 @@ function addUtcDays(date: Date, days: number): Date {
 const REVENUE_DEFINITIONS = {
   timezone: "UTC days and months.",
   revenue:
-    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. Free trials, free offer periods, refund reversals and Google plan changes Play did not charge at once add nothing; billing recoveries count. netRevenueMicros subtracts store-reported refunds. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
+    "revenueMicros: gross store list price of paid charges, before store fees and refunds; IAPKit never converts currencies. Free trials, free offer periods, refund reversals and Google plan changes Play did not charge at once add nothing; billing recoveries count. netRevenueMicros subtracts store-reported refunds. Refunded and net totals are null if any matching row omits refundedMicros. Google reports a base plan's recurring price, so a discounted introductory phase is booked at that list price.",
   purchaseEvents:
     "Paid charges: paid starts, trial conversions, renewals and billing recoveries. Free trials, free promotional periods and restores are not purchases. An Apple immediate upgrade adds nothing until the next charge. A Google plan change is a renewal only when Play charges it at once (a prepaid top-up, or the CHARGE_FULL_PRICE or CHARGE_PRORATED_PRICE mode), booked at the new plan's list price; otherwise its next renewal is the first charge counted.",
   newSubs:
@@ -1707,26 +1708,87 @@ const REVENUE_DEFINITIONS = {
   environment:
     "Production only unless environment is sandbox. Rows from definitionsFromDay on follow these definitions; earlier rows mix sandbox into production and have no trial split.",
   trialSplit:
-    "Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations, and their totals here cover later days only; on those days Google free trials count as paid starts, and Apple free trials, free offers, refund reversals and resubscribes as new subscriptions. Unset when every day has the split.",
+    "Trial counters and purchaseEvents sum only rows with explicit trial split fields on or after trialSplitFromDay. Each currency, product and platform group reports trialSplitCoverage: includedRows, excludedRows and the first/last included row dates (not a continuous calendar range). No included rows means null, not zero; exclusions mean a subtotal of the requested range. Days before trialSplitFromDay omit trialStarts, trialConversions, directPaidStarts, activeTrials and expirations; on those days Google free trials count as paid starts, and Apple free trials, free offers, refund reversals and resubscribes as new subscriptions. Unset when every day has the split.",
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:
     "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with observed paid access at the end of month k (current month: as of the latest rebuild); null if any member lacks historical evidence. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
 } as const;
 
-type RevenueTotals = {
+type TrialSplitTotals = {
+  purchaseEvents: number | null;
+  trialStarts: number | null;
+  trialConversions: number | null;
+  directPaidStarts: number | null;
+  expirations: number | null;
+  trialSplitCoverage: {
+    includedRows: number;
+    excludedRows: number;
+    fromDay: string | null;
+    toDay: string | null;
+  };
+};
+
+function emptyTrialSplitTotals(): TrialSplitTotals {
+  return {
+    purchaseEvents: null,
+    trialStarts: null,
+    trialConversions: null,
+    directPaidStarts: null,
+    expirations: null,
+    trialSplitCoverage: {
+      includedRows: 0,
+      excludedRows: 0,
+      fromDay: null,
+      toDay: null,
+    },
+  };
+}
+
+function addTrialSplitTotals(
+  total: TrialSplitTotals,
+  row: KitRevenueDay,
+  trialSplitFromDay: string | undefined,
+): void {
+  const coverage = total.trialSplitCoverage;
+  if (
+    (trialSplitFromDay !== undefined && row.day < trialSplitFromDay) ||
+    row.trialStarts === undefined ||
+    row.trialConversions === undefined ||
+    row.directPaidStarts === undefined ||
+    row.expirations === undefined
+  ) {
+    coverage.excludedRows++;
+    return;
+  }
+  total.purchaseEvents =
+    (total.purchaseEvents ?? 0) +
+    row.directPaidStarts +
+    row.trialConversions +
+    row.renewals;
+  total.trialStarts = (total.trialStarts ?? 0) + row.trialStarts;
+  total.trialConversions = (total.trialConversions ?? 0) + row.trialConversions;
+  total.directPaidStarts = (total.directPaidStarts ?? 0) + row.directPaidStarts;
+  total.expirations = (total.expirations ?? 0) + row.expirations;
+  coverage.includedRows++;
+  if (coverage.fromDay === null || row.day < coverage.fromDay)
+    coverage.fromDay = row.day;
+  if (coverage.toDay === null || row.day > coverage.toDay)
+    coverage.toDay = row.day;
+}
+
+type RevenueTotals = TrialSplitTotals & {
   revenueMicros: number;
-  refundedMicros: number;
-  netRevenueMicros: number;
-  purchaseEvents: number;
+  refundedMicros: number | null;
+  netRevenueMicros: number | null;
   newSubs: number;
-  trialStarts: number;
-  trialConversions: number;
-  directPaidStarts: number;
   renewals: number;
   cancellations: number;
-  expirations: number;
   refunds: number;
+};
+
+type GroupRevenueTotals = TrialSplitTotals & {
+  revenueMicrosByCurrency: Record<string, number>;
 };
 
 function summarizeRevenueMetrics(
@@ -1748,64 +1810,50 @@ function summarizeRevenueMetrics(
   });
 
   const totalsByCurrency = new Map<string, RevenueTotals>();
-  const totalsByProduct = new Map<
-    string,
-    { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
-  >();
-  const totalsByPlatform = new Map<
-    "IOS" | "Android",
-    { purchaseEvents: number; revenueMicrosByCurrency: Record<string, number> }
-  >();
+  const totalsByProduct = new Map<string, GroupRevenueTotals>();
+  const totalsByPlatform = new Map<"IOS" | "Android", GroupRevenueTotals>();
 
   for (const row of rows) {
-    const trialStarts = row.trialStarts ?? 0;
-    const trialConversions = row.trialConversions ?? 0;
-    const refundedMicros = row.refundedMicros ?? 0;
-    const purchaseEvents =
-      row.newSubs - trialStarts + row.renewals + trialConversions;
     const currencyTotal = totalsByCurrency.get(row.currency) ?? {
       revenueMicros: 0,
       refundedMicros: 0,
       netRevenueMicros: 0,
-      purchaseEvents: 0,
+      ...emptyTrialSplitTotals(),
       newSubs: 0,
-      trialStarts: 0,
-      trialConversions: 0,
-      directPaidStarts: 0,
       renewals: 0,
       cancellations: 0,
-      expirations: 0,
       refunds: 0,
     };
     currencyTotal.revenueMicros += row.revenueMicros;
-    currencyTotal.refundedMicros += refundedMicros;
-    currencyTotal.netRevenueMicros += row.revenueMicros - refundedMicros;
-    currencyTotal.purchaseEvents += purchaseEvents;
+    if (row.refundedMicros === undefined) currencyTotal.refundedMicros = null;
+    else if (currencyTotal.refundedMicros !== null)
+      currencyTotal.refundedMicros += row.refundedMicros;
+    currencyTotal.netRevenueMicros =
+      currencyTotal.refundedMicros === null
+        ? null
+        : currencyTotal.revenueMicros - currencyTotal.refundedMicros;
     currencyTotal.newSubs += row.newSubs;
-    currencyTotal.trialStarts += trialStarts;
-    currencyTotal.trialConversions += trialConversions;
-    currencyTotal.directPaidStarts += row.directPaidStarts ?? 0;
+    addTrialSplitTotals(currencyTotal, row, metrics.trialSplitFromDay);
     currencyTotal.renewals += row.renewals;
     currencyTotal.cancellations += row.cancellations;
-    currencyTotal.expirations += row.expirations ?? 0;
     currencyTotal.refunds += row.refunds;
     totalsByCurrency.set(row.currency, currencyTotal);
 
     const productTotal = totalsByProduct.get(row.productId) ?? {
-      purchaseEvents: 0,
+      ...emptyTrialSplitTotals(),
       revenueMicrosByCurrency: {},
     };
-    productTotal.purchaseEvents += purchaseEvents;
+    addTrialSplitTotals(productTotal, row, metrics.trialSplitFromDay);
     productTotal.revenueMicrosByCurrency[row.currency] =
       (productTotal.revenueMicrosByCurrency[row.currency] ?? 0) +
       row.revenueMicros;
     totalsByProduct.set(row.productId, productTotal);
 
     const platformTotal = totalsByPlatform.get(row.platform) ?? {
-      purchaseEvents: 0,
+      ...emptyTrialSplitTotals(),
       revenueMicrosByCurrency: {},
     };
-    platformTotal.purchaseEvents += purchaseEvents;
+    addTrialSplitTotals(platformTotal, row, metrics.trialSplitFromDay);
     platformTotal.revenueMicrosByCurrency[row.currency] =
       (platformTotal.revenueMicrosByCurrency[row.currency] ?? 0) +
       row.revenueMicros;

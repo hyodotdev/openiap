@@ -299,6 +299,15 @@ export default function AnalyticsPage() {
         <code>cohortScope: "project"</code> distinguishes them from filtered
         daily totals.
       </p>
+      <p className="mt-3">
+        MCP trial counters, expirations, and <code>purchaseEvents</code> sum
+        only rows with recorded trial splits. Each currency, product, and
+        platform group includes <code>trialSplitCoverage</code>: included and
+        excluded row counts, and the first and last included dates. No included
+        rows means null; excluded rows mean a subtotal, not the whole requested
+        window. Refunded and net amounts are null when any matching row lacks a
+        refund amount. Gross revenue still covers all matching rows.
+      </p>
 
       <Callout kind="warning" title="Changed in this release">
         <p>

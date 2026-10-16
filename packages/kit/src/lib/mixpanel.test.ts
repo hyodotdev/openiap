@@ -73,6 +73,23 @@ describe("Mixpanel URL redaction", () => {
     );
   });
 
+  it.each([
+    "o'neil@example.test",
+    "'leading@example.test",
+    "trailing@example.test'",
+  ])("redacts the complete raw href query for %s", (appUserId) => {
+    const href = `/org/project/app/purchases?user=${encodeURIComponent(appUserId)}&cursor=private`;
+    const event = redactEventUrls({
+      properties: { $elements: [{ "$attr-href": href }], $current_url: href },
+    });
+    expect(event.properties.$current_url).toBe(
+      "/org/project/app/purchases?user=&cursor=",
+    );
+    expect(event.properties.$elements[0]["$attr-href"]).toBe(
+      "/org/project/app/purchases?user=&cursor=",
+    );
+  });
+
   it("redacts every string an event carries, nested ones included", () => {
     const event = redactEventUrls({
       event: "$mp_click",

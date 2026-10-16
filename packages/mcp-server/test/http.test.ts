@@ -420,6 +420,11 @@ describe("remote MCP HTTP server", () => {
               platform: "IOS",
               activeSubs: 10,
               newSubs: 2,
+              trialStarts: 0,
+              trialConversions: 0,
+              directPaidStarts: 2,
+              expirations: 0,
+              refundedMicros: 0,
               renewals: 3,
               cancellations: 1,
               refunds: 0,
@@ -468,6 +473,149 @@ describe("remote MCP HTTP server", () => {
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;
     }
   });
+
+  it.each(["legacy", "mixed", "modern-zero", "missing-field", "before-cutoff"])(
+    "keeps unavailable trial and refund amounts distinct from zero: %s",
+    async (scenario) => {
+      const legacy = {
+        day: "2026-05-01",
+        currency: "USD",
+        productId: "legacy",
+        platform: "IOS",
+        activeSubs: 2,
+        newSubs: 2,
+        renewals: 3,
+        cancellations: 0,
+        refunds: 1,
+        revenueMicros: 5_000_000,
+      };
+      const modern = {
+        ...legacy,
+        day: "2026-05-20",
+        productId: "modern",
+        platform: "Android",
+        newSubs: 2,
+        renewals: 1,
+        trialStarts: 1,
+        trialConversions: 1,
+        directPaidStarts: 1,
+        expirations: 1,
+        revenueMicros: 20_000_000,
+        refundedMicros: 5_000_000,
+      };
+      const days =
+        scenario === "legacy"
+          ? [legacy]
+          : scenario === "mixed"
+            ? [legacy, modern, { ...legacy, currency: "EUR" }]
+            : scenario === "missing-field"
+              ? [{ ...modern, expirations: undefined }]
+              : scenario === "before-cutoff"
+                ? [{ ...modern, day: legacy.day }]
+                : [
+                    {
+                      ...modern,
+                      newSubs: 0,
+                      renewals: 0,
+                      trialStarts: 0,
+                      trialConversions: 0,
+                      directPaidStarts: 0,
+                      expirations: 0,
+                      refunds: 0,
+                      revenueMicros: 0,
+                      refundedMicros: 0,
+                    },
+                  ];
+      const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+      process.env.IAPKIT_BASE_URL = await startKitApi((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            days,
+            currencies: ["USD", "EUR"],
+            productIds: ["legacy", "modern"],
+            platforms: ["IOS", "Android"],
+            truncated: false,
+            environment: "Production",
+            dataState: "ready",
+            trialSplitFromDay: "2026-05-20",
+            pendingLateEvents: 0,
+          }),
+        );
+      });
+      try {
+        const { baseUrl, sessionId } = await initializeMcpSession(
+          "openiap-kit_sk_legacy",
+        );
+        const payload = await callTool<{
+          totalsByCurrency: Record<string, Record<string, unknown>>;
+          totalsByProduct: Record<string, Record<string, unknown>>;
+          totalsByPlatform: Record<string, Record<string, unknown>>;
+        }>(baseUrl, sessionId, "iapkit_revenue_analytics", {
+          period: "custom",
+          fromDay: "2026-05-01",
+          toDay: scenario === "legacy" ? "2026-05-10" : "2026-05-30",
+        });
+        const available = scenario === "mixed" || scenario === "modern-zero";
+        const metric = available ? (scenario === "mixed" ? 1 : 0) : null;
+        expect(payload.totalsByCurrency.USD).toMatchObject({
+          purchaseEvents: available ? (scenario === "mixed" ? 3 : 0) : null,
+          trialStarts: metric,
+          trialConversions: metric,
+          directPaidStarts: metric,
+          expirations: metric,
+          trialSplitCoverage: {
+            includedRows: available ? 1 : 0,
+            excludedRows: available ? (scenario === "mixed" ? 1 : 0) : 1,
+            fromDay: available ? "2026-05-20" : null,
+            toDay: available ? "2026-05-20" : null,
+          },
+        });
+        const currency = payload.totalsByCurrency.USD;
+        if (scenario === "legacy" || scenario === "mixed") {
+          expect(currency.refundedMicros).toBeNull();
+          expect(currency.netRevenueMicros).toBeNull();
+        } else {
+          expect(currency.refundedMicros).toBe(
+            scenario === "modern-zero" ? 0 : 5_000_000,
+          );
+          expect(currency.netRevenueMicros).toBe(
+            scenario === "modern-zero" ? 0 : 15_000_000,
+          );
+        }
+        for (const map of [payload.totalsByProduct, payload.totalsByPlatform]) {
+          for (const group of Object.values(map)) {
+            expect(group).toHaveProperty("trialSplitCoverage");
+          }
+        }
+        if (scenario === "mixed") {
+          for (const group of [
+            payload.totalsByCurrency.EUR,
+            payload.totalsByProduct.legacy,
+            payload.totalsByPlatform.IOS,
+          ]) {
+            expect(group.purchaseEvents).toBeNull();
+            expect(group.trialStarts).toBeNull();
+            expect(group.trialSplitCoverage).toMatchObject({
+              includedRows: 0,
+              fromDay: null,
+              toDay: null,
+            });
+          }
+          expect(payload.totalsByProduct.modern.purchaseEvents).toBe(3);
+          expect(payload.totalsByPlatform.Android.purchaseEvents).toBe(3);
+          expect(currency).toMatchObject({
+            newSubs: 4,
+            renewals: 4,
+            revenueMicros: 25_000_000,
+          });
+        }
+      } finally {
+        if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+        else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+      }
+    },
+  );
 
   it("filters daily sandbox totals while identifying cohorts as project-wide", async () => {
     const apiKey = "openiap-kit_sk_revenue_cohorts";

@@ -75,7 +75,7 @@ const ALLOWED_HOSTS = new Set(["kit.openiap.dev", "localhost", "127.0.0.1"]);
 export function redactUrls(text: string): string {
   return text
     .replace(/(\/purchases\/user\/)[^/?#\s"]+/gi, "$1:appUserId")
-    .replace(/([?&][^=&#\s"']+=)[^&#\s"']*/g, "$1");
+    .replace(/([?&][^=&#\s"]+=)[^&#\s"]*/g, "$1");
 }
 
 function redactDeep(value: unknown): unknown {
