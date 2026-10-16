@@ -65,7 +65,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit receives that store evidence through verifyPurchase. The paywall, store purchase screen, and app login stay with your app; IAPKit does not replace them.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchase',
-      line: 210,
+      line: 218,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Route tests cover evidence parsing and errors with mocked store calls; they do not perform a mobile purchase.',
@@ -88,7 +88,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The handler sends evidence to the Apple, Google, Meta, or Amazon verifier and returns the same isValid answer. Store-specific work stays behind this call.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchaseVerdict',
-      line: 163,
+      line: 164,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'The route suite checks unreachable verification and retry behavior using mocked store I/O.',
@@ -157,7 +157,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The protocol handler calls bindUserAsServer. Convex checks the project’s server credential and records ownership without moving a purchase already owned by another user.',
       file: 'convex/subscriptions/mutation.ts',
       symbol: 'bindUserAsServer',
-      line: 95,
+      line: 94,
       checkFile: 'convex/subscriptions/internal.test.ts',
       check:
         'Binding tests cover repeated and conflicting claims against the subscription mutation handlers.',
@@ -180,7 +180,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'isActive applies the shared entitlementActive rule to Convex records. entitlementsV2 reads the current time and returns allowed products without exposing store purchase tokens.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'isActive',
-      line: 82,
+      line: 98,
       checkFile: 'convex/subscriptions/query.test.ts',
       check:
         'Account-read tests check token omission, server authorization, and time advancing past expiry.',
@@ -203,7 +203,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'subscriptionStatusV2 selects a subscription and applies the same access deadline. The protocol handler turns that record into the shared response shape.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'subscriptionStatusV2',
-      line: 346,
+      line: 361,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The contract vectors compare status and access over REST and GraphQL with an in-memory database substitute.',
