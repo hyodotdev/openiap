@@ -380,7 +380,7 @@ async function applyLifecycleEvent(
       args.projectId,
       statsContributionFor(removed, removedPeriod, now),
       null,
-      removed._creationTime,
+      removed,
     );
     await ctx.db.delete(removed._id);
     const previousAnalytics = [survivor.analytics, removed.analytics];
@@ -1261,7 +1261,7 @@ export async function persistSubscriptionSnapshot(
     args.projectId,
     beforeContribution,
     afterContribution,
-    updatedRow._creationTime,
+    updatedRow,
   );
 
   return subscriptionId;

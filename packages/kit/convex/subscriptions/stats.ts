@@ -8,7 +8,7 @@ import {
 import type { MutationCtx } from "../_generated/server";
 import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { v } from "convex/values";
+import { compareValues, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { monthlyMicrosForSub } from "./monthlyMicros";
@@ -77,7 +77,7 @@ export async function applyStatsTransition(
   projectId: Id<"projects">,
   before: StatsContribution | null,
   after: StatsContribution | null,
-  subscriptionCreationTime: number,
+  subscription: Pick<Doc<"subscriptions">, "_creationTime" | "_id">,
 ): Promise<void> {
   // No-op when neither side counts.
   if (before === null && after === null) return;
@@ -114,7 +114,11 @@ export async function applyStatsTransition(
   const rebuild = await getStatsRebuild(ctx, projectId);
   if (
     rebuild?.scannedThrough !== undefined &&
-    subscriptionCreationTime <= rebuild.scannedThrough
+    rebuild.scannedThroughId !== undefined &&
+    compareValues(
+      [subscription._creationTime, subscription._id],
+      [rebuild.scannedThrough, rebuild.scannedThroughId],
+    ) <= 0
   ) {
     const totals = totalsFromRows(rebuild.totals);
     if (before) addToTotals(totals, before, "subtract");
@@ -299,6 +303,15 @@ async function runRecomputePageInline(
   // A newer rebuild replaced this one.
   if (args.cursor !== null && !ours) return;
 
+  // Timestamp-only checkpoints can already double-count tied rows. Start over
+  // with a new generation so queued pages cannot reuse the corrupt totals.
+  const restart =
+    args.cursor === null ||
+    (ours?.scannedThrough !== undefined && ours.scannedThroughId === undefined);
+  const startedAt = restart
+    ? Math.max(Date.now(), (rebuild?.startedAt ?? -Infinity) + 1)
+    : args.startedAt;
+
   // Keyed by platform too: one SKU can have a different period per store.
   // Re-read on every page; catalogs are small and cheaper to read than to pass
   // through scheduler args.
@@ -324,10 +337,11 @@ async function runRecomputePageInline(
     .paginate({
       maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
       numItems: RECOMPUTE_PAGE_SIZE,
-      cursor: args.cursor,
+      cursor: restart ? null : args.cursor,
     });
 
-  const totals: StatsTotals = ours ? totalsFromRows(ours.totals) : new Map();
+  const totals: StatsTotals =
+    ours && !restart ? totalsFromRows(ours.totals) : new Map();
   const now = Date.now();
   for (const sub of result.page) {
     const contribution = statsContributionFor(
@@ -341,8 +355,12 @@ async function runRecomputePageInline(
   if (!result.isDone) {
     const lastRead = result.page[result.page.length - 1];
     const fields = {
+      startedAt,
       totals: totalsToRows(totals),
-      scannedThrough: lastRead?._creationTime ?? ours?.scannedThrough,
+      scannedThrough:
+        lastRead?._creationTime ?? (restart ? undefined : ours?.scannedThrough),
+      scannedThroughId:
+        lastRead?._id ?? (restart ? undefined : ours?.scannedThroughId),
     };
     if (ours) {
       await ctx.db.patch(ours._id, fields);
@@ -350,7 +368,6 @@ async function runRecomputePageInline(
       if (rebuild) await ctx.db.delete(rebuild._id);
       await ctx.db.insert("subscriptionStatsRebuilds", {
         projectId: args.projectId,
-        startedAt: args.startedAt,
         ...fields,
       });
     }
@@ -359,7 +376,7 @@ async function runRecomputePageInline(
       internal.subscriptions.stats.runRecomputePage,
       {
         projectId: args.projectId,
-        startedAt: args.startedAt,
+        startedAt,
         cursor: result.continueCursor,
       },
     );
@@ -425,7 +442,7 @@ export const runRecomputePage = internalMutation({
   },
 });
 
-// Full rebuild of one project's subscriptionStats in pages of ~5000, for
+// Full rebuild of one project's subscriptionStats in bounded pages, for
 // migrations and manual reconciliation; never on the read path.
 export const recomputeSubscriptionStats = internalMutation({
   args: {

@@ -178,10 +178,12 @@ const outcomes = await flow.recoverPurchases();`}
         >
           Expo IAP example
         </a>{" "}
-        shows every state: open <strong>In-App Purchase Flow</strong> and choose{" "}
-        <strong>App backend</strong> at the top. The separate{" "}
-        <strong>Purchase demo</strong> mode keeps receipt-verification settings
-        inside the direct purchase flow.
+        shows the backend flow: open <strong>Purchase</strong>, select{" "}
+        <strong>Change</strong> beside <strong>Purchase confirmation</strong>,
+        then choose <strong>Your app backend</strong>. Select{" "}
+        <strong>Show purchase steps</strong> to follow stages updated by actual
+        callbacks. Choose <strong>Receipt checks</strong> for one-time purchase
+        verification and finishing without deciding app-account access.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">States</h2>

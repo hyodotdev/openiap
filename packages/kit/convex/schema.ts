@@ -896,8 +896,9 @@ const schema = defineSchema({
   subscriptionStatsRebuilds: defineTable({
     projectId: v.id("projects"),
     startedAt: v.number(),
-    // `_creationTime` of the last subscription the scan read.
+    // Complete creation-order key of the last subscription the scan read.
     scannedThrough: v.optional(v.number()),
+    scannedThroughId: v.optional(v.id("subscriptions")),
     totals: v.array(
       v.object({
         currency: v.string(),

@@ -1,5 +1,5 @@
 // In-memory ctx.db for unit tests. Orders and ranges rows the way Convex does,
-// by the schema's index fields and then _creationTime, and reads return
+// by the schema's index fields, _creationTime and _id, and reads return
 // snapshots. Not a convex-test substitute: it has no transactions, validators
 // or read limits. Two dots in the name keep it out of the Convex bundle.
 
@@ -98,14 +98,16 @@ class MemoryQuery {
   private results(): Row[] {
     const rows = this.source
       .filter((row) => this.predicates.every((matches) => matches(row)))
-      .sort((a, b) => {
-        for (const field of [...this.fields, "_creationTime"]) {
-          const order = compareValues(a[field], b[field]);
-          if (order !== 0) return order;
-        }
-        return 0;
-      });
+      .sort((a, b) => this.compareRows(a, b));
     return this.descending ? rows.reverse() : rows;
+  }
+
+  private compareRows(a: Row, b: Row): number {
+    for (const field of [...this.fields, "_creationTime", "_id"]) {
+      const order = compareValues(a[field], b[field]);
+      if (order !== 0) return order;
+    }
+    return 0;
   }
 
   async take(count: number): Promise<Row[]> {
@@ -128,13 +130,28 @@ class MemoryQuery {
   }
 
   async paginate(options: { numItems: number; cursor: string | null }) {
-    const rows = this.results();
-    const start = options.cursor === null ? 0 : Number(options.cursor);
-    const end = Math.min(start + options.numItems, rows.length);
+    const boundary: Row | null =
+      options.cursor === null ? null : JSON.parse(options.cursor);
+    const rows = this.results().filter((row) => {
+      if (!boundary) return true;
+      const order = this.compareRows(row, boundary);
+      return this.descending ? order < 0 : order > 0;
+    });
+    const page = rows.slice(0, options.numItems);
+    const last = page.at(-1);
     return {
-      page: rows.slice(start, end).map(snapshot),
-      isDone: end >= rows.length,
-      continueCursor: String(end),
+      page: page.map(snapshot),
+      isDone: page.length >= rows.length,
+      continueCursor: last
+        ? JSON.stringify(
+            Object.fromEntries(
+              [...this.fields, "_creationTime", "_id"].map((field) => [
+                field,
+                last[field],
+              ]),
+            ),
+          )
+        : (options.cursor ?? "null"),
     };
   }
 }

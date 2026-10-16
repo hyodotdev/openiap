@@ -5,9 +5,11 @@ import { compareValues, type Value } from "convex/values";
 import type { Doc, Id, TableNames } from "../_generated/dataModel";
 import schema from "../schema";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
+import type { ReceiptEnvironment } from "../purchases/shared";
 import { MemoryDb } from "../test.memoryDb";
 import { testableFunction } from "../test.setup";
 import {
+  applySubscriptionEvent,
   findSubscriptionByToken,
   persistSubscriptionSnapshot,
   recordVerifiedSubscription,
@@ -32,7 +34,7 @@ function indexFields(table: TableNames, name: string): string[] {
 }
 
 // Orders and ranges rows the way Convex does: by the schema's index fields in
-// Convex's value order, then `_creationTime`.
+// Convex's value order, then `_creationTime` and `_id`.
 class IndexedQuery {
   private fields: string[] = [];
   private filters: Array<(row: Row) => boolean> = [];
@@ -68,7 +70,7 @@ class IndexedQuery {
     const rows = this.source
       .filter((row) => this.filters.every((matches) => matches(row)))
       .sort((a, b) => {
-        for (const field of [...this.fields, "_creationTime"]) {
+        for (const field of [...this.fields, "_creationTime", "_id"]) {
           const order = compareValues(a[field], b[field]);
           if (order !== 0) return order;
         }
@@ -320,18 +322,22 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     ctx: ReturnType<typeof memoryCtx>,
     token: string,
     state: Doc<"subscriptions">["state"],
+    changes: { currency?: string; environment?: ReceiptEnvironment } = {},
   ): Promise<void> {
+    const { environment, ...nextChanges } = changes;
     await persistSubscriptionSnapshot(ctx as never, {
       projectId: PROJECT,
       platform: "Android",
       purchaseToken: token,
       existing: await findSubscriptionByToken(ctx as never, PROJECT, token),
+      environment,
       next: {
         state,
         productId: "premium",
         expiresAt: 40 * DAY,
         currency: "USD",
         priceAmountMicros: 1_000_000,
+        ...nextChanges,
       },
       now: Date.now(),
     });
@@ -342,6 +348,216 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
       projectId: PROJECT,
     });
   }
+
+  async function tiedRows() {
+    const db = new MemoryDb();
+    db.seed("organizations", { _id: "organizations_busy" });
+    db.seed("projects", {
+      _id: PROJECT,
+      organizationId: "organizations_busy",
+    });
+    db.seed("products", {
+      projectId: PROJECT,
+      platform: "Android",
+      productId: "premium",
+      type: "Subscription",
+      billingPeriod: "P1M",
+    });
+    // Reverse insertion order makes the ID tiebreak observable, not incidental.
+    for (let i = SUBSCRIPTION_SCAN_PAGE_SIZE; i >= 0; i--) {
+      const id = db.seed("subscriptions", {
+        _id: `subscriptions_${String(i).padStart(4, "0")}`,
+        projectId: PROJECT,
+        productKind: "subscription",
+        productId: "premium",
+        platform: "Android",
+        state: "Active",
+        purchaseToken: `token-${i}`,
+        expiresAt: 40 * DAY,
+        currency: "USD",
+        priceAmountMicros: 1_000_000,
+        environment: "Production",
+        startedAt: 0,
+        updatedAt: 0,
+      });
+      await db.patch(id, { _creationTime: 1 });
+    }
+    const pages: PageArgs[] = [];
+    return { db, pages, ctx: memoryCtx(db, pages) };
+  }
+
+  it.each([SUBSCRIPTION_SCAN_PAGE_SIZE - 1, SUBSCRIPTION_SCAN_PAGE_SIZE])(
+    "counts a transition at tied boundary row %i exactly once",
+    async (index) => {
+      const { db, pages, ctx } = await tiedRows();
+      await rebuild(ctx);
+      await write(ctx, `token-${index}`, "InGracePeriod");
+      await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        {
+          activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+          inGracePeriod: 1,
+          mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+        },
+      ]);
+    },
+  );
+
+  it("keeps currency and environment changes on both sides of the boundary", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE - 1}`, "Active", {
+      currency: "EUR",
+    });
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "Active", {
+      environment: "Sandbox",
+    });
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+    expect(db.rows("subscriptionStats")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          currency: "USD",
+          activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE - 1,
+          mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE - 1) * 1_000_000,
+        }),
+        expect.objectContaining({
+          currency: "EUR",
+          activeSubs: 1,
+          mrrMicros: 1_000_000,
+        }),
+      ]),
+    );
+  });
+
+  it.each([0, SUBSCRIPTION_SCAN_PAGE_SIZE])(
+    "removes a linked duplicate at tied boundary row %i once",
+    async (removedIndex) => {
+      const { db, pages, ctx } = await tiedRows();
+      const survivor = db
+        .rows("subscriptions")
+        .find((row) => row.purchaseToken === "token-1")!;
+      await db.patch(survivor._id, { lastEventOccurredAt: DAY / 2 });
+      await rebuild(ctx);
+      const eventId = db.seed("webhookEvents", {
+        projectId: PROJECT,
+        platform: "Android",
+        store: "google",
+        source: "GooglePlayRealTimeDeveloperNotifications",
+        type: "SubscriptionRenewed",
+        environment: "Production",
+        purchaseToken: "token-1",
+        linkedPurchaseToken: `token-${removedIndex}`,
+        productId: "premium",
+        occurredAt: DAY,
+        expiresAt: 40 * DAY,
+        currency: "USD",
+        priceAmountMicros: 1_000_000,
+      });
+      await testableFunction(applySubscriptionEvent)._handler(ctx, {
+        projectId: PROJECT,
+        eventId: eventId as Id<"webhookEvents">,
+      });
+      expect(db.rows("subscriptions")).toHaveLength(
+        SUBSCRIPTION_SCAN_PAGE_SIZE,
+      );
+      await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+      expect(db.rows("subscriptionStats")).toMatchObject([
+        {
+          activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+          mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+        },
+      ]);
+    },
+  );
+
+  it("restarts a legacy checkpoint and rejects its stale continuation", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const stalePage = pages[0];
+    const checkpoint = db.rows("subscriptionStatsRebuilds")[0];
+    await db.patch(checkpoint._id, {
+      scannedThroughId: undefined,
+      totals: [
+        {
+          currency: "USD",
+          activeSubs: 999,
+          inGracePeriod: 4,
+          inBillingRetry: 2,
+          mrrMicros: 999_000_000,
+        },
+      ],
+    });
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "InGracePeriod");
+    await testableFunction(runRecomputePage)._handler(ctx, stalePage);
+    expect(pages).toHaveLength(2);
+    expect(pages[1].startedAt).toBeGreaterThan(stalePage.startedAt);
+    const restarted = structuredClone(db.rows("subscriptionStatsRebuilds"));
+    await testableFunction(runRecomputePage)._handler(ctx, stalePage);
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual(restarted);
+    expect(pages).toHaveLength(2);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        inBillingRetry: 0,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
+    ]);
+  });
+
+  it("restarts a second kickoff in the same millisecond with a new generation", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const stalePage = pages[0];
+    await rebuild(ctx);
+    expect(pages[1].startedAt).toBeGreaterThan(stalePage.startedAt);
+    const restarted = structuredClone(db.rows("subscriptionStatsRebuilds"));
+    await testableFunction(runRecomputePage)._handler(ctx, stalePage);
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual(restarted);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1,
+        mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 1) * 1_000_000,
+      },
+    ]);
+  });
+
+  it("retains the full boundary across an empty continuation page", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const query = db.query.bind(db);
+    let emptyPage = true;
+    vi.spyOn(db, "query").mockImplementation((table) => {
+      const result = query(table);
+      if (table === "subscriptions" && emptyPage) {
+        emptyPage = false;
+        vi.spyOn(result, "paginate").mockImplementationOnce(
+          async (options) => ({
+            page: [],
+            isDone: false,
+            continueCursor: options.cursor!,
+          }),
+        );
+      }
+      return result;
+    });
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+    await write(
+      ctx,
+      `token-${SUBSCRIPTION_SCAN_PAGE_SIZE - 1}`,
+      "InGracePeriod",
+    );
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
+    ]);
+  });
 
   it("commits totals that include writes made while it ran", async () => {
     const db = new MemoryDb();
