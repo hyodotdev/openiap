@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   AppState,
   Platform,
@@ -67,37 +67,42 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
   const [outcomes, setOutcomes] = useState<PurchaseFlowOutcome<Purchase>[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(false);
-  const accountRef = useRef(account);
   const didStartRef = useRef(false);
 
-  useEffect(() => {
-    accountRef.current = account;
-  }, [account]);
-
-  const [flow] = useState(() =>
-    createPurchaseFlow<Purchase>({
-      confirmWithBackend: async (purchase) => {
-        const response = await fetch(`${appBackendUrl()}/purchases/confirm`, {
-          method: 'POST',
-          headers: {
-            // Stands in for your app's session token.
-            authorization: `Bearer ${accountRef.current}`,
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify(toPurchaseConfirmationRequest(purchase)),
-        });
-        if (!response.ok) {
-          throw new Error(`Backend returned ${response.status}`);
-        }
-        return response.json();
-      },
-      finishTransaction,
-      isConsumable: (productId) => CONSUMABLES.has(productId),
-      getAvailablePurchases,
-      getPendingTransactionsIOS:
-        Platform.OS === 'ios' ? getPendingTransactionsIOS : undefined,
-    }),
+  const flow = useMemo(
+    () =>
+      createPurchaseFlow<Purchase>({
+        confirmWithBackend: async (purchase) => {
+          const response = await fetch(`${appBackendUrl()}/purchases/confirm`, {
+            method: 'POST',
+            headers: {
+              // Stands in for your app's session token.
+              authorization: `Bearer ${account}`,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify(toPurchaseConfirmationRequest(purchase)),
+          });
+          if (!response.ok) {
+            throw new Error(`Backend returned ${response.status}`);
+          }
+          return response.json();
+        },
+        finishTransaction,
+        isConsumable: (productId) => CONSUMABLES.has(productId),
+        getAvailablePurchases,
+        getPendingTransactionsIOS:
+          Platform.OS === 'ios' ? getPendingTransactionsIOS : undefined,
+      }),
+    [account],
   );
+  const activeFlow = useRef<typeof flow | null>(flow);
+
+  useEffect(() => {
+    activeFlow.current = flow;
+    return () => {
+      activeFlow.current = null;
+    };
+  }, [flow]);
 
   const record = useCallback(
     (purchase: Purchase, status: PurchaseFlowStatus) => {
@@ -111,7 +116,8 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
 
   const processPurchase = useCallback(
     async (purchase: Purchase) => {
-      record(purchase, await flow.processPurchase(purchase));
+      const status = await flow.processPurchase(purchase);
+      if (activeFlow.current === flow) record(purchase, status);
     },
     [flow, record],
   );
@@ -121,14 +127,17 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
       setRecovering(true);
       try {
         const results = await flow.recoverPurchases({includeFinished});
+        if (activeFlow.current !== flow) return;
         results.forEach(({purchase, status}) => record(purchase, status));
         if (includeFinished && results.length === 0) {
           setMessage('No purchases to restore.');
         }
       } catch (error) {
-        setMessage(`Recovery failed: ${extractErrorMessage(error)}`);
+        if (activeFlow.current === flow) {
+          setMessage(`Recovery failed: ${extractErrorMessage(error)}`);
+        }
       } finally {
-        setRecovering(false);
+        if (activeFlow.current === flow) setRecovering(false);
       }
     },
     [flow, record],
@@ -244,7 +253,14 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
             autoCapitalize="none"
             style={styles.input}
             value={account}
-            onChangeText={setAccount}
+            onChangeText={(value) => {
+              if (value === account) return;
+              activeFlow.current = null;
+              setAccount(value);
+              setOutcomes([]);
+              setMessage(null);
+              setRecovering(false);
+            }}
           />
         </View>
 

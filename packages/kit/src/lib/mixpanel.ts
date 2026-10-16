@@ -1,4 +1,4 @@
-import mixpanel from "mixpanel-browser";
+import mixpanel from "mixpanel-browser/dist/mixpanel-core.cjs.js";
 import { MIXPANEL_TOKEN } from "../config/env";
 
 const MIXPANEL_API_HOST = "https://api-eu.mixpanel.com";
@@ -128,10 +128,8 @@ function initMixpanel() {
     // read from these implicit events, so turning this off would
     // empty every chart on the board.
     autocapture: true,
-    // Session replay — we're on a paid plan that exposes it; capture
-    // 100% while the product is small so we can watch real flows and
-    // diagnose churn signals.
-    record_sessions_percent: 100,
+    // The core-only SDK cannot record or resume sessions with private URLs.
+    record_sessions_percent: 0,
     // Surface auto-pageviews (no-op with autocapture already on, but
     // keeps the intent explicit if someone tunes autocapture later).
     track_pageview: "url-with-path",

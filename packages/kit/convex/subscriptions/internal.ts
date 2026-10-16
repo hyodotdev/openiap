@@ -27,6 +27,7 @@ import { isUserErasureRequested } from "./erasure";
 import { emitCommerceEvent, storeOf } from "../commerce/internal";
 import {
   mergeAnalyticsFacts,
+  reconcilePaidStart,
   recordSubscriptionAnalyticsFacts,
 } from "./analyticsFacts";
 import {
@@ -136,6 +137,7 @@ export interface PersistSubscriptionSnapshotArgs {
   verifiedSignedDate?: number;
   environment?: ReceiptEnvironment;
   resyncedAt?: number;
+  verifiedEvidenceAt?: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
     | "_id"
@@ -374,6 +376,7 @@ async function applyLifecycleEvent(
       removed._creationTime,
     );
     await ctx.db.delete(removed._id);
+    const previousAnalytics = [survivor.analytics, removed.analytics];
     existing = {
       ...survivor,
       purchaseToken: storedEvent.purchaseToken,
@@ -390,6 +393,7 @@ async function applyLifecycleEvent(
       analytics: existing.analytics,
       updatedAt: now,
     });
+    await reconcilePaidStart(ctx, previousAnalytics, existing.analytics);
     await recordSubscriptionTokenAlias(ctx, {
       projectId: args.projectId,
       purchaseToken: removed.purchaseToken,
@@ -946,24 +950,30 @@ export async function recordVerifiedSubscriptionHandler(
     now,
     verifiedPurchaseDate: args.verifiedPurchaseDate,
     verifiedSignedDate: args.verifiedSignedDate,
+    verifiedEvidenceAt: args.evidenceAt,
     environment: args.environment,
   });
 }
 
-// An Apple JWS describes one transaction, so verifies apply in (purchaseDate,
-// signedDate) order: an upgrade is newer yet may end sooner, and a refund keeps
-// its purchase date. A row stored without a date takes the verify as before; an
-// old replay there is fixed by the next newer verify.
+// Google snapshots follow store-read time; Apple transactions follow purchase
+// and signing dates because an upgrade may end sooner and a refund keeps its date.
 function isOlderVerifiedSnapshot(
   stored: Pick<
     Doc<"subscriptions">,
-    "verifiedPurchaseDate" | "verifiedSignedDate"
+    "verifiedPurchaseDate" | "verifiedSignedDate" | "verifiedEvidenceAt"
   >,
   incoming: Pick<
     RecordVerifiedSubscriptionArgs,
-    "verifiedPurchaseDate" | "verifiedSignedDate"
+    "verifiedPurchaseDate" | "verifiedSignedDate" | "platform" | "evidenceAt"
   >,
 ): boolean {
+  if (incoming.platform === "Android") {
+    return (
+      stored.verifiedEvidenceAt !== undefined &&
+      incoming.evidenceAt !== undefined &&
+      incoming.evidenceAt < stored.verifiedEvidenceAt
+    );
+  }
   if (
     stored.verifiedPurchaseDate === undefined ||
     incoming.verifiedPurchaseDate === undefined
@@ -1087,6 +1097,9 @@ export async function persistSubscriptionSnapshot(
     ...(environment ? { environment } : {}),
     updatedAt: args.now,
     ...(args.resyncedAt !== undefined ? { resyncedAt: args.resyncedAt } : {}),
+    ...(args.verifiedEvidenceAt !== undefined
+      ? { verifiedEvidenceAt: args.verifiedEvidenceAt }
+      : {}),
     // The pair is written together so a signing date never outlives its purchase date.
     ...(args.verifiedPurchaseDate !== undefined
       ? {

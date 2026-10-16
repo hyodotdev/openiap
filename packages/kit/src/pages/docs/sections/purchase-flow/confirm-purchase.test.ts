@@ -41,7 +41,7 @@ const SUBSCRIPTION = { ...VALID, expiresAt: 1_800_000_000_000 };
 
 // Fake IAPKit: one reply per path, recording what the backend sent.
 function setup(
-  replies: { verify?: Reply; bind?: Reply },
+  replies: { verify?: Reply; bind?: Reply; entitlements?: Reply },
   ledger: { grant?: GrantResult; owner?: string } = {},
   acceptSandbox?: (userId: string) => boolean,
   userId = "user-1",
@@ -57,7 +57,11 @@ function setup(
       "Bearer openiap-kit_sk_test",
     );
     const reply =
-      (path === "/v1/purchase/verify" ? replies.verify : replies.bind) ?? {};
+      (path === "/v1/purchase/verify"
+        ? replies.verify
+        : path === "/v2/subscriptions/entitlements"
+          ? (replies.entitlements ?? { body: { productIds: ["pro"] } })
+          : replies.bind) ?? {};
     const text =
       typeof reply.body === "string"
         ? reply.body
@@ -123,6 +127,7 @@ describe("confirmPurchase", () => {
         path: "/v1/subscriptions/bind-user",
         body: { purchaseToken: "jws.a.b", userId: "user-1" },
       },
+      { path: "/v2/subscriptions/entitlements", body: {} },
     ]);
     expect(ownerOf).not.toHaveBeenCalled();
     expect(grantOnce).not.toHaveBeenCalled();
@@ -176,8 +181,8 @@ describe("confirmPurchase", () => {
     };
 
     await expect(confirmPurchase("user-1", GOOGLE, options)).resolves.toEqual({
-      status: "entitled",
-      alreadyGranted: false,
+      status: "linked",
+      retryAfterMs: 30_000,
     });
     await expect(
       activeSubscriptionProductIds("user-1", options),
@@ -194,6 +199,37 @@ describe("confirmPurchase", () => {
       "/v2/subscriptions/entitlements",
     );
     expect(requests.at(-1)?.url.searchParams.get("userId")).toBe("user-1");
+  });
+
+  it("does not grant access from an old valid receipt when the canonical subscription is revoked", async () => {
+    const entitlements: { productIds: string[] } = { productIds: [] };
+    const { run, grantOnce } = setup({
+      verify: { body: SUBSCRIPTION },
+      bind: { body: { bound: true, reason: "already_bound" } },
+      entitlements: { body: entitlements },
+    });
+    await expect(run()).resolves.toEqual({
+      status: "linked",
+      retryAfterMs: 30_000,
+    });
+    expect(grantOnce).not.toHaveBeenCalled();
+    entitlements.productIds.push("pro");
+    await expect(run()).resolves.toEqual({
+      status: "entitled",
+      alreadyGranted: true,
+    });
+  });
+
+  it("leaves access unconfirmed when the canonical entitlement lookup fails", async () => {
+    const { run, grantOnce } = setup({
+      verify: { body: SUBSCRIPTION },
+      bind: { body: { bound: true, reason: "bound" } },
+      entitlements: { status: 503 },
+    });
+    await expect(run()).rejects.toThrow(
+      "/v2/subscriptions/entitlements returned 503",
+    );
+    expect(grantOnce).not.toHaveBeenCalled();
   });
 
   it("finishes an Apple renewal delivered to another signed-in account", async () => {
@@ -280,11 +316,80 @@ describe("confirmPurchase", () => {
     });
     expect(sent[0]?.body).toMatchObject({ purchaseToken: "play-token" });
     expect(grantOnce).toHaveBeenCalledWith({
-      purchaseKey: "play-token",
+      purchaseKey: JSON.stringify(["google", "play-token", "pro"]),
       userId: "user-1",
       productId: "pro",
       store: "google",
     });
+  });
+
+  it("grants each verified product in a Play cart once under the same owner", async () => {
+    const grants = new Map<string, EntitlementGrant>();
+    let tokenOwner: string | null = null;
+    const options = {
+      secretKey: "openiap-kit_sk_test",
+      ledger: {
+        ownerOf: async (key: string) => grants.get(key)?.userId ?? null,
+        grantOnce: async (grant: EntitlementGrant): Promise<GrantResult> => {
+          const existing = grants.get(grant.purchaseKey);
+          if (existing)
+            return existing.userId === grant.userId
+              ? "already_granted"
+              : "granted_to_other_user";
+          grants.set(grant.purchaseKey, grant);
+          return "granted";
+        },
+      },
+      fetch: async (url: string, init: RequestInit) => {
+        if (typeof init.body !== "string")
+          throw new Error("Expected a JSON request body");
+        const body: Record<string, string> = JSON.parse(init.body);
+        if (new URL(url).pathname === "/v1/purchase/verify") {
+          return Response.json({
+            ...VALID,
+            store: "google",
+            productId: body.expectedProductId,
+          });
+        }
+        const reason =
+          tokenOwner === null
+            ? "bound"
+            : tokenOwner === body.userId
+              ? "already_bound"
+              : "bound_to_other_user";
+        tokenOwner ??= body.userId;
+        return Response.json({
+          bound: reason !== "bound_to_other_user",
+          reason,
+        });
+      },
+    };
+    for (const productId of ["cart-a", "cart-b"]) {
+      await expect(
+        confirmPurchase("user-1", { ...GOOGLE, productId }, options),
+      ).resolves.toEqual({ status: "entitled", alreadyGranted: false });
+      await expect(
+        confirmPurchase("user-1", { ...GOOGLE, productId }, options),
+      ).resolves.toEqual({ status: "entitled", alreadyGranted: true });
+      await expect(
+        confirmPurchase("user-2", { ...GOOGLE, productId }, options),
+      ).resolves.toEqual({
+        status: "ownership_conflict",
+        alreadyGranted: true,
+      });
+    }
+    await expect(
+      confirmPurchase("user-2", { ...GOOGLE, productId: "cart-c" }, options),
+    ).resolves.toEqual({ status: "ownership_conflict", alreadyGranted: false });
+    expect(
+      [...grants.values()].map(({ userId, productId }) => ({
+        userId,
+        productId,
+      })),
+    ).toEqual([
+      { userId: "user-1", productId: "cart-a" },
+      { userId: "user-1", productId: "cart-b" },
+    ]);
   });
 
   it("restores the same account as already granted", async () => {
@@ -450,7 +555,9 @@ describe("confirmPurchase", () => {
       status: "ownership_conflict",
       alreadyGranted: true,
     });
-    expect(ownerOf).toHaveBeenCalledWith("2000000000000001");
+    expect(ownerOf).toHaveBeenCalledWith(
+      JSON.stringify(["apple", "2000000000000001", "pro"]),
+    );
     expect(sent.map(({ path }) => path)).toEqual(["/v1/purchase/verify"]);
     expect(grantOnce).not.toHaveBeenCalled();
   });

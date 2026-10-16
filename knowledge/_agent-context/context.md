@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-10-16T01:27:47.694Z
+> Last updated: 2026-10-16T02:10:48.247Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2371,11 +2371,11 @@ Follow the existing card pattern:
   `<div>`:
 
   ```tsx
-  {
-    MY_RELEASES.map((release) => (
+  <div>
+    {MY_RELEASES.map((release) => (
       <span key={release.tag} id={release.tag} aria-hidden="true" />
-    ));
-  }
+    ))}
+  </div>
   ```
 
   Release workflows link a version's own anchor
@@ -3083,7 +3083,7 @@ GitHub Actions release inputs. Release workflows refresh the lockfile and run
 `version=current` only to publish or retry a version already established by CI.
 Do not run a local bump as a substitute for a release dispatch.
 
-`openiap-versions.json` contains only `clientProtocol`, `google`, and `apple`.
+`openiap-versions.json` contains `clientProtocol`, `google`, `apple`, and `plugin`.
 The Client Protocol publishing manifest remains its version SSOT; the mirror
 must match it. Framework library versions stay in their own package metadata.
 Never add framework keys to the native/protocol mirror.

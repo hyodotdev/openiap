@@ -60,6 +60,59 @@ afterEach(() => {
 });
 
 describe("processPurchase", () => {
+  it.each(["apple", "google"])(
+    "leaves unsupported %s quantities unfinished",
+    async (store) => {
+      const { flow, options } = flowWith(async () => ({
+        status: "entitled",
+        alreadyGranted: false,
+      }));
+      for (const quantity of [0, 2, -1, NaN]) {
+        const bulk = purchase({ store, quantity });
+        await expect(flow.processPurchase(bulk)).resolves.toMatchObject({
+          status: "failed",
+          error: expect.any(Error),
+        });
+        expect(() => toPurchaseConfirmationRequest(bulk)).toThrow(
+          "single-unit",
+        );
+      }
+      expect(options.confirmWithBackend).not.toHaveBeenCalled();
+      expect(options.finishTransaction).not.toHaveBeenCalled();
+    },
+  );
+  it("leaves a multi-product Play token unfinished without confirming only its first item", async () => {
+    const { flow, options } = flowWith(async () => ({
+      status: "entitled",
+      alreadyGranted: false,
+    }));
+    const cart = purchase({
+      store: "google",
+      ids: ["coins_100", "premium"],
+      productId: "coins_100",
+    });
+    await expect(flow.processPurchase(cart)).resolves.toMatchObject({
+      status: "failed",
+      error: expect.any(Error),
+    });
+    expect(() => toPurchaseConfirmationRequest(cart)).toThrow("multi-product");
+    expect(options.confirmWithBackend).not.toHaveBeenCalled();
+    expect(options.finishTransaction).not.toHaveBeenCalled();
+  });
+  it.each(["amazon", "horizon", "unknown"])(
+    "rejects unsupported %s purchases before calling the backend",
+    async (store) => {
+      const { flow, options } = flowWith(async () => ({
+        status: "entitled",
+        alreadyGranted: false,
+      }));
+      await expect(
+        flow.processPurchase(purchase({ store })),
+      ).resolves.toMatchObject({ status: "failed", error: expect.any(Error) });
+      expect(options.confirmWithBackend).not.toHaveBeenCalled();
+      expect(options.finishTransaction).not.toHaveBeenCalled();
+    },
+  );
   it("returns store_pending for a pending payment without calling the backend", async () => {
     const { flow, options } = flowWith(async () => ({
       status: "entitled",

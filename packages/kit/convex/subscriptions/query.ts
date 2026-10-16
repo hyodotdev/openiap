@@ -1189,36 +1189,56 @@ export const userTimeline = query({
       });
     }
     const take = TIMELINE_ROWS_PER_KIND + 1;
-    const [purchases, subscriptions, events, issues] = await Promise.all([
-      ctx.db
-        .query("purchases")
-        .withIndex("by_project_and_app_user", (q) =>
-          q.eq("projectId", project._id).eq("appUserId", args.appUserId),
-        )
-        .order("desc")
-        .take(take),
-      ctx.db
-        .query("subscriptions")
-        .withIndex("by_project_and_user_and_updated", (q) =>
-          q.eq("projectId", project._id).eq("userId", args.appUserId),
-        )
-        .order("desc")
-        .take(take),
-      ctx.db
-        .query("commerceEvents")
-        .withIndex("by_project_and_user", (q) =>
-          q.eq("projectId", project._id).eq("userId", args.appUserId),
-        )
-        .order("desc")
-        .take(take),
-      ctx.db
-        .query("purchaseIssues")
-        .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
-          q.eq("projectId", project._id).eq("appUserId", args.appUserId),
-        )
-        .order("desc")
-        .take(take),
-    ]);
+    const [updatedPurchases, legacyPurchases, subscriptions, events, issues] =
+      await Promise.all([
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_and_app_user_and_updated", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("appUserId", args.appUserId)
+              .gt("updatedAt", undefined),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("purchases")
+          .withIndex("by_project_and_app_user_and_updated", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("appUserId", args.appUserId)
+              .eq("updatedAt", undefined),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("subscriptions")
+          .withIndex("by_project_and_user_and_updated", (q) =>
+            q.eq("projectId", project._id).eq("userId", args.appUserId),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("commerceEvents")
+          .withIndex("by_project_and_user_and_occurred", (q) =>
+            q.eq("projectId", project._id).eq("userId", args.appUserId),
+          )
+          .order("desc")
+          .take(take),
+        ctx.db
+          .query("purchaseIssues")
+          .withIndex("by_project_and_appUserId_and_lastSeenAt", (q) =>
+            q.eq("projectId", project._id).eq("appUserId", args.appUserId),
+          )
+          .order("desc")
+          .take(take),
+      ]);
+    const purchases = [...updatedPurchases, ...legacyPurchases]
+      .sort(
+        (a, b) =>
+          (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime),
+      )
+      .slice(0, take);
     const items: TimelineItem[] = [
       ...purchases.slice(0, TIMELINE_ROWS_PER_KIND).map(
         (purchase): TimelineItem => ({

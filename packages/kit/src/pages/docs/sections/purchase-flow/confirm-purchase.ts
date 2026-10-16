@@ -15,8 +15,8 @@ export type GrantResult =
 /** A one-time purchase to grant. */
 export interface EntitlementGrant {
   /**
-   * Stable for the purchase's lifetime: Apple originalTransactionId, Google
-   * purchase token.
+   * Opaque key for one verified product: store, Apple originalTransactionId
+   * or Google purchase token, and product id.
    */
   purchaseKey: string;
   userId: string;
@@ -152,18 +152,24 @@ export async function confirmPurchase(
     return { status: "test_account_restricted" };
   }
   // IAPKit follows a subscription through renewals (Google's keep the same
-  // token and never reach the app again), plan changes, and refunds, so the
-  // link is its grant. A one-time purchase is granted once in your ledger.
+  // token and never reach the app again), plan changes, and refunds. Read
+  // canonical access after linking; one-time grants belong to your ledger.
   const subscription = result.expiresAt !== undefined;
   // Google assigns an order id only after acknowledgement, so it cannot key a
   // grant.
-  const purchaseKey =
+  const purchaseIdentity =
     request.store === "google"
       ? request.purchaseToken
       : (result.originalTransactionId ?? result.transactionId);
-  if (!purchaseKey || !result.productId) {
+  if (!purchaseIdentity || !result.productId) {
     throw new Error("IAPKit returned no transaction details");
   }
+  // A Play purchase token can cover several products in one cart.
+  const purchaseKey = JSON.stringify([
+    request.store,
+    purchaseIdentity,
+    result.productId,
+  ]);
   // A bind is permanent, so check your own owner record before linking.
   const owner = subscription ? null : await options.ledger.ownerOf(purchaseKey);
   if (owner !== null && owner !== userId) {
@@ -213,6 +219,10 @@ export async function confirmPurchase(
       );
   }
   if (subscription) {
+    const productIds = await activeSubscriptionProductIds(userId, options);
+    if (!productIds.includes(result.productId)) {
+      return { status: "linked", retryAfterMs: DEFAULT_RETRY_MS };
+    }
     return { status: "entitled", alreadyGranted: reason === "already_bound" };
   }
 

@@ -1,6 +1,59 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { redactEventUrls, redactUrls } from "./mixpanel";
+
+const mixpanel = vi.hoisted(() => ({
+  init: vi.fn(),
+  set_config: vi.fn(),
+  start_session_recording: vi.fn(),
+  stop_session_recording: vi.fn(),
+  track: vi.fn(),
+}));
+vi.mock("mixpanel-browser/dist/mixpanel-core.cjs.js", () => ({
+  default: mixpanel,
+}));
+vi.mock("../config/env", () => ({ MIXPANEL_TOKEN: "test-token" }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
+
+describe("session replay privacy", () => {
+  it("keeps authenticated dashboard initialization from recording", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", {
+      location: new URL(
+        "http://localhost/acme/project/app/purchases/user/private-id?ip=1.2.3.4",
+      ),
+    });
+    const { trackEvent, MixpanelEvent } = await import("./mixpanel");
+    trackEvent(MixpanelEvent.ViewedPurchases);
+    expect(mixpanel.init).toHaveBeenCalledWith(
+      "test-token",
+      expect.objectContaining({ record_sessions_percent: 0 }),
+    );
+    expect(mixpanel.start_session_recording).not.toHaveBeenCalled();
+    expect(mixpanel.track).toHaveBeenCalled();
+  });
+  it("keeps replay disabled on public pages too, including later authenticated navigation", async () => {
+    vi.resetModules();
+    const location = new URL("http://localhost/docs/purchase-flow");
+    vi.stubGlobal("window", { location });
+    const { trackEvent, MixpanelEvent } = await import("./mixpanel");
+    trackEvent(MixpanelEvent.ViewedDocs);
+    location.pathname = "/acme/project/app/purchases/user/private-id";
+    trackEvent(MixpanelEvent.ViewedPurchases);
+    expect(mixpanel.init).toHaveBeenCalledTimes(1);
+    expect(mixpanel.init).toHaveBeenCalledWith(
+      "test-token",
+      expect.objectContaining({ record_sessions_percent: 0 }),
+    );
+    expect(mixpanel.set_config).not.toHaveBeenCalled();
+    expect(mixpanel.start_session_recording).not.toHaveBeenCalled();
+    expect(mixpanel.track).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("Mixpanel URL redaction", () => {
   it("keeps the route and parameter names but drops identifying values", () => {

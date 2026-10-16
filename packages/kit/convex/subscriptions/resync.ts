@@ -413,12 +413,40 @@ export async function applyStoreResyncHandler(
   const newerRead = Math.max(
     existing?.lastEventOccurredAt ?? 0,
     existing?.resyncedAt ?? 0,
+    existing?.verifiedEvidenceAt ?? 0,
   );
   const changed =
     !existing ||
     RESYNC_COMPARED_FIELDS.some((field) => next[field] !== existing[field]);
-  if (newerRead > args.observedAt || !changed) {
+  if (newerRead > args.observedAt) {
     return outcome("unchanged", existing, 0);
+  }
+
+  const now = Date.now();
+  const previouslyActive = reportedEntitlement(existing) ?? false;
+  const active = entitlementActive(next, now);
+  const owesEntitlementReport =
+    !!existing?.userId && previouslyActive !== active;
+  const subscriptionId: Id<"subscriptions"> = await persistSubscriptionSnapshot(
+    ctx,
+    {
+      projectId: args.projectId,
+      platform: args.platform,
+      purchaseToken: args.purchaseToken,
+      existing,
+      next,
+      now,
+      environment: args.context.environment,
+      resyncedAt: args.observedAt,
+    },
+  );
+  // An agreeing read still establishes ordering and repairs legacy metadata.
+  if (!changed && !owesEntitlementReport) {
+    if (existing) {
+      // updatedAt anchors the last owner report; resyncedAt tracks this read.
+      await ctx.db.patch(subscriptionId, { updatedAt: existing.updatedAt });
+    }
+    return outcome("unchanged", await ctx.db.get(subscriptionId), 0);
   }
 
   // The id is synthetic: a re-sync has no store notification. Repeats are
@@ -461,22 +489,6 @@ export async function applyStoreResyncHandler(
   const event = await ctx.db.get(recorded.eventId);
   if (!event) throw new Error("Re-sync event was not persisted");
 
-  const now = Date.now();
-  const previouslyActive = reportedEntitlement(existing) ?? false;
-  const subscriptionId: Id<"subscriptions"> = await persistSubscriptionSnapshot(
-    ctx,
-    {
-      projectId: args.projectId,
-      platform: args.platform,
-      purchaseToken: args.purchaseToken,
-      existing,
-      next,
-      now,
-      environment: args.context.environment,
-      resyncedAt: args.observedAt,
-    },
-  );
-  const active = entitlementActive(next, now);
   // The delta below tells the owner, so a later store event compares with it.
   if (existing?.userId) {
     await ctx.db.patch(subscriptionId, { resyncReportedActive: active });

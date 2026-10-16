@@ -3489,6 +3489,78 @@ describe("subscription analytics facts", () => {
     return db.rows("webhookEvents").find((row) => row._id === id);
   }
 
+  it("reconciles the first paid marker when a late Google link merges a trial", async () => {
+    const db = new MemDb();
+    const trial = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "linked-trial",
+      occurredAt: 1000,
+    });
+    await db.patch(trial, { freeTrial: true });
+    await apply(db, trial);
+    const paid = await seedWebhookEvent(db, {
+      type: "SubscriptionRenewed",
+      notificationId: "successor-paid",
+      occurredAt: 5000,
+    });
+    await db.patch(paid, { purchaseToken: "successor-token" });
+    await apply(db, paid);
+    expect(eventRow(db, paid)?.paidStart).toBeUndefined();
+
+    const linked = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "late-link",
+      occurredAt: 3000,
+    });
+    await db.patch(linked, {
+      purchaseToken: "successor-token",
+      linkedPurchaseToken: TOKEN,
+      replacementCharged: false,
+    });
+    await apply(db, linked);
+
+    expect(db.rows("subscriptions")).toHaveLength(1);
+    expect(db.rows("subscriptions")[0].analytics).toMatchObject({
+      trialStartedAt: 1000,
+      firstPaidAt: 5000,
+      firstPaidEventId: paid,
+    });
+    expect(eventRow(db, paid)?.paidStart).toBe("trial_conversion");
+    await apply(db, linked);
+    expect(eventRow(db, paid)?.paidStart).toBe("trial_conversion");
+  });
+
+  it("clears a removed row's paid-start marker when a late Google link merges rows", async () => {
+    const db = new MemDb();
+    const start = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "predecessor-paid",
+      occurredAt: 1000,
+    });
+    await apply(db, start);
+    const successor = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "successor-paid-start",
+      occurredAt: 5000,
+    });
+    await db.patch(successor, { purchaseToken: "successor-token" });
+    await apply(db, successor);
+    expect(eventRow(db, successor)?.paidStart).toBe("direct");
+    const linked = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "late-paid-link",
+      occurredAt: 3000,
+    });
+    await db.patch(linked, {
+      purchaseToken: "successor-token",
+      linkedPurchaseToken: TOKEN,
+      replacementCharged: false,
+    });
+    await apply(db, linked);
+    expect(eventRow(db, start)?.paidStart).toBe("direct");
+    expect(eventRow(db, successor)?.paidStart).toBeUndefined();
+  });
+
   it("marks a trial's first paid charge and never counts a replay twice", async () => {
     const db = new MemDb();
     const trial = await seedWebhookEvent(db, {

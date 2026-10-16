@@ -56,6 +56,11 @@ const RELEASES: ReleaseEntry[] = [
         text: "Raw store evidence, subscription purchase tokens, inbound transaction IDs, raw delivery errors and destination descriptions are shown only to project owners and admins; members see a salted fingerprint, an error class or the destination host.",
       },
       {
+        kind: "security",
+        topic: "Privacy",
+        text: "Session replay is disabled; event analytics remain enabled with identifying URL values redacted.",
+      },
+      {
         kind: "fix",
         topic: "Analytics",
         text: "Analytics, /v1/subscriptions/revenue and /v1/subscriptions/metrics now report production only by default, with a sandbox view on the dashboard and revenue route. Free trials and refund reversals no longer count as revenue, billing recoveries count as renewals, refunds count once with store-reported amounts subtracted, churn counts only paid access that ended, Google plan changes are not new subscriptions or churn (immediate-charge changes count as renewals at list price), Apple promotional, offer-code and win-back offers are not trials, and an Apple resubscribe counts as a renewal unless it is the first charge after a lapsed trial.",

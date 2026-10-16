@@ -631,24 +631,39 @@ function Releases() {
               <strong>Client Protocol 1.1.0</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
+                  Leaves multi-product Google Play carts and bulk quantities
+                  unfinished because the reference backend confirms one product
+                  and one unit.
+                </li>
+                <li>
                   Adds the <code>/purchase-flow</code> export:{' '}
                   <code>createPurchaseFlow</code>,{' '}
                   <code>describePurchaseFlowStatus</code>,{' '}
                   <code>toPurchaseConfirmationRequest</code> and the{' '}
-                  <code>PurchaseConfirmation</code> types. Payment pending,
-                  delayed verification, another account&apos;s purchase and
-                  delayed access are separate states, and none of them asks the
-                  user to buy again. A purchase already granted to another
-                  account is finished, not refunded. A backend call that runs
-                  past <code>confirmTimeoutMs</code> (30 seconds by default)
-                  ends as failed, and iOS recovery falls back to{' '}
-                  <code>getAvailablePurchases</code> when{' '}
+                  <code>PurchaseConfirmation</code> types for backend-confirmed
+                  purchases.
+                </li>
+                <li>
+                  Payment pending, delayed verification, another account&apos;s
+                  purchase and delayed access are separate states, and none of
+                  them asks the user to buy again.
+                </li>
+                <li>
+                  A purchase already granted to another account is finished
+                  without granting access to the signed-in account.
+                </li>
+                <li>
+                  A backend call that runs past <code>confirmTimeoutMs</code>{' '}
+                  (30 seconds by default) ends as failed, and iOS recovery falls
+                  back to <code>getAvailablePurchases</code> when{' '}
                   <code>getPendingTransactionsIOS</code> fails.
                 </li>
                 <li>
                   Client payload reads return the cached copy with{' '}
                   <code>stale: true</code> on a network error, 429, 5xx or a
-                  response that isn&apos;t a payload, and{' '}
+                  response that isn&apos;t a payload.
+                </li>
+                <li>
                   <code>localizedClientPayload</code> picks a locale or returns{' '}
                   <code>null</code> so the app keeps its built-in text.
                 </li>
@@ -658,12 +673,24 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul style={{ marginBottom: '1rem', paddingLeft: '1.25rem' }}>
             <li>
-              <strong>react-native-iap 17.1.0 and expo-iap 6.1.0</strong> export{' '}
+              <strong>react-native-iap 17.1.0</strong> exports{' '}
               <code>createPurchaseFlow</code> and the client payload helpers;
-              their Vega entry points leave the flow out because Vega purchases
-              go through Amazon. The expo-iap example adds an App backend
-              option, for one-time products and subscriptions, to its purchase
-              flow screen outside Vega.
+              its Vega entry point leaves the flow out because Vega purchases go
+              through Amazon.
+            </li>
+            <li>
+              <strong>expo-iap 6.1.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Exports the same purchase-flow and client payload helpers
+                  outside Vega.
+                </li>
+                <li>
+                  Adds an App backend example for one-time products and
+                  subscriptions, keeping each account's pending results
+                  separate.
+                </li>
+              </ul>
             </li>
           </ul>
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>

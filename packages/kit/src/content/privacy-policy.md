@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-08-19
+**Last updated:** 2026-10-16
 
 Hyo Dev (“we”, “our”, “us”) provides purchase validation and entitlement infrastructure for app-store purchases. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
 
@@ -91,9 +91,9 @@ If you choose GitHub sign-in, GitHub provides the account details needed to auth
 
 We use Sentry in the hosted web application and API to diagnose errors, security issues, and performance problems. Reports may include stack traces, request and browser metadata, IP addresses, logs, and account context available when an error occurs. The hosted browser application enables Sentry's default personally identifiable information handling; server-side handling depends on the deployment configuration.
 
-### Mixpanel (Product Analytics and Session Replay)
+### Mixpanel (Product Analytics)
 
-We use Mixpanel in the hosted web application to understand adoption and improve product flows. Mixpanel receives product events, page views, clicks, form interactions, browser identifiers stored in local storage, and session replays. The hosted application is configured to record 100% of eligible sessions while this feature is enabled. After sign-in, analytics profiles may include the user ID, email address, display name, current organization ID, sign-in method, and event-specific project or organization identifiers. Mixpanel data is sent to its EU API endpoint.
+We use Mixpanel in the hosted web application to understand adoption and improve product flows. Mixpanel receives product events, page views, clicks, form interactions, browser identifiers stored in local storage. Session replay is disabled. Identifying app-user path segments and query values are redacted from event URLs. After sign-in, analytics profiles may include the user ID, email address, display name, current organization ID, sign-in method, and event-specific project or organization identifiers. Mixpanel data is sent to its EU API endpoint.
 
 ### Store Platforms (Purchase Verification)
 

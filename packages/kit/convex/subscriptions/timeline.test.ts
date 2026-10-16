@@ -125,6 +125,63 @@ describe("userTimeline", () => {
       timeline(ctxOf(db), { projectId: "projects_1" as never, appUserId: " " }),
     ).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
   });
+
+  it("caps purchases by their displayed time, including legacy rows", async () => {
+    const db = new MemoryDb();
+    await seed(db);
+    const [oldest] = db.rows("purchases");
+    await db.patch(oldest._id, { updatedAt: 1000 });
+    for (let i = 1; i <= 51; i++) {
+      await db.insert("purchases", {
+        projectId: "projects_1",
+        appUserId: "user-a",
+        store: "google",
+        state: "ENTITLED",
+        updatedAt: i,
+      });
+    }
+    const legacy = await db.insert("purchases", {
+      projectId: "projects_1",
+      appUserId: "user-a",
+      store: "google",
+      state: "ENTITLED",
+    });
+    const result = await timeline(ctxOf(db), {
+      projectId: "projects_1" as never,
+      appUserId: "user-a",
+    });
+    const purchases = result.items.filter((item) => item.kind === "purchase");
+    expect(purchases).toHaveLength(50);
+    expect(purchases[0].id).toBe(oldest._id);
+    expect(purchases[1].id).toBe(legacy);
+    expect(purchases.at(-1)?.at).toBe(4);
+    expect(result.truncated).toBe(true);
+  });
+
+  it("caps commerce events by occurrence time before sorting the timeline", async () => {
+    const db = new MemoryDb();
+    await seed(db);
+    const [recent] = db.rows("commerceEvents");
+    await db.patch(recent._id, { occurredAt: 1000 });
+    for (let i = 1; i <= 51; i++) {
+      await db.insert("commerceEvents", {
+        projectId: "projects_1",
+        userId: "user-a",
+        store: "google",
+        eventType: "subscription.renewed",
+        occurredAt: i,
+      });
+    }
+    const result = await timeline(ctxOf(db), {
+      projectId: "projects_1" as never,
+      appUserId: "user-a",
+    });
+    const events = result.items.filter((item) => item.kind === "event");
+    expect(events).toHaveLength(50);
+    expect(events[0].id).toBe(recent._id);
+    expect(events.at(-1)?.at).toBe(3);
+    expect(result.truncated).toBe(true);
+  });
 });
 
 describe("purchase list filters", () => {

@@ -177,6 +177,68 @@ describe('BackendEntitlementFlow', () => {
     expect(ExpoIap.getAvailablePurchases).toHaveBeenCalledTimes(1);
   });
 
+  it('confirms a restored purchase for the new account and ignores the old response', async () => {
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 'ownership_conflict',
+            alreadyGranted: false,
+          }),
+          {status: 200},
+        ),
+      );
+    const {getByLabelText, getByText, findByText, queryByText} =
+      await renderReady();
+
+    await act(async () => {
+      mockIap.options?.onPurchaseSuccess?.(bulbs);
+    });
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      fireEvent.changeText(getByLabelText('App account'), 'demo-user-2');
+    });
+    jest.mocked(ExpoIap.getAvailablePurchases).mockResolvedValue([bulbs]);
+    await act(async () => {
+      fireEvent.press(getByText('Restore purchases'));
+    });
+
+    expect(await findByText('ownership_conflict')).toBeDefined();
+    expect(fetchSpy.mock.calls.map(([, options]) => options?.headers)).toEqual([
+      expect.objectContaining({authorization: 'Bearer demo-user-1'}),
+      expect.objectContaining({authorization: 'Bearer demo-user-2'}),
+    ]);
+    await act(async () => {
+      resolveFirst(
+        new Response(
+          JSON.stringify({status: 'entitled', alreadyGranted: false}),
+          {status: 200},
+        ),
+      );
+    });
+    expect(getByText('ownership_conflict')).toBeDefined();
+    expect(queryByText('Access granted.')).toBeNull();
+  });
+
+  it('clears the previous account outcomes when switching accounts', async () => {
+    jest.mocked(ExpoIap.getPendingTransactionsIOS).mockResolvedValue([bulbs]);
+    replyWith({status: 'entitled', alreadyGranted: false});
+    const {findByText, getByLabelText, queryByText} = await renderReady();
+    await findByText('Access granted.');
+
+    await act(async () => {
+      fireEvent.changeText(getByLabelText('App account'), 'demo-user-2');
+    });
+
+    expect(queryByText('Access granted.')).toBeNull();
+  });
+
   it('leaves a cancelled purchase to onPurchaseError', async () => {
     const unhandled = jest.fn();
     process.on('unhandledRejection', unhandled);

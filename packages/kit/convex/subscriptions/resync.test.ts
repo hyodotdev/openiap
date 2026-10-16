@@ -262,6 +262,104 @@ describe("applyStoreResync", () => {
     expect(second).toMatchObject({ status: "unchanged", emittedEvents: 0 });
     expect(db.rows("commerceEvents")).toHaveLength(1);
     expect(db.rows("webhookEvents")).toHaveLength(1);
+    expect(db.rows("subscriptions")[0]?.resyncedAt).toBe(
+      expired.observedAt + 1,
+    );
+    expect(db.rows("outboundDeliveries")).toHaveLength(1);
+  });
+
+  it("keeps an agreeing store read ahead of delayed notifications", async () => {
+    const db = new MemoryDb();
+    const subscriptionId = await seed(db, { ...expired.snapshot });
+
+    await expect(
+      applyStoreResyncHandler(ctxOf(db), expired),
+    ).resolves.toMatchObject({ status: "unchanged", emittedEvents: 0 });
+    expect(db.rows("webhookEvents")).toHaveLength(0);
+    await applyStoreEvent(db, "late-renewal-after-agreeing-read", {
+      type: "SubscriptionRenewed",
+      expiresAt: expired.observedAt + HOUR,
+      willRenew: true,
+      occurredAt: expired.observedAt - 1,
+    });
+    expect(await db.get(subscriptionId)).toMatchObject({
+      state: "Expired",
+      resyncedAt: expired.observedAt,
+    });
+    expect(db.rows("commerceEvents")).toHaveLength(0);
+    expect(db.rows("outboundDeliveries")).toHaveLength(0);
+  });
+
+  it("reports expiry once when an agreeing read completes after the access deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1000);
+      const db = new MemoryDb();
+      await seed(db, { expiresAt: 1500, updatedAt: 1000 });
+      vi.setSystemTime(2000);
+      await expect(
+        applyStoreResyncHandler(ctxOf(db), {
+          ...expired,
+          observedAt: 1200,
+          snapshot: {
+            productId: "premium_monthly",
+            state: "Active",
+            expiresAt: 1500,
+            willRenew: true,
+          },
+        }),
+      ).resolves.toMatchObject({ status: "updated", emittedEvents: 1 });
+      expect(typesAndUsers(db)).toEqual([["entitlement.revoked", "owner-1"]]);
+      vi.setSystemTime(2100);
+      await applyStoreResyncHandler(ctxOf(db), {
+        ...expired,
+        observedAt: 2100,
+        snapshot: { ...expired.snapshot, expiresAt: 1500 },
+      });
+      expect(typesAndUsers(db)).toEqual([["entitlement.revoked", "owner-1"]]);
+      expect(db.rows("outboundDeliveries")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("repairs an unchanged legacy sandbox row and its production stats", async () => {
+    const db = new MemoryDb();
+    const snapshot = {
+      productId: "premium_monthly",
+      state: "Active" as const,
+      expiresAt: Date.now() + HOUR,
+      willRenew: true,
+    };
+    const subscriptionId = await seed(db, snapshot);
+    await db.insert("subscriptionStats", {
+      projectId: "projects_1",
+      currency: "",
+      activeSubs: 1,
+      inGracePeriod: 0,
+      inBillingRetry: 0,
+      mrrMicros: 0,
+      updatedAt: 0,
+    });
+
+    await expect(
+      applyStoreResyncHandler(ctxOf(db), {
+        ...expired,
+        observedAt: expired.observedAt + 1,
+        snapshot,
+        context: { ...expired.context, environment: "Sandbox" },
+      }),
+    ).resolves.toMatchObject({ status: "unchanged", emittedEvents: 0 });
+
+    expect(await db.get(subscriptionId)).toMatchObject({
+      environment: "Sandbox",
+      resyncedAt: expired.observedAt + 1,
+    });
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, mrrMicros: 0 },
+    ]);
+    expect(db.rows("commerceEvents")).toHaveLength(0);
+    expect(db.rows("webhookEvents")).toHaveLength(0);
   });
 
   it("never binds an unowned row or moves an owned one", async () => {
@@ -272,6 +370,162 @@ describe("applyStoreResync", () => {
     expect(db.rows("subscriptions")).toHaveLength(1);
     // No bound user, so the closed gate has nobody to tell.
     expect(db.rows("commerceEvents")).toHaveLength(0);
+  });
+
+  it.each(["IOS", "Android"] as const)(
+    "preserves a newer verified %s snapshot over an earlier in-flight store read",
+    async (platform) => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(3000);
+        const db = new MemoryDb();
+        seedProject(db, "admin");
+        const { ctx } = schedulingCtx(db);
+        await recordVerifiedSubscriptionHandler(ctx, {
+          projectId: "projects_1" as never,
+          platform,
+          purchaseToken: TOKEN,
+          productId: "premium_monthly",
+          purchaseState: HarmonizedPurchaseState.ENTITLED,
+          expiresAt: 10000,
+          evidenceAt: 2500,
+          ...(platform === "IOS"
+            ? { verifiedPurchaseDate: 2500, verifiedSignedDate: 2500 }
+            : { subscriptionState: "SUBSCRIPTION_STATE_ACTIVE" }),
+        });
+        vi.setSystemTime(4000);
+        const args = {
+          ...expired,
+          platform,
+          store: platform === "IOS" ? ("apple" as const) : ("google" as const),
+          observedAt: 2000,
+          snapshot: { ...expired.snapshot, expiresAt: 900 },
+        };
+        await expect(applyStoreResyncHandler(ctx, args)).resolves.toMatchObject(
+          { status: "unchanged" },
+        );
+        expect(db.rows("subscriptions")[0]).toMatchObject({
+          state: "Active",
+          expiresAt: 10000,
+          verifiedEvidenceAt: 2500,
+        });
+        expect(db.rows("webhookEvents")).toHaveLength(0);
+        await expect(
+          applyStoreResyncHandler(ctx, { ...args, observedAt: 4000 }),
+        ).resolves.toMatchObject({ status: "updated", state: "Expired" });
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("reports the first bound entitlement on an agreeing read exactly once", async () => {
+    const db = new MemoryDb();
+    seedProject(db, "admin");
+    const { ctx } = schedulingCtx(db);
+    const now = Date.now();
+    const expiresAt = now + DAY;
+    await recordVerifiedSubscriptionHandler(ctx, {
+      projectId: "projects_1" as never,
+      platform: "IOS",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt,
+      willRenew: true,
+      evidenceAt: now - 1,
+    });
+    const args = {
+      ...expired,
+      observedAt: now,
+      snapshot: {
+        productId: "premium_monthly",
+        state: "Active" as const,
+        expiresAt,
+        willRenew: true,
+      },
+    };
+    await expect(applyStoreResyncHandler(ctx, args)).resolves.toMatchObject({
+      status: "unchanged",
+      emittedEvents: 0,
+    });
+    await bindSubscriptionToUserHandler(ctx, {
+      projectId: "projects_1" as never,
+      purchaseToken: TOKEN,
+      userId: "buyer",
+    });
+    await db.insert("outboundDestinations", {
+      projectId: "projects_1",
+      url: "https://hooks.example.com/iapkit",
+      secret: "whsec_test",
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await expect(
+      applyStoreResyncHandler(ctx, { ...args, observedAt: now + 1 }),
+    ).resolves.toMatchObject({ status: "updated", emittedEvents: 1 });
+    await expect(
+      applyStoreResyncHandler(ctx, { ...args, observedAt: now + 2 }),
+    ).resolves.toMatchObject({ status: "unchanged", emittedEvents: 0 });
+    expect(typesAndUsers(db)).toEqual([["entitlement.granted", "buyer"]]);
+    expect(db.rows("webhookEvents")).toHaveLength(1);
+    expect(db.rows("outboundDeliveries")).toHaveLength(1);
+  });
+
+  it("orders overlapping Google verifies by their store observation time", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(3000);
+      const db = new MemoryDb();
+      seedProject(db, "admin");
+      const { ctx } = schedulingCtx(db);
+      const verify = (
+        evidenceAt: number,
+        expiresAt: number,
+        purchaseState:
+          | typeof HarmonizedPurchaseState.ENTITLED
+          | typeof HarmonizedPurchaseState.EXPIRED,
+      ) =>
+        recordVerifiedSubscriptionHandler(ctx, {
+          projectId: "projects_1" as never,
+          platform: "Android",
+          purchaseToken: TOKEN,
+          productId: "premium_monthly",
+          purchaseState,
+          expiresAt,
+          evidenceAt,
+          subscriptionState:
+            purchaseState === HarmonizedPurchaseState.ENTITLED
+              ? "SUBSCRIPTION_STATE_ACTIVE"
+              : "SUBSCRIPTION_STATE_EXPIRED",
+        });
+      await verify(2500, 10000, HarmonizedPurchaseState.ENTITLED);
+      vi.setSystemTime(4000);
+      await verify(1500, 900, HarmonizedPurchaseState.EXPIRED);
+      await expect(
+        applyStoreResyncHandler(ctx, {
+          ...expired,
+          platform: "Android",
+          store: "google",
+          observedAt: 2000,
+        }),
+      ).resolves.toMatchObject({ status: "unchanged" });
+      expect(db.rows("subscriptions")[0]).toMatchObject({
+        state: "Active",
+        expiresAt: 10000,
+        verifiedEvidenceAt: 2500,
+      });
+      vi.setSystemTime(5000);
+      await verify(4500, 20000, HarmonizedPurchaseState.ENTITLED);
+      expect(db.rows("subscriptions")[0]).toMatchObject({
+        state: "Active",
+        expiresAt: 20000,
+        verifiedEvidenceAt: 4500,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("leaves state alone when a newer store event or re-sync already applied", async () => {

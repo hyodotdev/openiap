@@ -633,7 +633,7 @@ GitHub Actions release inputs. Release workflows refresh the lockfile and run
 `version=current` only to publish or retry a version already established by CI.
 Do not run a local bump as a substitute for a release dispatch.
 
-`openiap-versions.json` contains only `clientProtocol`, `google`, and `apple`.
+`openiap-versions.json` contains `clientProtocol`, `google`, `apple`, and `plugin`.
 The Client Protocol publishing manifest remains its version SSOT; the mirror
 must match it. Framework library versions stay in their own package metadata.
 Never add framework keys to the native/protocol mirror.

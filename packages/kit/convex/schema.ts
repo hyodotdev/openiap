@@ -470,6 +470,11 @@ const schema = defineSchema({
     .index("by_application", ["applicationId"])
     .index("by_project_and_remote", ["projectId", "remoteId"])
     .index("by_project_and_app_user", ["projectId", "appUserId"])
+    .index("by_project_and_app_user_and_updated", [
+      "projectId",
+      "appUserId",
+      "updatedAt",
+    ])
     .index("by_project_and_app_user_and_store", [
       "projectId",
       "appUserId",
@@ -769,6 +774,8 @@ const schema = defineSchema({
     // applied; order verifies for rows no store event governs yet.
     verifiedPurchaseDate: v.optional(v.number()),
     verifiedSignedDate: v.optional(v.number()),
+    // Source time of the last accepted receipt snapshot, independent of binding.
+    verifiedEvidenceAt: v.optional(v.number()),
     lastEventId: v.optional(v.id("webhookEvents")),
     lastEventOccurredAt: v.optional(v.number()),
     lastEventCreationTime: v.optional(v.number()),
@@ -1417,6 +1424,11 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_user", ["projectId", "userId"])
+    .index("by_project_and_user_and_occurred", [
+      "projectId",
+      "userId",
+      "occurredAt",
+    ])
     .index("by_prunable_at", ["prunableAt"]),
 
   // Developer-registered endpoints for outbound commerce events, server to

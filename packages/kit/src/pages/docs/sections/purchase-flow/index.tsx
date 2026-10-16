@@ -77,7 +77,11 @@ export default function PurchaseFlowPage() {
         React Native IAP and Expo IAP ship the client half as{" "}
         <code>createPurchaseFlow</code>; this page includes a tested reference
         backend. The flow supports Apple App Store and Google Play purchases
-        only, so the Vega entry point does not export it.
+        only, so the Vega entry point does not export it. This reference
+        supports one product and one unit per purchase. Multi-product Google
+        Play carts and bulk quantities stay unfinished; supporting them requires
+        verifying and granting every purchased unit before finishing the
+        transaction.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Who does what</h2>
@@ -113,6 +117,12 @@ app: finishTransaction when access is granted, or the purchase is rejected on iO
 stores ──renewals, refunds──▶ IAPKit ◀──entitlements── your backend`}</CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">Client</h2>
+      <p>
+        Create one flow per signed-in app account and capture its session token.
+        When the account changes, create a new flow, clear the previous
+        account's displayed outcomes, and ignore results still arriving from its
+        flow.
+      </p>
       <CodeBlock title="Expo IAP (React Native IAP is identical)" language="ts">
         {`import {Platform} from 'react-native';
 import {
@@ -331,11 +341,18 @@ const outcomes = await flow.recoverPurchases();`}
         </li>
       </ul>
       <p>
-        Key one-time grants by a value that never changes: Apple{" "}
-        <code>originalTransactionId</code>, Google purchase token.
+        Key each one-time grant by its store, Apple{" "}
+        <code>originalTransactionId</code>
+        or Google purchase token, and store-verified product id, as the
+        reference handler does.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Subscription access</h2>
+      <p>
+        Binding records ownership, not current access: require the verified
+        product in <code>activeSubscriptionProductIds</code> before reporting
+        <code>entitled</code>, since a newer refund can overtake verification.
+      </p>
       <p>
         Your backend stores no subscription periods. IAPKit updates each
         subscription from App Store Server Notifications and Google RTDN, so set

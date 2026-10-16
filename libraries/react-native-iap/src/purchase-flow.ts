@@ -10,6 +10,8 @@ export interface PurchaseFlowPurchase {
   purchaseState: string;
   purchaseToken?: string | null;
   store: string;
+  ids?: string[] | null;
+  quantity?: number;
   isAcknowledgedAndroid?: boolean | null;
 }
 
@@ -116,7 +118,11 @@ export interface PurchaseFlow<P extends PurchaseFlowPurchase> {
   ) => Promise<PurchaseFlowOutcome<P>[]>;
 }
 
-/** Apple App Store and Google Play purchases only; other stores end as `failed`. */
+/**
+ * Single-product, single-unit Apple App Store and Google Play purchases only.
+ * Create one flow per authenticated app account. Capture that session in
+ * confirmWithBackend and discard its results after switching accounts.
+ */
 export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
   options: PurchaseFlowOptions<P>,
 ): PurchaseFlow<P> {
@@ -131,6 +137,14 @@ export function createPurchaseFlow<P extends PurchaseFlowPurchase>(
   );
 
   function processPurchase(purchase: P): Promise<PurchaseFlowStatus> {
+    try {
+      assertSupportedPurchase(purchase);
+    } catch (error) {
+      return Promise.resolve({
+        status: "failed",
+        error,
+      });
+    }
     // Payment is not complete; the store delivers the purchase again once it is.
     if (purchase.purchaseState === "pending") {
       return Promise.resolve({ status: "store_pending" });
@@ -274,7 +288,22 @@ export function toPurchaseConfirmationRequest(
       `Purchase ${productId} has no Apple or Google purchase token to confirm`,
     );
   }
+  assertSupportedPurchase(purchase);
   return { store, purchaseToken, productId };
+}
+
+function assertSupportedPurchase(purchase: PurchaseFlowPurchase): void {
+  if (purchase.store !== "apple" && purchase.store !== "google") {
+    throw new Error(`Purchase flow does not support store ${purchase.store}`);
+  }
+  if (purchase.quantity !== undefined && purchase.quantity !== 1) {
+    throw new Error("Purchase flow supports only single-unit purchases");
+  }
+  if (purchase.store === "google" && new Set(purchase.ids ?? []).size > 1) {
+    throw new Error(
+      "Purchase flow cannot finish a multi-product Google Play purchase before every product is granted",
+    );
+  }
 }
 
 export type PurchaseFlowGuidanceKey =

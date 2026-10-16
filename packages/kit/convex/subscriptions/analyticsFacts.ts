@@ -268,25 +268,32 @@ export async function recordSubscriptionAnalyticsFacts(
     if (!sub) return;
     const next = nextAnalyticsFacts(sub.analytics, event);
     if (!next) return;
-    const before = {
-      eventId: sub.analytics?.firstPaidEventId,
-      kind: paidStartKind(sub.analytics),
-    };
     await ctx.db.patch(subscriptionId, { analytics: next });
+    await reconcilePaidStart(ctx, [sub.analytics], next);
+  } catch (error) {
+    console.error(
+      "[analyticsFacts] skipped",
+      error instanceof Error ? error.name : typeof error,
+    );
+  }
+}
 
-    const after = {
-      eventId: next.firstPaidEventId,
-      kind: paidStartKind(next),
-    };
-    if (before.eventId && before.eventId !== after.eventId && before.kind) {
-      await markPaidStart(ctx, before.eventId, undefined);
+/** Keeps event markers in step with facts, including linked-token row merges. */
+export async function reconcilePaidStart(
+  ctx: Pick<MutationCtx, "db">,
+  previous: readonly (SubscriptionAnalytics | undefined)[],
+  next: SubscriptionAnalytics | undefined,
+): Promise<void> {
+  try {
+    const selected = next?.firstPaidEventId;
+    const superseded = new Set(
+      previous.map((facts) => facts?.firstPaidEventId),
+    );
+    for (const eventId of superseded) {
+      if (eventId && eventId !== selected)
+        await markPaidStart(ctx, eventId, undefined);
     }
-    if (
-      after.eventId &&
-      (after.eventId !== before.eventId || after.kind !== before.kind)
-    ) {
-      await markPaidStart(ctx, after.eventId, after.kind);
-    }
+    if (selected) await markPaidStart(ctx, selected, paidStartKind(next));
   } catch (error) {
     console.error(
       "[analyticsFacts] skipped",
