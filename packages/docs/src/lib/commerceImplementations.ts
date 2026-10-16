@@ -65,7 +65,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit receives that store evidence through verifyPurchase. The paywall, store purchase screen, and app login stay with your app; IAPKit does not replace them.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchase',
-      line: 213,
+      line: 210,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Route tests cover evidence parsing and errors with mocked store calls; they do not perform a mobile purchase.',
@@ -88,7 +88,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The handler sends evidence to the Apple, Google, Meta, or Amazon verifier and returns the same isValid answer. Store-specific work stays behind this call.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchaseVerdict',
-      line: 166,
+      line: 163,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'The route suite checks unreachable verification and retry behavior using mocked store I/O.',
@@ -111,7 +111,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit binds the verified purchase row. Amazon uses the store user, receipt, and environment; Horizon uses the store user and SKU. Only an entitled purchase binds, at most 20 per app account, and a binding never moves; after erasure another app account may claim the same evidence as a first binding.',
       file: 'convex/purchases/mutation.ts',
       symbol: 'bindVerifiedPurchaseAsServer',
-      line: 27,
+      line: 28,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
         'Checks role enforcement, conflicting accounts, the per-account cap, consumables, project isolation, and erasure during binding.',
@@ -157,7 +157,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The protocol handler calls bindUserAsServer. Convex checks the project’s server credential and records ownership without moving a purchase already owned by another user.',
       file: 'convex/subscriptions/mutation.ts',
       symbol: 'bindUserAsServer',
-      line: 63,
+      line: 95,
       checkFile: 'convex/subscriptions/internal.test.ts',
       check:
         'Binding tests cover repeated and conflicting claims against the subscription mutation handlers.',
@@ -180,7 +180,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'isActive applies the shared entitlementActive rule to Convex records. entitlementsV2 reads the current time and returns allowed products without exposing store purchase tokens.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'isActive',
-      line: 68,
+      line: 81,
       checkFile: 'convex/subscriptions/query.test.ts',
       check:
         'Account-read tests check token omission, server authorization, and time advancing past expiry.',
@@ -203,7 +203,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'subscriptionStatusV2 selects a subscription and applies the same access deadline. The protocol handler turns that record into the shared response shape.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'subscriptionStatusV2',
-      line: 304,
+      line: 345,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The contract vectors compare status and access over REST and GraphQL with an in-memory database substitute.',
@@ -226,7 +226,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The delivery worker sends signed events to registered backend HTTPS endpoints and records attempts. Your receiver owns duplicate handling; the example shows how to build that side.',
       file: 'convex/commerce/delivery.ts',
       symbol: 'deliverPendingEventsHandler',
-      line: 167,
+      line: 168,
       checkFile: 'convex/commerce/delivery.test.ts',
       check:
         'Worker tests check signed requests, transport failures, and destination validation with test I/O.',
@@ -249,7 +249,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'eraseUser starts a project-scoped job. The worker removes identity from purchases, subscriptions, and events in batches, waiting for claimed deliveries before cleaning those events.',
       file: 'convex/subscriptions/internal.ts',
       symbol: 'drainSubscriptionUserErasurePage',
-      line: 1515,
+      line: 1693,
       checkFile: 'convex/subscriptions/mutation.test.ts',
       check:
         'Erasure request tests cover server authorization and repeated requests, including already completed jobs.',

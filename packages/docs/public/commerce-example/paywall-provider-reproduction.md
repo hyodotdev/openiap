@@ -15,7 +15,7 @@ The older regression example lives on its review branch, not the repository's
 ```sh
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
-git checkout bc9d4c6b18ad6e3119d532fdb908e12ae1de6b32
+git checkout cfc7136aa6028ca225523a63cb14536f1e359085
 bun install --frozen-lockfile
 cd ..
 
