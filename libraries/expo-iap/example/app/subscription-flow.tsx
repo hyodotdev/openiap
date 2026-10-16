@@ -687,7 +687,8 @@ function SubscriptionFlow({
           <View style={styles.headerLeft}>
             <Text style={styles.title}>Subscription Flow</Text>
             <Text style={styles.subtitle}>
-              TypeScript-first approach for subscriptions
+              Store billing and offers. App-account access is handled by your
+              backend.
             </Text>
           </View>
           <TouchableOpacity
