@@ -33,8 +33,8 @@
 // A run is a chain of scheduled mutations, each with its own read budget. The
 // kickoff stamps the run; then the window goes in slices of at most
 // TRAILING_DAYS days, one after another: per slice, the events received from
-// its first day until the run started, then counted-state subscriptions via
-// `by_project_and_state_and_updated`, newest first, then the commit, which
+// its first day until the run started, then subscriptions in creation order
+// via `by_project`, then the commit, which
 // replaces the slice's days. A slice counts every event that occurred on its
 // days, so a day is only ever replaced with a complete count, never added to:
 // a retried or overlapping run cannot double-count. Each page also stops once
@@ -162,17 +162,13 @@ const bucketValidator = v.object({
 });
 export type RollupBucket = Infer<typeof bucketValidator>;
 
-// Pagination cursors index into this list: append new states at the end, or
-// in-flight cursors break. `Expired` and `InBillingRetry` rows count on the
-// days before their `expiresAt`.
-const COUNTED_STATES_ORDERED = [
+// Expired and billing-retry rows count on days before their expiry.
+const COUNTED_STATES = new Set<string>([
   "Active",
   "InGracePeriod",
   "InBillingRetry",
   "Expired",
-] as const;
-type CountedState = (typeof COUNTED_STATES_ORDERED)[number];
-const COUNTED_STATES = new Set<string>(COUNTED_STATES_ORDERED);
+]);
 
 // Cron picker. Projects without a `revenueMetricsRunStatus` row come first,
 // found through recent webhook events (the strongest sign someone expects
@@ -381,7 +377,8 @@ const cursorValidator = v.union(
   }),
   v.object({
     phase: v.literal("subs"),
-    stateIdx: v.number(),
+    // Old state-scan cursors restart the subscription count once.
+    stateIdx: v.optional(v.number()),
     paginationCursor: v.union(v.string(), v.null()),
   }),
 );
@@ -781,7 +778,7 @@ async function processEventsPage(
     days,
     buckets: Array.from(buckets.values()),
     cursor: result.isDone
-      ? { phase: "subs", stateIdx: 0, paginationCursor: null }
+      ? { phase: "subs", paginationCursor: null }
       : { phase: "events", paginationCursor: result.continueCursor },
     run,
   });
@@ -887,14 +884,12 @@ function bucketSubject(
   };
 }
 
-// One page of one counted state per mutation; even an empty state chains to the
-// next, since each `paginate()` uses the mutation's one allowance. Adds
-// activeSubs to the event buckets and commits after the last page.
+// Immutable ordering visits each subscription once even if its state changes.
 async function processSubsPage(
   ctx: MutationCtx,
   args: Omit<RecomputeRevenueMetricsPageArgs, "buckets" | "cursor"> & {
     buckets: Map<BucketKey, RollupBucket>;
-    cursor: { stateIdx: number; paginationCursor: string | null };
+    paginationCursor: string | null;
   },
 ): Promise<void> {
   const { projectId, days, buckets, run } = args;
@@ -902,23 +897,13 @@ async function processSubsPage(
   const dayEnds = days.map((day) =>
     Math.min(Date.parse(`${day}T23:59:59.999Z`), run.runStartedAt),
   );
-  const { stateIdx, paginationCursor } = args.cursor;
-
-  if (stateIdx >= COUNTED_STATES_ORDERED.length) {
-    await commitSlice(ctx, projectId, days, buckets, run);
-    return;
-  }
-
-  const state: CountedState = COUNTED_STATES_ORDERED[stateIdx];
   const result = await ctx.db
     .query("subscriptions")
-    .withIndex("by_project_and_state_and_updated", (q) =>
-      q.eq("projectId", projectId).eq("state", state),
-    )
-    .order("desc")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .order("asc")
     .paginate({
       numItems: pageSize(SUBS_PAGE_SIZE, run),
-      cursor: paginationCursor,
+      cursor: args.paginationCursor,
     });
   const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
@@ -946,8 +931,7 @@ async function processSubsPage(
     }
   }
 
-  const nextStateIdx = result.isDone ? stateIdx + 1 : stateIdx;
-  if (nextStateIdx >= COUNTED_STATES_ORDERED.length) {
+  if (result.isDone) {
     await commitSlice(ctx, projectId, days, buckets, run);
     return;
   }
@@ -958,8 +942,7 @@ async function processSubsPage(
     buckets: Array.from(buckets.values()),
     cursor: {
       phase: "subs",
-      stateIdx: nextStateIdx,
-      paginationCursor: result.isDone ? null : result.continueCursor,
+      paginationCursor: result.continueCursor,
     },
     run,
   });
@@ -1016,13 +999,17 @@ export const recomputeRevenueMetricsPage = internalMutation({
         paginationCursor: args.cursor.paginationCursor,
       });
     } else {
+      const legacyCursor = args.cursor.stateIdx !== undefined;
+      if (legacyCursor) {
+        for (const bucket of buckets.values()) {
+          bucket.activeSubs = 0;
+          bucket.activeTrials = 0;
+        }
+      }
       await processSubsPage(ctx, {
         ...args,
         buckets,
-        cursor: {
-          stateIdx: args.cursor.stateIdx,
-          paginationCursor: args.cursor.paginationCursor,
-        },
+        paginationCursor: legacyCursor ? null : args.cursor.paginationCursor,
       });
     }
     return null;

@@ -825,12 +825,6 @@ const schema = defineSchema({
       "projectId",
       "state",
       "productId",
-    ])
-    // Revenue rollups scan each counted state in update order.
-    .index("by_project_and_state_and_updated", [
-      "projectId",
-      "state",
-      "updatedAt",
     ]),
 
   // Google replacement tokens form a successor chain. Keeping the chain

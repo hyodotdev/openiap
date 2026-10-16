@@ -2209,7 +2209,7 @@ describe("rollup run — failures and follow-ups", () => {
 describe("rollup run — slow runs", () => {
   const MINUTE = 60 * 1000;
 
-  // A 30-day rebuild: ten slices of five mutations each.
+  // A 30-day rebuild crosses ten scheduled slices.
   async function startRebuild(
     db: MemDb,
   ): Promise<ReturnType<typeof rollupChain>> {
@@ -2231,7 +2231,7 @@ describe("rollup run — slow runs", () => {
       await chain.step();
     }
 
-    expect(at - NOW).toBeGreaterThan(3 * HOUR);
+    expect(at - NOW).toBeGreaterThan(HOUR);
     expect(await runStatus(db)).toMatchObject({
       lastRunAt: NOW,
       definitionsVersion: ROLLUP_DEFINITIONS_VERSION,
@@ -2263,6 +2263,101 @@ describe("rollup run — slow runs", () => {
       runStartedAt: NOW + 20 * MINUTE,
     });
     expect(await runStatus(db)).not.toHaveProperty("failedRuns");
+  });
+});
+
+describe("rollup run — concurrent subscription changes", () => {
+  it("counts a subscription once when its state changes after the first subscription page", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedSub(db, { state: "Active", expiresAt: NOW + 24 * HOUR });
+    const sub = (await db.query("subscriptions").first())!;
+    const chain = rollupChain(db);
+    await chain.start(NOW);
+    while (
+      chain.queue[0]?.args.cursor &&
+      (chain.queue[0].args.cursor as RecomputeRevenueMetricsPageArgs["cursor"])
+        .phase !== "subs"
+    ) {
+      await chain.step();
+    }
+    await chain.step();
+    await db.patch(sub._id, { state: "InGracePeriod", updatedAt: NOW + 1 });
+    while (chain.queue.length > 0) await chain.step();
+    for (const row of await rollupRows(db)) expect(row.activeSubs).toBe(1);
+    expect(await rollupRows(db)).toHaveLength(3);
+  });
+
+  it("keeps page boundaries stable when subscriptions change state and update time", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db, {
+      lastRunAt: NOW - 24 * HOUR,
+      runStartedAt: NOW - HOUR,
+      failedRuns: 8,
+    });
+    for (let i = 0; i < 26; i++) {
+      await seedSub(db, { state: "Active", expiresAt: NOW + 24 * HOUR });
+    }
+    const subs = await db.query("subscriptions").collect();
+    const pages: number[] = [];
+    db.onPage = (table, _size, page) => {
+      if (table === "subscriptions") pages.push(page.length);
+    };
+    const chain = rollupChain(db);
+    await chain.start(NOW);
+    while (pages.length === 0) await chain.step();
+    expect(pages).toEqual([25]);
+
+    await db.patch(subs[0]._id, { state: "InGracePeriod", updatedAt: NOW + 1 });
+    await db.patch(subs[25]._id, { state: "Expired", updatedAt: NOW + 2 });
+    while (chain.queue.length > 0) await chain.step();
+
+    expect(pages).toEqual([25, 1]);
+    const rows = await rollupRows(db);
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(row.activeSubs).toBe(26);
+  });
+
+  it("restarts legacy state cursors without losing event totals", async () => {
+    const db = new MemDb();
+    await seedCurrentRunStatus(db);
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      priceAmountMicros: 9_990_000,
+    });
+    await seedSub(db, { state: "Active", expiresAt: NOW + 24 * HOUR });
+    const chain = rollupChain(db);
+    await chain.start(NOW);
+    while (
+      (chain.queue[0].args.cursor as RecomputeRevenueMetricsPageArgs["cursor"])
+        .phase !== "subs"
+    ) {
+      await chain.step();
+    }
+    const args = chain.queue[0].args as RecomputeRevenueMetricsPageArgs;
+    args.cursor = {
+      phase: "subs",
+      stateIdx: 2,
+      paginationCursor: "legacy-index-cursor",
+    };
+    for (const bucket of args.buckets) {
+      bucket.activeSubs = 8;
+      bucket.activeTrials = 4;
+    }
+    while (chain.queue.length > 0) await chain.step();
+
+    const rows = await rollupRows(db);
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.activeSubs).toBe(1);
+      expect(row.activeTrials).toBe(0);
+    }
+    expect(rows.reduce((sum, row) => sum + (row.renewals as number), 0)).toBe(
+      1,
+    );
+    expect(
+      rows.reduce((sum, row) => sum + (row.revenueMicros as number), 0),
+    ).toBe(9_990_000);
   });
 });
 
