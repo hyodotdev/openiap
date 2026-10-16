@@ -27,8 +27,14 @@ import {
   subscriptionEnvironment,
 } from "./analyticsFacts";
 
-export const COHORT_MONTHS = 24;
-const COHORT_PAGE_SIZE = 5_000;
+import {
+  accessAt,
+  ACCESS_HISTORY_MONTHS,
+  SUBSCRIPTION_SCAN_PAGE_SIZE,
+  SUBSCRIPTION_SCAN_BYTES,
+} from "./accessHistory";
+
+export const COHORT_MONTHS = ACCESS_HISTORY_MONTHS;
 
 const cohortBucketValidator = v.object({
   environment: receiptEnvironmentValidator,
@@ -38,9 +44,12 @@ const cohortBucketValidator = v.object({
   revenueMicros: v.number(),
   refundedMicros: v.number(),
   retained: v.array(v.number()),
+  // A rate is known only when every member has access evidence for that point.
+  retentionObserved: v.optional(v.array(v.number())),
   trialStarts: v.number(),
   trialConversions: v.number(),
   trialsPending: v.number(),
+  trialsUnobserved: v.optional(v.number()),
 });
 
 export type CohortBucket = Infer<typeof cohortBucketValidator>;
@@ -58,27 +67,6 @@ function monthIndex(month: string): number {
 function monthEnd(month: string, offset: number): number {
   const index = monthIndex(month) + offset + 1;
   return Date.UTC(Math.floor(index / 12), index % 12, 1);
-}
-
-function hasAccessAt(sub: Doc<"subscriptions">, at: number): boolean {
-  return (
-    (sub.state === "Active" || sub.state === "InGracePeriod") &&
-    (sub.expiresAt === undefined || sub.expiresAt > at)
-  );
-}
-
-// When paid access ended, from current state: the paid-through date, or the
-// refund for a refunded or revoked row. A lapse later healed by a resubscribe
-// on the same store subscription reads as continuous.
-export function accessEndsAt(sub: Doc<"subscriptions">): number {
-  const lastChange = sub.lastEventOccurredAt ?? sub.updatedAt;
-  if (sub.state === "Revoked" || sub.state === "Refunded") {
-    return Math.min(sub.expiresAt ?? Infinity, lastChange);
-  }
-  if (sub.expiresAt !== undefined) return sub.expiresAt;
-  return sub.state === "Active" || sub.state === "InGracePeriod"
-    ? Infinity
-    : lastChange;
 }
 
 export function addSubscriptionToCohorts(
@@ -103,9 +91,11 @@ export function addSubscriptionToCohorts(
         revenueMicros: 0,
         refundedMicros: 0,
         retained: [],
+        retentionObserved: [],
         trialStarts: 0,
         trialConversions: 0,
         trialsPending: 0,
+        trialsUnobserved: 0,
       };
       buckets.set(key, bucket);
     }
@@ -113,21 +103,30 @@ export function addSubscriptionToCohorts(
   };
 
   const trialStartedAt = facts.trialStartedAt;
-  if (trialStartedAt !== undefined && trialStartedAt <= asOf) {
+  if (
+    facts.trialAnchorKnown === true &&
+    trialStartedAt !== undefined &&
+    trialStartedAt <= asOf
+  ) {
     const month = utcMonthKey(trialStartedAt);
     if (month >= firstMonth) {
       const bucket = bucketFor(month);
       bucket.trialStarts += 1;
       if (isInTrialAt(facts, asOf)) {
-        if (hasAccessAt(sub, asOf)) bucket.trialsPending += 1;
+        const access = accessAt(facts.accessHistory, asOf);
+        if (access === true) bucket.trialsPending += 1;
+        else if (access === null)
+          bucket.trialsUnobserved = (bucket.trialsUnobserved ?? 0) + 1;
       } else if (paidStartKind(facts) === "trial_conversion") {
-        bucket.trialConversions += 1;
+        if (facts.firstPaidAnchorKnown === true) bucket.trialConversions += 1;
+        else bucket.trialsUnobserved = (bucket.trialsUnobserved ?? 0) + 1;
       }
     }
   }
 
   const firstPaidAt = facts.firstPaidAt;
   if (
+    facts.firstPaidAnchorKnown !== true ||
     firstPaidAt === undefined ||
     firstPaidAt > asOf ||
     !paidStartKind(facts)
@@ -140,11 +139,14 @@ export function addSubscriptionToCohorts(
   bucket.members += 1;
   bucket.revenueMicros += facts.paidMicros;
   bucket.refundedMicros += facts.refundedMicros;
-  const endsAt = accessEndsAt(sub);
   const offsets = monthIndex(utcMonthKey(asOf)) - monthIndex(month);
   for (let k = 0; k <= offsets; k++) {
     const at = Math.min(monthEnd(month, k) - 1, asOf);
-    bucket.retained[k] = (bucket.retained[k] ?? 0) + (endsAt > at ? 1 : 0);
+    const access = accessAt(facts.accessHistory, at);
+    bucket.retained[k] = (bucket.retained[k] ?? 0) + (access === true ? 1 : 0);
+    bucket.retentionObserved ??= [];
+    bucket.retentionObserved[k] =
+      (bucket.retentionObserved[k] ?? 0) + (access !== null ? 1 : 0);
   }
 }
 
@@ -177,13 +179,21 @@ export async function runRevenueCohortsPage(
   const buckets = new Map<string, CohortBucket>(
     args.buckets.map((bucket) => [
       `${bucket.environment}|${bucket.month}|${bucket.currency}`,
-      { ...bucket, retained: [...bucket.retained] },
+      {
+        ...bucket,
+        retained: [...bucket.retained],
+        retentionObserved: [...(bucket.retentionObserved ?? [])],
+      },
     ]),
   );
   const result = await ctx.db
     .query("subscriptions")
     .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-    .paginate({ numItems: COHORT_PAGE_SIZE, cursor: args.cursor });
+    .paginate({
+      maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
+      numItems: SUBSCRIPTION_SCAN_PAGE_SIZE,
+      cursor: args.cursor,
+    });
   for (const sub of result.page) {
     addSubscriptionToCohorts(buckets, sub, args.asOf);
   }

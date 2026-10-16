@@ -18,6 +18,14 @@ jest.mock('expo-iap', () => ({
         title: '10 Bulbs (Martie: Focus & Habit)',
         description: 'A pack of ten bulbs.',
         displayPrice: '₩1,400',
+        discountOffers: [
+          {
+            id: 'zero',
+            displayPrice: '₩0',
+            fullPriceMicrosAndroid: 0,
+            percentageDiscountAndroid: 0,
+          },
+        ],
       },
     ],
     subscriptions: [
@@ -29,8 +37,10 @@ jest.mock('expo-iap', () => ({
         displayPrice: '$50',
         subscriptionOffers: [
           {
+            id: 'monthly-prepaid',
             offerTokenAndroid: 'monthly-prepaid',
             displayPrice: '$5',
+            periodCount: 0,
             pricingPhasesAndroid: {
               pricingPhaseList: [{billingPeriod: 'P1M', recurrenceMode: 3}],
             },
@@ -70,4 +80,14 @@ it('makes the route from catalog to purchase demo explicit', async () => {
 
   expect(mockPush).toHaveBeenCalledWith('/purchase-flow');
   expect(mockRequestPurchase).not.toHaveBeenCalled();
+});
+
+it('renders a zero cycle count inside subscription offer details', async () => {
+  const screen = await render(<AllProducts />);
+  await waitFor(() => expect(mockFetchProducts).toHaveBeenCalledTimes(2));
+  await fireEvent.press(
+    screen.getByRole('button', {name: 'Details for Premium Year'}),
+  );
+
+  expect(screen.getByText('Period Count: 0')).toBeTruthy();
 });

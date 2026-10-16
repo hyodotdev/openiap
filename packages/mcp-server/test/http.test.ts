@@ -530,6 +530,8 @@ describe("remote MCP HTTP server", () => {
               refundedMicros: 9_990_000,
               realizedLtvMicros: 2 * 9_990_000,
               retained: [4, 2],
+              retentionObserved: [4, 3],
+              trialsUnobserved: 0,
               trialStarts: 5,
               trialConversions: 2,
               trialsPending: 1,
@@ -596,7 +598,7 @@ describe("remote MCP HTTP server", () => {
           month: "2026-05",
           realizedLtvMicros: 2 * 9_990_000,
           netRealizedLtvMicros: Math.round((7 * 9_990_000) / 4),
-          retentionRates: [1, 0.5],
+          retentionRates: [1, null],
           trialToPaidRate: 0.5,
         }),
       ]);

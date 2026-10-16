@@ -292,7 +292,9 @@ function PurchaseFlow({
             >
               <ExampleButton
                 title={isProcessing ? 'Processing...' : 'Purchase'}
-                accessibilityLabel={`Purchase ${product.displayName || product.title}`}
+                accessibilityLabel={`Purchase ${
+                  product.displayName || product.title
+                }`}
                 focusable={true}
                 hasTVPreferredFocus={
                   (Platform.isTV || String(Platform.OS) === 'kepler') &&
@@ -312,7 +314,9 @@ function PurchaseFlow({
               <ExampleButton
                 title="Details"
                 variant="secondary"
-                accessibilityLabel={`Details for ${product.displayName || product.title}`}
+                accessibilityLabel={`Details for ${
+                  product.displayName || product.title
+                }`}
                 focusable={true}
                 onPress={() => handleShowDetails(product)}
               />
@@ -538,13 +542,13 @@ function PurchaseFlow({
                             <Text style={styles.offerDetail}>
                               Price: {offer.displayPrice}
                             </Text>
-                            {offer.fullPriceMicrosAndroid && (
+                            {offer.fullPriceMicrosAndroid != null && (
                               <Text style={styles.offerDetail}>
                                 Full Price (micros):{' '}
                                 {offer.fullPriceMicrosAndroid}
                               </Text>
                             )}
-                            {offer.percentageDiscountAndroid && (
+                            {(offer.percentageDiscountAndroid ?? 0) > 0 && (
                               <Text style={styles.offerDetail}>
                                 {offer.percentageDiscountAndroid}% off
                               </Text>

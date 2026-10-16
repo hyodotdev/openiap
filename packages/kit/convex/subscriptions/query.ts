@@ -1,3 +1,4 @@
+import { REVENUE_COUNTERS } from "./revenueCounters";
 import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -809,9 +810,11 @@ const revenueCohortShape = v.object({
   // Gross revenue per member observed through `observedThrough`; never projected.
   realizedLtvMicros: v.number(),
   retained: v.array(v.number()),
+  retentionObserved: v.optional(v.array(v.number())),
   trialStarts: v.number(),
   trialConversions: v.number(),
   trialsPending: v.number(),
+  trialsUnobserved: v.optional(v.number()),
   observedThrough: v.string(),
 });
 
@@ -823,6 +826,7 @@ const revenueMetricsResponse = v.object({
       productId: v.string(),
       platform: platformValidator,
       activeSubs: v.number(),
+      activeHistoryComplete: v.optional(v.boolean()),
       activeTrials: v.optional(v.number()),
       newSubs: v.number(),
       trialStarts: v.optional(v.number()),
@@ -978,7 +982,11 @@ export const getRevenueMetrics = query({
     const dataState = await revenueDataState(ctx, {
       projectId: project._id,
       environment,
-      hasRows: rows.length > 0,
+      hasRows: rows.some(
+        (row) =>
+          row.activeHistoryUnknown !== 0 ||
+          REVENUE_COUNTERS.some((key) => (row[key] ?? 0) !== 0),
+      ),
       toDay: args.toDay,
       status,
     });
@@ -994,6 +1002,7 @@ export const getRevenueMetrics = query({
         productId: row.productId,
         platform: row.platform,
         activeSubs: row.activeSubs,
+        activeHistoryComplete: row.activeHistoryUnknown === 0,
         newSubs: row.newSubs,
         renewals: row.renewals,
         cancellations: row.cancellations,
@@ -1091,9 +1100,11 @@ async function revenueCohorts(
       realizedLtvMicros:
         row.members > 0 ? Math.round(row.revenueMicros / row.members) : 0,
       retained: row.retained,
+      retentionObserved: row.retentionObserved,
       trialStarts: row.trialStarts,
       trialConversions: row.trialConversions,
       trialsPending: row.trialsPending,
+      trialsUnobserved: row.trialsUnobserved,
       observedThrough: row.observedThrough,
     }));
 }

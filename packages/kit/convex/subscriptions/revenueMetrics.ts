@@ -68,6 +68,11 @@ import {
   findSupersedingSubscription,
 } from "./internal";
 import { REVENUE_COUNTERS, zeroRevenueCounters } from "./revenueCounters";
+import {
+  accessAt,
+  SUBSCRIPTION_SCAN_PAGE_SIZE,
+  SUBSCRIPTION_SCAN_BYTES,
+} from "./accessHistory";
 import { STATS_DEFINITIONS_VERSION } from "./stats";
 import { receiptEnvironmentValidator } from "../utils/validation";
 
@@ -86,7 +91,7 @@ const RETAINED_DAYS = Math.floor(WEBHOOK_RETENTION_MS / DAY_MS);
 // Bump when a metric's definition changes: each project then rebuilds its
 // retained window once, and `definitionsFromDay` marks where the new
 // definitions start.
-export const ROLLUP_DEFINITIONS_VERSION = 4;
+export const ROLLUP_DEFINITIONS_VERSION = 5;
 
 // Catch-ups and stats rebuilds reread a project's data, so each is requested
 // at most this often.
@@ -148,6 +153,7 @@ const bucketValidator = v.object({
   platform: platformValidator,
   environment: receiptEnvironmentValidator,
   activeSubs: v.number(),
+  activeHistoryUnknown: v.optional(v.number()),
   activeTrials: v.number(),
   newSubs: v.number(),
   trialStarts: v.number(),
@@ -161,14 +167,6 @@ const bucketValidator = v.object({
   refundedMicros: v.number(),
 });
 export type RollupBucket = Infer<typeof bucketValidator>;
-
-// Expired and billing-retry rows count on days before their expiry.
-const COUNTED_STATES = new Set<string>([
-  "Active",
-  "InGracePeriod",
-  "InBillingRetry",
-  "Expired",
-]);
 
 // Cron picker. Projects without a `revenueMetricsRunStatus` row come first,
 // found through recent webhook events (the strongest sign someone expects
@@ -351,7 +349,7 @@ export const recomputeRevenueMetricsForProject = internalMutation({
 const EVENTS_PAGE_SIZE = 400;
 
 // Subscription rows are about 1 KB: 50k active subs take ~10 chained pages.
-const SUBS_PAGE_SIZE = 5_000;
+const SUBS_PAGE_SIZE = SUBSCRIPTION_SCAN_PAGE_SIZE;
 
 // Each failed run in a row halves both page sizes, down to this floor.
 const MIN_PAGE_SIZE = 25;
@@ -902,6 +900,7 @@ async function processSubsPage(
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
     .order("asc")
     .paginate({
+      maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
       numItems: pageSize(SUBS_PAGE_SIZE, run),
       cursor: args.paginationCursor,
     });
@@ -918,7 +917,9 @@ async function processSubsPage(
     }
     const environment = subscriptionEnvironment(sub);
     for (let i = 0; i < days.length; i++) {
-      if (!isActiveAt(sub, dayEnds[i])) continue;
+      const access = isMisrecordedApplePass(sub)
+        ? false
+        : accessAt(sub.analytics?.accessHistory, dayEnds[i]);
       const bucket = getOrCreateBucket(buckets, {
         day: days[i],
         productId: sub.productId,
@@ -926,6 +927,12 @@ async function processSubsPage(
         platform: sub.platform,
         environment,
       });
+      bucket.activeHistoryUnknown ??= 0;
+      if (access === false) continue;
+      if (access === null) {
+        bucket.activeHistoryUnknown = (bucket.activeHistoryUnknown ?? 0) + 1;
+        continue;
+      }
       bucket.activeSubs += 1;
       if (isInTrialAt(sub.analytics, dayEnds[i])) bucket.activeTrials += 1;
     }
@@ -1003,6 +1010,7 @@ export const recomputeRevenueMetricsPage = internalMutation({
       if (legacyCursor) {
         for (const bucket of buckets.values()) {
           bucket.activeSubs = 0;
+          bucket.activeHistoryUnknown = 0;
           bucket.activeTrials = 0;
         }
       }
@@ -1265,17 +1273,12 @@ async function productTypesForRows(
   );
 }
 
-// Access at the end of a day. `expiresAt` wins over state: an Active sub past
-// it does not count, an Expired or billing-retry sub before it does. Without
-// an expiry only Active and grace-period rows count, since the day an Expired
-// or billing-retry row lost access is unknown.
+// Unknown access never becomes a confirmed active count.
 export function isActiveAt(sub: Doc<"subscriptions">, dayEnd: number): boolean {
-  if (sub.startedAt > dayEnd || isMisrecordedApplePass(sub)) return false;
-  if (!COUNTED_STATES.has(sub.state)) return false;
-  if (typeof sub.expiresAt === "number") {
-    return sub.expiresAt > dayEnd;
-  }
-  return sub.state === "Active" || sub.state === "InGracePeriod";
+  return (
+    !isMisrecordedApplePass(sub) &&
+    accessAt(sub.analytics?.accessHistory, dayEnd) === true
+  );
 }
 
 // Replaces the given days' rows rather than diffing them: tens of rows per
@@ -1301,11 +1304,15 @@ async function commitBuckets(
 
   await Promise.all(
     Array.from(buckets)
-      .filter((bucket) => !isAllZeroBucket(bucket))
+      .filter(
+        (bucket) =>
+          !isAllZeroBucket(bucket) || bucket.activeHistoryUnknown !== undefined,
+      )
       .map((bucket) =>
         ctx.db.insert("revenueMetricsDaily", {
           projectId,
           ...bucket,
+          activeHistoryUnknown: bucket.activeHistoryUnknown ?? 0,
           updatedAt: run.runStartedAt,
         }),
       ),

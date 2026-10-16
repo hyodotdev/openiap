@@ -49,6 +49,7 @@ export type KitRevenueDay = {
   productId: string;
   platform: "IOS" | "Android";
   activeSubs: number;
+  activeHistoryComplete?: boolean;
   activeTrials?: number;
   newSubs: number;
   trialStarts?: number;
@@ -69,9 +70,11 @@ export type KitRevenueCohort = {
   refundedMicros: number;
   realizedLtvMicros: number;
   retained: number[];
+  retentionObserved?: number[];
   trialStarts: number;
   trialConversions: number;
   trialsPending: number;
+  trialsUnobserved?: number;
   observedThrough: string;
 };
 export type KitRevenueMetricsResponse = {

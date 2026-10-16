@@ -125,7 +125,7 @@ environment at a time.
   400 rows: an Apple
   notification keeps its signed payload, about 20 KB, so a page stays under
   12.5 MiB of the 16 MiB a mutation may read even at 32 KB per event.
-  Subscription pages hold 5,000 rows of about 1 KB. Google expirations without
+  Subscription pages hold at most 250 rows, capped at 8 MiB per page. Each row keeps at most 24 month-end and 30 day-end access checkpoints plus its latest evidence (about 12 KB for the history). Smaller pages add scheduler calls, not additional scans or total subscription reads. Google expirations without
   a trial flag, Play voided purchases, and Google subscription notifications
   without a Play-reported environment each add an alias lookup and a
   subscription read. Every page also reads the project's run status row, and
@@ -153,14 +153,16 @@ environment at a time.
 - **Stats rebuild.** When `STATS_DEFINITIONS_VERSION` changes, each project's
   next rollup requests one `subscriptionStats` rebuild, retried at most every
   6 hours until it commits. The upgrade that excluded sandbox triggers this
-  once per project. The rebuild pages subscriptions in creation order, 5,000
-  per mutation, into one `subscriptionStatsRebuilds` row. Every subscription
+  once per project. The rebuild pages subscriptions in creation order, 250
+  per mutation with the same 8 MiB cap, into one `subscriptionStatsRebuilds` row. Every subscription
   write that changes the live totals also reads that row (one indexed read)
   and, during a rebuild, updates it for rows the scan has passed, so a rebuild
   commits on its first pass however busy the project is.
 - **Cohorts.** At most once a day per project: one paginated pass over its
   `subscriptions` and a replace of at most 24 months × 2 environments ×
-  currencies rows.
+  currencies rows. It uses the same 250-row / 8 MiB subscription page budget.
+  Missing historical access stays unknown; neither rebuild queries event history
+  per subscription or invents access from the latest expiry.
 
 Each applied store event also patches its subscription's analytics facts and,
 when the first paid charge moves, at most two `webhookEvents` rows, inside the

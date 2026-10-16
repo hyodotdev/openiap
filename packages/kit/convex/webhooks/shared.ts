@@ -105,6 +105,9 @@ export type NormalizedWebhookEvent = {
   resubscribe?: boolean;
   /** A Google replacement Play charged at once; analytics only. */
   replacementCharged?: boolean;
+  purchaseDate?: number;
+  revocationDate?: number;
+  snapshotObservedAt?: number;
   occurredAt: number;
   // Stable per-notification identifier used for idempotency. ASN v2
   // `notificationUUID` or RTDN `messageId`.
@@ -189,6 +192,8 @@ export type AppleDecodedTransaction = {
   type?: string | null;
   productId?: string | null;
   expiresDate?: number | null;
+  purchaseDate?: number | null;
+  revocationDate?: number | null;
   revocationReason?: number | null;
   currency?: string | null;
   // Milliunits (1/1000 of a unit; Apple says milliunits, not millicents): $9.99
@@ -525,6 +530,8 @@ export function normalizeAppleAsn(
     payload.subtype === "RESUBSCRIBE"
       ? { resubscribe: true }
       : {}),
+    purchaseDate: transaction?.purchaseDate ?? undefined,
+    revocationDate: transaction?.revocationDate ?? undefined,
     occurredAt: payload.signedDate,
     sourceNotificationId: payload.notificationUUID,
   };
@@ -584,6 +591,7 @@ export type GoogleTestNotification = {
 // `androidpublisher.purchases.subscriptionsv2.get` because RTDN does
 // not embed expiry / price information.
 export type GoogleSubscriptionInfo = {
+  snapshotObservedAt?: number;
   productId?: string;
   environment?: ReceiptEnvironment;
   /** subscriptionsv2 returned a bundle that the singular canonical model cannot split. */
@@ -845,6 +853,7 @@ export function normalizeGoogleRtdn(
     amountProvenance: subscriptionInfo?.amountProvenance,
     freeTrial: subscriptionInfo?.freeTrial,
     replacementCharged: subscriptionInfo?.replacementCharged,
+    snapshotObservedAt: subscriptionInfo?.snapshotObservedAt,
     occurredAt: payload.eventTimeMillis,
     sourceNotificationId: payload.messageId,
   };

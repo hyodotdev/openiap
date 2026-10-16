@@ -692,7 +692,8 @@ function Releases() {
                   renewal terms match the selected offer. A visible mode
                   selector separates it from the direct purchase demo, and
                   product cards keep prices apart from purchase and details
-                  buttons.
+                  buttons. Zero-valued offer fields render as text without
+                  native view warnings.
                 </li>
               </ul>
             </li>

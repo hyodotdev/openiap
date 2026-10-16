@@ -57,7 +57,11 @@ type Cohort = NonNullable<RevenueMetrics["cohorts"]>[number];
 
 const DAY_MS = 86_400_000;
 
-type DailyRow = RevenueCounters & { day: string };
+type DailyRow = RevenueCounters & {
+  day: string;
+  activeHistoryComplete: boolean;
+  trialHistoryComplete: boolean;
+};
 type MetricRow = DailyRow & {
   currency: string;
   productId: string;
@@ -66,13 +70,20 @@ type MetricRow = DailyRow & {
 
 // Rows written before the current definitions lack the newer counters, and
 // days before `trialSplitFromDay` lack the trial counters and expirations;
-// both read as 0.
+// Coverage flags keep those missing values out of split-dependent charts.
 function withDefaults(row: RevenueMetrics["days"][number]): MetricRow {
   const counters = zeroRevenueCounters();
   for (const key of REVENUE_COUNTERS) counters[key] = row[key] ?? 0;
   return {
     ...counters,
     day: row.day,
+    activeHistoryComplete: row.activeHistoryComplete === true,
+    trialHistoryComplete:
+      row.activeTrials !== undefined &&
+      row.trialStarts !== undefined &&
+      row.trialConversions !== undefined &&
+      row.directPaidStarts !== undefined &&
+      row.expirations !== undefined,
     currency: row.currency,
     productId: row.productId,
     platform: row.platform,
@@ -302,7 +313,17 @@ export default function ProjectAnalytics() {
       ...row,
       revenueMicros: revenueByBucket.get(row.dayKey)?.revenueMicros ?? 0,
       refundedMicros: revenueByBucket.get(row.dayKey)?.refundedMicros ?? 0,
-      paidActiveSubs: row.activeSubs - row.activeTrials,
+      paidActiveSubs:
+        row.activeHistoryComplete && row.trialHistoryComplete
+          ? row.activeSubs - row.activeTrials
+          : null,
+      activeTrials:
+        row.activeHistoryComplete && row.trialHistoryComplete
+          ? row.activeTrials
+          : null,
+      trialStarts: row.trialHistoryComplete ? row.trialStarts : null,
+      trialConversions: row.trialHistoryComplete ? row.trialConversions : null,
+      directPaidStarts: row.trialHistoryComplete ? row.directPaidStarts : null,
     }));
   }, [lifecycleSeries, revenueSeries]);
 
@@ -332,6 +353,8 @@ export default function ProjectAnalytics() {
       ...sum,
       grossMicros: revenue.gross,
       refundedMicros: revenue.refunded,
+      activeHistoryComplete: last?.activeHistoryComplete ?? false,
+      trialHistoryComplete: last?.trialHistoryComplete ?? false,
       activeSubsLast: last?.activeSubs ?? 0,
       activeTrialsLast: last?.activeTrials ?? 0,
     };
@@ -350,7 +373,12 @@ export default function ProjectAnalytics() {
     );
     const byFilter = new Map<
       PlatformFilter,
-      { revenueMicros: number; activeSubs: number; newSubs: number }
+      {
+        revenueMicros: number;
+        activeSubs: number;
+        newSubs: number;
+        activeHistoryComplete: boolean;
+      }
     >();
     for (const card of PLATFORM_CARDS) {
       const lifecycle = lifecycleForPlatform(inRange, card.filter);
@@ -361,6 +389,7 @@ export default function ProjectAnalytics() {
       byFilter.set(card.filter, {
         revenueMicros: revenue,
         activeSubs: lifecycle.activeSubs,
+        activeHistoryComplete: lifecycle.activeHistoryComplete,
         newSubs: lifecycle.newSubs,
       });
     }
@@ -503,6 +532,7 @@ export default function ProjectAnalytics() {
           const cardTotals = platformTotals.get(card.filter) ?? {
             revenueMicros: 0,
             activeSubs: 0,
+            activeHistoryComplete: false,
             newSubs: 0,
           };
           return (
@@ -538,8 +568,11 @@ export default function ProjectAnalytics() {
                   {money(cardTotals.revenueMicros)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  gross · {count(cardTotals.activeSubs)} active ·{" "}
-                  {count(cardTotals.newSubs)} new
+                  gross ·{" "}
+                  {cardTotals.activeHistoryComplete
+                    ? count(cardTotals.activeSubs)
+                    : "—"}{" "}
+                  active · {count(cardTotals.newSubs)} new
                 </p>
               </div>
             </div>
@@ -630,10 +663,14 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={Users}
           label="Active subscriptions"
-          value={count(totals.activeSubsLast)}
+          value={
+            totals.activeHistoryComplete ? count(totals.activeSubsLast) : "—"
+          }
           detail={
             hasSplitNumbers
-              ? `${totals.activeTrialsLast} in free trial`
+              ? totals.activeHistoryComplete && totals.trialHistoryComplete
+                ? `${totals.activeTrialsLast} in free trial`
+                : "Historical access is unverified"
               : undefined
           }
         />
@@ -1061,7 +1098,8 @@ function CohortTable({
           Cohort = UTC month of the first paid charge. M+k is the share still
           paying at the end of month k; a canceled subscription counts until its
           paid period ends. Realized LTV is gross revenue observed so far per
-          member, before store fees and refunds — never a projection.
+          member, before store fees and refunds — never a projection. A dash
+          means at least one member lacks access evidence for that month.
           {computedAt ? ` Rebuilt ${formatAgo(now - computedAt)}.` : ""}
         </p>
       </div>
@@ -1089,9 +1127,13 @@ function CohortTable({
                   <td className="py-1 pr-3">{row.members}</td>
                   {Array.from({ length: offsets }, (_, k) => (
                     <td key={k} className="py-1 pr-3">
-                      {row.members > 0 && row.retained[k] !== undefined
+                      {row.members > 0 &&
+                      row.retained[k] !== undefined &&
+                      row.retentionObserved?.[k] === row.members
                         ? `${Math.round((row.retained[k] / row.members) * 100)}%`
-                        : ""}
+                        : row.retained[k] !== undefined
+                          ? "—"
+                          : ""}
                     </td>
                   ))}
                   <td className="py-1 pr-3">
@@ -1100,7 +1142,7 @@ function CohortTable({
                       : "—"}
                   </td>
                   <td className="py-1 pr-3">
-                    {resolvedTrials > 0
+                    {resolvedTrials > 0 && row.trialsUnobserved === 0
                       ? `${Math.round((row.trialConversions / resolvedTrials) * 100)}% of ${resolvedTrials}`
                       : row.trialsPending > 0
                         ? `${row.trialsPending} in trial`
@@ -1134,8 +1176,15 @@ function aggregateByDay(
     const existing = byDay.get(row.day);
     if (existing) {
       for (const key of REVENUE_COUNTERS) existing[key] += row[key];
+      existing.activeHistoryComplete &&= row.activeHistoryComplete;
+      existing.trialHistoryComplete &&= row.trialHistoryComplete;
     } else {
-      const fresh: DailyRow = { ...zeroRevenueCounters(), day: row.day };
+      const fresh: DailyRow = {
+        ...zeroRevenueCounters(),
+        day: row.day,
+        activeHistoryComplete: row.activeHistoryComplete,
+        trialHistoryComplete: row.trialHistoryComplete,
+      };
       for (const key of REVENUE_COUNTERS) fresh[key] = row[key];
       byDay.set(row.day, fresh);
     }
@@ -1147,6 +1196,8 @@ function aggregateByDay(
   // to zero.
   let lastActive = 0;
   let lastTrials = 0;
+  let lastComplete = false;
+  let lastTrialComplete = false;
   let snapshotDay = "";
   for (const [day, row] of byDay) {
     if (day >= fromDay) continue;
@@ -1154,12 +1205,16 @@ function aggregateByDay(
       snapshotDay = day;
       lastActive = row.activeSubs;
       lastTrials = row.activeTrials;
+      lastComplete = row.activeHistoryComplete;
+      lastTrialComplete = row.trialHistoryComplete;
     }
   }
 
   for (let i = 0; i < rangeDays; i++) {
     const dayKey = utcDayKey(fromTs + i * DAY_MS);
     const paidAtStart =
+      lastComplete &&
+      lastTrialComplete &&
       snapshotDay !== "" &&
       (trialSplitFromDay === undefined || snapshotDay >= trialSplitFromDay)
         ? lastActive - lastTrials
@@ -1168,6 +1223,8 @@ function aggregateByDay(
     if (entry) {
       lastActive = entry.activeSubs;
       lastTrials = entry.activeTrials;
+      lastComplete = entry.activeHistoryComplete;
+      lastTrialComplete = entry.trialHistoryComplete;
       snapshotDay = dayKey;
       result.push({ ...entry, dayKey, paidAtStart });
     } else {
@@ -1177,6 +1234,8 @@ function aggregateByDay(
         ...zeroRevenueCounters(),
         day: dayKey,
         dayKey,
+        activeHistoryComplete: lastComplete,
+        trialHistoryComplete: lastTrialComplete,
         activeSubs: lastActive,
         activeTrials: lastTrials,
         paidAtStart,
@@ -1197,6 +1256,12 @@ function churnOver(days: DayPoint[]): {
   const first = days.findIndex((day) => day.paidAtStart !== null);
   const paidAtStart = days[first]?.paidAtStart;
   if (paidAtStart === undefined || paidAtStart === null) return null;
+  if (
+    days
+      .slice(first)
+      .some((day) => !day.activeHistoryComplete || !day.trialHistoryComplete)
+  )
+    return null;
   let expirations = 0;
   for (const day of days.slice(first)) expirations += day.expirations;
   return {
@@ -1213,7 +1278,7 @@ function churnOver(days: DayPoint[]): {
 function bucketByPeriod(
   daily: DayPoint[],
   period: PeriodId,
-): Array<DayPoint & { label: string; churnPct: number }> {
+): Array<DayPoint & { label: string; churnPct: number | null }> {
   const buckets = new Map<string, DayPoint & { label: string }>();
   const daysByBucket = new Map<string, DayPoint[]>();
   for (const row of daily) {
@@ -1236,13 +1301,15 @@ function bucketByPeriod(
       if (key === "activeSubs" || key === "activeTrials") continue;
       existing[key] += row[key];
     }
+    existing.activeHistoryComplete = row.activeHistoryComplete;
+    existing.trialHistoryComplete &&= row.trialHistoryComplete;
     existing.activeSubs = row.activeSubs;
     existing.activeTrials = row.activeTrials;
   }
 
   return Array.from(buckets, ([bucketKey, bucket]) => ({
     ...bucket,
-    churnPct: churnOver(daysByBucket.get(bucketKey) ?? [])?.rate ?? 0,
+    churnPct: churnOver(daysByBucket.get(bucketKey) ?? [])?.rate ?? null,
   })).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }
 
@@ -1277,10 +1344,13 @@ function bucketLabelFor(
 function lifecycleForPlatform(
   rows: MetricRow[],
   filter: PlatformFilter,
-): { activeSubs: number; newSubs: number } {
+): { activeSubs: number; newSubs: number; activeHistoryComplete: boolean } {
   const matching =
     filter === "all" ? rows : rows.filter((r) => r.platform === filter);
-  const lastByPlatform = new Map<Platform, { day: string; active: number }>();
+  const lastByPlatform = new Map<
+    Platform,
+    { day: string; active: number; complete: boolean }
+  >();
   let newSubs = 0;
   for (const row of matching) {
     newSubs += row.newSubs;
@@ -1289,14 +1359,22 @@ function lifecycleForPlatform(
       lastByPlatform.set(row.platform, {
         day: row.day,
         active: row.activeSubs,
+        complete: row.activeHistoryComplete,
       });
     } else if (row.day === prior.day) {
       prior.active += row.activeSubs;
+      prior.complete &&= row.activeHistoryComplete;
     }
   }
   let activeSubs = 0;
   for (const v of lastByPlatform.values()) activeSubs += v.active;
-  return { activeSubs, newSubs };
+  return {
+    activeSubs,
+    newSubs,
+    activeHistoryComplete: [...lastByPlatform.values()].every(
+      (row) => row.complete,
+    ),
+  };
 }
 
 // Takes rows already pinned to one currency.

@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { accessHistoryValidator } from "./subscriptions/accessHistory";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
 import {
@@ -691,6 +692,9 @@ const schema = defineSchema({
     // immediate-charge replacement mode. Other replacements charge nothing
     // until they renew.
     replacementCharged: v.optional(v.boolean()),
+    purchaseDate: v.optional(v.number()),
+    revocationDate: v.optional(v.number()),
+    snapshotObservedAt: v.optional(v.number()),
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
@@ -749,6 +753,9 @@ const schema = defineSchema({
     // entitlement or verification paths.
     analytics: v.optional(
       v.object({
+        accessHistory: v.optional(accessHistoryValidator),
+        trialAnchorKnown: v.optional(v.boolean()),
+        firstPaidAnchorKnown: v.optional(v.boolean()),
         trialStartedAt: v.optional(v.number()),
         firstPaidAt: v.optional(v.number()),
         firstPaidEventId: v.optional(v.id("webhookEvents")),
@@ -835,6 +842,7 @@ const schema = defineSchema({
     purchaseToken: v.string(),
     successorPurchaseToken: v.string(),
     predecessorProductId: v.optional(v.string()),
+    analyticsReplacementAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -923,6 +931,7 @@ const schema = defineSchema({
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     environment: v.optional(receiptEnvironmentValidator),
     activeSubs: v.number(),
+    activeHistoryUnknown: v.optional(v.number()),
     activeTrials: v.optional(v.number()),
     newSubs: v.number(),
     trialStarts: v.optional(v.number()),
@@ -1031,9 +1040,11 @@ const schema = defineSchema({
     // retained[k]: members with paid access at the end of month + k (or at
     // `observedThrough` for the current month).
     retained: v.array(v.number()),
+    retentionObserved: v.optional(v.array(v.number())),
     trialStarts: v.number(),
     trialConversions: v.number(),
     trialsPending: v.number(),
+    trialsUnobserved: v.optional(v.number()),
     observedThrough: v.string(), // YYYY-MM-DD, UTC
     updatedAt: v.number(),
   }).index("by_project", ["projectId"]),

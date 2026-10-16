@@ -1,3 +1,4 @@
+import { foldAccessHistory } from "./accessHistory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getFunctionName,
@@ -556,122 +557,41 @@ function makeSub(
 
 describe("isActiveAt", () => {
   const dayEnd = Date.parse("2026-03-15T23:59:59.999Z");
-
-  it("active sub started before dayEnd and not yet expired → true", () => {
-    const sub = makeSub({
-      state: "Active",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: Date.UTC(2026, 3, 1),
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(true);
-  });
-
-  it("sub started AFTER dayEnd → false (no time-travel)", () => {
-    const sub = makeSub({
-      state: "Active",
-      startedAt: Date.UTC(2026, 2, 16),
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(false);
-  });
-
-  it("sub expired BEFORE dayEnd → false", () => {
-    const sub = makeSub({
-      state: "Active",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: Date.UTC(2026, 2, 10),
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(false);
-  });
-
-  it("InGracePeriod sub with expiresAt > dayEnd → true", () => {
-    const sub = makeSub({
-      state: "InGracePeriod",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: Date.UTC(2026, 3, 1),
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(true);
-  });
-
-  it("InBillingRetry counts only on days before its paid period ended", () => {
-    const sub = makeSub({
-      state: "InBillingRetry",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: Date.UTC(2026, 3, 1),
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(true);
+  it("does not reconstruct access from a legacy current-state row", () => {
     expect(
-      isActiveAt({ ...sub, expiresAt: Date.UTC(2026, 2, 10) }, dayEnd),
+      isActiveAt(
+        makeSub({ state: "Active", expiresAt: Date.UTC(2026, 3, 1) }),
+        dayEnd,
+      ),
     ).toBe(false);
   });
-
-  it("InBillingRetry without an expiry has no access (regression)", () => {
-    const sub = makeSub({
-      state: "InBillingRetry",
-      platform: "Android",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: undefined,
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(false);
-  });
-
-  it("Revoked / Refunded / Paused / Unknown → false even if still in window", () => {
-    for (const state of ["Revoked", "Refunded", "Paused", "Unknown"] as const) {
-      const sub = makeSub({
-        state,
-        startedAt: Date.UTC(2026, 2, 1),
-        expiresAt: Date.UTC(2026, 3, 1),
-      });
-      expect(isActiveAt(sub, dayEnd), `state=${state}`).toBe(false);
-    }
-  });
-
-  it("Expired with expiresAt > dayEnd → true (still active on the snapshot day)", () => {
-    // Why `Expired` is counted: a sub active at the end of a past day counts
-    // for that day.
+  it("uses the observed period even when current state has since expired", () => {
+    const started = Date.UTC(2026, 2, 1);
     const sub = makeSub({
       state: "Expired",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: Date.UTC(2026, 3, 1), // April 1, after dayEnd (March 15)
+      analytics: {
+        paidMicros: 0,
+        refundedMicros: 0,
+        accessHistory: foldAccessHistory(
+          undefined,
+          [
+            {
+              effectiveAt: started,
+              sourceAt: started,
+              sourceCreatedAt: started,
+              active: true,
+              expiresAt: Date.UTC(2026, 3, 1),
+            },
+          ],
+          Date.UTC(2026, 3, 2),
+        ),
+      },
     });
     expect(isActiveAt(sub, dayEnd)).toBe(true);
+    expect(isActiveAt(sub, Date.UTC(2026, 3, 2))).toBe(false);
   });
-
-  it("Expired with expiresAt <= dayEnd → false (already gone by snapshot)", () => {
-    const sub = makeSub({
-      state: "Expired",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: Date.UTC(2026, 2, 10), // March 10, before dayEnd
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(false);
-  });
-
-  it("Expired with no expiresAt timestamp → false (defensive: no anchor for transition day)", () => {
-    const sub = makeSub({
-      state: "Expired",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: undefined,
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(false);
-  });
-
-  it("undefined expiresAt + Active counted state → still active (matches steady-state semantics)", () => {
-    const sub = makeSub({
-      platform: "Android",
-      state: "Active",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: undefined,
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(true);
-  });
-
-  it("never counts an iOS row without an expiry (a non-renewing pass)", () => {
-    const sub = makeSub({
-      platform: "IOS",
-      state: "Active",
-      startedAt: Date.UTC(2026, 2, 1),
-      expiresAt: undefined,
-    });
-    expect(isActiveAt(sub, dayEnd)).toBe(false);
+  it("keeps a non-renewing Apple pass out of subscription counts", () => {
+    expect(isActiveAt(makeSub({ state: "Active" }), dayEnd)).toBe(false);
   });
 });
 
@@ -983,6 +903,30 @@ async function seedSub(
   db: MemDb,
   partial: Partial<Doc<"subscriptions">> & Pick<Doc<"subscriptions">, "state">,
 ): Promise<void> {
+  const start = Math.min(
+    partial.startedAt ?? Date.UTC(2026, 1, 1),
+    partial.analytics?.firstPaidAt ?? Infinity,
+    partial.analytics?.trialStartedAt ?? Infinity,
+  );
+  const accessHistory = foldAccessHistory(
+    undefined,
+    [
+      {
+        effectiveAt: start,
+        sourceAt: start,
+        sourceCreatedAt: start,
+        active:
+          partial.state === "Active" ||
+          partial.state === "InGracePeriod" ||
+          partial.state === "Expired" ||
+          partial.state === "InBillingRetry",
+        ...(partial.expiresAt !== undefined
+          ? { expiresAt: partial.expiresAt }
+          : {}),
+      },
+    ],
+    NOW,
+  );
   await db.insert("subscriptions", {
     projectId: PROJECT_ID,
     purchaseToken: `tok_${Math.random()}`,
@@ -994,6 +938,18 @@ async function seedSub(
     startedAt: Date.UTC(2026, 1, 1),
     updatedAt: NOW,
     ...partial,
+    analytics: {
+      paidMicros: 0,
+      refundedMicros: 0,
+      ...partial.analytics,
+      accessHistory,
+      ...(partial.analytics?.firstPaidAt !== undefined
+        ? { firstPaidAnchorKnown: true }
+        : {}),
+      ...(partial.analytics?.trialStartedAt !== undefined
+        ? { trialAnchorKnown: true }
+        : {}),
+    },
   });
 }
 
@@ -1426,12 +1382,14 @@ describe("rollup run — round-trip integration", () => {
     }
 
     await recompute(ctx);
-    const refunds = (await rollupRows(db)).map((row) => ({
-      environment: row.environment,
-      productId: row.productId,
-      currency: row.currency,
-      refunds: row.refunds,
-    }));
+    const refunds = (await rollupRows(db))
+      .filter((row) => row.refunds !== 0)
+      .map((row) => ({
+        environment: row.environment,
+        productId: row.productId,
+        currency: row.currency,
+        refunds: row.refunds,
+      }));
     expect(refunds).toEqual(
       expect.arrayContaining([
         {
@@ -1643,7 +1601,7 @@ describe("rollup run — round-trip integration", () => {
     );
     expect(byDay.get(D2)).toBe(1);
     expect(byDay.get(D1)).toBe(1);
-    expect(byDay.get(TODAY)).toBeUndefined(); // empty bucket → skipped
+    expect(byDay.get(TODAY)).toBe(0); // Explicit zero prevents a stale active snapshot carrying forward.
   });
 
   it("counts today's subscriptions as of the run, not midnight", async () => {
@@ -1673,7 +1631,7 @@ describe("rollup run — round-trip integration", () => {
     const byDay = new Map(
       (await rollupRows(db)).map((r) => [r.day, r.activeSubs]),
     );
-    expect(byDay.get(D2)).toBeUndefined();
+    expect(byDay.get(D2)).toBe(0);
     expect(byDay.get(D1)).toBe(1);
     expect(byDay.get(TODAY)).toBe(1);
   });
@@ -1707,7 +1665,9 @@ describe("rollup run — round-trip integration", () => {
     });
 
     await recompute(ctx);
-    expect(await rollupRows(db)).toEqual([]);
+    expect((await rollupRows(db)).map((row) => row.activeSubs)).toEqual([
+      0, 0, 0,
+    ]);
   });
 
   it("idempotent: running twice produces the same set of rows", async () => {
@@ -2881,7 +2841,10 @@ describe("rollup run — access, trials and churn", () => {
       cancellations: 0,
       expirations: 1,
     });
-    expect(byDay.get(TODAY)).toBeUndefined();
+    expect(byDay.get(TODAY)).toMatchObject({
+      activeSubs: 0,
+      activeHistoryUnknown: 0,
+    });
   });
 
   it("counts subscriptions still in a free trial as active trials", async () => {
@@ -3079,7 +3042,12 @@ describe("getRevenueMetrics — data state", () => {
     const quietRange = { ...range, fromDay: "2026-03-01", toDay: "2026-03-02" };
     expect(
       (await getRevenueMetrics._handler({ db }, quietRange)).dataState,
-    ).toBe("zero");
+    ).toBe("ready");
+    expect(
+      (await getRevenueMetrics._handler({ db }, quietRange)).days.every(
+        (row) => row.activeHistoryComplete === false,
+      ),
+    ).toBe(true);
   });
 
   it("omits the trial split before the upgrade day of a project rolled up by an earlier release", async () => {
@@ -3309,7 +3277,7 @@ describe("cohort job and read", () => {
         includeCohorts: true,
       },
     );
-    expect(result.cohorts).toEqual([
+    expect(result.cohorts).toMatchObject([
       {
         month: "2026-01",
         currency: "USD",

@@ -1,11 +1,8 @@
+import { foldAccessHistory } from "./accessHistory";
 import { describe, expect, it } from "vitest";
 
 import type { Doc, Id } from "../_generated/dataModel";
-import {
-  accessEndsAt,
-  addSubscriptionToCohorts,
-  type CohortBucket,
-} from "./revenueCohorts";
+import { addSubscriptionToCohorts, type CohortBucket } from "./revenueCohorts";
 
 const AS_OF = Date.parse("2026-03-15T12:00:00Z");
 const PRICE = 9_990_000;
@@ -14,6 +11,39 @@ const at = (iso: string): number => Date.parse(`${iso}T00:00:00Z`);
 function sub(
   partial: Partial<Doc<"subscriptions">> & Pick<Doc<"subscriptions">, "state">,
 ): Doc<"subscriptions"> {
+  const facts = partial.analytics;
+  if (facts) {
+    const start = facts.firstPaidAt ?? facts.trialStartedAt;
+    if (start !== undefined) {
+      // These fixtures explicitly observed the paid/trial period, not just its latest state.
+      facts.accessHistory = foldAccessHistory(
+        undefined,
+        [
+          {
+            effectiveAt: start,
+            sourceAt: start,
+            sourceCreatedAt: start,
+            active: true,
+            ...(partial.expiresAt !== undefined
+              ? { expiresAt: partial.expiresAt }
+              : {}),
+          },
+          ...(partial.state === "Refunded"
+            ? [
+                {
+                  effectiveAt: partial.lastEventOccurredAt!,
+                  sourceAt: partial.lastEventOccurredAt!,
+                  sourceCreatedAt: partial.lastEventOccurredAt!,
+                  active: false,
+                },
+              ]
+            : []),
+        ],
+        AS_OF,
+      );
+    }
+    if (facts.trialStartedAt !== undefined) facts.trialAnchorKnown = true;
+  }
   return {
     _id: "subscriptions_1" as Id<"subscriptions">,
     _creationTime: 0,
@@ -37,6 +67,7 @@ function paidFacts(
 ): NonNullable<Doc<"subscriptions">["analytics"]> {
   return {
     firstPaidAt,
+    firstPaidAnchorKnown: true,
     firstPaidEventType: "SubscriptionStarted",
     currency: "USD",
     paidMicros,
@@ -148,7 +179,7 @@ describe("addSubscriptionToCohorts", () => {
   it("builds paid cohorts, retention, realized revenue and trial cohorts", () => {
     const buckets = cohorts(fixture);
 
-    expect(buckets.get("Production|2026-01|USD")).toEqual({
+    expect(buckets.get("Production|2026-01|USD")).toMatchObject({
       environment: "Production",
       month: "2026-01",
       currency: "USD",
@@ -218,24 +249,18 @@ describe("addSubscriptionToCohorts", () => {
   });
 });
 
-describe("accessEndsAt", () => {
-  it("keeps a canceled subscription until its paid-through date", () => {
-    expect(
-      accessEndsAt(
-        sub({ state: "Active", willRenew: false, expiresAt: at("2026-04-01") }),
-      ),
-    ).toBe(at("2026-04-01"));
-  });
-
-  it("ends a refunded subscription at the refund", () => {
-    expect(
-      accessEndsAt(
-        sub({
-          state: "Refunded",
-          expiresAt: at("2026-04-01"),
-          lastEventOccurredAt: at("2026-03-02"),
-        }),
-      ),
-    ).toBe(at("2026-03-02"));
+describe("historical coverage", () => {
+  it("keeps an unknown member in the denominator without inventing retention", () => {
+    const row = sub({
+      state: "Active",
+      expiresAt: at("2026-04-01"),
+      analytics: paidFacts(at("2026-01-01"), PRICE),
+    });
+    delete row.analytics!.accessHistory;
+    expect(cohorts([row]).get("Production|2026-01|USD")).toMatchObject({
+      members: 1,
+      retained: [0, 0, 0],
+      retentionObserved: [0, 0, 0],
+    });
   });
 });

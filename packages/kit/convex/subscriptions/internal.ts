@@ -1,3 +1,4 @@
+import { foldAccessHistory } from "./accessHistory";
 import {
   internalMutation,
   internalQuery,
@@ -193,9 +194,14 @@ export async function applySubscriptionEventHandler(
 ): Promise<ApplySubscriptionEventResult> {
   const event = await ctx.db.get(args.eventId);
   const firstApplication = event !== null && event.appliedAt === undefined;
-  const result = await applyLifecycleEvent(ctx, args);
+  const { analyticsBefore, ...result } = await applyLifecycleEvent(ctx, args);
   if (firstApplication && result.subscriptionId) {
-    await recordSubscriptionAnalyticsFacts(ctx, result.subscriptionId, event);
+    await recordSubscriptionAnalyticsFacts(
+      ctx,
+      result.subscriptionId,
+      event,
+      analyticsBefore,
+    );
   }
   return result;
 }
@@ -203,7 +209,7 @@ export async function applySubscriptionEventHandler(
 async function applyLifecycleEvent(
   ctx: MutationCtx,
   args: ApplySubscriptionEventArgs,
-): Promise<ApplySubscriptionEventResult> {
+): Promise<ApplySubscriptionEventResult & { analyticsBefore?: number | null }> {
   await assertProjectWritable(ctx, args.projectId);
   const storedEvent = await ctx.db.get(args.eventId);
   if (!storedEvent || storedEvent.projectId !== args.projectId) {
@@ -277,6 +283,7 @@ async function applyLifecycleEvent(
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
     }
     return {
+      analyticsBefore: supersedingResolution.analyticsReplacementAt ?? null,
       transition: firstApplication ? aliasedTransition : null,
       active,
       ...(supersedingSubscription
@@ -383,7 +390,13 @@ async function applyLifecycleEvent(
       accountErased: accountErased || undefined,
       userId: boundUserId,
       startedAt: Math.min(survivor.startedAt, removed.startedAt),
-      analytics: mergeAnalyticsFacts(survivor.analytics, removed.analytics),
+      analytics: mergeAnalyticsFacts(survivor.analytics, removed.analytics, {
+        at:
+          storedEvent.type === "SubscriptionStarted"
+            ? storedEvent.occurredAt
+            : undefined,
+        now,
+      }),
     };
     await ctx.db.patch(survivor._id, {
       purchaseToken: existing.purchaseToken,
@@ -399,8 +412,29 @@ async function applyLifecycleEvent(
       purchaseToken: removed.purchaseToken,
       successorPurchaseToken: existing.purchaseToken,
       predecessorProductId: removed.productId,
+      analyticsReplacementAt:
+        storedEvent.type === "SubscriptionStarted"
+          ? storedEvent.occurredAt
+          : undefined,
       now,
     });
+  }
+
+  if (
+    existing &&
+    !existingByCurrentToken &&
+    existing.purchaseToken !== storedEvent.purchaseToken
+  ) {
+    existing = {
+      ...existing,
+      analytics: mergeAnalyticsFacts(undefined, existing.analytics, {
+        at:
+          storedEvent.type === "SubscriptionStarted"
+            ? storedEvent.occurredAt
+            : undefined,
+        now,
+      }),
+    };
   }
 
   const previouslyActive =
@@ -639,6 +673,10 @@ async function applyLifecycleEvent(
     purchaseToken: existing?.purchaseToken,
     successorPurchaseToken: storedEvent.purchaseToken,
     predecessorProductId: existing?.productId,
+    analyticsReplacementAt:
+      storedEvent.type === "SubscriptionStarted"
+        ? storedEvent.occurredAt
+        : undefined,
     now,
   });
   await recordSubscriptionTokenAlias(ctx, {
@@ -646,6 +684,10 @@ async function applyLifecycleEvent(
     purchaseToken: storedEvent.linkedPurchaseToken,
     successorPurchaseToken: storedEvent.purchaseToken,
     predecessorProductId: priorStoreSnapshot?.productId ?? existing?.productId,
+    analyticsReplacementAt:
+      storedEvent.type === "SubscriptionStarted"
+        ? storedEvent.occurredAt
+        : undefined,
     now,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
@@ -1080,7 +1122,60 @@ export async function persistSubscriptionSnapshot(
       args.existing?.lastEventSource?.environment)
     : (args.lastEvent?.environment ?? args.environment);
 
+  const resyncAdvanced =
+    args.resyncedAt !== undefined &&
+    args.resyncedAt > (args.existing?.resyncedAt ?? -Infinity);
+  const evidenceAdvanced =
+    args.verifiedEvidenceAt !== undefined &&
+    args.verifiedEvidenceAt > (args.existing?.verifiedEvidenceAt ?? -Infinity);
+  // A newer signed receipt can show a reversal without dating its access change.
+  const undatedAppleChange =
+    !resyncAdvanced &&
+    !evidenceAdvanced &&
+    args.platform === "IOS" &&
+    args.existing !== null &&
+    args.verifiedSignedDate !== undefined &&
+    args.verifiedSignedDate > (args.existing.verifiedSignedDate ?? -Infinity) &&
+    (args.next.state !== args.existing.state ||
+      args.next.expiresAt !== args.existing.expiresAt);
+  const observed = resyncAdvanced || evidenceAdvanced || undatedAppleChange;
+  // A delayed commit or receipt replay is not new store evidence.
+  const observedAt = undatedAppleChange
+    ? args.verifiedSignedDate!
+    : Math.max(
+        args.resyncedAt ?? -Infinity,
+        args.verifiedEvidenceAt ?? -Infinity,
+      );
+  const analytics = observed
+    ? {
+        ...(args.existing?.analytics ?? { paidMicros: 0, refundedMicros: 0 }),
+        accessHistory: foldAccessHistory(
+          args.existing?.analytics?.accessHistory,
+          [
+            {
+              effectiveAt: observedAt,
+              sourceAt:
+                args.resyncedAt ?? args.verifiedSignedDate ?? observedAt,
+              sourceCreatedAt: args.now,
+              ...(!undatedAppleChange && args.next.state !== "Unknown"
+                ? {
+                    active:
+                      args.next.state === "Active" ||
+                      args.next.state === "InGracePeriod",
+                  }
+                : {}),
+              ...(args.next.expiresAt !== undefined
+                ? { expiresAt: args.next.expiresAt }
+                : {}),
+            },
+          ],
+          args.now,
+        ),
+      }
+    : args.existing?.analytics;
+
   const row = {
+    ...(analytics ? { analytics } : {}),
     purchaseToken: args.purchaseToken,
     productKind: "subscription" as const,
     ...(args.existing?.userId ? { userId: args.existing.userId } : {}),
@@ -1178,6 +1273,7 @@ type SupersedingSubscriptionResolution =
       aliased: true;
       subscription: Doc<"subscriptions"> | null;
       productId?: string;
+      analyticsReplacementAt?: number;
     };
 
 // Follows a token Google replaced to the row that holds it now.
@@ -1188,6 +1284,7 @@ export async function findSupersedingSubscription(
 ): Promise<SupersedingSubscriptionResolution> {
   let token = purchaseToken;
   let productId: string | undefined;
+  let analyticsReplacementAt: number | undefined;
   const seen = new Set<string>([token]);
   for (let hop = 0; hop <= MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS; hop += 1) {
     const alias = await ctx.db
@@ -1203,19 +1300,38 @@ export async function findSupersedingSubscription(
             aliased: true,
             subscription: await findSubscriptionByToken(ctx, projectId, token),
             productId,
+            analyticsReplacementAt,
           };
     }
-    if (hop === 0) productId = alias.predecessorProductId;
+    if (hop === 0) {
+      productId = alias.predecessorProductId;
+      analyticsReplacementAt = alias.analyticsReplacementAt;
+    }
     if (hop === MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS) {
-      return { aliased: true, subscription: null, productId };
+      return {
+        aliased: true,
+        subscription: null,
+        productId,
+        analyticsReplacementAt,
+      };
     }
     if (seen.has(alias.successorPurchaseToken)) {
-      return { aliased: true, subscription: null, productId };
+      return {
+        aliased: true,
+        subscription: null,
+        productId,
+        analyticsReplacementAt,
+      };
     }
     token = alias.successorPurchaseToken;
     seen.add(token);
   }
-  return { aliased: true, subscription: null, productId };
+  return {
+    aliased: true,
+    subscription: null,
+    productId,
+    analyticsReplacementAt,
+  };
 }
 
 async function recordSubscriptionTokenAlias(
@@ -1225,6 +1341,7 @@ async function recordSubscriptionTokenAlias(
     purchaseToken?: string;
     successorPurchaseToken: string;
     predecessorProductId?: string;
+    analyticsReplacementAt?: number;
     now: number;
   },
 ): Promise<void> {
@@ -1243,9 +1360,17 @@ async function recordSubscriptionTokenAlias(
     )
     .unique();
   if (existing) {
-    if (existing.successorPurchaseToken !== args.successorPurchaseToken) {
+    if (
+      existing.successorPurchaseToken !== args.successorPurchaseToken ||
+      (existing.analyticsReplacementAt === undefined &&
+        args.analyticsReplacementAt !== undefined)
+    ) {
       await ctx.db.patch(existing._id, {
         successorPurchaseToken: args.successorPurchaseToken,
+        analyticsReplacementAt:
+          existing.successorPurchaseToken === args.successorPurchaseToken
+            ? (existing.analyticsReplacementAt ?? args.analyticsReplacementAt)
+            : args.analyticsReplacementAt,
         predecessorProductId:
           existing.predecessorProductId ?? args.predecessorProductId,
         updatedAt: args.now,
@@ -1258,6 +1383,7 @@ async function recordSubscriptionTokenAlias(
     purchaseToken: args.purchaseToken,
     successorPurchaseToken: args.successorPurchaseToken,
     predecessorProductId: args.predecessorProductId,
+    analyticsReplacementAt: args.analyticsReplacementAt,
     createdAt: args.now,
     updatedAt: args.now,
   });

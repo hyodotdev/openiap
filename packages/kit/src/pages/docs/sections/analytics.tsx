@@ -46,7 +46,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Expirations / churn",
     definition:
-      "Expirations count paid access that actually ended; a free trial or free offer period that ended unpaid is not churn. Churn is expirations in the period divided by paid subscriptions active at its start; it shows — until a day with rows sets that start.",
+      "Expirations count paid access that actually ended; a free trial or free offer period that ended unpaid is not churn. Churn is expirations in the period divided by paid subscriptions active at its start; it shows — when the starting count or historical access evidence is incomplete.",
   },
   {
     name: "Refunds",
@@ -56,7 +56,7 @@ const METRICS: Array<{ name: string; definition: string }> = [
   {
     name: "Active subscriptions",
     definition:
-      "End-of-day count of subscriptions with access (today: as of the latest run), including free trials (shown separately). Billing retry has no access; grace period does.",
+      "End-of-day count of subscriptions with access (today: as of the latest run), including free trials (shown separately). Billing retry has no access; grace period does. Missing historical access is shown as —, not zero.",
   },
 ];
 
@@ -187,6 +187,16 @@ export default function AnalyticsPage() {
         </li>
       </ul>
 
+      <p>
+        Historical access uses observed store boundaries at the last 24 UTC
+        month ends and 30 day ends. It does not reconstruct missing periods from
+        today's expiry. Apple charge and revocation dates locate their access
+        changes; a current Play status fetch proves access only from its
+        observation time. Existing rows and missing store dates can leave
+        history unverified. Active totals and churn show — when their access
+        evidence is incomplete.
+      </p>
+
       <h2 className="mt-10 text-2xl font-semibold">Cohorts and realized LTV</h2>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
@@ -194,12 +204,13 @@ export default function AnalyticsPage() {
           paid charge, as a direct paid start or a trial conversion. A
           subscription whose first observed charge is a renewal, or an Apple
           resubscribe with no trial before it, started before IAPKit saw it and
-          is left out.
+          is left out. A missing trusted start date also leaves it out.
         </li>
         <li>
           <strong>Retention M+k</strong>: the share of the cohort with paid
           access at the end of month k. A canceled subscription stays retained
-          until its paid period ends; a refund ends it at the refund.
+          until its paid period ends; a refund ends it at the refund. A later
+          renewal or refund reversal does not fill an earlier lapse.
         </li>
         <li>
           <strong>Realized LTV</strong>: gross revenue observed from the cohort
@@ -209,7 +220,8 @@ export default function AnalyticsPage() {
         <li>
           <strong>Trial-to-paid rate</strong>: conversions divided by the trials
           of that month that have ended. Trials still running are left out of
-          the denominator.
+          the denominator. The rate is unavailable when any trial lacks the
+          evidence needed to decide its outcome.
         </li>
       </ul>
       <p>
@@ -277,7 +289,12 @@ export default function AnalyticsPage() {
         <code>GET /v1/subscriptions/metrics</code> returns live counts and MRR
         with <code>environment: &quot;Production&quot;</code>. The MCP{" "}
         <code>iapkit_revenue_analytics</code> tool takes the revenue options and
-        returns the definitions with its totals. When cohorts are requested,{" "}
+        returns the definitions with its totals. Daily rows expose{" "}
+        <code>activeHistoryComplete</code>; an absent or false flag means the
+        numeric active count is incomplete. Cohort{" "}
+        <code>retentionObserved[k]</code> must equal <code>members</code> before
+        interpreting <code>retained[k]</code> as a rate. The MCP returns null
+        for incomplete retention and trial outcomes. When cohorts are requested,{" "}
         <code>cohortScope: "project"</code> distinguishes them from filtered
         daily totals.
       </p>

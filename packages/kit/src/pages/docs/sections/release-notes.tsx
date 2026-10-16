@@ -73,7 +73,7 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         topic: "Analytics",
-        text: "Trial starts, trial conversions and direct paid starts are counted separately, with monthly retention and realized LTV cohorts. The dashboard and MCP label cohorts as project-wide within the selected environment and currency; date, product and platform filters apply only to daily metrics. Each metric shows, per environment, whether data is not collected, still processing or a real zero.",
+        text: "Trial starts, trial conversions and direct paid starts are counted separately, with monthly retention and realized LTV cohorts. Bounded month-end and day-end access evidence preserves lapses, refunds and token replacements; missing history shows as unavailable instead of a fabricated zero or retention rate. The dashboard and MCP label cohorts as project-wide within the selected environment and currency; date, product and platform filters apply only to daily metrics. Each metric shows, per environment, whether data is not collected, still processing or a real zero.",
       },
       {
         kind: "feature",

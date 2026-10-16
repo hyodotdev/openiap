@@ -1698,6 +1698,8 @@ const REVENUE_DEFINITIONS = {
     "renewals: paid renewals, billing recoveries, Apple resubscribes and Google plan changes Play charged at once. A trial's first paid charge is in trialConversions, not here.",
   trials:
     "trialStarts: free trials started; on Apple only introductory offers, not promotional, offer-code or win-back offers. trialConversions: the paid charge that ends a free trial; a purchase after a lapsed trial is a direct paid start.",
+  activeHistory:
+    "Daily activeSubs is a confirmed count only when activeHistoryComplete is true. An absent or false flag means historical access is incomplete; do not present it as an exact total or use it for churn. Missing historical cohort rates are null, not zero.",
   churn:
     "cancellations: auto-renew turned off (less turned back on); access continues until the paid period ends. expirations: paid access actually ended; a free trial or free offer period that ended unpaid, or a purchase Google replaced in a plan change, is not counted.",
   refunds:
@@ -1709,7 +1711,7 @@ const REVENUE_DEFINITIONS = {
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:
-    "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with paid access at the end of month k. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
+    "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with observed paid access at the end of month k; null if any member lacks historical evidence. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
 } as const;
 
 type RevenueTotals = {
@@ -1827,14 +1829,18 @@ function summarizeRevenueMetrics(
                 (cohort.revenueMicros - cohort.refundedMicros) / cohort.members,
               )
             : 0,
-        retentionRates: cohort.retained.map((count) =>
-          cohort.members > 0 ? count / cohort.members : null,
+        retentionRates: cohort.retained.map((count, k) =>
+          cohort.members > 0 && cohort.retentionObserved?.[k] === cohort.members
+            ? count / cohort.members
+            : null,
         ),
         trialStarts: cohort.trialStarts,
         trialConversions: cohort.trialConversions,
         trialsPending: cohort.trialsPending,
         trialToPaidRate:
-          resolvedTrials > 0 ? cohort.trialConversions / resolvedTrials : null,
+          resolvedTrials > 0 && cohort.trialsUnobserved === 0
+            ? cohort.trialConversions / resolvedTrials
+            : null,
         observedThrough: cohort.observedThrough,
       };
     });

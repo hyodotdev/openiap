@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_SCAN_PAGE_SIZE } from "./accessHistory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compareValues, type Value } from "convex/values";
 
@@ -371,7 +372,7 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     };
     // Two pages of production subscriptions and a sandbox tester that an
     // earlier release counted.
-    for (let i = 0; i < 5_001; i++) {
+    for (let i = 0; i < SUBSCRIPTION_SCAN_PAGE_SIZE + 1; i++) {
       db.seed("subscriptions", { ...sub, purchaseToken: `token-${i}` });
     }
     db.seed("subscriptions", {
@@ -382,10 +383,10 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     db.seed("subscriptionStats", {
       projectId: PROJECT,
       currency: "USD",
-      activeSubs: 5_002,
+      activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 2,
       inGracePeriod: 0,
       inBillingRetry: 0,
-      mrrMicros: 5_002_000_000,
+      mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 2) * 1_000_000,
       updatedAt: 0,
     });
     const pages: PageArgs[] = [];
@@ -396,7 +397,7 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     // Between pages: a scanned row expires, an unscanned one enters grace,
     // and a new subscription starts.
     await write(ctx, "token-0", "Expired");
-    await write(ctx, "token-5000", "InGracePeriod");
+    await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "InGracePeriod");
     await write(ctx, "token-new", "Active");
     await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
 
@@ -404,9 +405,9 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     expect(committed).toMatchObject([
       {
         currency: "USD",
-        activeSubs: 5_000,
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
         inGracePeriod: 1,
-        mrrMicros: 5_000_000_000,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
       },
     ]);
     expect(db.rows("subscriptionStatsRebuilds")).toEqual([]);
@@ -415,7 +416,11 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     await rebuild(ctx);
     await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
     expect(db.rows("subscriptionStats")).toMatchObject([
-      { activeSubs: 5_000, inGracePeriod: 1, mrrMicros: 5_000_000_000 },
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE,
+        inGracePeriod: 1,
+        mrrMicros: SUBSCRIPTION_SCAN_PAGE_SIZE * 1_000_000,
+      },
     ]);
   });
 });

@@ -310,13 +310,13 @@ function AllProducts() {
                             <Text style={styles.offerDetail}>
                               Price: {offer.displayPrice}
                             </Text>
-                            {offer.fullPriceMicrosAndroid && (
+                            {offer.fullPriceMicrosAndroid != null && (
                               <Text style={styles.offerDetail}>
                                 Full Price (micros):{' '}
                                 {offer.fullPriceMicrosAndroid}
                               </Text>
                             )}
-                            {offer.percentageDiscountAndroid && (
+                            {(offer.percentageDiscountAndroid ?? 0) > 0 && (
                               <Text style={styles.offerDetail}>
                                 {offer.percentageDiscountAndroid}% off
                               </Text>
@@ -422,7 +422,7 @@ function AllProducts() {
                                   {offer.period.unit}
                                 </Text>
                               )}
-                              {offer.periodCount && (
+                              {offer.periodCount != null && (
                                 <Text style={styles.offerDetail}>
                                   Period Count: {offer.periodCount}
                                 </Text>

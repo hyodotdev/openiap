@@ -575,6 +575,7 @@ async function maybeFetchSubscriptionInfo(
       { timeout: 10_000 },
     );
 
+    const snapshotObservedAt = Date.now();
     const data = response.data;
     // v2 has expiryTime per line item, not the legacy root expiryTimeMillis.
     //
@@ -733,6 +734,7 @@ async function maybeFetchSubscriptionInfo(
         replacementMode === "CHARGE_PRORATED_PRICE");
 
     return {
+      snapshotObservedAt,
       productId: matched?.productId ?? undefined,
       environment: googlePlayEnvironment(data.testPurchase),
       ...(ambiguousLineItems ? { ambiguousLineItems: true } : {}),

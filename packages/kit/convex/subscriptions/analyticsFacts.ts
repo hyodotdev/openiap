@@ -3,6 +3,11 @@
 // late, out-of-order and replayed notifications converge to the same facts.
 // Nothing here is read by verification, restore or entitlement code.
 
+import {
+  eventAccessEvidence,
+  foldAccessHistory,
+  replaceAccessHistory,
+} from "./accessHistory";
 import type { Infer } from "convex/values";
 
 import type { MutationCtx } from "../_generated/server";
@@ -18,6 +23,14 @@ export type AnalyticsEnvironment = Infer<typeof receiptEnvironmentValidator>;
 type FactEvent = Pick<
   Doc<"webhookEvents">,
   | "_id"
+  | "_creationTime"
+  | "platform"
+  | "purchaseDate"
+  | "revocationDate"
+  | "snapshotObservedAt"
+  | "subscriptionState"
+  | "expiresAt"
+  | "effectiveImmediately"
   | "type"
   | "occurredAt"
   | "freeTrial"
@@ -158,30 +171,35 @@ export function nextAnalyticsFacts(
     ? { ...current }
     : { paidMicros: 0, refundedMicros: 0 };
   let changed = false;
+  const anchorAt =
+    event.platform === "IOS"
+      ? (event.purchaseDate ?? event.occurredAt)
+      : event.occurredAt;
+  const anchorKnown =
+    event.platform !== "IOS" || event.purchaseDate !== undefined;
 
   // A trial starts before the first paid charge, in whichever order they
   // arrive.
   if (
     isTrialStart(event) &&
-    event.occurredAt < (next.trialStartedAt ?? Infinity) &&
-    event.occurredAt <= (next.firstPaidAt ?? Infinity)
+    anchorAt < (next.trialStartedAt ?? Infinity) &&
+    anchorAt <= (next.firstPaidAt ?? Infinity)
   ) {
-    next.trialStartedAt = event.occurredAt;
+    next.trialStartedAt = anchorAt;
+    next.trialAnchorKnown = anchorKnown;
     changed = true;
   }
 
   if (isPaidCharge(event) && isPaidChargeType(event.type)) {
     // A replacement continues a subscription, so it never starts its cohort.
-    if (
-      !isPlanChange(event) &&
-      event.occurredAt < (next.firstPaidAt ?? Infinity)
-    ) {
-      next.firstPaidAt = event.occurredAt;
+    if (!isPlanChange(event) && anchorAt < (next.firstPaidAt ?? Infinity)) {
+      next.firstPaidAt = anchorAt;
+      next.firstPaidAnchorKnown = anchorKnown;
       next.firstPaidEventId = event._id;
       next.firstPaidEventType = event.type;
       if (event.resubscribe === true) next.firstPaidResubscribe = true;
       else delete next.firstPaidResubscribe;
-      if ((next.trialStartedAt ?? -Infinity) > event.occurredAt) {
+      if ((next.trialStartedAt ?? -Infinity) > anchorAt) {
         delete next.trialStartedAt;
       }
       changed = true;
@@ -218,8 +236,21 @@ function addMoney(
 export function mergeAnalyticsFacts(
   a: SubscriptionAnalytics | undefined,
   b: SubscriptionAnalytics | undefined,
+  replacement?: { at?: number; now: number },
 ): SubscriptionAnalytics | undefined {
-  if (!a || !b) return a ?? b;
+  if (!a || !b) {
+    const facts = a ?? b;
+    if (!facts || !replacement) return facts;
+    return {
+      ...facts,
+      accessHistory: replaceAccessHistory(
+        b?.accessHistory,
+        a?.accessHistory,
+        replacement.at,
+        replacement.now,
+      ),
+    };
+  }
   const firstPaid =
     b.firstPaidAt !== undefined &&
     (a.firstPaidAt === undefined || b.firstPaidAt < a.firstPaidAt)
@@ -238,10 +269,29 @@ export function mergeAnalyticsFacts(
     b.currency === undefined ||
     a.currency === b.currency;
   return {
-    ...(trialBeforePaid ? { trialStartedAt } : {}),
+    ...(replacement
+      ? {
+          accessHistory: replaceAccessHistory(
+            b.accessHistory,
+            a.accessHistory,
+            replacement.at,
+            replacement.now,
+          ),
+        }
+      : a.accessHistory
+        ? { accessHistory: a.accessHistory }
+        : {}),
+    ...(trialBeforePaid
+      ? {
+          trialStartedAt,
+          trialAnchorKnown: (trialStartedAt === a.trialStartedAt ? a : b)
+            .trialAnchorKnown,
+        }
+      : {}),
     ...(firstPaid.firstPaidAt !== undefined
       ? {
           firstPaidAt: firstPaid.firstPaidAt,
+          firstPaidAnchorKnown: firstPaid.firstPaidAnchorKnown,
           firstPaidEventId: firstPaid.firstPaidEventId,
           firstPaidEventType: firstPaid.firstPaidEventType,
           ...(firstPaid.firstPaidResubscribe
@@ -262,12 +312,24 @@ export async function recordSubscriptionAnalyticsFacts(
   ctx: Pick<MutationCtx, "db">,
   subscriptionId: Id<"subscriptions">,
   event: FactEvent,
+  historyBefore?: number | null,
 ): Promise<void> {
   try {
     const sub = await ctx.db.get(subscriptionId);
     if (!sub) return;
-    const next = nextAnalyticsFacts(sub.analytics, event);
-    if (!next) return;
+    const financial = nextAnalyticsFacts(sub.analytics, event);
+    const evidence = historyBefore === null ? [] : eventAccessEvidence(event);
+    if (!financial && evidence.length === 0) return;
+    const next = {
+      ...(financial ?? sub.analytics ?? { paidMicros: 0, refundedMicros: 0 }),
+    };
+    if (evidence.length)
+      next.accessHistory = foldAccessHistory(
+        next.accessHistory,
+        evidence,
+        Date.now(),
+        historyBefore,
+      );
     await ctx.db.patch(subscriptionId, { analytics: next });
     await reconcilePaidStart(ctx, [sub.analytics], next);
   } catch (error) {

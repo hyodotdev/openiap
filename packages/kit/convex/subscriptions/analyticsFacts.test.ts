@@ -37,7 +37,11 @@ describe("nextAnalyticsFacts", () => {
         undefined,
         event({ type: "SubscriptionStarted", freeTrial: true }),
       ),
-    ).toEqual({ trialStartedAt: 1_000, paidMicros: 0, refundedMicros: 0 });
+    ).toMatchObject({
+      trialStartedAt: 1_000,
+      paidMicros: 0,
+      refundedMicros: 0,
+    });
   });
 
   it("adds paid charges and subtracts nothing for lifecycle-only events", () => {
@@ -130,7 +134,7 @@ describe("nextAnalyticsFacts", () => {
       ).toBeNull();
     }
     // The trial still converts on the first charge after the change.
-    expect(trial).toEqual({
+    expect(trial).toMatchObject({
       trialStartedAt: 1_000,
       paidMicros: 0,
       refundedMicros: 0,
@@ -154,7 +158,7 @@ describe("nextAnalyticsFacts", () => {
           occurredAt: 500,
         }),
       ),
-    ).toEqual({ ...paid, paidMicros: 2 * PRICE });
+    ).toMatchObject({ ...paid, paidMicros: 2 * PRICE });
   });
 
   it("records no trial that starts after the first paid charge, in either order", () => {
@@ -178,15 +182,15 @@ describe("nextAnalyticsFacts", () => {
     };
     const paidFirst = nextAnalyticsFacts(undefined, paid) ?? undefined;
     expect(nextAnalyticsFacts(paidFirst, laterTrial)).toBeNull();
-    expect(paidFirst).toEqual(expected);
+    expect(paidFirst).toMatchObject(expected);
     const trialFirst = nextAnalyticsFacts(undefined, laterTrial) ?? undefined;
-    expect(nextAnalyticsFacts(trialFirst, paid)).toEqual(expected);
+    expect(nextAnalyticsFacts(trialFirst, paid)).toMatchObject(expected);
     expect(
       mergeAnalyticsFacts(
         { trialStartedAt: 3_000, paidMicros: 0, refundedMicros: 0 },
         paidFirst,
       ),
-    ).toEqual(expected);
+    ).toMatchObject(expected);
   });
 
   it("records a resubscribe as the first charge, never as a trial start", () => {
@@ -194,7 +198,7 @@ describe("nextAnalyticsFacts", () => {
       type: "SubscriptionStarted",
       resubscribe: true,
     });
-    expect(nextAnalyticsFacts(undefined, resubscribe)).toEqual({
+    expect(nextAnalyticsFacts(undefined, resubscribe)).toMatchObject({
       firstPaidAt: 1_000,
       firstPaidEventId: "webhookEvents_1",
       firstPaidEventType: "SubscriptionStarted",
@@ -345,7 +349,7 @@ describe("mergeAnalyticsFacts", () => {
           refundedMicros: PRICE,
         },
       ),
-    ).toEqual({
+    ).toMatchObject({
       trialStartedAt: 1,
       firstPaidAt: 2,
       firstPaidEventType: "SubscriptionRenewed",

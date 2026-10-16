@@ -1,3 +1,7 @@
+import {
+  SUBSCRIPTION_SCAN_PAGE_SIZE,
+  SUBSCRIPTION_SCAN_BYTES,
+} from "./accessHistory";
 // Keeps `subscriptionStats` in step with subscription transitions, so
 // metricsSummary's headline counts need no scan.
 
@@ -272,10 +276,8 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
 });
 
-// Subscriptions per page: about 5 MiB of the 16 MiB a mutation may read, with
-// room for the product and stats reads. Pages chain, so any project size
-// completes.
-const RECOMPUTE_PAGE_SIZE = 5_000;
+// Shared row and byte bounds leave room for catalog and stats reads.
+const RECOMPUTE_PAGE_SIZE = SUBSCRIPTION_SCAN_PAGE_SIZE;
 
 // Scans subscriptions in creation order, which writes never reorder, so each
 // row is read once; concurrent writes reach the totals through
@@ -319,7 +321,11 @@ async function runRecomputePageInline(
   const result = await ctx.db
     .query("subscriptions")
     .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-    .paginate({ numItems: RECOMPUTE_PAGE_SIZE, cursor: args.cursor });
+    .paginate({
+      maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
+      numItems: RECOMPUTE_PAGE_SIZE,
+      cursor: args.cursor,
+    });
 
   const totals: StatsTotals = ours ? totalsFromRows(ours.totals) : new Map();
   const now = Date.now();

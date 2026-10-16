@@ -3,9 +3,14 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => {
-  const state: { metrics: unknown; lastArgs: unknown } = {
+  const state: {
+    metrics: unknown;
+    lastArgs: unknown;
+    lineSeries: Array<Record<string, unknown>>;
+  } = {
     metrics: undefined,
     lastArgs: undefined,
+    lineSeries: [],
   };
   return {
     project: {
@@ -31,6 +36,19 @@ vi.mock("convex/react", () => ({
     return mocks.state.metrics;
   },
 }));
+
+vi.mock("recharts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("recharts")>();
+  return {
+    ...original,
+    ResponsiveContainer: ({ children }: { children: React.ReactNode }) =>
+      children,
+    LineChart: ({ data }: { data: Array<Record<string, unknown>> }) => {
+      mocks.state.lineSeries = data;
+      return null;
+    },
+  };
+});
 
 vi.mock("@/convex", () => ({
   api: {
@@ -68,6 +86,7 @@ beforeAll(() => {
 });
 
 const churnRow = {
+  activeHistoryComplete: true,
   currency: "USD",
   productId: "premium",
   platform: "IOS",
@@ -131,6 +150,7 @@ describe("ProjectAnalytics data states", () => {
       new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
     const [twoDaysAgo, yesterday] = [dayKey(2), dayKey(1)];
     const row = {
+      activeHistoryComplete: true,
       currency: "USD",
       productId: "premium",
       platform: "IOS",
@@ -178,6 +198,13 @@ describe("ProjectAnalytics data states", () => {
     expect(screen.getByText("Trials started").parentElement?.textContent).toBe(
       `Trials started1From ${yesterday}`,
     );
+    expect(
+      mocks.state.lineSeries.find((row) => row.dayKey === twoDaysAgo),
+    ).toMatchObject({
+      paidActiveSubs: null,
+      activeTrials: null,
+      trialStarts: null,
+    });
     // The split day's base would count yesterday's trials as paid, so churn
     // starts the day after: one expiry of three paid subscriptions.
     expect(screen.getByText("Churn").parentElement?.textContent).toBe(
@@ -254,6 +281,8 @@ describe("ProjectAnalytics data states", () => {
           refundedMicros: 0,
           realizedLtvMicros: 2 * 9_990_000,
           retained: [10, 5],
+          retentionObserved: [10, 10],
+          trialsUnobserved: 0,
           trialStarts: 3,
           trialConversions: 1,
           trialsPending: 1,
@@ -280,4 +309,53 @@ describe("ProjectAnalytics data states", () => {
     expect(screen.getByText("USD 19.98")).toBeTruthy();
     expect(screen.getByText("50% of 2")).toBeTruthy();
   });
+  it.each([undefined, [10, 9]])(
+    "does not show partial historical counts as exact rates (%s)",
+    (observed) => {
+      const yesterday = new Date(Date.now() - 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      mocks.state.metrics = response({
+        currencies: ["USD"],
+        days: [
+          { ...churnRow, day: yesterday, activeSubs: 4 },
+          {
+            ...churnRow,
+            day: today,
+            activeSubs: 3,
+            activeHistoryComplete: false,
+            expirations: 1,
+          },
+        ],
+        cohorts: [
+          {
+            month: "2026-01",
+            currency: "USD",
+            members: 10,
+            revenueMicros: 10000000,
+            refundedMicros: 0,
+            realizedLtvMicros: 1000000,
+            retained: [10, 5],
+            retentionObserved: observed,
+            trialStarts: 3,
+            trialConversions: 1,
+            trialsPending: 1,
+            trialsUnobserved: 1,
+            observedThrough: today,
+          },
+        ],
+      });
+      render(<ProjectAnalytics />);
+      expect(
+        screen.getAllByText("Active subscriptions")[0].parentElement
+          ?.textContent,
+      ).toContain("—");
+      expect(screen.getByText("Churn").parentElement?.textContent).toBe(
+        "Churn—",
+      );
+      expect(screen.queryByText("50%")).toBeNull();
+      expect(screen.queryByText("50% of 2")).toBeNull();
+      if (observed) expect(screen.getByText("100%")).toBeTruthy();
+    },
+  );
 });
