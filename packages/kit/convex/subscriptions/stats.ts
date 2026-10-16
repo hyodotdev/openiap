@@ -280,9 +280,6 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
 });
 
-// Shared row and byte bounds leave room for catalog and stats reads.
-const RECOMPUTE_PAGE_SIZE = SUBSCRIPTION_SCAN_PAGE_SIZE;
-
 // Scans subscriptions in creation order, which writes never reorder, so each
 // row is read once; concurrent writes reach the totals through
 // `applyStatsTransition`. The last page replaces the project's stats.
@@ -290,7 +287,8 @@ async function runRecomputePageInline(
   ctx: MutationCtx,
   args: {
     projectId: Id<"projects">;
-    startedAt: number;
+    rebuildId?: Id<"subscriptionStatsRebuilds">;
+    startedAt?: number;
     cursor: string | null;
   },
 ): Promise<void> {
@@ -299,18 +297,19 @@ async function runRecomputePageInline(
   if (!(await getWritableProject(ctx, args.projectId))) return;
 
   const rebuild = await getStatsRebuild(ctx, args.projectId);
-  const ours = rebuild?.startedAt === args.startedAt ? rebuild : null;
+  const ours =
+    rebuild &&
+    (args.rebuildId !== undefined
+      ? rebuild._id === args.rebuildId
+      : args.startedAt !== undefined && rebuild.startedAt === args.startedAt)
+      ? rebuild
+      : null;
   // A newer rebuild replaced this one.
   if (args.cursor !== null && !ours) return;
 
-  // Timestamp-only checkpoints can already double-count tied rows. Start over
-  // with a new generation so queued pages cannot reuse the corrupt totals.
-  const restart =
-    args.cursor === null ||
-    (ours?.scannedThrough !== undefined && ours.scannedThroughId === undefined);
-  const startedAt = restart
-    ? Math.max(Date.now(), (rebuild?.startedAt ?? -Infinity) + 1)
-    : args.startedAt;
+  // Legacy totals can already be corrupt. Restart them under a fresh row ID;
+  // new checkpoints omit the timestamp so old pages cannot claim them.
+  const restart = args.cursor === null || args.rebuildId === undefined;
 
   // Keyed by platform too: one SKU can have a different period per store.
   // Re-read on every page; catalogs are small and cheaper to read than to pass
@@ -336,7 +335,7 @@ async function runRecomputePageInline(
     .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
     .paginate({
       maximumBytesRead: SUBSCRIPTION_SCAN_BYTES,
-      numItems: RECOMPUTE_PAGE_SIZE,
+      numItems: SUBSCRIPTION_SCAN_PAGE_SIZE,
       cursor: restart ? null : args.cursor,
     });
 
@@ -355,18 +354,19 @@ async function runRecomputePageInline(
   if (!result.isDone) {
     const lastRead = result.page[result.page.length - 1];
     const fields = {
-      startedAt,
       totals: totalsToRows(totals),
       scannedThrough:
         lastRead?._creationTime ?? (restart ? undefined : ours?.scannedThrough),
       scannedThroughId:
         lastRead?._id ?? (restart ? undefined : ours?.scannedThroughId),
     };
-    if (ours) {
+    let rebuildId: Id<"subscriptionStatsRebuilds">;
+    if (ours && !restart) {
       await ctx.db.patch(ours._id, fields);
+      rebuildId = ours._id;
     } else {
       if (rebuild) await ctx.db.delete(rebuild._id);
-      await ctx.db.insert("subscriptionStatsRebuilds", {
+      rebuildId = await ctx.db.insert("subscriptionStatsRebuilds", {
         projectId: args.projectId,
         ...fields,
       });
@@ -376,7 +376,7 @@ async function runRecomputePageInline(
       internal.subscriptions.stats.runRecomputePage,
       {
         projectId: args.projectId,
-        startedAt,
+        rebuildId,
         cursor: result.continueCursor,
       },
     );
@@ -432,7 +432,8 @@ async function runRecomputePageInline(
 export const runRecomputePage = internalMutation({
   args: {
     projectId: v.id("projects"),
-    startedAt: v.number(),
+    rebuildId: v.optional(v.id("subscriptionStatsRebuilds")),
+    startedAt: v.optional(v.number()),
     cursor: v.union(v.string(), v.null()),
   },
   returns: v.null(),
@@ -454,7 +455,6 @@ export const recomputeSubscriptionStats = internalMutation({
   handler: async (ctx, args) => {
     await runRecomputePageInline(ctx, {
       projectId: args.projectId,
-      startedAt: Date.now(),
       cursor: null,
     });
     return null;

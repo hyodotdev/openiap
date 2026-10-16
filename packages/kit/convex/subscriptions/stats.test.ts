@@ -300,7 +300,8 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
 
   type PageArgs = {
     projectId: Id<"projects">;
-    startedAt: number;
+    rebuildId?: Id<"subscriptionStatsRebuilds">;
+    startedAt?: number;
     cursor: string | null;
   };
 
@@ -429,34 +430,42 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     );
   });
 
+  async function merge(
+    db: MemoryDb,
+    ctx: ReturnType<typeof memoryCtx>,
+    removedIndex: number,
+  ): Promise<void> {
+    const survivor = db
+      .rows("subscriptions")
+      .find((row) => row.purchaseToken === "token-1")!;
+    await db.patch(survivor._id, { lastEventOccurredAt: DAY / 2 });
+    const eventId = db.seed("webhookEvents", {
+      projectId: PROJECT,
+      platform: "Android",
+      store: "google",
+      source: "GooglePlayRealTimeDeveloperNotifications",
+      type: "SubscriptionRenewed",
+      environment: "Production",
+      purchaseToken: "token-1",
+      linkedPurchaseToken: `token-${removedIndex}`,
+      productId: "premium",
+      occurredAt: DAY,
+      expiresAt: 40 * DAY,
+      currency: "USD",
+      priceAmountMicros: 1_000_000,
+    });
+    await testableFunction(applySubscriptionEvent)._handler(ctx, {
+      projectId: PROJECT,
+      eventId: eventId as Id<"webhookEvents">,
+    });
+  }
+
   it.each([0, SUBSCRIPTION_SCAN_PAGE_SIZE])(
     "removes a linked duplicate at tied boundary row %i once",
     async (removedIndex) => {
       const { db, pages, ctx } = await tiedRows();
-      const survivor = db
-        .rows("subscriptions")
-        .find((row) => row.purchaseToken === "token-1")!;
-      await db.patch(survivor._id, { lastEventOccurredAt: DAY / 2 });
       await rebuild(ctx);
-      const eventId = db.seed("webhookEvents", {
-        projectId: PROJECT,
-        platform: "Android",
-        store: "google",
-        source: "GooglePlayRealTimeDeveloperNotifications",
-        type: "SubscriptionRenewed",
-        environment: "Production",
-        purchaseToken: "token-1",
-        linkedPurchaseToken: `token-${removedIndex}`,
-        productId: "premium",
-        occurredAt: DAY,
-        expiresAt: 40 * DAY,
-        currency: "USD",
-        priceAmountMicros: 1_000_000,
-      });
-      await testableFunction(applySubscriptionEvent)._handler(ctx, {
-        projectId: PROJECT,
-        eventId: eventId as Id<"webhookEvents">,
-      });
+      await merge(db, ctx, removedIndex);
       expect(db.rows("subscriptions")).toHaveLength(
         SUBSCRIPTION_SCAN_PAGE_SIZE,
       );
@@ -470,12 +479,36 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     },
   );
 
+  it("ignores a retired page after a completed rebuild and a changed scan boundary", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const retiredPage = pages[0];
+    await rebuild(ctx);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[1]);
+    await merge(db, ctx, 0);
+    await write(ctx, "new-token", "Active");
+    await rebuild(ctx);
+    await testableFunction(runRecomputePage)._handler(ctx, retiredPage);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[2]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      {
+        activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1,
+        mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 1) * 1_000_000,
+      },
+    ]);
+  });
+
   it("restarts a legacy checkpoint and rejects its stale continuation", async () => {
     const { db, pages, ctx } = await tiedRows();
     await rebuild(ctx);
-    const stalePage = pages[0];
     const checkpoint = db.rows("subscriptionStatsRebuilds")[0];
+    const stalePage: PageArgs = {
+      projectId: PROJECT,
+      cursor: pages[0].cursor,
+      startedAt: Date.now(),
+    };
     await db.patch(checkpoint._id, {
+      startedAt: stalePage.startedAt,
       scannedThroughId: undefined,
       totals: [
         {
@@ -490,7 +523,8 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     await write(ctx, `token-${SUBSCRIPTION_SCAN_PAGE_SIZE}`, "InGracePeriod");
     await testableFunction(runRecomputePage)._handler(ctx, stalePage);
     expect(pages).toHaveLength(2);
-    expect(pages[1].startedAt).toBeGreaterThan(stalePage.startedAt);
+    expect(pages[1].rebuildId).not.toBe(checkpoint._id);
+    expect(db.rows("subscriptionStatsRebuilds")[0].startedAt).toBeUndefined();
     const restarted = structuredClone(db.rows("subscriptionStatsRebuilds"));
     await testableFunction(runRecomputePage)._handler(ctx, stalePage);
     expect(db.rows("subscriptionStatsRebuilds")).toEqual(restarted);
@@ -506,12 +540,12 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
     ]);
   });
 
-  it("restarts a second kickoff in the same millisecond with a new generation", async () => {
+  it("restarts a second kickoff in the same millisecond with a fresh checkpoint", async () => {
     const { db, pages, ctx } = await tiedRows();
     await rebuild(ctx);
     const stalePage = pages[0];
     await rebuild(ctx);
-    expect(pages[1].startedAt).toBeGreaterThan(stalePage.startedAt);
+    expect(pages[1].rebuildId).not.toBe(stalePage.rebuildId);
     const restarted = structuredClone(db.rows("subscriptionStatsRebuilds"));
     await testableFunction(runRecomputePage)._handler(ctx, stalePage);
     expect(db.rows("subscriptionStatsRebuilds")).toEqual(restarted);
@@ -521,6 +555,22 @@ describe("recomputeSubscriptionStats under concurrent writes", () => {
         activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1,
         mrrMicros: (SUBSCRIPTION_SCAN_PAGE_SIZE + 1) * 1_000_000,
       },
+    ]);
+  });
+
+  it("rejects a continuation without a checkpoint owner", async () => {
+    const { db, pages, ctx } = await tiedRows();
+    await rebuild(ctx);
+    const checkpoint = structuredClone(db.rows("subscriptionStatsRebuilds"));
+    await testableFunction(runRecomputePage)._handler(ctx, {
+      projectId: PROJECT,
+      cursor: pages[0].cursor,
+    });
+    expect(db.rows("subscriptionStatsRebuilds")).toEqual(checkpoint);
+    expect(db.rows("subscriptionStats")).toEqual([]);
+    await testableFunction(runRecomputePage)._handler(ctx, pages[0]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: SUBSCRIPTION_SCAN_PAGE_SIZE + 1 },
     ]);
   });
 

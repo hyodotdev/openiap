@@ -895,7 +895,8 @@ const schema = defineSchema({
   // passed, so its commit is current however busy the project is.
   subscriptionStatsRebuilds: defineTable({
     projectId: v.id("projects"),
-    startedAt: v.number(),
+    // Legacy queued pages identify their checkpoint by timestamp.
+    startedAt: v.optional(v.number()),
     // Complete creation-order key of the last subscription the scan read.
     scannedThrough: v.optional(v.number()),
     scannedThroughId: v.optional(v.id("subscriptions")),
