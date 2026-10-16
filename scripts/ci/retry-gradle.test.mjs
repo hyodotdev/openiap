@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -78,6 +86,213 @@ test("retries an SDK component AGP failed to install", () => {
     assert.equal(result.status, 0);
     assert.equal(readFileSync(counter, "utf8"), "2");
     assert.match(result.stdout, /recovered/);
+  });
+});
+
+const NDK_INSTALL_FAILURE = [
+  "Caused by: java.util.zip.ZipException: Archive is not a ZIP archive",
+  "Failed to install the following SDK components:",
+  "  ndk;27.1.12297006 NDK (Side by side) 27.1.12297006",
+].join("\n");
+
+function withNdkTest(callback) {
+  withCounterTest((counter) => {
+    const sdk = path.join(path.dirname(counter), "sdk");
+    const ndk = path.join(sdk, "ndk/27.1.12297006");
+    mkdirSync(sdk);
+    callback({
+      counter,
+      sdk,
+      ndk,
+      env: {
+        ANDROID_HOME: sdk,
+        GITHUB_ACTIONS: "true",
+        RUNNER_ENVIRONMENT: "github-hosted",
+        RUNNER_OS: "Linux",
+        GRADLE_NETWORK_RETRY_NDK_VERSION: "27.1.12297006",
+        FIXTURE_NDK: ndk,
+        FIXTURE: NDK_INSTALL_FAILURE,
+      },
+    });
+  });
+}
+
+function partialNdkCommand(counter, beforeFailure = "") {
+  return incrementScript(
+    counter,
+    `if [ "$count" -eq 1 ]; then mkdir -p "$FIXTURE_NDK/.installer"; printf 'stale' > "$FIXTURE_NDK/.installer/.installData"; ${beforeFailure} printf '%s\\n' "$FIXTURE" >&2; exit 17; fi; if [ -e "$FIXTURE_NDK" ] || [ -L "$FIXTURE_NDK" ]; then echo '[CXX1101] NDK missing source.properties' >&2; exit 19; fi; mkdir -p "$FIXTURE_NDK"; printf 'Pkg.Revision=27.1.12297006' > "$FIXTURE_NDK/source.properties"; printf 'recovered'`,
+  );
+}
+
+test("recovers only the new incomplete NDK before an existing hosted CI retry", () => {
+  withNdkTest(({ counter, ndk, sdk, env }) => {
+    const other = path.join(sdk, "ndk/28.0.0/source.properties");
+    mkdirSync(path.dirname(other), { recursive: true });
+    writeFileSync(other, "preserve");
+    const result = runRetry(partialNdkCommand(counter), env);
+
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(readFileSync(counter, "utf8"), "2");
+    assert.equal(
+      readFileSync(path.join(ndk, "source.properties"), "utf8"),
+      "Pkg.Revision=27.1.12297006",
+    );
+    assert.equal(existsSync(path.join(ndk, ".installer/.installData")), false);
+    assert.equal(readFileSync(other, "utf8"), "preserve");
+  });
+});
+
+for (const [name, overrides] of [
+  ["local execution", { GITHUB_ACTIONS: "false" }],
+  ["self-hosted CI", { RUNNER_ENVIRONMENT: "self-hosted" }],
+  ["macOS CI", { RUNNER_OS: "macOS" }],
+  ["an ordinary wrapper caller", { GRADLE_NETWORK_RETRY_NDK_VERSION: "" }],
+  [
+    "another component",
+    { FIXTURE: NDK_INSTALL_FAILURE.replace("ndk;27.1.12297006", "ndk;28.0.0") },
+  ],
+  [
+    "a lookalike component",
+    {
+      FIXTURE: NDK_INSTALL_FAILURE.replace(
+        "ndk;27.1.12297006",
+        "ndk;27x1x12297006",
+      ),
+    },
+  ],
+  [
+    "a platform install",
+    {
+      FIXTURE: NDK_INSTALL_FAILURE.replace(
+        "ndk;27.1.12297006",
+        "platforms;android-36",
+      ),
+    },
+  ],
+  ["the final failed attempt", { GRADLE_NETWORK_RETRY_ATTEMPTS: "1" }],
+]) {
+  test(`preserves a partial NDK during ${name}`, () => {
+    withNdkTest(({ counter, ndk, env }) => {
+      const result = runRetry(partialNdkCommand(counter), {
+        ...env,
+        ...overrides,
+      });
+      assert.equal(
+        result.status,
+        overrides.GRADLE_NETWORK_RETRY_ATTEMPTS === "1" ? 17 : 19,
+      );
+      assert.equal(
+        readFileSync(path.join(ndk, ".installer/.installData"), "utf8"),
+        "stale",
+      );
+    });
+  });
+}
+
+for (const complete of [false, true]) {
+  test(`preserves a preexisting ${complete ? "complete" : "incomplete"} NDK`, () => {
+    withNdkTest(({ counter, ndk, env }) => {
+      mkdirSync(ndk, { recursive: true });
+      writeFileSync(path.join(ndk, "keep"), "preserve");
+      if (complete)
+        writeFileSync(path.join(ndk, "source.properties"), "preserve");
+      const result = runRetry(partialNdkCommand(counter), env);
+      assert.equal(result.status, 19);
+      assert.equal(readFileSync(path.join(ndk, "keep"), "utf8"), "preserve");
+    });
+  });
+}
+
+test("preserves an NDK that completed before cleanup", () => {
+  withNdkTest(({ counter, ndk, env }) => {
+    const result = runRetry(
+      partialNdkCommand(
+        counter,
+        "printf 'complete' > \"$FIXTURE_NDK/source.properties\";",
+      ),
+      env,
+    );
+    assert.equal(result.status, 19);
+    assert.equal(
+      readFileSync(path.join(ndk, "source.properties"), "utf8"),
+      "complete",
+    );
+  });
+});
+
+test("preserves any source.properties entry, including a dangling symlink", () => {
+  withNdkTest(({ counter, ndk, env }) => {
+    const result = runRetry(
+      partialNdkCommand(
+        counter,
+        'ln -s missing "$FIXTURE_NDK/source.properties";',
+      ),
+      env,
+    );
+    assert.equal(result.status, 19);
+    assert.equal(existsSync(path.join(ndk, ".installer/.installData")), true);
+  });
+});
+
+test("does not follow an NDK slot replaced with a symlink", () => {
+  withNdkTest(({ counter, ndk, sdk, env }) => {
+    const outside = path.join(sdk, "outside");
+    mkdirSync(outside);
+    writeFileSync(path.join(outside, "keep"), "preserve");
+    const command = incrementScript(
+      counter,
+      `if [ "$count" -eq 1 ]; then mkdir -p "${path.dirname(ndk)}"; ln -s "${outside}" "$FIXTURE_NDK"; printf '%s\\n' "$FIXTURE" >&2; exit 17; fi; exit 19`,
+    );
+    const result = runRetry(command, env);
+    assert.equal(result.status, 19);
+    assert.equal(readFileSync(path.join(outside, "keep"), "utf8"), "preserve");
+  });
+});
+
+test("does not follow a preexisting SDK ndk parent symlink", () => {
+  withNdkTest(({ counter, sdk, ndk, env }) => {
+    const outside = path.join(sdk, "outside");
+    mkdirSync(outside);
+    symlinkSync(outside, path.join(sdk, "ndk"));
+    const result = runRetry(partialNdkCommand(counter), env);
+    assert.equal(result.status, 19);
+    assert.equal(
+      readFileSync(path.join(ndk, ".installer/.installData"), "utf8"),
+      "stale",
+    );
+  });
+});
+
+test("removes an incomplete slot at most once and preserves the final failure", () => {
+  withNdkTest(({ counter, ndk, env }) => {
+    const command = incrementScript(
+      counter,
+      `if [ "$count" -le 2 ]; then mkdir -p "$FIXTURE_NDK/.installer"; printf '%s' "$count" > "$FIXTURE_NDK/.installer/.installData"; printf '%s\\n' "$FIXTURE" >&2; exit 17; fi; echo '[CXX1101] missing source.properties' >&2; exit 19`,
+    );
+    const result = runRetry(command, env);
+    assert.equal(result.status, 19);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+    assert.equal(
+      readFileSync(path.join(ndk, ".installer/.installData"), "utf8"),
+      "2",
+    );
+    assert.equal(
+      result.stderr.match(/Removed job-created incomplete NDK/g)?.length,
+      1,
+    );
+  });
+});
+
+test("does not treat CXX1101 alone as a retryable installation failure", () => {
+  withNdkTest(({ counter, ndk, env }) => {
+    const command = incrementScript(
+      counter,
+      "mkdir -p \"$FIXTURE_NDK\"; echo '[CXX1101] NDK missing source.properties' >&2; exit 19",
+    );
+    const result = runRetry(command, env);
+    assert.equal(result.status, 19);
+    assert.equal(readFileSync(counter, "utf8"), "1");
+    assert.equal(existsSync(ndk), true);
   });
 });
 

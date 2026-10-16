@@ -23,9 +23,7 @@ has_wrapper_download_failure() {
   grep -qiE "$wrapper_download_pattern" "$1"
 }
 
-# AGP downloads a missing NDK or SDK platform on first use. A corrupt download
-# ("Archive is not a ZIP archive") fails that install; the next attempt fetches
-# it again.
+# AGP can leave an incomplete NDK after its first-use download fails.
 readonly sdk_install_pattern='failed to install the following (android )?sdk components'
 
 has_sdk_install_failure() {
@@ -91,6 +89,21 @@ fi
 retry_log="$(mktemp "${TMPDIR:-/tmp}/openiap-gradle-retry.XXXXXX")"
 trap 'rm -f -- "$retry_log"' EXIT
 
+# Only the isolated hosted matrix may claim its initially absent NDK slot.
+ndk_dir=""
+ndk_version="${GRADLE_NETWORK_RETRY_NDK_VERSION:-}"
+sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+if [[ "${GITHUB_ACTIONS:-}" == "true" &&
+  "${RUNNER_ENVIRONMENT:-}" == "github-hosted" &&
+  "${RUNNER_OS:-}" == "Linux" &&
+  "$ndk_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && -d "$sdk" ]]; then
+  sdk_root="$(cd -P -- "$sdk" && pwd)" || exit 2
+  candidate="$sdk_root/ndk/$ndk_version"
+  if [[ ! -L "$sdk_root/ndk" && ! -e "$candidate" && ! -L "$candidate" ]]; then
+    ndk_dir="$candidate"
+  fi
+fi
+
 for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
   : >"$retry_log"
   "$@" 2>&1 | tee "$retry_log"
@@ -109,6 +122,19 @@ for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
     ! has_sdk_install_failure "$retry_log"; then
     echo "Gradle failed without a recognized transient network error; not retrying." >&2
     exit "$command_status"
+  fi
+
+  if [[ -n "$ndk_dir" ]] && has_sdk_install_failure "$retry_log" &&
+    grep -qF "ndk;$ndk_version " "$retry_log" &&
+    [[ "$(cd -P -- "$sdk" 2>/dev/null && pwd)" == "$sdk_root" &&
+      ! -L "$sdk_root/ndk" && -d "$ndk_dir" && ! -L "$ndk_dir" &&
+      ! -e "$ndk_dir/source.properties" && ! -L "$ndk_dir/source.properties" ]]; then
+    if ! rm -rf -- "$ndk_dir"; then
+      echo "Could not remove the job-created incomplete NDK; not retrying." >&2
+      exit "$command_status"
+    fi
+    echo "Removed job-created incomplete NDK $ndk_version before retry." >&2
+    ndk_dir=""
   fi
 
   delay_seconds="$((base_delay_seconds * attempt))"
