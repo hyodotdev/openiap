@@ -83,9 +83,7 @@ export function memberOrderView(
     ...summary,
     subscription: {
       ...status,
-      ...(error !== undefined
-        ? { error: "The store did not return the subscription status." }
-        : {}),
+      ...(error !== undefined ? { error: "the store did not answer" } : {}),
     },
     raw: "",
   };
