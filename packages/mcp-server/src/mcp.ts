@@ -705,7 +705,7 @@ function registerIapKitTools(
   registerTool(
     server,
     "revenue_analytics",
-    "Summarize IAPKit subscription revenue analytics, verified from store notifications, for a UTC date range: paid charges, trials started and converted, direct paid starts, auto-renew turned off vs expirations, refunds, and optionally monthly cohorts with retention and realized LTV. Production only unless environment is sandbox. Revenue is the store list price in each currency, before store fees and refunds; IAPKit never converts currencies. Defaults to the current UTC month.",
+    "Summarize IAPKit daily subscription revenue analytics, verified from store notifications, for a UTC date range: paid charges, trials started and converted, direct paid starts, auto-renew turned off vs expirations, and refunds. Optionally return project-wide monthly cohorts with retention and realized LTV. Production only unless environment is sandbox. Revenue is the store list price in each currency, before store fees and refunds; IAPKit never converts currencies. Defaults to the current UTC month.",
     {
       period: z
         .enum(["this_month", "last_30_days", "last_90_days", "custom"])
@@ -730,7 +730,7 @@ function registerIapKitTools(
         .boolean()
         .optional()
         .describe(
-          "Add monthly paid cohorts (retention, realized LTV) and trial-to-paid conversion by trial month.",
+          "Add project-wide monthly cohorts (retention, realized LTV) and trial-to-paid conversion. Environment and currency apply; date, product and platform filters apply only to daily totals.",
         ),
       apiKey: OPTIONAL_API_KEY,
       baseUrl: OPTIONAL_BASE_URL,
@@ -1709,7 +1709,7 @@ const REVENUE_DEFINITIONS = {
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:
-    "Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with paid access at the end of month k. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
+    "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with paid access at the end of month k. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
 } as const;
 
 type RevenueTotals = {
@@ -1854,7 +1854,7 @@ function summarizeRevenueMetrics(
     totalsByCurrency: Object.fromEntries(totalsByCurrency),
     totalsByProduct: Object.fromEntries(totalsByProduct),
     totalsByPlatform: Object.fromEntries(totalsByPlatform),
-    ...(cohorts ? { cohorts } : {}),
+    ...(cohorts ? { cohorts, cohortScope: "project" as const } : {}),
     availableFilters: {
       currencies: metrics.currencies,
       productIds: metrics.productIds,

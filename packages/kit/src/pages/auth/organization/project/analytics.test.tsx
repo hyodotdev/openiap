@@ -217,7 +217,7 @@ describe("ProjectAnalytics data states", () => {
     );
   });
 
-  it("shows late notifications and the cohort table when data is ready", () => {
+  it("keeps project cohort scope explicit after a platform filter is selected", () => {
     mocks.state.metrics = response({
       dataState: "ready",
       lastRunAt: Date.now(),
@@ -249,11 +249,11 @@ describe("ProjectAnalytics data states", () => {
         {
           month: "2026-01",
           currency: "USD",
-          members: 4,
-          revenueMicros: 8 * 9_990_000,
+          members: 10,
+          revenueMicros: 20 * 9_990_000,
           refundedMicros: 0,
           realizedLtvMicros: 2 * 9_990_000,
-          retained: [4, 2],
+          retained: [10, 5],
           trialStarts: 3,
           trialConversions: 1,
           trialsPending: 1,
@@ -263,7 +263,19 @@ describe("ProjectAnalytics data states", () => {
     });
     render(<ProjectAnalytics />);
     expect(screen.getByText("Late notifications pending")).toBeTruthy();
-    expect(screen.getByText("Monthly cohorts · USD")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^App Store/ }));
+    expect(
+      screen
+        .getByRole("button", { name: /^App Store/ })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.getByText("Monthly project cohorts · USD")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /All products and platforms in the selected environment/,
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("cell", { name: "10" })).toBeTruthy();
     expect(screen.getByText("50%")).toBeTruthy();
     expect(screen.getByText("USD 19.98")).toBeTruthy();
     expect(screen.getByText("50% of 2")).toBeTruthy();

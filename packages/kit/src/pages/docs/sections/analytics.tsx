@@ -213,9 +213,11 @@ export default function AnalyticsPage() {
         </li>
       </ul>
       <p>
-        Cohorts cover the last 24 months, rebuild once a day, and start from the
-        release that added them: earlier charges are not retained, so they are
-        not backfilled.
+        Cohorts include all products and platforms in the selected environment
+        and currency. Date, product and platform filters apply only to daily
+        metrics. Cohorts cover the last 24 months, rebuild once a day, and start
+        from the release that added them: earlier charges are not retained, so
+        they are not backfilled.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Freshness and data state</h2>
@@ -275,7 +277,9 @@ export default function AnalyticsPage() {
         <code>GET /v1/subscriptions/metrics</code> returns live counts and MRR
         with <code>environment: &quot;Production&quot;</code>. The MCP{" "}
         <code>iapkit_revenue_analytics</code> tool takes the revenue options and
-        returns the definitions with its totals.
+        returns the definitions with its totals. When cohorts are requested,{" "}
+        <code>cohortScope: "project"</code> distinguishes them from filtered
+        daily totals.
       </p>
 
       <Callout kind="warning" title="Changed in this release">

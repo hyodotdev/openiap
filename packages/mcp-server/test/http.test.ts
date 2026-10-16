@@ -469,7 +469,7 @@ describe("remote MCP HTTP server", () => {
     }
   });
 
-  it("reports trials, net revenue, data state and cohorts for a sandbox window", async () => {
+  it("filters daily sandbox totals while identifying cohorts as project-wide", async () => {
     const apiKey = "openiap-kit_sk_revenue_cohorts";
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
@@ -498,10 +498,22 @@ describe("remote MCP HTTP server", () => {
               revenueMicros: 3 * 9_990_000,
               refundedMicros: 9_990_000,
             },
+            {
+              day: "2026-06-01",
+              currency: "USD",
+              productId: "other_product",
+              platform: "IOS",
+              activeSubs: 8,
+              newSubs: 8,
+              renewals: 0,
+              cancellations: 0,
+              refunds: 0,
+              revenueMicros: 8 * 9_990_000,
+            },
           ],
           currencies: ["USD"],
-          productIds: ["premium_monthly"],
-          platforms: ["Android"],
+          productIds: ["premium_monthly", "other_product"],
+          platforms: ["Android", "IOS"],
           truncated: false,
           environment: "Sandbox",
           dataState: "ready",
@@ -545,6 +557,9 @@ describe("remote MCP HTTP server", () => {
               toDay: "2026-06-04",
               environment: "sandbox",
               includeCohorts: true,
+              productId: "premium_monthly",
+              platform: "Android",
+              currency: "USD",
             },
           },
         },
@@ -557,6 +572,12 @@ describe("remote MCP HTTP server", () => {
 
       expect(payload).toMatchObject({
         environment: "Sandbox",
+        cohortScope: "project",
+        range: {
+          productId: "premium_monthly",
+          platform: "Android",
+          currency: "USD",
+        },
         dataState: "ready",
         lastRunAt: "2026-06-04T00:10:00.000Z",
         trialSplitFromDay: "2026-05-20",
@@ -580,6 +601,10 @@ describe("remote MCP HTTP server", () => {
         }),
       ]);
       expect(payload.definitions.revenue).toContain("before store fees");
+      expect(payload.definitions.cohorts).toContain("Project-wide cohorts");
+      expect(payload.definitions.cohorts).toContain(
+        "date, product and platform filters apply only to daily totals",
+      );
     } finally {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;

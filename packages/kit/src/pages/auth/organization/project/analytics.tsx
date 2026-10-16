@@ -172,7 +172,7 @@ export default function ProjectAnalytics() {
     [now, range],
   );
 
-  // Fetch the max range unfiltered and filter everything client-side: a
+  // Fetch daily rows unfiltered and filter them client-side: a
   // refetch per filter click rebuilt the whole subtree (a visible flicker),
   // and the platform cards need the unfiltered breakdown anyway.
   const queryArgs = useMemo(
@@ -602,7 +602,7 @@ export default function ProjectAnalytics() {
         <div className="border border-border bg-muted/20 rounded-lg p-4 text-sm text-muted-foreground">
           Headline revenue totals only include {reportingCurrency}.{" "}
           {currency !== reportingCurrency &&
-            `The charts and cohorts are showing ${currency}. `}
+            `Revenue charts and cohorts are showing ${currency}. `}
           {calloutExcludedCurrencies.length > 0
             ? `${calloutExcludedCurrencies.join(", ")} ${
                 calloutExcludedCurrencies.length === 1 ? "is" : "are"
@@ -1050,7 +1050,13 @@ function CohortTable({
   return (
     <div className="border border-border rounded-lg bg-card p-4">
       <div className="mb-3">
-        <h3 className="text-sm font-semibold">Monthly cohorts · {currency}</h3>
+        <h3 className="text-sm font-semibold">
+          Monthly project cohorts · {currency}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          All products and platforms in the selected environment and currency.
+          Date, product and platform filters above apply only to daily charts.
+        </p>
         <p className="text-xs text-muted-foreground mt-0.5">
           Cohort = UTC month of the first paid charge. M+k is the share still
           paying at the end of month k; a canceled subscription counts until its
