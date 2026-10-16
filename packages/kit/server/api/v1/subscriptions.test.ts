@@ -162,7 +162,7 @@ describe("subscriptionsRoutes", () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const app = buildApp();
     const headers = {
-      authorization: "Bearer openiap-kit_pk_header",
+      authorization: "Bearer openiap-kit_sk_header",
     };
     mocks.query.mockResolvedValue(evaluationSnapshot());
 
@@ -182,7 +182,7 @@ describe("subscriptionsRoutes", () => {
     ];
 
     expect(responses.map((response) => response.status)).toEqual([
-      200, 200, 200, 200,
+      200, 410, 200, 410,
     ]);
     const usageLogs = logSpy.mock.calls
       .map(([line]) => {
@@ -210,7 +210,7 @@ describe("subscriptionsRoutes", () => {
       {
         operation: "status",
         credentialTransport: "path",
-        statusCode: 200,
+        statusCode: 410,
       },
       {
         operation: "entitlements",
@@ -220,18 +220,20 @@ describe("subscriptionsRoutes", () => {
       {
         operation: "entitlements",
         credentialTransport: "path",
-        statusCode: 200,
+        statusCode: 410,
       },
     ]);
     expect(usageLogs).toHaveLength(4);
     for (const line of usageLogs) {
       expect(line?.apiVersion).toBe("v1");
-      expect(line?.projectIdHash).toMatch(/^[0-9a-f]{16}$/);
+      if (line?.statusCode === 200)
+        expect(line?.projectIdHash).toMatch(/^[0-9a-f]{16}$/);
+      else expect(line?.projectIdHash).toBeUndefined();
       expect(line).not.toHaveProperty("path");
     }
     const serialized = JSON.stringify(usageLogs);
     expect(serialized).not.toContain("private-user");
-    expect(serialized).not.toContain("openiap-kit_pk_header");
+    expect(serialized).not.toContain("openiap-kit_sk_header");
     expect(serialized).not.toContain("openiap-kit_pk_path");
   });
 
@@ -266,128 +268,46 @@ describe("subscriptionsRoutes", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
-  it("keeps publishable entitlement helpers and user binding available", async () => {
-    const app = buildApp();
-    const headers = {
-      authorization: "Bearer openiap-kit_pk_mobile",
-      "content-type": "application/json",
-    };
-    mocks.query
-      .mockResolvedValueOnce(evaluationSnapshot())
-      .mockResolvedValueOnce(evaluationSnapshot());
-    mocks.mutation.mockResolvedValueOnce({ ok: true, bound: true });
-
-    const responses = [
-      await app.request("/subscriptions/status?userId=user-1", { headers }),
-      await app.request("/subscriptions/entitlements?userId=user-1", {
-        headers,
-      }),
-      await app.request("/subscriptions/bind-user", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          purchaseToken: "purchase-token",
-          userId: "user-1",
-        }),
-      }),
-    ];
-
-    expect(responses.map((response) => response.status)).toEqual([
-      200, 200, 200,
-    ]);
-    for (const response of responses) {
-      expect(response.headers.get("x-ratelimit-limit")).toBe("600");
-      expect(response.headers.get("x-ratelimit-remaining")).not.toBeNull();
-    }
-    expect(mocks.query).toHaveBeenNthCalledWith(
-      1,
-      "subscriptionEvaluationSnapshot",
-      {
-        apiKey: "openiap-kit_pk_mobile",
-        userId: "user-1",
-      },
-    );
-    expect(mocks.query).toHaveBeenNthCalledWith(
-      2,
-      "subscriptionEvaluationSnapshot",
-      {
-        apiKey: "openiap-kit_pk_mobile",
-        userId: "user-1",
-      },
-    );
-    expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
-      apiKey: "openiap-kit_pk_mobile",
-      purchaseToken: "purchase-token",
-      userId: "user-1",
-      correlationId: responses[2].headers.get("x-correlation-id"),
-    });
-  });
-
-  it("conditionally revalidates user-scoped snapshots without mutations", async () => {
-    const app = buildApp();
-    const headers = {
-      authorization: "Bearer openiap-kit_pk_mobile",
-    };
-    const snapshot = evaluationSnapshot([subscriptionRow()]);
-    mocks.query.mockResolvedValueOnce(snapshot);
-
-    const initialStatus = await app.request(
-      "/subscriptions/status?userId=user-1",
-      { headers },
-    );
-    const statusEtag = initialStatus.headers.get("etag");
-
-    expect(initialStatus.status).toBe(200);
-    expect(statusEtag).toMatch(/^W\/"iapkit-subscription-status-[^"]+"$/);
-    expect(statusEtag).not.toContain("openiap-kit_pk_mobile");
-    expect(initialStatus.headers.get("cache-control")).toBe(
-      "private, no-cache",
-    );
-    expect(initialStatus.headers.get("vary")).toBe("Authorization");
-
-    mocks.query.mockResolvedValueOnce(snapshot);
-    const unchangedStatus = await app.request(
-      "/subscriptions/status?userId=user-1",
-      {
-        headers: {
-          ...headers,
-          "if-none-match": `"other", ${statusEtag?.replace(/^W\//, "")}`,
+  it.each(["status", "entitlements", "bind-user"])(
+    "requires a backend for legacy account %s",
+    async (operation) => {
+      const app = buildApp();
+      const init =
+        operation === "bind-user"
+          ? {
+              method: "POST",
+              body: JSON.stringify({
+                purchaseToken: "store-evidence",
+                userId: "other-user",
+              }),
+            }
+          : {};
+      const canonical = await app.request(
+        `/subscriptions/${operation}?userId=other-user`,
+        {
+          ...init,
+          headers: {
+            authorization: "Bearer openiap-kit_pk_mobile",
+            "content-type": "application/json",
+          },
         },
-      },
-    );
-
-    expect(unchangedStatus.status).toBe(304);
-    expect(unchangedStatus.headers.get("etag")).toBe(statusEtag);
-    expect(await unchangedStatus.text()).toBe("");
-
-    mocks.query.mockResolvedValueOnce(snapshot);
-    const initialEntitlements = await app.request(
-      "/subscriptions/entitlements?userId=user-1",
-      { headers },
-    );
-    const entitlementsEtag = initialEntitlements.headers.get("etag");
-
-    expect(initialEntitlements.status).toBe(200);
-    expect(entitlementsEtag).toMatch(
-      /^W\/"iapkit-subscription-entitlements-[^"]+"$/,
-    );
-    expect(entitlementsEtag).not.toBe(statusEtag);
-
-    mocks.query.mockResolvedValueOnce(snapshot);
-    const unchangedEntitlements = await app.request(
-      "/subscriptions/entitlements?userId=user-1",
-      {
-        headers: {
-          ...headers,
-          "if-none-match": entitlementsEtag!,
-        },
-      },
-    );
-
-    expect(unchangedEntitlements.status).toBe(304);
-    expect(mocks.query).toHaveBeenCalledTimes(4);
-    expect(mocks.mutation).not.toHaveBeenCalled();
-  });
+      );
+      const legacy = await app.request(
+        `/subscriptions/${operation}/openiap-kit_pk_mobile?userId=other-user`,
+        init,
+      );
+      expect(canonical.status).toBe(403);
+      expect(await canonical.json()).toMatchObject({
+        errors: [{ code: "INSUFFICIENT_SCOPE" }],
+      });
+      expect(legacy.status).toBe(410);
+      expect(await legacy.json()).toMatchObject({
+        errors: [{ code: "LEGACY_ACCOUNT_ROUTE_RETIRED" }],
+      });
+      expect(mocks.query).not.toHaveBeenCalled();
+      expect(mocks.mutation).not.toHaveBeenCalled();
+    },
+  );
 
   it("derives status and entitlements from the sorted row snapshot at the Fly boundary", async () => {
     const app = buildApp();
@@ -425,7 +345,7 @@ describe("subscriptionsRoutes", () => {
     );
     mocks.query.mockResolvedValue(snapshot);
     const headers = {
-      authorization: "Bearer openiap-kit_pk_mobile",
+      authorization: "Bearer openiap-kit_sk_admin",
     };
 
     const status = await app.request("/subscriptions/status?userId=user-1", {
@@ -473,7 +393,7 @@ describe("subscriptionsRoutes", () => {
 
     const response = await app.request("/subscriptions/status?userId=user-1", {
       headers: {
-        authorization: "Bearer openiap-kit_pk_mobile",
+        authorization: "Bearer openiap-kit_sk_admin",
       },
     });
 
@@ -484,109 +404,6 @@ describe("subscriptionsRoutes", () => {
       subscription: { id: "newer-created" },
     });
     expect(body.subscription).not.toHaveProperty("createdAt");
-  });
-
-  it("does not accept a snapshot ETag for a different representation or route", async () => {
-    const app = buildApp();
-    const snapshot = evaluationSnapshot();
-    mocks.query.mockResolvedValue(snapshot);
-
-    const first = await app.request("/subscriptions/status?userId=user-1", {
-      headers: {
-        authorization: "Bearer openiap-kit_pk_first",
-      },
-    });
-    const etag = first.headers.get("etag");
-    expect(first.status).toBe(200);
-    expect(etag).not.toBeNull();
-
-    mocks.query.mockResolvedValueOnce(
-      evaluationSnapshot([subscriptionRow({ id: "different", updatedAt: 99 })]),
-    );
-    const differentResult = await app.request(
-      "/subscriptions/status?userId=user-1",
-      {
-        headers: {
-          authorization: "Bearer openiap-kit_pk_second",
-          "if-none-match": etag!,
-        },
-      },
-    );
-    const sameRepresentation = await app.request(
-      "/subscriptions/status?userId=user-2",
-      {
-        headers: {
-          authorization: "Bearer openiap-kit_pk_first",
-          "if-none-match": etag!,
-        },
-      },
-    );
-    const otherRoute = await app.request(
-      "/subscriptions/entitlements?userId=user-1",
-      {
-        headers: {
-          authorization: "Bearer openiap-kit_pk_first",
-          "if-none-match": etag!,
-        },
-      },
-    );
-
-    expect([
-      differentResult.status,
-      sameRepresentation.status,
-      otherRoute.status,
-    ]).toEqual([200, 304, 200]);
-    expect(differentResult.headers.get("etag")).not.toBe(etag);
-    expect(sameRepresentation.headers.get("etag")).toBe(etag);
-    expect(otherRoute.headers.get("etag")).not.toBe(etag);
-    expect(mocks.mutation).not.toHaveBeenCalled();
-  });
-
-  it("uses the response representation rather than credentials as ETag input", async () => {
-    const app = buildApp();
-    mocks.query.mockResolvedValue(evaluationSnapshot());
-
-    const first = await app.request("/subscriptions/status?userId=user-1", {
-      headers: {
-        authorization: "Bearer openiap-kit_pk_first",
-      },
-    });
-    const second = await app.request("/subscriptions/status?userId=user-1", {
-      headers: {
-        authorization: "Bearer openiap-kit_pk_second",
-      },
-    });
-
-    expect(second.headers.get("etag")).toBe(first.headers.get("etag"));
-  });
-
-  it("keeps compatibility-path ETags stable for the same row snapshot", async () => {
-    const app = buildApp();
-    mocks.query
-      .mockResolvedValueOnce(evaluationSnapshot())
-      .mockResolvedValueOnce(evaluationSnapshot());
-
-    const initial = await app.request(
-      "/subscriptions/status/openiap-kit_pk_mobile?userId=user-1",
-    );
-    const etag = initial.headers.get("etag");
-    expect(initial.status).toBe(200);
-    expect(etag).not.toBeNull();
-
-    const unchanged = await app.request(
-      "/subscriptions/status/openiap-kit_pk_mobile?userId=user-1",
-      {
-        headers: {
-          "if-none-match": etag!,
-        },
-      },
-    );
-
-    expect(unchanged.status).toBe(304);
-    expect(unchanged.headers.get("cache-control")).toBe("private, no-cache");
-    expect(unchanged.headers.get("x-ratelimit-limit")).toBe("600");
-    expect(mocks.query).toHaveBeenCalledTimes(2);
-    expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
   it("does not cache or conditionally reuse secret-key snapshot responses", async () => {
@@ -615,7 +432,7 @@ describe("subscriptionsRoutes", () => {
   it("returns a new snapshot when webhook-backed state changes", async () => {
     const app = buildApp();
     const headers = {
-      authorization: "Bearer openiap-kit_pk_mobile",
+      authorization: "Bearer openiap-kit_sk_admin",
     };
     mocks.query.mockResolvedValueOnce(
       evaluationSnapshot([subscriptionRow({ state: "Active", updatedAt: 1 })]),
@@ -624,19 +441,20 @@ describe("subscriptionsRoutes", () => {
     const initial = await app.request("/subscriptions/status?userId=user-1", {
       headers,
     });
-    const initialEtag = initial.headers.get("etag");
 
+    expect(initial.status).toBe(200);
+    await expect(initial.json()).resolves.toMatchObject({ active: true });
     const expired = subscriptionRow({ state: "Expired", updatedAt: 2 });
     mocks.query.mockResolvedValueOnce(evaluationSnapshot([], expired));
     const changed = await app.request("/subscriptions/status?userId=user-1", {
       headers: {
         ...headers,
-        "if-none-match": initialEtag!,
+        "if-none-match": "*",
       },
     });
 
     expect(changed.status).toBe(200);
-    expect(changed.headers.get("etag")).not.toBe(initialEtag);
+    expect(changed.headers.get("etag")).toBeNull();
     await expect(changed.json()).resolves.toMatchObject({
       active: false,
       subscription: { state: "Expired" },
@@ -655,29 +473,28 @@ describe("subscriptionsRoutes", () => {
     dateNow.mockReturnValue(expiresAt - 1);
     const initial = await app.request("/subscriptions/status?userId=user-1", {
       headers: {
-        authorization: "Bearer openiap-kit_pk_mobile",
+        authorization: "Bearer openiap-kit_sk_admin",
       },
     });
-    const initialEtag = initial.headers.get("etag");
     expect(initial.status).toBe(200);
     await expect(initial.json()).resolves.toMatchObject({ active: true });
 
     dateNow.mockReturnValue(expiresAt + 1);
     const expired = await app.request("/subscriptions/status?userId=user-1", {
       headers: {
-        authorization: "Bearer openiap-kit_pk_mobile",
-        "if-none-match": initialEtag!,
+        authorization: "Bearer openiap-kit_sk_admin",
+        "if-none-match": "*",
       },
     });
 
     expect(expired.status).toBe(200);
-    expect(expired.headers.get("etag")).not.toBe(initialEtag);
+    expect(expired.headers.get("etag")).toBeNull();
     await expect(expired.json()).resolves.toMatchObject({ active: false });
     expect(mocks.query).toHaveBeenNthCalledWith(
       1,
       "subscriptionEvaluationSnapshot",
       {
-        apiKey: "openiap-kit_pk_mobile",
+        apiKey: "openiap-kit_sk_admin",
         userId: "user-1",
       },
     );
@@ -685,7 +502,7 @@ describe("subscriptionsRoutes", () => {
       2,
       "subscriptionEvaluationSnapshot",
       {
-        apiKey: "openiap-kit_pk_mobile",
+        apiKey: "openiap-kit_sk_admin",
         userId: "user-1",
       },
     );
@@ -752,12 +569,19 @@ describe("subscriptionsRoutes", () => {
     const userId = "u".repeat(257);
 
     const cases = [
-      app.request(`/subscriptions/status/key?userId=${userId}`),
-      app.request(`/subscriptions/entitlements/key?userId=${userId}`),
+      app.request(`/subscriptions/status?userId=${userId}`, {
+        headers: { authorization: "Bearer openiap-kit_sk_admin" },
+      }),
+      app.request(`/subscriptions/entitlements?userId=${userId}`, {
+        headers: { authorization: "Bearer openiap-kit_sk_admin" },
+      }),
       app.request(`/subscriptions/list/key?userId=${userId}`),
-      app.request("/subscriptions/bind-user/key", {
+      app.request("/subscriptions/bind-user", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          authorization: "Bearer openiap-kit_sk_admin",
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ purchaseToken: "token", userId }),
       }),
     ];
@@ -780,8 +604,12 @@ describe("subscriptionsRoutes", () => {
     const app = buildApp();
 
     const cases = [
-      app.request("/subscriptions/status/key?userId=%20%20"),
-      app.request("/subscriptions/entitlements/key?userId=%20%20"),
+      app.request("/subscriptions/status?userId=%20%20", {
+        headers: { authorization: "Bearer openiap-kit_sk_admin" },
+      }),
+      app.request("/subscriptions/entitlements?userId=%20%20", {
+        headers: { authorization: "Bearer openiap-kit_sk_admin" },
+      }),
     ];
 
     for (const responsePromise of cases) {
@@ -975,9 +803,12 @@ describe("subscriptionsRoutes", () => {
 
   it("rejects oversized non-Apple bind-user purchaseToken before calling Convex", async () => {
     const app = buildApp();
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: "t".repeat(2_001),
         userId: "user-1",
@@ -1010,9 +841,12 @@ describe("subscriptionsRoutes", () => {
 
     expect(jws.length).toBeGreaterThan(2_000);
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: jws,
         userId: "user-1",
@@ -1022,7 +856,7 @@ describe("subscriptionsRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
     expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
-      apiKey: "key",
+      apiKey: "openiap-kit_sk_admin",
       purchaseToken: "1000000000000001",
       userId: "user-1",
       correlationId: response.headers.get("x-correlation-id"),
@@ -1037,9 +871,12 @@ describe("subscriptionsRoutes", () => {
       bundleId: "dev.hyo.openiap.test",
     });
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: jws,
         userId: "user-1",
@@ -1049,7 +886,7 @@ describe("subscriptionsRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
     expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
-      apiKey: "key",
+      apiKey: "openiap-kit_sk_admin",
       purchaseToken: "2000000000000001",
       userId: "user-1",
       correlationId: response.headers.get("x-correlation-id"),
@@ -1064,9 +901,12 @@ describe("subscriptionsRoutes", () => {
       `{"transactionId":${transactionId},"bundleId":"dev.hyo.openiap.test"}`,
     );
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: jws,
         userId: "user-1",
@@ -1076,7 +916,7 @@ describe("subscriptionsRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
     expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
-      apiKey: "key",
+      apiKey: "openiap-kit_sk_admin",
       purchaseToken: transactionId,
       userId: "user-1",
       correlationId: response.headers.get("x-correlation-id"),
@@ -1091,9 +931,12 @@ describe("subscriptionsRoutes", () => {
 
     expect(jws.length).toBeLessThanOrEqual(2_000);
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: jws,
         userId: "user-1",
@@ -1118,9 +961,12 @@ describe("subscriptionsRoutes", () => {
     mocks.mutation.mockResolvedValueOnce({ ok: true, bound: true });
     const purchaseToken = "google.token.value";
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken,
         userId: "user-1",
@@ -1130,7 +976,7 @@ describe("subscriptionsRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, bound: true });
     expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
-      apiKey: "key",
+      apiKey: "openiap-kit_sk_admin",
       purchaseToken,
       userId: "user-1",
       correlationId: response.headers.get("x-correlation-id"),
@@ -1146,9 +992,12 @@ describe("subscriptionsRoutes", () => {
 
     expect(jws.length).toBeGreaterThan(2_000);
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: jws,
         userId: "user-1",
@@ -1170,9 +1019,12 @@ describe("subscriptionsRoutes", () => {
 
   it("rejects oversized bind-user bodies before calling Convex", async () => {
     const app = buildApp();
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: "token",
         userId: "user-1",
@@ -1195,9 +1047,12 @@ describe("subscriptionsRoutes", () => {
 
   it("rejects oversized bind-user content-length before reading the body", async () => {
     const app = buildApp();
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-length": String(32 * 1024 + 1) },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-length": String(32 * 1024 + 1),
+      },
     });
 
     expect(response.status).toBe(413);
@@ -1215,9 +1070,12 @@ describe("subscriptionsRoutes", () => {
 
   it("rejects non-object bind-user bodies before calling Convex", async () => {
     const app = buildApp();
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: "null",
     });
 
@@ -1236,9 +1094,12 @@ describe("subscriptionsRoutes", () => {
 
   it("rejects blank bind-user strings before calling Convex", async () => {
     const app = buildApp();
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({ purchaseToken: "   ", userId: "user-1" }),
     });
 
@@ -1259,9 +1120,9 @@ describe("subscriptionsRoutes", () => {
     const app = buildApp();
     mocks.query.mockRejectedValueOnce(new Error("internal query detail"));
 
-    const response = await app.request(
-      "/subscriptions/status/key?userId=user-1",
-    );
+    const response = await app.request("/subscriptions/status?userId=user-1", {
+      headers: { authorization: "Bearer openiap-kit_sk_admin" },
+    });
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
@@ -1289,7 +1150,7 @@ describe("subscriptionsRoutes", () => {
       "/subscriptions/entitlements?userId=user-1",
       {
         headers: {
-          authorization: "Bearer openiap-kit_pk_mobile",
+          authorization: "Bearer openiap-kit_sk_admin",
         },
       },
     );
@@ -1323,9 +1184,12 @@ describe("subscriptionsRoutes", () => {
     const app = buildApp();
     mocks.mutation.mockRejectedValueOnce(new Error("internal mutation detail"));
 
-    const response = await app.request("/subscriptions/bind-user/key", {
+    const response = await app.request("/subscriptions/bind-user", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer openiap-kit_sk_admin",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({
         purchaseToken: "token",
         userId: "user-1",

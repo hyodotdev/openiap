@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {
   AppState,
   Platform,
@@ -19,6 +19,7 @@ import {
   useIAP,
   type ProductSubscription,
   type Purchase,
+  type PurchaseFlow,
   type PurchaseFlowGuidanceKey,
   type PurchaseFlowOutcome,
   type PurchaseFlowStatus,
@@ -28,10 +29,13 @@ import {
   PRODUCT_IDS,
   SUBSCRIPTION_PRODUCT_IDS,
 } from '../utils/constants';
-import {extractErrorMessage} from '../utils/errorUtils';
+import {extractErrorCode, extractErrorMessage} from '../utils/errorUtils';
 import {subscriptionDisplay} from '../utils/subscriptionDisplay';
 import ExampleButton from './ExampleButton';
 import StoreProductCard from './StoreProductCard';
+import PurchaseFlowDiagram, {
+  usePurchaseFlowActivity,
+} from './PurchaseFlowDiagram';
 
 const CONSUMABLES = new Set(CONSUMABLE_PRODUCT_IDS);
 
@@ -58,92 +62,203 @@ function appBackendUrl(): string | undefined {
   );
 }
 
-/**
- * "App backend" verification: the app backend verifies with IAPKit, links the
- * purchase to the signed-in account, and grants once; the app finishes only
- * after access is granted. Guide: https://kit.openiap.dev/docs/purchase-flow
- */
+/** Backend confirmation for the captured app account; the helper owns settlement. */
 export default function BackendEntitlementFlow() {
+  const {
+    activity,
+    startStore,
+    startPurchase,
+    update,
+    reset,
+    captureVersion,
+    observeRecoveredPending,
+    storeError,
+  } = usePurchaseFlowActivity();
+  const purchaseRequestTrace = useRef('');
   const backendUrl = appBackendUrl();
   const [account, setAccount] = useState('demo-user-1');
   const [outcomes, setOutcomes] = useState<PurchaseFlowOutcome<Purchase>[]>([]);
   const [message, setMessage] = useState<string | null>(null);
-  const [recovering, setRecovering] = useState(false);
+  const [recovering, setRecovering] = useState(Boolean(backendUrl));
   const didStartRef = useRef(false);
-
-  const flow = useMemo(
-    () =>
-      createPurchaseFlow<Purchase>({
-        confirmWithBackend: async (purchase) => {
-          const response = await fetch(`${appBackendUrl()}/purchases/confirm`, {
-            method: 'POST',
-            headers: {
-              // Stands in for your app's session token.
-              authorization: `Bearer ${account}`,
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify(toPurchaseConfirmationRequest(purchase)),
-          });
-          if (!response.ok) {
-            throw new Error(`Backend returned ${response.status}`);
-          }
-          return response.json();
-        },
-        finishTransaction,
-        isConsumable: (productId) => CONSUMABLES.has(productId),
-        getAvailablePurchases,
-        getPendingTransactionsIOS:
-          Platform.OS === 'ios' ? getPendingTransactionsIOS : undefined,
-      }),
-    [account],
-  );
-  const activeFlow = useRef<typeof flow | null>(flow);
-
+  const activeFlow = useRef<PurchaseFlow<Purchase> | null>(null);
   useEffect(() => {
-    activeFlow.current = flow;
+    const owner: PurchaseFlow<Purchase> = createPurchaseFlow<Purchase>({
+      confirmWithBackend: async (purchase) => {
+        if (activeFlow.current === owner) {
+          startPurchase(purchase);
+          update(
+            purchase.id,
+            'confirmation',
+            'running',
+            'Waiting for your backend’s account-access decision.',
+          );
+        }
+        const response = await fetch(`${appBackendUrl()}/purchases/confirm`, {
+          method: 'POST',
+          headers: {
+            // Stands in for your app's session token.
+            authorization: `Bearer ${account}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(toPurchaseConfirmationRequest(purchase)),
+        });
+        if (!response.ok) {
+          throw new Error(`Backend returned ${response.status}`);
+        }
+        return response.json();
+      },
+      finishTransaction: async (args) => {
+        if (activeFlow.current === owner) {
+          update(
+            args.purchase.id,
+            'confirmation',
+            'done',
+            'Backend decision received. Settling a transaction does not necessarily grant access.',
+          );
+          update(
+            args.purchase.id,
+            'finish',
+            'running',
+            'Finishing the store transaction.',
+          );
+        }
+        try {
+          await finishTransaction(args);
+          if (activeFlow.current === owner)
+            update(
+              args.purchase.id,
+              'finish',
+              'done',
+              'Store transaction settled.',
+            );
+        } catch (error) {
+          if (activeFlow.current === owner)
+            update(
+              args.purchase.id,
+              'finish',
+              'failed',
+              'Backend decision received, but finishing needs retry.',
+            );
+          throw error;
+        }
+      },
+      isConsumable: (productId) => CONSUMABLES.has(productId),
+      getAvailablePurchases: async () => {
+        const purchases = await getAvailablePurchases();
+        return activeFlow.current === owner ? purchases : [];
+      },
+      getPendingTransactionsIOS:
+        Platform.OS === 'ios'
+          ? async () => {
+              const purchases = await getPendingTransactionsIOS();
+              return activeFlow.current === owner ? purchases : [];
+            }
+          : undefined,
+    });
+    activeFlow.current = owner;
     return () => {
-      activeFlow.current = null;
+      if (activeFlow.current === owner) activeFlow.current = null;
     };
-  }, [flow]);
+  }, [account, startPurchase, update]);
 
   const record = useCallback(
-    (purchase: Purchase, status: PurchaseFlowStatus) => {
+    (
+      purchase: Purchase,
+      status: PurchaseFlowStatus,
+      recoveryVersion?: number,
+    ) => {
+      const guidance = describePurchaseFlowStatus(status);
+      if (status.status === 'store_pending') {
+        if (recoveryVersion !== undefined)
+          observeRecoveredPending(purchase, recoveryVersion);
+        else
+          update(purchase.id, 'store', 'waiting', GUIDANCE_COPY[guidance.key]);
+      } else {
+        update(
+          purchase.id,
+          'confirmation',
+          status.status === 'failed'
+            ? 'failed'
+            : status.status === 'verified' ||
+                status.status === 'linked' ||
+                status.status === 'verification_delayed' ||
+                (status.status === 'ownership_conflict' &&
+                  !status.alreadyGranted)
+              ? 'waiting'
+              : 'done',
+          'finishError' in status
+            ? `${GUIDANCE_COPY[guidance.key]} Finishing needs retry.`
+            : GUIDANCE_COPY[guidance.key],
+        );
+      }
       setOutcomes((current) => [
         {purchase, status},
         ...current.filter((item) => item.purchase.id !== purchase.id),
       ]);
     },
-    [],
+    [update, observeRecoveredPending],
   );
 
   const processPurchase = useCallback(
     async (purchase: Purchase) => {
-      const status = await flow.processPurchase(purchase);
-      if (activeFlow.current === flow) record(purchase, status);
+      const owner = activeFlow.current;
+      if (!owner) return;
+      if (purchase.purchaseState === 'pending') startPurchase(purchase);
+      const status = await owner.processPurchase(purchase);
+      if (activeFlow.current === owner) record(purchase, status);
     },
-    [flow, record],
+    [record, startPurchase],
   );
 
   const recover = useCallback(
-    async (includeFinished: boolean) => {
-      setRecovering(true);
-      try {
-        const results = await flow.recoverPurchases({includeFinished});
-        if (activeFlow.current !== flow) return;
-        results.forEach(({purchase, status}) => record(purchase, status));
-        if (includeFinished && results.length === 0) {
-          setMessage('No purchases to restore.');
-        }
-      } catch (error) {
-        if (activeFlow.current === flow) {
-          setMessage(`Recovery failed: ${extractErrorMessage(error)}`);
-        }
-      } finally {
-        if (activeFlow.current === flow) setRecovering(false);
-      }
+    (includeFinished: boolean): Promise<void> => {
+      const owner = activeFlow.current;
+      if (!owner) return Promise.resolve();
+      const recoveryVersion = captureVersion();
+      return owner
+        .recoverPurchases({includeFinished})
+        .then((results) => {
+          if (activeFlow.current !== owner) return;
+          results.forEach(({purchase, status}) =>
+            record(purchase, status, recoveryVersion),
+          );
+          if (includeFinished && results.length === 0)
+            setMessage('No purchases to restore.');
+        })
+        .catch((error: unknown) => {
+          if (activeFlow.current === owner)
+            setMessage(`Recovery failed: ${extractErrorMessage(error)}`);
+        })
+        .finally(() => {
+          if (activeFlow.current === owner) setRecovering(false);
+        });
     },
-    [flow, record],
+    [record, captureVersion, setRecovering],
   );
+
+  const reportStoreError = (
+    error: unknown,
+    requestTrace: string,
+    owner: PurchaseFlow<Purchase> | null,
+  ) => {
+    if (
+      !owner ||
+      activeFlow.current !== owner ||
+      purchaseRequestTrace.current !== requestTrace
+    )
+      return;
+    const code = extractErrorCode(error, ErrorCode.PurchaseError);
+    storeError(requestTrace, code);
+    if (code === ErrorCode.UserCancelled) return;
+    setMessage(
+      code === ErrorCode.DeferredPayment
+        ? GUIDANCE_COPY[
+            describePurchaseFlowStatus({status: 'store_pending'}).key
+          ]
+        : `Purchase failed: ${extractErrorMessage(error)}`,
+    );
+  };
 
   const {connected, products, subscriptions, fetchProducts, requestPurchase} =
     useIAP({
@@ -151,56 +266,71 @@ export default function BackendEntitlementFlow() {
         // Without a backend, leave the purchase unfinished for a later run.
         if (appBackendUrl()) void processPurchase(purchase);
       },
-      onPurchaseError: (error) => {
-        if (error.code === ErrorCode.UserCancelled) return;
-        // Ask to Buy reports a deferred payment instead of a purchase.
-        setMessage(
-          error.code === ErrorCode.DeferredPayment
-            ? GUIDANCE_COPY[
-                describePurchaseFlowStatus({status: 'store_pending'}).key
-              ]
-            : `Purchase failed: ${error.message}`,
-        );
-      },
+      onPurchaseError: (error) =>
+        reportStoreError(
+          error,
+          purchaseRequestTrace.current,
+          activeFlow.current,
+        ),
     });
 
-  // onPurchaseError already reports a failure such as a cancelled sheet.
-  const buy = (request: Parameters<typeof requestPurchase>[0]) =>
-    requestPurchase(request).catch(() => undefined);
+  const buy = (
+    request: Parameters<typeof requestPurchase>[0],
+    productId: string,
+  ) => {
+    const owner = activeFlow.current;
+    if (!owner) return;
+    purchaseRequestTrace.current = startStore(productId);
+    const requestTrace = purchaseRequestTrace.current;
+    setMessage(null);
+    return requestPurchase(request).catch((error: unknown) =>
+      reportStoreError(error, requestTrace, owner),
+    );
+  };
 
   const subscribe = (
     subscription: ProductSubscription,
     offerToken: string | undefined,
   ) => {
-    return buy({
-      request: {
-        apple: {sku: subscription.id},
-        google: {
-          skus: [subscription.id],
-          subscriptionOffers: offerToken
-            ? [{sku: subscription.id, offerToken}]
-            : undefined,
+    return buy(
+      {
+        request: {
+          apple: {sku: subscription.id},
+          google: {
+            skus: [subscription.id],
+            subscriptionOffers: offerToken
+              ? [{sku: subscription.id, offerToken}]
+              : undefined,
+          },
         },
+        type: 'subs',
       },
-      type: 'subs',
-    });
+      subscription.id,
+    );
   };
 
   useEffect(() => {
-    if (!connected || !backendUrl || didStartRef.current) return;
-    didStartRef.current = true;
-    fetchProducts({skus: PRODUCT_IDS, type: 'in-app'})
-      .then(() => fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}))
-      .catch((error) =>
-        setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
-      );
+    if (!connected || !backendUrl) return;
+    if (!didStartRef.current) {
+      didStartRef.current = true;
+      fetchProducts({skus: PRODUCT_IDS, type: 'in-app'})
+        .then(() =>
+          fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}),
+        )
+        .catch((error) =>
+          setMessage(`Product loading failed: ${extractErrorMessage(error)}`),
+        );
+    }
     void recover(false);
   }, [backendUrl, connected, fetchProducts, recover]);
 
   useEffect(() => {
     if (!backendUrl) return;
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void recover(false);
+      if (state === 'active') {
+        setRecovering(true);
+        void recover(false);
+      }
     });
     return () => subscription.remove();
   }, [backendUrl, recover]);
@@ -209,9 +339,10 @@ export default function BackendEntitlementFlow() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.content}>
+          <PurchaseFlowDiagram backend activity={activity} />
           <Text style={styles.text}>
-            Pay at the store. Your backend confirms the purchase and unlocks
-            access before the app finishes it.
+            Your backend verifies the purchase, checks account ownership and
+            decides access. The app finishes only a settled decision.
           </Text>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Set up your app backend</Text>
@@ -228,9 +359,10 @@ export default function BackendEntitlementFlow() {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.text}>
-          Pay at the store. Your backend confirms the purchase and unlocks
-          access before the app finishes it.
+          Your backend verifies the purchase, checks account ownership and
+          decides access. The app finishes only a settled decision.
         </Text>
+        <PurchaseFlowDiagram backend activity={activity} />
         <Text style={styles.text}>
           {connected ? 'Connected to the store' : 'Connecting to the store...'}
         </Text>
@@ -248,6 +380,8 @@ export default function BackendEntitlementFlow() {
             onChangeText={(value) => {
               if (value === account) return;
               activeFlow.current = null;
+              purchaseRequestTrace.current = '';
+              reset();
               setAccount(value);
               setOutcomes([]);
               setMessage(null);
@@ -274,13 +408,16 @@ export default function BackendEntitlementFlow() {
                 disabled={!connected}
                 style={styles.productAction}
                 onPress={() =>
-                  void buy({
-                    request: {
-                      apple: {sku: product.id},
-                      google: {skus: [product.id]},
+                  void buy(
+                    {
+                      request: {
+                        apple: {sku: product.id},
+                        google: {skus: [product.id]},
+                      },
+                      type: 'in-app',
                     },
-                    type: 'in-app',
-                  })
+                    product.id,
+                  )
                 }
               />
             </StoreProductCard>
@@ -325,7 +462,10 @@ export default function BackendEntitlementFlow() {
             title={recovering ? 'Restoring...' : 'Restore purchases'}
             variant="secondary"
             disabled={recovering || !connected}
-            onPress={() => void recover(true)}
+            onPress={() => {
+              setRecovering(true);
+              void recover(true);
+            }}
           />
         </View>
 

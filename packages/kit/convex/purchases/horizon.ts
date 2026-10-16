@@ -25,6 +25,10 @@ import {
 } from "./shared";
 import { verifyRecordingIssues } from "../purchaseIssues/shared";
 import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
+import {
   extractHttpStatus,
   isTransientHttpError,
   retryOnTransient,
@@ -163,18 +167,28 @@ const horizonVerificationArgs = v.object({
 });
 
 export const verifyMetaHorizonReceiptInternalV1 = action({
-  args: horizonVerificationArgs.fields,
+  args: {
+    ...horizonVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
+  },
   returns: receiptResponseValidator,
-  handler: (ctx, args) =>
-    verifyRecordingIssues(
+  handler: async (ctx, args) => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("horizon", request, sourceAuth);
+    return verifyRecordingIssues(
       ctx,
       {
-        apiKey: args.apiKey,
-        evidence: { store: "horizon", userId: args.userId, sku: args.sku },
-        correlationId: args.correlationId,
+        apiKey: request.apiKey,
+        evidence: {
+          store: "horizon",
+          userId: request.userId,
+          sku: request.sku,
+        },
+        correlationId: request.correlationId,
       },
-      () => verifyHorizonReceipt(ctx, args),
-    ),
+      () => verifyHorizonReceipt(ctx, request),
+    );
+  },
 });
 
 export async function verifyHorizonReceipt(

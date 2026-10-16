@@ -686,14 +686,14 @@ function Releases() {
                   outside Vega.
                 </li>
                 <li>
-                  Adds an App backend example for one-time products and
+                  Adds backend confirmation for one-time products and
                   subscriptions, keeping each account's pending results
                   separate. Play subscription prices, billing periods, and
-                  renewal terms match the selected offer. A visible mode
-                  selector separates it from the direct purchase demo, and
-                  product cards keep prices apart from purchase and details
-                  buttons. Zero-valued offer fields render as text without
-                  native view warnings.
+                  renewal terms match the selected offer. One Purchase screen
+                  explains each confirmation method and shows live callback
+                  progress in expandable purchase steps. Product cards keep
+                  prices apart from purchase and details buttons. Zero-valued
+                  offer fields render as text without native view warnings.
                 </li>
               </ul>
             </li>
@@ -708,9 +708,13 @@ function Releases() {
             <a href="https://kit.openiap.dev/docs/purchase-flow">
               Purchase flow guide
             </a>{' '}
-            includes a tested reference handler. Accept Apple sandbox purchases
-            in production so App Review can complete a purchase. The IAPKit
-            changes this flow relies on are in the{' '}
+            includes a tested reference handler. Allow Sandbox for authenticated
+            App Review and approved test accounts on your production backend.
+            The same policy filters later access refresh. Mobile account helpers
+            now return 410; migrate them to authenticated backend v2 reads.
+            Never put a secret key in the app. Self-hosted IAPKit also requires
+            a shared private verification source credential and coordinated
+            server rollout. The IAPKit changes this flow relies on are in the{' '}
             <a href="https://kit.openiap.dev/docs/release-notes#week-2026-10-12">
               hosted history
             </a>

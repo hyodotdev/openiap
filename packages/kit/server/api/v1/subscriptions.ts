@@ -1,4 +1,3 @@
-import * as crypto from "node:crypto";
 import { Buffer } from "node:buffer";
 import type { FunctionReturnType } from "convex/server";
 import { Hono, type Context, type Next } from "hono";
@@ -34,12 +33,8 @@ import {
 } from "../../../convex/subscriptions/limits";
 import { entitlementActive } from "../../../convex/subscriptions/stateMachine";
 
-// Subscription state, entitlements, metrics, and user-binding routes.
-// Mirrors the role of onesub's `/onesub/status`, `/onesub/admin/...`
-// and `/onesub/metrics/*` endpoints. App-facing compatibility routes keep the
-// publishable apiKey in the path for RN fetch implementations that strip
-// headers. Canonical administrative routes accept a Bearer secret so MCP and
-// trusted servers keep credentials out of URLs.
+// Account reads and ownership writes require a trusted app backend.
+// Legacy server response shapes stay available through Bearer authentication.
 
 const subscriptions = new Hono<{
   Variables: {
@@ -101,12 +96,7 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
       c.set("legacySubscriptionProjectId", snapshot.projectId);
     }
     const result = evaluateSubscriptionStatus(snapshot, Date.now());
-    return conditionalSubscriptionSnapshot(c, {
-      apiKey,
-      kind: "status",
-      userId,
-      result,
-    });
+    return subscriptionSnapshotResponse(c, result);
   } catch (error) {
     return subscriptionRouteError(
       c,
@@ -122,12 +112,13 @@ subscriptions.get(
   apiKeyMiddleware,
   publicApiRateLimit,
   legacySubscriptionUsageLoggerMiddleware("status", "authorization"),
+  secretAdminApiKeyMiddleware,
   (c) => handleSubscriptionStatus(c, c.var.apiKey),
 );
 subscriptions.get(
   "/status/:apiKey",
   legacySubscriptionUsageLoggerMiddleware("status", "path"),
-  (c) => handleSubscriptionStatus(c, c.req.param("apiKey")),
+  retiredAccountPath,
 );
 
 async function handleEntitlements(c: Context, apiKey: string) {
@@ -151,12 +142,7 @@ async function handleEntitlements(c: Context, apiKey: string) {
       snapshot.candidates,
       Date.now(),
     );
-    return conditionalSubscriptionSnapshot(c, {
-      apiKey,
-      kind: "entitlements",
-      userId,
-      result,
-    });
+    return subscriptionSnapshotResponse(c, result);
   } catch (error) {
     return subscriptionRouteError(
       c,
@@ -172,12 +158,13 @@ subscriptions.get(
   apiKeyMiddleware,
   publicApiRateLimit,
   legacySubscriptionUsageLoggerMiddleware("entitlements", "authorization"),
+  secretAdminApiKeyMiddleware,
   (c) => handleEntitlements(c, c.var.apiKey),
 );
 subscriptions.get(
   "/entitlements/:apiKey",
   legacySubscriptionUsageLoggerMiddleware("entitlements", "path"),
-  (c) => handleEntitlements(c, c.req.param("apiKey")),
+  retiredAccountPath,
 );
 
 async function handleListSubscriptions(c: Context, apiKey: string) {
@@ -341,6 +328,14 @@ subscriptions.get("/revenue/:apiKey", secretAdminApiKeyMiddleware, (c) =>
 
 async function handleBindUser(c: Context, apiKey: string) {
   const correlationId = issueCorrelationId(c);
+  if (
+    isContentLengthOverLimit(
+      c.req.header("content-length"),
+      MAX_BIND_USER_BODY_BYTES,
+    )
+  ) {
+    return payloadTooLarge(c);
+  }
   let body: unknown;
   try {
     body = await readJsonBodyWithLimit(
@@ -394,12 +389,30 @@ async function handleBindUser(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.post("/bind-user", apiKeyMiddleware, publicApiRateLimit, (c) =>
-  handleBindUser(c, c.var.apiKey),
+subscriptions.post(
+  "/bind-user",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  publicApiRateLimit,
+  (c) => handleBindUser(c, c.var.apiKey),
 );
-subscriptions.post("/bind-user/:apiKey", (c) =>
-  handleBindUser(c, c.req.param("apiKey")),
-);
+subscriptions.post("/bind-user/:apiKey", retiredAccountPath);
+
+function retiredAccountPath(c: Context) {
+  c.header("Cache-Control", "no-store");
+  return c.json(
+    {
+      errors: [
+        {
+          code: "LEGACY_ACCOUNT_ROUTE_RETIRED",
+          message:
+            "Account access requires your authenticated app backend. Use a secret admin key in the Authorization header on the canonical route; never put that key in an app or URL.",
+        },
+      ],
+    },
+    410,
+  );
+}
 
 function parseLimit(raw: string | undefined): number | undefined | null {
   if (raw === undefined) return undefined;
@@ -530,32 +543,10 @@ function isNonBlankString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function conditionalSubscriptionSnapshot(
-  c: Context,
-  args: {
-    apiKey: string;
-    kind: "status" | "entitlements";
-    userId: string;
-    result: unknown;
-  },
-): Response {
-  // These app-readable snapshots are user- and project-scoped. A device cache
-  // may retain them, but every reuse must be revalidated with IAPKit so an
-  // inbound store webhook or time-based expiration can change the response.
+function subscriptionSnapshotResponse(c: Context, result: unknown): Response {
   c.header("Vary", "Authorization");
-  if (isSecretApiKey(args.apiKey)) {
-    c.header("Cache-Control", "private, no-store");
-    return c.json(args.result);
-  }
-  c.header("Cache-Control", "private, no-cache");
-
-  const etag = subscriptionSnapshotEtag(args);
-  c.header("ETag", etag);
-  if (ifNoneMatchIncludes(c.req.header("if-none-match"), etag)) {
-    return c.body(null, 304);
-  }
-
-  return c.json(args.result);
+  c.header("Cache-Control", "private, no-store");
+  return c.json(result);
 }
 
 // Convex already dropped legacy non-renewing rows from the candidates; that
@@ -647,61 +638,6 @@ function toPublicSubscriptionRow(
   if (subscription === null) return null;
   const { createdAt: _createdAt, ...publicSubscription } = subscription;
   return publicSubscription;
-}
-
-function subscriptionSnapshotEtag(args: {
-  apiKey: string;
-  kind: "status" | "entitlements";
-  userId: string;
-  result: unknown;
-}): string {
-  const digest = crypto
-    .createHash("sha256")
-    .update(stableJson({ kind: args.kind, result: args.result }))
-    .digest("base64url")
-    .slice(0, 32);
-  return `W/"iapkit-subscription-${args.kind}-${digest}"`;
-}
-
-function stableJson(value: unknown): string {
-  return JSON.stringify(canonicalizeForEtag(value));
-}
-
-function canonicalizeForEtag(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(canonicalizeForEtag);
-  }
-  if (!isJsonObject(value)) {
-    return value;
-  }
-
-  const canonical: Record<string, unknown> = {};
-  for (const key of Object.keys(value).sort()) {
-    const item = value[key];
-    if (item !== undefined) {
-      canonical[key] = canonicalizeForEtag(item);
-    }
-  }
-  return canonical;
-}
-
-function ifNoneMatchIncludes(
-  ifNoneMatch: string | undefined,
-  etag: string,
-): boolean {
-  if (!ifNoneMatch) return false;
-  const normalizedEtag = normalizeEtagForWeakComparison(etag);
-  return ifNoneMatch.split(",").some((candidate) => {
-    const normalized = candidate.trim();
-    return (
-      normalized === "*" ||
-      normalizeEtagForWeakComparison(normalized) === normalizedEtag
-    );
-  });
-}
-
-function normalizeEtagForWeakComparison(etag: string): string {
-  return etag.replace(/^W\//, "");
 }
 
 function isIsoDay(value: unknown): value is string {

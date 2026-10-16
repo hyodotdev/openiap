@@ -60,7 +60,12 @@ function setup(
       (path === "/v1/purchase/verify"
         ? replies.verify
         : path === "/v2/subscriptions/entitlements"
-          ? (replies.entitlements ?? { body: { productIds: ["pro"] } })
+          ? (replies.entitlements ?? {
+              body: {
+                productIds: ["pro"],
+                environmentScope: new URL(url).searchParams.get("environment"),
+              },
+            })
           : replies.bind) ?? {};
     const text =
       typeof reply.body === "string"
@@ -175,6 +180,7 @@ describe("confirmPurchase", () => {
         return Response.json({
           userId: parsed.searchParams.get("userId"),
           productIds: expiresAt > now ? ["pro"] : [],
+          environmentScope: parsed.searchParams.get("environment"),
           subscriptions: [],
         });
       },
@@ -202,7 +208,10 @@ describe("confirmPurchase", () => {
   });
 
   it("does not grant access from an old valid receipt when the canonical subscription is revoked", async () => {
-    const entitlements: { productIds: string[] } = { productIds: [] };
+    const entitlements = {
+      productIds: [] as string[],
+      environmentScope: "production",
+    };
     const { run, grantOnce } = setup({
       verify: { body: SUBSCRIPTION },
       bind: { body: { bound: true, reason: "already_bound" } },
@@ -305,6 +314,7 @@ describe("confirmPurchase", () => {
           isValid: true,
           state: "PENDING_ACKNOWLEDGMENT",
           productId: "pro",
+          commerceEnvironment: "production",
         },
       },
       bind: { body: { ok: true, bound: true, reason: "bound" } },
@@ -473,7 +483,7 @@ describe("confirmPurchase", () => {
   });
 
   it.each([undefined, "xcode"])(
-    "treats a %s environment as a test purchase",
+    "fails closed without settling a valid purchase with an unrecognized %s environment",
     async (commerceEnvironment) => {
       const { run } = setup(
         {
@@ -484,13 +494,11 @@ describe("confirmPurchase", () => {
         () => false,
       );
 
-      await expect(run()).resolves.toEqual({
-        status: "test_account_restricted",
-      });
+      await expect(run()).rejects.toThrow("no verified purchase environment");
     },
   );
 
-  it("accepts sandbox purchases unless acceptSandbox refuses the user", async () => {
+  it("restricts Sandbox by default and explicitly allows the authenticated App Review account", async () => {
     const sandbox = { ...VALID, commerceEnvironment: "sandbox" };
     const bound = { body: { ok: true, bound: true, reason: "bound" } };
     const byDefault = setup({ verify: { body: sandbox }, bind: bound });
@@ -501,14 +509,58 @@ describe("confirmPurchase", () => {
       allowList,
     );
 
-    await expect(byDefault.run()).resolves.toMatchObject({
-      status: "entitled",
+    await expect(byDefault.run()).resolves.toEqual({
+      status: "test_account_restricted",
     });
+    expect(byDefault.grantOnce).not.toHaveBeenCalled();
+    const approved = setup(
+      { verify: { body: sandbox }, bind: bound },
+      {},
+      allowList,
+      "app-review",
+    );
+    await expect(approved.run()).resolves.toMatchObject({ status: "entitled" });
     await expect(restricted.run()).resolves.toEqual({
       status: "test_account_restricted",
     });
     expect(allowList).toHaveBeenCalledWith("user-1");
     expect(restricted.sent).toHaveLength(1);
+  });
+
+  it("uses the same test-account policy on later entitlement refresh and rejects old servers ignoring it", async () => {
+    const seen: string[] = [];
+    const options = {
+      secretKey: "openiap-kit_sk_test",
+      acceptSandbox: (userId: string) => userId === "app-review",
+      fetch: async (url: string) => {
+        const scope = new URL(url).searchParams.get("environment")!;
+        seen.push(scope);
+        return Response.json({
+          environmentScope: scope,
+          productIds:
+            scope === "all" ? ["test-access", "paid-access"] : ["paid-access"],
+        });
+      },
+    };
+    await expect(
+      activeSubscriptionProductIds("ordinary", options),
+    ).resolves.toEqual(["paid-access"]);
+    await expect(
+      activeSubscriptionProductIds("app-review", options),
+    ).resolves.toEqual(["test-access", "paid-access"]);
+    expect(seen).toEqual(["production", "all"]);
+    for (const acknowledgement of [undefined, "all"]) {
+      await expect(
+        activeSubscriptionProductIds("ordinary", {
+          ...options,
+          fetch: async () =>
+            Response.json({
+              productIds: ["test-access"],
+              environmentScope: acknowledgement,
+            }),
+        }),
+      ).rejects.toThrow("did not acknowledge");
+    }
   });
 
   it("reports an IAPKit owner conflict nobody was granted and never grants", async () => {

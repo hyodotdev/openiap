@@ -474,20 +474,15 @@ export function kitApi(options: KitApiOptions) {
     apiKey: options.apiKey,
     baseUrl,
 
-    /** GET /v1/subscriptions/status compatibility read.
-     * @deprecated New account reads must authenticate the user on a developer
-     * backend and call the secret-only, tokenless `/v2/subscriptions/status`.
-     */
+    /** @deprecated Mobile account paths return 410. Use your authenticated
+     * backend and secret-only v2 reads: https://kit.openiap.dev/docs/api. */
     status: (userId: string) =>
       call<StatusResponse>(
         `/v1/subscriptions/status/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
       ),
 
-    /** GET /v1/subscriptions/entitlements compatibility read.
-     * @deprecated New account reads must authenticate the user on a developer
-     * backend and call the secret-only, tokenless
-     * `/v2/subscriptions/entitlements`.
-     */
+    /** @deprecated Mobile account paths return 410. Use your authenticated
+     * backend and secret-only v2 reads: https://kit.openiap.dev/docs/api. */
     entitlements: (userId: string) =>
       call<EntitlementsResponse>(
         `/v1/subscriptions/entitlements/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
@@ -613,9 +608,8 @@ export function kitApi(options: KitApiOptions) {
       }
     },
 
-    /** POST /v1/subscriptions/bind-user — call after a successful
-     * verifyReceipt so kit knows which userId owns the verified
-     * `purchaseToken`. Idempotent. */
+    /** @deprecated Mobile binding paths return 410. Bind on your authenticated
+     * backend with a secret key: https://kit.openiap.dev/docs/api. */
     bindUser: (purchaseToken: string, userId: string) =>
       call<{ ok: boolean; bound: boolean }>(
         `/v1/subscriptions/bind-user/${encodeURIComponent(options.apiKey)}`,

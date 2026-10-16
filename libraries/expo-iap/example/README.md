@@ -37,7 +37,7 @@ VEGA_DEVICE_ID=<device-id> bun run run:vega:firetv
 
 The purchase and subscription screens list verification in this order:
 
-1. **Local (Device)** — direct Apple/Google verification on the device.
+1. **Local (Device)** — match an Apple purchase against StoreKit's verified pending transactions; unavailable for Google purchases.
 2. **Local (IAPKit)** — IAPKit provider routed to the configured local origin.
 3. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
 4. **None (Skip)** — skip verification.
@@ -46,14 +46,15 @@ With both values configured, the example defaults to **Local (IAPKit)**. With on
 
 ## Find the right example
 
-- **All Products** browses store metadata and offers without buying. Use **Open purchase demo** to continue.
-- **In-App Purchase Flow → Purchase demo** buys one-time products using the receipt-verification setting shown above the products.
-- **In-App Purchase Flow → App backend** confirms one-time purchases and subscriptions through your backend before finishing. Set `EXPO_PUBLIC_APP_BACKEND_URL` to a backend implementing the [purchase flow handler](https://kit.openiap.dev/docs/purchase-flow). Its IAPKit secret key stays on the server. The app account field stands in for your sign-in session; change accounts and restore to test ownership protection.
+- **All Products** browses store metadata and offers without buying. Use **Open purchase screen** to continue.
+- **Purchase** has one **Purchase confirmation** setting. **Receipt checks** tests one-time purchase verification and finishing without deciding app-account access. **Your app backend** also checks account ownership and decides access for products and subscriptions.
+- Choose **Show purchase steps** to see the store, confirmation and transaction-finishing stages. Real callbacks highlight the latest observed attempt; recovery can start from an existing purchase. Pending, skipped and failed steps remain visible without claiming access or completion.
+- To use **Your app backend**, set `EXPO_PUBLIC_APP_BACKEND_URL` to a backend implementing the [purchase flow handler](https://kit.openiap.dev/docs/purchase-flow). Its IAPKit secret key stays on the server. The app account field stands in for your sign-in session; change accounts and restore to test ownership protection.
 - **Subscription Flow** demonstrates subscription offers and management directly.
 
-The two purchase modes mount one purchase listener at a time. App backend is unavailable on Vega.
+Only the selected confirmation path mounts a purchase listener. Backend confirmation is unavailable on Vega. Finishing settles the transaction; it does not always grant access to the current account.
 
-Subscription cards in All Products and App backend show the same selected offer's price, billing periods, and renewal terms. Trial and introductory phases include the price that follows them.
+Subscription cards in All Products and the backend confirmation path show the same selected offer's price, billing periods, and renewal terms. Trial and introductory phases include the price that follows them.
 
 ## 📱 Example Structure
 

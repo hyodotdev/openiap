@@ -1,6 +1,7 @@
+import { withVerificationSource } from "./verificationSource";
 import { Buffer } from "node:buffer";
 import { generateKeyPairSync } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const appleMocks = vi.hoisted(() => ({
   apiClientConstructor: vi.fn(),
@@ -125,10 +126,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     const ctx = context();
 
     await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: clientJws,
-      }),
+      verifyAppStoreReceipt._handler(
+        ctx as never,
+        withVerificationSource("apple", {
+          apiKey: "openiap-kit_pk_mobile",
+          jws: clientJws,
+        }),
+      ),
     ).resolves.toEqual({
       isValid: true,
       state: "ENTITLED",
@@ -174,10 +178,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     const ctx = context();
 
     await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: forgedJws,
-      }),
+      verifyAppStoreReceipt._handler(
+        ctx as never,
+        withVerificationSource("apple", {
+          apiKey: "openiap-kit_pk_mobile",
+          jws: forgedJws,
+        }),
+      ),
     ).rejects.toMatchObject({
       errorCode: "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
     });
@@ -206,10 +213,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     const ctx = context();
 
     await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: clientJws,
-      }),
+      verifyAppStoreReceipt._handler(
+        ctx as never,
+        withVerificationSource("apple", {
+          apiKey: "openiap-kit_pk_mobile",
+          jws: clientJws,
+        }),
+      ),
     ).rejects.toMatchObject({
       errorCode: "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
       retryAfterSec: STORE_OUTAGE_RETRY_AFTER_SEC,
@@ -231,10 +241,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     const ctx = context();
 
     await expect(
-      verifyAppStoreReceipt._handler(ctx as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: clientJws,
-      }),
+      verifyAppStoreReceipt._handler(
+        ctx as never,
+        withVerificationSource("apple", {
+          apiKey: "openiap-kit_pk_mobile",
+          jws: clientJws,
+        }),
+      ),
     ).rejects.toMatchObject({
       errorCode: "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
       retryAfterSec: STORE_OUTAGE_RETRY_AFTER_SEC,
@@ -272,10 +285,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
       const ctx = context(p8Key);
 
       const failure = await verifyAppStoreReceipt
-        ._handler(ctx as never, {
-          apiKey: "openiap-kit_pk_mobile",
-          jws: productionClientJws(),
-        })
+        ._handler(
+          ctx as never,
+          withVerificationSource("apple", {
+            apiKey: "openiap-kit_pk_mobile",
+            jws: productionClientJws(),
+          }),
+        )
         .catch((error: unknown) => error);
 
       expect(failure).toMatchObject({
@@ -298,10 +314,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
       }),
     );
     await expect(
-      verifyAppStoreReceipt._handler(context() as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: productionClientJws(),
-      }),
+      verifyAppStoreReceipt._handler(
+        context() as never,
+        withVerificationSource("apple", {
+          apiKey: "openiap-kit_pk_mobile",
+          jws: productionClientJws(),
+        }),
+      ),
     ).rejects.toMatchObject({
       errorCode: "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
       retryAfterSec: STORE_OUTAGE_RETRY_AFTER_SEC,
@@ -312,10 +331,13 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
       new Error("Unexpected response body format"),
     );
     const failure = await verifyAppStoreReceipt
-      ._handler(context() as never, {
-        apiKey: "openiap-kit_pk_mobile",
-        jws: productionClientJws(),
-      })
+      ._handler(
+        context() as never,
+        withVerificationSource("apple", {
+          apiKey: "openiap-kit_pk_mobile",
+          jws: productionClientJws(),
+        }),
+      )
       .catch((error: unknown) => error);
     expect(failure).toMatchObject({
       errorCode: "APP_STORE_TRANSACTION_VERIFICATION_FAILED",
@@ -338,3 +360,9 @@ function savedVerdicts(ctx: ReturnType<typeof context>): unknown[] {
     (call) => (call[1] as { state?: unknown }).state !== undefined,
   );
 }
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "a".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

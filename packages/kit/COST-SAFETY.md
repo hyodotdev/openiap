@@ -170,8 +170,8 @@ mutation that already applies the event.
 
 ## Edge protection
 
-Every publishable-key verification, product, payload, subscription-status,
-entitlement, user-binding, and store-webhook ingress request passes an
+Publishable-key verification, product, payload and store-webhook ingress, plus
+secret-key subscription account reads and ownership binding, pass an
 in-memory token bucket before calling Convex:
 
 - per API key: 600-request burst, 10 tokens/second;
@@ -211,16 +211,26 @@ that a public endpoint is immune to DDoS. Operators may still block abusive
 sources at the platform edge and should review Fly and Convex telemetry during
 an incident.
 
-The Convex deployment URL is public configuration. The receipt verify actions
-and the legacy public `subscriptionStatus` / `entitlements` functions remain
-callable with a publishable key, the latter for rolling-deploy and rollback
-compatibility. Such direct Convex calls bypass Fly's in-memory limiter. Their
-reads are still indexed and bounded, and the new evaluation snapshot exposes only stored-state entitlement
-candidates plus one latest status fallback rather than raw subscription
-history. This is a pre-existing, non-expanding residual risk; Convex usage
-limits are the current process-independent cost brake. Remove the legacy direct
-functions in a later coordinated major deployment after every old Fly binary
-has drained.
+The Convex deployment URL is public configuration. All four public verification
+actions and their legacy aliases require a short-lived HMAC from the admitted
+Bun request before issue recording, project lookup, quota or store work. The
+signature binds the store, customer API key, exact evidence, expected product,
+source IP and correlation ID. The runtime service credential is never returned
+to clients. A publishable customer key alone cannot call these actions directly.
+Subscription account reads and ownership binding require a secret admin key.
+Direct calls still reach the Convex function boundary, so deployment usage
+limits remain the process-independent cost brake.
+
+The deployment provisions the same stable source credential into Convex and
+staged Fly runtime secrets before publishing functions, then deploys Fly and
+checks every retained machine. This is a fail-closed cutover: an older Fly
+binary cannot call the guarded actions. During rollout, `/v1` returns retryable
+`503 UNKNOWN_ERROR` with `Retry-After: 5`; Commerce REST returns
+`502 VERIFICATION_FAILED`, and GraphQL returns its existing error envelope with
+HTTP 200. These unavailable attempts refund replay admission. If Fly deployment
+fails after Convex, verification can remain unavailable until repaired; never
+remove the source guard to make an old binary work. See the
+[coordinated deployment procedure](README.md#verification-source-cutover).
 
 Only the `Fly-Client-IP` header inserted by the current Fly ingress is trusted.
 Forwarding and CDN headers supplied by callers are ignored. Direct local

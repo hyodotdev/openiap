@@ -1,4 +1,9 @@
 import * as v from "valibot";
+import { SUBSCRIPTION_ENVIRONMENT_SCOPES } from "../../../convex/subscriptions/limits";
+
+const environmentScopeSchema = v.optional(
+  v.picklist(SUBSCRIPTION_ENVIRONMENT_SCOPES),
+);
 
 export const apiErrorResponseSchemaV2 = v.object({
   errors: v.array(
@@ -47,12 +52,14 @@ export const subscriptionV2Schema = v.object({
 export const subscriptionStatusResponseSchemaV2 = v.object({
   active: v.boolean(),
   subscription: v.union([subscriptionV2Schema, v.null()]),
+  environmentScope: environmentScopeSchema,
 });
 
 export const subscriptionEntitlementsResponseSchemaV2 = v.object({
   userId: v.string(),
   productIds: v.array(v.string()),
   subscriptions: v.array(subscriptionV2Schema),
+  environmentScope: environmentScopeSchema,
 });
 
 const userErasureStatusSchema = v.union([

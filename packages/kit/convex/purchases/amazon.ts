@@ -34,6 +34,10 @@ import {
   type RecheckOptions,
 } from "./shared";
 import { verifyRecordingIssues } from "../purchaseIssues/shared";
+import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
 
 const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
 const AMAZON_RVS_VERSION = "1.0";
@@ -345,24 +349,30 @@ const amazonVerificationArgs = v.object({
 });
 
 export const verifyAmazonReceiptInternalV1 = action({
-  args: amazonVerificationArgs.fields,
+  args: {
+    ...amazonVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
+  },
   returns: receiptResponseValidator,
-  handler: (ctx, args) =>
-    verifyRecordingIssues(
+  handler: async (ctx, args) => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("amazon", request, sourceAuth);
+    return verifyRecordingIssues(
       ctx,
       {
-        apiKey: args.apiKey,
+        apiKey: request.apiKey,
         evidence: {
           store: "amazon",
-          userId: args.userId,
-          receiptId: args.receiptId,
-          sandbox: args.sandbox,
+          userId: request.userId,
+          receiptId: request.receiptId,
+          sandbox: request.sandbox,
         },
-        expectedProductId: args.expectedProductId,
-        correlationId: args.correlationId,
+        expectedProductId: request.expectedProductId,
+        correlationId: request.correlationId,
       },
-      () => verifyAmazonReceipt(ctx, args),
-    ),
+      () => verifyAmazonReceipt(ctx, request),
+    );
+  },
 });
 
 export async function verifyAmazonReceipt(

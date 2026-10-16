@@ -46,7 +46,6 @@ function AllProducts() {
     console.log('[AllProducts] useEffect - connected:', connected);
     if (connected) {
       console.log('[AllProducts] Fetching product groups');
-      setLoadError(null);
 
       const fetchProductGroup = async (
         label: string,
@@ -70,11 +69,11 @@ function AllProducts() {
         const messages = errors.filter(
           (message): message is string => message != null,
         );
+        setLoadError(messages.length ? messages.join('\n') : null);
         if (messages.length === 0) {
           console.log('[AllProducts] fetchProducts completed');
           return;
         }
-        setLoadError(messages.join('\n'));
       });
     }
   }, [connected, fetchProducts]);
@@ -160,7 +159,7 @@ function AllProducts() {
       <View style={styles.content}>
         <View style={styles.purchaseEntry}>
           <ExampleButton
-            title="Open purchase demo"
+            title="Open purchase screen"
             onPress={() => router.push('/purchase-flow')}
           />
         </View>

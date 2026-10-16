@@ -709,3 +709,9 @@ describe("IAPKit dual-binding conformance", () => {
     expect(served).toEqual(published);
   });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "1".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

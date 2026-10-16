@@ -1,3 +1,4 @@
+import { withVerificationSource } from "./verificationSource";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { testableFunction } from "../test.setup";
@@ -92,12 +93,15 @@ function savedReceipts(runMutation: ReturnType<typeof vi.fn>) {
 }
 
 async function runVerify(ctx: never, overrides: Record<string, unknown> = {}) {
-  return await testableFunction(verifyAmazonReceiptInternalV1)._handler(ctx, {
-    apiKey: "iapkit_test_key",
-    userId: USER_ID,
-    receiptId: RECEIPT_ID,
-    ...overrides,
-  });
+  return await testableFunction(verifyAmazonReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("amazon", {
+      apiKey: "iapkit_test_key",
+      userId: USER_ID,
+      receiptId: RECEIPT_ID,
+      ...overrides,
+    }),
+  );
 }
 
 describe("buildAmazonRemoteId", () => {
@@ -870,3 +874,9 @@ describe("entitlement rechecks of a rejected receipt", () => {
     });
   });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "c".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

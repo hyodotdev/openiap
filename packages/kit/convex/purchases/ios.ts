@@ -17,6 +17,10 @@ import { Doc, Id } from "../_generated/dataModel";
 import { loadAppleRootCertificates } from "../certificates/apple_root_certificates";
 import { verifyRecordingIssues } from "../purchaseIssues/shared";
 import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
+import {
   assertVerificationAdmission,
   getProjectByApiKey,
   mapToAppStoreReceiptResponse,
@@ -64,19 +68,25 @@ const appStoreVerificationArgs = v.object({
 });
 
 export const verifyAppStoreReceiptInternalV1 = action({
-  args: appStoreVerificationArgs.fields,
+  args: {
+    ...appStoreVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
+  },
   returns: receiptResponseValidator,
-  handler: (ctx, args) =>
-    verifyRecordingIssues(
+  handler: async (ctx, args) => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("apple", request, sourceAuth);
+    return verifyRecordingIssues(
       ctx,
       {
-        apiKey: args.apiKey,
-        evidence: { store: "apple", jws: args.jws },
-        expectedProductId: args.expectedProductId,
-        correlationId: args.correlationId,
+        apiKey: request.apiKey,
+        evidence: { store: "apple", jws: request.jws },
+        expectedProductId: request.expectedProductId,
+        correlationId: request.correlationId,
       },
-      () => verifyAppStoreReceipt(ctx, args),
-    ),
+      () => verifyAppStoreReceipt(ctx, request),
+    );
+  },
 });
 
 async function verifyAppStoreReceipt(

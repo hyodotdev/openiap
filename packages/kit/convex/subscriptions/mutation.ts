@@ -31,10 +31,7 @@ function isBound(outcome: BindOutcome): boolean {
   return outcome.reason === "bound" || outcome.reason === "already_bound";
 }
 
-// Apple and Google SDKs can link a verified token without moving its owner.
-// Only a secret key learns why a bind did not link, can link an Apple or
-// Google one-time purchase, or records a bind issue: a publishable key must
-// not write the issue log or tell a conflict from an unknown token by timing.
+// An authenticated app backend chooses the owner; store evidence alone cannot.
 export const bindUser = mutation({
   args: bindArgs,
   returns: v.object({
@@ -43,7 +40,11 @@ export const bindUser = mutation({
     reason: v.optional(bindReasonValidator),
   }),
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     if (!resolved) return { ok: false, bound: false };
     const { project } = resolved;
     if (!isValidSubscriptionUserId(args.userId)) {
@@ -51,7 +52,6 @@ export const bindUser = mutation({
         "userId must be nonblank and at most 256 characters",
       );
     }
-    const server = resolved.keyType === "secret";
 
     const sub = await findSubscriptionByToken(
       ctx,
@@ -67,7 +67,6 @@ export const bindUser = mutation({
             purchaseToken: args.purchaseToken,
             userId: args.userId,
           });
-    if (!server) return { ok: true, bound: isBound(outcome) };
     if (outcome.reason === "not_found") {
       outcome = await bindOneTimePurchaseToUser(
         ctx,

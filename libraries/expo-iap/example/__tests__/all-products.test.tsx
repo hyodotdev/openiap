@@ -75,7 +75,7 @@ it('makes the route from catalog to purchase demo explicit', async () => {
   const screen = await render(<AllProducts />);
   await waitFor(() => expect(mockFetchProducts).toHaveBeenCalledTimes(2));
   await fireEvent.press(
-    screen.getByRole('button', {name: 'Open purchase demo'}),
+    screen.getByRole('button', {name: 'Open purchase screen'}),
   );
 
   expect(mockPush).toHaveBeenCalledWith('/purchase-flow');

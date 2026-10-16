@@ -12,6 +12,8 @@ import {
 import {
   isValidSubscriptionUserId,
   MAX_SUBSCRIPTION_USER_ID_LENGTH,
+  SUBSCRIPTION_ENVIRONMENT_SCOPES,
+  type SubscriptionEnvironmentScope,
 } from "./limits";
 import { statsContributionFor } from "./stats";
 import { subscriptionEnvironment } from "./analyticsFacts";
@@ -43,12 +45,7 @@ const subscriptionFields = {
   priceAmountMicros: v.optional(v.number()),
   startedAt: v.number(),
   updatedAt: v.number(),
-  // SECURITY DEBT: on Android this is the credential a server accepts as proof
-  // of purchase, and these rows reach routes that answer to a publishable key
-  // shipped inside the app. It cannot be removed additively: MAUI declares it
-  // `required`, and its tolerant deserializer turns a missing field into a null
-  // subscription and silently drops entitlement rows — every installed MAUI app
-  // would lose entitlement. Removal needs an explicit version transition.
+  // Legacy server responses preserve this required MAUI field; v2 omits it.
   purchaseToken: v.string(),
   originalTransactionId: v.optional(v.string()),
   userId: v.optional(v.string()),
@@ -78,6 +75,25 @@ type SubscriptionRow = Infer<typeof subscriptionShape>;
 type SubscriptionV2Row = Infer<typeof subscriptionV2Shape>;
 type SubscriptionEvaluationRow = Infer<typeof subscriptionEvaluationRowShape>;
 export const MAX_USER_SUBSCRIPTION_ROWS = 200;
+
+const environmentScopeValidator = v.union(
+  ...SUBSCRIPTION_ENVIRONMENT_SCOPES.map((scope) => v.literal(scope)),
+);
+
+function subscriptionInEnvironment(
+  sub: Doc<"subscriptions">,
+  scope: SubscriptionEnvironmentScope | undefined,
+): boolean {
+  if (scope === undefined) return true;
+  const environment = sub.environment ?? sub.lastEventSource?.environment;
+  if (environment === undefined) return false;
+  return (
+    scope === "all" ||
+    (scope === "production"
+      ? environment === "Production"
+      : environment !== "Production")
+  );
+}
 
 function isActive(sub: Doc<"subscriptions">, now: number): boolean {
   return entitlementActive(sub, now);
@@ -329,8 +345,7 @@ export const subscriptionEvaluationSnapshot = query({
     fallback: v.union(subscriptionEvaluationRowShape, v.null()),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) return { projectId: null, candidates: [], fallback: null };
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const rows = await userSubscriptionRows(ctx, project._id, args.userId);
     return {
@@ -344,15 +359,23 @@ export const subscriptionEvaluationSnapshot = query({
 // shapes the response without store credentials before it crosses the HTTP
 // boundary.
 export const subscriptionStatusV2 = query({
-  args: { apiKey: v.string(), userId: v.string(), now: v.number() },
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+    now: v.number(),
+    environment: v.optional(environmentScopeValidator),
+  },
   returns: v.object({
     active: v.boolean(),
     subscription: v.union(subscriptionV2Shape, v.null()),
+    environmentScope: v.optional(environmentScopeValidator),
   }),
   handler: async (ctx, args) => {
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
-    const subs = await userSubscriptionRows(ctx, project._id, args.userId);
+    const subs = (
+      await userSubscriptionRows(ctx, project._id, args.userId)
+    ).filter((sub) => subscriptionInEnvironment(sub, args.environment));
     const activeSubs = subs.filter((candidate) =>
       isActive(candidate, args.now),
     );
@@ -363,26 +386,42 @@ export const subscriptionStatusV2 = query({
     return {
       active: activeSubs.length > 0,
       subscription: selected ? shapeSubscriptionV2Row(selected) : null,
+      ...(args.environment === undefined
+        ? {}
+        : { environmentScope: args.environment }),
     };
   },
 });
 
 export const entitlementsV2 = query({
-  args: { apiKey: v.string(), userId: v.string(), now: v.number() },
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+    now: v.number(),
+    environment: v.optional(environmentScopeValidator),
+  },
   returns: v.object({
     userId: v.string(),
     productIds: v.array(v.string()),
     subscriptions: v.array(subscriptionV2Shape),
+    environmentScope: v.optional(environmentScopeValidator),
   }),
   handler: async (ctx, args) => {
     const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const all = await userSubscriptionRows(ctx, project._id, args.userId);
-    const active = all.filter((sub) => isActive(sub, args.now));
+    const active = all.filter(
+      (sub) =>
+        subscriptionInEnvironment(sub, args.environment) &&
+        isActive(sub, args.now),
+    );
     return {
       userId: args.userId,
       productIds: Array.from(new Set(active.map((sub) => sub.productId))),
       subscriptions: active.map(shapeSubscriptionV2Row),
+      ...(args.environment === undefined
+        ? {}
+        : { environmentScope: args.environment }),
     };
   },
 });
@@ -452,8 +491,7 @@ export const subscriptionStatus = query({
     subscription: v.union(subscriptionShape, v.null()),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) return { active: false, subscription: null };
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const subs = await userSubscriptionRows(ctx, project._id, args.userId);
 
@@ -483,10 +521,7 @@ export const entitlements = query({
     subscriptions: v.array(subscriptionShape),
   }),
   handler: async (ctx, args) => {
-    const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) {
-      return { userId: args.userId, productIds: [], subscriptions: [] };
-    }
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
 
     const all = await userSubscriptionRows(ctx, project._id, args.userId);
 

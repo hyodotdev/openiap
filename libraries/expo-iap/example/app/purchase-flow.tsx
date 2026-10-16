@@ -33,6 +33,9 @@ import AppOwnershipCard from '../src/components/AppOwnershipCard';
 import BackendEntitlementFlow from '../src/components/BackendEntitlementFlow';
 import ExampleButton from '../src/components/ExampleButton';
 import StoreProductCard from '../src/components/StoreProductCard';
+import PurchaseFlowDiagram, {
+  usePurchaseFlowActivity,
+} from '../src/components/PurchaseFlowDiagram';
 import {
   CONSUMABLE_PRODUCT_IDS,
   NON_CONSUMABLE_PRODUCT_IDS,
@@ -114,6 +117,7 @@ type PurchaseFlowProps = {
   onRefreshStorefront: () => Promise<void>;
   verificationMethod: VerificationMethod;
   onChangeVerificationMethod: () => void;
+  activity: ReturnType<typeof usePurchaseFlowActivity>['activity'];
 };
 
 /**
@@ -137,6 +141,7 @@ function PurchaseFlow({
   onRefreshStorefront,
   verificationMethod,
   onChangeVerificationMethod,
+  activity,
 }: PurchaseFlowProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -230,6 +235,7 @@ function PurchaseFlow({
       </View>
 
       <View style={styles.content}>
+        <PurchaseFlowDiagram activity={activity} />
         {/* Connection Status */}
         <View style={styles.statusContainer}>
           <Text
@@ -257,10 +263,10 @@ function PurchaseFlow({
                 {verificationMethod === 'ignore'
                   ? 'None (Skip)'
                   : verificationMethod === 'local'
-                    ? 'Local (Device)'
-                    : verificationMethod === 'iapkit-localhost'
-                      ? 'Local (IAPKit)'
-                      : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                  ? 'Local (IAPKit)'
+                  : 'IAPKit'}
               </Text>
             </View>
             <Text style={styles.changeLabel}>Change ›</Text>
@@ -274,8 +280,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-                ? 'All non-consumable products already purchased'
-                : 'Loading products...'}
+              ? 'All non-consumable products already purchased'
+              : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -286,8 +292,8 @@ function PurchaseFlow({
                 CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? 'Non-consumable product'
-                    : 'In-app product'
+                  ? 'Non-consumable product'
+                  : 'In-app product'
               }
             >
               <ExampleButton
@@ -346,10 +352,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                  ? storefront
-                  : storefrontError
-                    ? 'Unavailable'
-                    : 'Not available'}
+                ? storefront
+                : storefrontError
+                ? 'Unavailable'
+                : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -683,10 +689,13 @@ function PurchaseFlow({
  * 2. subscribeEvent     - Event subscription (onPurchaseSuccess/onPurchaseError)
  * 3. requestPurchase    - 3 options: Apple, Google, Google with offers
  * 4. verify purchase    - local device | local IAPKit | hosted IAPKit | skip
- * 5. grant entitlement  - Update availablePurchases state
- * 6. finish transaction - Call finishTransaction to complete
+ * 5. finish transaction - Settle the verified store purchase
+ * 6. refresh purchases  - Read store purchases, not app-account access
  */
 function PurchaseFlowContainer() {
+  const {activity, startStore, startPurchase, update, storeError} =
+    usePurchaseFlowActivity();
+  const purchaseRequestTrace = useRef('');
   // ============================================================
   // State Management
   // ============================================================
@@ -797,6 +806,7 @@ function PurchaseFlowContainer() {
     inFlightPurchaseTasks.set(purchaseCleanupKey, task);
 
     retainedPurchaseRef.current = purchase;
+    startPurchase(purchase);
     setLastPurchase(purchase);
     setIsProcessing(false);
 
@@ -821,6 +831,12 @@ function PurchaseFlowContainer() {
     // ------------------------------------------------------------
     const currentVerificationMethod = verificationMethodRef.current;
     if (currentVerificationMethod === 'ignore') {
+      update(
+        purchase.id,
+        'confirmation',
+        'skipped',
+        'Receipt checks skipped — transaction unfinished.',
+      );
       setIsProcessing(false);
       setPurchaseResult(
         'Receipt retained. Choose verification to retry this receipt.',
@@ -836,6 +852,12 @@ function PurchaseFlowContainer() {
     });
 
     if (productId) {
+      update(
+        purchase.id,
+        'confirmation',
+        'running',
+        'Checking the receipt with the selected provider.',
+      );
       setIsProcessing(true);
       try {
         if (currentVerificationMethod === 'local') {
@@ -915,6 +937,12 @@ function PurchaseFlowContainer() {
           }
         }
       } catch (error) {
+        update(
+          purchase.id,
+          'confirmation',
+          'failed',
+          'Receipt verification failed — transaction unfinished.',
+        );
         if (__DEV__) {
           console.log('[PurchaseFlow] Verification failed:', error);
         }
@@ -948,22 +976,48 @@ function PurchaseFlowContainer() {
     // Step 6: finish transaction
     // Finish verified purchases unless an Android non-consumable is acknowledged.
     // ------------------------------------------------------------
+    const needsFinishing =
+      isConsumablePurchase ||
+      !(
+        'isAcknowledgedAndroid' in purchase &&
+        purchase.isAcknowledgedAndroid === true
+      );
     try {
-      if (
-        isConsumablePurchase ||
-        !(
-          'isAcknowledgedAndroid' in purchase &&
-          purchase.isAcknowledgedAndroid === true
-        )
-      ) {
+      update(
+        purchase.id,
+        'confirmation',
+        'done',
+        'Receipt verified. App-account access is not decided by this example.',
+      );
+      if (needsFinishing) {
+        update(
+          purchase.id,
+          'finish',
+          'running',
+          'Finishing the verified store transaction.',
+        );
         await finishTransaction({
           purchase,
           isConsumable: isConsumablePurchase,
         });
       }
+      update(
+        purchase.id,
+        'finish',
+        'done',
+        needsFinishing
+          ? 'Transaction settled. Your app still owns the access decision.'
+          : 'Already acknowledged by Google. No new finish call was needed.',
+      );
       rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
       releasePurchaseTask('finished');
     } catch (error) {
+      update(
+        purchase.id,
+        'finish',
+        'failed',
+        'Receipt verified, but finishing needs retry.',
+      );
       const message = formatErrorForDisplay(
         error,
         ErrorCode.PurchaseVerificationFinishFailed,
@@ -986,7 +1040,7 @@ function PurchaseFlowContainer() {
     );
 
     // ------------------------------------------------------------
-    // Step 5: grant entitlement
+    // Refresh store purchases; this does not grant app-account access.
     // Refresh available purchases to update UI state
     // ------------------------------------------------------------
     try {
@@ -1041,10 +1095,15 @@ function PurchaseFlowContainer() {
     // Step 2: subscribeEvent - onPurchaseError callback
     // ------------------------------------------------------------
     onPurchaseError: (error: PurchaseError) => {
+      storeError(purchaseRequestTrace.current, error.code);
       console.log('Purchase failed:', error.message);
       setIsProcessing(false);
       if (error.code === ErrorCode.UserCancelled) {
         setPurchaseResult('Purchase cancelled by user');
+        return;
+      }
+      if (error.code === ErrorCode.DeferredPayment) {
+        setPurchaseResult('Payment is pending at the store.');
         return;
       }
 
@@ -1199,6 +1258,8 @@ function PurchaseFlowContainer() {
     (itemId: string) => {
       if (purchaseRequestPendingRef.current) return;
       purchaseRequestPendingRef.current = true;
+      purchaseRequestTrace.current = startStore(itemId);
+      const requestTrace = purchaseRequestTrace.current;
       setIsProcessing(true);
       setPurchaseResult('Processing purchase...');
 
@@ -1222,6 +1283,7 @@ function PurchaseFlowContainer() {
         type: 'in-app',
       })
         .catch((error: PurchaseError) => {
+          storeError(requestTrace, error.code);
           console.log('requestPurchase failed:', {
             code: error.code,
             message: error.message,
@@ -1229,6 +1291,10 @@ function PurchaseFlowContainer() {
           setIsProcessing(false);
           if (error.code === ErrorCode.UserCancelled) {
             setPurchaseResult('Purchase cancelled by user');
+            return;
+          }
+          if (error.code === ErrorCode.DeferredPayment) {
+            setPurchaseResult('Payment is pending at the store.');
             return;
           }
 
@@ -1243,7 +1309,7 @@ function PurchaseFlowContainer() {
           purchaseRequestPendingRef.current = false;
         });
     },
-    [setIsProcessing, setPurchaseResult],
+    [setIsProcessing, setPurchaseResult, startStore, storeError],
   );
 
   const handleChangeVerificationMethod = useCallback(() => {
@@ -1318,31 +1384,54 @@ function PurchaseFlowContainer() {
       onRefreshStorefront={handleRefreshStorefront}
       verificationMethod={verificationMethod}
       onChangeVerificationMethod={handleChangeVerificationMethod}
+      activity={activity}
     />
   );
 }
 
-// "App backend" swaps the screen so only one purchase listener is mounted.
+// Only the selected confirmation path owns a purchase listener.
 export default function PurchaseFlowScreen() {
   const [appBackend, setAppBackend] = useState(false);
+  const {showActionSheetWithOptions} = useActionSheet();
+  const changeConfirmation = (): void => {
+    showActionSheetWithOptions(
+      {
+        title: 'Purchase confirmation',
+        message:
+          'Receipt checks test store verification. Your app backend also checks account ownership and decides app access.',
+        options: ['Receipt checks', 'Your app backend', 'Cancel'],
+        cancelButtonIndex: 2,
+      },
+      (index) => {
+        if (index === 0 || index === 1) setAppBackend(index === 1);
+      },
+    );
+  };
   return (
     <View style={styles.container}>
       {String(Platform.OS) !== 'kepler' ? (
         <View style={styles.modeSelector}>
-          <ExampleButton
-            title="Purchase demo"
-            accessibilityState={{selected: !appBackend}}
-            variant={appBackend ? 'secondary' : 'primary'}
-            style={styles.productAction}
-            onPress={() => setAppBackend(false)}
-          />
-          <ExampleButton
-            title="App backend"
-            accessibilityState={{selected: appBackend}}
-            variant={appBackend ? 'primary' : 'secondary'}
-            style={styles.productAction}
-            onPress={() => setAppBackend(true)}
-          />
+          <View style={styles.confirmationRow}>
+            <View style={styles.confirmationLabel}>
+              <Text style={styles.verificationButtonHint}>
+                Purchase confirmation
+              </Text>
+              <Text style={styles.confirmationValue}>
+                {appBackend ? 'Your app backend' : 'Receipt checks'}
+              </Text>
+            </View>
+            <ExampleButton
+              title="Change"
+              accessibilityLabel="Change purchase confirmation"
+              variant="secondary"
+              onPress={changeConfirmation}
+            />
+          </View>
+          <Text style={styles.confirmationHint}>
+            {appBackend
+              ? 'Your backend checks the purchase and account ownership, then decides app access.'
+              : 'Test receipt verification and transaction finishing. Your app still decides what to unlock.'}
+          </Text>
         </View>
       ) : null}
       {appBackend ? <BackendEntitlementFlow /> : <PurchaseFlowContainer />}
@@ -1356,7 +1445,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   modeSelector: {
-    flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -1364,6 +1452,15 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
   },
+  confirmationRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
+  confirmationLabel: {flex: 1},
+  confirmationValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+    lineHeight: 24,
+  },
+  confirmationHint: {fontSize: 13, lineHeight: 19, color: '#475569'},
   productAction: {flex: 1},
   header: {
     paddingHorizontal: 20,
@@ -1383,6 +1480,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 64,
+    gap: 16,
   },
   statusContainer: {
     flexDirection: 'row',

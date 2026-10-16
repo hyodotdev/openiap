@@ -7,16 +7,24 @@ import { statsContributionFor } from "./stats";
 import {
   assertUserSubscriptionRowLimit,
   entitlementsV2 as registeredEntitlementsV2,
+  entitlements as registeredEntitlements,
   MAX_USER_SUBSCRIPTION_ROWS,
   selectReportingMrr,
   shapeSubscriptionEvaluationSnapshot,
   shapeSubscriptionRow,
   shapeSubscriptionV2Row,
   subscriptionStatusV2 as registeredSubscriptionStatusV2,
+  subscriptionStatus as registeredSubscriptionStatus,
+  subscriptionEvaluationSnapshot as registeredSubscriptionEvaluationSnapshot,
 } from "./query";
 
 const subscriptionStatusV2 = testableFunction(registeredSubscriptionStatusV2);
 const entitlementsV2 = testableFunction(registeredEntitlementsV2);
+const legacyAccountReads = [
+  testableFunction(registeredSubscriptionStatus),
+  testableFunction(registeredEntitlements),
+  testableFunction(registeredSubscriptionEvaluationSnapshot),
+];
 
 function subscriptionDoc(
   overrides: Partial<Doc<"subscriptions">>,
@@ -105,9 +113,7 @@ describe("shapeSubscriptionRow", () => {
     expect(row.originalTransactionId).toBe("2000001177054625");
   });
 
-  // Security debt, pinned so a removal is a deliberate decision: MAUI declares
-  // purchaseToken `required` and drops the row when it is missing, so removing
-  // it silently strips entitlement from every installed MAUI app.
+  // Legacy server responses preserve the required MAUI field; mobile keys cannot read them.
   it("still carries the Play purchaseToken an installed MAUI app requires", () => {
     const row = shapeSubscriptionRow(
       subscriptionDoc({
@@ -151,7 +157,7 @@ describe("shapeSubscriptionV2Row", () => {
   });
 });
 
-describe("v2 account-read authorization", () => {
+describe("account-read authorization", () => {
   const db = {
     rows: {
       apiKeys: [
@@ -238,7 +244,11 @@ describe("v2 account-read authorization", () => {
 
   it("rejects publishable keys inside Convex", async () => {
     const ctx = { db } as never;
-    for (const query of [subscriptionStatusV2, entitlementsV2]) {
+    for (const query of [
+      subscriptionStatusV2,
+      entitlementsV2,
+      ...legacyAccountReads,
+    ]) {
       await expect(
         query._handler(ctx, {
           apiKey: "openiap-kit_pk_mobile",
@@ -255,7 +265,11 @@ describe("v2 account-read authorization", () => {
 
   it("rejects an unknown secret-shaped key instead of returning empty data", async () => {
     const ctx = { db } as never;
-    for (const query of [subscriptionStatusV2, entitlementsV2]) {
+    for (const query of [
+      subscriptionStatusV2,
+      entitlementsV2,
+      ...legacyAccountReads,
+    ]) {
       await expect(
         query._handler(ctx, {
           apiKey: "openiap-kit_sk_unknown",
@@ -269,6 +283,100 @@ describe("v2 account-read authorization", () => {
       );
     }
   });
+
+  it.each([
+    ["production", ["shared", "event-derived"], "prod"],
+    ["sandbox", ["shared", "test", "local-test"], "sandbox-only"],
+    ["all", ["shared", "test", "local-test", "event-derived"], "sandbox-only"],
+  ] as const)(
+    "filters %s before status selection and product deduplication",
+    async (environment, products, statusId) => {
+      const previous = db.rows.subscriptions;
+      db.rows.subscriptions = [
+        subscriptionDoc({
+          _id: "prod" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "shared",
+          updatedAt: 10,
+          environment: "Production",
+        }),
+        subscriptionDoc({
+          _id: "sandbox" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "shared",
+          updatedAt: 20,
+          environment: "Sandbox",
+        }),
+        subscriptionDoc({
+          _id: "sandbox-only" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "test",
+          updatedAt: 30,
+          environment: "Sandbox",
+        }),
+        subscriptionDoc({
+          _id: "legacy" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "unknown",
+          updatedAt: 50,
+        }),
+        subscriptionDoc({
+          _id: "xcode" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "local-test",
+          updatedAt: 15,
+          environment: "Xcode",
+        }),
+        subscriptionDoc({
+          _id: "event" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "event-derived",
+          updatedAt: 5,
+          lastEventSource: { environment: "Production" },
+        }),
+        subscriptionDoc({
+          _id: "expired" as Id<"subscriptions">,
+          userId: "mixed",
+          productId: "expired",
+          updatedAt: 99,
+          expiresAt: 1,
+          environment: "Production",
+        }),
+      ].map((row) => ({ ...row, expiresAt: row.expiresAt ?? 10 }));
+      try {
+        const args = {
+          apiKey: "openiap-kit_sk_backend",
+          userId: "mixed",
+          now: 2,
+          environment,
+        };
+        expect(await entitlementsV2._handler({ db }, args)).toMatchObject({
+          environmentScope: environment,
+          productIds: [...products],
+        });
+        expect(await subscriptionStatusV2._handler({ db }, args)).toMatchObject(
+          {
+            environmentScope: environment,
+            active: true,
+            subscription: { id: statusId },
+          },
+        );
+        const legacyArgs = {
+          apiKey: args.apiKey,
+          userId: args.userId,
+          now: args.now,
+        };
+        expect(
+          await subscriptionStatusV2._handler({ db }, legacyArgs),
+        ).toMatchObject({ active: true, subscription: { id: "legacy" } });
+        expect(
+          await entitlementsV2._handler({ db }, legacyArgs),
+        ).not.toHaveProperty("environmentScope");
+      } finally {
+        db.rows.subscriptions = previous;
+      }
+    },
+  );
 
   it("uses the caller-supplied time so cache keys advance past expiry", async () => {
     const ctx = { db } as never;

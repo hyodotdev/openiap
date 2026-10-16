@@ -1,3 +1,4 @@
+import { withVerificationSource } from "../../../convex/purchases/verificationSource";
 // Transport-independent handlers for the OpenIAP Commerce Protocol operation
 // surface. The REST routes and the GraphQL resolvers both call these and only
 // these; business logic stays below, in the same Convex functions the
@@ -170,33 +171,40 @@ async function verifyPurchaseVerdict(
       const apple = requireEvidence(input, input.apple);
       return await client.action(
         api.purchases.ios.verifyAppStoreReceiptInternalV1,
-        { ...common, jws: apple.jws },
+        withVerificationSource("apple", { ...common, jws: apple.jws }),
       );
     }
     case "google": {
       const google = requireEvidence(input, input.google);
       return await client.action(
         api.purchases.android.verifyGooglePlayReceiptInternalV1,
-        { ...common, purchaseToken: google.purchaseToken },
+        withVerificationSource("google", {
+          ...common,
+          purchaseToken: google.purchaseToken,
+        }),
       );
     }
     case "horizon": {
       const horizon = requireEvidence(input, input.horizon);
       return await client.action(
         api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
-        { ...common, userId: horizon.userId, sku: horizon.sku },
+        withVerificationSource("horizon", {
+          ...common,
+          userId: horizon.userId,
+          sku: horizon.sku,
+        }),
       );
     }
     case "amazon": {
       const amazon = requireEvidence(input, input.amazon);
       return await client.action(
         api.purchases.amazon.verifyAmazonReceiptInternalV1,
-        {
+        withVerificationSource("amazon", {
           ...common,
           userId: amazon.userId,
           receiptId: amazon.receiptId,
           sandbox: amazon.sandbox,
-        },
+        }),
       );
     }
     default:

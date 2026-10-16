@@ -17,6 +17,9 @@ import { anyApi, getFunctionName } from "convex/server";
 import { Hono } from "hono";
 import { inventories, pinSources } from "./commerce-source-snapshot.mjs";
 
+// Real routes and their guarded action handlers share only this run's credential.
+process.env.IAPKIT_VERIFICATION_SOURCE_SECRET = randomBytes(32).toString("hex");
+
 const kit = resolve(import.meta.dir, "../..");
 const repo = resolve(kit, "../..");
 const example = resolve(
@@ -120,6 +123,7 @@ for (const key of Object.keys(env))
   if (
     key.startsWith("CONVEX_") ||
     key.startsWith("VITE_KIT_CONVEX_") ||
+    key === "IAPKIT_VERIFICATION_SOURCE_SECRET" ||
     key === "VITE_CONVEX_URL"
   )
     delete env[key];

@@ -1,3 +1,4 @@
+import { withVerificationSource } from "../../../convex/purchases/verificationSource";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { html, raw } from "hono/html";
@@ -552,13 +553,13 @@ const verifyPurchaseHandler = async (
       case "apple": {
         const apple = await client.action(
           api.purchases.ios.verifyAppStoreReceiptInternalV1,
-          {
+          withVerificationSource("apple", {
             apiKey,
             jws: json.jws,
             expectedProductId: json.expectedProductId,
             requestIp,
             correlationId,
-          },
+          }),
         );
 
         return await sendReceiptResponse("apple", apple);
@@ -566,13 +567,13 @@ const verifyPurchaseHandler = async (
       case "google": {
         const google = await client.action(
           api.purchases.android.verifyGooglePlayReceiptInternalV1,
-          {
+          withVerificationSource("google", {
             apiKey,
             purchaseToken: json.purchaseToken,
             expectedProductId: json.expectedProductId,
             requestIp,
             correlationId,
-          },
+          }),
         );
 
         return await sendReceiptResponse("google", google);
@@ -583,13 +584,13 @@ const verifyPurchaseHandler = async (
         // from stored credentials; the client never sees the secret.
         const horizon = await client.action(
           api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
-          {
+          withVerificationSource("horizon", {
             apiKey,
             userId: json.userId,
             sku: json.sku,
             requestIp,
             correlationId,
-          },
+          }),
         );
 
         return await sendReceiptResponse("horizon", horizon);
@@ -597,7 +598,7 @@ const verifyPurchaseHandler = async (
       case "amazon": {
         const amazon = await client.action(
           api.purchases.amazon.verifyAmazonReceiptInternalV1,
-          {
+          withVerificationSource("amazon", {
             apiKey,
             userId: json.userId,
             receiptId: json.receiptId,
@@ -605,7 +606,7 @@ const verifyPurchaseHandler = async (
             expectedProductId: json.expectedProductId,
             requestIp,
             correlationId,
-          },
+          }),
         );
 
         return await sendReceiptResponse("amazon", amazon);

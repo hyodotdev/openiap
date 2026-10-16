@@ -192,7 +192,7 @@ export default function ApiKeys() {
                     <span className="block font-medium">{"Publishable"}</span>
                     <span className="block text-sm text-muted-foreground">
                       {
-                        "For mobile apps: purchase verification, entitlement helpers, and public product payload reads."
+                        "For mobile apps: purchase verification and public product payload reads."
                       }
                     </span>
                   </span>

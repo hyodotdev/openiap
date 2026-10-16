@@ -307,8 +307,8 @@ const outcomes = await flow.recoverPurchases();`}
         </li>
       </ul>
       <p>
-        A publishable key gets no <code>reason</code>, so an app cannot probe
-        who owns a purchase. See{" "}
+        Publishable keys cannot bind ownership. Select the app account from your
+        authenticated backend session and keep the secret key there. See{" "}
         <Link to="/docs/api" className="text-primary underline">
           Binding from your backend
         </Link>
@@ -372,12 +372,15 @@ const outcomes = await flow.recoverPurchases();`}
       <h2 className="mt-10 text-2xl font-semibold">Test purchases</h2>
       <p>
         App Review and TestFlight buy in the Apple sandbox against your
-        production backend, so the reference backend accepts sandbox and test
-        purchases by default. Refusing them fails App Review. To limit who gets
-        free test purchases, pass <code>acceptSandbox</code> an allow-list check
-        that includes your App Review demo account. Any{" "}
-        <code>commerceEnvironment</code> other than <code>production</code>{" "}
-        counts as a test purchase.
+        production backend. Configure a server-owned <code>acceptSandbox</code>
+        allow-list that includes your App Review demo account and approved
+        testers. The reference defaults to production-only access, applying the
+        same policy during confirmation and later entitlement refresh. Missing
+        or unrecognized verification environments fail for retry; explicit
+        account-read scopes exclude unknown historical rows. Re-verify those
+        rows with the store instead of assuming production. The helper requires
+        IAPKit to acknowledge the requested scope, so an older server ignoring
+        the parameter cannot grant mixed access.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Reference backend</h2>

@@ -43,6 +43,32 @@ describe("v2 subscription routes", () => {
     mocks.query.mockReset();
   });
 
+  it.each(["status", "entitlements"])(
+    "validates an explicit %s environment before Convex and preserves scope acknowledgement",
+    async (operation) => {
+      const app = buildApp();
+      const headers = { authorization: "Bearer openiap-kit_sk_backend" };
+      const invalid = await app.request(
+        `/subscriptions/${operation}?userId=user-1&environment=staging`,
+        { headers },
+      );
+      expect(invalid.status).toBe(400);
+      expect(mocks.query).not.toHaveBeenCalled();
+      mocks.query.mockResolvedValue({ environmentScope: "production" });
+      const response = await app.request(
+        `/subscriptions/${operation}?userId=user-1&environment=production`,
+        { headers },
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ environmentScope: "production" });
+      expect(mocks.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ environment: "production" }),
+      );
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    },
+  );
+
   it("rejects publishable keys before querying account data", async () => {
     const response = await buildApp().request(
       "/subscriptions/status?userId=user-1",

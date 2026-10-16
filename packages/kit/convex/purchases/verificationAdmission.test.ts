@@ -1,6 +1,7 @@
+import { withVerificationSource } from "./verificationSource";
 import { Buffer } from "node:buffer";
 import { getFunctionName, type FunctionReference } from "convex/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   consume,
@@ -285,28 +286,40 @@ function appleJws(bundleId: string): string {
 }
 
 const verifyApple = (jws: string) => (ctx: unknown) =>
-  testableFunction(verifyAppStoreReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    jws,
-  });
+  testableFunction(verifyAppStoreReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("apple", {
+      apiKey: API_KEY,
+      jws,
+    }),
+  );
 const verifyGoogle = (ctx: unknown) =>
-  testableFunction(verifyGooglePlayReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    purchaseToken: "token",
-  });
+  testableFunction(verifyGooglePlayReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("google", {
+      apiKey: API_KEY,
+      purchaseToken: "token",
+    }),
+  );
 const verifyHorizon = (ctx: unknown) =>
-  testableFunction(verifyMetaHorizonReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    userId: "meta-user",
-    sku: "premium",
-  });
+  testableFunction(verifyMetaHorizonReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("horizon", {
+      apiKey: API_KEY,
+      userId: "meta-user",
+      sku: "premium",
+    }),
+  );
 const verifyAmazon = (sandbox: boolean) => (ctx: unknown) =>
-  testableFunction(verifyAmazonReceiptInternalV1)._handler(ctx, {
-    apiKey: API_KEY,
-    userId: "amzn-user",
-    receiptId: "amzn-receipt",
-    sandbox,
-  });
+  testableFunction(verifyAmazonReceiptInternalV1)._handler(
+    ctx,
+    withVerificationSource("amazon", {
+      apiKey: API_KEY,
+      userId: "amzn-user",
+      receiptId: "amzn-receipt",
+      sandbox,
+    }),
+  );
 
 type StoreCase = {
   name: string;
@@ -467,3 +480,9 @@ describe("verification admission order", () => {
     },
   );
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "d".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

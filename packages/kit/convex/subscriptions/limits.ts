@@ -1,5 +1,13 @@
 export const MAX_SUBSCRIPTION_USER_ID_LENGTH = 256;
 
+export const SUBSCRIPTION_ENVIRONMENT_SCOPES = [
+  "production",
+  "sandbox",
+  "all",
+] as const;
+export type SubscriptionEnvironmentScope =
+  (typeof SUBSCRIPTION_ENVIRONMENT_SCOPES)[number];
+
 export function isValidSubscriptionUserId(userId: string): boolean {
   return (
     userId.trim().length > 0 && userId.length <= MAX_SUBSCRIPTION_USER_ID_LENGTH

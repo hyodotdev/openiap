@@ -21,6 +21,10 @@ import {
 } from "./shared";
 import { verifyRecordingIssues } from "../purchaseIssues/shared";
 import {
+  assertVerificationSource,
+  verificationSourceValidator,
+} from "./verificationSource";
+import {
   PlayStoreServiceAccountNotFoundError,
   PlayStoreFileContentNotReadableError,
   InvalidServiceAccountKeyFormatError,
@@ -53,19 +57,25 @@ const googlePlayVerificationArgs = v.object({
 });
 
 export const verifyGooglePlayReceiptInternalV1 = action({
-  args: googlePlayVerificationArgs.fields,
+  args: {
+    ...googlePlayVerificationArgs.fields,
+    sourceAuth: verificationSourceValidator,
+  },
   returns: receiptResponseValidator,
-  handler: (ctx, args) =>
-    verifyRecordingIssues(
+  handler: async (ctx, args) => {
+    const { sourceAuth, ...request } = args;
+    assertVerificationSource("google", request, sourceAuth);
+    return verifyRecordingIssues(
       ctx,
       {
-        apiKey: args.apiKey,
-        evidence: { store: "google", purchaseToken: args.purchaseToken },
-        expectedProductId: args.expectedProductId,
-        correlationId: args.correlationId,
+        apiKey: request.apiKey,
+        evidence: { store: "google", purchaseToken: request.purchaseToken },
+        expectedProductId: request.expectedProductId,
+        correlationId: request.correlationId,
       },
-      () => verifyGooglePlayReceipt(ctx, args),
-    ),
+      () => verifyGooglePlayReceipt(ctx, request),
+    );
+  },
 });
 
 async function verifyGooglePlayReceipt(

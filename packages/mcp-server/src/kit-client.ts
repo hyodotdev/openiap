@@ -110,10 +110,12 @@ export type EntitlementsResponseV2 = {
   userId: string;
   productIds: string[];
   subscriptions: KitSubscriptionV2[];
+  environmentScope?: "production" | "sandbox" | "all";
 };
 export type StatusResponseV2 = {
   active: boolean;
   subscription: KitSubscriptionV2 | null;
+  environmentScope?: "production" | "sandbox" | "all";
 };
 
 // Operations responses. Kit's mcp-contract test holds each to the Convex
@@ -332,6 +334,8 @@ export interface KitHealthResponse {
   service: "iapkit";
   apiVersion: "v1";
   revision: string | null;
+  instanceId: string | null;
+  verificationSourceReady: boolean;
   environment: string;
   timestamp: string;
 }

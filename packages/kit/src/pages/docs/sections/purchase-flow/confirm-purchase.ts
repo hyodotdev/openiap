@@ -42,17 +42,12 @@ export interface IapkitOptions {
   secretKey: string;
   baseUrl?: string;
   fetch?: (url: string, init: RequestInit) => Promise<Response>;
+  /** Server-owned test-account allow-list, including your App Review account. Defaults to false. */
+  acceptSandbox?: (userId: string) => boolean | Promise<boolean>;
 }
 
 export interface ConfirmPurchaseOptions extends IapkitOptions {
   ledger: EntitlementLedger;
-  /**
-   * Whether `userId` may get sandbox and test purchases; everyone may by
-   * default. App Review and TestFlight buy in the Apple sandbox against your
-   * production backend, so limit testers with an allow-list that includes your
-   * App Review demo account instead of refusing the sandbox.
-   */
-  acceptSandbox?: (userId: string) => boolean | Promise<boolean>;
 }
 
 /** The `/v1/purchase/verify` fields this backend reads. */
@@ -143,11 +138,15 @@ export async function confirmPurchase(
     }
     return { status: "invalid", reason: result.state };
   }
-  const acceptSandbox = options.acceptSandbox ?? (() => true);
-  // A missing or unknown environment counts as a test purchase.
   if (
     result.commerceEnvironment !== "production" &&
-    !(await acceptSandbox(userId))
+    result.commerceEnvironment !== "sandbox"
+  ) {
+    throw new Error("IAPKit returned no verified purchase environment");
+  }
+  if (
+    result.commerceEnvironment === "sandbox" &&
+    !(await options.acceptSandbox?.(userId))
   ) {
     return { status: "test_account_restricted" };
   }
@@ -210,7 +209,7 @@ export async function confirmPurchase(
         return { status: "verified", retryAfterMs: DEFAULT_RETRY_MS };
       }
       break;
-    // Publishable keys get no reason; an unknown one may be a new refusal.
+    // An absent reason or a new refusal requires a backend configuration check.
     default:
       throw new Error(
         reason === undefined
@@ -280,11 +279,26 @@ export async function activeSubscriptionProductIds(
   options: IapkitOptions,
 ): Promise<string[]> {
   const path = "/v2/subscriptions/entitlements";
-  const reply = await callIapkit<{ productIds: string[] }>(
+  const environment = (await options.acceptSandbox?.(userId))
+    ? "all"
+    : "production";
+  const reply = await callIapkit<{
+    productIds: string[];
+    environmentScope?: string;
+  }>(
     options,
-    `${path}?userId=${encodeURIComponent(userId)}`,
+    `${path}?userId=${encodeURIComponent(userId)}&environment=${environment}`,
   );
   if ("failure" in reply) throw unexpected(path, reply.failure);
+  if (
+    reply.body?.environmentScope !== environment ||
+    !Array.isArray(reply.body.productIds) ||
+    !reply.body.productIds.every((id) => typeof id === "string")
+  ) {
+    throw new Error(
+      "IAPKit did not acknowledge the requested entitlement environment; update the backend before granting access",
+    );
+  }
   return reply.body.productIds;
 }
 

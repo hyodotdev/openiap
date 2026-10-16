@@ -43,7 +43,7 @@ describe('Home Component', () => {
     const {getByText} = await render(<Home />);
 
     expect(getByText('All Products')).toBeDefined();
-    expect(getByText('In-App Purchase Flow')).toBeDefined();
+    expect(getByText('Purchase')).toBeDefined();
     expect(getByText('Subscription Flow')).toBeDefined();
     expect(getByText('Available Purchases')).toBeDefined();
     expect(getByText('Offer Code Redemption')).toBeDefined();

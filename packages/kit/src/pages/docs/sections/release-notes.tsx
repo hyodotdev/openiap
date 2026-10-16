@@ -36,9 +36,29 @@ const RELEASES: ReleaseEntry[] = [
         text: "Verify accepts includeTransactionDetails and returns the transaction ID, original transaction ID, expiry, environment, a correlation ID and whether a rejection is final (never for Meta Horizon or a Google subscription the store can still revive), to match a verification with commerce events. Responses without the flag are unchanged.",
       },
       {
+        kind: "fix",
+        topic: "Organization access",
+        text: "Removing an organization member immediately stops that user's statistics query from reading the former organization's plan, usage and project count. A saved organization selection is checked against current membership, including profiles that already contain a stale selection. Organizations pending deletion no longer supply these statistics.",
+      },
+      {
+        kind: "fix",
+        topic: "Verification boundary",
+        text: "Direct Convex verification actions and legacy aliases now require a short-lived proof from the admitted IAPKit server request. Public receipt verification still uses the same customer API keys and wire contract; service-source failures stay retryable. Self-hosted deployments must configure the private source credential in both services and use the coordinated rollout procedure.",
+      },
+      {
         kind: "feature",
         topic: "Linking",
-        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, these links do not count toward the per-user link cap, and publishable keys keep the old response. An operator's secret-key rebind can move a one-time link; it reports notified: false, since one-time purchases send no commerce events.",
+        text: "Secret-key bind-user links Apple and Google one-time purchases, including Google purchases awaiting acknowledgment, and returns a reason for each outcome. It never moves a purchase that another app user owns, and these links do not count toward the per-user link cap. An operator's secret-key rebind can move a one-time link; it reports notified: false, since one-time purchases send no commerce events.",
+      },
+      {
+        kind: "security",
+        topic: "Account access",
+        text: "All subscription account reads and ownership binding now require a secret admin key, including legacy v1 and direct Convex calls. Publishable keys receive 403 INSUFFICIENT_SCOPE; legacy account paths containing a key return 410 LEGACY_ACCOUNT_ROUTE_RETIRED. Move shipped mobile helpers to an authenticated app backend using tokenless v2 reads. Never embed a secret key in the app. Authorized v1 server response fields are preserved and use no-store.",
+      },
+      {
+        kind: "security",
+        topic: "Test access",
+        text: "V2 account reads accept an explicit production, sandbox or all environment filter and acknowledge it as environmentScope. Explicit filters exclude unknown historical environments; omission retains legacy mixed reads. The reference backend defaults to production-only access and applies its server-owned App Review/test-account allow-list during confirmation and later entitlement refresh. Missing verified environment or missing scope acknowledgement fails closed for retry instead of granting access.",
       },
       {
         kind: "feature",

@@ -2,8 +2,8 @@ name: "A2. Deploy: Kit"
 
 # Verify on any push/PR or manual ref; deploy only from the main branch, and
 # from a push only when it changes what kit builds from
-# (scripts/ci/kit-deploy-needed.mjs). Production deploys publish additive
-# Convex functions before Fly.
+# (scripts/ci/kit-deploy-needed.mjs). Production deploys configure the source
+# credential before publishing Convex functions and Fly.
 
 on:
   push:
@@ -131,7 +131,7 @@ jobs:
         run: bun run lint
 
       - name: Format check
-        run: bunx prettier --check "src/**/*.{ts,tsx,css,json}" "server/**/*.ts" "convex/**/*.ts"
+        run: bunx prettier --check "src/**/*.{ts,tsx,css,json}" "server/**/*.ts" "convex/**/*.ts" "scripts/verify-fly-deployment*.ts" "scripts/verification-provisioning.test.ts"
 
       - name: Run tests (convex + server unit tests)
         run: bun run test:coverage
@@ -240,15 +240,8 @@ jobs:
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
           FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
-        run: |
-          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
-            echo "::error::KIT_CONVEX_DEPLOY_KEY secret not set."
-            exit 1
-          fi
-          if [ -z "$FLY_API_TOKEN" ]; then
-            echo "::error::KIT_FLY_API_TOKEN secret not set."
-            exit 1
-          fi
+          IAPKIT_VERIFICATION_SOURCE_SECRET: ${{ secrets.KIT_VERIFICATION_SOURCE_SECRET }}
+        run: bash packages/kit/scripts/validate-deployment-credentials.sh
 
       - name: Setup Bun (for Convex deploy)
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -264,24 +257,27 @@ jobs:
             sleep 5
           done
 
-      - name: Deploy Convex functions
-        working-directory: packages/kit
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
-        run: |
-          # Convex resolves the canonical URL for the deployment selected by
-          # CONVEX_DEPLOY_KEY. Abort before pushing functions if it does not
-          # match the committed production SSOT, then pass that same resolved
-          # URL to the later Fly build through GITHUB_ENV.
-          bunx convex deploy --yes \
-            --cmd './scripts/verify-production-convex-target.sh && printf "VITE_KIT_CONVEX_URL=%s\n" "$VITE_KIT_CONVEX_URL" >> "$GITHUB_ENV"' \
-            --cmd-url-env-var-name VITE_KIT_CONVEX_URL
-
       - name: Setup flyctl
         # Pinned to the `1.6` release rather than `@master` so the action
         # can't silently change under us (supply-chain risk — a future
         # compromise of `master` shouldn't wedge our deploy).
         uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+
+      - name: Deploy Convex functions
+        working-directory: packages/kit
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
+          FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
+          IAPKIT_VERIFICATION_SOURCE_SECRET: ${{ secrets.KIT_VERIFICATION_SOURCE_SECRET }}
+        run: |
+          # Convex resolves the canonical URL for the deployment selected by
+          # CONVEX_DEPLOY_KEY. Abort before pushing functions if it does not
+          # match the committed production SSOT. Configure the shared runtime
+          # source credential before publishing guards, then pass the resolved
+          # URL to the later Fly build through GITHUB_ENV.
+          bunx convex deploy --yes \
+            --cmd 'bash ./scripts/provision-verification-source.sh && printf "VITE_KIT_CONVEX_URL=%s\n" "$VITE_KIT_CONVEX_URL" >> "$GITHUB_ENV"' \
+            --cmd-url-env-var-name VITE_KIT_CONVEX_URL
 
       - name: Deploy
         # Deploy from the monorepo root so the Docker build context has
@@ -319,29 +315,8 @@ jobs:
             --dockerfile packages/kit/Dockerfile \
             "${BUILD_FLAGS[@]}"
 
-      # Everything above proves what was built and pushed; this samples what is
-      # serving. It is a smoke check, not proof that every machine rolled: a
-      # single public GET reaches one instance, so it catches a deploy that
-      # replaced nothing, not a partial rollout.
-      - name: Verify the deployed revision is the one just built
+      - name: Verify every retained Fly machine
         env:
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-12 | tr '[:upper:]' '[:lower:]')"
-          ACTUAL=""
-          for attempt in 1 2 3 4 5 6; do
-            # `|| true` on both: a non-2xx response and a body that is not JSON
-            # are both retryable states, and under `set -eo pipefail` either
-            # would otherwise end the step before the diagnostic below.
-            BODY="$(curl -fsS --max-time 20 https://kit.openiap.dev/health || true)"
-            ACTUAL="$(printf '%s' "$BODY" | jq -r '.revision // empty' 2>/dev/null || true)"
-            ACTUAL="$(printf '%s' "$ACTUAL" | tr '[:upper:]' '[:lower:]')"
-            if [ "$ACTUAL" = "$EXPECTED" ]; then
-              echo "Sampled instance is serving $ACTUAL"
-              exit 0
-            fi
-            echo "attempt $attempt: sampled ${ACTUAL:-<no revision>}, expected $EXPECTED"
-            sleep 10
-          done
-          echo "::error::kit.openiap.dev sampled ${ACTUAL:-<no revision>}, not $EXPECTED"
-          exit 1
+          FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
+          IAPKIT_REVISION: ${{ github.sha }}
+        run: bun packages/kit/scripts/verify-fly-deployment.ts "$IAPKIT_REVISION"

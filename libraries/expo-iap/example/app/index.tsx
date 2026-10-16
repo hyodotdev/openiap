@@ -32,8 +32,8 @@ const MENU_ITEMS: MenuItem[] = [
     id: 'purchase-flow',
     href: '/purchase-flow',
     icon: '🛒',
-    title: 'In-App Purchase Flow',
-    subtitle: 'Buy directly or confirm with your backend',
+    title: 'Purchase',
+    subtitle: 'Buy a product and follow its confirmation',
     accentColor: '#2563EB',
   },
   {

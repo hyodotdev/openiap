@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertVerificationSource } from "../../../convex/purchases/verificationSource";
+import { ReceiptVerificationError } from "../../../convex/purchases/errors";
 import { getFunctionName } from "convex/server";
 
 vi.mock("hono/bun", () => ({
@@ -270,7 +272,15 @@ describe("apiRoutes", () => {
       expectedProductId: "amazon.premium.monthly",
       requestIp: undefined,
       correlationId: response.headers.get("X-Correlation-Id"),
+      sourceAuth: {
+        issuedAt: expect.any(Number),
+        mac: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
     });
+    const { sourceAuth, ...authenticated } = args;
+    expect(() =>
+      assertVerificationSource("amazon", authenticated, sourceAuth),
+    ).not.toThrow();
   });
 
   it.each([
@@ -278,7 +288,7 @@ describe("apiRoutes", () => {
       label: "Apple",
       apiKey: "route-test-apple-forwarding",
       body: {
-        store: "apple",
+        store: "apple" as const,
         jws: `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`,
         expectedProductId: "apple.premium.monthly",
       },
@@ -294,7 +304,7 @@ describe("apiRoutes", () => {
       label: "Horizon",
       apiKey: "route-test-horizon-forwarding",
       body: {
-        store: "horizon",
+        store: "horizon" as const,
         userId: "123456789",
         sku: "horizon.premium.monthly",
       },
@@ -333,7 +343,59 @@ describe("apiRoutes", () => {
       expect(args).toEqual({
         ...expectedArgs,
         correlationId: response.headers.get("X-Correlation-Id"),
+        sourceAuth: {
+          issuedAt: expect.any(Number),
+          mac: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
       });
+      const { sourceAuth, ...authenticated } = args;
+      expect(() =>
+        assertVerificationSource(body.store, authenticated, sourceAuth),
+      ).not.toThrow();
+    },
+  );
+
+  it.each(["/purchase/verify", "/verify-purchase"])(
+    "%s refunds source-unavailable attempts and never calls Convex without a proof",
+    async (path) => {
+      vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", undefined);
+      convexClientMock.handleConvexError.mockImplementation((error: unknown) =>
+        error instanceof ReceiptVerificationError
+          ? {
+              code: error.errorCode,
+              message: error.errorMessage,
+              retryAfterSec: error.retryAfterSec,
+            }
+          : null,
+      );
+      const request = () =>
+        apiRoutes.request(path, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer source-cutover-${path.slice(1)}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            store: "google",
+            purchaseToken: "source-fixture-purchase-token",
+          }),
+        });
+      for (let attempt = 0; attempt < 32; attempt++) {
+        const response = await request();
+        expect(response.status).toBe(503);
+        expect(response.headers.get("retry-after")).toBe("5");
+        expect(await response.json()).toMatchObject({
+          errors: [{ code: "UNKNOWN_ERROR", retryAfterSec: 5 }],
+        });
+      }
+      expect(convexClientMock.action).not.toHaveBeenCalled();
+      vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "e".repeat(64));
+      convexClientMock.action.mockResolvedValue({
+        isValid: true,
+        state: "ENTITLED",
+      });
+      expect((await request()).status).toBe(200);
+      expect(convexClientMock.action).toHaveBeenCalledOnce();
     },
   );
 
@@ -929,3 +991,9 @@ describe("apiRoutes", () => {
     });
   });
 });
+
+// Synthetic service credential for this isolated verification transport fixture.
+beforeEach(() =>
+  vi.stubEnv("IAPKIT_VERIFICATION_SOURCE_SECRET", "e".repeat(64)),
+);
+afterEach(() => vi.unstubAllEnvs());

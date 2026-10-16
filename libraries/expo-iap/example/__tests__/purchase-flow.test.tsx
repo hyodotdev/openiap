@@ -1,7 +1,13 @@
-import type {Purchase} from '../../src';
+import {ErrorCode, type ExpoPurchaseError, type Purchase} from '../../src';
 import React from 'react';
 import {Platform} from 'react-native';
-import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
+import {
+  act,
+  render,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
 import PurchaseFlow from '../app/purchase-flow';
 import {
   requestPurchase,
@@ -36,6 +42,7 @@ const mockVerifyPurchaseWithProvider = jest.fn();
 let mockOnPurchaseSuccess:
   | ((purchase: Record<string, unknown>) => Promise<void> | void)
   | undefined;
+let mockOnPurchaseError: ((error: ExpoPurchaseError) => void) | undefined;
 const mockUseIAP = {
   connected: true,
   products: [
@@ -61,8 +68,12 @@ jest.mock('../../src', () => ({
   ...jest.requireActual('../../src/purchase-flow'),
   ErrorCode: jest.requireActual('../../src/types').ErrorCode,
   useIAP: jest.fn(
-    (options?: {onPurchaseSuccess?: typeof mockOnPurchaseSuccess}) => {
+    (options?: {
+      onPurchaseSuccess?: typeof mockOnPurchaseSuccess;
+      onPurchaseError?: typeof mockOnPurchaseError;
+    }) => {
       mockOnPurchaseSuccess = options?.onPurchaseSuccess;
+      mockOnPurchaseError = options?.onPurchaseError;
       return mockUseIAP;
     },
   ),
@@ -93,6 +104,7 @@ describe('PurchaseFlow Component', () => {
     mockUseIAP.connected = true;
     mockUseIAP.availablePurchases = [];
     mockOnPurchaseSuccess = undefined;
+    mockOnPurchaseError = undefined;
     (getStorefront as jest.Mock).mockResolvedValue('US');
   });
 
@@ -109,6 +121,37 @@ describe('PurchaseFlow Component', () => {
     // Look for the text that contains "Connected"
     expect(getByText(/✅ Connected/)).toBeDefined();
   });
+
+  it.each([
+    [ErrorCode.UserCancelled, 'Skipped'],
+    [ErrorCode.DeferredPayment, 'Waiting'],
+    [ErrorCode.NetworkError, 'Needs retry'],
+  ])(
+    'shows native store callback %s as %s after request dispatch resolves',
+    async (code, state) => {
+      const screen = await render(<PurchaseFlow />);
+      await waitFor(() => expect(getStorefront).toHaveBeenCalled());
+      await fireEvent.press(
+        screen.getByRole('button', {name: /Show purchase steps/}),
+      );
+      await fireEvent.press(
+        screen.getByRole('button', {name: 'Purchase Test Product'}),
+      );
+      await act(async () => {
+        mockOnPurchaseError?.(
+          Object.assign(new Error('Store response'), {code}),
+        );
+      });
+      expect(
+        within(screen.getByTestId('purchase-step-store')).getByText(state),
+      ).toBeTruthy();
+      expect(
+        within(screen.getByTestId('purchase-step-finish')).getByText(
+          'Not observed',
+        ),
+      ).toBeTruthy();
+    },
+  );
 
   it('should load products on mount', async () => {
     await render(<PurchaseFlow />);
@@ -173,31 +216,52 @@ describe('PurchaseFlow Component', () => {
         }),
         expect.any(Function),
       );
-      expect(screen.queryByRole('button', {name: 'App backend'})).toBeNull();
+      expect(
+        screen.queryByRole('button', {name: 'Change purchase confirmation'}),
+      ).toBeNull();
       expect(screen.getByText('Local (IAPKit)')).toBeTruthy();
     } finally {
       if (previous) Object.defineProperty(Platform, 'OS', previous);
     }
   });
 
-  it('switches purchase owners through the visible mode control', async () => {
+  it('explains confirmation and mounts only its selected purchase path', async () => {
     const screen = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
 
-    expect(
-      screen.getByRole('button', {name: 'Purchase demo', selected: true}),
-    ).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', {name: 'App backend'}));
+    expect(screen.getByText('Receipt checks')).toBeTruthy();
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(1),
+    );
+    await fireEvent.press(
+      screen.getByRole('button', {name: 'Change purchase confirmation'}),
+    );
 
     expect(screen.getByText('Set up your app backend')).toBeTruthy();
     expect(screen.queryByText('Receipt verification')).toBeNull();
-    expect(
-      screen.getByRole('button', {name: 'App backend', selected: true}),
-    ).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', {name: 'Purchase demo'}));
+    expect(screen.getByText('Your app backend')).toBeTruthy();
+    expect(mockShowActionSheetWithOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Purchase confirmation',
+        options: ['Receipt checks', 'Your app backend', 'Cancel'],
+      }),
+      expect.any(Function),
+    );
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(0),
+    );
+    await fireEvent.press(
+      screen.getByRole('button', {name: 'Change purchase confirmation'}),
+    );
     expect(screen.queryByText('Set up your app backend')).toBeNull();
     expect(screen.getByText('Receipt verification')).toBeTruthy();
-    expect(mockShowActionSheetWithOptions).not.toHaveBeenCalled();
+    mockShowActionSheetWithOptions.mockImplementation(
+      (_options: unknown, callback: (index: number) => void) => callback(2),
+    );
+    await fireEvent.press(
+      screen.getByRole('button', {name: 'Change purchase confirmation'}),
+    );
+    expect(screen.getByText('Receipt checks')).toBeTruthy();
   });
 
   it('retains a receipt in None mode and retries it after selecting verification', async () => {

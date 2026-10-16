@@ -149,24 +149,19 @@ const purchase = (db: MemoryDb, remoteId: string) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe("bindUser with a publishable key", () => {
-  it("answers a conflict exactly like an unknown token and records neither", async () => {
-    const { db, ctx } = setup();
-    const conflict = await bind(ctx, PK, "sub-owned");
-    const unknown = await bind(ctx, PK, "no-such-token");
-    expect(conflict).toEqual({ ok: true, bound: false });
-    expect(JSON.stringify(conflict)).toBe(JSON.stringify(unknown));
-    expect(db.rows("purchaseIssues")).toEqual([]);
-  });
-
-  it("keeps today's response and never links a one-time purchase", async () => {
-    const { db, ctx } = setup();
-    expect(await bind(ctx, PK, "sub-free")).toEqual({ ok: true, bound: true });
-    expect(await bind(ctx, PK, "lifetime-1")).toEqual({
-      ok: true,
-      bound: false,
-    });
-    expect(purchase(db, "lifetime-1")).not.toHaveProperty("appUserId");
-  });
+  it.each(["sub-free", "sub-owned", "no-such-token", "lifetime-1"])(
+    "rejects account binding of %s before any ownership or issue write",
+    async (token) => {
+      const { db, ctx } = setup();
+      const before = JSON.stringify(db.rows("subscriptions"));
+      await expect(bind(ctx, PK, token)).rejects.toMatchObject({
+        data: { code: "INSUFFICIENT_SCOPE" },
+      });
+      expect(JSON.stringify(db.rows("subscriptions"))).toBe(before);
+      expect(purchase(db, "lifetime-1")).not.toHaveProperty("appUserId");
+      expect(db.rows("purchaseIssues")).toEqual([]);
+    },
+  );
 });
 
 describe("bindUser with a secret key", () => {

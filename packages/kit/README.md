@@ -101,6 +101,15 @@ exit because the Convex URL is not available yet.
 Copy individual optional settings from `.env.example` only after Convex has
 created `.env.local`; do not replace the generated deployment values.
 
+Receipt verification also requires a private service credential shared by the
+local Bun server and that selected **development** Convex deployment. Generate
+32 random bytes as 64 lowercase hex characters, store them as
+`IAPKIT_VERIFICATION_SOURCE_SECRET` in ignored `.env.local`, and set the same
+value through the development deployment's environment-variable UI or
+`convex env set` via stdin. Keep it separate from production and customer API
+keys. Never prefix it with `VITE_`, copy it to the example app, or log it.
+Missing or mismatched values defer verification instead of granting access.
+
 > **Git worktrees:** `.env.local` and `.env.production` are intentionally
 > ignored, so Git does not copy them into a new worktree. Provision them from
 > the maintainer's secure local copy before launching Kit, and never commit
@@ -203,6 +212,8 @@ SLA. The plan is to share the service's costs openly as usage grows.
   "service": "iapkit",
   "apiVersion": "v1",
   "revision": "a1b2c3d4e5f6",
+  "instanceId": "7849e073a91568",
+  "verificationSourceReady": true,
   "environment": "production",
   "timestamp": "2026-07-30T12:34:56.000Z"
 }
@@ -214,7 +225,9 @@ revisioned services, not installable semantic-versioned packages. `revision`
 is the first 12 characters of the deployed Git commit. Local builds report
 `null` when no valid revision is injected. The response is
 `Cache-Control: no-store`, remains safe for Fly.io liveness/readiness probes,
-and performs no database or store request.
+and performs no database or store request. `instanceId` comes from Fly runtime
+metadata (otherwise `null`); `verificationSourceReady` reports only a valid
+local credential format, not a successful Convex handshake.
 
 ### Graceful shutdown
 
@@ -225,8 +238,8 @@ machine, so deploys don't cut off requests mid-verify.
 
 ### Rate limiting
 
-Receipt verification and every publishable-key product, client-payload,
-subscription-status, entitlement, and user-binding route share bounded
+Receipt verification and publishable-key product and client-payload routes,
+plus secret-key subscription account reads and binding, share bounded
 in-memory protection before Convex is called. Publishable-key Apple/Google
 webhook ingress uses the same guard before dispatching its verification action.
 The default axes are **per API key** (600-request burst, 10 req/sec), **per
@@ -322,7 +335,8 @@ The recommended account-access flow is:
 
 1. For a purchase started in the current app session, use the SDK purchase
    callback and verification response for the immediate UI update. Bind the
-   stable purchase token to an opaque, app-scoped `userId`.
+   stable purchase token to an opaque, app-scoped `userId` on your authenticated
+   backend with a secret admin key.
 2. Authenticate the user on the developer backend and resolve the opaque IAPKit
    `userId` from that session. Never trust an independently supplied user ID.
 3. Call `GET /v2/subscriptions/status?userId=...` or
@@ -338,10 +352,25 @@ The recommended account-access flow is:
 Snapshot reads use the `(projectId, userId, updatedAt)` index, support up to 200
 subscription rows per user, and perform no usage or last-access mutation. One
 additional indexed row is read only to detect overflow; IAPKit fails closed
-instead of returning a partial entitlement set. Existing v1 SDK helpers remain
-available for shipped-client compatibility, but new account reads use the
-secret-only v2 contract. A developer-owned backend also owns any optional
+instead of returning a partial entitlement set. All account reads and ownership
+binding now require a secret admin key, including the legacy v1 routes and
+direct Convex calls. Canonical publishable-key account calls receive `403
+INSUFFICIENT_SCOPE`; shipped helpers use key-in-path account routes and receive `410
+LEGACY_ACCOUNT_ROUTE_RETIRED`. Migrate those calls to your authenticated backend
+and the tokenless v2 reads. Never replace a mobile publishable key with a secret.
+Authorized v1 server responses retain their existing fields and use `no-store`.
+A developer-owned backend also owns any optional
 APNs/FCM delivery after processing store webhooks.
+
+The v2 reads accept `environment=production|sandbox|all`. Explicit scopes
+exclude unknown historical environments and acknowledge the applied filter as
+`environmentScope`; omission preserves legacy mixed reads. Require the expected
+acknowledgement so older servers cannot silently ignore your filter. The
+reference backend defaults to production-only access and applies a server-owned
+`acceptSandbox(userId)` allow-list during both confirmation and later reads.
+Include authenticated App Review and approved test accounts in that allow-list;
+never take the policy from a mobile request. See the
+[purchase-flow guide](https://kit.openiap.dev/docs/purchase-flow).
 
 `POST /v2/subscriptions/user-erasure` removes an app user ID from IAPKit
 subscription and commerce-event rows. Poll the returned job until completion.
@@ -421,7 +450,8 @@ secret-authenticated `POST /v1/products` route. An early payload write returns
 `PRODUCT_NOT_FOUND`.
 
 Mobile apps use `openiap-kit_pk_...` publishable keys. They may verify purchases
-and read public client payloads, but cannot change catalog or payload data,
+and read public client payloads, but cannot read app-account subscriptions,
+bind ownership, change catalog or payload data,
 inspect project-wide analytics, or start store sync.
 Administrative REST and MCP operations require an `openiap-kit_sk_...` secret
 key stored in a trusted environment. Existing unclassified keys are treated as
@@ -433,9 +463,9 @@ New administrative integrations send the secret only as
 `GET /v1/products` is a client-safe catalog read; catalog writes use
 `POST /v1/products`, `POST /v1/products/state`,
 `DELETE /v1/products/{productId}`, and `/v1/products/sync/*`; subscription
-analytics use `/v1/subscriptions/{list|metrics|revenue}`. Older key-in-path
-routes remain available for compatibility, but should not be used with new
-secret keys because URLs are commonly retained by proxy and access logs.
+analytics use `/v1/subscriptions/{list|metrics|revenue}`. Account operations
+require canonical header-authenticated routes. Secret keys in any legacy URL
+are rejected with `410 SECRET_API_KEY_IN_URL` and must be rotated.
 
 After deploying the scoped-key schema, operators may persist the runtime
 fallback classification. Like every migration command in this README, it
@@ -576,16 +606,43 @@ SMOKE_PORT=3200 ./scripts/smoke-server.sh
 ```bash
 flyctl auth login
 cd packages/kit
-# Optionally fill .env.production from .env.example with a deploy key and
-# analytics settings when they are not already available in your environment.
+# Provide CONVEX_DEPLOY_KEY, FLY_API_TOKEN and the existing stable
+# IAPKIT_VERIFICATION_SOURCE_SECRET through your environment or ignored
+# .env.production.local. Analytics settings are optional.
 bun run deploy:prod
 ```
 
-The script deploys additive Convex functions first, then Fly. It asks the Convex
-CLI for the canonical URL selected by the current deploy credentials and checks
-that URL against the committed [`production.env`](production.env) SSOT before
-either deployment proceeds. A development deploy key therefore cannot publish a
-production Fly bundle.
+The script asks the Convex CLI for the canonical URL selected by the deploy
+key and checks it against the committed [`production.env`](production.env)
+before any remote setting changes. It then provisions the service credential,
+deploys Convex functions and Fly, and verifies every retained Fly machine.
+A development deploy key cannot publish a production Fly bundle.
+
+### Verification source cutover
+
+`IAPKIT_VERIFICATION_SOURCE_SECRET` is a service-to-service credential, separate
+from customer API keys. Use one stable 64-character lowercase hex value in the
+GitHub `kit-production` environment secret `KIT_VERIFICATION_SOURCE_SECRET`.
+Provision it before merging the source guard; deployments validate its format
+and checks that both deployment credentials are present before proceeding. The reviewed deployment
+script passes it only via stdin to Convex's selected environment and Fly's
+staged runtime secret. It never becomes a Docker build argument, SPA variable,
+artifact or `GITHUB_ENV` entry. Manual fallback uses the same script.
+
+This cutover intentionally fails closed. Convex deploys first, so old Fly
+instances temporarily return retryable `/v1` verification errors until the new
+binary starts. Commerce retains its existing REST 502 / GraphQL error envelopes;
+replay attempts are refunded. If Fly fails after Convex, repair forward using
+the same credential and reviewed guarded code. Do not restore a pre-guard Fly
+binary or remove the guard as an availability workaround. Credential rotation
+also needs a coordinated deployment and can temporarily defer verification.
+
+The final gate enumerates all retained Fly machines, including stopped ones,
+and requires each to serve the expected revision in production with the source
+credential configured. Directed health requests must return the exact machine
+ID; routing fallback cannot pass. It rechecks machine/configuration IDs after
+the probes and waits for a stable inventory. A failed or partial rollout fails
+the deployment; it never triggers an automatic rollback.
 
 ### Secret-key storage migration
 
@@ -745,17 +802,19 @@ surface. Optional `VITE_KIT_*` integrations are also inlined into the SPA and
 must be treated as public configuration even though Actions stores them as
 secrets for injection convenience.
 
-| Secret                    | Real secret? | Purpose                                                 |
-| ------------------------- | ------------ | ------------------------------------------------------- |
-| `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                     |
-| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy                                  |
-| `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent) |
-| `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)   |
+| Secret                           | Real secret? | Purpose                                                             |
+| -------------------------------- | ------------ | ------------------------------------------------------------------- |
+| `KIT_FLY_API_TOKEN`              | ✅ yes       | `flyctl deploy` auth — keep private                                 |
+| `KIT_CONVEX_DEPLOY_KEY`          | ✅ yes       | Convex function deploy                                              |
+| `KIT_VERIFICATION_SOURCE_SECRET` | ✅ yes       | Stable private verification source shared by Convex and Fly runtime |
+| `VITE_KIT_SENTRY_DSN`            | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent)             |
+| `VITE_KIT_MIXPANEL_TOKEN`        | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)               |
 
-The workflow validates both deployment credentials and the selected Convex
-target before changing either surface. A missing `KIT_CONVEX_DEPLOY_KEY` or
-`KIT_FLY_API_TOKEN`, or a Convex URL mismatch, fails the deployment instead of
-publishing only half of the release. Set the Convex key with:
+The workflow checks deployment-credential presence, source-credential format
+and the canonical Convex target before changing either surface. Missing credentials
+or a Convex URL mismatch fail before function deployment. Later provider
+failures can leave a partial rollout, which requires repair forward as described
+in the cutover procedure. Set the Convex key with:
 
 ```bash
 # Value from Convex dashboard → Settings → Deploy Keys

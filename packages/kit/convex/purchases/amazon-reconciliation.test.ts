@@ -843,7 +843,7 @@ describe("Amazon canonical lifecycle", () => {
             purchaseToken: amazonSubscriptionToken(remoteId),
             userId,
           }),
-        ).rejects.toThrow("userId must be nonblank and at most 256 characters");
+        ).rejects.toMatchObject({ data: { code: "INSUFFICIENT_SCOPE" } });
       }
     }
     await expect(
@@ -852,7 +852,7 @@ describe("Amazon canonical lifecycle", () => {
         purchaseToken: amazonSubscriptionToken("production:user:receipt"),
         userId: "attacker",
       }),
-    ).resolves.toEqual({ ok: true, bound: false });
+    ).rejects.toMatchObject({ data: { code: "INSUFFICIENT_SCOPE" } });
     expect(rows(db, "subscriptions")[0].userId).toBeUndefined();
     expect(rows(db, "purchases")[0].appUserId).toBeUndefined();
     await expect(
