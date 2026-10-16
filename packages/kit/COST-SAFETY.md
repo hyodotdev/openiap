@@ -62,9 +62,9 @@ costs a read per request, evicts no other row, and leaves `count` a lower bound.
 Bind issues are recorded only for secret-key callers. A project keeps at most
 1,024 rows in 16 shards of 64; a new row reads only its own shard and replaces
 that shard's least recently seen row. An hourly cron deletes rows older than 30
-days, 200 at a time. A `/v1` request passes the edge limiter below first; a
-direct call to a public verify function skips it, as described there, and still
-writes at most once a minute per store and cause.
+days, 200 at a time. A `/v1` request passes the edge limiter first. Direct
+verification calls without valid source proof never reach issue recording;
+see [Edge protection](#edge-protection).
 
 ## Operator re-send, re-sync, and delivery history
 
@@ -216,7 +216,9 @@ actions and their legacy aliases require a short-lived HMAC from the admitted
 Bun request before issue recording, project lookup, quota or store work. The
 signature binds the store, customer API key, exact evidence, expected product,
 source IP and correlation ID. The runtime service credential is never returned
-to clients. A publishable customer key alone cannot call these actions directly.
+to clients. A call without valid `sourceAuth` returns `UNKNOWN_ERROR` with
+`retryAfterSec: 5` before any query, mutation, issue record, or store request.
+A publishable customer key alone cannot call these actions directly.
 Subscription account reads and ownership binding require a secret admin key.
 Direct calls still reach the Convex function boundary, so deployment usage
 limits remain the process-independent cost brake.
@@ -243,22 +245,16 @@ and payload version. A matching `If-None-Match` returns `304` without reading
 the payload body row. The scope prevents an ETag from one project/key being
 accepted for another.
 
-Subscription status and entitlement responses use a content ETag scoped by API
-key, route, and opaque user ID. A tag from another key, user, or route cannot
-produce a `304`. Convex returns a time-independent, bounded row snapshot and
-invalidates its cached query result whenever a dependent subscription row
-changes. Fly evaluates `expiresAt` against its own current clock on every HTTP
-request before comparing the tag. This prevents cached query results or
-caller-controlled timestamps from preserving expired access and detects a
-time-only expiration transition on the next refresh even when no webhook
-arrives. Therefore a subscription `304` still costs one query invocation; when
-Convex recomputes it, the indexed-read ceiling is the same as a `200`, while a
-valid Convex cache hit may avoid those reads. The `304` itself avoids
-response-body egress and unnecessary client state replacement.
+Subscription status and entitlement reads require a server-held secret admin
+key. Their responses use `Cache-Control: private, no-store` with no ETag or
+`304` path. Convex returns a bounded row snapshot and invalidates its cached
+query result whenever a dependent subscription row changes. Fly evaluates
+`expiresAt` against its own clock on every HTTP request, so a cached snapshot
+cannot preserve expired access when no webhook arrives. The indexed-read
+ceiling remains the same; a valid Convex query-cache hit may avoid those reads.
 
-The direct response sends `Cache-Control: private, no-cache` and
-`Vary: Authorization`. The subscription snapshots use the same private,
-revalidate-on-use policy. Catalog pages and every secret-admin response use
+Direct payload responses send `Cache-Control: private, no-cache` and
+`Vary: Authorization`. Catalog pages and every secret-admin response use
 `private, no-store`; shared caches must never retain them. React Native IAP and
 Expo IAP accept an AsyncStorage-compatible `clientPayloadCache`. They persist
 the body, version, and ETag, return a valid cache entry without polling, and
@@ -303,7 +299,7 @@ function calls. Database I/O depends on the number and size of that user's
 subscription rows: normal accounts read one or a few rows, while the bounded
 pathological ceiling is 201 million small row reads across those requests.
 Rate limiting is the primary protection against an app polling continuously;
-`304` responses do not make that request free.
+repeated account reads still use Convex function calls.
 
 One million requests spread evenly across one day average approximately 11.6
 requests/second, already above the hosted default per-key steady rate of 10
