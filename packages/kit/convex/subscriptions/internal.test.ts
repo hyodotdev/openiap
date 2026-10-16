@@ -4110,6 +4110,159 @@ describe("observed subscription access history", () => {
       retentionObserved: [0, 0, 1],
     });
   });
+  it("keeps the paid period of an Apple receipt first verified after expiry", async () => {
+    const db = new MemDb();
+    const purchaseDate = at("2026-09-01");
+    const expiresAt = at("2026-10-01");
+    vi.setSystemTime(at("2026-10-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt,
+      verifiedPurchaseDate: purchaseDate,
+      verifiedSignedDate: Date.now(),
+      evidenceAt: purchaseDate,
+    });
+    const row = current(db);
+    const history = row.analytics?.accessHistory;
+    expect(row.state).toBe("Expired");
+    expect(accessAt(history, at("2026-08-31T23:59:59.999Z"))).toBeNull();
+    expect(accessAt(history, at("2026-09-30T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, expiresAt)).toBe(false);
+    expect(accessAt(history, Date.now())).toBe(false);
+    expect(row.analytics).toMatchObject({ paidMicros: 0, refundedMicros: 0 });
+    expect(row.analytics?.firstPaidAt).toBeUndefined();
+  });
+  it("keeps natural Apple expiry dated at expiry when a receipt is reverified", async () => {
+    const db = new MemDb();
+    const purchaseDate = at("2026-09-01");
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      expiresAt: at("2026-10-01"),
+      verifiedPurchaseDate: purchaseDate,
+      evidenceAt: purchaseDate,
+    };
+    vi.setSystemTime(at("2026-09-10"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      verifiedSignedDate: Date.now(),
+    });
+    vi.setSystemTime(at("2026-10-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      verifiedSignedDate: Date.now(),
+    });
+    const history = current(db).analytics?.accessHistory;
+    expect(current(db).state).toBe("Expired");
+    expect(accessAt(history, at("2026-09-30T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, at("2026-10-04T23:59:59.999Z"))).toBe(false);
+    expect(accessAt(history, Date.now())).toBe(false);
+    expect(history?.latest?.effectiveAt).toBe(purchaseDate);
+  });
+  it("keeps a lapse before a later Apple period first verified after expiry", async () => {
+    const db = new MemDb();
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+    };
+    vi.setSystemTime(at("2026-03-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      expiresAt: at("2026-02-01"),
+      verifiedPurchaseDate: at("2026-01-01"),
+      verifiedSignedDate: Date.now(),
+      evidenceAt: at("2026-01-01"),
+    });
+    vi.setSystemTime(at("2026-04-05"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      expiresAt: at("2026-04-01"),
+      verifiedPurchaseDate: at("2026-03-01"),
+      verifiedSignedDate: Date.now(),
+      evidenceAt: at("2026-03-01"),
+    });
+    const history = current(db).analytics?.accessHistory;
+    expect(accessAt(history, janEnd)).toBe(true);
+    expect(accessAt(history, febEnd)).toBe(false);
+    expect(accessAt(history, at("2026-03-31T23:59:59.999Z"))).toBe(true);
+    expect(accessAt(history, Date.now())).toBe(false);
+    expect(current(db).analytics?.paidMicros).toBe(0);
+  });
+  it("keeps a re-signed change to the same Apple period's expiry undated", async () => {
+    const db = new MemDb();
+    const purchaseDate = at("2026-01-01");
+    const args = {
+      projectId: PROJECT_ID as Id<"projects">,
+      platform: "IOS" as const,
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      verifiedPurchaseDate: purchaseDate,
+      evidenceAt: purchaseDate,
+    };
+    vi.setSystemTime(at("2026-01-10"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: at("2026-06-01"),
+      verifiedSignedDate: Date.now(),
+    });
+    vi.setSystemTime(at("2026-01-20"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: at("2026-01-15"),
+      verifiedSignedDate: Date.now(),
+    });
+    expect(
+      accessAt(current(db).analytics?.accessHistory, Date.now()),
+    ).toBeNull();
+    vi.setSystemTime(at("2026-01-21"));
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...args,
+      purchaseState: HarmonizedPurchaseState.EXPIRED,
+      expiresAt: at("2026-01-15"),
+      verifiedSignedDate: Date.now(),
+    });
+    expect(
+      accessAt(current(db).analytics?.accessHistory, Date.now()),
+    ).toBeNull();
+    expect(
+      accessAt(
+        current(db).analytics?.accessHistory,
+        at("2026-01-14T23:59:59.999Z"),
+      ),
+    ).toBe(true);
+  });
+  it.each([HarmonizedPurchaseState.ENTITLED, HarmonizedPurchaseState.EXPIRED])(
+    "keeps undated Apple %s history unknown",
+    async (purchaseState) => {
+      const db = new MemDb();
+      vi.setSystemTime(at("2026-10-05"));
+      await recordVerifiedSubscriptionHandler(makeCtx(db), {
+        projectId: PROJECT_ID as Id<"projects">,
+        platform: "IOS",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState,
+        expiresAt: at("2026-10-01"),
+        verifiedSignedDate: Date.now(),
+      });
+      const history = current(db).analytics?.accessHistory;
+      expect(accessAt(history, at("2026-09-30T23:59:59.999Z"))).toBeNull();
+      expect(accessAt(history, Date.now())).toBeNull();
+    },
+  );
   it("keeps an undated receipt-only refund reversal unknown at signing time", async () => {
     const db = new MemDb();
     vi.setSystemTime(at("2026-01-16"));

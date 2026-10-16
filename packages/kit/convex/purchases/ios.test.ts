@@ -328,6 +328,45 @@ describe("recordAppStoreVerifiedSubscription", () => {
     expect(calls()[0]).toMatchObject({ evidenceAt: 1_767_500_000_000 });
   });
 
+  it.each([HarmonizedPurchaseState.ENTITLED, HarmonizedPurchaseState.EXPIRED])(
+    "does not invent epoch evidence for undated %s receipts",
+    async (purchaseState) => {
+      const { ctx, calls } = makeRunMutationRecorder();
+      await recordAppStoreVerifiedSubscription(ctx, {
+        projectId: "projects_1" as Id<"projects">,
+        remoteId: "original-transaction-1",
+        purchaseState,
+        transactionData: {
+          productId: "dev.hyo.martie.premium",
+          type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+          expiresDate: 1_769_904_000_000,
+          signedDate: 1_770_000_000_000,
+          environment: "Sandbox",
+        },
+      });
+      expect(calls()[0]).toMatchObject({
+        evidenceAt: undefined,
+        verifiedPurchaseDate: undefined,
+      });
+    },
+  );
+
+  it("retains a known revocation date when the purchase date is absent", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+    await recordAppStoreVerifiedSubscription(ctx, {
+      projectId: "projects_1" as Id<"projects">,
+      remoteId: "original-transaction-1",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      transactionData: {
+        productId: "dev.hyo.martie.premium",
+        type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+        revocationDate: 1_767_500_000_000,
+        environment: "Sandbox",
+      },
+    });
+    expect(calls()[0]).toMatchObject({ evidenceAt: 1_767_500_000_000 });
+  });
+
   it("skips non-subscription transactions", async () => {
     const { ctx, calls } = makeRunMutationRecorder();
 

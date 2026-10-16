@@ -261,10 +261,14 @@ export async function recordAppStoreVerifiedSubscription(
       revocationReasonIOS: params.transactionData.revocationReason,
       verifiedPurchaseDate: params.transactionData.purchaseDate,
       verifiedSignedDate: params.transactionData.signedDate,
-      evidenceAt: Math.max(
-        params.transactionData.purchaseDate ?? 0,
-        params.transactionData.revocationDate ?? 0,
-      ),
+      evidenceAt:
+        params.transactionData.purchaseDate === undefined
+          ? params.transactionData.revocationDate
+          : Math.max(
+              params.transactionData.purchaseDate,
+              params.transactionData.revocationDate ??
+                params.transactionData.purchaseDate,
+            ),
       environment: params.transactionData.environment,
     },
   );

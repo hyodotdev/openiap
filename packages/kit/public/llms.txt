@@ -54,8 +54,12 @@ polling. The app authenticates to its developer backend; that backend resolves
 the opaque IAPKit user ID and calls v2 with a server-held secret key. It returns
 only the access decision or tokenless fields the app needs. Respect the
 `Retry-After` header on `429` and `503`, coalesce concurrent backend reads, and
-use a bounded project-and-user-scoped cache. Existing v1 SDK helpers remain
-available for shipped-client compatibility.
+use a bounded project-and-user-scoped cache. Account paths used by shipped
+mobile helpers now return `410 LEGACY_ACCOUNT_ROUTE_RETIRED`. Move those calls
+to your authenticated backend: use tokenless v2 routes for account reads and
+header-authenticated `POST /v1/subscriptions/bind-user` for ownership binding.
+Canonical v1 account routes require a secret admin key and reject publishable
+keys with `403 INSUFFICIENT_SCOPE`. Never ship a secret key in an app.
 
 ## Request shapes (discriminated on `store`)
 

@@ -32,7 +32,8 @@ Authorization: Bearer openiap-kit_pk_<your-publishable-key>
 
 Each project has publishable (`openiap-kit_pk_...`) keys for mobile
 verification and client-safe reads, plus secret (`openiap-kit_sk_...`) keys for
-MCP, CI, catalog/payload writes, analytics, and store sync.
+authenticated backend account reads and ownership binding, MCP, CI,
+catalog/payload writes, analytics, and store sync.
 Keys are stored in Convex and can be rotated from the dashboard. Existing
 unclassified keys are treated as publishable because older docs allowed them in
 apps.
@@ -219,8 +220,13 @@ last-access fields. Both v2 response shapes omit `purchaseToken` and
 
 Coalesce concurrent backend reads, honor `429 Retry-After`, use jittered
 backoff, and fail closed after a bounded stale window. Return only necessary
-product, state, and expiry fields to the app. Existing v1 status and entitlement
-routes remain available for shipped SDK compatibility.
+product, state, and expiry fields to the app. Account paths used by shipped
+mobile helpers now return `410 LEGACY_ACCOUNT_ROUTE_RETIRED`. Move those calls
+to your authenticated backend: use tokenless v2 routes for account reads and
+header-authenticated `POST /v1/subscriptions/bind-user` for ownership binding.
+Canonical v1 server responses remain available with a secret admin key;
+publishable keys receive `403 INSUFFICIENT_SCOPE`. Never put a secret key in an
+app.
 
 This raw HTTP contract replaces the removed outbound IAPKit-to-app event
 stream. IAPKit accepts Apple ASN v2 and Google RTDN, updates canonical state,

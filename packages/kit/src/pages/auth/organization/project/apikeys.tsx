@@ -150,7 +150,7 @@ export default function ApiKeys() {
           <h2 className="text-2xl font-bold">{"API Keys"}</h2>
           <p className="text-muted-foreground mt-1">
             {
-              "Use publishable keys in apps and secret keys only for MCP, CI, analytics, catalog writes, and store sync."
+              "Use publishable keys in apps. Keep secret keys on trusted backends and in CI or MCP."
             }
           </p>
         </div>

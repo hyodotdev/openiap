@@ -1128,6 +1128,14 @@ export async function persistSubscriptionSnapshot(
   const evidenceAdvanced =
     args.verifiedEvidenceAt !== undefined &&
     args.verifiedEvidenceAt > (args.existing?.verifiedEvidenceAt ?? -Infinity);
+  // An expired Apple receipt still proves its dated purchase-to-expiry period.
+  const expiredApplePeriod =
+    !resyncAdvanced &&
+    args.platform === "IOS" &&
+    args.next.state === "Expired" &&
+    args.verifiedPurchaseDate !== undefined &&
+    args.verifiedEvidenceAt === args.verifiedPurchaseDate &&
+    args.next.expiresAt !== undefined;
   // A newer signed receipt can show a reversal without dating its access change.
   const undatedAppleChange =
     !resyncAdvanced &&
@@ -1136,6 +1144,12 @@ export async function persistSubscriptionSnapshot(
     args.existing !== null &&
     args.verifiedSignedDate !== undefined &&
     args.verifiedSignedDate > (args.existing.verifiedSignedDate ?? -Infinity) &&
+    !(
+      expiredApplePeriod &&
+      args.existing.state === "Active" &&
+      args.existing.verifiedPurchaseDate === args.verifiedPurchaseDate &&
+      args.existing.expiresAt === args.next.expiresAt
+    ) &&
     (args.next.state !== args.existing.state ||
       args.next.expiresAt !== args.existing.expiresAt);
   const observed = resyncAdvanced || evidenceAdvanced || undatedAppleChange;
@@ -1161,7 +1175,8 @@ export async function persistSubscriptionSnapshot(
                 ? {
                     active:
                       args.next.state === "Active" ||
-                      args.next.state === "InGracePeriod",
+                      args.next.state === "InGracePeriod" ||
+                      expiredApplePeriod,
                   }
                 : {}),
               ...(args.next.expiresAt !== undefined
