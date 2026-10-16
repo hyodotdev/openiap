@@ -63,7 +63,7 @@
           "trace": [
             {
               "method": "POST",
-              "destination": "http://127.0.0.1:50816/commerce/v1/purchases/verify",
+              "destination": "http://127.0.0.1:54435/commerce/v1/purchases/verify",
               "input": {
                 "store": "google",
                 "google": {
@@ -81,7 +81,7 @@
             },
             {
               "method": "POST",
-              "destination": "http://127.0.0.1:50816/commerce/v1/purchases/bind",
+              "destination": "http://127.0.0.1:54435/commerce/v1/purchases/bind",
               "input": {
                 "store": "google",
                 "google": {
@@ -96,7 +96,7 @@
             },
             {
               "method": "GET",
-              "destination": "http://127.0.0.1:50816/commerce/v1/entitlements?userId=fresh_paywall_user",
+              "destination": "http://127.0.0.1:54435/commerce/v1/entitlements?userId=fresh_paywall_user",
               "status": 200,
               "response": {
                 "userId": "fresh_paywall_user",
@@ -109,11 +109,11 @@
                     "state": "Active",
                     "active": true,
                     "store": "google",
-                    "expiresAt": 1792148089030,
-                    "renewsAt": 1792148089030,
+                    "expiresAt": 1792150220449,
+                    "renewsAt": 1792150220449,
                     "willRenew": true,
-                    "startedAt": 1792148029080,
-                    "updatedAt": 1792148029091
+                    "startedAt": 1792150160499,
+                    "updatedAt": 1792150160509
                   }
                 ]
               }
@@ -126,63 +126,63 @@
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=929a8f5aaf40bda3a020846dcf05025253a044248be09d1d3b623a98105e8293",
-          "openiap-timestamp": "1792148029",
-          "openiap-event-id": "k174zmagncejtn7hgtmnz4jqrn8gc8ty",
-          "openiap-delivery-id": "kx7cw36zgndtrn8x2xax574zfh8gdw3x"
+          "openiap-signature": "v1=6cf42e9a8a30987c6f019a2555a4c835c2cae9be32c475070f68c9dfa4d1c994",
+          "openiap-timestamp": "1792150160",
+          "openiap-event-id": "k17byentjnmar8cyep7dpar9cx8gdmch",
+          "openiap-delivery-id": "kx7an9j9fzt4c76q12frzyq0vs8gcxyq"
         },
-        "body": "{\"eventId\":\"k174zmagncejtn7hgtmnz4jqrn8gc8ty\",\"eventType\":\"subscription.started\",\"eventVersion\":\"1.0\",\"occurredAt\":1792148029107,\"processedAt\":1792148029116,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n17ehm5w5x1rmcghz07stkhdh58gda2c\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792148089030,\"renewsAt\":1792148089030,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
+        "body": "{\"eventId\":\"k17byentjnmar8cyep7dpar9cx8gdmch\",\"eventType\":\"subscription.started\",\"eventVersion\":\"1.0\",\"occurredAt\":1792150160525,\"processedAt\":1792150160535,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n1706c05jefvks5kp1br8tpq1d8gdqm5\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792150220449,\"renewsAt\":1792150220449,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
         "status": 202
       },
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=0647f97dfe1a61d3692d43b02a84745dd3eca934a658b76a6ba3735f4714d685",
-          "openiap-timestamp": "1792148029",
-          "openiap-event-id": "k17ay7ayb7j6dvhev9mrq8mqah8gd0a1",
-          "openiap-delivery-id": "kx79b7qev0yz9gkw0115jh877n8gdm7a"
+          "openiap-signature": "v1=af18a20c260780b0465f0364196d6a569cb885d6e57e94ad54f2c49df71375eb",
+          "openiap-timestamp": "1792150160",
+          "openiap-event-id": "k178fc7gmd6txwvz0v5r8apa7n8gdyhy",
+          "openiap-delivery-id": "kx7anj8arw1jh5ffx1k8286ej98gd1p5"
         },
-        "body": "{\"eventId\":\"k17ay7ayb7j6dvhev9mrq8mqah8gd0a1\",\"eventType\":\"entitlement.granted\",\"eventVersion\":\"1.0\",\"occurredAt\":1792148029107,\"processedAt\":1792148029116,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n17ehm5w5x1rmcghz07stkhdh58gda2c\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792148089030,\"renewsAt\":1792148089030,\"willRenew\":true,\"active\":true},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
+        "body": "{\"eventId\":\"k178fc7gmd6txwvz0v5r8apa7n8gdyhy\",\"eventType\":\"entitlement.granted\",\"eventVersion\":\"1.0\",\"occurredAt\":1792150160525,\"processedAt\":1792150160535,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n1706c05jefvks5kp1br8tpq1d8gdqm5\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792150220449,\"renewsAt\":1792150220449,\"willRenew\":true,\"active\":true},\"sourceStoreEventId\":\"fresh-paywall-purchase\"}",
         "status": 202
       },
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=b2fa2a62df4a5a49e9e9440d4a3e137e6b8c9f75ddbe24505d619a77604bc87d",
-          "openiap-timestamp": "1792148029",
-          "openiap-event-id": "k17bdvyzmhev6gwz2sfgbe8vf58gc7ma",
-          "openiap-delivery-id": "kx72m3gsftf9csgd2k6rvaff018gdg0q"
+          "openiap-signature": "v1=43e57432a2efb5b36d9d15e4802f3b997e085f2a741ad14d34eea0a21d61cf3f",
+          "openiap-timestamp": "1792150160",
+          "openiap-event-id": "k17927de059635762h2sgq04fn8gd591",
+          "openiap-delivery-id": "kx7556dpm7trrkp77nmbxkz0ns8gdq4g"
         },
-        "body": "{\"eventId\":\"k17bdvyzmhev6gwz2sfgbe8vf58gc7ma\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1792148029148,\"processedAt\":1792148029154,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n17ehm5w5x1rmcghz07stkhdh58gda2c\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792148149030,\"renewsAt\":1792148149030,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-renew\"}",
+        "body": "{\"eventId\":\"k17927de059635762h2sgq04fn8gd591\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1792150160567,\"processedAt\":1792150160573,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n1706c05jefvks5kp1br8tpq1d8gdqm5\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792150280449,\"renewsAt\":1792150280449,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-renew\"}",
         "status": 202
       },
       {
         "headers": {
           "content-type": "application/json",
-          "openiap-signature": "v1=4647ac5c67b74fae02983c8b0d69be59a7bf7d766c6bb4cdd4c28828c6318c5d",
-          "openiap-timestamp": "1792148029",
-          "openiap-event-id": "k17dx4cqyvknwnfm82sg9y1czh8gdqq2",
-          "openiap-delivery-id": "kx76t76md6hkr96xh9xdehmzhh8gcdqr"
+          "openiap-signature": "v1=1555fe0d87a9fa3678d97c42bfba9e9950b8345219ee37ec27ea7d62038bb3b0",
+          "openiap-timestamp": "1792150160",
+          "openiap-event-id": "k177xme938zm4kyfxdbrmcagj58gdv7s",
+          "openiap-delivery-id": "kx772hmk2qpszgew182p16sjnn8gdd89"
         },
-        "body": "{\"eventId\":\"k17dx4cqyvknwnfm82sg9y1czh8gdqq2\",\"eventType\":\"subscription.canceled\",\"eventVersion\":\"1.0\",\"occurredAt\":1792148029170,\"processedAt\":1792148029175,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n17ehm5w5x1rmcghz07stkhdh58gda2c\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792148149030,\"willRenew\":false,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-cancel\"}",
+        "body": "{\"eventId\":\"k177xme938zm4kyfxdbrmcagj58gdv7s\",\"eventType\":\"subscription.canceled\",\"eventVersion\":\"1.0\",\"occurredAt\":1792150160591,\"processedAt\":1792150160597,\"store\":\"google\",\"environment\":\"production\",\"projectId\":\"n1706c05jefvks5kp1br8tpq1d8gdqm5\",\"applicationId\":\"dev.openiap.interop\",\"userId\":\"fresh_paywall_user\",\"productId\":\"premium.monthly\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1792150280449,\"willRenew\":false,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":5000000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"fresh-paywall-cancel\"}",
         "status": 202
       }
     ],
     "replays": [
       {
-        "eventId": "k174zmagncejtn7hgtmnz4jqrn8gc8ty",
+        "eventId": "k17byentjnmar8cyep7dpar9cx8gdmch",
         "status": 202
       },
       {
-        "eventId": "k17ay7ayb7j6dvhev9mrq8mqah8gd0a1",
+        "eventId": "k178fc7gmd6txwvz0v5r8apa7n8gdyhy",
         "status": 202
       },
       {
-        "eventId": "k17bdvyzmhev6gwz2sfgbe8vf58gc7ma",
+        "eventId": "k17927de059635762h2sgq04fn8gd591",
         "status": 202
       },
       {
-        "eventId": "k17dx4cqyvknwnfm82sg9y1czh8gdqq2",
+        "eventId": "k177xme938zm4kyfxdbrmcagj58gdv7s",
         "status": 202
       }
     ],
@@ -198,7 +198,7 @@
       "report": {
         "events": [
           {
-            "eventId": "k174zmagncejtn7hgtmnz4jqrn8gc8ty",
+            "eventId": "k17byentjnmar8cyep7dpar9cx8gdmch",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -213,7 +213,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k17ay7ayb7j6dvhev9mrq8mqah8gd0a1",
+            "eventId": "k178fc7gmd6txwvz0v5r8apa7n8gdyhy",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -224,7 +224,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "k17bdvyzmhev6gwz2sfgbe8vf58gc7ma",
+            "eventId": "k17927de059635762h2sgq04fn8gd591",
             "eventType": "subscription.renewed",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -239,7 +239,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k17dx4cqyvknwnfm82sg9y1czh8gdqq2",
+            "eventId": "k177xme938zm4kyfxdbrmcagj58gdv7s",
             "eventType": "subscription.canceled",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -261,7 +261,7 @@
         "unknownAmounts": 0,
         "reconciliation": 0
       },
-      "receiver": "http://127.0.0.1:50903/webhooks/commerce"
+      "receiver": "http://127.0.0.1:54482/webhooks/commerce"
     },
     "scope": "Same paywall handler and receiver, configured for a second local provider. Trusted account/product attribution is explicit; no purchase migration or real store checkout.",
     "source": {
@@ -295,7 +295,7 @@
     }
   },
   "reproduction": {
-    "openiapBaseCommit": "80972b40a3d3a720ca63c48e952cc2ff59a67ed7",
+    "openiapBaseCommit": "e490650e207fc9baf7f88a1eadba4a43e138e365",
     "originalExampleCommit": "f23f663e4220abdd709ab4cb340798d5c468cd4c",
     "freshExampleCommit": "e93c68f3f7b62753f42d22002a927f5163a0c613",
     "instructions": "https://openiap.dev/commerce-example/paywall-provider-reproduction.md",
@@ -320,7 +320,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
+            "expiresAt": 1792150158801,
             "willRenew": true
           }
         ]
@@ -332,7 +332,7 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1792148027406,
+          "expiresAt": 1792150158801,
           "willRenew": false
         }
       },
@@ -348,7 +348,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "4db8b580-6f61-49f6-a082-04647bbd9e45",
+        "jobId": "166e4c01-7417-4f38-94f0-3f833ef1e09a",
         "status": "completed"
       }
     },
@@ -370,11 +370,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
-            "renewsAt": 1792148027406,
+            "expiresAt": 1792150158801,
+            "renewsAt": 1792150158801,
             "willRenew": true,
-            "startedAt": 1792147982683,
-            "updatedAt": 1792147982719
+            "startedAt": 1792150114053,
+            "updatedAt": 1792150114088
           }
         ]
       },
@@ -385,10 +385,10 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1792148027406,
+          "expiresAt": 1792150158801,
           "willRenew": false,
-          "startedAt": 1792147982683,
-          "updatedAt": 1792147982823
+          "startedAt": 1792150114053,
+          "updatedAt": 1792150114181
         }
       },
       "expired": {
@@ -403,7 +403,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "pd71pqap5ah23hyzfd1n0pajkd8gc3b8",
+        "jobId": "pd7cy99a37r9kc88wcygmaq8698gcfs4",
         "status": "completed"
       }
     }
@@ -478,7 +478,7 @@
   },
   "sources": {
     "openiap": {
-      "baseRevision": "80972b40a3d3a720ca63c48e952cc2ff59a67ed7",
+      "baseRevision": "e490650e207fc9baf7f88a1eadba4a43e138e365",
       "hashes": {
         "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
         "convex/ResendOTP.ts": "d546e035d69e4e79447747d8c489f2d80164ae00bd701a37699f167def146ce1",
@@ -678,12 +678,12 @@
         "convex/webhooks/amazonShared.ts": "5f0d0cad9b78a23201cb1860768083f82e3b0d3094cca8c60f472515a611698c",
         "convex/webhooks/amazonSns.test.ts": "fce5e9112c729c23515d99c80c57a6b387557ebe27ecd28ad6810bdc3831395b",
         "convex/webhooks/amazonSns.ts": "35c834819f083ecdfe65267725dc606effe621d2b26cfe0c97d75360eca364f3",
-        "convex/webhooks/apple.test.ts": "c027636b85ae16139a48ab7e954add9db4cd85fa790e69a2c73d088a53e027f0",
-        "convex/webhooks/apple.ts": "f23e59dc43d9ec43ea63db52220fa9b4d7806f49cc0075f866f55e0880efed49",
+        "convex/webhooks/apple.test.ts": "bff57ef2a3318ac7da8209ef7e9511434635480981636e5466201c237925a19a",
+        "convex/webhooks/apple.ts": "5a3cd79b63ea3d646e5517c41ebf1e946848c3235205db17575567909d4a65e2",
         "convex/webhooks/conformance.test.ts": "fbb65e062adf81b62058db1956831e2f41e2bdffe8627a2e7176aad2ff4b2d1d",
         "convex/webhooks/fixtures/amazon-sns.json": "ac074f2912a245c5fb4be5bb5c59728110400ce8c879831df2f0ee43ca189334",
-        "convex/webhooks/google.test.ts": "e8db9961f1387af25757da77dc20502c69fee1a2e2c9332b140aafd552d70953",
-        "convex/webhooks/google.ts": "850e329c346183c72dd87b53d8d34a0f005556e95eadc3b7aea0eaaa9591f8ce",
+        "convex/webhooks/google.test.ts": "edcee47e3f5d17560f8aef031ea80c3c0f5457625f121fdf37588ce1ed7d17e0",
+        "convex/webhooks/google.ts": "b14c9e85192ab59aeea3a68e498bb75d8c1519c664f162189111244f964ac967",
         "convex/webhooks/inbound.test.ts": "de363a92ca851fcfc804534bc3bc4e94e8e695e647998acf09f03f6c6d5172da",
         "convex/webhooks/inbound.ts": "d72a79b9bbfbc46872b6393ead213f3390fb0c350f3fffe64a9cdc31f384b1a0",
         "convex/webhooks/internal.test.ts": "00e46ad2f276f8e5c8bd9e2c2cbaa8b34c882e1fb8c56082048cbc34f1a1b060",
@@ -793,7 +793,7 @@
       }
     },
     "workspace": {
-      "baseRevision": "80972b40a3d3a720ca63c48e952cc2ff59a67ed7",
+      "baseRevision": "e490650e207fc9baf7f88a1eadba4a43e138e365",
       "hashes": {
         "bun.lock": "66e261a4a734b59727c6306adfaba07770dd503dc85dffce1c49c69b46012098",
         "package.json": "982059a2547a04ebd38b571ff08fe7d7205c9560faa441e4ee008f13651ae5f4",
@@ -839,7 +839,7 @@
     "Separate webhook signing keys, each bound to its provider and project",
     "Example fixture store adapter configured to recognize the same synthetic Google token"
   ],
-  "recordedAt": "2026-10-16T10:53:49.347Z",
+  "recordedAt": "2026-10-16T11:29:20.762Z",
   "checks": [
     "example: app and receiver endpoints remain unchanged",
     "example: empty provider gives no access",
@@ -1059,7 +1059,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
+            "expiresAt": 1792150158801,
             "willRenew": true
           }
         ]
@@ -1081,7 +1081,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
+            "expiresAt": 1792150158801,
             "willRenew": true
           }
         ]
@@ -1125,11 +1125,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
-            "renewsAt": 1792148027406,
+            "expiresAt": 1792150158801,
+            "renewsAt": 1792150158801,
             "willRenew": true,
-            "startedAt": 1792147982683,
-            "updatedAt": 1792147982719
+            "startedAt": 1792150114053,
+            "updatedAt": 1792150114088
           }
         ]
       }
@@ -1150,11 +1150,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
-            "renewsAt": 1792148027406,
+            "expiresAt": 1792150158801,
+            "renewsAt": 1792150158801,
             "willRenew": true,
-            "startedAt": 1792147982683,
-            "updatedAt": 1792147982738
+            "startedAt": 1792150114053,
+            "updatedAt": 1792150114107
           }
         ]
       }
@@ -1175,7 +1175,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1792148027406,
+            "expiresAt": 1792150158801,
             "willRenew": false
           }
         ]
@@ -1236,7 +1236,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1792151627677,
+            "expiresAt": 1792153759076,
             "willRenew": true
           }
         ]
@@ -1258,9 +1258,9 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1792151582407,
-            "startedAt": 1792148027711,
-            "updatedAt": 1792148027740
+            "expiresAt": 1792153713802,
+            "startedAt": 1792150159114,
+            "updatedAt": 1792150159142
           }
         ]
       }
@@ -1281,7 +1281,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1792151627677,
+            "expiresAt": 1792153759076,
             "willRenew": true
           }
         ]
@@ -1349,8 +1349,8 @@
             "state": "Active",
             "active": true,
             "store": "amazon",
-            "startedAt": 1792148027935,
-            "updatedAt": 1792148027969
+            "startedAt": 1792150159333,
+            "updatedAt": 1792150159368
           }
         ]
       }
