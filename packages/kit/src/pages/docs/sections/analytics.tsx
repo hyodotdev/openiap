@@ -279,6 +279,13 @@ export default function AnalyticsPage() {
         day has the flags.
       </p>
 
+      <p className="mt-3">
+        Dashboard trial totals use recorded split rows and label partial
+        coverage; incomplete chart buckets stay blank. A missing refund amount
+        leaves refunded and net revenue unavailable while gross remains visible.
+        Recorded zeroes and completed empty rollups still show zero.
+      </p>
+
       <h2 className="mt-10 text-2xl font-semibold">API and MCP</h2>
       <p>
         <code>GET /v1/subscriptions/revenue?fromDay=&amp;toDay=</code> with a

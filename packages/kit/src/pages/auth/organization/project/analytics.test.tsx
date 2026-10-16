@@ -104,7 +104,10 @@ const churnRow = {
 };
 
 describe("ProjectAnalytics data states", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("asks for production with cohorts by default", () => {
     mocks.state.metrics = response({ dataState: "not_collected" });
@@ -211,6 +214,40 @@ describe("ProjectAnalytics data states", () => {
       `Churn33.3%1 expired of 3 paid at start, from ${today}`,
     );
   });
+
+  it.each(["Weekly", "Monthly"])(
+    "uses the last known snapshot in a %s bucket after legacy history",
+    (period) => {
+      vi.spyOn(Date, "now").mockReturnValue(
+        Date.parse("2026-10-14T12:00:00.000Z"),
+      );
+      mocks.state.metrics = response({
+        currencies: ["USD"],
+        trialSplitFromDay: "2026-10-13",
+        days: [
+          {
+            ...churnRow,
+            day: "2026-10-12",
+            activeSubs: 4,
+            activeTrials: undefined,
+            trialStarts: undefined,
+            trialConversions: undefined,
+            directPaidStarts: undefined,
+            expirations: undefined,
+          },
+          { ...churnRow, day: "2026-10-13", activeSubs: 5 },
+          { ...churnRow, day: "2026-10-14", activeSubs: 5 },
+        ],
+      });
+      render(<ProjectAnalytics />);
+      fireEvent.click(screen.getByRole("button", { name: period }));
+      expect(mocks.state.lineSeries.at(-1)).toMatchObject({
+        paidActiveSubs: 5,
+        activeTrials: 0,
+        trialStarts: null,
+      });
+    },
+  );
 
   it("shows churn as unknown until a day has a starting paid count", () => {
     mocks.state.metrics = response({
@@ -358,4 +395,180 @@ describe("ProjectAnalytics data states", () => {
       if (observed) expect(screen.getByText("100%")).toBeTruthy();
     },
   );
+  it("keeps omitted legacy refund and trial amounts unknown", () => {
+    mocks.state.metrics = response({
+      currencies: ["USD"],
+      days: [
+        {
+          day: today,
+          currency: "USD",
+          productId: "legacy",
+          platform: "IOS",
+          activeSubs: 1,
+          newSubs: 1,
+          renewals: 0,
+          cancellations: 0,
+          refunds: 1,
+          revenueMicros: 9_990_000,
+        },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    expect(
+      screen.getByText("Net revenue").parentElement?.textContent,
+    ).toContain("Net revenue—");
+    expect(
+      screen.getByText("Net revenue").parentElement?.textContent,
+    ).toContain("Gross USD 9.99 · refunds —");
+    for (const label of [
+      "Trials started",
+      "Trial conversions",
+      "Direct paid starts",
+    ]) {
+      expect(screen.getByText(label).parentElement?.textContent).toContain(
+        `${label}—`,
+      );
+    }
+    expect(
+      mocks.state.lineSeries.find((row) => row.dayKey === today),
+    ).toMatchObject({
+      revenueMicros: 9_990_000,
+      refundedMicros: null,
+      trialStarts: null,
+      trialConversions: null,
+      directPaidStarts: null,
+      expirations: null,
+    });
+  });
+
+  it("labels a partial split by actual rows rather than calendar fillers", () => {
+    mocks.state.metrics = response({
+      currencies: ["USD"],
+      trialSplitFromDay: today,
+      days: [
+        {
+          day: today,
+          currency: "USD",
+          productId: "legacy",
+          platform: "IOS",
+          activeSubs: 1,
+          newSubs: 1,
+          renewals: 0,
+          cancellations: 0,
+          refunds: 1,
+          revenueMicros: 9_990_000,
+        },
+        {
+          ...churnRow,
+          day: today,
+          productId: "modern",
+          activeSubs: 4,
+          activeTrials: 2,
+          trialStarts: 2,
+          trialConversions: 1,
+          directPaidStarts: 3,
+        },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    for (const [label, value] of [
+      ["Trials started", 2],
+      ["Trial conversions", 1],
+      ["Direct paid starts", 3],
+    ]) {
+      expect(screen.getByText(label).parentElement?.textContent).toContain(
+        `${label}${value}Partial history · 1 of 2 rows`,
+      );
+    }
+    expect(
+      screen.getByText("Net revenue").parentElement?.textContent,
+    ).toContain("Net revenue—");
+  });
+
+  it("retains explicit modern zeroes", () => {
+    mocks.state.metrics = response({
+      currencies: ["USD"],
+      trialSplitFromDay: today,
+      days: [
+        { ...churnRow, day: today, activeSubs: 0, revenueMicros: 9_990_000 },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    expect(
+      screen.getByText("Trials started").parentElement?.textContent,
+    ).toContain("Trials started0");
+    expect(
+      screen.getByText("Net revenue").parentElement?.textContent,
+    ).toContain("Net revenueUSD 9.99Gross USD 9.99 · refunds USD 0.00");
+    expect(
+      mocks.state.lineSeries.find((row) => row.dayKey === today),
+    ).toMatchObject({ refundedMicros: 0, trialStarts: 0, expirations: 0 });
+  });
+
+  it("does not trust split values written before the definition cutoff", () => {
+    const yesterday = new Date(Date.now() - 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    mocks.state.metrics = response({
+      currencies: ["USD"],
+      trialSplitFromDay: today,
+      days: [
+        {
+          ...churnRow,
+          day: yesterday,
+          activeSubs: 1,
+          trialStarts: 2,
+          directPaidStarts: 3,
+        },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    expect(
+      screen.getByText("Trials started").parentElement?.textContent,
+    ).toContain("Trials started—");
+    expect(
+      mocks.state.lineSeries.find((row) => row.dayKey === yesterday),
+    ).toMatchObject({
+      trialStarts: null,
+      directPaidStarts: null,
+      expirations: null,
+    });
+  });
+
+  it("limits missing refund amounts to the selected platform and reporting currency", () => {
+    mocks.state.metrics = response({
+      currencies: ["USD", "EUR"],
+      days: [
+        { ...churnRow, day: today, activeSubs: 0, revenueMicros: 9_990_000 },
+        {
+          ...churnRow,
+          day: today,
+          activeSubs: 0,
+          platform: "Android",
+          productId: "other",
+          revenueMicros: 5_000_000,
+          refundedMicros: undefined,
+          refunds: 1,
+        },
+        {
+          ...churnRow,
+          day: today,
+          activeSubs: 0,
+          currency: "EUR",
+          productId: "euro",
+          revenueMicros: 3_000_000,
+          refundedMicros: undefined,
+          refunds: 1,
+        },
+      ],
+    });
+    render(<ProjectAnalytics />);
+    expect(
+      screen.getByText("Net revenue").parentElement?.textContent,
+    ).toContain("Net revenue—");
+    fireEvent.click(screen.getByRole("button", { name: /^App Store/ }));
+    expect(
+      screen.getByText("Net revenue").parentElement?.textContent,
+    ).toContain("Net revenueUSD 9.99Gross USD 9.99 · refunds USD 0.00");
+  });
 });

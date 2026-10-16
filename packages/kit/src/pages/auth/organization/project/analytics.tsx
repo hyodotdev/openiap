@@ -61,6 +61,8 @@ type DailyRow = RevenueCounters & {
   day: string;
   activeHistoryComplete: boolean;
   trialHistoryComplete: boolean;
+  trialCountsComplete: boolean;
+  refundAmountComplete: boolean;
 };
 type MetricRow = DailyRow & {
   currency: string;
@@ -74,16 +76,18 @@ type MetricRow = DailyRow & {
 function withDefaults(row: RevenueMetrics["days"][number]): MetricRow {
   const counters = zeroRevenueCounters();
   for (const key of REVENUE_COUNTERS) counters[key] = row[key] ?? 0;
+  const trialCountsComplete =
+    row.trialStarts !== undefined &&
+    row.trialConversions !== undefined &&
+    row.directPaidStarts !== undefined &&
+    row.expirations !== undefined;
   return {
     ...counters,
     day: row.day,
     activeHistoryComplete: row.activeHistoryComplete === true,
-    trialHistoryComplete:
-      row.activeTrials !== undefined &&
-      row.trialStarts !== undefined &&
-      row.trialConversions !== undefined &&
-      row.directPaidStarts !== undefined &&
-      row.expirations !== undefined,
+    trialHistoryComplete: row.activeTrials !== undefined && trialCountsComplete,
+    trialCountsComplete,
+    refundAmountComplete: row.refundedMicros !== undefined,
     currency: row.currency,
     productId: row.productId,
     platform: row.platform,
@@ -309,32 +313,59 @@ export default function ProjectAnalytics() {
     const revenueByBucket = new Map(
       revenueSeries.map((row) => [row.dayKey, row]),
     );
-    return lifecycleSeries.map((row) => ({
-      ...row,
-      revenueMicros: revenueByBucket.get(row.dayKey)?.revenueMicros ?? 0,
-      refundedMicros: revenueByBucket.get(row.dayKey)?.refundedMicros ?? 0,
-      paidActiveSubs:
-        row.activeHistoryComplete && row.trialHistoryComplete
-          ? row.activeSubs - row.activeTrials
+    return lifecycleSeries.map((row) => {
+      const revenue = revenueByBucket.get(row.dayKey);
+      return {
+        ...row,
+        revenueMicros: revenue?.revenueMicros ?? 0,
+        refundedMicros: revenue?.refundAmountComplete
+          ? revenue.refundedMicros
           : null,
-      activeTrials:
-        row.activeHistoryComplete && row.trialHistoryComplete
-          ? row.activeTrials
-          : null,
-      trialStarts: row.trialHistoryComplete ? row.trialStarts : null,
-      trialConversions: row.trialHistoryComplete ? row.trialConversions : null,
-      directPaidStarts: row.trialHistoryComplete ? row.directPaidStarts : null,
-    }));
+        paidActiveSubs:
+          row.activeHistoryComplete && row.trialHistoryComplete
+            ? row.activeSubs - row.activeTrials
+            : null,
+        activeTrials:
+          row.activeHistoryComplete && row.trialHistoryComplete
+            ? row.activeTrials
+            : null,
+        trialStarts: row.trialCountsComplete ? row.trialStarts : null,
+        trialConversions: row.trialCountsComplete ? row.trialConversions : null,
+        directPaidStarts: row.trialCountsComplete ? row.directPaidStarts : null,
+        expirations: row.trialCountsComplete ? row.expirations : null,
+      };
+    });
   }, [lifecycleSeries, revenueSeries]);
 
-  // Days before the split omit trial counters and expirations.
-  const splitDaily = useMemo(
-    () =>
-      trialSplitFromDay === undefined
-        ? lifecycleDaily
-        : lifecycleDaily.filter((row) => row.dayKey >= trialSplitFromDay),
-    [lifecycleDaily, trialSplitFromDay],
-  );
+  const splitTotals = useMemo(() => {
+    const result = {
+      trialStarts: 0,
+      trialConversions: 0,
+      directPaidStarts: 0,
+      includedRows: 0,
+      totalRows: 0,
+    };
+    let firstDay: string | undefined;
+    let lastExcludedDay: string | undefined;
+    for (const row of metricsDays) {
+      if (row.day < fromDay || !matchesFilters(row)) continue;
+      result.totalRows++;
+      if (
+        !row.trialCountsComplete ||
+        (trialSplitFromDay !== undefined && row.day < trialSplitFromDay)
+      ) {
+        if (!lastExcludedDay || row.day > lastExcludedDay)
+          lastExcludedDay = row.day;
+        continue;
+      }
+      result.includedRows++;
+      result.trialStarts += row.trialStarts;
+      result.trialConversions += row.trialConversions;
+      result.directPaidStarts += row.directPaidStarts;
+      if (!firstDay || row.day < firstDay) firstDay = row.day;
+    }
+    return { ...result, firstDay, lastExcludedDay };
+  }, [metricsDays, fromDay, matchesFilters, trialSplitFromDay]);
 
   const totals = useMemo(() => {
     const sum = zeroRevenueCounters();
@@ -352,7 +383,11 @@ export default function ProjectAnalytics() {
     return {
       ...sum,
       grossMicros: revenue.gross,
-      refundedMicros: revenue.refunded,
+      refundedMicros: reportingRevenueDaily.every(
+        (row) => row.refundAmountComplete,
+      )
+        ? revenue.refunded
+        : null,
       activeHistoryComplete: last?.activeHistoryComplete ?? false,
       trialHistoryComplete: last?.trialHistoryComplete ?? false,
       activeSubsLast: last?.activeSubs ?? 0,
@@ -409,19 +444,30 @@ export default function ProjectAnalytics() {
   const hasNumbers = dataState === "ready" || dataState === "zero";
   const count = (value: number): string =>
     hasNumbers ? value.toString() : "—";
-  const money = (value: number): string =>
-    hasNumbers ? formatMicros(value, { currency: reportingCurrency }) : "—";
+  const money = (value: number | null): string =>
+    hasNumbers && value !== null
+      ? formatMicros(value, { currency: reportingCurrency })
+      : "—";
   const legacyDays =
     metrics.definitionsFromDay !== undefined &&
     fromDay < metrics.definitionsFromDay;
   const unsplitDays =
     trialSplitFromDay !== undefined && fromDay < trialSplitFromDay;
-  // Trial and churn figures need at least one day with the split.
-  const hasSplitNumbers = hasNumbers && splitDaily.length > 0;
+  const hasSplitNumbers =
+    hasNumbers && (dataState === "zero" || splitTotals.includedRows > 0);
   const splitCount = (value: number): string =>
     hasSplitNumbers ? value.toString() : "—";
-  const splitDetail = (detail?: string): string | undefined =>
-    hasSplitNumbers && unsplitDays ? `From ${trialSplitFromDay}` : detail;
+  const splitDetail = (detail?: string): string | undefined => {
+    if (!hasSplitNumbers || !splitTotals.firstDay) return detail;
+    if (
+      splitTotals.lastExcludedDay &&
+      splitTotals.lastExcludedDay >= splitTotals.firstDay
+    )
+      return `Partial history · ${splitTotals.includedRows} of ${splitTotals.totalRows} rows`;
+    return unsplitDays || splitTotals.includedRows < splitTotals.totalRows
+      ? `From ${splitTotals.firstDay}`
+      : detail;
+  };
 
   return (
     <div className="space-y-6">
@@ -649,14 +695,16 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={TrendingUp}
           label="Net revenue"
-          value={money(totals.grossMicros - totals.refundedMicros)}
+          value={money(
+            totals.refundedMicros === null
+              ? null
+              : totals.grossMicros - totals.refundedMicros,
+          )}
           detail={
             hasNumbers
               ? `Gross ${formatMicros(totals.grossMicros, {
                   currency: reportingCurrency,
-                })} · refunds ${formatMicros(totals.refundedMicros, {
-                  currency: reportingCurrency,
-                })}`
+                })} · refunds ${money(totals.refundedMicros)}`
               : undefined
           }
         />
@@ -677,19 +725,19 @@ export default function ProjectAnalytics() {
         <SummaryCard
           icon={UserPlus}
           label="Trials started"
-          value={splitCount(totals.trialStarts)}
+          value={splitCount(splitTotals.trialStarts)}
           detail={splitDetail()}
         />
         <SummaryCard
           icon={UserCheck}
           label="Trial conversions"
-          value={splitCount(totals.trialConversions)}
+          value={splitCount(splitTotals.trialConversions)}
           detail={splitDetail("Paid charge that ends a trial")}
         />
         <SummaryCard
           icon={TrendingUp}
           label="Direct paid starts"
-          value={splitCount(totals.directPaidStarts)}
+          value={splitCount(splitTotals.directPaidStarts)}
           detail={splitDetail("Paid from day one, no trial")}
         />
         <SummaryCard
@@ -1174,17 +1222,25 @@ function aggregateByDay(
 ): DayPoint[] {
   const byDay = new Map<string, DailyRow>();
   for (const row of rows) {
+    const trialCountsComplete =
+      row.trialCountsComplete &&
+      (trialSplitFromDay === undefined || row.day >= trialSplitFromDay);
     const existing = byDay.get(row.day);
     if (existing) {
       for (const key of REVENUE_COUNTERS) existing[key] += row[key];
       existing.activeHistoryComplete &&= row.activeHistoryComplete;
-      existing.trialHistoryComplete &&= row.trialHistoryComplete;
+      existing.trialHistoryComplete &&=
+        row.trialHistoryComplete && trialCountsComplete;
+      existing.trialCountsComplete &&= trialCountsComplete;
+      existing.refundAmountComplete &&= row.refundAmountComplete;
     } else {
       const fresh: DailyRow = {
         ...zeroRevenueCounters(),
         day: row.day,
         activeHistoryComplete: row.activeHistoryComplete,
-        trialHistoryComplete: row.trialHistoryComplete,
+        trialHistoryComplete: row.trialHistoryComplete && trialCountsComplete,
+        trialCountsComplete,
+        refundAmountComplete: row.refundAmountComplete,
       };
       for (const key of REVENUE_COUNTERS) fresh[key] = row[key];
       byDay.set(row.day, fresh);
@@ -1237,6 +1293,9 @@ function aggregateByDay(
         dayKey,
         activeHistoryComplete: lastComplete,
         trialHistoryComplete: lastTrialComplete,
+        trialCountsComplete:
+          trialSplitFromDay === undefined || dayKey >= trialSplitFromDay,
+        refundAmountComplete: true,
         activeSubs: lastActive,
         activeTrials: lastTrials,
         paidAtStart,
@@ -1303,7 +1362,9 @@ function bucketByPeriod(
       existing[key] += row[key];
     }
     existing.activeHistoryComplete = row.activeHistoryComplete;
-    existing.trialHistoryComplete &&= row.trialHistoryComplete;
+    existing.trialHistoryComplete = row.trialHistoryComplete;
+    existing.trialCountsComplete &&= row.trialCountsComplete;
+    existing.refundAmountComplete &&= row.refundAmountComplete;
     existing.activeSubs = row.activeSubs;
     existing.activeTrials = row.activeTrials;
   }
