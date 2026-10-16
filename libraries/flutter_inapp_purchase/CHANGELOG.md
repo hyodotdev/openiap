@@ -1,5 +1,12 @@
 # Changelog
 
+## 11.0.3 (2026-10-16)
+
+- fix(apple): recover app ownership on explicit retry (#535)
+- chore: harden CI and cut contributor friction (#533)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-11.0.3
+
+
 ## 11.0.2 (2026-10-14)
 
 - fix: remediate the full-repo review findings (#528)
