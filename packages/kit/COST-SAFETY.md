@@ -119,8 +119,10 @@ environment at a time.
 
 - **Daily rows.** The 10-minute cron picks at most 100 projects per tick. Each
   run stamps its start in its own mutation, then pages the `webhookEvents`
-  received on the last 3 UTC days, then the counted-state subscriptions, and
-  replaces those days' rows. An event page holds 400 rows: an Apple
+  received on the last 3 UTC days, then the project's subscriptions once in
+  creation order, and replaces those days' rows. State changes cannot move a
+  subscription across page boundaries or count it twice. An event page holds
+  400 rows: an Apple
   notification keeps its signed payload, about 20 KB, so a page stays under
   12.5 MiB of the 16 MiB a mutation may read even at 32 KB per event.
   Subscription pages hold 5,000 rows of about 1 KB. Google expirations without
@@ -134,7 +136,7 @@ environment at a time.
   run started, so it replaces its days with complete counts and a day is never
   incremented. An event is read once per slice that starts on or before the
   day it arrived: once in a regular run, up to 10 times and 5.5 on average in
-  the 30-day rebuild, which also reads the counted-state subscriptions ten
+  the 30-day rebuild, which also reads the project's subscriptions ten
   times. A catch-up from 7 days back reads its events about 1.7 times.
 - **Failed runs.** A run that stops committing pages is picked again an hour
   after its last progress stamp, then after 2, 4, and so on up to 24 hours
