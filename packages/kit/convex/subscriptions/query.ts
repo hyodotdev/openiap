@@ -952,7 +952,9 @@ export const getRevenueMetrics = query({
     // Return main's day order.
     rows.sort(
       (a, b) =>
-        a.day.localeCompare(b.day) || a.currency.localeCompare(b.currency),
+        a.day.localeCompare(b.day) ||
+        a.currency.localeCompare(b.currency) ||
+        a._creationTime - b._creationTime,
     );
     if (truncated) {
       console.warn(
