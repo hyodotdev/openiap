@@ -180,7 +180,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'isActive applies the shared entitlementActive rule to Convex records. entitlementsV2 reads the current time and returns allowed products without exposing store purchase tokens.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'isActive',
-      line: 81,
+      line: 82,
       checkFile: 'convex/subscriptions/query.test.ts',
       check:
         'Account-read tests check token omission, server authorization, and time advancing past expiry.',
@@ -203,7 +203,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'subscriptionStatusV2 selects a subscription and applies the same access deadline. The protocol handler turns that record into the shared response shape.',
       file: 'convex/subscriptions/query.ts',
       symbol: 'subscriptionStatusV2',
-      line: 345,
+      line: 346,
       checkFile: 'server/api/commerce/conformance.test.ts',
       check:
         'The contract vectors compare status and access over REST and GraphQL with an in-memory database substitute.',
@@ -249,7 +249,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'eraseUser starts a project-scoped job. The worker removes identity from purchases, subscriptions, and events in batches, waiting for claimed deliveries before cleaning those events.',
       file: 'convex/subscriptions/internal.ts',
       symbol: 'drainSubscriptionUserErasurePage',
-      line: 1693,
+      line: 1819,
       checkFile: 'convex/subscriptions/mutation.test.ts',
       check:
         'Erasure request tests cover server authorization and repeated requests, including already completed jobs.',
