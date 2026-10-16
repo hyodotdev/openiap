@@ -52,8 +52,8 @@ if staged '^(packages/kit/convex/(schema|products/(mutation|query|clientPayloads
   node scripts/audit-kit-spec-contract.mjs
 fi
 
-# A skills edit must bump both plugin manifests, or installs never see it.
-if staged '^(plugins/openiap/|scripts/audit-plugin-manifests(\.test)?\.mjs$)'; then
+# Both plugin manifests must carry openiap-versions.json's plugin version.
+if staged '^(plugins/openiap/|openiap-versions\.json$|scripts/audit-plugin-manifests(\.test)?\.mjs$)'; then
   echo "🧩 plugin manifest audit…"
   bun run audit:plugins
 fi

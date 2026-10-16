@@ -186,9 +186,10 @@ them and syncs every target in `specs/client/generated-sync-manifest.mjs`:
 - `libraries/expo-iap/src/utils/errorMapping.ts` and its
   `__tests__/errorMapping.shared.test.ts` (mirrored from react-native-iap)
 
-`openiap-versions.json` tracks only `clientProtocol`, `google`, and `apple`, and
-only release CI changes it; feature work never edits version fields. Framework
-library versions live in each library's own metadata. See
+`openiap-versions.json` tracks only `clientProtocol`, `google`, `apple`, and the
+`plugins/openiap` `plugin` version, and only release CI changes it; feature work
+never edits version fields, plugin manifests included. Framework library
+versions live in each library's own metadata. See
 [Version File Management](knowledge/internal/06-git-deployment.md#version-file-management).
 
 ### Commits and Releases

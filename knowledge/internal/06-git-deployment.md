@@ -623,6 +623,8 @@ Version ownership is split:
 - Apple and Google release workflows update only their own native version.
 - Framework, Commerce Protocol, and CLI release workflows own their package
   version fields.
+- The plugin release workflow raises `plugin` in `openiap-versions.json` and
+  both `plugins/openiap` manifests.
 - The docs site has no version: it deploys whatever `main` holds.
 
 Record the intended next versions in the release card and select the matching
