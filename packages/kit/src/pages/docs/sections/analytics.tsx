@@ -208,9 +208,10 @@ export default function AnalyticsPage() {
         </li>
         <li>
           <strong>Retention M+k</strong>: the share of the cohort with paid
-          access at the end of month k. A canceled subscription stays retained
-          until its paid period ends; a refund ends it at the refund. A later
-          renewal or refund reversal does not fill an earlier lapse.
+          access at the end of month k (current month: as of the latest
+          rebuild). A canceled subscription stays retained until its paid period
+          ends; a refund ends it at the refund. A later renewal or refund
+          reversal does not fill an earlier lapse.
         </li>
         <li>
           <strong>Realized LTV</strong>: gross revenue observed from the cohort

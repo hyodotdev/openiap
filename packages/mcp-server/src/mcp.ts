@@ -1711,7 +1711,7 @@ const REVENUE_DEFINITIONS = {
   lateEvents:
     "pendingLateEvents: notifications that arrived after their day's rollup; a catch-up recompute folds them in.",
   cohorts:
-    "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with observed paid access at the end of month k; null if any member lacks historical evidence. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
+    "Project-wide cohorts for the selected environment and currency; date, product and platform filters apply only to daily totals. Paid cohort: UTC month of the first paid charge, as a direct paid start or a trial conversion; a subscription whose first observed charge is a renewal, or an Apple resubscribe with no trial before it, started before IAPKit saw it and is left out. retentionRates[k]: members with observed paid access at the end of month k (current month: as of the latest rebuild); null if any member lacks historical evidence. realizedLtvMicros: observed gross revenue per member through observedThrough, never projected. trialToPaidRate: conversions over resolved trials of that month.",
 } as const;
 
 type RevenueTotals = {

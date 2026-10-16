@@ -348,7 +348,6 @@ export const recomputeRevenueMetricsForProject = internalMutation({
 // allowed.
 const EVENTS_PAGE_SIZE = 400;
 
-// Subscription rows are about 1 KB: 50k active subs take ~10 chained pages.
 const SUBS_PAGE_SIZE = SUBSCRIPTION_SCAN_PAGE_SIZE;
 
 // Each failed run in a row halves both page sizes, down to this floor.

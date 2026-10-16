@@ -1096,10 +1096,11 @@ function CohortTable({
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
           Cohort = UTC month of the first paid charge. M+k is the share still
-          paying at the end of month k; a canceled subscription counts until its
-          paid period ends. Realized LTV is gross revenue observed so far per
-          member, before store fees and refunds — never a projection. A dash
-          means at least one member lacks access evidence for that month.
+          paying at the end of month k (current month: as of the latest
+          rebuild); a canceled subscription counts until its paid period ends.
+          Realized LTV is gross revenue observed so far per member, before store
+          fees and refunds — never a projection. A dash means at least one
+          member lacks access evidence for that month.
           {computedAt ? ` Rebuilt ${formatAgo(now - computedAt)}.` : ""}
         </p>
       </div>
