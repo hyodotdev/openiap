@@ -375,6 +375,8 @@ export default function BackendEntitlementFlow() {
           <TextInput
             accessibilityLabel="App account"
             autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="off"
             style={styles.input}
             value={account}
             onChangeText={(value) => {
