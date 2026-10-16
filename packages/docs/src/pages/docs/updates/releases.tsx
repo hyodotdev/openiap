@@ -688,7 +688,7 @@ function Releases() {
                 <li>
                   Adds an App backend example for one-time products and
                   subscriptions, keeping each account's pending results
-                  separate.
+                  separate. Play subscription prices match the selected offer.
                 </li>
               </ul>
             </li>

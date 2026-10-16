@@ -67,6 +67,7 @@ async function renderReady() {
 describe('BackendEntitlementFlow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIap.subscriptions = [];
     jest.mocked(ExpoIap.getPendingTransactionsIOS).mockResolvedValue([]);
     jest.mocked(ExpoIap.getAvailablePurchases).mockResolvedValue([]);
     process.env.EXPO_PUBLIC_APP_BACKEND_URL = 'https://backend.example/';
@@ -254,14 +255,25 @@ describe('BackendEntitlementFlow', () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
-  it('subscribes with the first Play offer', async () => {
+  it('quotes the prepaid Play offer it purchases instead of another plan price', async () => {
     mockIap.subscriptions = [
       {
         id: 'dev.hyo.martie.premium',
         title: 'Premium',
-        displayPrice: '$5',
+        displayPrice: '$50',
         platform: 'android',
-        subscriptionOffers: [{offerTokenAndroid: 'offer-1'}],
+        subscriptionOffers: [
+          {
+            offerTokenAndroid: 'offer-1',
+            displayPrice: '$5',
+            paymentMode: 'pay-up-front',
+          },
+          {
+            offerTokenAndroid: 'offer-2',
+            displayPrice: '$50',
+            paymentMode: 'pay-as-you-go',
+          },
+        ],
       },
     ];
     const {getByText} = await renderReady();
@@ -285,7 +297,68 @@ describe('BackendEntitlementFlow', () => {
       },
       type: 'subs',
     });
-    mockIap.subscriptions = [];
+  });
+
+  it('quotes the token-bearing offer when an earlier offer cannot be purchased', async () => {
+    mockIap.subscriptions = [
+      {
+        id: 'dev.hyo.martie.premium',
+        title: 'Premium',
+        displayPrice: '$50',
+        platform: 'android',
+        subscriptionOffers: [
+          {displayPrice: '$1'},
+          {offerTokenAndroid: 'offer-2', displayPrice: '$5'},
+        ],
+      },
+    ];
+    const {getByText, queryByText} = await renderReady();
+
+    await act(async () => {
+      fireEvent.press(getByText('Subscribe Premium · $5'));
+    });
+
+    expect(queryByText('Subscribe Premium · $50')).toBeNull();
+    expect(mockIap.requestPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          google: {
+            skus: ['dev.hyo.martie.premium'],
+            subscriptionOffers: [
+              {sku: 'dev.hyo.martie.premium', offerToken: 'offer-2'},
+            ],
+          },
+        }),
+      }),
+    );
+  });
+
+  it('keeps the default App Store price and purchase without a Play offer', async () => {
+    mockIap.subscriptions = [
+      {
+        id: 'dev.hyo.martie.premium',
+        title: 'Premium',
+        displayPrice: '$50',
+        platform: 'ios',
+        subscriptionOffers: [{displayPrice: '$5'}],
+      },
+    ];
+    const {getByText} = await renderReady();
+
+    await act(async () => {
+      fireEvent.press(getByText('Subscribe Premium · $50'));
+    });
+
+    expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+      request: {
+        apple: {sku: 'dev.hyo.martie.premium'},
+        google: {
+          skus: ['dev.hyo.martie.premium'],
+          subscriptionOffers: undefined,
+        },
+      },
+      type: 'subs',
+    });
   });
 
   it('reports when there is nothing to restore', async () => {

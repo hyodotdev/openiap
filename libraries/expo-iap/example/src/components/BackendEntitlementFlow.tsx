@@ -166,14 +166,10 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
   const buy = (request: Parameters<typeof requestPurchase>[0]) =>
     requestPurchase(request).catch(() => undefined);
 
-  const subscribe = (subscription: ProductSubscription) => {
-    // Play needs one of the subscription's offers.
-    const offerToken =
-      subscription.platform === 'android'
-        ? subscription.subscriptionOffers?.find(
-            (offer) => offer.offerTokenAndroid,
-          )?.offerTokenAndroid
-        : undefined;
+  const subscribe = (
+    subscription: ProductSubscription,
+    offerToken: string | undefined,
+  ) => {
     return buy({
       request: {
         apple: {sku: subscription.id},
@@ -285,17 +281,32 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
               </Text>
             </TouchableOpacity>
           ))}
-          {subscriptions.map((subscription) => (
-            <TouchableOpacity
-              key={subscription.id}
-              style={styles.button}
-              onPress={() => void subscribe(subscription)}
-            >
-              <Text style={styles.buttonText}>
-                Subscribe {subscription.title} · {subscription.displayPrice}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {subscriptions.map((subscription) => {
+            // Quote the same Play offer whose token opens the purchase sheet.
+            const offer =
+              subscription.platform === 'android'
+                ? subscription.subscriptionOffers?.find(
+                    (candidate) => candidate.offerTokenAndroid,
+                  )
+                : undefined;
+            return (
+              <TouchableOpacity
+                key={subscription.id}
+                style={styles.button}
+                onPress={() =>
+                  void subscribe(
+                    subscription,
+                    offer?.offerTokenAndroid ?? undefined,
+                  )
+                }
+              >
+                <Text style={styles.buttonText}>
+                  Subscribe {subscription.title} ·{' '}
+                  {offer?.displayPrice ?? subscription.displayPrice}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
           <TouchableOpacity
             disabled={recovering}
             style={[styles.button, styles.secondaryButton]}
