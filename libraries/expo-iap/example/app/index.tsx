@@ -25,7 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
     href: '/all-products',
     icon: '📱',
     title: 'All Products',
-    subtitle: 'View all items at once',
+    subtitle: 'Browse products, prices and offers',
     accentColor: '#EF4444',
   },
   {
@@ -33,7 +33,7 @@ const MENU_ITEMS: MenuItem[] = [
     href: '/purchase-flow',
     icon: '🛒',
     title: 'In-App Purchase Flow',
-    subtitle: 'One-time products',
+    subtitle: 'Buy directly or confirm with your backend',
     accentColor: '#2563EB',
   },
   {
@@ -75,6 +75,7 @@ export default function Home() {
   const router = useRouter();
   const [storefront, setStorefront] = useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const isTv = Platform.isTV || String(Platform.OS) === 'kepler';
 
   useEffect(() => {
     if ((Platform.OS as string) === 'kepler') {
@@ -93,10 +94,10 @@ export default function Home() {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <Text style={styles.title}>expo-iap Examples</Text>
+      <Text style={styles.title}>Choose a flow</Text>
       <Text style={styles.subtitle}>
-        Example flows for purchases, subscriptions, restore, offers, and
-        platform-specific APIs{storefront ? ` · Store ${storefront}` : ''}
+        Start with the catalog or try a purchase.
+        {storefront ? ` Store: ${storefront}.` : ''}
       </Text>
     </View>
   );
@@ -106,12 +107,14 @@ export default function Home() {
       <TouchableOpacity
         key={item.id}
         focusable
-        hasTVPreferredFocus={focusedIndex === index}
+        accessibilityRole="button"
+        activeOpacity={0.65}
+        hasTVPreferredFocus={isTv && focusedIndex === index}
         onFocus={() => setFocusedIndex(index)}
         onPress={() => router.push(item.href)}
         style={[
           styles.menuItem,
-          focusedIndex === index && styles.menuItemFocused,
+          isTv && focusedIndex === index && styles.menuItemFocused,
         ]}
       >
         <View
@@ -157,7 +160,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: '700',
     color: '#0F172A',
     marginBottom: 8,
@@ -174,20 +177,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: '#E2E8F0',
-    borderRadius: 8,
-    borderWidth: 2,
+    borderRadius: 14,
+    borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 84,
+    minHeight: 80,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 3,
   },
   menuItemFocused: {
     borderColor: '#2563EB',

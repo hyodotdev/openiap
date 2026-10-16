@@ -99,7 +99,7 @@ describe('PurchaseFlow Component', () => {
   it('should render without crashing', async () => {
     const {getByText} = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
-    expect(getByText('In-App Purchase Flow')).toBeDefined();
+    expect(getByText('Pay, verify, finish')).toBeDefined();
     expect(getByText('Available Purchases')).toBeDefined();
   });
 
@@ -138,10 +138,9 @@ describe('PurchaseFlow Component', () => {
           'Local (IAPKit)',
           'IAPKit',
           'None (Skip)',
-          'App backend',
           'Cancel',
         ],
-        cancelButtonIndex: 5,
+        cancelButtonIndex: 4,
       }),
       expect.any(Function),
     );
@@ -174,28 +173,31 @@ describe('PurchaseFlow Component', () => {
         }),
         expect.any(Function),
       );
-      expect(screen.queryByText('App Backend Verification')).toBeNull();
+      expect(screen.queryByRole('button', {name: 'App backend'})).toBeNull();
       expect(screen.getByText('Local (IAPKit)')).toBeTruthy();
     } finally {
       if (previous) Object.defineProperty(Platform, 'OS', previous);
     }
   });
 
-  it('hands off to the app backend flow and back', async () => {
-    mockShowActionSheetWithOptions.mockImplementation(
-      (_options: unknown, callback: (index: number) => void) => callback(4),
-    );
+  it('switches purchase owners through the visible mode control', async () => {
     const screen = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
 
-    await fireEvent.press(screen.getByText('Local (IAPKit)'));
+    expect(
+      screen.getByRole('button', {name: 'Purchase demo', selected: true}),
+    ).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', {name: 'App backend'}));
 
-    expect(screen.getByText('App Backend Verification')).toBeTruthy();
     expect(screen.getByText('Set up your app backend')).toBeTruthy();
-    await fireEvent.press(
-      screen.getByText('Choose another verification method'),
-    );
-    expect(screen.getByText('In-App Purchase Flow')).toBeTruthy();
+    expect(screen.queryByText('Receipt verification')).toBeNull();
+    expect(
+      screen.getByRole('button', {name: 'App backend', selected: true}),
+    ).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', {name: 'Purchase demo'}));
+    expect(screen.queryByText('Set up your app backend')).toBeNull();
+    expect(screen.getByText('Receipt verification')).toBeTruthy();
+    expect(mockShowActionSheetWithOptions).not.toHaveBeenCalled();
   });
 
   it('retains a receipt in None mode and retries it after selecting verification', async () => {

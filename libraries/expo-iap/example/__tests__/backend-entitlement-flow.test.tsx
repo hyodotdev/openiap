@@ -4,7 +4,6 @@ import * as ExpoIap from 'expo-iap';
 import type {ExpoPurchaseError, PurchaseIOS, UseIAPOptions} from 'expo-iap';
 import BackendEntitlementFlow from '../src/components/BackendEntitlementFlow';
 
-const mockExit = jest.fn();
 const mockIap: {
   options?: UseIAPOptions;
   subscriptions: object[];
@@ -59,7 +58,7 @@ function replyWith(body: object): jest.SpyInstance {
 
 // Waits for the launch recovery so no update lands after the test.
 async function renderReady() {
-  const screen = await render(<BackendEntitlementFlow onExit={mockExit} />);
+  const screen = await render(<BackendEntitlementFlow />);
   await screen.findByText('Restore purchases');
   return screen;
 }
@@ -82,14 +81,10 @@ describe('BackendEntitlementFlow', () => {
     delete process.env.EXPO_PUBLIC_APP_BACKEND_URL;
     const fetchSpy = replyWith({});
 
-    const {getByText} = await render(
-      <BackendEntitlementFlow onExit={mockExit} />,
-    );
+    const {getByText} = await render(<BackendEntitlementFlow />);
 
     expect(getByText('Set up your app backend')).toBeDefined();
     expect(getByText(/Never put that key in this app/)).toBeDefined();
-    fireEvent.press(getByText('Choose another verification method'));
-    expect(mockExit).toHaveBeenCalledTimes(1);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(ExpoIap.getPendingTransactionsIOS).not.toHaveBeenCalled();
   });
@@ -247,7 +242,7 @@ describe('BackendEntitlementFlow', () => {
     const {getByText} = await renderReady();
 
     await act(async () => {
-      fireEvent.press(getByText('Buy 10 Bulbs · $1'));
+      fireEvent.press(getByText('Buy'));
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     process.off('unhandledRejection', unhandled);
@@ -279,7 +274,8 @@ describe('BackendEntitlementFlow', () => {
     const {getByText} = await renderReady();
 
     await act(async () => {
-      fireEvent.press(getByText('Subscribe Premium · $5'));
+      expect(getByText('$5')).toBeDefined();
+      fireEvent.press(getByText('Subscribe'));
     });
 
     expect(mockIap.fetchProducts).toHaveBeenCalledWith(
@@ -315,10 +311,11 @@ describe('BackendEntitlementFlow', () => {
     const {getByText, queryByText} = await renderReady();
 
     await act(async () => {
-      fireEvent.press(getByText('Subscribe Premium · $5'));
+      expect(getByText('$5')).toBeDefined();
+      fireEvent.press(getByText('Subscribe'));
     });
 
-    expect(queryByText('Subscribe Premium · $50')).toBeNull();
+    expect(queryByText('$50')).toBeNull();
     expect(mockIap.requestPurchase).toHaveBeenCalledWith(
       expect.objectContaining({
         request: expect.objectContaining({
@@ -346,7 +343,8 @@ describe('BackendEntitlementFlow', () => {
     const {getByText} = await renderReady();
 
     await act(async () => {
-      fireEvent.press(getByText('Subscribe Premium · $50'));
+      expect(getByText('$50')).toBeDefined();
+      fireEvent.press(getByText('Subscribe'));
     });
 
     expect(mockIap.requestPurchase).toHaveBeenCalledWith({

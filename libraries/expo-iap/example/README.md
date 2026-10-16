@@ -28,11 +28,7 @@ cp .env.example .env
 
 For hosted IAPKit, get an `openiap-kit_pk_` publishable key from the [IAPKit dashboard](https://kit.openiap.dev) and set it as `EXPO_PUBLIC_IAPKIT_API_KEY`. Expo embeds every `EXPO_PUBLIC_*` value in the app, so never use an `openiap-kit_sk_` secret admin key. For **Local (IAPKit)**, the publishable key and local server must target the same Convex deployment. Also set `EXPO_PUBLIC_IAPKIT_BASE_URL` to the device-reachable HTTP(S) origin only; do not append `/v1/purchase/verify`. Set `EXPO_PUBLIC_AMAZON_RVS_SANDBOX=true` only for Amazon App Tester receipts after enabling the matching sandbox option in the IAPKit project settings. A physical iPhone must use the Mac's LAN address. An Android device connected over USB can use `http://127.0.0.1:3100`: inspect `adb -s "$ANDROID_SERIAL" reverse --list`, reuse an exact `tcp:3100` mapping when present, or create it with `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100`. Record whether this run created the rule and remove only that rule during cleanup; if `--no-rebind` fails, use another port instead of overwriting an existing mapping.
 
-The Vega build scripts load the same Expo environment-file chain as the normal
-Expo CLI: Debug uses `.env.development.local`, `.env.local`,
-`.env.development`, then `.env`; Release uses the corresponding `production`
-files. Values already exported in the shell take precedence. Keep local keys in
-an ignored `.env.local` file and rebuild the VPK after changing them:
+The Vega build scripts load the same Expo environment-file chain as the normal Expo CLI: Debug uses `.env.development.local`, `.env.local`, `.env.development`, then `.env`; Release uses the corresponding `production` files. Values already exported in the shell take precedence. Keep local keys in an ignored `.env.local` file and rebuild the VPK after changing them:
 
 ```bash
 bun run build:vega:debug
@@ -48,13 +44,22 @@ The purchase and subscription screens list verification in this order:
 
 With both values configured, the example defaults to **Local (IAPKit)**. With only the key, it defaults to hosted **IAPKit**; without a key, it defaults to **None (Skip)**.
 
+## Find the right example
+
+- **All Products** browses store metadata and offers without buying. Use **Open purchase demo** to continue.
+- **In-App Purchase Flow → Purchase demo** buys one-time products using the receipt-verification setting shown above the products.
+- **In-App Purchase Flow → App backend** confirms one-time purchases and subscriptions through your backend before finishing. Set `EXPO_PUBLIC_APP_BACKEND_URL` to a backend implementing the [purchase flow handler](https://kit.openiap.dev/docs/purchase-flow). Its IAPKit secret key stays on the server. The app account field stands in for your sign-in session; change accounts and restore to test ownership protection.
+- **Subscription Flow** demonstrates subscription offers and management directly.
+
+The two purchase modes mount one purchase listener at a time. App backend is unavailable on Vega.
+
 ## 📱 Example Structure
 
 This example provides two focused implementations, each demonstrating best practices for specific use cases:
 
 ### 🛒 **Purchase Flow** (`/purchase-flow`)
 
-- **What**: Complete implementation for one-time in-app products
+- **What**: Direct one-time purchases or backend-confirmed products and subscriptions
 - **Why**: Demonstrates TypeScript-first approach for product purchases
 - **Features**:
   - Automatic TypeScript type inference - no manual casting required

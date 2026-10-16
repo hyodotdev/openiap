@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {
@@ -30,6 +29,8 @@ import {
   SUBSCRIPTION_PRODUCT_IDS,
 } from '../utils/constants';
 import {extractErrorMessage} from '../utils/errorUtils';
+import ExampleButton from './ExampleButton';
+import StoreProductCard from './StoreProductCard';
 
 const CONSUMABLES = new Set(CONSUMABLE_PRODUCT_IDS);
 
@@ -61,7 +62,7 @@ function appBackendUrl(): string | undefined {
  * purchase to the signed-in account, and grants once; the app finishes only
  * after access is granted. Guide: https://kit.openiap.dev/docs/purchase-flow
  */
-export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
+export default function BackendEntitlementFlow() {
   const backendUrl = appBackendUrl();
   const [account, setAccount] = useState('demo-user-1');
   const [outcomes, setOutcomes] = useState<PurchaseFlowOutcome<Purchase>[]>([]);
@@ -203,21 +204,14 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
     return () => subscription.remove();
   }, [backendUrl, recover]);
 
-  const exitButton = (
-    <TouchableOpacity
-      style={[styles.button, styles.secondaryButton]}
-      onPress={onExit}
-    >
-      <Text style={styles.buttonText}>Choose another verification method</Text>
-    </TouchableOpacity>
-  );
-
   if (!backendUrl) {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.title}>App Backend Verification</Text>
-          {exitButton}
+          <Text style={styles.text}>
+            Pay at the store. Your backend confirms the purchase and unlocks
+            access before the app finishes it.
+          </Text>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Set up your app backend</Text>
             <Text style={styles.text}>
@@ -232,8 +226,10 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>App Backend Verification</Text>
-        {exitButton}
+        <Text style={styles.text}>
+          Pay at the store. Your backend confirms the purchase and unlocks
+          access before the app finishes it.
+        </Text>
         <Text style={styles.text}>
           {connected ? 'Connected to the store' : 'Connecting to the store...'}
         </Text>
@@ -241,8 +237,7 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>App account</Text>
           <Text style={styles.hint}>
-            Sent as the bearer token, standing in for your sign-in session.
-            Switch accounts and restore to see ownership protection.
+            Demo sign-in. Change accounts, then restore to test ownership.
           </Text>
           <TextInput
             accessibilityLabel="App account"
@@ -260,27 +255,36 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
           />
         </View>
 
-        <View style={styles.card}>
+        <View>
           <Text style={styles.cardTitle}>Products</Text>
           {products.map((product) => (
-            <TouchableOpacity
+            <StoreProductCard
               key={product.id}
-              style={styles.button}
-              onPress={() =>
-                void buy({
-                  request: {
-                    apple: {sku: product.id},
-                    google: {skus: [product.id]},
-                  },
-                  type: 'in-app',
-                })
+              product={product}
+              kind={
+                CONSUMABLES.has(product.id) ? 'Consumable' : 'One-time purchase'
               }
             >
-              <Text style={styles.buttonText}>
-                Buy {product.title} · {product.displayPrice}
-              </Text>
-            </TouchableOpacity>
+              <ExampleButton
+                title="Buy"
+                accessibilityLabel={`Buy ${product.displayName || product.title}`}
+                disabled={!connected}
+                style={styles.productAction}
+                onPress={() =>
+                  void buy({
+                    request: {
+                      apple: {sku: product.id},
+                      google: {skus: [product.id]},
+                    },
+                    type: 'in-app',
+                  })
+                }
+              />
+            </StoreProductCard>
           ))}
+        </View>
+        <View>
+          <Text style={styles.cardTitle}>Subscriptions</Text>
           {subscriptions.map((subscription) => {
             // Quote the same Play offer whose token opens the purchase sheet.
             const offer =
@@ -290,32 +294,39 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
                   )
                 : undefined;
             return (
-              <TouchableOpacity
+              <StoreProductCard
                 key={subscription.id}
-                style={styles.button}
-                onPress={() =>
-                  void subscribe(
-                    subscription,
-                    offer?.offerTokenAndroid ?? undefined,
-                  )
-                }
+                product={subscription}
+                kind="Subscription"
+                price={offer?.displayPrice ?? subscription.displayPrice}
               >
-                <Text style={styles.buttonText}>
-                  Subscribe {subscription.title} ·{' '}
-                  {offer?.displayPrice ?? subscription.displayPrice}
-                </Text>
-              </TouchableOpacity>
+                <ExampleButton
+                  title="Subscribe"
+                  accessibilityLabel={`Subscribe to ${subscription.displayName || subscription.title}`}
+                  disabled={!connected}
+                  style={styles.productAction}
+                  onPress={() =>
+                    void subscribe(
+                      subscription,
+                      offer?.offerTokenAndroid ?? undefined,
+                    )
+                  }
+                />
+              </StoreProductCard>
             );
           })}
-          <TouchableOpacity
-            disabled={recovering}
-            style={[styles.button, styles.secondaryButton]}
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Already purchased?</Text>
+          <Text style={styles.text}>
+            Restore purchases for the app account above.
+          </Text>
+          <ExampleButton
+            title={recovering ? 'Restoring...' : 'Restore purchases'}
+            variant="secondary"
+            disabled={recovering || !connected}
             onPress={() => void recover(true)}
-          >
-            <Text style={styles.buttonText}>
-              {recovering ? 'Restoring...' : 'Restore purchases'}
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -334,12 +345,11 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
               ) : null}
               {status.status !== 'entitled' &&
               status.status !== 'store_pending' ? (
-                <TouchableOpacity
-                  style={[styles.button, styles.secondaryButton]}
+                <ExampleButton
+                  title="Check again"
+                  variant="secondary"
                   onPress={() => void processPurchase(purchase)}
-                >
-                  <Text style={styles.buttonText}>Check again</Text>
-                </TouchableOpacity>
+                />
               ) : null}
             </View>
           );
@@ -351,8 +361,7 @@ export default function BackendEntitlementFlow({onExit}: {onExit: () => void}) {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#F8FAFC'},
-  content: {padding: 20, gap: 12},
-  title: {fontSize: 22, fontWeight: '700', color: '#0F172A'},
+  content: {padding: 20, paddingBottom: 64, gap: 16},
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -361,9 +370,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  cardTitle: {fontSize: 16, fontWeight: '600', color: '#0F172A'},
+  cardTitle: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
   text: {fontSize: 14, color: '#334155', lineHeight: 20},
-  hint: {fontSize: 12, color: '#64748B'},
+  hint: {fontSize: 13, lineHeight: 19, color: '#64748B'},
   status: {fontFamily: 'Courier', fontSize: 13, color: '#2563EB'},
   message: {fontSize: 14, color: '#B91C1C'},
   input: {
@@ -372,13 +387,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: 48,
+    color: '#0F172A',
   },
-  button: {
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  secondaryButton: {backgroundColor: '#475569'},
-  buttonText: {color: 'white', fontWeight: '600'},
+  productAction: {flex: 1},
 });
