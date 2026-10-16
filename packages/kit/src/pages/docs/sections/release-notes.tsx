@@ -26,7 +26,7 @@ const RELEASES: ReleaseEntry[] = [
     id: "week-2026-10-12",
     weekStart: "2026-10-12",
     date: "2026-10-15",
-    pullRequests: [523, 528, 532, 533],
+    pullRequests: [523, 528, 532, 533, 537],
     tagline:
       "Amazon subscription lifecycle beta, purchase recovery tools, verified analytics and a security hardening pass.",
     items: [
