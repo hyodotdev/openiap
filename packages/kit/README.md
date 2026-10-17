@@ -667,27 +667,38 @@ with an explicit selector. Pick yours before running anything:
 From `packages/kit/`, start with the read-only status query: the selector
 fixes the target, and the query returns the migration's current state there.
 Act on that state before anything else — `unknown` (never run, or an
-interrupted run whose worker is gone): continue with the dry run and then the
-real run, which starts fresh or resumes from the saved cursor; `inProgress`:
+interrupted run whose worker is gone): inspect the read-only aggregate below,
+then start or resume the real run; `inProgress`:
 do not start another run, skip to the watch command; `failed` or `canceled`:
 read the reported error if any, then re-run the real command — it resumes from
 the saved cursor (add `"reset":true` only to restart from the beginning);
-`success`: it already completed, stop here. For a first run, test one
-rolled-back batch, start the migration, and watch it reach `success`:
+`success`: it already completed, stop here.
+
+The migration component's `dryRun` logs examples of changed documents before and
+after the change. Do not use it on production secrets or customer records. Inspect
+counts with an inline read-only query instead; it cannot write, and the query
+below returns only counts. Require `partial: false`. Otherwise, finish a
+paginated read-only audit before starting the migration. Then watch the real
+run reach `success`:
 
 ```bash
 npx convex run --prod --component migrations lib:getStatus \
   '{"names":["migrations:hashStoredSecretApiKeys"]}'
-npx convex run --prod migrations:run \
-  '{"fn":"migrations:hashStoredSecretApiKeys","dryRun":true}'
+npx convex run --prod --inline-query '
+  const keys = await ctx.db.query("apiKeys").take(1001);
+  return {
+    scanned: keys.length,
+    partial: keys.length > 1000,
+    secretWithRawStorage: keys.filter(k => k.keyType === "secret" && !!k.key).length,
+    secretWithoutDigest: keys.filter(k => k.keyType === "secret" && !k.keyHash).length
+  };'
 npx convex run --prod migrations:run \
   '{"fn":"migrations:hashStoredSecretApiKeys"}'
 npx convex run --prod --component migrations lib:getStatus \
   '{"names":["migrations:hashStoredSecretApiKeys"]}' --watch
 ```
 
-The dry run intentionally reports a rollback after checking one batch. The real
-run removes plaintext only after writing its digest and display preview;
+The real run removes plaintext only after writing its digest and display preview;
 publishable and already-clean rows are skipped, so restarting is safe.
 
 Self-hosted deployments that never completed the original row-wise purchase
@@ -770,13 +781,23 @@ from the operator `eventType` filter. After the deploy that adds the column, an
 operator runs the resumable backfill once; CI never runs it. Use the
 deployment selector and status states described under
 [Secret-key storage migration](#secret-key-storage-migration). Rows that already
-carry a type are skipped, so a re-run is safe:
+carry a type are skipped. Use the same read-only preview policy to avoid logging
+delivery documents. The aggregate distinguishes recoverable rows from orphaned
+events; report orphan counts rather than editing or deleting those rows:
 
 ```bash
 npx convex run --prod --component migrations lib:getStatus \
   '{"names":["migrations:backfillOutboundDeliveryEventTypes"]}'
-npx convex run --prod migrations:run \
-  '{"fn":"migrations:backfillOutboundDeliveryEventTypes","dryRun":true}'
+npx convex run --prod --inline-query '
+  const rows = await ctx.db.query("outboundDeliveries").take(1001);
+  let recoverable = 0;
+  let orphan = 0;
+  for (const row of rows) {
+    if (row.eventType !== undefined) continue;
+    if (await ctx.db.get(row.eventId)) recoverable++;
+    else orphan++;
+  }
+  return { scanned: rows.length, partial: rows.length > 1000, recoverable, orphan };'
 npx convex run --prod migrations:run \
   '{"fn":"migrations:backfillOutboundDeliveryEventTypes"}'
 npx convex run --prod --component migrations lib:getStatus \
